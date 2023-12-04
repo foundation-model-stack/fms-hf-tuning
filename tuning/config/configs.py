@@ -29,7 +29,7 @@ class DataArguments:
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default=DEFAULT_OPTIMIZER)
+    # optim: str = field(default=DEFAULT_OPTIMIZER)
     model_max_length: int = field(
         default=DEFAULT_CONTEXT_LENGTH,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},

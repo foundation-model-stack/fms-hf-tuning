@@ -9,5 +9,5 @@ tqdm
 trl
 ninja
 peft
-datasets
+datasets>=2.15.0
 flash-attn
