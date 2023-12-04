@@ -112,8 +112,10 @@ def train():
             exit(-1)
         
         #the below is specific to Llama since it uses sentencepiece tokenizer
+        # TODO: the below code is preparing data in a way that was specificed in  the example code from SFTTrainer for Llama.
+        # This is not accurate for GPTBigCode.
         response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
-        data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer)
+        data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
         trainer = SFTTrainer(
             model=model,
             tokenizer=tokenizer,
