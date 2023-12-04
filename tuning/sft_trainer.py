@@ -6,6 +6,7 @@ import datasets
 
 from tuning.data import tokenizer_data_utils
 from tuning.config import configs
+from tuning.utils.config_utils import get_peft_config
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
@@ -36,15 +37,7 @@ def train():
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    ## TODO: hard coding Lora config right now, we will deal with it later
-    peft_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules = ["q_proj", "v_proj"],
-    )
+    peft_config = get_peft_config(training_args)
 
     model.gradient_checkpointing_enable()
 
