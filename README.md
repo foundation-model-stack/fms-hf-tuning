@@ -58,6 +58,7 @@ torchrun \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
 --data_path $DATA_PATH \
+--bf16 True \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 \
