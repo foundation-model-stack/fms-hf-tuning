@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast
 import fire
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
@@ -55,6 +55,10 @@ def main(**kwargs):
             "bos_token": "<s>",
             "eos_token": "</s>",
             "unk_token": "<unk>",
+            "pad_token": "<pad>",
+        })
+    elif isinstance(tokenizer, GPTNeoXTokenizerFast):
+        tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
     
