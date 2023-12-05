@@ -1,4 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import fire
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
 import torch
@@ -6,7 +7,7 @@ import datasets
 
 from tuning.data import tokenizer_data_utils
 from tuning.config import configs
-from tuning.utils.config_utils import get_peft_config
+from tuning.utils.config_utils import get_peft_config, update_config
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
@@ -25,10 +26,10 @@ class PeftSavingCallback(TrainerCallback):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
 
-def train():
+def main(**kwargs):
     logger = logging.get_logger("sft_trainer")
     parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
@@ -37,7 +38,7 @@ def train():
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    peft_config = get_peft_config(training_args)
+    peft_config = get_peft_config(training_args, kwargs)
 
     model.gradient_checkpointing_enable()
 
@@ -123,6 +124,7 @@ def train():
     
     trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
-    
+
+
 if __name__ == "__main__":
-    train()
+    fire.Fire(main)
