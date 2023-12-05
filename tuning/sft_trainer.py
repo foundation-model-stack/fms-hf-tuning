@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast
 import fire
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
@@ -50,6 +50,15 @@ def main(**kwargs):
         padding_side="right",
         use_fast = True
     )
+    if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
+        num_added_tokens = tokenizer.add_special_tokens({
+            "bos_token": "<s>",
+            "eos_token": "</s>",
+            "unk_token": "<unk>",
+            "pad_token": "<pad>",
+        })
+        assert num_added_tokens in [0, 1], \
+            "LlamaTokenizer should only add one special token - the pad_token, or no tokens if pad token present."
     
     model_max_length = tokenizer.model_max_length
     logger.info(f"Model max length {model_max_length}")
