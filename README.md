@@ -44,6 +44,9 @@ alpaca_ds.to_json("sft_alpaca_data.json")
 
 The `response template` corresponding to the above dataset and the `Llama` tokenizer is: `\n### Response:"`.
 
+The same way can be applied to any dataset, with more info can be found [here](https://huggingface.co/docs/trl/main/en/sft_trainer#format-your-input-prompts).
+
+
 ## Supported Models
 
 Current supported and tested models are `Llama2` (7 and 13B configurations have been tested) and `GPTBigCode`.
@@ -102,3 +105,8 @@ python main.py
 ```
 
 The above runs several tasks with `hendrycksTest-*` being MMLU.
+
+## More Examples
+
+[Prompt Tuning on Twitter Complaints](examples/prompt_tuning_twitter_complaints/README.md)
+
