@@ -44,6 +44,7 @@ tuning/sft_trainer.py  \
 --data_path $DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --peft_method pt \
+--tokenizer_name_or_path $MODEL_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 1  \
 --per_device_eval_batch_size 1  \
