@@ -11,3 +11,4 @@ ninja
 peft
 datasets>=2.15.0
 flash-attn
+fire
