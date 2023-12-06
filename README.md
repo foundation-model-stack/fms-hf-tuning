@@ -54,7 +54,7 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 ## Training
 
 ### Single GPU
-```python
+```bash
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
 
@@ -81,7 +81,7 @@ python tuning/sft_trainer.py  \
 ```
 
 ### Multiple GPUs with FSDP
-```
+```bash
 torchrun \
 --nnodes=1 \
 --nproc_per_node=8 \ 

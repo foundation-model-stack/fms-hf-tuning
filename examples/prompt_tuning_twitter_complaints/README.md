@@ -29,7 +29,7 @@ dataset.to_json("twitter_complaints.json")
 
 ### Prompt Tuning
 We will switch our PEFT method from LORA to Prompt Tuning (pt)
-```python
+```bash
 # replace these with your values
 MODEL_PATH=llama-7b-hf
 DATA_PATH=twitter_complaints.json
