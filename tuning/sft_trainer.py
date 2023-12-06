@@ -102,17 +102,8 @@ def main(**kwargs):
 
     if training_args.packing:
         logger.info("Packing is set to True")
-        trainer = SFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=json_dataset['train'],
-            dataset_text_field=data_args.dataset_text_field,
-            packing=True,
-            args=training_args,
-            max_seq_length=model_max_length,
-            callbacks=callbacks,
-            peft_config=peft_config,
-        )
+        data_collator = None
+        packing = True
     else:
         logger.info("Packing is set to False")
         if data_args.response_template is None:
@@ -122,23 +113,23 @@ def main(**kwargs):
         if data_args.dataset_text_field is None:
             logger.error("Error, dataset_text_field is None, needs to be set for training")
             exit(-1)
-        
-        #the below is specific to Llama since it uses sentencepiece tokenizer
-        # TODO: the below code is preparing data in a way that was specificed in  the example code from SFTTrainer for Llama.
-        # This is not accurate for GPTBigCode.
+
         response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
-        trainer = SFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=json_dataset['train'],
-            data_collator=data_collator,
-            dataset_text_field=data_args.dataset_text_field,
-            args=training_args,
-            max_seq_length=model_max_length,
-            callbacks=callbacks,
-            peft_config=peft_config,
-        )
+        packing = False
+
+    trainer = SFTTrainer(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=json_dataset['train'],
+        packing=packing,
+        data_collator=data_collator,
+        dataset_text_field=data_args.dataset_text_field,
+        args=training_args,
+        max_seq_length=model_max_length,
+        callbacks=callbacks,
+        peft_config=peft_config,
+    )
 
     if run_distributed:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)

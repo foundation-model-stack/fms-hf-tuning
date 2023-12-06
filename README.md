@@ -1,7 +1,7 @@
 # FMS HF Tuning
 
-This repo aims to create basic tuning scripts with support for specific models, assumes the use of Hugging Face `SFTTrainer` and PyTorch FSDP only. Our approach to tuning is:
-1. Models are loaded from Hugging Face `transformers` or the `foundation-model-stack` -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
+This repo provides a basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
+1. Models are loaded from Hugging Face `transformers` or the [foundation-model-stack](https://github.com/foundation-model-stack/foundation-model-stack) -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
 2. Hugging Face `SFTTrainer` for the training loop
 3. `FSDP` as the backend for training
 
@@ -110,16 +110,15 @@ tuning/sft_trainer.py \
 --dataset_text_field "output"
 ```
 
-The above is an example. We would need to tune parameters depending on the model size, data size. The above example has been validated on 8 x A100 80GB.
 
-For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` for proper sharding of the model.
+For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
 
 ## Validation
 
 We can use [`lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness) from EleutherAI for evaluating the generated model. For example, for the Llama-13B model, using the above command and the model at the end of Epoch 5, we evaluated MMLU score to be `53.9` compared to base model to be `52.8`.
 
 How to run the validation:
-```
+```bash
 pip install -U transformers
 pip install -U datasets
 git clone https://github.com/EleutherAI/lm-evaluation-harness
