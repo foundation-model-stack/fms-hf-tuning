@@ -53,6 +53,34 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 
 ## Training
 
+### Single GPU
+```python
+# if you want to use one GPU on multi-gpu machine
+export CUDA_VISIBLE_DEVICES=0
+
+python tuning/sft_trainer.py  \
+--model_name_or_path $MODEL_PATH  \
+--data_path $DATA_PATH  \
+--output_dir $OUTPUT_PATH  \
+--num_train_epochs 5  \
+--per_device_train_batch_size 4  \
+--per_device_eval_batch_size 4  \
+--gradient_accumulation_steps 4  \
+--evaluation_strategy "no"  \
+--save_strategy "epoch"  \
+--learning_rate 1e-5  \
+--weight_decay 0.  \
+--warmup_ratio 0.03  \
+--lr_scheduler_type "cosine"  \
+--logging_steps 1  \
+--include_tokens_per_second  \
+--packing False  \
+--response_template "\n### Response:"  \
+--dataset_text_field "output" 
+
+```
+
+### Multiple GPUs with FSDP
 ```
 torchrun \
 --nnodes=1 \

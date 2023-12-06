@@ -27,9 +27,16 @@ class PeftSavingCallback(TrainerCallback):
 
 
 def main(**kwargs):
+    run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
+
     logger = logging.get_logger("sft_trainer")
     parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
     model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+
+    # make sure to unset FSDP args when running on single gpu
+    if not run_distributed:
+        training_args.fsdp = ""
+        training_args.fsdp_config = {}
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
@@ -132,8 +139,9 @@ def main(**kwargs):
             callbacks=callbacks,
             peft_config=peft_config,
         )
-    
-    trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
+
+    if run_distributed:
+        trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
 
 
