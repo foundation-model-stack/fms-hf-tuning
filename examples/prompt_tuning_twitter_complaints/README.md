@@ -5,7 +5,7 @@ which demonstrates how to apply our tuning to any HF example.
 
 ### Dataset
 
-The first thing is to make a `SFTTrainer`-competible dataset. 
+The first step is to make a `SFTTrainer`-compatible dataset. 
 
 Let's firstly preprocess the data (copied from [here](https://huggingface.co/docs/peft/main/en/task_guides/clm-prompt-tuning#load-dataset)):
 ```python
