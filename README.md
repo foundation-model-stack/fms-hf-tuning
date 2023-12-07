@@ -124,10 +124,10 @@ pip install -U datasets
 git clone https://github.com/EleutherAI/lm-evaluation-harness
 cd lm-evaluation-harness
 pip install -e .
-python main.py 
---model hf-causal 
---model_args pretrained=$MODEL_PATH 
---output_path $OUTPUT_PATH/results.json 
+python main.py \ 
+--model hf-causal \
+--model_args pretrained=$MODEL_PATH \ 
+--output_path $OUTPUT_PATH/results.json \ 
 --tasks boolq,piqa,hellaswag,winogrande,arc_easy,arc_challenge,hendrycksTest-*
 ```
 
