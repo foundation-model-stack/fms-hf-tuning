@@ -68,6 +68,9 @@ def main(**kwargs):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
+    else:
+        logger.error("Unsupported model")
+        exit(-1)
     
     model_max_length = tokenizer.model_max_length
     logger.info(f"Model max length {model_max_length}")
@@ -95,7 +98,8 @@ def main(**kwargs):
     
     # load the data by parsing JSON
     json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    logger.info(f"Dataset length is {len(json_dataset['train'])}")
+    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"data_args.dataset_text_field"] + tokenizer.eos_token})
+    logger.info(f"Dataset length is {len(formatted_dataset)}")
 
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
@@ -113,15 +117,22 @@ def main(**kwargs):
         if data_args.dataset_text_field is None:
             logger.error("Error, dataset_text_field is None, needs to be set for training")
             exit(-1)
-
-        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+        
+        if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
+            response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+        elif isinstance(tokenizer, GPTNeoXTokenizerFast):
+            response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)
+        else:
+            logger.error("Unsupported model")
+            exit(-1)
+        
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
         packing = False
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=json_dataset['train'],
+        train_dataset=formatted_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
