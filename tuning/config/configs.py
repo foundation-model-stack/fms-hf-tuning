@@ -19,7 +19,7 @@ class ModelArguments:
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"}
     )
-    torch_dtype: Optional[str] = "bfloat16"
+    torch_dtype: Optional[torch.dtype | str] = torch.bfloat16
 
 @dataclass
 class DataArguments:
