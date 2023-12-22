@@ -8,6 +8,7 @@ import datasets
 from tuning.data import tokenizer_data_utils
 from tuning.config import configs
 from tuning.utils.config_utils import get_peft_config, update_config
+from tuning.utils.data_type_utils import get_torch_dtype
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
@@ -36,12 +37,12 @@ def main(**kwargs):
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
         training_args.fsdp = ""
-        training_args.fsdp_config = {}
+        training_args.fsdp_config = {'xla':False}
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
