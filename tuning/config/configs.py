@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
+import torch
 import transformers
 
 DEFAULT_CONTEXT_LENGTH=4096
@@ -18,6 +19,7 @@ class ModelArguments:
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"}
     )
+    torch_dtype: Optional[str] = "bfloat16"
 
 @dataclass
 class DataArguments:
