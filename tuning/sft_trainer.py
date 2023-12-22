@@ -8,7 +8,7 @@ import datasets
 from tuning.data import tokenizer_data_utils
 from tuning.config import configs
 from tuning.utils.config_utils import get_peft_config, update_config
-from tuning.utils.data_type_utils import str_to_torch_dtype
+from tuning.utils.data_type_utils import get_torch_dtype
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
@@ -42,7 +42,7 @@ def main(**kwargs):
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
-        torch_dtype=str_to_torch_dtype(model_args.torch_dtype),
+        torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
