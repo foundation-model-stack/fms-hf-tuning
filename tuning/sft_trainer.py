@@ -153,10 +153,7 @@ def train(
 def main(**kwargs):
     parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
     model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-    print(training_args.peft_method)
     tune_config = create_tuning_config(training_args, **kwargs)
-    print(type(tune_config))
-    print(tune_config)
     train(model_args, data_args, training_args, tune_config)
 
 if __name__ == "__main__":

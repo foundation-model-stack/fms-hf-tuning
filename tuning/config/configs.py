@@ -30,7 +30,11 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
-    peft_method: str = "lora"  # None, pt
+    peft_method: Optional[str] = field(
+        default="lora",
+        metadata={"help": "pt, lora or None. PEFT method to use while tuning. \
+                  Either pt for prompt tuning or lora; or None for fine tuning "},
+    )
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     model_max_length: int = field(

@@ -29,14 +29,16 @@ def create_tuning_config(train_config, **kwargs):
         Return:
            peft_config.LoraConfig | peft_config.PromptTuningConfig
     """
-    assert train_config.peft_method in [None, "lora", "pt"], \
+    assert train_config.peft_method in [None, "lora", "pt", "None"], \
         f"peft config {train_config.peft_method} not defined in peft.py"
     if train_config.peft_method == "lora":
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
-    if train_config.peft_method == "pt":
+    elif train_config.peft_method == "pt":
         tune_config = peft_config.PromptTuningConfig()
         update_config(tune_config, **kwargs)
+    else:
+        tune_config=None
     return tune_config
 
 
@@ -47,7 +49,7 @@ def get_peft_config(train_config, tuning_config):
            tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
        Return: HF PEFT config
     """
-    assert train_config.peft_method in [None, "lora", "pt"], \
+    assert train_config.peft_method in [None, "lora", "pt", "None"], \
         f"peft config {train_config.peft_method} not defined in peft.py"
 
     if train_config.peft_method == "lora":
