@@ -13,6 +13,7 @@ from tuning.utils.data_type_utils import get_torch_dtype
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
 from dataclasses import asdict
+from typing import Optional
 
 from peft import LoraConfig
 import os
@@ -32,7 +33,7 @@ def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
-        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
+        tuning_config: Optional[peft_config.LoraConfig | peft_config.PromptTuningConfig] = None
    ):
     """Call the SFTTrainer
 
@@ -40,13 +41,11 @@ def train(
         model args: tuning.config.configs.ModelArguments
         data args: tuning.config.configs.DataArguments
         data args: tuning.config.configs.TrainingArguments
-        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
+        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None for fine tuning
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
-    # parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
-    # model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
