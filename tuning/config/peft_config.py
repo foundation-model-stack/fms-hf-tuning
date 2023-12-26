@@ -1,9 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
-
 @dataclass
-class lora_config:
+class LoraConfig:
     r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(default_factory=lambda: ["q_proj", "v_proj"])
@@ -13,7 +12,7 @@ class lora_config:
 
 
 @dataclass
-class prompt_tuning_config:
+class PromptTuningConfig:
     task_type: str = "CAUSAL_LM"
     prompt_tuning_init: str = "TEXT"
     num_virtual_tokens: int = 8

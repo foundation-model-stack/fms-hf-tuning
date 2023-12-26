@@ -6,12 +6,13 @@ import torch
 import datasets
 
 from tuning.data import tokenizer_data_utils
-from tuning.config import configs
-from tuning.utils.config_utils import get_peft_config, update_config
+from tuning.config import configs, peft_config
+from tuning.utils.config_utils import get_peft_config, create_tuning_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
+from dataclasses import asdict
 
 from peft import LoraConfig
 import os
@@ -27,34 +28,47 @@ class PeftSavingCallback(TrainerCallback):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
 
-def main(**kwargs):
+def train(
+        model_args: configs.ModelArguments,
+        data_args: configs.DataArguments,
+        train_args: configs.TrainingArguments,
+        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
+   ):
+    """Call the SFTTrainer
+
+    Args:
+        model args: tuning.config.configs.ModelArguments
+        data args: tuning.config.configs.DataArguments
+        data args: tuning.config.configs.TrainingArguments
+        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
+    """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
-    parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
-    model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    # parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
+    # model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
-        training_args.fsdp = ""
-        training_args.fsdp_config = {'xla':False}
+        train_args.fsdp = ""
+        train_args.fsdp_config = {'xla':False}
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
+        cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    peft_config = get_peft_config(training_args, kwargs)
+    peft_config = get_peft_config(train_args, tuning_config)
 
     model.gradient_checkpointing_enable()
 
     # TODO: Move these to a config as well
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        model_max_length=training_args.model_max_length,
+        cache_dir=train_args.cache_dir,
+        model_max_length=train_args.model_max_length,
         padding_side="right",
         use_fast = True
     )
@@ -101,7 +115,7 @@ def main(**kwargs):
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
 
-    if training_args.packing:
+    if train_args.packing:
         logger.info("Packing is set to True")
         data_collator = None
         packing = True
@@ -126,7 +140,7 @@ def main(**kwargs):
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
-        args=training_args,
+        args=train_args,
         max_seq_length=model_max_length,
         callbacks=callbacks,
         peft_config=peft_config,
@@ -136,6 +150,14 @@ def main(**kwargs):
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
 
+def main(**kwargs):
+    parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
+    model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    print(training_args.peft_method)
+    tune_config = create_tuning_config(training_args, **kwargs)
+    print(type(tune_config))
+    print(tune_config)
+    train(model_args, data_args, training_args, tune_config)
 
 if __name__ == "__main__":
     fire.Fire(main)

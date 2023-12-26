@@ -41,5 +41,3 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
-    
-    

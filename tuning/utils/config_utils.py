@@ -1,7 +1,7 @@
 from peft import LoraConfig, PromptTuningConfig
-from tuning.config.peft import lora_config, prompt_tuning_config
 from dataclasses import asdict
 
+from tuning.config import peft_config 
 
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
@@ -21,19 +21,39 @@ def update_config(config, **kwargs):
                         # In case of specialized config we can warm user
                         print(f"Warning: {config_name} does not accept parameter: {k}")
 
+def create_tuning_config(train_config, **kwargs):
+    """Create peft_config Tuning config
+       Args:
+           train_config: tuning.config.configs.TrainingArguments
+           kawrgs: parameters to initialize library configs with
+        Return:
+           peft_config.LoraConfig | peft_config.PromptTuningConfig
+    """
+    assert train_config.peft_method in [None, "lora", "pt"], \
+        f"peft config {train_config.peft_method} not defined in peft.py"
+    if train_config.peft_method == "lora":
+        tune_config = peft_config.LoraConfig()
+        update_config(tune_config, **kwargs)
+    if train_config.peft_method == "pt":
+        tune_config = peft_config.PromptTuningConfig()
+        update_config(tune_config, **kwargs)
+    return tune_config
 
-def get_peft_config(train_config, kwargs):
+
+def get_peft_config(train_config, tuning_config):
+    """Accept the train config and parameters and return HF PEFT config for tuning
+       Args:
+           train_config: tuning.config.configs.TrainingArguments
+           tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
+       Return: HF PEFT config
+    """
     assert train_config.peft_method in [None, "lora", "pt"], \
         f"peft config {train_config.peft_method} not defined in peft.py"
 
     if train_config.peft_method == "lora":
-        config = lora_config()
-        update_config(config, **kwargs)
-        peft_config = LoraConfig(**asdict(config))
+        peft_config = LoraConfig(**asdict(tuning_config))
     elif train_config.peft_method == "pt":
-        config = prompt_tuning_config()
-        update_config(config, **kwargs)
-        peft_config = PromptTuningConfig(**asdict(config))
+        peft_config = PromptTuningConfig(**asdict(tuning_config))
     else:
         peft_config = None  # full parameter tuning
 
