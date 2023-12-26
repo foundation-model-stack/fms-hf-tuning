@@ -27,7 +27,7 @@ def create_tuning_config(train_config, **kwargs):
            train_config: tuning.config.configs.TrainingArguments
            kawrgs: parameters to initialize library configs with
         Return:
-           peft_config.LoraConfig | peft_config.PromptTuningConfig
+           peft_config.LoraConfig | peft_config.PromptTuningConfig | None
     """
     assert train_config.peft_method in [None, "lora", "pt", "None"], \
         f"peft config {train_config.peft_method} not defined in peft.py"
@@ -38,7 +38,7 @@ def create_tuning_config(train_config, **kwargs):
         tune_config = peft_config.PromptTuningConfig()
         update_config(tune_config, **kwargs)
     else:
-        tune_config=None
+        tune_config = None # full parameter tuning
     return tune_config
 
 
@@ -46,8 +46,8 @@ def get_peft_config(train_config, tuning_config):
     """Accept the train config and parameters and return HF PEFT config for tuning
        Args:
            train_config: tuning.config.configs.TrainingArguments
-           tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
-       Return: HF PEFT config
+           tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+       Return: HF PEFT config or None
     """
     assert train_config.peft_method in [None, "lora", "pt", "None"], \
         f"peft config {train_config.peft_method} not defined in peft.py"
