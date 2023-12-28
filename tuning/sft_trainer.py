@@ -13,7 +13,7 @@ from tuning.utils.data_type_utils import get_torch_dtype
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
 from dataclasses import asdict
-from typing import Optional
+from typing import Optional, Union
 
 from peft import LoraConfig
 import os
@@ -33,7 +33,7 @@ def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
-        peft_config: Optional[peft_config.LoraConfig | peft_config.PromptTuningConfig] = None,
+        peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
    ):
     """Call the SFTTrainer
 
