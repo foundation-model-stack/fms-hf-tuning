@@ -7,7 +7,7 @@ import datasets
 
 from tuning.data import tokenizer_data_utils
 from tuning.config import configs, peft_config
-from tuning.utils.config_utils import get_peft_config, create_tuning_config
+from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
 from aim_loader import get_aimstack_callback
@@ -33,25 +33,33 @@ def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
-        tuning_config: Optional[peft_config.LoraConfig | peft_config.PromptTuningConfig] = None
+        peft_config: Optional[peft_config.LoraConfig | peft_config.PromptTuningConfig] = None,
    ):
     """Call the SFTTrainer
 
     Args:
-        model args: tuning.config.configs.ModelArguments
-        data args: tuning.config.configs.DataArguments
-        data args: tuning.config.configs.TrainingArguments
-        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None for fine tuning
+        model_args: tuning.config.configs.ModelArguments
+        data_args: tuning.config.configs.DataArguments
+        train_args: tuning.config.configs.TrainingArguments
+        peft_config: peft_config.LoraConfig for Lora tuning | \
+          peft_config.PromptTuningConfig for prompt tuning | \
+          None for fine tuning
+            The peft configuration to pass to trainer
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
+
+    # Validate parameters
+    if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
+        raise ValueError("num_train_epochs has to be an integer/float >= 1")
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
         train_args.fsdp = ""
         train_args.fsdp_config = {'xla':False}
 
+    task_type = "CAUSAL_LM"
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
@@ -59,7 +67,7 @@ def train(
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    peft_config = get_peft_config(train_args, tuning_config)
+    peft_config = get_hf_peft_config(task_type, peft_config)
 
     model.gradient_checkpointing_enable()
 
@@ -150,9 +158,19 @@ def train(
     trainer.train()
 
 def main(**kwargs):
-    parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
-    model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-    tune_config = create_tuning_config(training_args, **kwargs)
+    parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
+                                                            configs.DataArguments,
+                                                            configs.TrainingArguments,
+                                                            peft_config.LoraConfig,
+                                                            peft_config.PromptTuningConfig))
+    parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
+    model_args, data_args, training_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    if peft_method =="lora":
+        tune_config=lora_config
+    elif peft_method =="pt":
+        tune_config=prompt_tuning_config
+    else:
+        tune_config=None
     train(model_args, data_args, training_args, tune_config)
 
 if __name__ == "__main__":
