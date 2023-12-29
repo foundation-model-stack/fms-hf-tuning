@@ -53,6 +53,8 @@ def train(
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
+    if (not isinstance(train_args.gradient_accumulation_steps , int)) or (train_args.gradient_accumulation_steps <= 0):
+        raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
