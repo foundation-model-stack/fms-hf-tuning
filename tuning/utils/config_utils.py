@@ -1,7 +1,7 @@
 from peft import LoraConfig, PromptTuningConfig
-from tuning.config.peft import lora_config, prompt_tuning_config
 from dataclasses import asdict
 
+from tuning.config import peft_config 
 
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
@@ -21,20 +21,40 @@ def update_config(config, **kwargs):
                         # In case of specialized config we can warm user
                         print(f"Warning: {config_name} does not accept parameter: {k}")
 
-
-def get_peft_config(train_config, kwargs):
-    assert train_config.peft_method in [None, "lora", "pt"], \
-        f"peft config {train_config.peft_method} not defined in peft.py"
-
-    if train_config.peft_method == "lora":
-        config = lora_config()
-        update_config(config, **kwargs)
-        peft_config = LoraConfig(**asdict(config))
-    elif train_config.peft_method == "pt":
-        config = prompt_tuning_config()
-        update_config(config, **kwargs)
-        peft_config = PromptTuningConfig(**asdict(config))
+def create_tuning_config(peft_method, **kwargs):
+    """Create peft_config Tuning config
+       Args:
+           peft_method: str 
+              lora, pt or None
+           kawrgs: parameters to initialize library configs with
+        Return:
+           peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+    """
+    assert peft_method in [None, "lora", "pt", "None"], \
+        f"peft config {peft_method} not defined in peft.py"
+    if peft_method == "lora":
+        tune_config = peft_config.LoraConfig()
+        update_config(tune_config, **kwargs)
+    elif peft_method == "pt":
+        tune_config = peft_config.PromptTuningConfig()
+        update_config(tune_config, **kwargs)
     else:
-        peft_config = None  # full parameter tuning
+        tune_config = None # full parameter tuning
+    return tune_config
 
-    return peft_config
+
+def get_hf_peft_config(task_type, tuning_config):
+    """Return HF PEFT config for tuning based on type of tuning config passed
+       Args:
+           task_type: str
+           tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+       Return: HF PEFT config or None
+    """
+    if isinstance(tuning_config, peft_config.LoraConfig):
+        hf_peft_config = LoraConfig(task_type=task_type, **asdict(tuning_config))
+    elif isinstance(tuning_config, peft_config.PromptTuningConfig):
+        hf_peft_config = PromptTuningConfig(task_type=task_type, **asdict(tuning_config))
+    else:
+        hf_peft_config = None  # full parameter tuning
+
+    return hf_peft_config
