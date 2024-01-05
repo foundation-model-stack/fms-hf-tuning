@@ -28,12 +28,21 @@ class PeftSavingCallback(TrainerCallback):
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
+#We need this at the moment to be able to run inference of prompt tuned models in TGIS
+class PromptTuningSavingCallback(TrainerCallback):
+    def on_save(self, args, state, control, **kwargs):
+        checkpoint_path = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+        kwargs["model"].save_pretrained(checkpoint_path, safe_serialization=False)
+
+        if "adapter_model.bin" in os.listdir(checkpoint_path):
+            os.rename(os.path.join(checkpoint_path, "adapter_model.bin"), 
+                      os.path.join(checkpoint_path, "decoder.pt"))
 
 def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
-        peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
+        peft_config_args: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
    ):
     """Call the SFTTrainer
 
@@ -41,8 +50,8 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        peft_config: peft_config.LoraConfig for Lora tuning | \
-          peft_config.PromptTuningConfig for prompt tuning | \
+        peft_config_args: tuning.config.peft_config.LoraConfig for Lora tuning | \
+          tuning.config.peft_config.PromptTuningConfig for prompt tuning | \
           None for fine tuning
             The peft configuration to pass to trainer
     """
@@ -69,7 +78,7 @@ def train(
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    peft_config = get_hf_peft_config(task_type, peft_config)
+    hf_peft_config = get_hf_peft_config(task_type, peft_config_args)
 
     model.gradient_checkpointing_enable()
 
@@ -122,7 +131,11 @@ def train(
     logger.info(f"Dataset length is {len(json_dataset['train'])}")
 
     aim_callback = get_aimstack_callback()
-    callbacks=[aim_callback,PeftSavingCallback()]
+
+    if type(peft_config_args) == peft_config.PromptTuningConfig:
+        callbacks=[aim_callback,PromptTuningSavingCallback()]
+    else:
+        callbacks=[aim_callback,PeftSavingCallback()]
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -152,7 +165,7 @@ def train(
         args=train_args,
         max_seq_length=model_max_length,
         callbacks=callbacks,
-        peft_config=peft_config,
+        peft_config=hf_peft_config,
     )
 
     if run_distributed:
