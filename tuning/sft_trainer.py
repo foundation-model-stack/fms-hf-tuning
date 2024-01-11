@@ -10,7 +10,7 @@ from tuning.config import configs, peft_config
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
-from aim_loader import get_aimstack_callback
+from tuning.aim_loader import get_aimstack_callback
 from transformers.utils import logging
 from dataclasses import asdict
 from typing import Optional, Union
