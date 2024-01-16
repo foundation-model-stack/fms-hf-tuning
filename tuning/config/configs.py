@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
+import torch
 import transformers
 
 DEFAULT_CONTEXT_LENGTH=4096
@@ -18,6 +19,7 @@ class ModelArguments:
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"}
     )
+    torch_dtype: Optional[Union[torch.dtype , str]] = torch.bfloat16
 
 @dataclass
 class DataArguments:
@@ -28,7 +30,6 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
-    peft_method: str = "lora"  # None, pt
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     model_max_length: int = field(
@@ -39,5 +40,3 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
-    
-    

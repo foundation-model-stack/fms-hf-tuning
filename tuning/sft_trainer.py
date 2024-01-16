@@ -6,11 +6,14 @@ import torch
 import datasets
 
 from tuning.data import tokenizer_data_utils
-from tuning.config import configs
-from tuning.utils.config_utils import get_peft_config, update_config
+from tuning.config import configs, peft_config
+from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.data_type_utils import get_torch_dtype
 
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
+from dataclasses import asdict
+from typing import Optional, Union
 
 from peft import LoraConfig
 import os
@@ -26,34 +29,55 @@ class PeftSavingCallback(TrainerCallback):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
 
-def main(**kwargs):
+def train(
+        model_args: configs.ModelArguments,
+        data_args: configs.DataArguments,
+        train_args: configs.TrainingArguments,
+        peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
+   ):
+    """Call the SFTTrainer
+
+    Args:
+        model_args: tuning.config.configs.ModelArguments
+        data_args: tuning.config.configs.DataArguments
+        train_args: tuning.config.configs.TrainingArguments
+        peft_config: peft_config.LoraConfig for Lora tuning | \
+          peft_config.PromptTuningConfig for prompt tuning | \
+          None for fine tuning
+            The peft configuration to pass to trainer
+    """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
-    parser = transformers.HfArgumentParser((configs.ModelArguments, configs.DataArguments, configs.TrainingArguments))
-    model_args, data_args, training_args, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+
+    # Validate parameters
+    if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
+        raise ValueError("num_train_epochs has to be an integer/float >= 1")
+    if (not isinstance(train_args.gradient_accumulation_steps , int)) or (train_args.gradient_accumulation_steps <= 0):
+        raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
-        training_args.fsdp = ""
-        training_args.fsdp_config = {}
+        train_args.fsdp = ""
+        train_args.fsdp_config = {'xla':False}
 
+    task_type = "CAUSAL_LM"
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        torch_dtype=torch.bfloat16,
+        cache_dir=train_args.cache_dir,
+        torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
     
-    peft_config = get_peft_config(training_args, kwargs)
+    peft_config = get_hf_peft_config(task_type, peft_config)
 
     model.gradient_checkpointing_enable()
 
     # TODO: Move these to a config as well
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        model_max_length=training_args.model_max_length,
+        cache_dir=train_args.cache_dir,
+        model_max_length=train_args.model_max_length,
         padding_side="right",
         use_fast = True
     )
@@ -104,7 +128,7 @@ def main(**kwargs):
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
 
-    if training_args.packing:
+    if train_args.packing:
         logger.info("Packing is set to True")
         data_collator = None
         packing = True
@@ -136,7 +160,7 @@ def main(**kwargs):
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
-        args=training_args,
+        args=train_args,
         max_seq_length=model_max_length,
         callbacks=callbacks,
         peft_config=peft_config,
@@ -146,6 +170,21 @@ def main(**kwargs):
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
 
+def main(**kwargs):
+    parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
+                                                            configs.DataArguments,
+                                                            configs.TrainingArguments,
+                                                            peft_config.LoraConfig,
+                                                            peft_config.PromptTuningConfig))
+    parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
+    model_args, data_args, training_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    if peft_method.peft_method =="lora":
+        tune_config=lora_config
+    elif peft_method.peft_method =="pt":
+        tune_config=prompt_tuning_config
+    else:
+        tune_config=None
+    train(model_args, data_args, training_args, tune_config)
 
 if __name__ == "__main__":
     fire.Fire(main)
