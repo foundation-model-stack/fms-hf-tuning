@@ -124,7 +124,7 @@ def train(
     
     # load the data by parsing JSON
     json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"data_args.dataset_text_field"] + tokenizer.eos_token})
+    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
     logger.info(f"Dataset length is {len(formatted_dataset)}")
 
     aim_callback = get_aimstack_callback()
