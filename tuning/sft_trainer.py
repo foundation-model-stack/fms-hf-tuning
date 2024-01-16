@@ -88,10 +88,12 @@ def train(
             "unk_token": "<unk>",
             "pad_token": "<pad>",
         })
+        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
     elif isinstance(tokenizer, GPTNeoXTokenizerFast):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
+        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)
     else:
         logger.error("Unsupported model")
         exit(-1)
@@ -140,14 +142,6 @@ def train(
         
         if data_args.dataset_text_field is None:
             logger.error("Error, dataset_text_field is None, needs to be set for training")
-            exit(-1)
-        
-        if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
-            response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
-        elif isinstance(tokenizer, GPTNeoXTokenizerFast):
-            response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)
-        else:
-            logger.error("Unsupported model")
             exit(-1)
         
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
