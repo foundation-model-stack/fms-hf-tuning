@@ -88,16 +88,15 @@ def train(
             "unk_token": "<unk>",
             "pad_token": "<pad>",
         })
-        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
     elif isinstance(tokenizer, GPTNeoXTokenizerFast):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
-        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)
     else:
         logger.error("Unsupported model")
         exit(-1)
     
+    response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
     model_max_length = tokenizer.model_max_length
     logger.info(f"Model max length {model_max_length}")
     
