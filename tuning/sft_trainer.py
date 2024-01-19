@@ -155,7 +155,7 @@ def train(
         peft_config=peft_config,
     )
 
-    if run_distributed:
+    if run_distributed and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
 
