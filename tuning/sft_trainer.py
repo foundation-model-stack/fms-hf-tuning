@@ -95,7 +95,10 @@ def train(
         logger.error("Unsupported model")
         exit(-1)
     
+    print(data_args.response_template)
     response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+    print(response_template_ids)
+    print(tokenizer.decode(response_template_ids))
     model_max_length = tokenizer.model_max_length
     logger.info(f"Model max length {model_max_length}")
     
@@ -157,7 +160,11 @@ def train(
         callbacks=callbacks,
         peft_config=peft_config,
     )
-
+    dataloader = trainer.get_train_dataloader()
+    batch_output = dataloader.collate_fn(dataloader.dataset.to_list())
+    example_to_compare_index = 0
+    output = {k:v[example_to_compare_index] for k, v in batch_output.data.items()}
+    print(output)
     if run_distributed:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
