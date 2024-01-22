@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
 import fire
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
@@ -80,6 +80,8 @@ def train(
         model_max_length=train_args.model_max_length,
         use_fast = True
     )
+
+    # TODO: understand if we need to hardcode these here or just use defaults in model
     if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
         tokenizer.add_special_tokens({
             "bos_token": "<s>",
@@ -87,15 +89,17 @@ def train(
             "unk_token": "<unk>",
             "pad_token": "<pad>",
         })
-    elif isinstance(tokenizer, GPTNeoXTokenizerFast):
+    if isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(tokenizer, GPT2Tokenizer):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
-    else:
-        logger.error("Unsupported model")
-        exit(-1)
-    
+
+    """TODO: near term - how response template ids are parsed out needs to be cleaned.
+       The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
+       We will create issue to clean this out after we discuss data formats and collators we will support
+    """
     response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+
     model_max_length = tokenizer.model_max_length
     logger.info(f"Model max length {model_max_length}")
     
@@ -114,6 +118,8 @@ def train(
         logger.warning("UNK token set to default, missing in tokenizer")
         special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
 
+    # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
+    # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
     tokenizer_data_utils.tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
