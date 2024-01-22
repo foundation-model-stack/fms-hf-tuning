@@ -13,7 +13,7 @@ from tuning.utils.data_type_utils import get_torch_dtype
 from aim_loader import get_aimstack_callback
 from transformers.utils import logging
 from dataclasses import asdict
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from peft import LoraConfig
 import os
@@ -33,6 +33,7 @@ def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
+        callbacks: List[TrainerCallback],
         peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
    ):
     """Call the SFTTrainer
@@ -121,8 +122,6 @@ def train(
     json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
     logger.info(f"Dataset length is {len(json_dataset['train'])}")
 
-    aim_callback = get_aimstack_callback()
-    callbacks=[aim_callback,PeftSavingCallback()]
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -173,7 +172,8 @@ def main(**kwargs):
         tune_config=prompt_tuning_config
     else:
         tune_config=None
-    train(model_args, data_args, training_args, tune_config)
+    callbacks = [get_aimstack_callback(), PeftSavingCallback()]
+    train(model_args, data_args, training_args, callbacks, tune_config)
 
 if __name__ == "__main__":
     fire.Fire(main)
