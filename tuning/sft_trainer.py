@@ -10,7 +10,7 @@ from tuning.config import configs, peft_config
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
-from aim_loader import get_aimstack_callback
+from tuning.aim_loader import get_aimstack_callback
 from transformers.utils import logging
 from dataclasses import asdict
 from typing import Optional, Union
@@ -99,9 +99,11 @@ def train(
        We will create issue to clean this out after we discuss data formats and collators we will support
     """
     response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
-
-    model_max_length = tokenizer.model_max_length
+    
+    model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
     logger.info(f"Model max length {model_max_length}")
+    if train_args.model_max_length > tokenizer.model_max_length:
+        logger.warning(f"model_max_length {model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
     
     # TODO: we need to change this, perhaps follow what open instruct does?
     special_tokens_dict = dict()
