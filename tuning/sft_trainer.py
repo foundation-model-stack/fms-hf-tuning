@@ -77,7 +77,6 @@ def train(
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
-        model_max_length=train_args.model_max_length,
         padding_side="right",
         use_fast = True
     )
@@ -96,7 +95,7 @@ def train(
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
     logger.info(f"Model max length {model_max_length}")
     if train_args.model_max_length > tokenizer.model_max_length:
-        logger.warning(f"model_max_length {model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
+        logger.warning(f"model_max_length {train_args.model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
     
     # TODO: we need to change this, perhaps follow what open instruct does?
     special_tokens_dict = dict()
