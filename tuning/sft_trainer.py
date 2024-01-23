@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
 import fire
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
@@ -77,9 +77,10 @@ def train(
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
-        padding_side="right",
         use_fast = True
     )
+
+    # TODO: understand if we need to hardcode these here or just use defaults in model
     if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
         tokenizer.add_special_tokens({
             "bos_token": "<s>",
@@ -87,11 +88,18 @@ def train(
             "unk_token": "<unk>",
             "pad_token": "<pad>",
         })
-    elif isinstance(tokenizer, GPTNeoXTokenizerFast):
+    elif isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(tokenizer, GPT2Tokenizer):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
-    
+
+    """TODO: near term - how response template ids are parsed out needs to be cleaned.
+       The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
+       We will create issue to clean this out after we discuss data formats and collators we will support
+    """
+    response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+    # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length 
+    # as in current main. We need to change name of this parameter we expose to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
     logger.info(f"Model max length {model_max_length}")
     if train_args.model_max_length > tokenizer.model_max_length:
@@ -112,6 +120,8 @@ def train(
         logger.warning("UNK token set to default, missing in tokenizer")
         special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
 
+    # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
+    # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
     tokenizer_data_utils.tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
@@ -120,7 +130,8 @@ def train(
     
     # load the data by parsing JSON
     json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    logger.info(f"Dataset length is {len(json_dataset['train'])}")
+    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
+    logger.info(f"Dataset length is {len(formatted_dataset)}")
 
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
@@ -138,15 +149,14 @@ def train(
         if data_args.dataset_text_field is None:
             logger.error("Error, dataset_text_field is None, needs to be set for training")
             exit(-1)
-
-        response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+        
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
         packing = False
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=json_dataset['train'],
+        train_dataset=formatted_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
