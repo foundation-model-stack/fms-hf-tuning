@@ -77,7 +77,6 @@ def train(
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
-        model_max_length=train_args.model_max_length,
         use_fast = True
     )
 
@@ -89,7 +88,7 @@ def train(
             "unk_token": "<unk>",
             "pad_token": "<pad>",
         })
-    if isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(tokenizer, GPT2Tokenizer):
+    elif isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(tokenizer, GPT2Tokenizer):
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
@@ -99,11 +98,12 @@ def train(
        We will create issue to clean this out after we discuss data formats and collators we will support
     """
     response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
-    
+    # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length 
+    # as in current main. We need to change name of this parameter we expose to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
     logger.info(f"Model max length {model_max_length}")
     if train_args.model_max_length > tokenizer.model_max_length:
-        logger.warning(f"model_max_length {model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
+        logger.warning(f"model_max_length {train_args.model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
     
     # TODO: we need to change this, perhaps follow what open instruct does?
     special_tokens_dict = dict()
