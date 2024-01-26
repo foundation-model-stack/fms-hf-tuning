@@ -12,6 +12,8 @@ from tuning.utils.data_type_utils import get_torch_dtype
 
 from tuning.aim_loader import get_aimstack_callback
 from transformers.utils import logging
+from transformers.modeling_utils import unwrap_model, PreTrainedModel
+from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from dataclasses import asdict
 from typing import Optional, Union
 
@@ -22,11 +24,18 @@ from peft.utils.other import fsdp_auto_wrap_policy
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
-        checkpoint_path = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
-        kwargs["model"].save_pretrained(checkpoint_path)
 
-        if "pytorch_model.bin" in os.listdir(checkpoint_path):
-            os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
+        # in case of peft_config=None, (i.e. full parameter tuning), there is no adapter needed to save separately
+        if isinstance(kwargs["model"], PreTrainedModel) or isinstance(unwrap_model(kwargs["model"]), PreTrainedModel):
+            return
+
+        checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+        peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
+        kwargs["model"].save_pretrained(peft_model_path)
+
+        pytorch_model_path = os.path.join(checkpoint_folder, "pytorch_model.bin")
+        if os.path.exists(pytorch_model_path):
+            os.remove(pytorch_model_path)
 
 
 def train(
