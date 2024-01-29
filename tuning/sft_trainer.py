@@ -137,6 +137,7 @@ def train(
     formatted_train_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
     logger.info(f"Dataset length is {len(formatted_train_dataset)}")
 
+    formatted_validation_dataset = None
     if data_args.validation_data_path:
         formatted_validation_dataset = json_dataset['validation'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
         logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
@@ -165,6 +166,7 @@ def train(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
