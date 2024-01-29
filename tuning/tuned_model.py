@@ -41,12 +41,19 @@ def main():
         description="Loads a tuned model and runs an inference call(s) through it"
     )
     parser.add_argument("--model", help="Path to tuned model to be loaded", required=True)
-
+    parser.add_argument(
+        "--base_model_name_or_path",
+        help="Override for base model to be used [default: value in model adapter_config.json]",
+        default=None
+    )
     parser.add_argument("--text", "-t", help="Text to be processed", required=True)
     args = parser.parse_args()
 
     # Load the model
-    loaded_model = TunedCausalLM.load(checkpoint_path=args.model)
+    loaded_model = TunedCausalLM.load(
+        checkpoint_path=args.model,
+        base_model_name_or_path=args.base_model_name_or_path,
+    )
     # Run inference on the model
     res = loaded_model.run(args.text)
     print(res)
