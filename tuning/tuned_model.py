@@ -18,11 +18,22 @@ class TunedCausalLM:
     @classmethod
     def load(cls, checkpoint_path: str, base_model_name_or_path: str=None) -> "TunedCausalLM":
         """Loads an instance of this model.
-        
+
+        Args:
+            checkpoint_path: str
+                Checkpoint model to be loaded, which is a directory containing an
+                adapter_config.json.
+            base_model_name_or_path: str [Default: None]
+                Override for the base model to be used.
+
         By default, the paths for the base model and tokenizer are contained within the adapter
         config of the tuned model. Note that in this context, a path may refer to a model to be
         downloaded from HF hub, or a local path on disk, the latter of which we must be careful
         with when using a model that was written on a different device.
+
+        Returns:
+            TunedCausalLM
+                An instance of this class on which we can run inference.
         """
         overrides = {"base_model_name_or_path": base_model_name_or_path} if base_model_name_or_path is not None else {}
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
@@ -36,12 +47,23 @@ class TunedCausalLM:
                 raise e
         return cls(peft_model, tokenizer)
 
+
     def run(self, text: str) -> str:
-        """Runs inference on an instance of this model."""
+        """Runs inference on an instance of this model.
+
+        Args:
+            text: str
+                Text on which we want to run inference.
+
+        Returns:
+            str
+                Text generation result.          
+        """
         input_ids = self.tokenizer(text, return_tensors="pt").input_ids
         peft_outputs = self.peft_model.generate(input_ids=input_ids)
         decoded_result = self.tokenizer.batch_decode(peft_outputs, skip_special_tokens=False)[0]
         return decoded_result
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -88,6 +110,7 @@ def main():
     # Export the results to a file
     with open(args.out_file, "w") as out_file:
         json.dump(results, out_file, sort_keys=True, indent=4)
+
 
 if __name__ == "__main__":
     main()
