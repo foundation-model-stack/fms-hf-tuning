@@ -19,7 +19,9 @@ class AdapterConfigPatcher:
     def _apply_config_changes(self, overrides: dict):
         """Applies a patch to a config with some override dict, returning the values
         that we patched over so that they may be restored later."""
-        
+        # If we have no overrides, this context manager is a noop; no need to do anything
+        if not overrides:
+            return {}
         with open(self.config_path, "r") as config_file:
             adapter_config = json.load(config_file)
         overridden_values = self._get_old_config_values(adapter_config, overrides)
