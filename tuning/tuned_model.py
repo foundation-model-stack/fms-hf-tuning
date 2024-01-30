@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from peft import AutoPeftModelForCausalLM
 from peft.utils.other import fsdp_auto_wrap_policy
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast
 from transformers.utils import logging
 from transformers import TrainerCallback
@@ -30,9 +31,10 @@ class PeftSavingCallback(TrainerCallback):
 
 
 class TunedCausalLM:
-    def __init__(self, model, tokenizer):
+    def __init__(self, model, tokenizer, device):
         self.peft_model = model
         self.tokenizer = tokenizer
+        self.device = device
 
     @classmethod
     def load(cls, checkpoint_path: str, base_model_name_or_path: str=None) -> "TunedCausalLM":
@@ -64,7 +66,10 @@ class TunedCausalLM:
             except OSError as e:
                 print("Failed to initialize checkpoint model!")
                 raise e
-        return cls(peft_model, tokenizer)
+        device = "cuda" if torch.cuda.is_available() else None
+        print(f"Inferred device: {device}")
+        peft_model.to(device)
+        return cls(peft_model, tokenizer, device)
 
 
     def run(self, text: str) -> str:
@@ -78,7 +83,9 @@ class TunedCausalLM:
             str
                 Text generation result.          
         """
-        input_ids = self.tokenizer(text, return_tensors="pt").input_ids
+        tok_res = self.tokenizer(text, return_tensors="pt")
+        input_ids = tok_res.input_ids.to(self.device)
+
         peft_outputs = self.peft_model.generate(input_ids=input_ids)
         decoded_result = self.tokenizer.batch_decode(peft_outputs, skip_special_tokens=False)[0]
         return decoded_result
