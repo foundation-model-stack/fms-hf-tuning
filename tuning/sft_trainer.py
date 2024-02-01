@@ -12,12 +12,13 @@ from tuning.utils.data_type_utils import get_torch_dtype
 
 from tuning.aim_loader import get_aimstack_callback
 from transformers.utils import logging
+from transformers import IntervalStrategy
 from dataclasses import asdict
 from typing import Optional, Union
 
 from peft import LoraConfig
 import os
-from transformers import TrainerCallback
+from transformers import TrainerCallback, EarlyStoppingCallback
 from peft.utils.other import fsdp_auto_wrap_policy
 
 class PeftSavingCallback(TrainerCallback):
@@ -27,7 +28,6 @@ class PeftSavingCallback(TrainerCallback):
 
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
-
 
 def train(
         model_args: configs.ModelArguments,
@@ -133,8 +133,21 @@ def train(
     formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
     logger.info(f"Dataset length is {len(formatted_dataset)}")
 
-    aim_callback = get_aimstack_callback()
-    callbacks=[aim_callback,PeftSavingCallback()]
+    # Gather and registed callbacks
+
+    callbacks=[get_aimstack_callback(), PeftSavingCallback()]
+
+    if train_args.activate_early_stopping:
+        train_args.evaluation_strategy = IntervalStrategy.EPOCH
+        train_args.save_strategy = IntervalStrategy.EPOCH
+        train_args.load_best_model_at_end = True
+        # According to docs https://huggingface.co/docs/transformers/v4.37.2/en/main_classes/trainer#transformers.TrainingArguments.metric_for_best_model
+        # This defaults to loss so we are not setting it right now. Will test and set later.
+        # train_args.metric_for_best_model = 'avg_loss'
+        train_args.greater_is_better = False
+
+        # We need to compare every epoch so we specify patience as 1.
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -153,7 +166,7 @@ def train(
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
         packing = False
 
-    trainer = SFTTrainer(
+    trainer = SFTTrainer (
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_dataset,

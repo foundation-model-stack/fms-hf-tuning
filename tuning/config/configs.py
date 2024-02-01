@@ -40,3 +40,12 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+    activate_early_stopping: Optional[bool] = field (
+        default=False,
+        metadata={"help": "Add early stopping callback."},
+    ) 
+    # TODO: Implement eval/train strategy
+    early_stopping_strategy: Optional[str] = field(
+        default="eval",
+        metadata={"help": "eval/train stage to early stop."}
+    )
