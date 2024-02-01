@@ -40,3 +40,7 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+    profiling: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable Profiling, default is False"},
+    )
