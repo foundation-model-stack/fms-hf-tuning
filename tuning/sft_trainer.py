@@ -167,6 +167,11 @@ def train(
     )
 
     if run_distributed and peft_config is not None:
+        if not hasattr(trainer.accelerator.state, "fsdp_plugin"):
+            raise AttributeError(
+                "Accelerator state has no attr fsdp_plugin! Hint: did you set ACCELERATE_USE_FSDP?"
+            )
+        
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
 
