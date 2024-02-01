@@ -55,7 +55,9 @@ class FileLoggingCallback(TrainerCallback):
         train_loss.json in the model output dir (if it doesn't already exist),
         appends the subdict of the log & dumps the file.
         """
-
+        # All processes get the logs from this node; only update from process 0.
+        if not state.is_world_process_zero:
+            return
         log_file_path = os.path.join(args.output_dir, "train_loss.json")
         if logs is not None:
             try:
