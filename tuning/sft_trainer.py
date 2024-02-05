@@ -1,4 +1,5 @@
 # Standard
+from datetime import datetime
 from typing import Optional, Union
 import json
 import os
@@ -43,38 +44,38 @@ class PeftSavingCallback(TrainerCallback):
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
-    # Keys to be exported from the log dict
-    log_keys = ["loss", "epoch"]
-
     def __init__(self, logger):
         self.logger = logger
-        self.existing_logs = []
 
     def on_log(self, args, state, control, logs=None, **kwargs):
         """Checks if this log contains keys of interest, e.g., los, and if so, creates
-        train_loss.json in the model output dir (if it doesn't already exist),
+        train_loss.jsonl in the model output dir (if it doesn't already exist),
         appends the subdict of the log & dumps the file.
         """
         # All processes get the logs from this node; only update from process 0.
         if not state.is_world_process_zero:
             return
-        log_file_path = os.path.join(args.output_dir, "train_loss.json")
-        if logs is not None:
+
+        log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
+        if logs is not None and "loss" in logs and "epoch" in logs:
             try:
                 # Take the subdict of the last log line; if any log_keys aren't part of this log
                 # object, asssume this line is something else, e.g., train completion, and skip.
-                log_obj = {k: logs[k] for k in FileLoggingCallback.log_keys}
+                log_obj = {
+                    "name": "loss",
+                    "data": {
+                        "epoch": round(logs["epoch"], 2),
+                        "step": state.global_step,
+                        "value": logs["loss"],
+                        "timestamp": datetime.isoformat(datetime.now())
+                    }
+                }
             except KeyError:
                 return
 
-            # Redump the json file in the checkpoint directory with the updated log line
-            self.existing_logs.append(log_obj)
-            with open(log_file_path, "w") as log_file:
-                json.dump(self.existing_logs, log_file, sort_keys=True, indent=4)
-        else:
-            # In general, this shouldn't happen, but the file logger should never crash
-            # the training; if we have nothing to log, just warn to the console.
-            self.logger.warning("File logging callback invoked, but logs are None")
+            # append the current log to the jsonl file
+            with open(log_file_path, "a") as log_file:
+                log_file.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
 
 def train(
