@@ -114,15 +114,16 @@ tuning/sft_trainer.py \
 For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
 
 ## Inference
-This repository provides a script for loading a tuned checkpoint and running inference over one or more examples. For a full list of options run `python tuning/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
+Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
 
 ### Running a single example
 If you want to run a single example through a model, you can pass it with the `--text` flag.
 
 ```bash
-python tuning/run_inference.py \
+python scripts/run_inference.py \
 --model my_checkpoint \
 --text "This is a text the model will run inference on" \
+--max_new_tokens 50 \
 --out_file result.json
 ```
 
@@ -136,9 +137,10 @@ And this is the second text to be processed.
 ```
 
 ```bash
-python tuning/run_inference.py \
+python scripts/run_inference.py \
 --model my_checkpoint \
 --text_file source_texts.txt \
+--max_new_tokens 50 \
 --out_file result.json
 ```
 
