@@ -21,6 +21,12 @@ def main():
         help="Override for base model to be used [default: value in model adapter_config.json]",
         default=None
     )
+    parser.add_argument(
+        "--max_new_tokens",
+        help="max new tokens to use for inference",
+        type=int,
+        default=20,
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--text", help="Text to run inference on")
     group.add_argument("--text_file", help="File to be processed where each line is a text to run inference on")
@@ -44,7 +50,7 @@ def main():
 
     # TODO: we should add batch inference support
     results = [
-        {"input": text, "output": loaded_model.run(text)}
+        {"input": text, "output": loaded_model.run(text, max_new_tokens=args.max_new_tokens)}
         for text in tqdm(texts)
     ]
 
