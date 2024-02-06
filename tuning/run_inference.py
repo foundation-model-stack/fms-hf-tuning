@@ -3,8 +3,75 @@
 import argparse
 import json
 import os
+from peft import AutoPeftModelForCausalLM
+import torch
 from tqdm import tqdm
-from tuning.tuned_model import TunedCausalLM
+from transformers import AutoTokenizer
+from tuning.utils import AdapterConfigPatcher
+
+
+class TunedCausalLM:
+    def __init__(self, model, tokenizer, device):
+        self.peft_model = model
+        self.tokenizer = tokenizer
+        self.device = device
+
+    @classmethod
+    def load(cls, checkpoint_path: str, base_model_name_or_path: str=None) -> "TunedCausalLM":
+        """Loads an instance of this model.
+
+        Args:
+            checkpoint_path: str
+                Checkpoint model to be loaded, which is a directory containing an
+                adapter_config.json.
+            base_model_name_or_path: str [Default: None]
+                Override for the base model to be used.
+
+        By default, the paths for the base model and tokenizer are contained within the adapter
+        config of the tuned model. Note that in this context, a path may refer to a model to be
+        downloaded from HF hub, or a local path on disk, the latter of which we must be careful
+        with when using a model that was written on a different device.
+
+        Returns:
+            TunedCausalLM
+                An instance of this class on which we can run inference.
+        """
+        overrides = {"base_model_name_or_path": base_model_name_or_path} if base_model_name_or_path is not None else {}
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
+        # Apply the configs to the adapter config of this model; if no overrides
+        # are provided, then the context manager doesn't have any effect.
+        with AdapterConfigPatcher(checkpoint_path, overrides):
+            try:
+                peft_model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
+            except OSError as e:
+                print("Failed to initialize checkpoint model!")
+                raise e
+        device = "cuda" if torch.cuda.is_available() else None
+        print(f"Inferred device: {device}")
+        peft_model.to(device)
+        return cls(peft_model, tokenizer, device)
+
+
+    def run(self, text: str, *, max_new_tokens: int) -> str:
+        """Runs inference on an instance of this model.
+
+        Args:
+            text: str
+                Text on which we want to run inference.
+            max_new_tokens: int
+                Max new tokens to use for inference.
+
+        Returns:
+            str
+                Text generation result.          
+        """
+        tok_res = self.tokenizer(text, return_tensors="pt")
+        input_ids = tok_res.input_ids.to(self.device)
+
+        peft_outputs = self.peft_model.generate(input_ids=input_ids, max_new_tokens=max_new_tokens)
+        decoded_result = self.tokenizer.batch_decode(peft_outputs, skip_special_tokens=False)[0]
+        return decoded_result
+
 
 def main():
     parser = argparse.ArgumentParser(
