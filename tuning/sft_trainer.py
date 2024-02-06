@@ -1,24 +1,20 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
-import fire
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
-import transformers
-import torch
-import datasets
-
-from tuning.data import tokenizer_data_utils
-from tuning.config import configs, peft_config
-from tuning.utils.config_utils import get_hf_peft_config
-from tuning.utils.data_type_utils import get_torch_dtype
-
-from tuning.aim_loader import get_aimstack_callback
-from transformers.utils import logging
-from dataclasses import asdict
+import os
 from typing import Optional, Union
 
-from peft import LoraConfig
-import os
-from transformers import TrainerCallback
+import datasets
+import fire
 from peft.utils.other import fsdp_auto_wrap_policy
+import torch
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
+from transformers.utils import logging
+from transformers import TrainerCallback
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from tuning.aim_loader import get_aimstack_callback
+from tuning.config import configs, peft_config
+from tuning.data import tokenizer_data_utils
+from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.data_type_utils import get_torch_dtype
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -29,12 +25,13 @@ class PeftSavingCallback(TrainerCallback):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
 
+
 def train(
-        model_args: configs.ModelArguments,
-        data_args: configs.DataArguments,
-        train_args: configs.TrainingArguments,
-        peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
-   ):
+    model_args: configs.ModelArguments,
+    data_args: configs.DataArguments,
+    train_args: configs.TrainingArguments,
+    peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
+):
     """Call the SFTTrainer
 
     Args:
@@ -42,8 +39,8 @@ def train(
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
         peft_config: peft_config.LoraConfig for Lora tuning | \
-          peft_config.PromptTuningConfig for prompt tuning | \
-          None for fine tuning
+        peft_config.PromptTuningConfig for prompt tuning | \
+        None for fine tuning
             The peft configuration to pass to trainer
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
@@ -62,7 +59,7 @@ def train(
         train_args.fsdp_config = {'xla':False}
 
     task_type = "CAUSAL_LM"
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
@@ -74,7 +71,7 @@ def train(
     model.gradient_checkpointing_enable()
 
     # TODO: Move these to a config as well
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         use_fast = True
@@ -169,6 +166,7 @@ def train(
     if run_distributed and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
+
 
 def main(**kwargs):
     parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
