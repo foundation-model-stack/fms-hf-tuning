@@ -1,4 +1,12 @@
 """CLI for running loading a tuned model and running one or more inference calls on it.
+
+NOTE: For the moment, this script is intentionally written to contain all dependencies for two
+reasons:
+- to keep it portable and not deal with managing multiple local packages.
+- because we don't currently plan on supporting inference as a library; i.e., this is only for
+testing.
+
+If these things change in the future, we should consider breaking it up.
 """
 import argparse
 import json
