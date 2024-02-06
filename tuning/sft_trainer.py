@@ -11,7 +11,6 @@ from transformers.utils import logging
 from transformers import TrainerCallback
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from tuning.aim_loader import get_aimstack_callback
-from tuning.tuned_model import TunedCausalLM
 from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
