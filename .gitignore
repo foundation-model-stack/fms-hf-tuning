@@ -1,0 +1,15 @@
+input-dir
+output-dir
+tuning/__pycache__
+tuning/__pycache__/*
+tuning/config/__pycache__
+tuning/config/__pycache__/*
+tuning/data/__pycache__
+tuning/data/__pycache__/*
+tuning/utils/__pycache__
+tuning/utils/__pycache__/*
+tuning.egg-info
+data-preprocess.py
+run-gt.sh
+run.sh
+.aim

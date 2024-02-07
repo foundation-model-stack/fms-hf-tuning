@@ -1,0 +1,23 @@
+apiVersion: tcrules.fmshftuning.io/v1alpha1
+kind: TrainingControlDeclaration
+metadata:
+  name: sample-tc-def-step
+spec:
+  controlDefinition:
+    - controlBlock:
+        name: sliding-window-avg-loss-trigger
+        trigger: on_step_end
+        class: 
+          name: AverageOverLossWindow
+          config:
+            sample_window: 5
+        control-operation:
+          should_training_stop: True
+        rules: |
+          {">" : [ { "var" : "avg_loss" }, 2.5 ]}
+
+
+
+
+
+

@@ -12,3 +12,4 @@ peft
 datasets>=2.15.0
 flash-attn
 fire
+json-logic==0.7.0a0

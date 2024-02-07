@@ -9,6 +9,7 @@ from tuning.data import tokenizer_data_utils
 from tuning.config import configs, peft_config
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.callbacks import PolicyDrivenTrainerControl
 
 from tuning.aim_loader import get_aimstack_callback
 from transformers.utils import logging
@@ -18,7 +19,7 @@ from typing import Optional, Union
 
 from peft import LoraConfig
 import os
-from transformers import TrainerCallback, EarlyStoppingCallback
+from transformers import TrainerCallback
 from peft.utils.other import fsdp_auto_wrap_policy
 
 class PeftSavingCallback(TrainerCallback):
@@ -33,6 +34,7 @@ def train(
         model_args: configs.ModelArguments,
         data_args: configs.DataArguments,
         train_args: configs.TrainingArguments,
+        train_control_args: configs.PTCArguments,
         peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
    ):
     """Call the SFTTrainer
@@ -49,7 +51,6 @@ def train(
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
-
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
@@ -137,7 +138,7 @@ def train(
 
     callbacks=[get_aimstack_callback(), PeftSavingCallback()]
 
-    if train_args.activate_early_stopping:
+    if train_control_args.activate_early_stopping:
         train_args.evaluation_strategy = IntervalStrategy.EPOCH
         train_args.save_strategy = IntervalStrategy.EPOCH
         train_args.load_best_model_at_end = True
@@ -147,7 +148,7 @@ def train(
         train_args.greater_is_better = False
 
         # We need to compare every epoch so we specify patience as 1.
-        callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
+        callbacks.append(PolicyDrivenTrainerControl(train_control_args))
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -170,6 +171,7 @@ def train(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_dataset,
+        eval_dataset=formatted_dataset, # Remove this later
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
@@ -187,17 +189,19 @@ def main(**kwargs):
     parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
                                                             configs.DataArguments,
                                                             configs.TrainingArguments,
+                                                            configs.PTCArguments,
                                                             peft_config.LoraConfig,
                                                             peft_config.PromptTuningConfig))
     parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
-    model_args, data_args, training_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    model_args, data_args, training_args, trainer_control_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
     if peft_method.peft_method =="lora":
         tune_config=lora_config
     elif peft_method.peft_method =="pt":
         tune_config=prompt_tuning_config
     else:
         tune_config=None
-    train(model_args, data_args, training_args, tune_config)
+    
+    train(model_args, data_args, training_args, trainer_control_args, tune_config)
 
 if __name__ == "__main__":
     fire.Fire(main)

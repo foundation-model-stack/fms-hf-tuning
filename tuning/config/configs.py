@@ -40,12 +40,36 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+
+@dataclass
+class PTCArguments():
     activate_early_stopping: Optional[bool] = field (
         default=False,
         metadata={"help": "Add early stopping callback."},
     ) 
+
     # TODO: Implement eval/train strategy
     early_stopping_strategy: Optional[str] = field(
         default="eval",
         metadata={"help": "eval/train stage to early stop."}
     )
+
+    early_stopping_patience: Optional[int] = field(
+        default=1,
+        metadata={"help": "Stopping patience."}
+    )
+
+    early_stopping_threshold: Optional[float] = field(
+        default=0.0,
+        metadata={"help": "Stopping threshold."}
+    )
+
+    traning_control_definition_file: str = field(
+        default="training_control_definition.yaml",
+        metadata={
+            "help": (
+                "Training control definition file in YAML format. This contains rules defined in the rules format from: https://pypi.org/project/json-logic/"
+            )
+        },
+    )
+
