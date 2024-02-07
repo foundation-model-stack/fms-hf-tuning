@@ -126,9 +126,21 @@ def train(
     )
     
     # load the data by parsing JSON
-    json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
-    logger.info(f"Dataset length is {len(formatted_dataset)}")
+    # TODO: update arg from data_path to training_data_path since we also have validation_data_path
+    data_files = {"train": data_args.data_path}
+    if data_args.validation_data_path:
+        data_files["validation"] = data_args.validation_data_path
+
+    format_dataset = lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token}
+
+    json_dataset = datasets.load_dataset('json', data_files=data_files)
+    formatted_train_dataset = json_dataset['train'].map(format_dataset)
+    logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
+
+    formatted_validation_dataset = None
+    if data_args.validation_data_path:
+        formatted_validation_dataset = json_dataset['validation'].map(format_dataset)
+        logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
 
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
@@ -153,7 +165,8 @@ def train(
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=formatted_dataset,
+        train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
