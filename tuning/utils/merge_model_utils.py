@@ -2,9 +2,14 @@ import argparse
 import json
 import os
 from peft import PeftModel
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-def create_merged_model(checkpoint_model: str, export_path: str=None, base_model: str=None):
+def create_merged_model(
+    checkpoint_model: str,
+    export_path: str=None,
+    base_model: str=None,
+    save_tokenizer: bool=True
+):
     """Given a base model & a checkpoint model containing adapters, which were tuned with lora,
     load both into memory & create a merged model. If an export path is specified, write it
     to disk.
@@ -17,6 +22,9 @@ def create_merged_model(checkpoint_model: str, export_path: str=None, base_model
         base_model: str
             Base model to be leveraged. If no base model is specified, the base model is pulled
             from the checkpoint model's adapter config.
+        save_tokenizer: bool
+            Indicates whether or not we should save the tokenizer from the base model. Only
+            used if the export_path is set.
 
     Returns:
         transformers model
@@ -29,6 +37,10 @@ def create_merged_model(checkpoint_model: str, export_path: str=None, base_model
     model_combined = model_combined.merge_and_unload()
     if export_path is not None:
         model_combined.save_pretrained(export_path)
+        # Export the tokenizer into the merged model dir
+        if save_tokenizer:
+            tokenizer = AutoTokenizer.from_pretrained(base_model)
+            tokenizer.save_pretrained(export_path)
     return model_combined
 
 
@@ -62,10 +74,12 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_model", help="Path to the checkpoint [tuned lora model]", required=True)
     parser.add_argument("--export_path", help="Path to write the merged model to", required=True)
     parser.add_argument("--base_model", help="Base model to be used [default=None; infers from adapter config]", default=None)
+    parser.add_argument("--save_tokenizer", default=False, action="store_true", help="Whether or not we should export the tokenizer to the export_path")
     args = parser.parse_args()
 
     create_merged_model(
         checkpoint_model=args.checkpoint_model,
         export_path=args.export_path,
         base_model=args.base_model,
+        save_tokenizer=args.save_tokenizer,
     )
