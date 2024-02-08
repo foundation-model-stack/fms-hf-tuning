@@ -4,9 +4,10 @@ from typing import Optional, Union
 import datasets
 import fire
 from peft.utils.other import fsdp_auto_wrap_policy
+import json
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, default_data_collator, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
 from transformers.utils import logging
 from transformers import TrainerCallback
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
@@ -15,6 +16,7 @@ from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.data_format_utils import preprocess_function
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -89,12 +91,7 @@ def train(
         tokenizer.add_special_tokens({
             "pad_token": "<pad>",
         })
-
-    """TODO: near term - how response template ids are parsed out needs to be cleaned.
-       The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
-       We will create issue to clean this out after we discuss data formats and collators we will support
-    """
-    response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+    
     # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length 
     # as in current main. We need to change name of this parameter we expose to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
@@ -124,11 +121,6 @@ def train(
         tokenizer=tokenizer,
         model=model,
     )
-    
-    # load the data by parsing JSON
-    json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
-    logger.info(f"Dataset length is {len(formatted_dataset)}")
 
     aim_callback = get_aimstack_callback()
     callbacks=[aim_callback,PeftSavingCallback()]
@@ -139,15 +131,30 @@ def train(
         packing = True
     else:
         logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            logger.error("Error, response template is None, needs to be set for training")
-            exit(-1)
+        if data_args.response_template is None and data_args.dataset_text_field is None:
+            dataset_text_field = None
+            data_collator = default_data_collator
+            formatted_dataset=preprocess_function(data_args.data_path, tokenizer, train_args.model_max_length)
+            train_args.max_steps=2
+        else: 
+            if data_args.response_template is None:
+               logger.error("Error, response template is None, needs to be set for training to parse dataset_text_field")
+               exit(-1)
         
-        if data_args.dataset_text_field is None:
-            logger.error("Error, dataset_text_field is None, needs to be set for training")
-            exit(-1)
-        
-        data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
+            if data_args.dataset_text_field is None:
+                logger.error("Error, response template is set, but dataset_text_field is None. It needs to be set for training")
+                exit(-1)
+            """TODO: near term - how response template ids are parsed out needs to be cleaned.
+            The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
+            We will create issue to clean this out after we discuss data formats and collators we will support
+            """
+            response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
+            # load the data by parsing JSON
+            json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
+            formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
+            logger.info(f"Dataset length is {len(formatted_dataset)}")
+            data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
+            dataset_text_field = data_args.dataset_text_field
         packing = False
 
     trainer = SFTTrainer(
@@ -156,7 +163,7 @@ def train(
         train_dataset=formatted_dataset,
         packing=packing,
         data_collator=data_collator,
-        dataset_text_field=data_args.dataset_text_field,
+        dataset_text_field=dataset_text_field,
         args=train_args,
         max_seq_length=model_max_length,
         callbacks=callbacks,
