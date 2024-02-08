@@ -13,3 +13,4 @@ data-preprocess.py
 run-gt.sh
 run.sh
 .aim
+*.bkp

@@ -24,6 +24,7 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data in JSONL format."})
+    validation_data_path: str = field(default=None, metadata={"help": "Path to the training validation data in JSONL format."})
     response_template: str = field(default=None, metadata={"help": "Response template, separator to train on completions only"})
     dataset_text_field: str = field(default=None, metadata={"help": "Training dataset text field"})
 

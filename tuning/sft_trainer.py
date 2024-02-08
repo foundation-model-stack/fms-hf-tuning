@@ -1,26 +1,21 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
-import fire
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
-import transformers
-import torch
-import datasets
-
-from tuning.data import tokenizer_data_utils
-from tuning.config import configs, peft_config
-from tuning.utils.config_utils import get_hf_peft_config
-from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.callbacks import PolicyDrivenTrainerControl
-
-from tuning.aim_loader import get_aimstack_callback
-from transformers.utils import logging
-from transformers import IntervalStrategy
-from dataclasses import asdict
+import os
 from typing import Optional, Union
 
-from peft import LoraConfig
-import os
-from transformers import TrainerCallback
+import datasets
+import fire
 from peft.utils.other import fsdp_auto_wrap_policy
+import torch
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer, IntervalStrategy
+from transformers.utils import logging
+from transformers import TrainerCallback
+from tuning.callbacks import PolicyDrivenTrainerControl
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from tuning.aim_loader import get_aimstack_callback
+from tuning.config import configs, peft_config
+from tuning.data import tokenizer_data_utils
+from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.data_type_utils import get_torch_dtype
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -30,27 +25,31 @@ class PeftSavingCallback(TrainerCallback):
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
+
+
 def train(
-        model_args: configs.ModelArguments,
-        data_args: configs.DataArguments,
-        train_args: configs.TrainingArguments,
-        train_control_args: configs.PTCArguments,
-        peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
-   ):
+    model_args: configs.ModelArguments,
+    data_args: configs.DataArguments,
+    train_args: configs.TrainingArguments,
+    train_control_args: configs.PTCArguments,
+    peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
+):
     """Call the SFTTrainer
 
     Args:
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
+        train_control_args: configs.PTCArguments
         peft_config: peft_config.LoraConfig for Lora tuning | \
-          peft_config.PromptTuningConfig for prompt tuning | \
-          None for fine tuning
+        peft_config.PromptTuningConfig for prompt tuning | \
+        None for fine tuning
             The peft configuration to pass to trainer
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
     logger = logging.get_logger("sft_trainer")
+
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
@@ -63,7 +62,7 @@ def train(
         train_args.fsdp_config = {'xla':False}
 
     task_type = "CAUSAL_LM"
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
@@ -75,7 +74,7 @@ def train(
     model.gradient_checkpointing_enable()
 
     # TODO: Move these to a config as well
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         use_fast = True
@@ -130,25 +129,24 @@ def train(
     )
     
     # load the data by parsing JSON
-    json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
-    logger.info(f"Dataset length is {len(formatted_dataset)}")
+    # TODO: update arg from data_path to training_data_path since we also have validation_data_path
+    data_files = {"train": data_args.data_path}
+    if data_args.validation_data_path:
+        data_files["validation"] = data_args.validation_data_path
 
-    # Gather and registed callbacks
+    format_dataset = lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token}
 
-    callbacks=[get_aimstack_callback(), PeftSavingCallback()]
+    json_dataset = datasets.load_dataset('json', data_files=data_files)
+    formatted_train_dataset = json_dataset['train'].map(format_dataset)
+    logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
 
-    if train_control_args.activate_early_stopping:
-        train_args.evaluation_strategy = IntervalStrategy.EPOCH
-        train_args.save_strategy = IntervalStrategy.EPOCH
-        train_args.load_best_model_at_end = True
-        # According to docs https://huggingface.co/docs/transformers/v4.37.2/en/main_classes/trainer#transformers.TrainingArguments.metric_for_best_model
-        # This defaults to loss so we are not setting it right now. Will test and set later.
-        # train_args.metric_for_best_model = 'avg_loss'
-        train_args.greater_is_better = False
+    formatted_validation_dataset = None
+    if data_args.validation_data_path:
+        formatted_validation_dataset = json_dataset['validation'].map(format_dataset)
+        logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
 
-        # We need to compare every epoch so we specify patience as 1.
-        callbacks.append(PolicyDrivenTrainerControl(train_control_args))
+    aim_callback = get_aimstack_callback()
+    callbacks=[aim_callback,PeftSavingCallback()]
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -167,11 +165,24 @@ def train(
         data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
         packing = False
 
-    trainer = SFTTrainer (
+    # Early stopping configuration
+    if train_control_args.activate_early_stopping:
+        train_args.evaluation_strategy = IntervalStrategy.EPOCH
+        train_args.save_strategy = IntervalStrategy.EPOCH
+        train_args.load_best_model_at_end = True
+        # According to docs https://huggingface.co/docs/transformers/v4.37.2/en/main_classes/trainer#transformers.TrainingArguments.metric_for_best_model
+        # This defaults to loss so we are not setting it right now. Will test and set later.
+        # train_args.metric_for_best_model = 'avg_loss'
+        train_args.greater_is_better = False
+
+    # Trainer control callback 
+    callbacks.append(PolicyDrivenTrainerControl(train_control_args))
+
+    trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=formatted_dataset,
-        eval_dataset=formatted_dataset, # Remove this later
+        train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
@@ -184,6 +195,7 @@ def train(
     if run_distributed and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     trainer.train()
+
 
 def main(**kwargs):
     parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
@@ -200,7 +212,6 @@ def main(**kwargs):
         tune_config=prompt_tuning_config
     else:
         tune_config=None
-    
     train(model_args, data_args, training_args, trainer_control_args, tune_config)
 
 if __name__ == "__main__":
