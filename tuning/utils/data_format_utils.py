@@ -4,7 +4,19 @@ from transformers import AutoTokenizer
 from transformers.utils import logging
 import torch
 import json
-from datasets import IterableDataset
+from datasets import Dataset
+
+from torch.utils.data import Dataset as DatasetTorch
+ 
+class HFDataset(DatasetTorch):
+    def __init__(self, dset):
+        self.dset = dset
+
+    def __getitem__(self, idx):
+        return self.dset[idx]
+
+    def __len__(self):
+        return len(self.dset)
 
 logger = logging.get_logger("sft_trainer")
 def preprocess_function(
@@ -18,7 +30,7 @@ def preprocess_function(
             "max_seq_length": max_seq_length,
         }
 
-        dataset = IterableDataset.from_generator(
+        dataset = Dataset.from_generator(
             get, gen_kwargs={"train_file": data_path}
         )
         mapped_dataset = dataset.map(
@@ -30,7 +42,8 @@ def preprocess_function(
             remove_columns=["input", "output"],
         )
 
-        return mapped_dataset
+        return HFDataset(mapped_dataset)
+
 
 
 def tokenize_function(
@@ -124,6 +137,7 @@ def causal_lm_padding_as_seq2seq(
         # whole combined sequence
         sample_input_ids = model_inputs["input_ids"]
         label_input_ids = labels["input_ids"] + [FINAL_TOK_ID]
+        #print(label_input_ids)
         model_inputs["input_ids"] = sample_input_ids + label_input_ids
         labels["input_ids"] = [IGNORE_ID] * len(sample_input_ids) + label_input_ids
         model_inputs["attention_mask"] = [1] * len(model_inputs["input_ids"])
@@ -168,7 +182,7 @@ def get(train_file):
 def infer_max_steps(
     num_epochs: int,
     batch_size: int,
-    training_dataset: IterableDataset,
+    training_dataset: Dataset,
 ):
     # Calculate the number of samples that we have
     if isinstance(training_dataset, Dataset):
@@ -193,6 +207,7 @@ def infer_max_steps(
 #     )
 # stream = preprocess_function('/Users/sukritisharma/workspace/fms-hf-tuning/dataset_twitter.json', tokenizer, 100000)
 # print(type(stream))
+# #print(stream.dset['labels'])
 
 
 

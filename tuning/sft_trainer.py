@@ -135,7 +135,7 @@ def train(
             dataset_text_field = None
             data_collator = default_data_collator
             formatted_dataset=preprocess_function(data_args.data_path, tokenizer, train_args.model_max_length)
-            train_args.max_steps=infer_max_steps(train_args.num_train_epochs, train_args.per_device_train_batch_size, formatted_dataset)
+            train_args.max_steps=int(infer_max_steps(int(train_args.num_train_epochs), train_args.per_device_train_batch_size, formatted_dataset))
         else: 
             if data_args.response_template is None:
                logger.error("Error, response template is None, needs to be set for training to parse dataset_text_field")
