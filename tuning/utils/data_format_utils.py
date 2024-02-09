@@ -8,15 +8,18 @@ from datasets import Dataset
 
 from torch.utils.data import Dataset as DatasetTorch
  
-class HFDataset(DatasetTorch):
-    def __init__(self, dset):
-        self.dset = dset
+## this is needed to convert HFDataset to torch.utils.Dataset
+## torch.utils.Dataset is needed by SFT TRainer to bypass prepare_dataset
+##  https://github.com/huggingface/trl/blob/main/trl/trainer/sft_trainer.py#L370C67-L370C91
+# class HFDataset(DatasetTorch):
+#     def __init__(self, dset):
+#         self.dset = dset
 
-    def __getitem__(self, idx):
-        return self.dset[idx]
+#     def __getitem__(self, idx):
+#         return self.dset[idx]
 
-    def __len__(self):
-        return len(self.dset)
+#     def __len__(self):
+#         return len(self.dset)
 
 logger = logging.get_logger("sft_trainer")
 def preprocess_function(
@@ -42,9 +45,7 @@ def preprocess_function(
             remove_columns=["input", "output"],
         )
 
-        return HFDataset(mapped_dataset)
-
-
+        return mapped_dataset
 
 def tokenize_function(
         example: Mapping,
