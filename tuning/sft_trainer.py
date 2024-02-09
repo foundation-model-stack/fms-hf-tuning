@@ -189,7 +189,9 @@ def main(**kwargs):
                                                             peft_config.PromptTuningConfig))
     parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
     model_args, data_args, training_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-    if peft_method.peft_method =="lora":
+    if peft_method.peft_method == "lora":
+        if lora_config.target_modules == ["all-linear"]:
+            lora_config.target_modules = "all-linear"
         tune_config=lora_config
     elif peft_method.peft_method =="pt":
         tune_config=prompt_tuning_config
