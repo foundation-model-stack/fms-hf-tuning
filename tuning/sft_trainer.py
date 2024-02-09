@@ -16,7 +16,7 @@ from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.utils.data_format_utils import preprocess_function
+from tuning.utils.data_format_utils import infer_max_steps, preprocess_function
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -135,7 +135,7 @@ def train(
             dataset_text_field = None
             data_collator = default_data_collator
             formatted_dataset=preprocess_function(data_args.data_path, tokenizer, train_args.model_max_length)
-            train_args.max_steps=2
+            train_args.max_steps=infer_max_steps(train_args.num_train_epochs, train_args.per_device_train_batch_size, formatted_dataset)
         else: 
             if data_args.response_template is None:
                logger.error("Error, response template is None, needs to be set for training to parse dataset_text_field")

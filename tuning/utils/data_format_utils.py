@@ -175,6 +175,28 @@ def get(train_file):
         print(data)
         yield {"input": data["input"], "output": data["output"]}
 
+def infer_max_steps(
+    num_epochs: int,
+    batch_size: int,
+    training_dataset: IterableDataset,
+):
+    # Calculate the number of samples that we have
+    if isinstance(training_dataset, Dataset):
+        data_len = len(training_dataset)
+    else:
+        data_len = 0
+        for _ in training_dataset:
+            data_len += 1
+    # Figure out how many batches we'll have per epoch
+    num_batches = data_len // batch_size
+    # Assume drop_last=False; in general, this doesn't really matter.
+    # We mostly do this to avoid strange behavior when the dataset
+    # size is smaller than the batch size.
+    if num_batches != (data_len * batch_size):
+        num_batches += 1
+    num_steps = num_batches * num_epochs
+    return num_steps
+
 # tokenizer = AutoTokenizer.from_pretrained(
 #         '/Users/sukritisharma/workspace/fms-hf-tuning/tuned_models/llama_float32_50_epochs',
 #         use_fast = True
