@@ -21,7 +21,6 @@ def preprocess_function(
         dataset = IterableDataset.from_generator(
             get, gen_kwargs={"train_file": data_path}
         )
-        print("Step 1:", dataset)
         mapped_dataset = dataset.map(
             tokenize_function,
             fn_kwargs=fn_kwargs,
@@ -62,11 +61,11 @@ def tokenize_function(
         """
         ### Things common to all Causal LM tokenization approaches
         # Extract the source & target from our provided inputs
-        print(example)
+        #print(example)
         if 'input' not in example or 'output' not in example:
             logger.error("Input and output fields must be present in JSON.")
         source, target = example["input"], example["output"]
-        print(source, target)
+        #print(source, target)
 
         # Treat this as a seq2seq type problem. Note that this implementation is different
         # from the seq2seq tokenization function even though it is conceptually similar due
@@ -119,19 +118,14 @@ def causal_lm_padding_as_seq2seq(
         # Truncate based on max source or max target length before considering as a joined sequence
         model_inputs = tokenizer(source)
         labels = tokenizer(target)
-        print(model_inputs)
         # Combine the source + target strings into the source input IDs
         # This makes the source and target the same length, and then masks the source out of the
         # target IDs, and updates the length of the attention vector to be evenly spread on the
         # whole combined sequence
         sample_input_ids = model_inputs["input_ids"]
         label_input_ids = labels["input_ids"] + [FINAL_TOK_ID]
-        print("label inputs")
-        print(label_input_ids)
         model_inputs["input_ids"] = sample_input_ids + label_input_ids
         labels["input_ids"] = [IGNORE_ID] * len(sample_input_ids) + label_input_ids
-        print("label inputs")
-        print(labels["input_ids"])
         model_inputs["attention_mask"] = [1] * len(model_inputs["input_ids"])
         
         # Now we have to update everything to be the max length of the tokenizer, then pad &
@@ -141,9 +135,6 @@ def causal_lm_padding_as_seq2seq(
         ]  # NOTE - combined source + target + <FINAL_TOK_ID>
 
         label_input_ids = labels["input_ids"]
-        print("next")
-        print(model_inputs["attention_mask"])
-        print(model_inputs)
         model_inputs = tokenizer.pad(
             model_inputs, padding="max_length", max_length=max_concat_length
         )
@@ -172,7 +163,6 @@ def get(train_file):
     f = open (train_file, "r")
     train_stream = [json.loads(line) for line in f]
     for data in train_stream:
-        print(data)
         yield {"input": data["input"], "output": data["output"]}
 
 def infer_max_steps(
