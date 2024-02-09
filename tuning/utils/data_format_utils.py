@@ -3,37 +3,39 @@ from collections.abc import Mapping
 from transformers import AutoTokenizer
 from transformers.utils import logging
 import torch
+from typing import Union
 import json
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 
 from torch.utils.data import Dataset as DatasetTorch
  
 ## this is needed to convert HFDataset to torch.utils.Dataset
 ## torch.utils.Dataset is needed by SFT TRainer to bypass prepare_dataset
 ##  https://github.com/huggingface/trl/blob/main/trl/trainer/sft_trainer.py#L370C67-L370C91
-# class HFDataset(DatasetTorch):
-#     def __init__(self, dset):
-#         self.dset = dset
+class HFDataset(DatasetTorch):
+    def __init__(self, dset):
+        self.dset = dset
 
-#     def __getitem__(self, idx):
-#         return self.dset[idx]
+    def __getitem__(self, idx):
+        return self.dset[idx]
 
-#     def __len__(self):
-#         return len(self.dset)
+    def __len__(self):
+        return len(self.dset)
 
 logger = logging.get_logger("sft_trainer")
 def preprocess_function(
         data_path: str,
         tokenizer: AutoTokenizer,
-        max_seq_length: int
+        max_seq_length: int,
+        use_iterable_dataset: bool = False
     ):
         """Pre-process each example to get it prepared for training."""
         fn_kwargs = {
             "tokenizer": tokenizer,
             "max_seq_length": max_seq_length,
         }
-
-        dataset = Dataset.from_generator(
+        dataset_type = IterableDataset if use_iterable_dataset else Dataset
+        dataset = dataset_type.from_generator(
             get, gen_kwargs={"train_file": data_path}
         )
         mapped_dataset = dataset.map(
@@ -44,8 +46,10 @@ def preprocess_function(
             # happily when operating on batched inputs for causal language modeling.
             remove_columns=["input", "output"],
         )
-
-        return mapped_dataset
+        if dataset_type == IterableDataset:
+            return mapped_dataset
+        else:
+            return HFDataset(mapped_dataset)
 
 def tokenize_function(
         example: Mapping,
@@ -183,7 +187,7 @@ def get(train_file):
 def infer_max_steps(
     num_epochs: int,
     batch_size: int,
-    training_dataset: Dataset,
+    training_dataset: Union[Dataset, IterableDataset],
 ):
     # Calculate the number of samples that we have
     if isinstance(training_dataset, Dataset):
@@ -206,7 +210,7 @@ def infer_max_steps(
 #         '/Users/sukritisharma/workspace/fms-hf-tuning/tuned_models/llama_float32_50_epochs',
 #         use_fast = True
 #     )
-# stream = preprocess_function('/Users/sukritisharma/workspace/fms-hf-tuning/dataset_twitter.json', tokenizer, 100000)
+# stream = preprocess_function('/Users/sukritisharma/workspace/fms-hf-tuning/dataset_twitter.json', tokenizer, 100000, use_iterable_dataset=True)
 # print(type(stream))
 # #print(stream.dset['labels'])
 
