@@ -130,7 +130,11 @@ def causal_lm_padding_as_seq2seq(
         """
         IGNORE_ID = -100
         # ID of the token to append after our target string; this should generally be pad / EOS
-        FINAL_TOK_ID = tokenizer.eos_token_id
+        if tokenizer.eos_token_id is not None:
+            FINAL_TOK_ID = tokenizer.eos_token_id
+        # Fall back to using pad token id no EOS token is defined
+        else:
+            FINAL_TOK_ID = tokenizer.pad_token_id
         max_concat_length = max_seq_length
 
         # Truncate based on max source or max target length before considering as a joined sequence
@@ -146,7 +150,7 @@ def causal_lm_padding_as_seq2seq(
         model_inputs["input_ids"] = sample_input_ids + label_input_ids
         labels["input_ids"] = [IGNORE_ID] * len(sample_input_ids) + label_input_ids
         model_inputs["attention_mask"] = [1] * len(model_inputs["input_ids"])
-        
+
         # Now we have to update everything to be the max length of the tokenizer, then pad &
         # ensure all of the padded stuff we have added has attention weights of 0.
         sample_input_ids = model_inputs[
