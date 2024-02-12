@@ -26,13 +26,11 @@ logger = logging.get_logger("sft_trainer")
 def preprocess_function(
         data_path: str,
         tokenizer: AutoTokenizer,
-        max_seq_length: int,
         use_iterable_dataset: bool = False
     ):
         """Pre-process each example to get it prepared for training."""
         fn_kwargs = {
             "tokenizer": tokenizer,
-            "max_seq_length": max_seq_length,
         }
         dataset_type = IterableDataset if use_iterable_dataset else Dataset
         dataset = dataset_type.from_generator(
@@ -55,7 +53,6 @@ def preprocess_function(
 def tokenize_function(
         example: Mapping,
         tokenizer: AutoTokenizer,
-        max_seq_length: int,
     ) ->  "BatchEncoding":
         """Tokenization function to be used for causallm training; this function consumes a
         GenerationTrainRecord object and applies the verbalizer to it followed by
@@ -63,19 +60,13 @@ def tokenize_function(
         each sample yields one example per token in the target sequence.
 
         Args:
-            example: GenerationTrainRecord | Mapping
+            example: Mapping
                 Training data model object to convert a form we can learn on, or a Mapping
                 that has keys input/output.
             tokenizer: AutoTokenizer
                 Tokenizer object to be applied to input records.
-            max_source_length: int
-                Maximum length for input sequences.
-            max_target_length: int
-                Maximum length for output sequences.
-
         Returns:
             Union[DataStream[BatchEncoding], BatchEncoding]
-                stream of encoded tokenization output corresponding to the input example
                 or a single batch encoding object containing 1+ tokenized results.
         """
         ### Things common to all Causal LM tokenization approaches
@@ -94,14 +85,12 @@ def tokenize_function(
                 tokenizer=tokenizer,
                 source=source,
                 target=target,
-                max_seq_length=max_seq_length,
             )
 
 def causal_lm_padding_as_seq2seq(
         tokenizer: "AutoTokenizer",
         source: str,
         target: str,
-        max_seq_length: int,
     ) -> "BatchEncoding":
         """Tokenize the example as a seq2seq type problem; this is conceptually similar to
         what seq2seq tokenization is doing, but some care needs be taken to ensure the labels
@@ -119,10 +108,6 @@ def causal_lm_padding_as_seq2seq(
                 Raw source string.
             target: str
                 Raw target string.
-            max_source_length: int
-                Maximum length for input sequences.
-            max_target_length: int
-                Maximum length for output sequences.
         Returns:
             BatchEncoding
                 BatchEncoding object corresponding to this example, where the input_ids,

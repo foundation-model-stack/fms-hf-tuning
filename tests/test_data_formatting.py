@@ -17,7 +17,6 @@ def test_dataset_length(use_iterable_dataset):
     hf_dataset = preprocess_function(
         data_path=SAMPLE_DATA,
         tokenizer=TOKENIZER,
-        max_seq_length=100,
         use_iterable_dataset=use_iterable_dataset
     )
     assert len(list(hf_dataset)) == len(data_records)
@@ -33,8 +32,6 @@ def test_preprocessing_single_example(use_iterable_dataset):
         # NOTE: map to values here since the internal tokenization logic assumes batch processing.
         {"input": [source], "output": [target]},
         tokenizer=TOKENIZER,
-        # Pick something way bigger than the combined sequence length
-        max_seq_length=1000,
     )
     # Every key in our produced HF dataset should have the same length value
     assert len(set([len(v) for v in hf_dataset.values()])) == 1
