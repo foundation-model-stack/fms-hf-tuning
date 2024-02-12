@@ -22,15 +22,19 @@ def test_dataset_length(use_iterable_dataset):
     assert len(list(hf_dataset)) == len(data_records)
 
 
-@pytest.mark.parametrize("use_iterable_dataset", [True, False])
-def test_preprocessing_single_example(use_iterable_dataset):
+@pytest.mark.parametrize("multiple_inputs", [True, False])
+def test_preprocessing_single_example(multiple_inputs):
     """Test the correctness of processing a single example."""
     source = "@HMRCcustomers No this is my first job"
     target = "no complaint"
+    if multiple_inputs:
+        # Tests logic for processing as a batch with no padding issues
+        input_dict = {"input": [source, source], "output": [target, target]}
+    else:
+        input_dict = {"input": [source], "output": [target]}
 
     hf_dataset = tokenize_function(
-        # NOTE: map to values here since the internal tokenization logic assumes batch processing.
-        {"input": [source], "output": [target]},
+        input_dict,
         tokenizer=TOKENIZER,
     )
     # Every key in our produced HF dataset should have the same length value
