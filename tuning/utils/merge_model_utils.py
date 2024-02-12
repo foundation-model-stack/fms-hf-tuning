@@ -1,22 +1,33 @@
 import argparse
 import json
 import os
+from typing import Union
+from tqdm import tqdm
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def create_merged_model(
-    checkpoint_model: str,
+    checkpoint_models: Union[str, list[str]],
     export_path: str=None,
     base_model: str=None,
     save_tokenizer: bool=True
 ):
-    """Given a base model & a checkpoint model containing adapters, which were tuned with lora,
-    load both into memory & create a merged model. If an export path is specified, write it
-    to disk.
+    """Given a base model & checkpoint model(s) which were tuned with lora, load into memory
+    & create a merged model. If an export path is specified, write it to disk. If multiple
+    checkpoint models are provided, we merge_and_unload() them one after the other, which
+    combines them with equal weights.
+
+    TODO: In the future, it's probably a good idea to explore different combination schemes,
+    which can likely be done using a combination of add_weighted_adapter() and merge_and_unload().
+
+    References:
+    - https://github.com/huggingface/peft/issues/1040
+    - https://github.com/huggingface/peft/issues/280#issuecomment-1500805831
+    - https://huggingface.co/docs/peft/main/en/package_reference/lora#peft.LoraModel.add_weighted_adapter
 
     Args:
-        checkpoint_model: str
-            Lora checkpoint containing adapters.
+        checkpoint_model: Union[str, list[str]]
+            One or more lora checkpoints containing adapters.
         export_path: str
             Path to export the merged model to.
         base_model: str
@@ -30,18 +41,25 @@ def create_merged_model(
         transformers model
             Merged model created from the checkpoint / base model.
     """
+    if isinstance(checkpoint_models, str):
+        checkpoint_models = [checkpoint_models]
+
     if base_model is None:
-        base_model = fetch_base_model_from_checkpoint(checkpoint_model)
+        base_model = fetch_base_model_from_checkpoint(checkpoint_models)
     model = AutoModelForCausalLM.from_pretrained(base_model)
-    model_combined = PeftModel.from_pretrained(model, checkpoint_model)
-    model_combined = model_combined.merge_and_unload()
+
+    # Merge each of the lora adapter models into the base model with equal weights
+    for checkpoint_model in tqdm(checkpoint_models):
+        model = PeftModel.from_pretrained(model, checkpoint_model)
+        model = model.merge_and_unload()
+
     if export_path is not None:
-        model_combined.save_pretrained(export_path)
+        model.save_pretrained(export_path)
         # Export the tokenizer into the merged model dir
         if save_tokenizer:
             tokenizer = AutoTokenizer.from_pretrained(base_model)
             tokenizer.save_pretrained(export_path)
-    return model_combined
+    return model
 
 
 def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
@@ -78,7 +96,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     create_merged_model(
-        checkpoint_model=args.checkpoint_model,
+        checkpoint_models=[args.checkpoint_model, args.checkpoint_model],
         export_path=args.export_path,
         base_model=args.base_model,
         save_tokenizer=args.save_tokenizer,
