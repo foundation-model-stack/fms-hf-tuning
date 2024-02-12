@@ -41,7 +41,7 @@ def preprocess_function(
         mapped_dataset = dataset.map(
             tokenize_function,
             fn_kwargs=fn_kwargs,
-            batched=False,
+            batched=True,
             # Drop the input / output columns; we need to do this for dimensions to play
             # happily when operating on batched inputs for causal language modeling.
             remove_columns=["input", "output"],
@@ -129,13 +129,16 @@ def causal_lm_padding_as_seq2seq(
                 [max_source_length + max_target_length + 1].
         """
         IGNORE_ID = -100
+
         # ID of the token to append after our target string; this should generally be pad / EOS
         if tokenizer.eos_token_id is not None:
             FINAL_TOK_ID = tokenizer.eos_token_id
         # Fall back to using pad token id no EOS token is defined
         else:
             FINAL_TOK_ID = tokenizer.pad_token_id
-        max_concat_length = max_seq_length
+            
+        max_concat_length = get_max_seq_len(source, target, tokenizer)
+        raise NotImplementedError("batch tok not implemented")
 
         # Truncate based on max source or max target length before considering as a joined sequence
         model_inputs = tokenizer(source)
@@ -210,6 +213,19 @@ def infer_max_steps(
     num_steps = num_batches * num_epochs
     return num_steps
 
+def get_max_seq_len(source, target, tokenizer):
+    """Gets the max length of the concat sequence. Currently this is ultra ineffecient due to
+    double tokenization (WIP).
+    """
+    max_seq_len = 0
+    for s, t in zip(source, target):
+        s_input_len = len(tokenizer(s).input_ids)
+        t_input_len = len(tokenizer(t).input_ids)
+        # Combined seq adds one for seq end
+        concat_len = s_input_len + t_input_len + 1
+        if concat_len > max_seq_len:
+            max_seq_len = concat_len
+    return max_seq_len
 # tokenizer = AutoTokenizer.from_pretrained(
 #         '/Users/sukritisharma/workspace/fms-hf-tuning/tuned_models/llama_float32_50_epochs',
 #         use_fast = True
