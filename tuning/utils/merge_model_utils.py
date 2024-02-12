@@ -83,21 +83,3 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     if "base_model_name_or_path" not in adapter_dict:
         raise KeyError("Base model adapter config exists, but has no base_model_name_or_path!")
     return adapter_dict["base_model_name_or_path"]
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Creates a merged lora model"
-    )
-    parser.add_argument("--checkpoint_model", help="Path to the checkpoint [tuned lora model]", required=True)
-    parser.add_argument("--export_path", help="Path to write the merged model to", required=True)
-    parser.add_argument("--base_model", help="Base model to be used [default=None; infers from adapter config]", default=None)
-    parser.add_argument("--save_tokenizer", default=False, action="store_true", help="Whether or not we should export the tokenizer to the export_path")
-    args = parser.parse_args()
-
-    create_merged_model(
-        checkpoint_models=[args.checkpoint_model, args.checkpoint_model],
-        export_path=args.export_path,
-        base_model=args.base_model,
-        save_tokenizer=args.save_tokenizer,
-    )
