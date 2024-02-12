@@ -38,6 +38,7 @@ def preprocess_function(
         dataset = dataset_type.from_generator(
             get, gen_kwargs={"train_file": data_path}
         )
+
         mapped_dataset = dataset.map(
             tokenize_function,
             fn_kwargs=fn_kwargs,
@@ -137,51 +138,60 @@ def causal_lm_padding_as_seq2seq(
         else:
             FINAL_TOK_ID = tokenizer.pad_token_id
             
-        max_concat_length = get_max_seq_len(source, target, tokenizer)
-        raise NotImplementedError("batch tok not implemented")
-
-        # Truncate based on max source or max target length before considering as a joined sequence
         model_inputs = tokenizer(source)
         labels = tokenizer(target)
-        # Combine the source + target strings into the source input IDs
-        # This makes the source and target the same length, and then masks the source out of the
-        # target IDs, and updates the length of the attention vector to be evenly spread on the
-        # whole combined sequence
-        sample_input_ids = model_inputs["input_ids"]
-        label_input_ids = labels["input_ids"] + [FINAL_TOK_ID]
-        #print(label_input_ids)
-        model_inputs["input_ids"] = sample_input_ids + label_input_ids
-        labels["input_ids"] = [IGNORE_ID] * len(sample_input_ids) + label_input_ids
-        model_inputs["attention_mask"] = [1] * len(model_inputs["input_ids"])
+        # NOTE: It doesn't matter what key we inspect in model_inputs, since they
+        # all have dicts of the same length when operating in batch mode.
+        batch_size = len(model_inputs['attention_mask'])
+        logger.info(f"Batch size: {batch_size}")
 
-        # Now we have to update everything to be the max length of the tokenizer, then pad &
-        # ensure all of the padded stuff we have added has attention weights of 0.
-        sample_input_ids = model_inputs[
-            "input_ids"
-        ]  # NOTE - combined source + target + <FINAL_TOK_ID>
+        # Infer the max tok length based on the source and target
+        max_concat_length = get_max_seq_len(model_inputs, labels)
+        logger.info(f"Inferred max concat length: {max_concat_length}")
 
-        label_input_ids = labels["input_ids"]
+        # Now that we know the max length of the batch, form the model/label input ids, attention mask
+        for idx in range(batch_size):
+
+            # Combine the source + target strings into the source input IDs
+            # This makes the source and target the same length, and then masks the source out of the
+            # target IDs, and updates the length of the attention vector to be evenly spread on the
+            # whole combined sequence
+            sample_input_ids = model_inputs["input_ids"][idx]
+            label_input_ids = labels["input_ids"][idx] + [FINAL_TOK_ID]
+
+            model_inputs["input_ids"][idx] = sample_input_ids + label_input_ids
+            labels["input_ids"][idx] = [IGNORE_ID] * len(sample_input_ids) + label_input_ids
+            model_inputs["attention_mask"][idx] = [1] * len(model_inputs["input_ids"][idx])
+
+            # Now we have to update everything to be the max length of the tokenizer, then pad &
+            # ensure all of the padded stuff we have added has attention weights of 0.
+            sample_input_ids = model_inputs[
+                "input_ids"
+            ][idx]  # NOTE - combined source + target + <FINAL_TOK_ID>
+
+            label_input_ids = labels["input_ids"][idx]
+
+            if tokenizer.padding_side.lower() == "left":
+                labels["input_ids"][idx] = [IGNORE_ID] * (
+                    max_concat_length - len(sample_input_ids)
+                ) + label_input_ids
+            else:
+                labels["input_ids"][idx] = label_input_ids + [IGNORE_ID] * (
+                    max_concat_length - len(sample_input_ids)
+                )
+
+
+            model_inputs["input_ids"][idx] = model_inputs["input_ids"][idx][:max_concat_length]
+            model_inputs["attention_mask"][idx] = model_inputs["attention_mask"][idx][:max_concat_length]
+                
+
+            labels["input_ids"][idx] = labels["input_ids"][idx][:max_concat_length]
+
+        # Pad all of the model inputs back up to the max length as a batch & update the labels
+        # in our model inputs to point back to the batch of updated labels
         model_inputs = tokenizer.pad(
             model_inputs, padding="max_length", max_length=max_concat_length
         )
-
-        if tokenizer.padding_side.lower() == "left":
-            labels["input_ids"] = [IGNORE_ID] * (
-                max_concat_length - len(sample_input_ids)
-            ) + label_input_ids
-        else:
-            labels["input_ids"] = label_input_ids + [IGNORE_ID] * (
-                max_concat_length - len(sample_input_ids)
-            )
-
-        model_inputs["input_ids"] = torch.tensor(
-            model_inputs["input_ids"][:max_concat_length]
-        )
-        model_inputs["attention_mask"] = torch.tensor(
-            model_inputs["attention_mask"][:max_concat_length]
-        )
-
-        labels["input_ids"] = torch.tensor(labels["input_ids"][:max_concat_length])
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
@@ -213,19 +223,17 @@ def infer_max_steps(
     num_steps = num_batches * num_epochs
     return num_steps
 
-def get_max_seq_len(source, target, tokenizer):
-    """Gets the max length of the concat sequence. Currently this is ultra ineffecient due to
-    double tokenization (WIP).
+def get_max_seq_len(model_inputs, labels):
+    """Gets the max length of the concat sequence. Assumes that we are operating in batch mode.
     """
     max_seq_len = 0
-    for s, t in zip(source, target):
-        s_input_len = len(tokenizer(s).input_ids)
-        t_input_len = len(tokenizer(t).input_ids)
+    for source_ids, target_ids in zip(model_inputs.input_ids, labels.input_ids):
         # Combined seq adds one for seq end
-        concat_len = s_input_len + t_input_len + 1
+        concat_len = len(source_ids) + len(target_ids) + 1
         if concat_len > max_seq_len:
             max_seq_len = concat_len
     return max_seq_len
+
 # tokenizer = AutoTokenizer.from_pretrained(
 #         '/Users/sukritisharma/workspace/fms-hf-tuning/tuned_models/llama_float32_50_epochs',
 #         use_fast = True
