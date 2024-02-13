@@ -1,16 +1,20 @@
+# Standard
+from typing import Union
 import argparse
 import json
 import os
-from typing import Union
-from tqdm import tqdm
+
+# Third Party
 from peft import PeftModel
+from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 def create_merged_model(
     checkpoint_models: Union[str, list[str]],
-    export_path: str=None,
-    base_model: str=None,
-    save_tokenizer: bool=True
+    export_path: str = None,
+    base_model: str = None,
+    save_tokenizer: bool = True,
 ):
     """Given a base model & checkpoint model(s) which were tuned with lora, load into memory
     & create a merged model. If an export path is specified, write it to disk. If multiple
@@ -69,7 +73,7 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     Args:
         checkpoint_model: str
             Checkpoint model containing the adapter config, which specifies the base model.
-    
+
     Returns:
         str
             base_model_name_or_path specified in the adapter config of the tuned peft model.
@@ -81,5 +85,7 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     with open(adapter_config, "r") as cfg:
         adapter_dict = json.load(cfg)
     if "base_model_name_or_path" not in adapter_dict:
-        raise KeyError("Base model adapter config exists, but has no base_model_name_or_path!")
+        raise KeyError(
+            "Base model adapter config exists, but has no base_model_name_or_path!"
+        )
     return adapter_dict["base_model_name_or_path"]
