@@ -1,5 +1,7 @@
 # Standard
+from datetime import datetime
 from typing import Optional, Union
+import json
 import os
 
 # Third Party
@@ -17,7 +19,6 @@ from transformers.utils import logging
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
-import torch
 import transformers
 
 # Local
@@ -37,6 +38,43 @@ class PeftSavingCallback(TrainerCallback):
 
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
+
+
+class FileLoggingCallback(TrainerCallback):
+    """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
+
+    def __init__(self, logger):
+        self.logger = logger
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """Checks if this log contains keys of interest, e.g., los, and if so, creates
+        train_loss.jsonl in the model output dir (if it doesn't already exist),
+        appends the subdict of the log & dumps the file.
+        """
+        # All processes get the logs from this node; only update from process 0.
+        if not state.is_world_process_zero:
+            return
+
+        log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
+        if logs is not None and "loss" in logs and "epoch" in logs:
+            try:
+                # Take the subdict of the last log line; if any log_keys aren't part of this log
+                # object, asssume this line is something else, e.g., train completion, and skip.
+                log_obj = {
+                    "name": "loss",
+                    "data": {
+                        "epoch": round(logs["epoch"], 2),
+                        "step": state.global_step,
+                        "value": logs["loss"],
+                        "timestamp": datetime.isoformat(datetime.now()),
+                    },
+                }
+            except KeyError:
+                return
+
+            # append the current log to the jsonl file
+            with open(log_file_path, "a") as log_file:
+                log_file.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
 
 def train(
@@ -175,7 +213,9 @@ def train(
         logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
 
     aim_callback = get_aimstack_callback()
-    callbacks = [aim_callback, PeftSavingCallback()]
+    file_logger_callback = FileLoggingCallback(logger)
+    peft_saving_callback = PeftSavingCallback()
+    callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
 
     if train_args.packing:
         logger.info("Packing is set to True")
