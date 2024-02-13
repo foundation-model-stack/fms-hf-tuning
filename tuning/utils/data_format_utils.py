@@ -122,7 +122,7 @@ def causal_lm_padding_as_seq2seq(
         # Fall back to using pad token id no EOS token is defined
         else:
             FINAL_TOK_ID = tokenizer.pad_token_id
-            
+        # TODO: Handle models/tokenizers that produce token_type_ids
         model_inputs = tokenizer(source)
         labels = tokenizer(target)
         # NOTE: It doesn't matter what key we inspect in model_inputs, since they

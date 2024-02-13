@@ -7,6 +7,7 @@ from peft.utils.other import fsdp_auto_wrap_policy
 import json
 import torch
 import transformers
+from transformers import DataCollatorForLanguageModeling
 from transformers import AutoModelForCausalLM, AutoTokenizer, default_data_collator, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
 from transformers.utils import logging
 from transformers import TrainerCallback
@@ -133,7 +134,8 @@ def train(
         logger.info("Packing is set to False")
         if data_args.response_template is None and data_args.dataset_text_field is None:
             dataset_text_field = None
-            data_collator = default_data_collator
+            # HACK - collator padding behaviors should be consistent
+            data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
             formatted_dataset=preprocess_function(data_args.data_path, tokenizer)
             train_args.max_steps=int(infer_max_steps(int(train_args.num_train_epochs), train_args.per_device_train_batch_size, formatted_dataset))
         else: 
