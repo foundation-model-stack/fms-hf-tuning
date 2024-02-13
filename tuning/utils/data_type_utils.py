@@ -7,6 +7,7 @@ import torch
 
 logger = logging.get_logger("data_utils")
 
+
 def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
     """Given a string representation of a Torch data type, convert it to the actual torch dtype.
 
