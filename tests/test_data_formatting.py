@@ -23,7 +23,7 @@ def test_dataset_length(use_iterable_dataset):
 
 
 @pytest.mark.parametrize("multiple_inputs", [True, False])
-def test_preprocessing_single_example(multiple_inputs):
+def test_preprocessing_same_length_example(multiple_inputs):
     """Test the correctness of processing a single example."""
     source = "@HMRCcustomers No this is my first job"
     target = "no complaint"
@@ -42,3 +42,25 @@ def test_preprocessing_single_example(multiple_inputs):
     # And the sequence should be the same length as the source + target + 1
     expected_len = (len(TOKENIZER(source).input_ids) + len(TOKENIZER(target).input_ids) + 1)
     assert len(hf_dataset.input_ids[0]) == expected_len
+
+
+def test_preprocessing_differing_lengths():
+    """Ensure that the longest sequence determines the padding behavior"""
+    s1 = "@HMRCcustomers No this is my first job"
+    t1 = "no complaint"
+    s2 = "@KristaMariePark Thank you for your interest! If you decide to cancel, you can call Customer Care at 1-800-NYTIMES."
+    t2 = "no complaint"
+    input_dict = {"input": [s1, s2], "output": [t1, t2]}
+    hf_dataset = tokenize_function(
+        input_dict,
+        tokenizer=TOKENIZER,
+    )
+    assert len(set([len(v) for v in hf_dataset.values()])) == 1
+    # The expected sequence length is determined by the longer sample in this test
+    r1_length = (len(TOKENIZER(s1).input_ids) + len(TOKENIZER(t1).input_ids) + 1)
+    r2_length = (len(TOKENIZER(s2).input_ids) + len(TOKENIZER(t2).input_ids) + 1)
+    # If they match, this test is redundant
+    assert r1_length != r2_length
+    expected_len = max(r1_length, r2_length)
+    actual_input_ids_len = [len(input_ids) for input_ids in hf_dataset.input_ids].pop()
+    assert expected_len == actual_input_ids_len
