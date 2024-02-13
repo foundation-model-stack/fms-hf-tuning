@@ -20,8 +20,6 @@ from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
-from transformers import TrainerCallback
-from transformers.utils import logging
 
 # Local
 from tuning.aim_loader import get_aimstack_callback
@@ -44,6 +42,7 @@ class PeftSavingCallback(TrainerCallback):
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -67,8 +66,8 @@ class FileLoggingCallback(TrainerCallback):
                         "epoch": round(logs["epoch"], 2),
                         "step": state.global_step,
                         "value": logs["loss"],
-                        "timestamp": datetime.isoformat(datetime.now())
-                    }
+                        "timestamp": datetime.isoformat(datetime.now()),
+                    },
                 }
             except KeyError:
                 return
@@ -216,7 +215,7 @@ def train(
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
     peft_saving_callback = PeftSavingCallback()
-    callbacks=[aim_callback, peft_saving_callback, file_logger_callback]
+    callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
 
     if train_args.packing:
         logger.info("Packing is set to True")
