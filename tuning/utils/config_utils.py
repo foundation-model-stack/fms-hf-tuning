@@ -51,7 +51,10 @@ def get_hf_peft_config(task_type, tuning_config):
        Return: HF PEFT config or None
     """
     if isinstance(tuning_config, peft_config.LoraConfig):
-        hf_peft_config = LoraConfig(task_type=task_type, **asdict(tuning_config))
+        lora_config = asdict(tuning_config)
+        if lora_config["target_modules"] == ["all-linear"]:
+            lora_config["target_modules"] = "all-linear"
+        hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
         hf_peft_config = PromptTuningConfig(task_type=task_type, **asdict(tuning_config))
     else:
