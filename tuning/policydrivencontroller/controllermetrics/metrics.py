@@ -23,12 +23,26 @@ class WindowStepLoss(MetricHandler):
         self.__args = args
 
     def validate(self, training_args):
-        # Validate the training arguments (e.g logging_steps) are
-        # compatible with the computation of this metric
+        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
+
+        Args:
+            training_args: Training arguments
+
+        Returns:
+            bool
+        """
         return training_args.logging_strategy == 'steps' and \
             training_args.logging_steps == 1
 
     def compute(self, training_state, training_args=None, metrics=None):
+        """Computes the metric training arguments (e.g logging_steps) are compatible with the computation of this metric
+
+        Args:
+            training_args: Training arguments
+
+        Returns:
+            bool
+        """
         # Compute the metric using the training state
         loss_values = [l['loss'] for l in training_state.log_history if 'loss' in l]
         n = len(loss_values)
