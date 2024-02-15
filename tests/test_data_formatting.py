@@ -1,3 +1,9 @@
+"""Tests validating the correctness of data formatting utilities.
+
+IMPORTANT: Currently these tests are sensitive to dataset caching! If anything looks strange,
+try running the test in isolation. In the future, we should patch the map to do things in memory
+so that each test runs independently.
+"""
 import pytest
 import json
 import os
@@ -64,3 +70,23 @@ def test_preprocessing_differing_lengths():
     expected_len = max(r1_length, r2_length)
     actual_input_ids_len = [len(input_ids) for input_ids in hf_dataset.input_ids].pop()
     assert expected_len == actual_input_ids_len
+
+
+def test_max_seq_len_override():
+    """Ensure that we can override the max sequence length."""
+    max_sequence_length=1
+    hf_dataset = preprocess_function(
+        data_path=SAMPLE_DATA,
+        tokenizer=TOKENIZER,
+        max_sequence_length=max_sequence_length,
+    )
+    for record in hf_dataset:
+        value_lengths = [len(v) for v in record.values()]
+        value_len_set = set(value_lengths)
+        assert len(value_len_set) == 1
+        # We should truncate, but still keep our EOS in the target
+        assert value_len_set.pop() <= (max_sequence_length + 1)
+        # Despite the trunction, we should still have a trailing EOS as the last token
+        assert record["labels"][-1] == TOKENIZER.eos_token_id
+        assert record["input_ids"][-1] == TOKENIZER.eos_token_id
+        assert record["attention_mask"][-1] == 1
