@@ -15,6 +15,12 @@ class PolicyDrivenTrainerControl(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
     
     def __init__(self, train_control_args, training_args):
+        """Initializes the callback for policy-driven trainer control.
+
+        Args:
+            train_control_args: File path for trainer control definition file
+            training_args: TrainingArguments object
+        """
         self.__controllers = {}
         if os.path.exists(train_control_args.traning_control_definition_file):
             with open(train_control_args.traning_control_definition_file, "r") as f:
@@ -25,7 +31,9 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                     for cm in controller['controller-metrics']:
                         obj = None
                         try:
+                            # Get the controller-metric class type
                             class_type = getattr(contmetrics, cm['handler-class'])
+                            # Initialize the controller-metric instance
                             if 'arguments' in cm:
                                 obj = class_type(cm['name'], cm['arguments'])
                             else:
@@ -39,6 +47,15 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.traning_control_definition_file)
 
     def __apply_control(self, cb, control):
+        """Given a controller-block, applies the control operation to the training loop.
+
+        Args:
+            cb: Controller block dictionary
+            control: TrainerControl object
+
+        Returns:
+            None.
+        """
         if 'should_training_stop' in cb['control-operation']:
             control.should_training_stop = cb['control-operation']['should_training_stop']
         elif 'should_epoch_stop' in cb['control-operation']:
@@ -51,6 +68,18 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             control.should_log = cb['control-operation']['should_log']
 
     def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
+        """Loops through the controllers computing the controller-metrics and validating the rules. Once any rule gets validated, the corresponding control is applied to the trainer loop.
+
+        Args:
+            state: TrainingState object
+            control: TrainerControl object
+            args: TrainingArguments object
+            trigger_filter: string which specifies the trigger event invoking this function
+            metrics: [optional] specifies the evaluation metric
+
+        Returns:
+            None.
+        """
         controllers = self.training_control_def['controllers']
         num_controllers = len(controllers)
         for i in range(num_controllers):
@@ -79,28 +108,129 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                     pass
 
     def on_step_end(self, args, state, control, **kwargs):
+        """Event triggered when step ends.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_step_end')
 
     def on_epoch_begin(self, args, state, control, **kwargs):
+        """Event triggered when epoch begins.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_epoch_begin')
 
     def on_epoch_end(self, args, state, control, **kwargs):
+        """Event triggered when epoch ends.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_epoch_end')
 
     def on_prediction_step(self, args, state, control, eval_dataloader=None, **kwargs):
+        """Event triggered when prediction is performed.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            eval_dataloader: Data loader object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_prediction_step')
 
     def on_predict(self, args, state, control, **kwargs):
+        """Event triggered when predict event occurs.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_predict')
 
     def on_log(self, args, state, control, logs=None, **kwargs):
+        """Event triggered when logging event happens.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            logs: logs data
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_log')
 
     def on_train_end(self, args, state, control, **kwargs):
+        """Event triggered when training ends.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_train_end')
 
     def on_train_begin(self, args, state, control, **kwargs):
+        """Event triggered when training begins.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_train_end')
 
     def on_evaluate(self, args, state, control, metrics, **kwargs):
+        """Event triggered when evaluation step occurs.
+
+        Args:
+            args: TrainingArguments object
+            state: TrainerState object
+            control: TrainerControl object
+            kwargs: Miscellaneous arguments
+
+        Returns:
+            None.
+        """
         self.__loop_through_controllers(state, control, args, 'on_evaluate', metrics)
