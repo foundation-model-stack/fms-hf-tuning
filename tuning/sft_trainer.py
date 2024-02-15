@@ -42,7 +42,7 @@ from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.policydrivencontroller import PolicyDrivenTrainerControl
+from tuning.policydrivencontroller.pdt_callback import PolicyDrivenTrainerControl
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
