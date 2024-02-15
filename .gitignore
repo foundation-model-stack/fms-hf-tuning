@@ -1,5 +1,6 @@
 input-dir
 output-dir
+tuning/controllermetrics/__pycache__
 tuning/__pycache__
 tuning/__pycache__/*
 tuning/config/__pycache__

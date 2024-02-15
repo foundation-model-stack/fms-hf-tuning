@@ -176,7 +176,7 @@ def train(
         train_args.greater_is_better = False
 
     # Trainer control callback 
-    callbacks.append(PolicyDrivenTrainerControl(train_control_args))
+    callbacks.append(PolicyDrivenTrainerControl(train_control_args, train_args))
 
     trainer = SFTTrainer(
         model=model,
