@@ -8,6 +8,7 @@ import copy
 logger = logging.get_logger(__name__)
 
 class MetricHandler:
+    """Base class for the controller-metrics"""
     def validate(self, training_args) -> bool:
         pass
     
@@ -35,13 +36,15 @@ class WindowStepLoss(MetricHandler):
             training_args.logging_steps == 1
 
     def compute(self, training_state, training_args=None, metrics=None):
-        """Computes the metric training arguments (e.g logging_steps) are compatible with the computation of this metric
+        """Computes the controller-metric (step-loss over window) and exposes the values of the variables used by the rules.
 
         Args:
-            training_args: Training arguments
+            training_state: TrainerState object
+            training_args: TrainingArguments object
+            metrics: [optional] metrics data
 
         Returns:
-            bool
+            dict
         """
         # Compute the metric using the training state
         loss_values = [l['loss'] for l in training_state.log_history if 'loss' in l]
@@ -78,12 +81,23 @@ class EpochLoss(MetricHandler):
         self.__cache = deque()
         
     def validate(self, training_args):
-        # Validate the training arguments (e.g logging_steps) are
-        # compatible with the computation of this metric
+        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
+
+        Args:
+            training_args: Training arguments
+
+        Returns:
+            bool
+        """
         return training_args.logging_strategy == 'steps' and \
             training_args.logging_steps == 1
 
     def __externalize_data(self):
+        """Create the dictionary of exposed variables used by rules.
+
+        Returns:
+            dict
+        """
         if self.__cache == None:
             logger.warn('EpochLoss cache is NULL!!!!')
             return None
@@ -106,7 +120,16 @@ class EpochLoss(MetricHandler):
         return exposed_data
 
     def compute(self, training_state, training_args=None, metrics=None):
-        # Compute the metric using the training state
+        """Computes the controller-metric (epoch-loss over window) and exposes the values of the variables used by the rules.
+
+        Args:
+            training_state: TrainerState object
+            training_args: TrainingArguments object
+            metrics: [optional] metrics data
+
+        Returns:
+            dict
+        """
         previous_epoch = -1
         loss_array = None
         logs_latest_first = list(reversed(training_state.log_history))
