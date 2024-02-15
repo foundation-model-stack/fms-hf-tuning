@@ -142,9 +142,14 @@ class EvalMetricBasedControl(MetricHandler):
     def validate(self, training_args):
         # Validate the training arguments (e.g logging_steps) are
         # compatible with the computation of this metric
-        return (training_args.load_best_model_at_end == True and \
-        training_args.metric_for_best_model is not None and \
-        training_args.evaluation_strategy != IntervalStrategy.NO and \
+        logger.warn("VALIDATE ==> %s %s %s %s" % (str(training_args.load_best_model_at_end), \
+            str(training_args.metric_for_best_model), \
+            str(training_args.evaluation_strategy), \
+            str(training_args.save_strategy)))
+
+        return (training_args.load_best_model_at_end == True or \
+        training_args.metric_for_best_model is not None or \
+        training_args.evaluation_strategy != IntervalStrategy.NO or \
         training_args.save_strategy == IntervalStrategy.EPOCH)
 
     def __check_metric_value(self, args, state, metric_value):
