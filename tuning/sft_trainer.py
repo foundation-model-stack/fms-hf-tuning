@@ -136,7 +136,7 @@ def train(
             dataset_text_field = None
             # HACK - collator padding behaviors should be consistent
             data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-            formatted_dataset=preprocess_function(data_args.data_path, tokenizer)
+            formatted_dataset=preprocess_function(data_args.data_path, tokenizer, batch_size=train_args.per_device_train_batch_size)
             train_args.max_steps=int(infer_max_steps(int(train_args.num_train_epochs), train_args.per_device_train_batch_size, formatted_dataset))
         else: 
             if data_args.response_template is None:
