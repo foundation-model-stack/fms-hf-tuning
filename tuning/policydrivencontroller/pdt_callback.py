@@ -56,7 +56,6 @@ class PolicyDrivenTrainerControl(TrainerCallback):
         for i in range(num_controllers):
             controller = controllers[i]
             name = controller['name']
-            # logger.warn('*********CONTROLLER-BEGIN: %s************' % (name))
             controller_metrics_objs = self.__controllers[name]
             trigger_set = set(controller['triggers'])
             if trigger_filter not in trigger_set:
@@ -78,7 +77,6 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                         self.__apply_control(controller, control)
                 except Exception as e:
                     pass
-            # logger.warn('******CONTROLLER-END: %s*************' % (name))
 
     def on_step_end(self, args, state, control, **kwargs):
         self.__loop_through_controllers(state, control, args, 'on_step_end')
