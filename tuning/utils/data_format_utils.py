@@ -26,6 +26,7 @@ logger = logging.get_logger("sft_trainer")
 def preprocess_function(
         data_path: str,
         tokenizer: AutoTokenizer,
+        batch_size: int,
         use_iterable_dataset: bool = False,
         max_sequence_length: int = None,
     ):
@@ -43,6 +44,11 @@ def preprocess_function(
             tokenize_function,
             fn_kwargs=fn_kwargs,
             batched=True,
+            # HACK: For now, for this to work as expected, we cannot shuffle the data,
+            # and batch_size must match the training batch size! The reason is that we are
+            # statically padding preformed batches to the same length; in the future, a better
+            # path is likely to write a custom collator and do dynamic padding with similar logic.
+            batch_size=batch_size,
             # Drop the input / output columns; we need to do this for dimensions to play
             # happily when operating on batched inputs for causal language modeling.
             remove_columns=["input", "output"],
