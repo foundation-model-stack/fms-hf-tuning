@@ -72,3 +72,14 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+
+@dataclass
+class PTCArguments():
+    traning_control_definition_file: str = field(
+        default="ctldef.yaml",
+        metadata={
+            "help": (
+                "Training control definition file in YAML format."
+            )
+        },
+    )

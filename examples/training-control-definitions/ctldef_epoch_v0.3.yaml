@@ -1,0 +1,13 @@
+controllers:
+  - name: epoch-loss-controller
+    controller-metrics:
+      - name: elc
+        handler-class: EpochLoss
+        arguments:
+          window-size: 2
+    triggers:
+      - on_epoch_end
+    control-operation:
+      should_training_stop: True
+    rules:
+      - elc_end_loss_epoch[n] > elc_end_loss_epoch[n-1]
