@@ -22,8 +22,8 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             training_args: TrainingArguments object
         """
         self.__controllers = {}
-        if os.path.exists(train_control_args.traning_control_definition_file):
-            with open(train_control_args.traning_control_definition_file, "r") as f:
+        if os.path.exists(train_control_args.training_control_definition_file):
+            with open(train_control_args.training_control_definition_file, "r") as f:
                 self.training_control_def = yaml.safe_load(f)
                 for controller in self.training_control_def['controllers']:
                     name = controller['name']
@@ -44,7 +44,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                         controller_metric_objs.append(obj)
                     self.__controllers[name] = controller_metric_objs
         else:
-            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.traning_control_definition_file)
+            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.training_control_definition_file)
 
     def __apply_control(self, cb, control):
         """Given a controller-block, applies the control operation to the training loop.
