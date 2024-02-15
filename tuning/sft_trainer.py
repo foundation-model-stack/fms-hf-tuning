@@ -227,8 +227,12 @@ def train(
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
     peft_saving_callback = PeftSavingCallback()
-    ptc_callback = PolicyDrivenTrainerControl(train_control_args, train_args)
-    callbacks = [aim_callback, peft_saving_callback, file_logger_callback, ptc_callback]
+    callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
+    try:
+        ptc_callback = PolicyDrivenTrainerControl(train_control_args, train_args)
+        callbacks.append(ptc_callback)
+    except Exception as e:
+        logger.warn(e)
 
     if train_args.packing:
         logger.info("Packing is set to True")

@@ -36,7 +36,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                         controller_metric_objs.append(obj)
                     self.__controllers[name] = controller_metric_objs
         else:
-            logger.warn("Controller configuration [%s] does NOT exist" % train_control_args.traning_control_definition_file)
+            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.traning_control_definition_file)
 
     def __apply_control(self, cb, control):
         if 'should_training_stop' in cb['control-operation']:

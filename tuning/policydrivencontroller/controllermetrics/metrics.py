@@ -8,10 +8,10 @@ import copy
 logger = logging.get_logger(__name__)
 
 class MetricHandler:
-    def validate(self, training_args):
+    def validate(self, training_args) -> bool:
         pass
     
-    def compute(self, training_state, training_args=None, metrics=None):
+    def compute(self, training_state, training_args=None, metrics=None) -> dict:
         pass   
 
 class WindowStepLoss(MetricHandler):
