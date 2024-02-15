@@ -15,7 +15,8 @@ class MetricHandler:
         pass   
 
 class WindowStepLoss(MetricHandler):
-
+    """Implements the controller metric which evaluates loss-per-step over a user-defined window"""
+    
     def __init__(self, name, args):
         # Initialize the handler arguments
         self.__name = name
@@ -54,6 +55,7 @@ class WindowStepLoss(MetricHandler):
         return exposed_data
 
 class EpochLoss(MetricHandler):
+    """Implements the controller metric which evaluates loss-per-epoch over a user-defined window"""
 
     def __init__(self, name, args=None):
         # Initialize the handler arguments
@@ -127,6 +129,7 @@ class EpochLoss(MetricHandler):
         
             
 class EvalMetricBasedControl(MetricHandler):
+    """Implements the controller metric which computes and evaluates metrics conditions on evaluation"""
 
     def __init__(self, name, args=None):
         # Initialize the handler arguments
@@ -142,7 +145,7 @@ class EvalMetricBasedControl(MetricHandler):
     def validate(self, training_args):
         # Validate the training arguments (e.g logging_steps) are
         # compatible with the computation of this metric
-        logger.warn("VALIDATE ==> %s %s %s %s" % (str(training_args.load_best_model_at_end), \
+        logger.info("VALIDATE ==> %s %s %s %s" % (str(training_args.load_best_model_at_end), \
             str(training_args.metric_for_best_model), \
             str(training_args.evaluation_strategy), \
             str(training_args.save_strategy)))
