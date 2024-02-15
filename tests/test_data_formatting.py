@@ -4,6 +4,7 @@ IMPORTANT: Currently these tests are sensitive to dataset caching! If anything l
 try running the test in isolation. In the future, we should patch the map to do things in memory
 so that each test runs independently.
 """
+from datasets import disable_caching
 import pytest
 import json
 import os
@@ -13,6 +14,8 @@ from transformers import AutoTokenizer
 SAMPLE_DATA = os.path.join(os.path.dirname(__file__), "sample_complaints.json")
 TOKENIZER = AutoTokenizer.from_pretrained("bigscience/bloom-560m")
 
+# Disable dataset caching globally so that these tests will run independently
+disable_caching()
 
 @pytest.mark.parametrize("use_iterable_dataset", [True, False])
 def test_dataset_length(use_iterable_dataset):
