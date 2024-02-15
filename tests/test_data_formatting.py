@@ -23,7 +23,8 @@ def test_dataset_length(use_iterable_dataset):
     hf_dataset = preprocess_function(
         data_path=SAMPLE_DATA,
         tokenizer=TOKENIZER,
-        use_iterable_dataset=use_iterable_dataset
+        batch_size=1000,
+        use_iterable_dataset=use_iterable_dataset,
     )
     assert len(list(hf_dataset)) == len(data_records)
 
@@ -74,10 +75,11 @@ def test_preprocessing_differing_lengths():
 
 def test_max_seq_len_override():
     """Ensure that we can override the max sequence length."""
-    max_sequence_length=1
+    max_sequence_length=1 # Creates one tok + FINAL_TOKEN_ID (EOS) sequences.
     hf_dataset = preprocess_function(
         data_path=SAMPLE_DATA,
         tokenizer=TOKENIZER,
+        batch_size=1000,
         max_sequence_length=max_sequence_length,
     )
     for record in hf_dataset:
@@ -90,3 +92,43 @@ def test_max_seq_len_override():
         assert record["labels"][-1] == TOKENIZER.eos_token_id
         assert record["input_ids"][-1] == TOKENIZER.eos_token_id
         assert record["attention_mask"][-1] == 1
+
+
+def test_formatting_with_divisible_per_batch_padding():
+    """Ensure that if the dataset is smaller than the batch, the padding is done per batch."""
+    max_sequence_length=100
+    hf_dataset = preprocess_function(
+        data_path=SAMPLE_DATA,
+        tokenizer=TOKENIZER,
+        batch_size=10, # NOTE: Tests data has 50 samples
+        max_sequence_length=max_sequence_length,
+    )
+    sizes = set()
+    for record in hf_dataset:
+        value_lengths = [len(v) for v in record.values()]
+        value_len_set = set(value_lengths)
+        assert len(value_len_set) == 1
+        sizes.add(value_len_set.pop())
+    # Since we have 50 samples and a batch size of 10, we should have
+    # 5 unique padding lengths [assuming there are no collisions].
+    assert len(sizes) == 5
+
+
+def test_formatting_with_non_divisible_per_batch_padding():
+    """Ensure that if len(data)/batch_size is non integer, we have good behavior."""
+    max_sequence_length=100
+    hf_dataset = preprocess_function(
+        data_path=SAMPLE_DATA,
+        tokenizer=TOKENIZER,
+        batch_size=11, # NOTE: Tests data has 50 samples
+        max_sequence_length=max_sequence_length,
+    )
+    sizes = set()
+    for record in hf_dataset:
+        value_lengths = [len(v) for v in record.values()]
+        value_len_set = set(value_lengths)
+        assert len(value_len_set) == 1
+        sizes.add(value_len_set.pop())
+    # Same case as before (although in this case, one batch is smaller since 50/11
+    # results in one smaller batch being formed at the end of the dataset).
+    assert len(sizes) == 5
