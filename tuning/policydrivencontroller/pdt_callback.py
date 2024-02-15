@@ -50,7 +50,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
         elif 'should_log' in cb['control-operation']:
             control.should_log = cb['control-operation']['should_log']
 
-    def __loop_through_controllers(self, state, control, trigger_filter):
+    def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
         controllers = self.training_control_def['controllers']
         num_controllers = len(controllers)
         for i in range(num_controllers):
@@ -64,7 +64,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             metric_result = {}
             for i in range(len(controller['controller-metrics'])):
                 cm_obj = controller_metrics_objs[i]
-                cm_res = cm_obj.compute(state)
+                cm_res = cm_obj.compute(state, args, metrics)
                 if cm_res == None:
                     continue
                 metric_result.update(cm_res)
@@ -81,28 +81,28 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             # logger.warn('******CONTROLLER-END: %s*************' % (name))
 
     def on_step_end(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_step_end')
+        self.__loop_through_controllers(state, control, args, 'on_step_end')
 
     def on_epoch_begin(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_epoch_begin')
+        self.__loop_through_controllers(state, control, args, 'on_epoch_begin')
 
     def on_epoch_end(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_epoch_end')
+        self.__loop_through_controllers(state, control, args, 'on_epoch_end')
 
     def on_prediction_step(self, args, state, control, eval_dataloader=None, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_prediction_step')
+        self.__loop_through_controllers(state, control, args, 'on_prediction_step')
 
     def on_predict(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_predict')
+        self.__loop_through_controllers(state, control, args, 'on_predict')
 
     def on_log(self, args, state, control, logs=None, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_log')
+        self.__loop_through_controllers(state, control, args, 'on_log')
 
     def on_train_end(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_train_end')
+        self.__loop_through_controllers(state, control, args, 'on_train_end')
 
     def on_train_begin(self, args, state, control, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_train_end')
+        self.__loop_through_controllers(state, control, args, 'on_train_end')
 
     def on_evaluate(self, args, state, control, metrics, **kwargs):
-        self.__loop_through_controllers(state, control, 'on_evaluate')
+        self.__loop_through_controllers(state, control, args, 'on_evaluate', metrics)
