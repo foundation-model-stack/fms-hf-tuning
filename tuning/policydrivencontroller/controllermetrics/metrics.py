@@ -180,8 +180,14 @@ class EvalMetricBasedControl(MetricHandler):
         self.__early_stopping_patience_counter = 0
 
     def validate(self, training_args):
-        # Validate the training arguments (e.g logging_steps) are
-        # compatible with the computation of this metric
+        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
+
+        Args:
+            training_args: Training arguments
+
+        Returns:
+            bool
+        """
         logger.info("VALIDATE ==> %s %s %s %s" % (str(training_args.load_best_model_at_end), \
             str(training_args.metric_for_best_model), \
             str(training_args.evaluation_strategy), \
@@ -193,7 +199,12 @@ class EvalMetricBasedControl(MetricHandler):
         training_args.save_strategy == IntervalStrategy.EPOCH)
 
     def __check_metric_value(self, args, state, metric_value):
-        # best_metric is set by code for load_best_model
+        """Checks the best metric value and compares it with a threshold
+        Args:
+            training_state: TrainerState object
+            args: TrainingArguments object
+            metric_value: [optional] metrics data
+        """
         operator = np.greater if args.greater_is_better else np.less
         if state.best_metric is None or (
             operator(metric_value, state.best_metric)
@@ -204,7 +215,16 @@ class EvalMetricBasedControl(MetricHandler):
             self.__early_stopping_patience_counter += 1
 
     def compute(self, training_state, training_args=None, metrics=None):
-        # Compute the metric using the training state
+        """Computes the controller-metric (evaluation metric) and exposes the values of the variables used by the rules.
+
+        Args:
+            training_state: TrainerState object
+            training_args: TrainingArguments object
+            metrics: [optional] metrics data
+
+        Returns:
+            dict
+        """
         metric_to_check = training_args.metric_for_best_model
         if not metric_to_check.startswith("eval_"):
             metric_to_check = f"eval_{metric_to_check}"
