@@ -1,0 +1,13 @@
+controllers:
+  - name: loss-controller
+    controller-metrics:
+      - name: wsl
+        handler-class: WindowStepLoss
+        arguments:
+          window-size: 3
+    triggers:
+      - on_step_end
+    control-operation:
+      should_training_stop: True
+    rules:
+      - wsl_consistently_increasing == 1 and wsl_average_loss > 2.5

@@ -88,5 +88,16 @@ class TrainingArguments(transformers.TrainingArguments):
             Possible values are 'no'(no logging is done during training), \
             'epoch' (logging is done at the end of each epoch), \
             'steps' (logging is done every `logging_steps`)"
+        }
+    )
+
+@dataclass
+class PTCArguments():
+    traning_control_definition_file: str = field(
+        default="ctldef.yaml",
+        metadata={
+            "help": (
+                "Training control definition file in YAML format."
+            )
         },
     )
