@@ -48,6 +48,7 @@ if is_aim_available():
     from tuning.aim_loader import get_aimstack_callback
 
 from tuning.policydrivencontroller import PolicyDrivenTrainerControl
+from tuning.policydrivencontroller.pdt_callback import PolicyDrivenTrainerControl
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""

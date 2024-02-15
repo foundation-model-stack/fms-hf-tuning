@@ -6,16 +6,15 @@ from typing import Optional, Union
 import json
 import yaml
 import os
-from controllermetrics import metrics as contmetrics
+import copy
+from .controllermetrics import metrics as contmetrics
 
 logger = logging.get_logger(__name__)
 
 class PolicyDrivenTrainerControl(TrainerCallback):
+    """Implements the policy driven trainer loop control based on policy definition file and metrics"""
+    
     def __init__(self, train_control_args, training_args):
-        self.early_stopping_patience = train_control_args.early_stopping_patience
-        self.early_stopping_threshold = train_control_args.early_stopping_threshold
-        # early_stopping_patience_counter denotes the number of times validation metrics failed to improve.
-        self.early_stopping_patience_counter = 0
         self.__controllers = {}
         if os.path.exists(train_control_args.traning_control_definition_file):
             with open(train_control_args.traning_control_definition_file, "r") as f:
@@ -57,6 +56,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
         for i in range(num_controllers):
             controller = controllers[i]
             name = controller['name']
+            # logger.warn('*********CONTROLLER-BEGIN: %s************' % (name))
             controller_metrics_objs = self.__controllers[name]
             trigger_set = set(controller['triggers'])
             if trigger_filter not in trigger_set:
@@ -64,23 +64,21 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             metric_result = {}
             for i in range(len(controller['controller-metrics'])):
                 cm_obj = controller_metrics_objs[i]
-                try:
-                    cm_res = cm_obj.compute(state)
-                    logger.warn('RES: %s' % (str(cm_res)))
-                    if cm_res == None:
-                        continue
-                    metric_result.update(cm_res)
-                except Exception as e:
-                    logger.fatal(e)
-            logger.warn('METRICS SO FAR: %s' % (repr(metric_result)))
+                cm_res = cm_obj.compute(state)
+                if cm_res == None:
+                    continue
+                metric_result.update(cm_res)
             for rule in controller['rules']:
                 try:
+                    mr_copy = copy.deepcopy(metric_result)
                     rule_outcome = eval(rule, metric_result)
                     if rule_outcome:
+                        logger.warn('[%s] metrics so far: %s' % (name, str(mr_copy)))
+                        logger.warn('[%s] rule[%s] TRIGGERED' % (name, str(rule)))
                         self.__apply_control(controller, control)
-                        logger.warn('RULE[%s] TRIGGERED: %s' % (repr(rule)))
                 except Exception as e:
                     pass
+            # logger.warn('******CONTROLLER-END: %s*************' % (name))
 
     def on_step_end(self, args, state, control, **kwargs):
         self.__loop_through_controllers(state, control, 'on_step_end')
@@ -89,7 +87,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
         self.__loop_through_controllers(state, control, 'on_epoch_begin')
 
     def on_epoch_end(self, args, state, control, **kwargs):
-        self.loop_through_control_blocks(state, control, 'on_epoch_end')
+        self.__loop_through_controllers(state, control, 'on_epoch_end')
 
     def on_prediction_step(self, args, state, control, eval_dataloader=None, **kwargs):
         self.__loop_through_controllers(state, control, 'on_prediction_step')

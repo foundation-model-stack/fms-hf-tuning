@@ -15,7 +15,6 @@ class MetricHandler:
         pass   
 
 class WindowStepLoss(MetricHandler):
-    __exposed_variable_prefix = 'wsl'
 
     def __init__(self, name, args):
         # Initialize the handler arguments
@@ -33,10 +32,10 @@ class WindowStepLoss(MetricHandler):
         loss_values = [l['loss'] for l in training_state.log_history if 'loss' in l]
         n = len(loss_values)
         if n == 0:
-            logger.warn('(N=0) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
+            logger.info('(N=0) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
             return None
-        if n <= self.args['window-size']:
-            logger.warn('(N<W) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
+        if n <= self.__args['window-size']:
+            logger.info('(N<W) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
             return None
         window = loss_values[n-self.__args['window-size']:n]
         consistently_increasing = True
@@ -48,10 +47,11 @@ class WindowStepLoss(MetricHandler):
         avg_loss = np.mean(w)
         std_loss = np.std(w, dtype=np.float64)
         first_and_last_loss = window[0] < window[len(window)-1]
-        return {self.__name + '_' + 'consistently_increasing': int(consistently_increasing), \
+        exposed_data = {self.__name + '_' + 'consistently_increasing': int(consistently_increasing), \
                 self.__name + '_' + 'average_loss': avg_loss,\
                 self.__name + '_' + 'std_loss': std_loss,\
-                self.__name + '_' + 'first_and_last_loss': first_and_last_loss}
+                self.__name + '_' + 'first_and_last_loss': int(first_and_last_loss)}
+        return exposed_data
 
 class EpochLoss(MetricHandler):
 
@@ -68,7 +68,11 @@ class EpochLoss(MetricHandler):
             training_args.logging_steps == 1
 
     def __externalize_data(self):
-        if len(self.__cache) < self._args['window-size']:
+        if self.__cache == None:
+            logger.warn('EpochLoss cache is NULL!!!!')
+            return None
+        if len(self.__cache) < self.__args['window-size']:
+            logger.info('EpochLoss cache has not grown to size of window yet: %d' % (len(self.__cache)))
             return None
         dq = copy.deepcopy(self.__cache)
         key_prefix = self.__name + "_"
@@ -77,38 +81,48 @@ class EpochLoss(MetricHandler):
             elem = dq.pop()
             if i == 0:
                 for k, v in elem.items():
-                    key = key_prefix + k + '_epoch[n]'
+                    key = key_prefix + k + '_epoch_n'
                     exposed_data[key] =  v
             else:
                 for k, v in elem.items():
-                    key = key_prefix + k + '_epoch[n-' + str(i)+ ']'
+                    key = key_prefix + k + '_epoch_nm' + str(i)
                     exposed_data[key] =  v
-        self.__cache = dq
         return exposed_data
 
     def compute(self, training_state, training_args=None, metrics=None):
         # Compute the metric using the training state
         previous_epoch = -1
         loss_array = None
-        logs_latest_first = training_state.log_history.reverse()
-        latest_log = None
+        logs_latest_first = list(reversed(training_state.log_history))
+        latest_log_loss = None
+        added = False
         for i in range(len(logs_latest_first)):
             log = logs_latest_first[i]
-            if 'epoch' not in log and 'loss' not in log:
+            try:
+                loss = log['loss']
+                if i == 0:
+                    latest_log_loss = loss
+                epoch = math.ceil(log['epoch'])
+                if previous_epoch == -1:
+                    previous_epoch = epoch
+                    loss_array = []
+                if epoch != previous_epoch and loss_array != None:
+                    if len(loss_array) > 0:
+                        l = np.array(loss_array)
+                        epoch_avg_loss = np.mean(l)
+                        epoch_std_loss = np.std(l, dtype=np.float64)
+                        self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'end_loss': latest_log_loss})
+                        added = True
+                        break
+                loss_array.append(loss)
+            except:
+                # Ignoring log lines not containing relevant fields
                 continue
-            if i == 0:
-                latest_log = log
-            epoch = math.ceil(log['epoch'])
-            if previous_epoch == -1:
-                previous_epoch = epoch
-                loss_array = []
-            if epoch != previous_epoch and loss_array != None and len(loss_array) > 0:
-                l = np.array(loss_array)
-                epoch_avg_loss = np.mean(l)
-                epoch_std_loss = np.std(l, dtype=np.float64)
-                self.cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'end_loss': latest_log})
-                break
-            loss_array.append(log['loss'])
+        if len(loss_array) > 0 and added == False:
+            l = np.array(loss_array)
+            epoch_avg_loss = np.mean(l)
+            epoch_std_loss = np.std(l, dtype=np.float64)
+            self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'end_loss': latest_log_loss})
         return self.__externalize_data()
         
             
@@ -118,12 +132,12 @@ class EvalMetricBasedControl(MetricHandler):
         # Initialize the handler arguments
         self.__name = name
         if args == None:
-            self.early_stopping_patience = 1.0
-            self.early_stopping_threshold = 0.0
+            self.__early_stopping_patience = 1.0
+            self.__early_stopping_threshold = 0.0
         else:
             self.__early_stopping_patience = args.early_stopping_patience
             self.__early_stopping_threshold = args.early_stopping_threshold
-        self.early_stopping_patience_counter = 0
+        self.__early_stopping_patience_counter = 0
 
     def validate(self, training_args):
         # Validate the training arguments (e.g logging_steps) are

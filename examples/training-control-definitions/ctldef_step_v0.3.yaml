@@ -10,4 +10,4 @@ controllers:
     control-operation:
       should_training_stop: True
     rules:
-      - wsl_consistently_increasing == 1 and wsl_average_loss > 2.5
+      - wsl_consistently_increasing == 1
