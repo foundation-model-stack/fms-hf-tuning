@@ -93,7 +93,7 @@ class TrainingArguments(transformers.TrainingArguments):
 
 @dataclass
 class PTCArguments():
-    traning_control_definition_file: str = field(
+    training_control_definition_file: str = field(
         default="ctldef.yaml",
         metadata={
             "help": (
