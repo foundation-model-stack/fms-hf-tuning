@@ -47,7 +47,7 @@ class FileLoggingCallback(TrainerCallback):
         self.logger = logger
 
     def on_log(self, args, state, control, logs=None, **kwargs):
-        """Checks if this log contains keys of interest, e.g., los, and if so, creates
+        """Checks if this log contains keys of interest, e.g., loss, and if so, creates
         train_loss.jsonl in the model output dir (if it doesn't already exist),
         appends the subdict of the log & dumps the file.
         """
@@ -56,25 +56,33 @@ class FileLoggingCallback(TrainerCallback):
             return
 
         log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
+        eval_log_file_path = os.path.join(args.output_dir, "eval_loss.jsonl")
         if logs is not None and "loss" in logs and "epoch" in logs:
-            try:
-                # Take the subdict of the last log line; if any log_keys aren't part of this log
-                # object, asssume this line is something else, e.g., train completion, and skip.
-                log_obj = {
-                    "name": "loss",
-                    "data": {
-                        "epoch": round(logs["epoch"], 2),
-                        "step": state.global_step,
-                        "value": logs["loss"],
-                        "timestamp": datetime.isoformat(datetime.now()),
-                    },
-                }
-            except KeyError:
-                return
+            # separate evaluation loss with train loss
+            if "eval_loss" in logs:
+                self._track_loss("eval_loss", eval_log_file_path, logs, state)
+            else:
+                self._track_loss("loss", log_file_path, logs, state)
 
-            # append the current log to the jsonl file
-            with open(log_file_path, "a") as log_file:
-                log_file.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
+    def _track_loss(self, loss_key, log_file, logs, state):
+        try:
+            # Take the subdict of the last log line; if any log_keys aren't part of this log
+            # object, assume this line is something else, e.g., train completion, and skip.
+            log_obj = {
+                "name": loss_key,
+                "data": {
+                    "epoch": round(logs["epoch"], 2),
+                    "step": state.global_step,
+                    "value": logs[loss_key],
+                    "timestamp": datetime.isoformat(datetime.now()),
+                },
+            }
+        except KeyError:
+            return
+
+        # append the current log to the jsonl file
+        with open(log_file, "a") as f:
+            f.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
 
 def train(
@@ -104,7 +112,7 @@ def train(
     if (not isinstance(train_args.num_train_epochs, float)) or (
         train_args.num_train_epochs <= 0
     ):
-        raise ValueError("num_train_epochs has to be an integer/float >= 1")
+        raise ValueError("num_train_epochs has to be an float >= 1")
     if (not isinstance(train_args.gradient_accumulation_steps, int)) or (
         train_args.gradient_accumulation_steps <= 0
     ):
