@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional, Union
 
 import datasets
@@ -10,11 +11,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, Ll
 from transformers.utils import logging
 from transformers import TrainerCallback
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
-from tuning.aim_loader import get_aimstack_callback
-from tuning.config import configs, peft_config
+from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.tracker.tracker import Tracker
+from tuning.tracker.aimstack_tracker import AimStackTracker
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -24,13 +26,13 @@ class PeftSavingCallback(TrainerCallback):
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
-
-
 def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
+    tracker_name: Optional[str] = None,
+    tracker_config: Optional[Union[tracker_configs.AimConfig]] = None
 ):
     """Call the SFTTrainer
 
@@ -44,7 +46,6 @@ def train(
             The peft configuration to pass to trainer
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
-
     logger = logging.get_logger("sft_trainer")
 
     # Validate parameters
@@ -58,14 +59,29 @@ def train(
         train_args.fsdp = ""
         train_args.fsdp_config = {'xla':False}
 
+    # Initialize the tracker early so we can calculate custom metrics like model_load_time.
+ 
+    if tracker_name == 'aim':
+        if tracker_config is not None:
+            tracker = AimStackTracker(tracker_config)
+        else:
+            logger.error("Tracker name is set to "+tracker_name+" but config is None.")
+    else:
+        logger.info('No tracker set so just set a dummy API which does nothing')
+        tracker = Tracker()
+
     task_type = "CAUSAL_LM"
+
+    model_load_time = time.time()
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
-    
+    model_load_time = time.time() - model_load_time
+    tracker.track(metric=model_load_time, name='model_load_time')
+
     peft_config = get_hf_peft_config(task_type, peft_config)
 
     model.gradient_checkpointing_enable()
@@ -130,8 +146,12 @@ def train(
     formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
     logger.info(f"Dataset length is {len(formatted_dataset)}")
 
-    aim_callback = get_aimstack_callback()
-    callbacks=[aim_callback,PeftSavingCallback()]
+    # club and register callbacks
+    callbacks = [PeftSavingCallback()]
+
+    tracker_callback = tracker.get_hf_callback()
+    if tracker_callback is not None:
+        callbacks.append(tracker_callback)
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -173,16 +193,30 @@ def main(**kwargs):
                                                             configs.DataArguments,
                                                             configs.TrainingArguments,
                                                             peft_config.LoraConfig,
-                                                            peft_config.PromptTuningConfig))
+                                                            peft_config.PromptTuningConfig,
+                                                            tracker_configs.AimConfig))
     parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
-    model_args, data_args, training_args, lora_config, prompt_tuning_config, peft_method, _ = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-    if peft_method.peft_method =="lora":
+    parser.add_argument('--tracker', type=str.lower, choices=['aim', None, 'none'], default="aim")
+    (model_args, data_args, training_args,
+    lora_config, prompt_tuning_config, aim_config,
+        additional, _) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+
+    peft_method = additional.peft_method
+    tracker_name = additional.tracker
+
+    if peft_method =="lora":
         tune_config=lora_config
-    elif peft_method.peft_method =="pt":
+    elif peft_method =="pt":
         tune_config=prompt_tuning_config
     else:
         tune_config=None
-    train(model_args, data_args, training_args, tune_config)
+
+    if tracker_name == "aim":
+        tracker_config=aim_config
+    else:
+        tracker_config=None
+
+    train(model_args, data_args, training_args, tune_config, tracker_name, tracker_config)
 
 if __name__ == "__main__":
     fire.Fire(main)
