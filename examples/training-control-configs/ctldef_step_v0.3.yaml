@@ -7,7 +7,7 @@ controllers:
           window-size: 3
     triggers:
       - on_step_end
-    control-operation:
+    control-operations:
       should_training_stop: True
     rules:
       - wsl_consistently_increasing == 1

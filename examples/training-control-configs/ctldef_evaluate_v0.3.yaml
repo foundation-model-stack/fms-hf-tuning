@@ -5,7 +5,7 @@ controllers:
         handler-class: EvalMetricBasedControl
     triggers:
       - on_evaluate
-    control-operation:
+    control-operations:
       should_training_stop: True
     rules:
       - embc_early_stopping_patience_counter >= embc_early_stopping_patience

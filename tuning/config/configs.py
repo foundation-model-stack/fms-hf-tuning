@@ -92,12 +92,12 @@ class TrainingArguments(transformers.TrainingArguments):
     )
 
 @dataclass
-class PTCArguments():
-    training_control_definition_file: str = field(
-        default="ctldef.yaml",
+class TrainingControlArguments():
+    training_control_config_file: str = field(
+        default="trainingcontrol_config.yaml",
         metadata={
             "help": (
-                "Training control definition file in YAML format."
+                "Training control configuration file in YAML format."
             )
         },
     )

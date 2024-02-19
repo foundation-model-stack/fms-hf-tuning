@@ -11,7 +11,7 @@ from .controllermetrics import metrics as contmetrics
 
 logger = logging.get_logger(__name__)
 
-class PolicyDrivenTrainerControl(TrainerCallback):
+class TrainingController(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
     
     def __init__(self, train_control_args, training_args):
@@ -22,8 +22,8 @@ class PolicyDrivenTrainerControl(TrainerCallback):
             training_args: TrainingArguments object
         """
         self.__controllers = {}
-        if os.path.exists(train_control_args.training_control_definition_file):
-            with open(train_control_args.training_control_definition_file, "r") as f:
+        if os.path.exists(train_control_args.training_control_config_file):
+            with open(train_control_args.training_control_config_file, "r") as f:
                 self.training_control_def = yaml.safe_load(f)
                 for controller in self.training_control_def['controllers']:
                     name = controller['name']
@@ -44,7 +44,7 @@ class PolicyDrivenTrainerControl(TrainerCallback):
                         controller_metric_objs.append(obj)
                     self.__controllers[name] = controller_metric_objs
         else:
-            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.training_control_definition_file)
+            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.training_control_config_file)
 
     def __apply_control(self, cb, control):
         """Given a controller-block, applies the control operation to the training loop.
@@ -56,16 +56,16 @@ class PolicyDrivenTrainerControl(TrainerCallback):
         Returns:
             None.
         """
-        if 'should_training_stop' in cb['control-operation']:
-            control.should_training_stop = cb['control-operation']['should_training_stop']
-        elif 'should_epoch_stop' in cb['control-operation']:
-            control.should_epoch_stop = cb['control-operation']['should_epoch_stop']
-        elif 'should_save' in cb['control-operation']:
-            control.should_save = cb['control-operation']['should_save']
-        elif 'should_evaluate' in cb['control-operation']:
-            control.should_evaluate = cb['control-operation']['should_evaluate']
-        elif 'should_log' in cb['control-operation']:
-            control.should_log = cb['control-operation']['should_log']
+        if 'should_training_stop' in cb['control-operations']:
+            control.should_training_stop = cb['control-operations']['should_training_stop']
+        elif 'should_epoch_stop' in cb['control-operations']:
+            control.should_epoch_stop = cb['control-operations']['should_epoch_stop']
+        elif 'should_save' in cb['control-operations']:
+            control.should_save = cb['control-operations']['should_save']
+        elif 'should_evaluate' in cb['control-operations']:
+            control.should_evaluate = cb['control-operations']['should_evaluate']
+        elif 'should_log' in cb['control-operations']:
+            control.should_log = cb['control-operations']['should_log']
 
     def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
         """Loops through the controllers computing the controller-metrics and validating the rules. Once any rule gets validated, the corresponding control is applied to the trainer loop.

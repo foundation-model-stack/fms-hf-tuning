@@ -7,7 +7,7 @@ controllers:
           window-size: 2
     triggers:
       - on_epoch_end
-    control-operation:
+    control-operations:
       should_training_stop: True
     rules:
       - (elc_end_loss_epoch_n > elc_end_loss_epoch_nm1) or (elc_end_loss_epoch_nm1 - elc_end_loss_epoch_n < 0.5)

@@ -1,10 +1,10 @@
 # How-To
 To use one of these files with the trainer, execute the `sft_trainer.py` with the following option: 
 ```
---training_control_definition_file "examples/training-control-definitions/<file-name>"
+--training_control_config_file "examples/training-control-configs/<file-name>"
 ```
 
-# Note on training control definition examples
+# Note on training control configuration examples
 - `ctldef_step_v0.3.yaml`: Defines a training controller which computes loss at every step and loss consistently increases for three steps, then the training is stopped.
 - `ctldef_epoch_v0.3.yaml`: Defines a epoch level training controller which computes loss at every epoch. The rule applied here is to compare a current epoch loss with previous epoch loss and it turns out to be more, then training is stopped.
 - `ctldef_epoch_threshold_v0.3.yaml`: Defines a training controller similar to previous case, but also adds a threshold constraint.
