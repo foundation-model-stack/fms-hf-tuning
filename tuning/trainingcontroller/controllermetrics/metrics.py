@@ -188,11 +188,6 @@ class EvalMetricBasedControl(MetricHandler):
         Returns:
             bool
         """
-        logger.info("VALIDATE ==> %s %s %s %s" % (str(training_args.load_best_model_at_end), \
-            str(training_args.metric_for_best_model), \
-            str(training_args.evaluation_strategy), \
-            str(training_args.save_strategy)))
-
         return (training_args.load_best_model_at_end == True or \
         training_args.metric_for_best_model is not None or \
         training_args.evaluation_strategy != IntervalStrategy.NO or \
