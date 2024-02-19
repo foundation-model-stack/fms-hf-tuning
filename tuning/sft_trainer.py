@@ -1,6 +1,6 @@
 # Standard
 from datetime import datetime
-from typing import Optional, Union, List, NamedTuple
+from typing import List, NamedTuple, Optional, Union
 import json
 import os
 import time
