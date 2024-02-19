@@ -101,8 +101,8 @@ class TrainingController(TrainerCallback):
                     mr_copy = copy.deepcopy(metric_result)
                     rule_outcome = eval(rule, metric_result)
                     if rule_outcome:
-                        logger.warn('[%s] metrics so far: %s' % (name, str(mr_copy)))
-                        logger.warn('[%s] rule[%s] TRIGGERED' % (name, str(rule)))
+                        logger.debug('[%s] metrics so far: %s' % (name, str(mr_copy)))
+                        logger.warn('[%s] rule[%s] triggered' % (name, str(rule)))
                         self.__apply_control(controller, control)
                 except Exception as e:
                     pass
