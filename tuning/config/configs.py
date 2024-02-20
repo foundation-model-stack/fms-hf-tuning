@@ -58,6 +58,6 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
     tracker: str.lower = field(
-        default="aim",
-        metadata={"help": "Default experiment tracker to integrate with. requires additional configs. see tuning.configs/tracker_configs.py"}
+        default=None,
+        metadata={"help": "Experiment tracker to use. Requires additional configs, see tuning.configs/tracker_configs.py"}
     )
