@@ -1,16 +1,27 @@
-import os
-import time
+# Standard
+from datetime import datetime
 from typing import Optional, Union
+import json
+import os, time
 
+# Third Party
+from peft.utils.other import fsdp_auto_wrap_policy
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    GPT2Tokenizer,
+    GPTNeoXTokenizerFast,
+    LlamaTokenizer,
+    LlamaTokenizerFast,
+    TrainerCallback,
+)
+from transformers.utils import logging
+from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
-from peft.utils.other import fsdp_auto_wrap_policy
-import torch
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast, GPTNeoXTokenizerFast, GPT2Tokenizer
-from transformers.utils import logging
-from transformers import TrainerCallback
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+
+# Local
 from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
@@ -18,20 +29,61 @@ from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.tracker.tracker import Tracker
 from tuning.tracker.aimstack_tracker import AimStackTracker
 
+
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
-        checkpoint_path = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+        checkpoint_path = os.path.join(
+            args.output_dir, f"checkpoint-{state.global_step}"
+        )
         kwargs["model"].save_pretrained(checkpoint_path)
 
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
 
+class FileLoggingCallback(TrainerCallback):
+    """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
+
+    def __init__(self, logger):
+        self.logger = logger
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """Checks if this log contains keys of interest, e.g., los, and if so, creates
+        train_loss.jsonl in the model output dir (if it doesn't already exist),
+        appends the subdict of the log & dumps the file.
+        """
+        # All processes get the logs from this node; only update from process 0.
+        if not state.is_world_process_zero:
+            return
+
+        log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
+        if logs is not None and "loss" in logs and "epoch" in logs:
+            try:
+                # Take the subdict of the last log line; if any log_keys aren't part of this log
+                # object, asssume this line is something else, e.g., train completion, and skip.
+                log_obj = {
+                    "name": "loss",
+                    "data": {
+                        "epoch": round(logs["epoch"], 2),
+                        "step": state.global_step,
+                        "value": logs["loss"],
+                        "timestamp": datetime.isoformat(datetime.now()),
+                    },
+                }
+            except KeyError:
+                return
+
+            # append the current log to the jsonl file
+            with open(log_file_path, "a") as log_file:
+                log_file.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
+
+
 def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    peft_config: Optional[Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]] = None,
-    tracker_name: Optional[str] = None,
+    peft_config: Optional[
+        Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
+    ] = None,
     tracker_config: Optional[Union[tracker_configs.AimConfig]] = None
 ):
     """Call the SFTTrainer
@@ -49,18 +101,22 @@ def train(
     logger = logging.get_logger("sft_trainer")
 
     # Validate parameters
-    if (not isinstance(train_args.num_train_epochs, float)) or (train_args.num_train_epochs <= 0):
+    if (not isinstance(train_args.num_train_epochs, float)) or (
+        train_args.num_train_epochs <= 0
+    ):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
-    if (not isinstance(train_args.gradient_accumulation_steps , int)) or (train_args.gradient_accumulation_steps <= 0):
+    if (not isinstance(train_args.gradient_accumulation_steps, int)) or (
+        train_args.gradient_accumulation_steps <= 0
+    ):
         raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
 
     # make sure to unset FSDP args when running on single gpu
     if not run_distributed:
         train_args.fsdp = ""
-        train_args.fsdp_config = {'xla':False}
+        train_args.fsdp_config = {"xla": False}
 
     # Initialize the tracker early so we can calculate custom metrics like model_load_time.
- 
+    tracker_name = train_args.tracker
     if tracker_name == 'aim':
         if tracker_config is not None:
             tracker = AimStackTracker(tracker_config)
@@ -88,36 +144,46 @@ def train(
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=train_args.cache_dir,
-        use_fast = True
+        model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
     )
 
     # TODO: understand if we need to hardcode these here or just use defaults in model
-    if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
-        tokenizer.add_special_tokens({
-            "bos_token": "<s>",
-            "eos_token": "</s>",
-            "unk_token": "<unk>",
-            "pad_token": "<pad>",
-        })
-    elif isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(tokenizer, GPT2Tokenizer):
-        tokenizer.add_special_tokens({
-            "pad_token": "<pad>",
-        })
+    if isinstance(tokenizer, LlamaTokenizer) or isinstance(
+        tokenizer, LlamaTokenizerFast
+    ):
+        tokenizer.add_special_tokens(
+            {
+                "bos_token": "<s>",
+                "eos_token": "</s>",
+                "unk_token": "<unk>",
+                "pad_token": "<pad>",
+            }
+        )
+    elif isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(
+        tokenizer, GPT2Tokenizer
+    ):
+        tokenizer.add_special_tokens(
+            {
+                "pad_token": "<pad>",
+            }
+        )
 
     """TODO: near term - how response template ids are parsed out needs to be cleaned.
        The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
        We will create issue to clean this out after we discuss data formats and collators we will support
     """
-    response_template_ids = tokenizer.encode(data_args.response_template, add_special_tokens=False)[2:]
-    # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length 
+    response_template_ids = tokenizer.encode(
+        data_args.response_template, add_special_tokens=False
+    )[2:]
+    # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length
     # as in current main. We need to change name of this parameter we expose to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
     logger.info(f"Model max length {model_max_length}")
     if train_args.model_max_length > tokenizer.model_max_length:
-        logger.warning(f"model_max_length {train_args.model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}")
-    
+        logger.warning(
+            f"model_max_length {train_args.model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}"
+        )
+
     # TODO: we need to change this, perhaps follow what open instruct does?
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:
@@ -140,18 +206,26 @@ def train(
         tokenizer=tokenizer,
         model=model,
     )
-    
+
     # load the data by parsing JSON
-    json_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-    formatted_dataset = json_dataset['train'].map(lambda example : {f"{data_args.dataset_text_field}" : example[f"{data_args.dataset_text_field}"] + tokenizer.eos_token})
-    logger.info(f"Dataset length is {len(formatted_dataset)}")
+    # TODO: update arg from data_path to training_data_path since we also have validation_data_path
+    data_files = {"train": data_args.data_path}
+    if data_args.validation_data_path:
+        data_files["validation"] = data_args.validation_data_path
 
-    # club and register callbacks
-    callbacks = [PeftSavingCallback()]
+    format_dataset = lambda example: {
+        f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
+        + tokenizer.eos_token
+    }
 
-    tracker_callback = tracker.get_hf_callback()
-    if tracker_callback is not None:
-        callbacks.append(tracker_callback)
+    json_dataset = datasets.load_dataset("json", data_files=data_files)
+    formatted_train_dataset = json_dataset["train"].map(format_dataset)
+    logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
+
+    formatted_validation_dataset = None
+    if data_args.validation_data_path:
+        formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
+        logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -160,20 +234,38 @@ def train(
     else:
         logger.info("Packing is set to False")
         if data_args.response_template is None:
-            logger.error("Error, response template is None, needs to be set for training")
+            logger.error(
+                "Error, response template is None, needs to be set for training"
+            )
             exit(-1)
-        
+
         if data_args.dataset_text_field is None:
-            logger.error("Error, dataset_text_field is None, needs to be set for training")
+            logger.error(
+                "Error, dataset_text_field is None, needs to be set for training"
+            )
             exit(-1)
-        
-        data_collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, ignore_index=configs.IGNORE_INDEX)
+
+        data_collator = DataCollatorForCompletionOnlyLM(
+            response_template_ids,
+            tokenizer=tokenizer,
+            ignore_index=configs.IGNORE_INDEX,
+        )
         packing = False
+
+    # club and register callbacks
+    file_logger_callback = FileLoggingCallback(logger)
+    peft_saving_callback = PeftSavingCallback()
+    callbacks = [peft_saving_callback, file_logger_callback]
+
+    tracker_callback = tracker.get_hf_callback()
+    if tracker_callback is not None:
+        callbacks.append(tracker_callback)
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=formatted_dataset,
+        train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
@@ -184,26 +276,47 @@ def train(
     )
 
     if run_distributed and peft_config is not None:
-        trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
+        trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
+            model
+        )
     trainer.train()
 
 
 def main(**kwargs):
-    parser = transformers.HfArgumentParser(dataclass_types=(configs.ModelArguments, 
-                                                            configs.DataArguments,
-                                                            configs.TrainingArguments,
-                                                            peft_config.LoraConfig,
-                                                            peft_config.PromptTuningConfig,
-                                                            tracker_configs.AimConfig))
-    parser.add_argument('--peft_method', type=str.lower, choices=['pt', 'lora', None, 'none'], default="pt")
-    parser.add_argument('--tracker', type=str.lower, choices=['aim', None, 'none'], default="aim")
-    (model_args, data_args, training_args,
-    lora_config, prompt_tuning_config, aim_config,
-        additional, _) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    parser = transformers.HfArgumentParser(
+        dataclass_types=(
+            configs.ModelArguments,
+            configs.DataArguments,
+            configs.TrainingArguments,
+            peft_config.LoraConfig,
+            peft_config.PromptTuningConfig,
+            tracker_configs.AimConfig,
+        )
+    )
+    parser.add_argument(
+        "--peft_method",
+        type=str.lower,
+        choices=["pt", "lora", None, "none"],
+        default="pt",
+    )
+    parser.add_argument(
+        "--tracker",
+        type=str.lower,
+        choices=['aim', None, 'none'],
+        default="aim"
+    )
+    (
+        model_args,
+        data_args,
+        training_args,
+        lora_config,
+        prompt_tuning_config,
+        aim_config,
+        additional,
+        _,
+    ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     peft_method = additional.peft_method
-    tracker_name = additional.tracker
-
     if peft_method =="lora":
         tune_config=lora_config
     elif peft_method =="pt":
@@ -211,12 +324,14 @@ def main(**kwargs):
     else:
         tune_config=None
 
+    tracker_name = training_args.tracker
     if tracker_name == "aim":
         tracker_config=aim_config
     else:
         tracker_config=None
 
-    train(model_args, data_args, training_args, tune_config, tracker_name, tracker_config)
+    train(model_args, data_args, training_args, tune_config, tracker_config)
+
 
 if __name__ == "__main__":
     fire.Fire(main)

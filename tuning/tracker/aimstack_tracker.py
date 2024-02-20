@@ -11,21 +11,28 @@ class AimStackTracker(Tracker):
     def __init__(self, tracker_config):
         super().__init__(tracker_config)
         c = self.config
-        if (c.remote_server_ip is not None and
-            c.remote_server_port is not None):
-            aim_callback = AimCallback(repo="aim://" + c.remote_server_ip+":"+ c.remote_server_port+ "/",
-                                       experiment=c.experiment)
-        if c.repo:
-            aim_callback = AimCallback(repo=c.repo, experiment=c.experiment)
+        exp = c.experiment
+        ip = c.aim_remote_server_ip
+        port = c.aim_remote_server_port
+        repo = c.aim_repo
+        hash_export_path = c.aim_run_hash_export_path
+
+        if (ip is not None and port is not None):
+            aim_callback = AimCallback(
+                                repo="aim://" + ip +":"+ port + "/",
+                                experiment=exp
+                            )
+        if repo:
+            aim_callback = AimCallback(repo=repo, experiment=exp)
         else:
-            aim_callback = AimCallback(experiment=c.experiment)
+            aim_callback = AimCallback(experiment=exp)
 
         run = aim_callback.experiment # Initialize Aim run
         run_hash = run.hash # Extract the hash
 
         # store the run hash
-        if c.run_hash_export_location:
-            with open(c.run_hash_export_location, 'w') as f:
+        if hash_export_path:
+            with open(hash_export_path, 'w') as f:
                 f.write(str(run_hash)+'\n')
 
         # Save Internal State
