@@ -55,14 +55,13 @@ class FileLoggingCallback(TrainerCallback):
         if not state.is_world_process_zero:
             return
 
+        # separate evaluation loss with train loss
         log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
         eval_log_file_path = os.path.join(args.output_dir, "eval_loss.jsonl")
         if logs is not None and "loss" in logs and "epoch" in logs:
-            # separate evaluation loss with train loss
-            if "eval_loss" in logs:
-                self._track_loss("eval_loss", eval_log_file_path, logs, state)
-            else:
-                self._track_loss("loss", log_file_path, logs, state)
+            self._track_loss("loss", log_file_path, logs, state)
+        elif logs is not None and "eval_loss" in logs and "epoch" in logs:
+            self._track_loss("eval_loss", eval_log_file_path, logs, state)
 
     def _track_loss(self, loss_key, log_file, logs, state):
         try:
@@ -112,7 +111,7 @@ def train(
     if (not isinstance(train_args.num_train_epochs, float)) or (
         train_args.num_train_epochs <= 0
     ):
-        raise ValueError("num_train_epochs has to be an float >= 1")
+        raise ValueError("num_train_epochs has to be an integer/float >= 1")
     if (not isinstance(train_args.gradient_accumulation_steps, int)) or (
         train_args.gradient_accumulation_steps <= 0
     ):
