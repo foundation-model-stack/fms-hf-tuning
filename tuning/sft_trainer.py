@@ -299,12 +299,6 @@ def main(**kwargs):
         choices=["pt", "lora", None, "none"],
         default="pt",
     )
-    parser.add_argument(
-        "--tracker",
-        type=str.lower,
-        choices=['aim', None, 'none'],
-        default="aim"
-    )
     (
         model_args,
         data_args,
