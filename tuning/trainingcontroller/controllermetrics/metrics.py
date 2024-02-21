@@ -49,11 +49,7 @@ class WindowStepLoss(MetricHandler):
         # Compute the metric using the training state
         loss_values = [l['loss'] for l in training_state.log_history if 'loss' in l]
         n = len(loss_values)
-        if n == 0:
-            logger.info('(N=0) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
-            return None
         if n <= self.__args['window-size']:
-            logger.info('(N<W) Number of LOSS values: %d, Given window size: %d' % (n, self.__args['window-size']))
             return None
         window = loss_values[n-self.__args['window-size']:n]
         consistently_increasing = True
@@ -64,11 +60,10 @@ class WindowStepLoss(MetricHandler):
         w = np.array(window)
         avg_loss = np.mean(w)
         std_loss = np.std(w, dtype=np.float64)
-        first_and_last_loss = window[0] < window[len(window)-1]
-        exposed_data = {self.__name + '_' + 'consistently_increasing': int(consistently_increasing), \
-                self.__name + '_' + 'average_loss': avg_loss,\
-                self.__name + '_' + 'std_loss': std_loss,\
-                self.__name + '_' + 'first_and_last_loss': int(first_and_last_loss)}
+        exposed_data = {'consistently_increasing': int(consistently_increasing), \
+                    'average_loss': avg_loss,\
+                    'std_loss': std_loss,\
+                    'window': window}
         return exposed_data
 
 class EpochLoss(MetricHandler):
@@ -78,7 +73,7 @@ class EpochLoss(MetricHandler):
         # Initialize the handler arguments
         self.__name = name
         self.__args = args
-        self.__cache = deque()
+        self.__cache = []
         
     def validate(self, training_args):
         """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
@@ -98,25 +93,16 @@ class EpochLoss(MetricHandler):
         Returns:
             dict
         """
-        if self.__cache == None:
-            logger.warn('EpochLoss cache is NULL!!!!')
-            return None
         if len(self.__cache) < self.__args['window-size']:
-            logger.info('EpochLoss cache has not grown to size of window yet: %d' % (len(self.__cache)))
             return None
-        dq = copy.deepcopy(self.__cache)
-        key_prefix = self.__name + "_"
         exposed_data = {}
-        for i in range(len(dq)):
-            elem = dq.pop()
-            if i == 0:
-                for k, v in elem.items():
-                    key = key_prefix + k + '_epoch_n'
-                    exposed_data[key] =  v
-            else:
-                for k, v in elem.items():
-                    key = key_prefix + k + '_epoch_nm' + str(i)
-                    exposed_data[key] =  v
+        for elem in reversed(self.__cache):
+            for k, v in elem.items():
+                l = []
+                if k in exposed_data:
+                    l = exposed_data[k]
+                l.append(v)
+                exposed_data[k] = l
         return exposed_data
 
     def compute(self, training_state, training_args=None, metrics=None):
@@ -133,14 +119,14 @@ class EpochLoss(MetricHandler):
         previous_epoch = -1
         loss_array = None
         logs_latest_first = list(reversed(training_state.log_history))
-        latest_log_loss = None
+        final_loss = None
         added = False
         for i in range(len(logs_latest_first)):
             log = logs_latest_first[i]
             try:
                 loss = log['loss']
                 if i == 0:
-                    latest_log_loss = loss
+                    final_loss = loss
                 epoch = math.ceil(log['epoch'])
                 if previous_epoch == -1:
                     previous_epoch = epoch
@@ -150,7 +136,7 @@ class EpochLoss(MetricHandler):
                         l = np.array(loss_array)
                         epoch_avg_loss = np.mean(l)
                         epoch_std_loss = np.std(l, dtype=np.float64)
-                        self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'end_loss': latest_log_loss})
+                        self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'final_loss': final_loss})
                         added = True
                         break
                 loss_array.append(loss)
@@ -161,7 +147,7 @@ class EpochLoss(MetricHandler):
             l = np.array(loss_array)
             epoch_avg_loss = np.mean(l)
             epoch_std_loss = np.std(l, dtype=np.float64)
-            self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'end_loss': latest_log_loss})
+            self.__cache.append({'epoch': epoch, 'avg_loss': epoch_avg_loss, 'std_loss': epoch_std_loss, 'final_loss': final_loss})
         return self.__externalize_data()
         
             

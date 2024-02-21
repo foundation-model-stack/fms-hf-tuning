@@ -10,4 +10,4 @@ controllers:
     control-operations:
       should_training_stop: True
     rules:
-      - wsl_consistently_increasing == 1
+      - wsl["consistently_increasing"] == 1
