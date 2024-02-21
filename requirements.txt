@@ -1,7 +1,6 @@
 numpy
 accelerate>=0.20.3
 transformers>=4.34.1
-torch
 aim==3.17.5
 sentencepiece
 tokenizers>=0.13.3
@@ -10,5 +9,4 @@ trl
 ninja
 peft>=0.8.0
 datasets>=2.15.0
-flash-attn
 fire
