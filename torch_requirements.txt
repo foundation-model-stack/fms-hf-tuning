@@ -1,0 +1,4 @@
+packaging
+torch
+wheel
+flash-attn
