@@ -56,16 +56,8 @@ class TrainingController(TrainerCallback):
         Returns:
             None.
         """
-        if 'should_training_stop' in cb['control-operations']:
-            control.should_training_stop = cb['control-operations']['should_training_stop']
-        elif 'should_epoch_stop' in cb['control-operations']:
-            control.should_epoch_stop = cb['control-operations']['should_epoch_stop']
-        elif 'should_save' in cb['control-operations']:
-            control.should_save = cb['control-operations']['should_save']
-        elif 'should_evaluate' in cb['control-operations']:
-            control.should_evaluate = cb['control-operations']['should_evaluate']
-        elif 'should_log' in cb['control-operations']:
-            control.should_log = cb['control-operations']['should_log']
+        for k, v in cb['control-operations'].items():
+            setattr(control, k, v)
 
     def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
         """Loops through the controllers computing the controller-metrics and validating the rules. Once any rule gets validated, the corresponding control is applied to the trainer loop.
@@ -95,17 +87,14 @@ class TrainingController(TrainerCallback):
                 cm_res = cm_obj.compute(state, args, metrics)
                 if cm_res == None:
                     continue
-                metric_result.update(cm_res)
-            for rule in controller['rules']:
-                try:
-                    mr_copy = copy.deepcopy(metric_result)
-                    rule_outcome = eval(rule, metric_result)
-                    if rule_outcome:
-                        logger.debug('[%s] metrics so far: %s' % (name, str(mr_copy)))
-                        logger.warn('[%s] rule[%s] triggered' % (name, str(rule)))
-                        self.__apply_control(controller, control)
-                except Exception as e:
-                    pass
+                metric_result[cm_obj["name"]]= cm_res
+            rule = controller['rule']
+            try:
+                if eval(rule, metric_result):
+                    logger.warn('<%s> rule[%s] triggered' % (name, str(rule)))
+                    self.__apply_control(controller, control)
+            except Exception as e:
+                pass
 
     def on_step_end(self, args, state, control, **kwargs):
         """Event triggered when step ends.

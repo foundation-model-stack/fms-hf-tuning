@@ -9,5 +9,4 @@ controllers:
       - on_epoch_end
     control-operations:
       should_training_stop: True
-    rules:
-      - elc_end_loss_epoch_n > elc_end_loss_epoch_nm1
+    rule: elc["final_loss"][-1] > elc["final_loss"][-2]

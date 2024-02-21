@@ -35,4 +35,4 @@ venv/
 # Backup files and folders
 *.bkp
 *.bkp.*
-*-bkp*
+*bkp*
