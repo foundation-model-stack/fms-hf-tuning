@@ -18,10 +18,9 @@ class MetricHandler:
 class WindowStepLoss(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step over a user-defined window"""
     
-    def __init__(self, name, args):
+    def __init__(self, window_size):
         # Initialize the handler arguments
-        self.__name = name
-        self.__args = args
+        self.__window_size = window_size
 
     def validate(self, training_args):
         """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
@@ -49,9 +48,9 @@ class WindowStepLoss(MetricHandler):
         # Compute the metric using the training state
         loss_values = [l['loss'] for l in training_state.log_history if 'loss' in l]
         n = len(loss_values)
-        if n <= self.__args['window-size']:
+        if n <= self.__window_size:
             return None
-        window = loss_values[n-self.__args['window-size']:n]
+        window = loss_values[n-self.__window_size:n]
         consistently_increasing = True
         for i in range(len(window)-1):
             if window[i] > window[i+1]:
@@ -69,10 +68,9 @@ class WindowStepLoss(MetricHandler):
 class EpochLoss(MetricHandler):
     """Implements the controller metric which evaluates loss-per-epoch over a user-defined window"""
 
-    def __init__(self, name, args=None):
+    def __init__(self, window_size):
         # Initialize the handler arguments
-        self.__name = name
-        self.__args = args
+        self.__window_size = window_size
         self.__cache = []
         
     def validate(self, training_args):
@@ -93,7 +91,7 @@ class EpochLoss(MetricHandler):
         Returns:
             dict
         """
-        if len(self.__cache) < self.__args['window-size']:
+        if len(self.__cache) < self.__window_size:
             return None
         exposed_data = {}
         for elem in reversed(self.__cache):
@@ -154,15 +152,10 @@ class EpochLoss(MetricHandler):
 class EvalMetricBasedControl(MetricHandler):
     """Implements the controller metric which computes and evaluates metrics conditions on evaluation"""
 
-    def __init__(self, name, args=None):
+    def __init__(self, early_stopping_patience=1.0, early_stopping_threshold=0.0):
         # Initialize the handler arguments
-        self.__name = name
-        if args == None:
-            self.__early_stopping_patience = 1.0
-            self.__early_stopping_threshold = 0.0
-        else:
-            self.__early_stopping_patience = args.early_stopping_patience
-            self.__early_stopping_threshold = args.early_stopping_threshold
+        self.__early_stopping_patience = early_stopping_patience
+        self.__early_stopping_threshold = early_stopping_threshold
         self.__early_stopping_patience_counter = 0
 
     def validate(self, training_args):

@@ -1,7 +1,7 @@
 from transformers import TrainerCallback
 from transformers.utils import logging
 import numpy as np
-from transformers import IntervalStrategy
+from transformers import IntervalStrategy, TrainerControl
 from typing import Optional, Union
 import json
 import yaml
@@ -11,7 +11,7 @@ from .controllermetrics import metrics as contmetrics
 
 logger = logging.get_logger(__name__)
 
-class TrainingController(TrainerCallback):
+class TrainerController(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
     
     def __init__(self, train_control_args, training_args):
@@ -25,6 +25,7 @@ class TrainingController(TrainerCallback):
         if os.path.exists(train_control_args.training_control_config_file):
             with open(train_control_args.training_control_config_file, "r") as f:
                 self.training_control_def = yaml.safe_load(f)
+                self.__validate_config(self.training_control_def)
                 for controller in self.training_control_def['controllers']:
                     name = controller['name']
                     controller_metric_objs = []
@@ -35,9 +36,9 @@ class TrainingController(TrainerCallback):
                             class_type = getattr(contmetrics, cm['handler-class'])
                             # Initialize the controller-metric instance
                             if 'arguments' in cm:
-                                obj = class_type(cm['name'], cm['arguments'])
+                                obj = class_type(**cm['arguments'])
                             else:
-                                obj = class_type(cm['name'])
+                                obj = class_type()
                         except Exception as e:
                             logger.fatal(e)
                         assert (obj.validate(training_args)), 'Controller metric class [%s] cannot be computed because the training args do not support it' % (cm['handler-class'])
@@ -45,6 +46,30 @@ class TrainingController(TrainerCallback):
                     self.__controllers[name] = controller_metric_objs
         else:
             raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.training_control_config_file)
+
+    def __validate_config(self, config):
+        assert 'controllers' in config and len(config['controllers']) > 0, "List of controllers missing in config"
+        for c in config['controllers']:
+            assert 'name' in c, f"Controller should have a name"
+            assert ('triggers' in c) and (len(c['triggers']) > 0), f"Triggers not specified for controller {c['name']}"
+            assert ('rule' in c) and (len(c['rule']) > 0), f"Rule not specified for controller {c['name']}"
+            try:
+                compile(c['rule'], '<stdin>', 'eval')
+            except Exception as e:
+                raise SyntaxError(f"Rule for controller {c['name']} has this error {e}")
+            assert ('controller-metrics' in c) and (len(c['controller-metrics']) > 0), f"List of controller metrics missing for controller {c['name']}"
+            for cm in c['controller-metrics']:
+                assert ('name' in cm), f"Controller metric should have a name"
+                assert ('handler-class' in cm), f"Handler class not specified for controller metric {cm['name']}"
+            assert ('control-operations' in c) and (len(c['control-operations']) > 0), f"Control operations not specified for controller {c['name']}"
+            for k, v in c['control-operations'].items():
+                try:
+                    getattr(TrainerControl(), k)
+                except Exception as e:
+                    raise AttributeError(f"Control operation {k} is not invalid for controller {c['name']}")
+
+                assert (isinstance(v, bool) or isinstance(v, int)),  f"Control operation {k} is assigned invalid value for controller {c['name']}"
+
 
     def __apply_control(self, cb, control):
         """Given a controller-block, applies the control operation to the training loop.
@@ -83,11 +108,12 @@ class TrainingController(TrainerCallback):
                 continue
             metric_result = {}
             for i in range(len(controller['controller-metrics'])):
+                cm_data = controller['controller-metrics'][i]
                 cm_obj = controller_metrics_objs[i]
                 cm_res = cm_obj.compute(state, args, metrics)
                 if cm_res == None:
                     continue
-                metric_result[cm_obj["name"]]= cm_res
+                metric_result[cm_data["name"]]= cm_res
             rule = controller['rule']
             try:
                 if eval(rule, metric_result):

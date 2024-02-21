@@ -4,9 +4,9 @@ controllers:
       - name: elc
         handler-class: EpochLoss
         arguments:
-          window-size: 2
+          window_size: 2
     triggers:
       - on_epoch_end
     control-operations:
       should_training_stop: True
-    rule: elc["final_loss"][-1] > elc["final_loss"][-2]
+    rule: elc['final_loss'][-1] > elc['final_loss'][-2]
