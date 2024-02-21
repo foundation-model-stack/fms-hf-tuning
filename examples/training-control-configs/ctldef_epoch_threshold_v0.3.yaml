@@ -4,7 +4,7 @@ controllers:
       - name: elc
         handler-class: EpochLoss
         arguments:
-          window-size: 2
+          window_size: 2
     triggers:
       - on_epoch_end
     control-operations:

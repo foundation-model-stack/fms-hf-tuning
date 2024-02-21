@@ -47,7 +47,7 @@ if is_aim_available():
     # Local
     from tuning.aim_loader import get_aimstack_callback
 
-from tuning.trainingcontroller.tc_callback import TrainingController
+from tuning.trainingcontroller.tc_callback import TrainerController
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -228,10 +228,11 @@ def train(
     peft_saving_callback = PeftSavingCallback()
     callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
     try:
-        tc_callback = TrainingController(train_control_args, train_args)
+        tc_callback = TrainerController(train_control_args, train_args)
         callbacks.append(tc_callback)
     except Exception as e:
-        logger.warn(e)
+        logger.error(f'TrainerController callback was not enabled due to this exception: {e}')
+        exit(0)
 
     if train_args.packing:
         logger.info("Packing is set to True")
