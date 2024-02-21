@@ -9,5 +9,4 @@ controllers:
       - on_step_end
     control-operations:
       should_training_stop: True
-    rules:
-      - wsl["consistently_increasing"] == 1
+    rule: wsl["consistently_increasing"] == 1

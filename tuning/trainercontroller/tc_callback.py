@@ -11,22 +11,22 @@ from .controllermetrics import metrics as contmetrics
 
 logger = logging.get_logger(__name__)
 
-class TrainerController(TrainerCallback):
+class TrainerControllerCallback(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
     
-    def __init__(self, train_control_args, training_args):
+    def __init__(self, trainer_controller_args, training_args):
         """Initializes the callback for policy-driven trainer control.
 
         Args:
-            train_control_args: File path for trainer control definition file
+            trainer_controller_args: File path for trainer control definition file
             training_args: TrainingArguments object
         """
         self.__controllers = {}
-        if os.path.exists(train_control_args.training_control_config_file):
-            with open(train_control_args.training_control_config_file, "r") as f:
-                self.training_control_def = yaml.safe_load(f)
-                self.__validate_config(self.training_control_def)
-                for controller in self.training_control_def['controllers']:
+        if os.path.exists(trainer_controller_args.trainer_controller_config_file):
+            with open(trainer_controller_args.trainer_controller_config_file, "r") as f:
+                self.trainer_controller_config = yaml.safe_load(f)
+                self.__validate_config(self.trainer_controller_config)
+                for controller in self.trainer_controller_config['controllers']:
                     name = controller['name']
                     controller_metric_objs = []
                     for cm in controller['controller-metrics']:
@@ -45,7 +45,7 @@ class TrainerController(TrainerCallback):
                         controller_metric_objs.append(obj)
                     self.__controllers[name] = controller_metric_objs
         else:
-            raise ValueError("Controller configuration [%s] does NOT exist" % train_control_args.training_control_config_file)
+            raise ValueError("Trainer controller configuration [%s] does NOT exist" % trainer_controller_args.trainer_controller_config_file)
 
     def __validate_config(self, config):
         assert 'controllers' in config and len(config['controllers']) > 0, "List of controllers missing in config"
@@ -97,7 +97,7 @@ class TrainerController(TrainerCallback):
         Returns:
             None.
         """
-        controllers = self.training_control_def['controllers']
+        controllers = self.trainer_controller_config['controllers']
         num_controllers = len(controllers)
         for i in range(num_controllers):
             controller = controllers[i]

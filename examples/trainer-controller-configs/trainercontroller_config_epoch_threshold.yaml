@@ -9,5 +9,4 @@ controllers:
       - on_epoch_end
     control-operations:
       should_training_stop: True
-    rules:
-      - (elc["final_loss"][-1] > elc["final_loss"][-2]) or (elc["final_loss"][-2] - elc["final_loss"][-1] < 0.5)
+    rule: (elc["final_loss"][-1] > elc["final_loss"][-2]) or (elc["final_loss"][-2] - elc["final_loss"][-1] < 0.5)
