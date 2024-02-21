@@ -7,5 +7,4 @@ controllers:
       - on_evaluate
     control-operations:
       should_training_stop: True
-    rules:
-      - embc_early_stopping_patience_counter >= embc_early_stopping_patience
+    rule: embc["early_stopping_patience_counter"] >= embc["early_stopping_patience"]

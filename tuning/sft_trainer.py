@@ -47,7 +47,7 @@ if is_aim_available():
     # Local
     from tuning.aim_loader import get_aimstack_callback
 
-from tuning.trainingcontroller.tc_callback import TrainerController
+from tuning.trainercontroller.tc_callback import TrainerControllerCallback
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -95,7 +95,7 @@ def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    train_control_args: configs.TrainingControlArguments,
+    trainer_controller_args: configs.TrainerControllerArguments,
     peft_config: Optional[
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
@@ -106,7 +106,7 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        train_control_args: configs.TrainingControlArguments for controlling the training loop using policy rules
+        trainer_control_args: configs.TrainerControllerArguments for controlling the training loop using policy rules
         peft_config: peft_config.LoraConfig for Lora tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
@@ -228,11 +228,10 @@ def train(
     peft_saving_callback = PeftSavingCallback()
     callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
     try:
-        tc_callback = TrainerController(train_control_args, train_args)
+        tc_callback = TrainerControllerCallback(trainer_controller_args, train_args)
         callbacks.append(tc_callback)
     except Exception as e:
-        logger.error(f'TrainerController callback was not enabled due to this exception: {e}')
-        exit(0)
+        logger.warn(f'TrainerController callback was not enabled due to this exception: {e}')
 
     if train_args.packing:
         logger.info("Packing is set to True")
@@ -286,7 +285,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             configs.ModelArguments,
             configs.DataArguments,
             configs.TrainingArguments,
-            configs.TrainingControlArguments,
+            configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
         )
@@ -301,7 +300,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         model_args,
         data_args,
         training_args,
-        trainer_control_args,
+        trainer_controller_args,
         lora_config,
         prompt_tuning_config,
         peft_method,
@@ -313,7 +312,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = prompt_tuning_config
     else:
         tune_config = None
-    train(model_args, data_args, training_args, trainer_control_args, tune_config)
+    train(model_args, data_args, training_args, trainer_controller_args, tune_config)
 
 
 if __name__ == "__main__":
