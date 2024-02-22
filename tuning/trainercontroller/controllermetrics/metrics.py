@@ -15,8 +15,8 @@ class MetricHandler:
     def compute(self, training_state, training_args=None, metrics=None) -> dict:
         pass   
 
-class WindowStepLoss(MetricHandler):
-    """Implements the controller metric which evaluates loss-per-step over a user-defined window"""
+class StepLoss(MetricHandler):
+    """Implements the controller metric which evaluates loss-per-step"""
     
     def __init__(self, window_size):
         # Initialize the handler arguments
