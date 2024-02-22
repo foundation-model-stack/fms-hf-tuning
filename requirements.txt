@@ -6,7 +6,7 @@ aim==3.17.5
 sentencepiece
 tokenizers>=0.13.3
 tqdm
-trl
+-e git+https://github.com/Ssukriti/trl.git@add_tokenize_input_output#egg=trl
 ninja
 peft>=0.8.0
 datasets>=2.15.0

@@ -17,6 +17,7 @@ from transformers import (
 )
 from transformers.utils import logging
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
+from  transformers.data.data_collator import DataCollatorForSeq2Seq
 import datasets
 import fire
 import transformers
@@ -160,13 +161,7 @@ def train(
             }
         )
 
-    """TODO: near term - how response template ids are parsed out needs to be cleaned.
-       The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
-       We will create issue to clean this out after we discuss data formats and collators we will support
-    """
-    response_template_ids = tokenizer.encode(
-        data_args.response_template, add_special_tokens=False
-    )[2:]
+    
     # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length
     # as in current main. We need to change name of this parameter we expose to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
@@ -205,50 +200,66 @@ def train(
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
 
-    format_dataset = lambda example: {
-        f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
-        + tokenizer.eos_token
-    }
+    if data_args.response_template is None and data_args.dataset_text_field is None:
+        print("\nHello\n")
+        data_args.dataset_text_field = None
+        #data_collator = default_data_collator
+        data_collator= DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
+        #formatted_dataset=preprocess_function(data_args.data_path, tokenizer, train_args.model_max_length)
+        formatted_train_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
+        formatted_train_dataset=formatted_train_dataset['train']
+        print("\n HELLO\n")
+        formatted_validation_dataset = None
+    else:
+        """TODO: near term - how response template ids are parsed out needs to be cleaned.
+        The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
+        We will create issue to clean this out after we discuss data formats and collators we will support
+        """
+        response_template_ids = tokenizer.encode(
+            data_args.response_template, add_special_tokens=False
+        )[2:]
+        format_dataset = lambda example: {
+            f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
+            + tokenizer.eos_token
+        }
 
-    json_dataset = datasets.load_dataset("json", data_files=data_files)
-    formatted_train_dataset = json_dataset["train"].map(format_dataset)
-    logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
+        json_dataset = datasets.load_dataset("json", data_files=data_files)
+        formatted_train_dataset = json_dataset["train"].map(format_dataset)
+        logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
 
-    formatted_validation_dataset = None
-    if data_args.validation_data_path:
-        formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
-        logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
+        formatted_validation_dataset = None
+        if data_args.validation_data_path:
+            formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
+            logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
 
+        if train_args.packing:
+            logger.info("Packing is set to True")
+            data_collator = None
+            packing = True
+        else:
+            logger.info("Packing is set to False")
+            if data_args.response_template is None:
+                logger.error(
+                    "Error, response template is None, needs to be set for training"
+                )
+                exit(-1)
+
+            if data_args.dataset_text_field is None:
+                logger.error(
+                    "Error, dataset_text_field is None, needs to be set for training"
+                )
+                exit(-1)
+
+            data_collator = DataCollatorForCompletionOnlyLM(
+                response_template_ids,
+                tokenizer=tokenizer,
+                ignore_index=configs.IGNORE_INDEX,
+            )
+    packing = False
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
     peft_saving_callback = PeftSavingCallback()
     callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
-
-    if train_args.packing:
-        logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
-        logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            logger.error(
-                "Error, response template is None, needs to be set for training"
-            )
-            exit(-1)
-
-        if data_args.dataset_text_field is None:
-            logger.error(
-                "Error, dataset_text_field is None, needs to be set for training"
-            )
-            exit(-1)
-
-        data_collator = DataCollatorForCompletionOnlyLM(
-            response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
-        packing = False
-
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
