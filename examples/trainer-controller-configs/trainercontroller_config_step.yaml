@@ -2,7 +2,7 @@ controllers:
   - name: loss-controller
     controller-metrics:
       - name: wsl
-        handler-class: WindowStepLoss
+        handler-class: StepLoss
         arguments:
           window_size: 3
     triggers:
