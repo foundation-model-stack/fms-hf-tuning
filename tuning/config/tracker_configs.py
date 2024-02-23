@@ -10,5 +10,6 @@ class AimConfig:
     aim_repo: str = None
     aim_remote_server_ip: str = None
     aim_remote_server_port: int = None
-    # Location of where run_hash is exported
+    # Location of where run_hash is exported, if unspecified this is output to 
+    # training_args.output_dir/.aim_run_hash if the output_dir is set else not exported.
     aim_run_hash_export_path: str = None

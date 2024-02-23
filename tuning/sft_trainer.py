@@ -26,7 +26,8 @@ from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.tracker.tracker import Tracker, TrackerFactory
+from tuning.trackers.tracker import Tracker
+from tuning.trackers.tracker_factory import get_tracker
 
 logger = logging.get_logger("sft_trainer")
 
@@ -331,7 +332,7 @@ def main(**kwargs):
     callbacks = [peft_saving_callback, file_logger_callback]
 
     # Initialize the tracker
-    tracker = TrackerFactory.get_tracker(tracker_name, tracker_config)
+    tracker = get_tracker(tracker_name, tracker_config)
     tracker_callback = tracker.get_hf_callback()
     if tracker_callback is not None:
         callbacks.append(tracker_callback)

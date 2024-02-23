@@ -9,7 +9,8 @@ class Tracker:
         else:
             self._name = name
 
-    def get_hf_callback():
+    # we use args here to denote any argument.
+    def get_hf_callback(self):
         return None
 
     def track(self, metric, name, stage):
@@ -19,11 +20,3 @@ class Tracker:
     # for the parameters to be associated with a run
     def set_params(self, params, name):
         pass
-
-class TrackerFactory:
-    def get_tracker(tracker_name, tracker_config):
-        for T in Tracker.__subclasses__():
-            if T._name == tracker_name:
-                return T(tracker_config)
-        else:
-            return Tracker()
