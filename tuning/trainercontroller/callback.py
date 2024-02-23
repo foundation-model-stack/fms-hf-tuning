@@ -70,20 +70,6 @@ class TrainerControllerCallback(TrainerCallback):
 
                 assert (isinstance(v, bool) or isinstance(v, int)),  f"Control operation {k} is assigned invalid value for controller {c['name']}"
 
-
-    def __apply_control(self, cb, control):
-        """Given a controller-block, applies the control operation to the training loop.
-
-        Args:
-            cb: Controller block dictionary
-            control: TrainerControl object
-
-        Returns:
-            None.
-        """
-        for k, v in cb['control-operations'].items():
-            setattr(control, k, v)
-
     def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
         """Loops through the controllers computing the controller-metrics and validating the rules. Once any rule gets validated, the corresponding control is applied to the trainer loop.
 
@@ -116,8 +102,9 @@ class TrainerControllerCallback(TrainerCallback):
             rule = controller['rule']
             try:
                 if eval(rule, metric_result):
-                    logger.warn('<%s> rule[%s] triggered' % (name, str(rule)))
-                    self.__apply_control(controller, control)
+                    logger.info('<%s> rule[%s] triggered' % (name, str(rule)))
+                    for k, v in controller['control-operations'].items():
+                        setattr(control, k, v)
             except Exception as e:
                 pass
 
