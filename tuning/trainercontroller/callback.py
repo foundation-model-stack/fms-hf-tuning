@@ -7,7 +7,7 @@ import json
 import yaml
 import os
 import copy
-from .controllermetrics import metrics as contmetrics
+from trainercontroller import controllermetrics as contmetrics
 
 logger = logging.get_logger(__name__)
 
@@ -36,9 +36,9 @@ class TrainerControllerCallback(TrainerCallback):
                             class_type = getattr(contmetrics, cm['handler-class'])
                             # Initialize the controller-metric instance
                             if 'arguments' in cm:
-                                obj = class_type(**cm['arguments'])
+                                obj = class_type(cm['name'], **cm['arguments'])
                             else:
-                                obj = class_type()
+                                obj = class_type(cm['name'])
                         except Exception as e:
                             logger.fatal(e)
                         assert (obj.validate(training_args)), 'Controller metric class [%s] cannot be computed because the training args do not support it' % (cm['handler-class'])
@@ -108,12 +108,11 @@ class TrainerControllerCallback(TrainerCallback):
                 continue
             metric_result = {}
             for i in range(len(controller['controller-metrics'])):
-                cm_data = controller['controller-metrics'][i]
                 cm_obj = controller_metrics_objs[i]
                 cm_res = cm_obj.compute(state, args, metrics)
                 if cm_res == None:
                     continue
-                metric_result[cm_data["name"]]= cm_res
+                metric_result.update(cm_res)
             rule = controller['rule']
             try:
                 if eval(rule, metric_result):
