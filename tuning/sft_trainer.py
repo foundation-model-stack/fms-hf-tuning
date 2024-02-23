@@ -42,7 +42,7 @@ from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.trainercontroller.tc_callback import TrainerControllerCallback
+from tuning.trainercontroller import TrainerControllerCallback
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -225,7 +225,7 @@ def train(
         tc_callback = TrainerControllerCallback(trainer_controller_args, train_args)
         callbacks.append(tc_callback)
     except Exception as e:
-        logger.warn(f'TrainerController callback was not enabled due to this exception: {e}')
+        logger.warn(f'TrainerController callback was not enabled due to this exception: {repr(e)}')
 
     if train_args.packing:
         logger.info("Packing is set to True")
