@@ -201,15 +201,12 @@ def train(
         data_files["validation"] = data_args.validation_data_path
 
     if data_args.response_template is None and data_args.dataset_text_field is None:
-        print("\nHello\n")
-        data_args.dataset_text_field = None
-        #data_collator = default_data_collator
-        data_collator= DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
-        #formatted_dataset=preprocess_function(data_args.data_path, tokenizer, train_args.model_max_length)
-        formatted_train_dataset = datasets.load_dataset('json', data_files=data_args.data_path)
-        formatted_train_dataset=formatted_train_dataset['train']
-        print("\n HELLO\n")
-        formatted_validation_dataset = None
+        logger.debug(f"No response template / dataset text field provided!")
+        data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True)
+        json_dataset = datasets.load_dataset("json", data_files=data_files)
+        # The data is preformatted; just pull train/validation from the loaded dataset directly
+        formatted_train_dataset = json_dataset["train"]
+        formatted_validation_dataset = json_dataset["validation"] if data_args.validation_data_path else None
     else:
         """TODO: near term - how response template ids are parsed out needs to be cleaned.
         The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
