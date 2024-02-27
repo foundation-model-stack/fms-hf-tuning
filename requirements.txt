@@ -1,5 +1,6 @@
 numpy
 accelerate>=0.20.3
+packaging
 transformers>=4.34.1
 torch
 aim==3.18.1
@@ -10,5 +11,5 @@ trl
 ninja
 peft>=0.8.0
 datasets>=2.15.0
-flash-attn
 fire
+
