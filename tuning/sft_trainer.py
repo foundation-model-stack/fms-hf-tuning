@@ -1,11 +1,12 @@
 # Standard
 from datetime import datetime
-from typing import Optional, Union, List, Dict
+from typing import Dict, List, Optional, Union
 import json
-import os, time
+import os
+import time
 
 # Third Party
-import transformers
+from peft.utils.other import fsdp_auto_wrap_policy
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -16,20 +17,21 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
-from peft.utils.other import fsdp_auto_wrap_policy
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
+import transformers
 
 # Local
 from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
-from tuning.utils.config_utils import get_hf_peft_config
-from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.trackers.tracker import Tracker
 from tuning.trackers.tracker_factory import get_tracker
+from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.data_type_utils import get_torch_dtype
 
 logger = logging.get_logger("sft_trainer")
+
 
 class PeftSavingCallback(TrainerCallback):
     def on_save(self, args, state, control, **kwargs):
@@ -40,6 +42,7 @@ class PeftSavingCallback(TrainerCallback):
 
         if "pytorch_model.bin" in os.listdir(checkpoint_path):
             os.remove(os.path.join(checkpoint_path, "pytorch_model.bin"))
+
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -84,6 +87,7 @@ class FileLoggingCallback(TrainerCallback):
         with open(log_file, "a") as f:
             f.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
+
 def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
@@ -93,7 +97,7 @@ def train(
     ] = None,
     callbacks: Optional[List[TrainerCallback]] = None,
     tracker: Optional[Tracker] = None,
-    exp_metadata: Optional[Dict] = None
+    exp_metadata: Optional[Dict] = None,
 ):
     """Call the SFTTrainer
 
@@ -105,6 +109,11 @@ def train(
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
+        callbacks: List of callbacks to attach with SFTtrainer.
+        tracker: One of the available trackers in tuning.trackers.tracker_factory.REGISTERED_TRACKERS
+                Initialized using tuning.trackers.tracker_factory.get_tracker
+                Using configs in tuning.config.tracker_configs
+        exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
     """
     run_distributed = int(os.environ.get("WORLD_SIZE", "1")) > 1
 
@@ -133,7 +142,7 @@ def train(
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         use_flash_attention_2=model_args.use_flash_attn,
     )
-    additional_metrics['model_load_time'] = time.time() - model_load_time
+    additional_metrics["model_load_time"] = time.time() - model_load_time
 
     peft_config = get_hf_peft_config(task_type, peft_config)
 
@@ -269,15 +278,16 @@ def train(
     if tracker is not None:
         # Currently tracked only on process zero.
         if trainer.is_world_process_zero():
-            for k,v in additional_metrics.items():
-                tracker.track(metric=v, name=k, stage='additional_metrics')
-            tracker.set_params(params=exp_metadata, name='experiment_metadata')
+            for k, v in additional_metrics.items():
+                tracker.track(metric=v, name=k, stage="additional_metrics")
+            tracker.set_params(params=exp_metadata, name="experiment_metadata")
 
     if run_distributed and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
             model
         )
     trainer.train()
+
 
 def main(**kwargs):
     parser = transformers.HfArgumentParser(
@@ -300,6 +310,7 @@ def main(**kwargs):
         "--exp_metadata",
         type=str,
         default=None,
+        help='Pass a json string representing K:V pairs to be associated to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
     (
         model_args,
@@ -313,18 +324,18 @@ def main(**kwargs):
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     peft_method = additional.peft_method
-    if peft_method =="lora":
-        tune_config=lora_config
-    elif peft_method =="pt":
-        tune_config=prompt_tuning_config
+    if peft_method == "lora":
+        tune_config = lora_config
+    elif peft_method == "pt":
+        tune_config = prompt_tuning_config
     else:
-        tune_config=None
+        tune_config = None
 
     tracker_name = training_args.tracker
     if tracker_name == "aim":
-        tracker_config=aim_config
+        tracker_config = aim_config
     else:
-        tracker_config=None
+        tracker_config = None
 
     # Initialize callbacks
     file_logger_callback = FileLoggingCallback(logger)
@@ -343,7 +354,9 @@ def main(**kwargs):
         try:
             metadata = json.loads(additional.exp_metadata)
             if metadata is None or not isinstance(metadata, Dict):
-                logger.warning('metadata cannot be converted to simple k:v dict ignoring')
+                logger.warning(
+                    "metadata cannot be converted to simple k:v dict ignoring"
+                )
                 metadata = None
         except:
             logger.error("failed while parsing extra metadata. pass a valid json")
@@ -355,8 +368,9 @@ def main(**kwargs):
         peft_config=tune_config,
         callbacks=callbacks,
         tracker=tracker,
-        exp_metadata=metadata
+        exp_metadata=metadata,
     )
+
 
 if __name__ == "__main__":
     fire.Fire(main)

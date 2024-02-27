@@ -59,5 +59,9 @@ class TrainingArguments(transformers.TrainingArguments):
     )
     tracker: str.lower = field(
         default=None,
-        metadata={"help": "Experiment tracker to use. Requires additional configs, see tuning.configs/tracker_configs.py"}
+        metadata={
+            "help": "Experiment tracker to use.\n" + \
+                    "Available trackers are - aim, none\n" + \
+                    "Requires additional configs, see tuning.configs/tracker_configs.py"
+        },
     )
