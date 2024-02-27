@@ -1,6 +1,6 @@
 # Standard
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 # Third Party
 import torch
@@ -50,7 +50,8 @@ class TrainingArguments(transformers.TrainingArguments):
     model_max_length: int = field(
         default=DEFAULT_CONTEXT_LENGTH,
         metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
+            "help": "Maximum sequence length. Sequences will be right padded \
+            (and possibly truncated)."
         },
     )
     packing: bool = field(
