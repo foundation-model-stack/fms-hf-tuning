@@ -8,8 +8,8 @@ name = "fms-hf-tuning"
 version = "0.0.1"
 description = "FMS HF Tuning"
 authors = [
-    "Sukriti Sharma <sukriti.sharma4@ibm.com>",
-    "Anh Uong <anh.uong@ibm.com>",
+  {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
+  {name = "Anh Uong", email = "anh.uong@ibm.com"},
 ]
 license = {text = "Apache-2.0"}
 readme = "README.md"
