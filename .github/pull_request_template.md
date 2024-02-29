@@ -16,4 +16,4 @@
 
 <!-- Describe how PR was tested -->
 - [ ] I have added >=1 unit test(s) for every new method I have added.
-- [ ] I have run make test locally and verified all unit tests pass.
+- [ ] I have run `make test` locally and verified all unit tests pass.
