@@ -21,4 +21,3 @@ Provide detailed discussion here
 - [ ] Unit tests cover new/changed code
 - [ ] Examples build against new/changed code
 - [ ] READMEs are updated
-- [ ] Type of [semantic version](https://semver.org/) change is identified
