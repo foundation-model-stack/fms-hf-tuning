@@ -45,15 +45,7 @@ This section guides you through submitting a bug report. Following these guideli
 
 #### How Do I Submit A (Good) Bug Report?
 
-Currently bugs are tracked as [GitHub New Issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new). Create an issue and provide:
-
-- Describe the bug
-- Platform
-- Provide details about the environment you are using 
-- Sample Code to help reproduce the bug
-- Expected behavior
-- Observed behavior
-- Additional context
+Bugs are tracked as [GitHub issues using the Bug Report template]((https://github.com/foundation-model-stack/fms-hf-tuning/issues/new?template=bug_report.md). Create an issue on that and provide the information suggested in the bug report issue template. 
 
 ### Suggesting Enhancements
 
@@ -61,19 +53,11 @@ This section guides you through submitting an enhancement suggestion, including 
 
 #### How Do I Submit A (Good) Enhancement Suggestion?
 
-Enhancement suggestions are tracked as [GitHub new issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new). Create an issue and provide:
-
-- Is your feature request related to a problem? Please describe
-- Describe the solution you'd like
-- Describe alternatives you've considered
-- Additional context
+Enhancement suggestions are tracked as [GitHub issues using the Feature Request template](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new?template=feature_request.md). Create an issue and provide the information suggested in the feature requests or user story issue template.
 
 #### How Do I Submit A (Good) Improvement Item?
 
-Improvements to existing functionality are tracked as [GitHub new issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new). Create an issue and provide:
-
-- Description
-- Discussion
+Improvements to existing functionality are tracked as [GitHub issues using the User Story template](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new?template=user_story.md). Create an issue and provide the information suggested in the feature requests or user story issue template.
 
 ## Development
 
