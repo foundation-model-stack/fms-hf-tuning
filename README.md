@@ -8,12 +8,10 @@ This repo provides basic tuning scripts with support for specific models. The re
 ## Installation
 
 ```
-pip install -r requirements.txt
-pip install -U datasets
 pip install -e .
 ```
 
-> Note: If you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements: `pip install -r flashattn_requirements`. [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
+> Note: If you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements: `pip install -e ."[flashattention]"`. [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
 ## Data format
 The data format expectation is a single column text. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
