@@ -7,7 +7,6 @@ durations/*
 coverage*.xml
 dist
 htmlcov
-build
 test
 
 # IDEs
