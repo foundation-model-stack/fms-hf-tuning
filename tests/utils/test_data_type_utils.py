@@ -31,4 +31,5 @@ def test_get_torch_dtype():
     for t in dtype_dict.keys():
         # When passed a string, it gets converted to torch.dtype
         assert data_type_utils.get_torch_dtype(t) == dtype_dict.get(t)
+        # When passed a torch.dtype, we get the same torch.dtype returned
         assert data_type_utils.get_torch_dtype(dtype_dict.get(t)) == dtype_dict.get(t)
