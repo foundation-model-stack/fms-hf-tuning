@@ -23,7 +23,7 @@ def test_str_to_torch_dtype():
 
 
 def test_str_to_torch_dtype_exit():
-    with pytest.raises(SystemExit):
+    with pytest.raises(ValueError):
         data_type_utils.str_to_torch_dtype("foo")
 
 
