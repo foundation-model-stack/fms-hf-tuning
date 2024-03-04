@@ -22,7 +22,7 @@ def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
     dt = getattr(torch, dtype_str, None)
     if not isinstance(dt, torch.dtype):
         logger.error(" ValueError: Unrecognized data type of a torch.Tensor")
-        exit(-1)
+        raise ValueError("Unrecognized data type of a torch.Tensor")
     return dt
 
 
