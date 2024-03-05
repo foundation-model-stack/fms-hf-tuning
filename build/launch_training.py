@@ -48,7 +48,7 @@ def get_highest_checkpoint(dir_path):
     for curr_dir in os.listdir(dir_path):
         if curr_dir.startswith("checkpoint"):
             if checkpoint_dir:
-                curr_dir_num = int(checkpoint_dir.split("-")[-1])
+                curr_dir_num = int(checkpoint_dir.rsplit("-", maxsplit=1)[-1])
                 new_dir_num = int(curr_dir.split("-")[-1])
                 if new_dir_num > curr_dir_num:
                     checkpoint_dir = curr_dir
@@ -87,13 +87,13 @@ def main():
         ) = parser.parse_json_file(json_path, allow_extra_keys=True)
 
         contents = ""
-        with open(json_path, "r") as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             contents = json.load(f)
         peft_method_parsed = contents.get("peft_method")
-        logging.debug(f"Input params parsed: {contents}")
+        logging.debug("Input params parsed: %s", contents)
     elif json_env_var:
         job_config_dict = txt_to_obj(json_env_var)
-        logging.debug(f"Input params parsed: {job_config_dict}")
+        logging.debug("Input params parsed: %s", job_config_dict)
 
         (
             model_args,
@@ -106,7 +106,8 @@ def main():
         peft_method_parsed = job_config_dict.get("peft_method")
     else:
         raise ValueError(
-            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
+            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
+        or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
         )
 
     tune_config = None
@@ -118,7 +119,12 @@ def main():
         tune_config = prompt_tuning_config
 
     logging.debug(
-        f"Parameters used to launch training: model_args {model_args}, data_args {data_args}, training_args {training_args}, tune_config {tune_config}"
+        "Parameters used to launch training: \
+    model_args %s, data_args %s, training_args %s, tune_config %s",
+        model_args,
+        data_args,
+        training_args,
+        tune_config,
     )
 
     original_output_dir = training_args.output_dir
@@ -138,7 +144,9 @@ def main():
             )
 
             logging.info(
-                f"Merging lora tuned checkpoint {lora_checkpoint_dir} with base model into output path: {export_path}"
+                "Merging lora tuned checkpoint %s with base model into output path: %s",
+                lora_checkpoint_dir,
+                export_path,
             )
 
             create_merged_model(
@@ -151,7 +159,9 @@ def main():
             # copy last checkpoint into mounted output dir
             pt_checkpoint_dir = get_highest_checkpoint(training_args.output_dir)
             logging.info(
-                f"Copying last checkpoint {pt_checkpoint_dir} into output dir {original_output_dir}"
+                "Copying last checkpoint %s into output dir %s",
+                pt_checkpoint_dir,
+                original_output_dir,
             )
             shutil.copytree(
                 os.path.join(training_args.output_dir, pt_checkpoint_dir),

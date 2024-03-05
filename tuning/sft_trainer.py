@@ -290,7 +290,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         choices=["pt", "lora", None, "none"],
         default="pt",
     )
-    (  # pylint: disable=unbalanced-tuple-unpacking
+    (
         model_args,
         data_args,
         training_args,
