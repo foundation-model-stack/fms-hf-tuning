@@ -1,6 +1,5 @@
 # Standard
 from typing import Union
-import sys
 
 # Third Party
 from transformers.utils import logging

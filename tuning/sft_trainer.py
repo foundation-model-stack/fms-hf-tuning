@@ -89,7 +89,7 @@ def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    peft_configs: Optional[
+    peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
 ):
@@ -99,7 +99,7 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        peft_configs: peft_config.LoraConfig for Lora tuning | \
+        peft_config: peft_config.LoraConfig for Lora tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
@@ -131,7 +131,7 @@ def train(
         use_flash_attention_2=model_args.use_flash_attn,
     )
 
-    peft_configs = get_hf_peft_config(task_type, peft_configs)
+    peft_config = get_hf_peft_config(task_type, peft_config)
 
     model.gradient_checkpointing_enable()
 
@@ -264,10 +264,10 @@ def train(
         args=train_args,
         max_seq_length=model_max_length,
         callbacks=callbacks,
-        peft_config=peft_configs,
+        peft_config=peft_config,
     )
 
-    if run_distributed and peft_configs is not None:
+    if run_distributed and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
             model
         )
