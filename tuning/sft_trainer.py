@@ -108,7 +108,7 @@ def train(
     logger = logging.get_logger("sft_trainer")
 
     # Validate parameters
-    if (not isinstance(train_args.num_train_epochs, float)) or (
+    if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
