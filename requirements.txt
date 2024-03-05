@@ -3,7 +3,7 @@ accelerate>=0.20.3
 packaging
 transformers>=4.34.1
 torch
-aim==3.17.5
+aim==3.18.1
 sentencepiece
 tokenizers>=0.13.3
 tqdm
