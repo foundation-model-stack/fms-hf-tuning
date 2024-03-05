@@ -19,14 +19,15 @@ The below workflow is designed to help you begin your first contribution journey
 Help on open source projects is always welcome and there is always something that can be improved. For example, documentation (like the text you are reading now) can always use improvement, code can always be clarified, variables or functions can always be renamed or commented on, and there is always a need for more test coverage. If you see something that you think should be fixed, take ownership! Here is how you get started:
 
 ## How Can I Contribute?
+For any contributions that need design changes/API changes, first contribute an ADR. Reason for ADR: teams agree on the design, to avoid back and forth after writing code. An ADR gives context on the code being written.
 
-When contributing, it's useful to start by looking at [issues](https://github.com/foundation-model-stack/fms-hf-tuning/issues). After picking up an issue, writing code, or updating a document, make a pull request and your work will be reviewed and merged. If you're adding a new feature or find a bug, it's best to [write an issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new) first to discuss it with maintainers.
+When contributing, it's useful to start by looking at [issues](https://github.com/foundation-model-stack/fms-hf-tuning/issues). After picking up an issue, writing code, or updating a document, make a pull request and your work will be reviewed and merged. If you're adding a new feature or find a bug, it's best to [write an issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new) first to discuss it with maintainers. 
 
 To contribute to this repo, you'll use the Fork and Pull model common in many open source repositories. For details on this process, check out [The GitHub Workflow
 Guide](https://github.com/kubernetes/community/blob/master/contributors/guide/github-workflow.md)
 from Kubernetes.
 
-When your contribution is ready, you can create a pull request. Pull requests are often referred to as "PR". In general, we follow the standard [GitHub pull request](https://help.github.com/en/articles/about-pull-requests) process. Follow the template to provide details about your pull request to the maintainers.
+When your contribution is ready, you can create a pull request. Pull requests are often referred to as "PR". In general, we follow the standard [GitHub pull request](https://help.github.com/en/articles/about-pull-requests) process. Follow the template to provide details about your pull request to the maintainers. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes.
 
 Before sending pull requests, make sure your changes pass formatting, linting and unit tests.
 
@@ -38,6 +39,8 @@ Once you've [created a pull request](#how-can-i-contribute), maintainers will re
 - Follow the project coding conventions
 - Write detailed commit messages
 - Break large changes into a logical series of smaller patches, which are easy to understand individually and combine to solve a broader issue
+
+Maintainers will perform "squash and merge" actions on PRs in this repo, so it doesn't matter how many commits your PR has, as they will end up being a single commit after merging.
 
 ### Reporting Bugs
 
