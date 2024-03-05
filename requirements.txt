@@ -1,7 +1,7 @@
 numpy
 accelerate>=0.20.3
 packaging
-transformers>=4.34.1
+transformers>=4.34.1,<4.38.0
 torch
 aim==3.17.5
 sentencepiece
