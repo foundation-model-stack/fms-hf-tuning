@@ -1,3 +1,16 @@
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """CLI for running loading a tuned model and running one or more inference calls on it.
 
 NOTE: For the moment, this script is intentionally written to contain all dependencies for two
@@ -8,6 +21,7 @@ testing.
 
 If these things change in the future, we should consider breaking it up.
 """
+
 # Standard
 import argparse
 import json
