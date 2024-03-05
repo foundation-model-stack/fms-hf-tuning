@@ -25,3 +25,6 @@ venv/
 
 # Tox envs
 .tox
+
+# Aim
+.aim
