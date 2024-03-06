@@ -16,18 +16,18 @@
 """
 
 # Standard
+import json
 import os
 import tempfile
-import json
 
 # First Party
+from scripts.run_inference import TunedCausalLM
 from tests.data import TWITTER_COMPLAINTS_DATA
 from tests.fixtures import CAUSAL_LM_MODEL
 from tests.helpers import causal_lm_train_kwargs
 
 # Local
 from tuning import sft_trainer
-from scripts.run_inference import TunedCausalLM
 
 HAPPY_PATH_KWARGS = {
     "model_name_or_path": CAUSAL_LM_MODEL,
@@ -74,7 +74,9 @@ def test_run_causallm_pt():
         )
 
         # Run inference on the text using the tuned model
-        loaded_model.run("Simply put, the theory of relativity states that ", max_new_tokens=500)
+        loaded_model.run(
+            "Simply put, the theory of relativity states that ", max_new_tokens=500
+        )
 
 
 def test_run_causallm_lora():
@@ -95,7 +97,9 @@ def test_run_causallm_lora():
         )
 
         # Run inference on the text using the tuned model
-        loaded_model.run("Simply put, the theory of relativity states that ", max_new_tokens=500)
+        loaded_model.run(
+            "Simply put, the theory of relativity states that ", max_new_tokens=500
+        )
 
 
 def _validate_training(tempdir, peft_type):
