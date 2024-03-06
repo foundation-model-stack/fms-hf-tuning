@@ -91,11 +91,11 @@ class AdapterConfigPatcher:
         # If we have no overrides, this context manager is a noop; no need to do anything
         if not overrides:
             return {}
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path, "r", encoding="utf-8") as config_file:
             adapter_config = json.load(config_file)
         overridden_values = self._get_old_config_values(adapter_config, overrides)
         adapter_config = {**adapter_config, **overrides}
-        with open(self.config_path, "w") as config_file:
+        with open(self.config_path, "w", encoding="utf-8") as config_file:
             json.dump(adapter_config, config_file, indent=4)
         return overridden_values
 
@@ -227,7 +227,8 @@ def main():
     )
     parser.add_argument(
         "--base_model_name_or_path",
-        help="Override for base model to be used for non-merged models [default: value in model adapter_config.json]",
+        help="Override for base model to be used for non-merged models \
+            [default: value in model adapter_config.json]",
         default=None,
     )
     parser.add_argument(
@@ -257,7 +258,7 @@ def main():
     if args.text:
         texts = [args.text]
     else:
-        with open(args.text_file, "r") as text_file:
+        with open(args.text_file, "r", encoding="utf-8") as text_file:
             texts = [line.strip() for line in text_file.readlines()]
 
     # TODO: we should add batch inference support
@@ -270,7 +271,7 @@ def main():
     ]
 
     # Export the results to a file
-    with open(args.out_file, "w") as out_file:
+    with open(args.out_file, "w", encoding="utf-8") as out_file:
         json.dump(results, out_file, sort_keys=True, indent=4)
 
     print(f"Exported results to: {args.out_file}")

@@ -24,8 +24,10 @@ class LoraConfig:
     target_modules: List[str] = field(
         default_factory=lambda: ["q_proj", "v_proj"],
         metadata={
-            "help": "The names of the modules to apply LORA to. LORA selects modules which either completely match or "
-            'end with one of the strings. If the value is ["all-linear"], then LORA selects all linear and Conv1D '
+            "help": "The names of the modules to apply LORA to. LORA selects modules which either \
+            completely match or "
+            'end with one of the strings. If the value is ["all-linear"], \
+            then LORA selects all linear and Conv1D '
             "modules except for the output layer."
         },
     )

@@ -13,18 +13,10 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, Sequence
-import copy
-import json
-import logging
+from typing import Dict
 
 # Third Party
-from torch.utils.data import Dataset
-import torch
 import transformers
-
-# Local
-from tuning.config import configs
 
 
 def tokenizer_and_embedding_resize(
