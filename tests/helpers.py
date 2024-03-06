@@ -38,14 +38,6 @@ def causal_lm_train_kwargs(train_kwargs):
         prompt_tuning_config,
     ) = parser.parse_dict(train_kwargs, allow_extra_keys=True)
 
-    # TODO: target_modules doesn't get set probably due to the way dataclass handles
-    # mutable defaults, needs investigation on better way to handle this
-    setattr(
-        lora_config,
-        "target_modules",
-        lora_config.__dataclass_fields__.get("target_modules").default_factory(),
-    )
-
     return (
         model_args,
         data_args,

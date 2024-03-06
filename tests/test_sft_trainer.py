@@ -47,7 +47,6 @@ HAPPY_PATH_KWARGS = {
     "torch_dtype": "float16",
     "modelMaxLength": 4096,
     "peft_method": "pt",
-    "target_modules": [],
     "prompt_tuning_init": "RANDOM",
     "num_virtual_tokens": 8,
     "prompt_tuning_init_text": "hello",
