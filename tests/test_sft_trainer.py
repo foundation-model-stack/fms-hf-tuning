@@ -18,6 +18,7 @@
 # Standard
 import os
 import tempfile
+import json
 
 # First Party
 from tests.data import TWITTER_COMPLAINTS_DATA
@@ -41,11 +42,11 @@ HAPPY_PATH_KWARGS = {
     "logging_steps": 1,
     "include_tokens_per_second": True,
     "packing": False,
-    "response_template": "\\n###Response:",
+    "response_template": "\n### Label:",
     "dataset_text_field": "output",
     "use_flash_attn": False,
-    "torch_dtype": "float16",
-    "modelMaxLength": 4096,
+    "torch_dtype": "float32",
+    "model_max_length": 4096,
     "peft_method": "pt",
     "prompt_tuning_init": "RANDOM",
     "num_virtual_tokens": 8,
@@ -63,7 +64,7 @@ def test_run_causallm_pt():
             HAPPY_PATH_KWARGS
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
-        _validate_training(tempdir)
+        _validate_training(tempdir, "PROMPT_TUNING")
 
 
 def test_run_causallm_lora():
@@ -75,11 +76,16 @@ def test_run_causallm_lora():
             HAPPY_PATH_KWARGS
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
-        _validate_training(tempdir)
+        _validate_training(tempdir, "LORA")
 
 
-def _validate_training(tempdir):
+def _validate_training(tempdir, peft_type):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
-    loss_file_path = "{}/train_loss.jsonl".format(tempdir)
-    assert os.path.exists(loss_file_path) == True
-    assert os.path.getsize(loss_file_path) > 0
+    train_loss_file_path = "{}/train_loss.jsonl".format(tempdir)
+    assert os.path.exists(train_loss_file_path) == True
+    assert os.path.getsize(train_loss_file_path) > 0
+    adapter_config_path = os.path.join(tempdir, "checkpoint-1", "adapter_config.json")
+    assert os.path.exists(adapter_config_path)
+    with open(adapter_config_path) as f:
+        data = json.load(f)
+        assert data.get("peft_type") == peft_type
