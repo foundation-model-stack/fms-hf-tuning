@@ -23,14 +23,13 @@ import tempfile
 # First Party
 from scripts.run_inference import TunedCausalLM
 from tests.data import TWITTER_COMPLAINTS_DATA
-from tests.fixtures import CAUSAL_LM_MODEL
 from tests.helpers import causal_lm_train_kwargs
 
 # Local
 from tuning import sft_trainer
 
 HAPPY_PATH_KWARGS = {
-    "model_name_or_path": CAUSAL_LM_MODEL,
+    "model_name_or_path": "Maykeye/TinyLLama-v0",
     "data_path": TWITTER_COMPLAINTS_DATA,
     "num_train_epochs": 5,
     "per_device_train_batch_size": 4,
@@ -52,7 +51,7 @@ HAPPY_PATH_KWARGS = {
     "prompt_tuning_init": "RANDOM",
     "num_virtual_tokens": 8,
     "prompt_tuning_init_text": "hello",
-    "tokenizer_name_or_path": CAUSAL_LM_MODEL,
+    "tokenizer_name_or_path": "Maykeye/TinyLLama-v0",
     "save_strategy": "epoch",
 }
 
@@ -70,7 +69,6 @@ def test_run_causallm_pt():
         # Load the tuned model
         loaded_model = TunedCausalLM.load(
             checkpoint_path=os.path.join(tempdir, "checkpoint-5"),
-            base_model_name_or_path=CAUSAL_LM_MODEL,
         )
 
         # Run inference on the text using the tuned model
@@ -93,7 +91,6 @@ def test_run_causallm_lora():
         # Load the tuned model
         loaded_model = TunedCausalLM.load(
             checkpoint_path=os.path.join(tempdir, "checkpoint-5"),
-            base_model_name_or_path=CAUSAL_LM_MODEL,
         )
 
         # Run inference on the text using the tuned model
