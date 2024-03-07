@@ -16,11 +16,12 @@
 """
 
 # Standard
+import json
 import os
 import tempfile
-import json
 
 # First Party
+from scripts.run_inference import TunedCausalLM
 from tests.data import TWITTER_COMPLAINTS_DATA
 from tests.fixtures import CAUSAL_LM_MODEL
 from tests.helpers import causal_lm_train_kwargs
@@ -66,6 +67,17 @@ def test_run_causallm_pt():
         sft_trainer.train(model_args, data_args, training_args, tune_config)
         _validate_training(tempdir, "PROMPT_TUNING")
 
+        # Load the tuned model
+        loaded_model = TunedCausalLM.load(
+            checkpoint_path=os.path.join(tempdir, "checkpoint-5"),
+            base_model_name_or_path=CAUSAL_LM_MODEL,
+        )
+
+        # Run inference on the text using the tuned model
+        loaded_model.run(
+            "Simply put, the theory of relativity states that ", max_new_tokens=500
+        )
+
 
 def test_run_causallm_lora():
     """Check if we can bootstrap and run causallm models"""
@@ -77,6 +89,17 @@ def test_run_causallm_lora():
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
         _validate_training(tempdir, "LORA")
+
+        # Load the tuned model
+        loaded_model = TunedCausalLM.load(
+            checkpoint_path=os.path.join(tempdir, "checkpoint-5"),
+            base_model_name_or_path=CAUSAL_LM_MODEL,
+        )
+
+        # Run inference on the text using the tuned model
+        loaded_model.run(
+            "Simply put, the theory of relativity states that ", max_new_tokens=500
+        )
 
 
 def _validate_training(tempdir, peft_type):
