@@ -1,3 +1,16 @@
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """CLI for running loading a tuned model and running one or more inference calls on it.
 
 NOTE: For the moment, this script is intentionally written to contain all dependencies for two
@@ -8,13 +21,17 @@ testing.
 
 If these things change in the future, we should consider breaking it up.
 """
+
+# Standard
 import argparse
 import json
 import os
+
+# Third Party
 from peft import AutoPeftModelForCausalLM
-import torch
 from tqdm import tqdm
-from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 
 ### Utilities
@@ -30,10 +47,13 @@ class AdapterConfigPatcher:
             # When loaded in this block, the config's base_model_name_or_path is "foo"
             peft_model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
     """
+
     def __init__(self, checkpoint_path: str, overrides: dict):
         self.checkpoint_path = checkpoint_path
         self.overrides = overrides
-        self.config_path = AdapterConfigPatcher._locate_adapter_config(self.checkpoint_path)
+        self.config_path = AdapterConfigPatcher._locate_adapter_config(
+            self.checkpoint_path
+        )
         # Values that we will patch later on
         self.patched_values = {}
 
@@ -58,7 +78,7 @@ class AdapterConfigPatcher:
     def _apply_config_changes(self, overrides: dict) -> dict:
         """Applies a patch to a config with some override dict, returning the values
         that we patched over so that they may be restored later.
-        
+
         Args:
             overrides: dict
                 Overrides to write into the adapter_config.json. Currently, we
@@ -71,11 +91,11 @@ class AdapterConfigPatcher:
         # If we have no overrides, this context manager is a noop; no need to do anything
         if not overrides:
             return {}
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path, "r", encoding="utf-8") as config_file:
             adapter_config = json.load(config_file)
         overridden_values = self._get_old_config_values(adapter_config, overrides)
         adapter_config = {**adapter_config, **overrides}
-        with open(self.config_path, "w") as config_file:
+        with open(self.config_path, "w", encoding="utf-8") as config_file:
             json.dump(adapter_config, config_file, indent=4)
         return overridden_values
 
@@ -99,7 +119,9 @@ class AdapterConfigPatcher:
         # For now, we only expect to patch the base model; this may change in the future,
         # but ensure that anything we are patching is defined in the original config
         if not set(overrides.keys()).issubset(set(adapter_config.keys())):
-            raise KeyError("Adapter config overrides must be set in the config being patched")
+            raise KeyError(
+                "Adapter config overrides must be set in the config being patched"
+            )
         return {key: adapter_config[key] for key in overrides}
 
     def __enter__(self):
@@ -119,7 +141,9 @@ class TunedCausalLM:
         self.device = device
 
     @classmethod
-    def load(cls, checkpoint_path: str, base_model_name_or_path: str=None) -> "TunedCausalLM":
+    def load(
+        cls, checkpoint_path: str, base_model_name_or_path: str = None
+    ) -> "TunedCausalLM":
         """Loads an instance of this model.
 
         Args:
@@ -138,21 +162,30 @@ class TunedCausalLM:
             TunedCausalLM
                 An instance of this class on which we can run inference.
         """
-        overrides = {"base_model_name_or_path": base_model_name_or_path} if base_model_name_or_path is not None else {}
+        overrides = (
+            {"base_model_name_or_path": base_model_name_or_path}
+            if base_model_name_or_path is not None
+            else {}
+        )
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
         # Apply the configs to the adapter config of this model; if no overrides
         # are provided, then the context manager doesn't have any effect.
-        with AdapterConfigPatcher(checkpoint_path, overrides):
-            try:
-                peft_model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
-            except OSError as e:
-                print("Failed to initialize checkpoint model!")
-                raise e
+        try:
+            with AdapterConfigPatcher(checkpoint_path, overrides):
+                try:
+                    model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
+                except OSError as e:
+                    print("Failed to initialize checkpoint model!")
+                    raise e
+        except FileNotFoundError:
+            print("No adapter config found! Loading as a merged model...")
+            # Unable to find the adapter config; fall back to loading as a merged model
+            model = AutoModelForCausalLM.from_pretrained(checkpoint_path)
+
         device = "cuda" if torch.cuda.is_available() else None
         print(f"Inferred device: {device}")
-        peft_model.to(device)
-        return cls(peft_model, tokenizer, device)
-
+        model.to(device)
+        return cls(model, tokenizer, device)
 
     def run(self, text: str, *, max_new_tokens: int) -> str:
         """Runs inference on an instance of this model.
@@ -165,13 +198,17 @@ class TunedCausalLM:
 
         Returns:
             str
-                Text generation result.          
+                Text generation result.
         """
         tok_res = self.tokenizer(text, return_tensors="pt")
         input_ids = tok_res.input_ids.to(self.device)
 
-        peft_outputs = self.peft_model.generate(input_ids=input_ids, max_new_tokens=max_new_tokens)
-        decoded_result = self.tokenizer.batch_decode(peft_outputs, skip_special_tokens=False)[0]
+        peft_outputs = self.peft_model.generate(
+            input_ids=input_ids, max_new_tokens=max_new_tokens
+        )
+        decoded_result = self.tokenizer.batch_decode(
+            peft_outputs, skip_special_tokens=False
+        )[0]
         return decoded_result
 
 
@@ -180,7 +217,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Loads a tuned model and runs an inference call(s) through it"
     )
-    parser.add_argument("--model", help="Path to tuned model to be loaded", required=True)
+    parser.add_argument(
+        "--model", help="Path to tuned model / merged model to be loaded", required=True
+    )
     parser.add_argument(
         "--out_file",
         help="JSON file to write results to",
@@ -188,8 +227,9 @@ def main():
     )
     parser.add_argument(
         "--base_model_name_or_path",
-        help="Override for base model to be used [default: value in model adapter_config.json]",
-        default=None
+        help="Override for base model to be used for non-merged models \
+            [default: value in model adapter_config.json]",
+        default=None,
     )
     parser.add_argument(
         "--max_new_tokens",
@@ -199,7 +239,10 @@ def main():
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--text", help="Text to run inference on")
-    group.add_argument("--text_file", help="File to be processed where each line is a text to run inference on")
+    group.add_argument(
+        "--text_file",
+        help="File to be processed where each line is a text to run inference on",
+    )
     args = parser.parse_args()
     # If we passed a file, check if it exists before doing anything else
     if args.text_file and not os.path.isfile(args.text_file):
@@ -215,20 +258,24 @@ def main():
     if args.text:
         texts = [args.text]
     else:
-        with open(args.text_file, "r") as text_file:
+        with open(args.text_file, "r", encoding="utf-8") as text_file:
             texts = [line.strip() for line in text_file.readlines()]
 
     # TODO: we should add batch inference support
     results = [
-        {"input": text, "output": loaded_model.run(text, max_new_tokens=args.max_new_tokens)}
+        {
+            "input": text,
+            "output": loaded_model.run(text, max_new_tokens=args.max_new_tokens),
+        }
         for text in tqdm(texts)
     ]
 
     # Export the results to a file
-    with open(args.out_file, "w") as out_file:
+    with open(args.out_file, "w", encoding="utf-8") as out_file:
         json.dump(results, out_file, sort_keys=True, indent=4)
 
     print(f"Exported results to: {args.out_file}")
+
 
 if __name__ == "__main__":
     main()

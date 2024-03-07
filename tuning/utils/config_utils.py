@@ -1,7 +1,26 @@
-from peft import LoraConfig, PromptTuningConfig
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Standard
 from dataclasses import asdict
 
-from tuning.config import peft_config 
+# Third Party
+from peft import LoraConfig, PromptTuningConfig
+
+# Local
+from tuning.config import peft_config
+
 
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
@@ -21,17 +40,22 @@ def update_config(config, **kwargs):
                         # In case of specialized config we can warm user
                         print(f"Warning: {config_name} does not accept parameter: {k}")
 
+
 def create_tuning_config(peft_method, **kwargs):
     """Create peft_config Tuning config
-       Args:
-           peft_method: str 
-              lora, pt or None
-           kawrgs: parameters to initialize library configs with
-        Return:
-           peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+    Args:
+        peft_method: str
+           lora, pt or None
+        kawrgs: parameters to initialize library configs with
+     Return:
+        peft_config.LoraConfig | peft_config.PromptTuningConfig | None
     """
-    assert peft_method in [None, "lora", "pt", "None"], \
-        f"peft config {peft_method} not defined in peft.py"
+    assert peft_method in [
+        None,
+        "lora",
+        "pt",
+        "None",
+    ], f"peft config {peft_method} not defined in peft.py"
     if peft_method == "lora":
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
@@ -39,21 +63,26 @@ def create_tuning_config(peft_method, **kwargs):
         tune_config = peft_config.PromptTuningConfig()
         update_config(tune_config, **kwargs)
     else:
-        tune_config = None # full parameter tuning
+        tune_config = None  # full parameter tuning
     return tune_config
 
 
 def get_hf_peft_config(task_type, tuning_config):
     """Return HF PEFT config for tuning based on type of tuning config passed
-       Args:
-           task_type: str
-           tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
-       Return: HF PEFT config or None
+    Args:
+        task_type: str
+        tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+    Return: HF PEFT config or None
     """
     if isinstance(tuning_config, peft_config.LoraConfig):
-        hf_peft_config = LoraConfig(task_type=task_type, **asdict(tuning_config))
+        lora_config = asdict(tuning_config)
+        if lora_config["target_modules"] == ["all-linear"]:
+            lora_config["target_modules"] = "all-linear"
+        hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
-        hf_peft_config = PromptTuningConfig(task_type=task_type, **asdict(tuning_config))
+        hf_peft_config = PromptTuningConfig(
+            task_type=task_type, **asdict(tuning_config)
+        )
     else:
         hf_peft_config = None  # full parameter tuning
 

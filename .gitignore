@@ -1,0 +1,27 @@
+*.egg-info
+*.pyc
+__pycache__
+.coverage
+.coverage.*
+durations/*
+coverage*.xml
+dist
+htmlcov
+test
+
+# IDEs
+.vscode/
+.idea/
+
+# Env files
+.env
+
+# Virtual Env
+venv/
+.venv/
+
+# Mac personalization files
+*.DS_Store
+
+# Tox envs
+.tox
