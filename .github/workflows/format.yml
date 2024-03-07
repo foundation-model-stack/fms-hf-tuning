@@ -35,4 +35,6 @@ jobs:
           python -m pip install -r setup_requirements.txt
       - name: Check Formatting
         run: tox -e fmt
+      - name: Run pylint
+        run: tox -e lint
 
