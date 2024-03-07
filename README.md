@@ -113,7 +113,7 @@ tuning/sft_trainer.py \
 
 For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
 
-### Lora Tuning Example
+### LoRA Tuning Example
 
 ```bash
 python tuning/sft_trainer.py \
@@ -156,7 +156,7 @@ LoraConfig(
 
 Notice the `target_modules` that are set are the default values. `target_modules` are the names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
 
-For each model, the `target_modules` will depend on the type of model. To obtain list of `target_modules` for a model:
+For each model, the `target_modules` will depend on the type of model architecture. You can specify linear or attention layers to `target_modules`. To obtain list of `target_modules` for a model:
 
 ```py
 from transformers import AutoModelForCausalLM
