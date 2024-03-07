@@ -80,10 +80,52 @@ pip install -r requirements.txt
 pip install -U datasets
 pip install -e .
 ```
+### Linting
+
+To lint your code:
+```shell
+tox -e lint
+```
+
+We use Pylint to checks your Python code for errors, coding standards, code convention and refactoring suggestions.
+
+Pylint emits [messages](https://pylint.pycqa.org/en/latest/user_guide/messages/index.html) that provides explanations of the failed checks.
+
+You should fix all message in the following order:
+1. Fix each message provided. Select a message [description](https://pylint.pycqa.org/en/latest/user_guide/messages/messages_overview.html#messages-overview) to fix a message.
+2. Disable a message (i.e: unbalanced-tuple-unpacking) caused by a particular line of code:
+    ```python
+    a, b = ... # pylint: disable=unbalanced-tuple-unpacking
+    ```
+    Please see [here](https://pylint.pycqa.org/en/latest/user_guide/messages/message_control.html#block-disables) for the progma syntax.
+
+3. Disable a checker globally. Please extend the `disable=` list in the [pylintrc](.pylintrc) file.
+    > Note: Disable checkers only if there is good reason.
+
+### Formatting
+
+To format your code:
+```shell
+tox -e fmt
+```
+We use [black](https://github.com/psf/black) formatter to format the code.
+
+You could optionally install the git pre-commit hooks if you would like to format the code automatically for each commit:
+```
+brew install pre-commit
+pre-commit install
+```
 
 ### Unit tests
 
-Work in process, to be completed soon. 
+To run unit tests:
+```shell
+tox -e py
+```
+Running unit tests ensures your contributions do not break exiting code.
+We use [pytest](https://docs.pytest.org/) framework to run unit tests. The framework is setup to run all run all test_*.py or *_test.py in the [tests](./tests) directory.
+
+> Optionally, run `make test` command to do formatting, linting, and testing at once.
 
 ## Your First Code Contribution
 
