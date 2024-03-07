@@ -1,8 +1,23 @@
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Standard
 from datetime import datetime
 from typing import Optional, Union
 import json
 import os
+import sys
 
 # Third Party
 from peft.utils.other import fsdp_auto_wrap_policy
@@ -80,7 +95,7 @@ class FileLoggingCallback(TrainerCallback):
             return
 
         # append the current log to the jsonl file
-        with open(log_file, "a") as f:
+        with open(log_file, "a", encoding="utf-8") as f:
             f.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
 
@@ -88,7 +103,7 @@ def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    peft_config: Optional[
+    peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
 ):
@@ -140,9 +155,7 @@ def train(
     )
 
     # TODO: understand if we need to hardcode these here or just use defaults in model
-    if isinstance(tokenizer, LlamaTokenizer) or isinstance(
-        tokenizer, LlamaTokenizerFast
-    ):
+    if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
         tokenizer.add_special_tokens(
             {
                 "bos_token": "<s>",
@@ -151,33 +164,36 @@ def train(
                 "pad_token": "<pad>",
             }
         )
-    elif isinstance(tokenizer, GPTNeoXTokenizerFast) or isinstance(
-        tokenizer, GPT2Tokenizer
-    ):
+    elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
         tokenizer.add_special_tokens(
             {
                 "pad_token": "<pad>",
             }
         )
 
-    """TODO: near term - how response template ids are parsed out needs to be cleaned.
-       The [2:] here applies if response template has \n prefix, it is needed to strip \n, otherwise template is not found.
-       We will create issue to clean this out after we discuss data formats and collators we will support
-    """
+    # TODO: near term - how response template ids are parsed out needs to be cleaned.
+    # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
+    # otherwise template is not found. We will create issue to clean this out after we discuss
+    # data formats and collators we will support.
     response_template_ids = tokenizer.encode(
         data_args.response_template, add_special_tokens=False
     )[2:]
-    # TODO: This is actually max_seq_length and not model_max_length. we should not override model_max_length
-    # as in current main. We need to change name of this parameter we expose to users.
+    # TODO: This is actually max_seq_length and not model_max_length. we should not override
+    # model_max_length as in current main. We need to change name of this parameter we expose
+    # to users.
     model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
-    logger.info(f"Model max length {model_max_length}")
+    logger.info("Model max length %s, model_max_length")
     if train_args.model_max_length > tokenizer.model_max_length:
         logger.warning(
-            f"model_max_length {train_args.model_max_length} exceeds tokenizer.model_max_length {tokenizer.model_max_length}, using tokenizer.model_max_length {tokenizer.model_max_length}"
+            "model_max_length %s exceeds tokenizer.model_max_length \
+            %s, using tokenizer.model_max_length %s",
+            train_args.model_max_length,
+            tokenizer.model_max_length,
+            tokenizer.model_max_length,
         )
 
     # TODO: we need to change this, perhaps follow what open instruct does?
-    special_tokens_dict = dict()
+    special_tokens_dict = {}
     if tokenizer.pad_token is None:
         logger.warning("PAD token set to default, missing in tokenizer")
         special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
@@ -205,19 +221,21 @@ def train(
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
 
-    format_dataset = lambda example: {
+    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
         f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
         + tokenizer.eos_token
     }
 
     json_dataset = datasets.load_dataset("json", data_files=data_files)
     formatted_train_dataset = json_dataset["train"].map(format_dataset)
-    logger.info(f"Training dataset length is {len(formatted_train_dataset)}")
+    logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
     if data_args.validation_data_path:
         formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
-        logger.info(f"Validation dataset length is {len(formatted_validation_dataset)}")
+        logger.info(
+            "Validation dataset length is %s", len(formatted_validation_dataset)
+        )
 
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
@@ -234,13 +252,13 @@ def train(
             logger.error(
                 "Error, response template is None, needs to be set for training"
             )
-            exit(-1)
+            sys.exit(-1)
 
         if data_args.dataset_text_field is None:
             logger.error(
                 "Error, dataset_text_field is None, needs to be set for training"
             )
-            exit(-1)
+            sys.exit(-1)
 
         data_collator = DataCollatorForCompletionOnlyLM(
             response_template_ids,
@@ -270,7 +288,7 @@ def train(
     trainer.train()
 
 
-def main(**kwargs):
+def main(**kwargs):  # pylint: disable=unused-argument
     parser = transformers.HfArgumentParser(
         dataclass_types=(
             configs.ModelArguments,
