@@ -42,7 +42,7 @@ def txt_to_obj(txt):
     try:
         # If the bytes represent JSON string
         return json.loads(message_bytes)
-    except:
+    except UnicodeDecodeError:
         # Otherwise the bytes are a pickled python dictionary
         return pickle.loads(message_bytes)
 
@@ -96,11 +96,7 @@ def main():
         peft_method_parsed = contents.get("peft_method")
         logging.debug("Input params parsed: %s", contents)
     elif json_env_var:
-        try:
-            job_config_dict = txt_to_obj(json_env_var)
-        except Exception as e:
-            logging.error(e)
-            raise ValueError("Unable to parse value of SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+        job_config_dict = txt_to_obj(json_env_var)
         logging.debug("Input params parsed: %s", job_config_dict)
 
         (
