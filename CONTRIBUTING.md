@@ -19,6 +19,8 @@ The below workflow is designed to help you begin your first contribution journey
 Help on open source projects is always welcome and there is always something that can be improved. For example, documentation (like the text you are reading now) can always use improvement, code can always be clarified, variables or functions can always be renamed or commented on, and there is always a need for more test coverage. If you see something that you think should be fixed, take ownership! Here is how you get started:
 
 ## How Can I Contribute?
+TODO: Add link to ADR  and add template on this roadmap
+
 For any contributions that need design changes/API changes, first contribute an ADR. Reason for ADR: teams agree on the design, to avoid back and forth after writing code. An ADR gives context on the code being written.
 
 When contributing, it's useful to start by looking at [issues](https://github.com/foundation-model-stack/fms-hf-tuning/issues). After picking up an issue, writing code, or updating a document, make a pull request and your work will be reviewed and merged. If you're adding a new feature or find a bug, it's best to [write an issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new) first to discuss it with maintainers. 
