@@ -22,6 +22,7 @@ import transformers
 
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_OPTIMIZER = "adamw_torch"
+DEFAULT_MODEL_NAME_OR_PATH = "facebook/opt-125m"
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -32,7 +33,7 @@ DEFAULT_UNK_TOKEN = "<unk>"
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default=DEFAULT_MODEL_NAME_OR_PATH)
     use_flash_attn: bool = field(
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
