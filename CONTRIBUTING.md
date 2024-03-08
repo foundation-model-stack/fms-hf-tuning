@@ -80,7 +80,8 @@ pip install -r requirements.txt
 pip install -U datasets
 pip install -e .
 ```
-### Linting
+<details>
+<summary>Linting</summary>
 
 To lint your code:
 ```shell
@@ -101,8 +102,10 @@ You should fix all message in the following order:
 
 3. Disable a checker globally. Please extend the `disable=` list in the [pylintrc](.pylintrc) file.
     > Note: Disable checkers only if there is good reason.
+</details>
 
-### Formatting
+<details>
+<summary>Formatting</summary>
 
 To format your code:
 ```shell
@@ -115,8 +118,10 @@ You could optionally install the git pre-commit hooks if you would like to forma
 brew install pre-commit
 pre-commit install
 ```
+</details>
 
-### Unit tests
+<details>
+<summary>Unit tests</summary>
 
 To run unit tests:
 ```shell
@@ -126,6 +131,7 @@ Running unit tests ensures your contributions do not break exiting code.
 We use [pytest](https://docs.pytest.org/) framework to run unit tests. The framework is setup to run all run all test_*.py or *_test.py in the [tests](./tests) directory.
 
 > Optionally, run `make test` command to do formatting, linting, and testing at once.
+</details>
 
 ## Your First Code Contribution
 
