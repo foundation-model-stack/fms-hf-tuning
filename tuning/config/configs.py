@@ -72,6 +72,3 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
-
-    def __post_init__(self):
-        super().__post_init__()
