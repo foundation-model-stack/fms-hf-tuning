@@ -13,8 +13,8 @@ pip install -e .
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
 '''
-pip install -e ."[dev]"
-pip install -e ."[flash-attn]
+pip install -e ".[dev]"
+pip install -e ".[flash-attn]"
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
