@@ -225,8 +225,7 @@ def train(
         callbacks.append(get_aimstack_callback())
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
-    peft_saving_callback = PeftSavingCallback()
-    callbacks = [aim_callback, peft_saving_callback, file_logger_callback]
+    callbacks = [aim_callback, file_logger_callback]
     try:
         tc_callback = TrainerControllerCallback(trainer_controller_args, train_args)
         callbacks.append(tc_callback)

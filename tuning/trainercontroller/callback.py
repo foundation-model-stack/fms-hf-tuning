@@ -13,6 +13,7 @@ logger = logging.get_logger(__name__)
 
 class TrainerControllerCallback(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
+    __control_op_prefixes = ['should_']
     
     def __init__(self, trainer_controller_args, training_args):
         """Initializes the callback for policy-driven trainer control.
@@ -40,12 +41,12 @@ class TrainerControllerCallback(TrainerCallback):
                             else:
                                 obj = class_type(cm['name'])
                         except Exception as e:
-                            logger.fatal(e)
+                            raise e
                         assert (obj.validate(training_args)), 'Controller metric class [%s] cannot be computed because the training args do not support it' % (cm['handler-class'])
                         controller_metric_objs.append(obj)
                     self.__controllers[name] = controller_metric_objs
         else:
-            raise ValueError("Trainer controller configuration [%s] does NOT exist" % trainer_controller_args.trainer_controller_config_file)
+            raise FileNotFoundError("Trainer controller configuration [%s] does NOT exist" % trainer_controller_args.trainer_controller_config_file)
 
     def __validate_config(self, config):
         assert 'controllers' in config and len(config['controllers']) > 0, "List of controllers missing in config"
@@ -56,15 +57,18 @@ class TrainerControllerCallback(TrainerCallback):
             try:
                 compile(c['rule'], '<stdin>', 'eval')
             except Exception as e:
-                raise SyntaxError(f"Rule for controller {c['name']} has this error {e}")
+                raise SyntaxError(f"Rule [{c['rule']}] for controller {c['name']} has this error {e}")
             assert ('controller-metrics' in c) and (len(c['controller-metrics']) > 0), f"List of controller metrics missing for controller {c['name']}"
             for cm in c['controller-metrics']:
                 assert ('name' in cm), f"Controller metric should have a name"
                 assert ('handler-class' in cm), f"Handler class not specified for controller metric {cm['name']}"
             assert ('control-operations' in c) and (len(c['control-operations']) > 0), f"Control operations not specified for controller {c['name']}"
             for k, v in c['control-operations'].items():
+                for prefix in TrainerControllerCallback.__control_op_prefixes:
+                    if not k.startswith(prefix):
+                        raise AttributeError(f"Control operation {k} is not invalid for controller {c['name']}")
                 try:
-                    getattr(TrainerControl(), k)
+                    getattr(TrainerControl, k)
                 except Exception as e:
                     raise AttributeError(f"Control operation {k} is not invalid for controller {c['name']}")
 
