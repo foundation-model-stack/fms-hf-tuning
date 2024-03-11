@@ -1,6 +1,6 @@
 numpy
 accelerate>=0.20.3
-transformers==4.37.2
+transformers
 torch
 aim==3.17.5
 sentencepiece
