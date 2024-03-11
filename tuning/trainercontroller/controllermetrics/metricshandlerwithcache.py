@@ -1,3 +1,4 @@
+import abc
 from . import MetricHandler
 
 class MetricHandlerWithCache(MetricHandler):
@@ -5,6 +6,14 @@ class MetricHandlerWithCache(MetricHandler):
     def __init__(self, name, cache):
         super().__init__(name)
         self.__cache = cache
+    
+    @abc.abstractmethod
+    def validate(self, training_args) -> bool:
+        pass
+    
+    @abc.abstractmethod
+    def compute(self, training_state, training_args=None, metrics=None) -> dict:
+        pass   
 
     def get_cache(self):
         return self.__cache
@@ -23,5 +32,6 @@ class MetricHandlerWithCache(MetricHandler):
             self.__cache[k].popleft()
         return True
     
+    @abc.abstractmethod
     def compute_metrics_on_cache(self) -> dict:
         pass

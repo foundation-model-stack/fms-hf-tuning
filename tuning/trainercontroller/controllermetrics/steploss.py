@@ -10,7 +10,7 @@ class StepLoss(MetricHandlerWithCache):
         self.__window_size = window_size
         super().__init__(name, {'loss': deque()})
 
-    def validate(self, training_args):
+    def validate(self, training_args) -> bool:
         """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
 
         Args:
@@ -38,7 +38,7 @@ class StepLoss(MetricHandlerWithCache):
             'std_loss': std_loss,\
             'window': cache['loss']}}
 
-    def compute(self, training_state, training_args=None, metrics=None):
+    def compute(self, training_state, training_args=None, metrics=None) -> dict:
         """Computes the controller-metric (step-loss over window) and exposes the values of the variables used by the rules.
 
         Args:
@@ -52,9 +52,7 @@ class StepLoss(MetricHandlerWithCache):
         size_of_log_history = len(training_state.log_history)
         for i in range(size_of_log_history - 1, -1, -1):
             log = training_state.log_history[i]
-            try:
-                self.add_to_cache(loss=log['loss'])
-            except Exception as e:
-                pass         
+            if 'loss' not in log:
+                continue
+            self.add_to_cache(loss=log['loss'])
             return self.compute_metrics_on_cache()
-        return None
