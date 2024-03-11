@@ -16,11 +16,13 @@
 """
 
 # Standard
-import os
-import tempfile
-import pytest
 import copy
 import json
+import os
+import tempfile
+
+# Third Party
+import pytest
 
 # First Party
 from scripts.run_inference import TunedCausalLM
@@ -62,6 +64,7 @@ BASE_PEFT_KWARGS = {
 BASE_LORA_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
 BASE_LORA_KWARGS["peft_method"] = "lora"
 
+
 def test_helper_causal_lm_train_kwargs():
     """Check happy path kwargs passed and parsed properly."""
     model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
@@ -85,6 +88,7 @@ def test_helper_causal_lm_train_kwargs():
     assert tune_config.tokenizer_name_or_path == MODEL_NAME
     assert tune_config.num_virtual_tokens == 8
 
+
 def test_run_train_requires_output_dir():
     """Check fails when output dir not provided."""
     updated_output_dir = copy.deepcopy(BASE_PEFT_KWARGS)
@@ -95,6 +99,7 @@ def test_run_train_requires_output_dir():
     with pytest.raises(TypeError):
         sft_trainer.train(model_args, data_args, training_args, tune_config)
 
+
 def test_run_train_fails_data_path_not_exist():
     """Check fails when data path not found."""
     updated_output_path = copy.deepcopy(BASE_PEFT_KWARGS)
@@ -104,6 +109,7 @@ def test_run_train_fails_data_path_not_exist():
     )
     with pytest.raises(FileNotFoundError):
         sft_trainer.train(model_args, data_args, training_args, tune_config)
+
 
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
@@ -120,15 +126,21 @@ def test_run_causallm_pt_and_inference():
         adapter_config = _get_adapter_config(checkpoint_path)
         assert adapter_config.get("task_type") == "CAUSAL_LM"
         assert adapter_config.get("peft_type") == "PROMPT_TUNING"
-        assert adapter_config.get("tokenizer_name_or_path") == BASE_PEFT_KWARGS["tokenizer_name_or_path"]
+        assert (
+            adapter_config.get("tokenizer_name_or_path")
+            == BASE_PEFT_KWARGS["tokenizer_name_or_path"]
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path)
 
         # Run inference on the text
-        output_inference = loaded_model.run("### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50)
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
 
 def test_run_causallm_pt_with_validation():
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
@@ -150,6 +162,7 @@ def test_run_causallm_pt_with_validation():
         assert os.path.exists(eval_loss_file_path)
         assert os.path.getsize(eval_loss_file_path) > 0
 
+
 def test_run_causallm_lora_and_inference():
     """Check if we can bootstrap and lora tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -165,23 +178,26 @@ def test_run_causallm_lora_and_inference():
         adapter_config = _get_adapter_config(checkpoint_path)
         assert adapter_config.get("task_type") == "CAUSAL_LM"
         assert adapter_config.get("peft_type") == "LORA"
-        for module in ["q_proj", "v_proj"]: # default target_modules used
+        for module in ["q_proj", "v_proj"]:  # default target_modules used
             assert module in adapter_config.get("target_modules")
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path)
 
         # Run inference on the text
-        output_inference = loaded_model.run("Simply put, the theory of relativity states that ", max_new_tokens=50)
+        output_inference = loaded_model.run(
+            "Simply put, the theory of relativity states that ", max_new_tokens=50
+        )
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that" in output_inference
+
 
 def test_run_train_lora_target_modules():
     """Check runs lora tuning with given list of target modules."""
     with tempfile.TemporaryDirectory() as tempdir:
         lora_target_modules = copy.deepcopy(BASE_LORA_KWARGS)
         lora_target_modules["output_dir"] = tempdir
-        lora_target_modules["target_modules"] = ["q_proj","k_proj","v_proj","o_proj"]
+        lora_target_modules["target_modules"] = ["q_proj", "k_proj", "v_proj", "o_proj"]
 
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             lora_target_modules
@@ -193,6 +209,7 @@ def test_run_train_lora_target_modules():
         adapter_config = _get_adapter_config(checkpoint_path)
         for module in lora_target_modules["target_modules"]:
             assert module in adapter_config.get("target_modules")
+
 
 def test_run_train_lora_target_modules_all_linear():
     """Check runs lora tuning with all linear target modules."""
@@ -209,15 +226,25 @@ def test_run_train_lora_target_modules_all_linear():
 
         checkpoint_path = os.path.join(tempdir, "checkpoint-5")
         adapter_config = _get_adapter_config(checkpoint_path)
-        llama_expected_modules = ["o_proj", "q_proj", "gate_proj", "down_proj", "k_proj", "up_proj", "v_proj"]
+        llama_expected_modules = [
+            "o_proj",
+            "q_proj",
+            "gate_proj",
+            "down_proj",
+            "k_proj",
+            "up_proj",
+            "v_proj",
+        ]
         for module in llama_expected_modules:
             assert module in adapter_config.get("target_modules")
+
 
 def _validate_training(tempdir):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     loss_file_path = "{}/train_loss.jsonl".format(tempdir)
     assert os.path.exists(loss_file_path)
     assert os.path.getsize(loss_file_path) > 0
+
 
 def _get_adapter_config(dir_path):
     with open(os.path.join(dir_path, "adapter_config.json")) as f:
