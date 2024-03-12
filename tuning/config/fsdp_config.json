@@ -8,5 +8,5 @@
   "fsdp_sync_module_states": "False",
   "fsdp_transformer_layer_cls_to_wrap": "LlamaDecoderLayer",
   "fsdp_use_orig_params": "True",
-  "activation_checkpointing": "True"
+  "activation_checkpointing": false
 }
