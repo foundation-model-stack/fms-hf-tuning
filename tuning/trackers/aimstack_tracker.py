@@ -40,18 +40,6 @@ class CustomAimCallback(AimCallback):
         # call directly to make sure hyper parameters and model info is recorded.
         self.setup(args=args, state=state, model=model)
 
-    def track_metrics(self, metric, name, context):
-        run = self.experiment
-        if run is not None:
-            run.track(metric, name=name, context=context)
-
-
-    def set_params(self, params, name):
-        run = self.experiment
-        if run is not None:
-            [run.set((name, key), value, strict=False) for key, value in params.items()]
-
-
 class AimStackTracker(Tracker):
     def __init__(self, tracker_config: AimConfig):
         super().__init__(name="aim", tracker_config=tracker_config)
@@ -79,10 +67,16 @@ class AimStackTracker(Tracker):
 
     def track(self, metric, name, stage="additional_metrics"):
         context = {"subset": stage}
-        self.hf_callback.track_metrics(metric, name=name, context=context)
+        callback = self.hf_callback
+        run = callback.experiment
+        if run is not None:
+            run.track(metric, name=name, context=context)
 
     def set_params(self, params, name="extra_params"):
         try:
-            self.hf_callback.set_params(params, name)
-        except:
-            pass
+            callback = self.hf_callback
+            run = callback.experiment
+            if run is not None:
+                [run.set((name, key), value, strict=False) for key, value in params.items()]
+        except Exception as e:
+            raise e
