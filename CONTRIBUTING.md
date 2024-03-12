@@ -20,7 +20,9 @@ Help on open source projects is always welcome and there is always something tha
 
 ## How Can I Contribute?
 
-For any contributions that need design changes/API changes, reach out to maintainers to check if an Architectural Design Record would be beneficial. Reason for ADR: teams agree on the design, to avoid back and forth after writing code. An ADR gives context on the code being written.
+NOTE: Before making any contribution, please ensure the content does not include any IBM proprietary information or any specific information about IBM products. 
+
+For any contributions that need design changes/API changes, reach out to maintainers to check if an Architectural Design Record would be beneficial. Reason for ADR: teams agree on the design, to avoid back and forth after writing code. An ADR gives context on the code being written. If requested for an ADR, make a contribution [using the template](https://github.com/foundation-model-stack/fms-hf-tuning/architecture_records/template.md).
 
 When contributing, it's useful to start by looking at [issues](https://github.com/foundation-model-stack/fms-hf-tuning/issues). After picking up an issue, writing code, or updating a document, make a pull request and your work will be reviewed and merged. If you're adding a new feature or find a bug, it's best to [write an issue](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new) first to discuss it with maintainers. 
 
