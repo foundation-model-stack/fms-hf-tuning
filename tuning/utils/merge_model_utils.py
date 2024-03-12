@@ -1,6 +1,19 @@
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Standard
 from typing import Union
-import argparse
 import json
 import os
 
@@ -27,7 +40,7 @@ def create_merged_model(
     References:
     - https://github.com/huggingface/peft/issues/1040
     - https://github.com/huggingface/peft/issues/280#issuecomment-1500805831
-    - https://huggingface.co/docs/peft/main/en/package_reference/lora#peft.LoraModel.add_weighted_adapter
+    - https://huggingface.co/docs/peft/main/en/package_reference/lora#peft.LoraModel.add_weighted_adapter # pylint: disable=line-too-long
 
     Args:
         checkpoint_model: Union[str, list[str]]
@@ -82,7 +95,7 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     if not os.path.isfile(adapter_config):
         raise FileNotFoundError("Unable to locate adapter config to infer base model!")
 
-    with open(adapter_config, "r") as cfg:
+    with open(adapter_config, "r", encoding="utf-8") as cfg:
         adapter_dict = json.load(cfg)
     if "base_model_name_or_path" not in adapter_dict:
         raise KeyError(
