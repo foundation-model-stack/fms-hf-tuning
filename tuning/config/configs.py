@@ -90,7 +90,14 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (logging is done every `logging_steps`)"
         },
     )
-
+    tracker: str.lower = field(
+        default=None,
+        metadata={
+            "help": "Experiment tracker to use.\n"
+            + "Available trackers are - aim, none\n"
+            + "Requires additional configs, see tuning.configs/tracker_configs.py"
+        },
+    )
 
 @dataclass
 class TrainerControllerArguments:

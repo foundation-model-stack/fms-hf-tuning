@@ -1,4 +1,4 @@
-# Copyright The FMS HF Tuning Authors
+# Copyright The IBM Tuning Team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
-from transformers.utils.import_utils import _is_package_available
+# Local
+from .aimstack_tracker import AimStackTracker
+from .tracker import Tracker
 
-def is_package_available(pkg):
-    return _is_package_available(pkg)
+REGISTERED_TRACKERS = {"aim": AimStackTracker}
+
+
+def get_tracker(tracker_name, tracker_config):
+    if tracker_name in REGISTERED_TRACKERS:
+        T = REGISTERED_TRACKERS[tracker_name]
+        return T(tracker_config)
+    return Tracker()
