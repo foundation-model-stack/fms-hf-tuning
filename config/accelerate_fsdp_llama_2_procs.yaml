@@ -1,3 +1,6 @@
+# options that can be used with accelerate config are neatly documented here - 
+# https://github.com/huggingface/accelerate/blob/ee163b66fb7848892519e804688cb4ae981aacbe/docs/source/package_reference/cli.md
+
 compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: FSDP

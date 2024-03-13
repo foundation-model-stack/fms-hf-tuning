@@ -60,6 +60,10 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
 
+MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
+DATA_PATH=twitter_complaints.json # Path to the dataset
+OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+
 python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
 --training_data_path $DATA_PATH  \
@@ -83,11 +87,16 @@ python tuning/sft_trainer.py  \
 ```
 
 ### Multiple GPUs with FSDP
+
 ```bash
-torchrun \
---nnodes=1 \
---nproc_per_node=8 \ 
---master_port=1234 \
+MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
+DATA_PATH=twitter_complaints.json # Path to the dataset
+OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+MASTER_PORT=1234 # The port at which the process with rank 0 listens to
+MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
+
+accelerate launch --main_process_ip $MASTER_ADDR --main_process_port $MASTER_PORT \
+--config_file config/accelerate_fsdp_llama_2_procs.yaml \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
 --training_data_path $DATA_PATH \
@@ -104,8 +113,6 @@ tuning/sft_trainer.py \
 --warmup_ratio 0.03 \
 --lr_scheduler_type "cosine" \
 --logging_steps 1 \
---fsdp "full_shard auto_wrap" \ 
---fsdp_config tuning/config/fsdp_config.json \
 --include_tokens_per_second \
 --packing False \
 --response_template "\n### Response:" \
@@ -113,7 +120,7 @@ tuning/sft_trainer.py \
 ```
 
 
-For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
+Typically the transformer module is passed to form FSDP unit. For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `config/accelerate_fsdp_llama_2_procs.yaml` for proper sharding of the model.
 
 ### LoRA Tuning Example
 

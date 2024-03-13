@@ -34,11 +34,11 @@ We will switch our PEFT method from LORA to Prompt Tuning (pt)
 MODEL_PATH=llama-7b-hf
 DATA_PATH=twitter_complaints.json
 OUTPUT_PATH=out
+MASTER_PORT=1234 # The port at which the process with rank 0 listens to
+MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
 
-torchrun \
---nnodes=1 \
---nproc_per_node=8  \
---master_port=1234  \
+accelerate launch --main_process_ip $MASTER_ADDR --main_process_port $MASTER_PORT \
+--config_file config/accelerate_fsdp_llama_2_procs.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
 --training_data_path $DATA_PATH  \
@@ -56,8 +56,6 @@ tuning/sft_trainer.py  \
 --warmup_ratio 0.03  \
 --lr_scheduler_type "cosine"  \
 --logging_steps 1  \
---fsdp "full_shard auto_wrap"  \
---fsdp_config tuning/config/fsdp_config.json \
 --include_tokens_per_second  \
 --packing False  \
 --response_template "\n### Label:"  \
