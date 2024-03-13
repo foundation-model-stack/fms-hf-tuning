@@ -52,7 +52,7 @@ This section guides you through submitting a bug report. Following these guideli
 
 #### How Do I Submit A (Good) Bug Report?
 
-Bugs are tracked as [GitHub issues using the Bug Report template]((https://github.com/foundation-model-stack/fms-hf-tuning/issues/new?template=bug_report.md). Create an issue on that and provide the information suggested in the bug report issue template. 
+Bugs are tracked as [GitHub issues using the Bug Report template](https://github.com/foundation-model-stack/fms-hf-tuning/issues/new?template=bug_report.md). Create an issue on that and provide the information suggested in the bug report issue template. 
 
 ### Suggesting Enhancements
 
