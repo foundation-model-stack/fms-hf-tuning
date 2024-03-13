@@ -14,13 +14,14 @@
 
 # Generic Tracker API
 class Tracker:
-    def __init__(self, name=None, tracker_config=None) -> None:
+    def __init__(self, name=None, tracker_config=None, logger=None) -> None:
         if tracker_config is not None:
             self.config = tracker_config
         if name is None:
             self._name = "None"
         else:
             self._name = name
+        self.logger = logger
 
     # we use args here to denote any argument.
     def get_hf_callback(self):
