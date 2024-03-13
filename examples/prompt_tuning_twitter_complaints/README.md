@@ -34,16 +34,22 @@ We will switch our PEFT method from LORA to Prompt Tuning (pt)
 MODEL_PATH=llama-7b-hf
 DATA_PATH=twitter_complaints.json
 OUTPUT_PATH=out
+
+# MASTER_PORT and MASTER_ADDR are essential for multi node training and 
+# not needed for multi gpu in single node
 MASTER_PORT=1234 # The port at which the process with rank 0 listens to
 MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
 
-accelerate launch --main_process_ip $MASTER_ADDR --main_process_port $MASTER_PORT \
---config_file config/accelerate_fsdp_llama_2_procs.yaml \
+accelerate launch \
+--main_process_ip $MASTER_ADDR \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
 --training_data_path $DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --peft_method pt \
+--torch_dtype bfloat16 \
 --tokenizer_name_or_path $MODEL_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 1  \

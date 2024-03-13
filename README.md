@@ -88,19 +88,37 @@ python tuning/sft_trainer.py  \
 
 ### Multiple GPUs with FSDP
 
+The recommendation is to use [huggingface accelerate](https://huggingface.co/docs/accelerate/en/index) to launch multi-gpu jobs, in particular when using FSDP:
+- `accelerate` is written on top of [`torch.distributed.run`](https://github.com/pytorch/pytorch/blob/main/torch/distributed/run.py).
+- `accelerate launch` CLI highly similar to `torchrun`, spawns multiple jobs (one for each gpu).
+- tightly integrated with [huggingface Trainer](https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py).
+
+`accelerate launch` CLI to be run with specific command line arguments, see example below. Default arguments handled by passing in a 
+`--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
+
 ```bash
 MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
 DATA_PATH=twitter_complaints.json # Path to the dataset
 OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+
+# MASTER_PORT and MASTER_ADDR are essential for multi node training and 
+# not needed for multi gpu in single node
 MASTER_PORT=1234 # The port at which the process with rank 0 listens to
 MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
 
-accelerate launch --main_process_ip $MASTER_ADDR --main_process_port $MASTER_PORT \
---config_file config/accelerate_fsdp_llama_2_procs.yaml \
+
+```bash
+accelerate launch \
+--main_process_ip $MASTER_ADDR \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
+--num_machines=1 \
+--num_processes=8 \ 
+--main_process_port=1234 \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---training_data_path $DATA_PATH \
---bf16 True \
+--data_path $DATA_PATH \
+--torch_dtype bfloat16 \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 \
