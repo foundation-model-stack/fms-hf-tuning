@@ -83,15 +83,26 @@ python tuning/sft_trainer.py  \
 ```
 
 ### Multiple GPUs with FSDP
+
+The recommendation is to use [huggingface accelerate](https://huggingface.co/docs/accelerate/en/index) to launch multi-gpu jobs, in particular when using FSDP:
+- `accelerate` is written on top of [`torch.distributed.run`](https://github.com/pytorch/pytorch/blob/main/torch/distributed/run.py).
+- `accelerate launch` CLI highly similar to `torchrun`, spawns multiple jobs (one for each gpu).
+- tightly integrated with [huggingface Trainer](https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py).
+
+`accelerate launch` CLI to be run with specific command line arguments, see example below. Default arguments handled by passing in a 
+`--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
+
+
 ```bash
-torchrun \
---nnodes=1 \
---nproc_per_node=8 \ 
---master_port=1234 \
+accelerate launch \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
+--num_machines=1 \
+--num_processes=8 \ 
+--main_process_port=1234 \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
 --data_path $DATA_PATH \
---bf16 True \
+--torch_dtype bfloat16 \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 \
@@ -104,16 +115,11 @@ tuning/sft_trainer.py \
 --warmup_ratio 0.03 \
 --lr_scheduler_type "cosine" \
 --logging_steps 1 \
---fsdp "full_shard auto_wrap" \ 
---fsdp_config tuning/config/fsdp_config.json \
 --include_tokens_per_second \
 --packing False \
 --response_template "\n### Response:" \
 --dataset_text_field "output"
 ```
-
-
-For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
 
 ### LoRA Tuning Example
 
