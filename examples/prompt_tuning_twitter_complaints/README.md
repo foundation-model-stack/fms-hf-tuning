@@ -41,7 +41,7 @@ torchrun \
 --master_port=1234  \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
---data_path $DATA_PATH  \
+--training_data_path $DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --peft_method pt \
 --tokenizer_name_or_path $MODEL_PATH  \
