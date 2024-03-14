@@ -159,16 +159,14 @@ def train(
     response_template_ids = tokenizer.encode(
         data_args.response_template, add_special_tokens=False
     )[2:]
-    # TODO: This is actually max_seq_length and not model_max_length. we should not override
-    # model_max_length as in current main. We need to change name of this parameter we expose
-    # to users.
-    model_max_length = min(train_args.model_max_length, tokenizer.model_max_length)
-    logger.info("Model max length %s, model_max_length")
-    if train_args.model_max_length > tokenizer.model_max_length:
+
+    max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
+    logger.info("Max sequence length is %s", max_seq_length)
+    if train_args.max_seq_length > tokenizer.model_max_length:
         logger.warning(
-            "model_max_length %s exceeds tokenizer.model_max_length \
+            "max_seq_length %s exceeds tokenizer.model_max_length \
             %s, using tokenizer.model_max_length %s",
-            train_args.model_max_length,
+            train_args.max_seq_length,
             tokenizer.model_max_length,
             tokenizer.model_max_length,
         )
@@ -256,7 +254,7 @@ def train(
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
         args=train_args,
-        max_seq_length=model_max_length,
+        max_seq_length=max_seq_length,
         callbacks=callbacks,
         peft_config=peft_config,
     )
