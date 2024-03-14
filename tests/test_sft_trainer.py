@@ -35,7 +35,7 @@ from tuning import sft_trainer
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 BASE_PEFT_KWARGS = {
     "model_name_or_path": MODEL_NAME,
-    "data_path": TWITTER_COMPLAINTS_DATA,
+    "training_data_path": TWITTER_COMPLAINTS_DATA,
     "num_train_epochs": 5,
     "per_device_train_batch_size": 4,
     "per_device_eval_batch_size": 4,
@@ -51,7 +51,7 @@ BASE_PEFT_KWARGS = {
     "dataset_text_field": "output",
     "use_flash_attn": False,
     "torch_dtype": "float32",
-    "model_max_length": 4096,
+    "max_seq_length": 4096,
     "peft_method": "pt",
     "prompt_tuning_init": "RANDOM",
     "num_virtual_tokens": 8,
@@ -80,12 +80,12 @@ def test_helper_causal_lm_train_kwargs():
     assert model_args.use_flash_attn == False
     assert model_args.torch_dtype == "float32"
 
-    assert data_args.data_path == TWITTER_COMPLAINTS_DATA
+    assert data_args.training_data_path == TWITTER_COMPLAINTS_DATA
     assert data_args.response_template == "\n### Label:"
     assert data_args.dataset_text_field == "output"
 
     assert training_args.num_train_epochs == 5
-    assert training_args.model_max_length == 4096
+    assert training_args.max_seq_length == 4096
     assert training_args.save_strategy == "epoch"
 
     assert tune_config.prompt_tuning_init == "RANDOM"
@@ -105,10 +105,10 @@ def test_run_train_requires_output_dir():
         sft_trainer.train(model_args, data_args, training_args, tune_config)
 
 
-def test_run_train_fails_data_path_not_exist():
+def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_output_path = copy.deepcopy(BASE_PEFT_KWARGS)
-    updated_output_path["data_path"] = "fake/path"
+    updated_output_path["training_data_path"] = "fake/path"
     model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
         updated_output_path
     )

@@ -42,7 +42,7 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
-    data_path: str = field(
+    training_data_path: str = field(
         default=None, metadata={"help": "Path to the training data in JSONL format."}
     )
     response_template: str = field(
@@ -61,7 +61,7 @@ class DataArguments:
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
-    model_max_length: int = field(
+    max_seq_length: int = field(
         default=DEFAULT_CONTEXT_LENGTH,
         metadata={
             "help": "Maximum sequence length. Sequences will be right padded \
