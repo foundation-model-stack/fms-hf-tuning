@@ -195,8 +195,7 @@ def train(
     )
 
     # load the data by parsing JSON
-    # TODO: update arg from data_path to training_data_path since we also have validation_data_path
-    data_files = {"train": data_args.data_path}
+    data_files = {"train": data_args.training_data_path}
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
 
