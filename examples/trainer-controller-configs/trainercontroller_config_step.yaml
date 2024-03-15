@@ -1,10 +1,10 @@
+controller-metrics:
+  - name: wsl
+    handler-class: StepLoss
+    arguments:
+      window_size: 3
 controllers:
   - name: loss-controller
-    controller-metrics:
-      - name: wsl
-        handler-class: StepLoss
-        arguments:
-          window_size: 3
     triggers:
       - on_step_end
     control-operations:

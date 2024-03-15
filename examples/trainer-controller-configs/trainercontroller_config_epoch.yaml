@@ -1,10 +1,10 @@
+controller-metrics:
+  - name: elc
+    handler-class: EpochLoss
+    arguments:
+      window_size: 2
 controllers:
   - name: epoch-loss-controller
-    controller-metrics:
-      - name: elc
-        handler-class: EpochLoss
-        arguments:
-          window_size: 2
     triggers:
       - on_epoch_end
     control-operations:

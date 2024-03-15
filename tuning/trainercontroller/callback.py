@@ -1,80 +1,88 @@
+import os, yaml
+from typing import Optional, Union
+
 from transformers import TrainerCallback
 from transformers.utils import logging
-import numpy as np
-from transformers import IntervalStrategy, TrainerControl
-from typing import Optional, Union
-import json
-import yaml
-import os
-import copy
-from trainercontroller import controllermetrics as contmetrics
+from transformers import IntervalStrategy, TrainerState, TrainerControl, TrainingArguments
+from tuning.trainercontroller import controllermetrics
+import tuning.config.configs as config
+from tuning.trainercontroller.validator import Validator
 
 logger = logging.get_logger(__name__)
 
 class TrainerControllerCallback(TrainerCallback):
     """Implements the policy driven trainer loop control based on policy definition file and metrics"""
-    __control_op_prefixes = ['should_']
+    # # TODO: Remove this
+    # __control_op_prefixes = ['should_']
     
-    def __init__(self, trainer_controller_args, training_args):
+    # TODO: Change to use config contents instead of file
+    def __init__(self, trainer_controller_config: dict):
         """Initializes the callback for policy-driven trainer control.
 
         Args:
-            trainer_controller_args: File path for trainer control definition file
-            training_args: TrainingArguments object
+            trainer_controller_config: Trainer controller configuration
         """
-        self.__controllers = {}
-        if os.path.exists(trainer_controller_args.trainer_controller_config_file):
-            with open(trainer_controller_args.trainer_controller_config_file, "r") as f:
-                self.trainer_controller_config = yaml.safe_load(f)
-                self.__validate_config(self.trainer_controller_config)
-                for controller in self.trainer_controller_config['controllers']:
-                    name = controller['name']
-                    controller_metric_objs = []
-                    for cm in controller['controller-metrics']:
-                        obj = None
-                        try:
-                            # Get the controller-metric class type
-                            class_type = getattr(contmetrics, cm['handler-class'])
-                            # Initialize the controller-metric instance
-                            if 'arguments' in cm:
-                                obj = class_type(cm['name'], **cm['arguments'])
-                            else:
-                                obj = class_type(cm['name'])
-                        except Exception as e:
-                            raise e
-                        assert (obj.validate(training_args)), 'Controller metric class [%s] cannot be computed because the training args do not support it' % (cm['handler-class'])
-                        controller_metric_objs.append(obj)
-                    self.__controllers[name] = controller_metric_objs
-        else:
-            raise FileNotFoundError("Trainer controller configuration [%s] does NOT exist" % trainer_controller_args.trainer_controller_config_file)
+        self.trainer_controller_config = trainer_controller_config
+        self._validator = Validator({TrainerControl.__name__: {'class': TrainerControl, 'filter': r'^should_'}, TrainerCallback.__name__: {'class': TrainerCallback, 'filter': r'^on_'}})
+        self._rule_byte_code = {}
+        # TODO: Change double underscores into single underscores
+        self._validate_config()
+        self._init_metrics()
 
-    def __validate_config(self, config):
-        assert 'controllers' in config and len(config['controllers']) > 0, "List of controllers missing in config"
-        for c in config['controllers']:
-            assert 'name' in c, f"Controller should have a name"
-            assert ('triggers' in c) and (len(c['triggers']) > 0), f"Triggers not specified for controller {c['name']}"
-            assert ('rule' in c) and (len(c['rule']) > 0), f"Rule not specified for controller {c['name']}"
-            try:
-                compile(c['rule'], '<stdin>', 'eval')
-            except Exception as e:
-                raise SyntaxError(f"Rule [{c['rule']}] for controller {c['name']} has this error {e}")
-            assert ('controller-metrics' in c) and (len(c['controller-metrics']) > 0), f"List of controller metrics missing for controller {c['name']}"
-            for cm in c['controller-metrics']:
+    def _init_metrics(self):
+        self._metrics_map = {}
+        self._unique_metric_list = []
+        for metric in self.trainer_controller_config['controller-metrics']:
+            # TODO: Handle when the handler-class does not exist
+            if metric['handler-class'] not in controllermetrics.handlers:
+                raise KeyError(f"Trainer controller metric handler class {metric['handler-class']} not defined")
+            else:
+                class_type = controllermetrics.handlers[metric['handler-class']]
+                if 'arguments' in cm:
+                    obj = class_type(cm['name'], self._validator, **cm['arguments'])
+                else:
+                    obj = class_type(cm['name'], self._validator)
+            event_list = obj.get_events()
+            self._unique_metric_list.append(obj)
+            for e in event_list:
+                metric_list = []
+                if e in self._metrics_map:
+                    metric_list = self._metrics_map[e]
+                metric_list.append(obj)
+                self._metrics_map[e] = metric_list
+
+    def _validate_config(self):
+        # TODO: Create schema and use it for validation
+        # TODO: Print a warn message if there are no controls
+        config = self.trainer_controller_config
+        if 'controller-metrics' not in config or len(config['controller-metrics']) == 0:
+             logger.warn("List of controller-metrics missing in config")
+        else:
+            for cm in config['controller-metrics']:
                 assert ('name' in cm), f"Controller metric should have a name"
                 assert ('handler-class' in cm), f"Handler class not specified for controller metric {cm['name']}"
-            assert ('control-operations' in c) and (len(c['control-operations']) > 0), f"Control operations not specified for controller {c['name']}"
-            for k, v in c['control-operations'].items():
-                for prefix in TrainerControllerCallback.__control_op_prefixes:
-                    if not k.startswith(prefix):
-                        raise AttributeError(f"Control operation {k} is not invalid for controller {c['name']}")
-                try:
-                    getattr(TrainerControl, k)
-                except Exception as e:
-                    raise AttributeError(f"Control operation {k} is not invalid for controller {c['name']}")
-
+        if 'controllers' not in config or len(config['controllers']) == 0:
+             logger.warn("List of controllers missing in config")
+        else:
+            for c in config['controllers']:
+                assert 'name' in c, f"Controller should have a name"
+                assert ('triggers' in c) and (len(c['triggers']) > 0), f"Triggers not specified for controller {c['name']}"
+                for trigger in c['triggers']:
+                    if not self._validator(TrainerCallback, trigger):
+                        raise KeyError(f"Trigger {k} is invalid for controller {c['name']}")
+                assert ('control-operations' in c) and (len(c['control-operations']) > 0), f"Control operations not specified for controller {c['name']}"
+                for k, v in c['control-operations'].items():
+                    if not self._validator(TrainerControl, k):
+                        raise KeyError(f"Control operation {k} is invalid for controller {c['name']}")
                 assert (isinstance(v, bool) or isinstance(v, int)),  f"Control operation {k} is assigned invalid value for controller {c['name']}"
+                assert ('rule' in c) and (c['rule'] != None) and (len(c['rule']) > 0), f"Rule not specified for controller {c['name']}"
+                try:
+                    #TODO: Store and use the bytecode
+                    self._rule_byte_code[c['name']] = compile(c['rule'], '', 'eval')
+                except SyntaxError as e:
+                    raise SyntaxError(f"Rule [{c['rule']}] for controller {c['name']} has this error {e}")
 
-    def __loop_through_controllers(self, state, control, args, trigger_filter, metrics=None):
+    def _loop_through_controllers(self, state: TrainerState, control: TrainerControl, args: TrainingArguments, trigger_filter: str, metrics=None):
         """Loops through the controllers computing the controller-metrics and validating the rules. Once any rule gets validated, the corresponding control is applied to the trainer loop.
 
         Args:
@@ -87,74 +95,84 @@ class TrainerControllerCallback(TrainerCallback):
         Returns:
             None.
         """
+        metric_result = {}
+        if trigger_filter in self._metrics_map:
+            metrics = self._metrics_map[trigger_filter]
+            for m in metrics:
+                cm_res = m._compute(state, trigger_filter, args, metrics)
+                if cm_res == None:
+                    continue
+                metric_result.update(cm_res)
         controllers = self.trainer_controller_config['controllers']
         num_controllers = len(controllers)
         for i in range(num_controllers):
             controller = controllers[i]
-            name = controller['name']
-            controller_metrics_objs = self.__controllers[name]
             trigger_set = set(controller['triggers'])
             if trigger_filter not in trigger_set:
                 continue
-            metric_result = {}
-            for i in range(len(controller['controller-metrics'])):
-                cm_obj = controller_metrics_objs[i]
-                cm_res = cm_obj.compute(state, args, metrics)
-                if cm_res == None:
-                    continue
-                metric_result.update(cm_res)
             rule = controller['rule']
             try:
-                if eval(rule, metric_result):
-                    logger.info('<%s> rule[%s] triggered' % (name, str(rule)))
+                logger.warn(f'rule[{rule}]: Metric so far: {str(metric_result)}')
+                if eval(self._rule_byte_code[controller['name']], metric_result):
+                    logger.warn('rule[%s] triggered' % (str(rule)))
                     for k, v in controller['control-operations'].items():
                         setattr(control, k, v)
-            except Exception as e:
-                pass
+            except NameError as e:
+                logger.warn(e)
+        return control
 
-    def on_step_end(self, args, state, control, **kwargs):
+    def on_init_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """
+        Event called at the end of the initialization of the Trainer.
+        """
+        if len(self._unique_metric_list) == 0:
+            return
+        for obj in self._unique_metric_list:
+            assert (obj.validate(args)), 'Controller metric class [%s] cannot be computed because the training args do not support it' % (cm['handler-class'])
+
+    def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when step ends.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+           TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_step_end')
+        self._loop_through_controllers(state, control, args, 'on_step_end')
 
-    def on_epoch_begin(self, args, state, control, **kwargs):
+    def on_epoch_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when epoch begins.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_epoch_begin')
+        self._loop_through_controllers(state, control, args, 'on_epoch_begin')
 
-    def on_epoch_end(self, args, state, control, **kwargs):
+    def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when epoch ends.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_epoch_end')
+        self._loop_through_controllers(state, control, args, 'on_epoch_end')
 
-    def on_prediction_step(self, args, state, control, eval_dataloader=None, **kwargs):
+    def on_prediction_step(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, eval_dataloader=None, **kwargs):
         """Event triggered when prediction is performed.
 
         Args:
@@ -162,80 +180,80 @@ class TrainerControllerCallback(TrainerCallback):
             state: TrainerState object
             control: TrainerControl object
             eval_dataloader: Data loader object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_prediction_step')
+        self._loop_through_controllers(state, control, args, 'on_prediction_step')
 
-    def on_predict(self, args, state, control, **kwargs):
+    def on_predict(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when predict event occurs.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_predict')
+        self._loop_through_controllers(state, control, args, 'on_predict')
 
-    def on_log(self, args, state, control, logs=None, **kwargs):
+    def on_log(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, logs=None, **kwargs):
         """Event triggered when logging event happens.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            logs: logs data
-            kwargs: Miscellaneous arguments
+            logs: [optional] logs data
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_log')
+        self._loop_through_controllers(state, control, args, 'on_log')
 
-    def on_train_end(self, args, state, control, **kwargs):
+    def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when training ends.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_train_end')
+        self._loop_through_controllers(state, control, args, 'on_train_end')
 
-    def on_train_begin(self, args, state, control, **kwargs):
+    def on_train_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
         """Event triggered when training begins.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_train_end')
+        self._loop_through_controllers(state, control, args, 'on_train_end')
 
-    def on_evaluate(self, args, state, control, metrics, **kwargs):
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, metrics, **kwargs):
         """Event triggered when evaluation step occurs.
 
         Args:
             args: TrainingArguments object
             state: TrainerState object
             control: TrainerControl object
-            kwargs: Miscellaneous arguments
+            kwargs: [optional] Miscellaneous arguments
 
         Returns:
-            None.
+            TrainerControl object.
         """
-        self.__loop_through_controllers(state, control, args, 'on_evaluate', metrics)
+        self._loop_through_controllers(state, control, args, 'on_evaluate', metrics)
