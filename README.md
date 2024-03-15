@@ -109,10 +109,8 @@ MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
 
 ```bash
 accelerate launch \
---main_process_ip $MASTER_ADDR \
 --main_process_port $MASTER_PORT \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
---num_machines=1 \
 --num_processes=8 \ 
 --main_process_port=$MASTER_PORT \
 tuning/sft_trainer.py \
