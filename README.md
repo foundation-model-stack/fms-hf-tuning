@@ -97,14 +97,8 @@ The recommendation is to use [huggingface accelerate](https://huggingface.co/doc
 `--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
 
 ```bash
-MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
-DATA_PATH=twitter_complaints.json # Path to the dataset
-OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
-
-# MASTER_PORT and MASTER_ADDR are essential for multi node training and 
-# not needed for multi gpu in single node
-MASTER_PORT=1234 # The port at which the process with rank 0 listens to
-MASTER_ADDR=x.x.x.x # The IP addresss of the node with rank 0
+# MASTER_PORT should be set to an unused port
+MASTER_PORT=1234 
 
 
 ```bash
