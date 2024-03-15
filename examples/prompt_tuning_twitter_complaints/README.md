@@ -30,13 +30,12 @@ dataset.to_json("twitter_complaints.json")
 ### Prompt Tuning
 We will switch our PEFT method from LORA to Prompt Tuning (pt)
 ```bash
-# replace these with your values
-MODEL_PATH=llama-7b-hf
-DATA_PATH=twitter_complaints.json
-OUTPUT_PATH=out
+# Please set the environment variables:
+# MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
+# MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the training dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
-# MASTER_PORT should be set to an unused port
-MASTER_PORT=1234 # The port at which the process with rank 0 listens to
 
 accelerate launch \
 --main_process_port $MASTER_PORT \

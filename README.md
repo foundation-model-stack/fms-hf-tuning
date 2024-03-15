@@ -97,8 +97,11 @@ The recommendation is to use [huggingface accelerate](https://huggingface.co/doc
 `--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
 
 ```bash
-# MASTER_PORT should be set to an unused port
-MASTER_PORT=1234 
+# Please set the environment variables:
+# MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
+# MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the training dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 
 ```bash
@@ -109,7 +112,7 @@ accelerate launch \
 --main_process_port=$MASTER_PORT \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---data_path $DATA_PATH \
+--training_data_path $DATA_PATH \
 --torch_dtype bfloat16 \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
