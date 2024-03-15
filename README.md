@@ -138,7 +138,6 @@ tuning/sft_trainer.py \
 ```
 
 
-Typically the transformer module is passed to form FSDP unit. For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `config/accelerate_fsdp_llama_2_procs.yaml` for proper sharding of the model.
 
 ### LoRA Tuning Example
 
