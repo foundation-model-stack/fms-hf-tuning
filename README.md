@@ -99,7 +99,7 @@ The recommendation is to use [huggingface accelerate](https://huggingface.co/doc
 ```bash
 # Please set the environment variables:
 # MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
-# MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
 # TRAIN_DATA_PATH=twitter_complaints.json # Path to the training dataset
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
