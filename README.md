@@ -114,7 +114,7 @@ accelerate launch \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 --num_machines=1 \
 --num_processes=8 \ 
---main_process_port=1234 \
+--main_process_port=$MASTER_PORT \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
 --data_path $DATA_PATH \
