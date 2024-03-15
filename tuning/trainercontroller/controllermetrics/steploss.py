@@ -1,16 +1,26 @@
 import statistics as stats
 from collections import deque
 from . import MetricHandlerWithCache
+from transformers import TrainerState, TrainingArguments, IntervalStrategy
+from typing import Any
+from tuning.trainercontroller.validator import Validator
 
 class StepLoss(MetricHandlerWithCache):
     """Implements the controller metric which evaluates loss-per-step"""
     
-    def __init__(self, name, window_size):
-        # Initialize the handler arguments
-        self.__window_size = window_size
-        super().__init__(name, {'loss': deque()})
+    def __init__(self, name: str, validator: Validator, window_size: int):
+        """Initializes the handler
 
-    def validate(self, training_args) -> bool:
+        Args:
+            name: Name for the metric
+            validator: Instance of Validator. Performs event validation
+            window_size: Size of the window (number of epochs stored in cache)
+        """
+        self._window_size = window_size
+        super().__init__(name, validator, {'loss': deque()})
+        self.register_events(['on_step_end'])
+
+    def validate(self, training_args: TrainingArguments) -> bool:
         """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
 
         Args:
@@ -19,10 +29,10 @@ class StepLoss(MetricHandlerWithCache):
         Returns:
             bool
         """
-        return training_args.logging_strategy == 'steps' and \
+        return training_args.logging_strategy == IntervalStrategy.STEPS and \
             training_args.logging_steps == 1
 
-    def compute_metrics_on_cache(self):
+    def compute_metrics_on_cache(self) -> Any:
         if not self.slide_the_window(self.__window_size):
             return None  
         cache = self.get_cache()
@@ -33,17 +43,18 @@ class StepLoss(MetricHandlerWithCache):
                 break
         avg_loss = stats.mean(cache['loss'])
         std_loss = stats.stdev(cache['loss'])
-        return {self.get_name(): {'consistently_increasing': int(consistently_increasing), \
-            'average_loss': avg_loss,\
-            'std_loss': std_loss,\
-            'window': cache['loss']}}
+        return {'consistently_increasing': int(consistently_increasing), \
+                                        'average_loss': avg_loss,\
+                                        'std_loss': std_loss,\
+                                        'window': cache['loss']}
 
-    def compute(self, training_state, training_args=None, metrics=None) -> dict:
+    def compute(self, training_state: TrainerState, event_name: str, training_args: TrainingArguments=None, metrics=None) -> Any:
         """Computes the controller-metric (step-loss over window) and exposes the values of the variables used by the rules.
 
         Args:
             training_state: TrainerState object
-            training_args: TrainingArguments object
+            event_name: Name of the event which is invoking the metric handler
+            training_args: [optional] TrainingArguments object
             metrics: [optional] metrics data
 
         Returns:

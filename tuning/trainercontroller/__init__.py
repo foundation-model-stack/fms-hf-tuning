@@ -1,1 +1,1 @@
-from .callback import *
+from .callback import TrainerControllerCallback

@@ -18,6 +18,7 @@ from typing import Optional, Union
 import json
 import os
 import sys
+import yaml
 
 # Third Party
 from peft.utils.other import fsdp_auto_wrap_policy
@@ -226,11 +227,14 @@ def train(
     aim_callback = get_aimstack_callback()
     file_logger_callback = FileLoggingCallback(logger)
     callbacks = [aim_callback, file_logger_callback]
-    try:
-        tc_callback = TrainerControllerCallback(trainer_controller_args, train_args)
-        callbacks.append(tc_callback)
-    except Exception as e:
-        logger.error(f'TrainerController callback was not enabled due to this exception: {repr(e)}')
+
+    if os.path.exists(trainer_controller_args.trainer_controller_config_file):
+        with open(trainer_controller_args.trainer_controller_config_file, "r") as f:
+            trainer_controller_config = yaml.safe_load(f)
+            tc_callback = TrainerControllerCallback(trainer_controller_config)
+            callbacks.append(tc_callback)
+    else:
+        raise FileNotFoundError("Trainer controller configuration [%s] does NOT exist" % trainer_controller_args.trainer_controller_config_file)
 
     if train_args.packing:
         logger.info("Packing is set to True")
