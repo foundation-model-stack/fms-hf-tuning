@@ -5,6 +5,6 @@ controllers:
   - name: loss-controller
     triggers:
       - on_log
-    rule: loss > 2.5
+    rule: loss < 1.0
     operations:
       - hfcontrols.should_training_stop
