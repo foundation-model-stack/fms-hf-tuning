@@ -15,13 +15,17 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
-from .loss import Loss
+from dataclasses import dataclass
+from typing import List, Optional
+from tuning.trainercontroller.operations import Operation
 
-from typing import Type
+@dataclass
+class OperationAction:
+    instance: Operation
+    action: str
 
-handlers = []
-
-def register(cl: Type):
-    handlers.append(cl)
-
-register(Loss)
+@dataclass
+class Control:
+    name: str
+    rule: Optional[object] = None # stores bytecode of the compiled rule
+    operation_actions: Optional[List[OperationAction]] = None

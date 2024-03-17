@@ -76,10 +76,10 @@ class TrainingArguments(transformers.TrainingArguments):
 @dataclass
 class TrainerControllerArguments():
     trainer_controller_config_file: str = field(
-        default="trainercontroller_config.yaml",
+        default=None,
         metadata={
             "help": (
-                "Trainer controller configuration file in YAML format."
+                "Trainer controller configuration file (e.g trainercontroller_config.yaml) in YAML format."
             )
         },
     )

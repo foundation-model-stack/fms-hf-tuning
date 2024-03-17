@@ -1,84 +1,39 @@
-# Third Party
-import pytest
-import math
+# Copyright The IBM Tuning Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# SPDX-License-Identifier: Apache-2.0
+# https://spdx.dev/learn/handling-license-info/
 
 # Local
 import tuning.trainercontroller as tc
 import tuning.config.configs as config
 from transformers import TrainerControl, TrainerState, IntervalStrategy
 
-def test_step_loss():
-    test_data = [{'loss': 2.0, 'eval_loss': 2.0, 'epoch': 0.1}, \
-                {'loss': 2.1, 'eval_loss': 2.1, 'epoch': 0.25}, \
-                {'loss': 2.3, 'eval_loss': 2.3, 'epoch': 0.5}]
-    outcomes = [False, False, True]
-    training_args = config.TrainingArguments(output_dir='')
-    trainer_controller_args = config.TrainerControllerArguments()
-    training_args.logging_strategy = IntervalStrategy.STEPS
-    training_args.logging_steps = 1
-    trainer_controller_args.trainer_controller_config_file = 'examples/trainer-controller-configs/trainercontroller_config_step.yaml'
-    tc_callback = tc.TrainerControllerCallback(trainer_controller_args, training_args)
-    control = TrainerControl()
-    control.should_training_stop = False
-    state = TrainerState()
-    state.log_history = []
-    for i in range(len(test_data)):
-        state.log_history.append(test_data[i])
-        control = tc_callback.on_step_end(training_args, state, control)
-        assert control.should_training_stop == outcomes[i]
-
-def test_epoch_loss():
-    test_data = [{'loss': 2.0, 'eval_loss': 2.0, 'epoch': 0.1}, \
-                {'loss': 2.1, 'eval_loss': 2.1, 'epoch': 0.25}, \
-                {'loss': 2.3, 'eval_loss': 2.3, 'epoch': 0.5}, \
-                {'loss': 2.35, 'eval_loss': 2.35, 'epoch': 0.75}, \
-                {'loss': 2.4, 'eval_loss': 2.35, 'epoch': 1.0}, \
-                {'loss': 2.45, 'eval_loss': 2.4, 'epoch': 1.25}, \
-                {'loss': 2.5, 'eval_loss': 2.45, 'epoch': 1.5}, \
-                {'loss': 2.55, 'eval_loss': 2.5, 'epoch': 1.75}, \
-                {'loss': 2.6, 'eval_loss': 2.55, 'epoch': 2.0}]
-    outcomes = [False, False, False, False, False, False, False, False, True]
-    training_args = config.TrainingArguments(output_dir='')
-    trainer_controller_args = config.TrainerControllerArguments()
-    training_args.logging_strategy = IntervalStrategy.STEPS
-    training_args.logging_steps = 1
-    trainer_controller_args.trainer_controller_config_file = 'examples/trainer-controller-configs/trainercontroller_config_epoch.yaml'
-    tc_callback = tc.TrainerControllerCallback(trainer_controller_args, training_args)
-    control = TrainerControl()
-    control.should_training_stop = False
-    state = TrainerState()
-    state.log_history = []
-    for i in range(len(test_data)):
-        state.log_history.append(test_data[i])
-        if (math.ceil(test_data[i]['epoch']) - test_data[i]['epoch']) > 0:
-            continue
-        control = tc_callback.on_epoch_end(training_args, state, control)
-        assert control.should_training_stop == outcomes[i]
-
-def test_epoch_threshold_loss():
-    test_data = [{'loss': 2.1, 'eval_loss': 2.0, 'epoch': 0.1}, \
-                {'loss': 2.1, 'eval_loss': 2.1, 'epoch': 0.25}, \
-                {'loss': 2.05, 'eval_loss': 2.3, 'epoch': 0.5}, \
-                {'loss': 2.05, 'eval_loss': 2.35, 'epoch': 0.75}, \
-                {'loss': 2.02, 'eval_loss': 2.35, 'epoch': 1.0}, \
-                {'loss': 2.03, 'eval_loss': 2.4, 'epoch': 1.25}, \
-                {'loss': 2.01, 'eval_loss': 2.45, 'epoch': 1.5}, \
-                {'loss': 2.0, 'eval_loss': 2.5, 'epoch': 1.75}, \
-                {'loss': 2.09, 'eval_loss': 2.55, 'epoch': 2.0}]
-    outcomes = [False, False, False, False, False, False, False, False, True]
-    training_args = config.TrainingArguments(output_dir='')
-    trainer_controller_args = config.TrainerControllerArguments()
-    training_args.logging_strategy = IntervalStrategy.STEPS
-    training_args.logging_steps = 1
-    trainer_controller_args.trainer_controller_config_file = 'examples/trainer-controller-configs/trainercontroller_config_epoch_threshold.yaml'
-    tc_callback = tc.TrainerControllerCallback(trainer_controller_args, training_args)
-    control = TrainerControl()
-    control.should_training_stop = False
-    state = TrainerState()
-    state.log_history = []
-    for i in range(len(test_data)):
-        state.log_history.append(test_data[i])
-        if (math.ceil(test_data[i]['epoch']) - test_data[i]['epoch']) > 0:
-            continue
-        control = tc_callback.on_epoch_end(training_args, state, control)
-        assert control.should_training_stop == outcomes[i]
+def test_step_loss_on_threshold():
+    test_data = [{'loss': 2.0, 'epoch': 0.1}, \
+                {'loss': 2.1, 'epoch': 0.25}, \
+                {'loss': 1.3, 'epoch': 0.5}, \
+                {'loss': 0.9, 'epoch': 0.6}]
+    training_args = config.TrainingArguments(
+                        output_dir='',
+                        logging_strategy=IntervalStrategy.STEPS,
+                        logging_steps=1,
+                        )
+    tc_callback = tc.TrainerControllerCallback('examples/trainer-controller-configs/loss.yaml')
+    control = TrainerControl(should_training_stop = False)
+    state = TrainerState(log_history = [])
+    tc_callback.on_init_end(args=training_args)
+    state.log_history=test_data
+    tc_callback.on_step_end(args=training_args, state=state, control=control)
+    assert control.should_training_stop == True
