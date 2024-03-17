@@ -1,0 +1,10 @@
+controller-metrics:
+  loss:
+    Loss:
+controllers:
+  - name: loss-controller
+    triggers:
+      - on_log
+    rule: loss > 2.5
+    operations:
+      - hfcontrols.should_training_stop
