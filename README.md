@@ -60,13 +60,13 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
 
-MODEL_PATH=llama-7b-hf # Huggingface model id or path to a checkpoint
-DATA_PATH=twitter_complaints.json # Path to the dataset
-OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
---training_data_path $DATA_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 4  \

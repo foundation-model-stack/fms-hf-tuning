@@ -42,7 +42,7 @@ accelerate launch \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
---training_data_path $DATA_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --peft_method pt \
 --torch_dtype bfloat16 \
