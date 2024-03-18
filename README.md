@@ -139,7 +139,7 @@ tuning/sft_trainer.py \
 ```bash
 python tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---training_data_path $DATA_PATH \
+--training_data_path $TRAIN_DATA_PATH \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 40 \
 --per_device_train_batch_size 4 \
