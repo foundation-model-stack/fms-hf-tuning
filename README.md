@@ -112,7 +112,7 @@ accelerate launch \
 --main_process_port=$MASTER_PORT \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---training_data_path $DATA_PATH \
+--training_data_path $TRAIN_DATA_PATH \
 --torch_dtype bfloat16 \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
