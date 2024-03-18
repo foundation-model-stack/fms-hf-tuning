@@ -15,9 +15,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
+# Standard
 from typing import Any
 
-from transformers import TrainingArguments, TrainerState, IntervalStrategy
+# Third Party
+from transformers import TrainerState
 
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
@@ -25,18 +27,15 @@ class Loss(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
     
     def __init__(self, **kwargs):
-        """Initializes the handler
+        """Initializes the metric handler, by registering the event list and arguments with base handler.
 
         Args:
-            name: Name for the metric
+            kwargs: List of arguments (key, value)-pairs
         """
         super().__init__(events=['on_log'], **kwargs)
 
     def validate(self) -> bool:
-        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric
-
-        Args:
-            training_args: Training arguments
+        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric.
 
         Returns:
             bool
@@ -44,14 +43,14 @@ class Loss(MetricHandler):
         return True
 
     def compute(self, state: TrainerState = None, **kwargs) -> Any:
-        """Computes the controller-metric (step-loss over window) and exposes the values of the variables used by the rules.
+        """Exposes  the latest step loss value in the log.
 
         Args:
-            training_state: TrainerState object
+            state: TrainerState object
             kwargs: Remaining event arguments
 
         Returns:
-            dict
+            Any. The exposed variables are returned here.
         """
         size_of_log_history = len(state.log_history)
         for i in range(size_of_log_history - 1, -1, -1):
