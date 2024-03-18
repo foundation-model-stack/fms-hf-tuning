@@ -15,15 +15,25 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
+# Standard
 import abc
 from typing import Any, List
 
+# Third Party
 from transformers import TrainingArguments
 
 class MetricHandler(metaclass=abc.ABCMeta):
-
     """Base class for the controller-metrics"""
+
     def __init__(self, name: str, events: List[str], args: TrainingArguments, **kwargs):
+        """Initializes the metric handler base class
+
+        Args:
+            name: str. Name of the metric handler
+            event: List[str]. List of events for with the metric computation has to be performed.
+            args: TrainingArguments. Training arguments.
+            kwargs: List of arguments (key, value)-pairs
+        """
         self._name = name
         self._events = events
         self.training_args = args
@@ -31,9 +41,19 @@ class MetricHandler(metaclass=abc.ABCMeta):
             raise Exception(f"Metric handler {name} failed validation.")
 
     def get_name(self):
+        """Returns the name of the handler.
+
+        Returns:
+            str
+        """
         return self._name
 
     def get_events(self):
+        """Returns the list of events for the metric.
+
+        Returns:
+            str
+        """
         return self._events
 
     @abc.abstractmethod 
@@ -52,10 +72,10 @@ class MetricHandler(metaclass=abc.ABCMeta):
         """Computes the controller-metric returns the metric.
 
         Args:
-            event_name: Name of the event which is invoking the metric handler
-            kwargs: Remaining event arguments
+            event_name: str. Name of the event which is invoking the metric handler
+            kwargs: Remaining event arguments. List of arguments (key, value)-pairs.
 
         Returns:
-            dict
+            Any
         """
         pass

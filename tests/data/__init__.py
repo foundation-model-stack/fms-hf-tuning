@@ -20,3 +20,4 @@ import os
 ### Constants used for data
 DATA_DIR = os.path.join(os.path.dirname(__file__))
 TWITTER_COMPLAINTS_DATA = os.path.join(DATA_DIR, "twitter_complaints_small.json")
+TRAINER_CONFIG_TEST_YAML = os.path.join(DATA_DIR, "loss.yaml")

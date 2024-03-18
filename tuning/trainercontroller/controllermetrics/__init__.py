@@ -15,13 +15,22 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
-from .loss import Loss
-
+# Standard
 from typing import Type
 
+# Local
+from .loss import Loss
+
+# List of metric handlers
 handlers = []
 
 def register(cl: Type):
+    """Registers the list of metric handlers by adding to the handler list.
+
+    Args:
+        cl: Class type of the handler
+    """
     handlers.append(cl)
 
+# Register the default metric handlers in this package here
 register(Loss)

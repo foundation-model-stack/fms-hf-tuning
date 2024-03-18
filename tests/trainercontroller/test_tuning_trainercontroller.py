@@ -18,22 +18,31 @@
 # Local
 import tuning.trainercontroller as tc
 import tuning.config.configs as config
+import tests.data as td
+
+# Third Party
 from transformers import TrainerControl, TrainerState, IntervalStrategy
 
-def test_step_loss_on_threshold():
+def test_loss_on_threshold():
+    """Tests the loss threshold example in `examples/trainer-controller-configs/loss.yaml`
+    """
+    # Test data to mimic the fields of trainer loop log-lines
     test_data = [{'loss': 2.0, 'epoch': 0.1}, \
                 {'loss': 2.1, 'epoch': 0.25}, \
                 {'loss': 1.3, 'epoch': 0.5}, \
                 {'loss': 0.9, 'epoch': 0.6}]
+    # Trainer arguments relevant to the test
     training_args = config.TrainingArguments(
                         output_dir='',
                         logging_strategy=IntervalStrategy.STEPS,
                         logging_steps=1,
                         )
-    tc_callback = tc.TrainerControllerCallback('examples/trainer-controller-configs/loss.yaml')
+    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_YAML)
     control = TrainerControl(should_training_stop = False)
     state = TrainerState(log_history = [])
-    tc_callback.on_init_end(args=training_args)
+    # Trigger on_init_end to perform registration of handlers to events 
+    tc_callback.on_init_end(args=training_args, state=state, control=control)
     state.log_history=test_data
-    tc_callback.on_step_end(args=training_args, state=state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_log(args=training_args, state=state, control=control)
     assert control.should_training_stop == True
