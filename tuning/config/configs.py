@@ -79,7 +79,8 @@ class TrainerControllerArguments():
         default=None,
         metadata={
             "help": (
-                "Trainer controller configuration file (e.g trainercontroller_config.yaml) in YAML format."
+                "Trainer controller configuration file (e.g trainercontroller_config.yaml) \
+                    in YAML format."
             )
         },
     )

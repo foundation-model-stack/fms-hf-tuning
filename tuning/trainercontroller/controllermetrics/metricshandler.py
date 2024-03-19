@@ -22,6 +22,11 @@ from typing import Any, List
 # Third Party
 from transformers import TrainingArguments
 
+class MetricHandlerException(Exception):
+    """Initializes the metric handler exception class"""
+    def __init__(self, name):
+        super().__init__(f"Metric handler {name} failed validation.")
+
 class MetricHandler(metaclass=abc.ABCMeta):
     """Base class for the controller-metrics"""
 
@@ -38,7 +43,7 @@ class MetricHandler(metaclass=abc.ABCMeta):
         self._events = events
         self.training_args = args
         if not self.validate():
-            raise Exception(f"Metric handler {name} failed validation.")
+            raise MetricHandlerException(name)
 
     def get_name(self):
         """Returns the name of the handler.
@@ -68,11 +73,10 @@ class MetricHandler(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod 
-    def compute(self, event_name: str, **kwargs) -> Any:
+    def compute(self, **kwargs) -> Any:
         """Computes the controller-metric returns the metric.
 
         Args:
-            event_name: str. Name of the event which is invoking the metric handler
             kwargs: Remaining event arguments. List of arguments (key, value)-pairs.
 
         Returns:

@@ -1,16 +1,19 @@
 # Standard
 import abc
-import re,inspect
+import re
+import inspect
 
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""
 
     def __init__(self):
-        """Initializes the HuggingFace controls. In this init, we follow the convention that every action should preceed with prefix `should_`. If so, it is treated as a valid action.
+        """Initializes the HuggingFace controls. In this init, we follow the convention that
+        every action should preceed with prefix `should_`. If so, it is treated as a valid
+        action.
         """
         self.valid_actions = {}       
         for action_name, action_method in inspect.getmembers(self, predicate=inspect.ismethod):
-            if re.search(r'^should_', action_name) != None:
+            if re.search(r'^should_', action_name) is not None:
                 self.valid_actions[action_name] = action_method
 
     def validate(self, action: str) -> bool:
@@ -24,7 +27,7 @@ class Operation(metaclass=abc.ABCMeta):
         """
         if action not in self.valid_actions:
             return False
-    
+
     def act(self, action: str, **kwargs):
         """Validates the action and invokes it.
 

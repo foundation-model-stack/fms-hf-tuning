@@ -18,7 +18,6 @@ from typing import Optional, Union
 import json
 import os
 import sys
-import yaml
 
 # Third Party
 from peft.utils.other import fsdp_auto_wrap_policy
