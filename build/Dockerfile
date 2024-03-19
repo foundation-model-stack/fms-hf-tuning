@@ -114,6 +114,8 @@ COPY LICENSE /licenses/
 
 COPY launch_training.py /app
 RUN chmod +x /app/launch_training.py
+COPY accelerate_launch.py /app
+RUN chmod +x /app/accelerate_launch.py
 
 # Need a better way to address this hack
 RUN touch /.aim_profile && \
