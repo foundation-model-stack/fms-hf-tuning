@@ -175,6 +175,14 @@ class TrainerControllerCallback(TrainerCallback):
         self._compute_metrics(event_name, **kwargs)
         self._take_control_actions(event_name, **kwargs)
 
+    def _validate_rule(self, rule):
+        """Validates the rule to check if there are any import attempts 
+
+        Returns:
+            bool
+        """
+        return re.search(r'__', rule) is None
+    
     def on_init_end(self, args: TrainingArguments, state: TrainerState, \
                     control: TrainerControl, **kwargs):
         """This event gets the training arguments which is finally used by the trainer loop. All metric and operation validation is performed here using these arguments. Following this, validated metrics and operations instances are registered for use.
@@ -239,6 +247,8 @@ class TrainerControllerCallback(TrainerCallback):
                     if event_name not in self.valid_events:
                         raise KeyError(f"Event name ({event_name}) is not valid in control {controller[CONTROLLER_NAME_KEY]}")
                     # Generates the byte-code for the rule from trainer configuration
+                    if not self._validate_rule(controller[CONTROLLER_RULE_KEY]):
+                        raise ValueError(f"Rule for control {controller[CONTROLLER_NAME_KEY]} is invalid")
                     control = Control(name=controller[CONTROLLER_NAME_KEY], rule = compile(controller[CONTROLLER_RULE_KEY], '', 'eval'), operation_actions = [])
                     for control_operation_name in controller[CONTROLLER_OPERATIONS_KEY]:
                         control.operation_actions.append(self.operation_actions[control_operation_name])
