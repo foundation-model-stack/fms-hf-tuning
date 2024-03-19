@@ -125,8 +125,8 @@ RUN touch /.aim_profile && \
 
 # create tuning user and give ownership to dirs
 RUN useradd -u $USER_UID tuning -m -g 0 --system && \
-    chown -R $USER:0 /app && \
-    chmod -R g+rwX /app
+    chown -R $USER:0 /app /tmp/fms-hf-tuning && \
+    chmod -R g+rwX /app /tmp/fms-hf-tuning
 
 WORKDIR /app
 USER ${USER}
