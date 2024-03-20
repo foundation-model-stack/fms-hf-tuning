@@ -23,8 +23,9 @@ from typing import Any
 import tuning.trainercontroller as tc
 import tuning.config.configs as config
 import tests.data.trainercontroller as td
-from tests.trainercontroller.custommetric import CustomMetric
-from tests.trainercontroller.customoperation import CustomOperation
+from tests.trainercontroller.custom_metric import CustomMetric
+from tests.trainercontroller.custom_operation import CustomOperation
+from tests.trainercontroller.custom_operation_invalid_action import CustomOperationInvalidAction
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
 # Third Party
@@ -97,6 +98,23 @@ def test_custom_operation_handler():
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert control.should_training_stop == True
+
+def test_custom_operation_invalid_action_handler():
+    """Tests the registration of custom operation with an invalid action. Uses: 
+    `examples/trainer-controller-configs/loss_custom_operation_invalid_action.yaml`
+    """
+    test_data = _setup_data()
+    with pytest.raises(KeyError) as exception_handler:
+        tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML)
+        tc_callback.register_operation_handlers([CustomOperationInvalidAction])
+        control = TrainerControl(should_training_stop = False)
+        # Trigger on_init_end to perform registration of handlers to events 
+        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        # Trigger rule and test the condition
+        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert str(exception_handler.value).strip("'") == \
+"Invalid operation customoperation.should_ for control loss-controller-custom-operation-invalid-action"
+    
 
 def test_malicious_os_rule():
     """Tests the malicious rule using configuration 

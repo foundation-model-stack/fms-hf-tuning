@@ -37,3 +37,5 @@ TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML = \
     os.path.join(_DATA_DIR, "loss_custom_metric.yaml")
 TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML = \
     os.path.join(_DATA_DIR, "loss_custom_operation.yaml")
+TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML = \
+    os.path.join(_DATA_DIR, "loss_custom_operation_invalid_action.yaml")
