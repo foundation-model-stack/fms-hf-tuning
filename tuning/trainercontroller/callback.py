@@ -159,7 +159,16 @@ class TrainerControllerCallback(TrainerCallback):
         """
         if event_name in self.control_actions_on_event:
             for control_action in self.control_actions_on_event[event_name]:
-                if eval(control_action.rule, {'__builtins__': None}, self.metrics):
+                rule_succeeded = False
+                try:
+                    rule_succeeded = eval(control_action.rule, {'__builtins__': None}, self.metrics)
+                except TypeError:
+                    raise TypeError("Rule failed due to incorrect type usage")
+                except ValueError:
+                    raise ValueError("Rule failed due to use of disallowed packages")
+                except NameError:
+                    raise NameError("Rule failed due to use of disallowed variables")
+                if rule_succeeded:
                     for operation_action in control_action.operation_actions:
                         logger.info(f"Taking {operation_action.action} \
                                     action in {control_action.name}")
@@ -207,6 +216,8 @@ class TrainerControllerCallback(TrainerCallback):
             # Get the metric class name from the config section.
             metric_handler_name = next(iter(metric_config.keys()))
             # Get the handler class using the metric class name.
+            if metric_handler_name not in self.metric_handlers:
+                raise KeyError(f"Undefined metric handler {metric_handler_name}")
             metric_handler = self.metric_handlers[metric_handler_name]
             # Get the metric handler class arguments specified in the config.
             metric_args = metric_config[metric_handler_name]
@@ -234,8 +245,8 @@ class TrainerControllerCallback(TrainerCallback):
                 if operation_args is None:
                     operation_args = {}
                 # Operation handler instance is created here.
-                operation = self.operation_handlers[operation_handler_name](**operation_args,\
-                                                                             **kwargs)
+                operation = \
+                    self.operation_handlers[operation_handler_name](**operation_args, **kwargs)
                 # Add operation action instances.
                 for action_name in operation.get_actions():
                     self.operation_actions[operation_name+"."+action_name] = OperationAction(instance=operation, action=action_name)
@@ -245,12 +256,14 @@ class TrainerControllerCallback(TrainerCallback):
             for controller in self.trainer_controller_config[CONTROLLERS_KEY]:
                 for event_name in controller[CONTROLLER_TRIGGERS_KEY]:
                     if event_name not in self.valid_events:
-                        raise KeyError(f"Event name ({event_name}) is not valid in control {controller[CONTROLLER_NAME_KEY]}")
+                        raise KeyError(f"Controller {controller[CONTROLLER_NAME_KEY]} has an invalid event ({event_name})")
                     # Generates the byte-code for the rule from trainer configuration
                     if not self._validate_rule(controller[CONTROLLER_RULE_KEY]):
                         raise ValueError(f"Rule for control {controller[CONTROLLER_NAME_KEY]} is invalid")
                     control = Control(name=controller[CONTROLLER_NAME_KEY], rule = compile(controller[CONTROLLER_RULE_KEY], '', 'eval'), operation_actions = [])
                     for control_operation_name in controller[CONTROLLER_OPERATIONS_KEY]:
+                        if control_operation_name not in self.operation_actions:
+                            raise KeyError(f"Invalid operation {control_operation_name} for control {controller[CONTROLLER_NAME_KEY]}")
                         control.operation_actions.append(self.operation_actions[control_operation_name])
                     if event_name not in self.control_actions_on_event:
                         self.control_actions_on_event[event_name] = []

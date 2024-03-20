@@ -1,0 +1,10 @@
+controller-metrics:
+  loss:
+    Loss:
+controllers:
+  - name: loss-controller-wrong-os-rule
+    triggers:
+      - on_log
+    rule: __import__('os').system('clear')
+    operations:
+      - hfcontrols.should_training_stop

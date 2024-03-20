@@ -1,0 +1,10 @@
+controller-metrics:
+  testflag:
+    CustomMetric:
+controllers:
+  - name: loss-controller-custom-metric
+    triggers:
+      - on_log
+    rule: testflag == True
+    operations:
+      - hfcontrols.should_training_stop
