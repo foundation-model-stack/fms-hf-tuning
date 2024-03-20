@@ -1,0 +1,10 @@
+controller-metrics:
+  loss:
+    Loss:
+controllers:
+  - name: loss-controller-invalid-operation-action
+    triggers:
+      - on_log
+    rule: loss < 1.0
+    operations:
+      - hfcontrols.missingaction
