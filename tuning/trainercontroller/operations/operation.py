@@ -25,8 +25,7 @@ class Operation(metaclass=abc.ABCMeta):
         Returns:
             bool. Indicates True if valid. If not, returns False.
         """
-        if action not in self.valid_actions:
-            return False
+        return action in self.valid_actions
 
     def act(self, action: str, **kwargs):
         """Validates the action and invokes it.
@@ -35,7 +34,7 @@ class Operation(metaclass=abc.ABCMeta):
             action: str. String depicting the action.
             kwargs: List of arguments (key, value)-pairs.
         """
-        if self.validate(action):
+        if not self.validate(action):
             raise ValueError(f"Invalid operation {action}")
         self.valid_actions[action](**kwargs)
 
