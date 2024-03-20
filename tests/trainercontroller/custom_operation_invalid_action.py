@@ -26,7 +26,7 @@ from tuning.trainercontroller.operations import Operation
 import pytest
 from transformers import TrainerState, TrainerControl
 
-class CustomOperation(Operation):
+class CustomOperationInvalidAction(Operation):
     """Implements a custom operation for testing"""
 
     def __init__(self, **kwargs):
@@ -36,9 +36,8 @@ class CustomOperation(Operation):
         """
         super().__init__()
 
-    def should_perform_action_xyz(self, control: TrainerControl, **kwargs):
-        """This method peeks into the stack-frame of the caller to get the action the triggered
-        a call to it. Using the name of the action, the value of the control is set.
+    def should_(self, control: TrainerControl, **kwargs):
+        """This method defines an action within an invalid name.
 
         Args:
             control: TrainerControl. Data class for controls.

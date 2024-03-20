@@ -13,7 +13,7 @@ class Operation(metaclass=abc.ABCMeta):
         """
         self.valid_actions = {}       
         for action_name, action_method in inspect.getmembers(self, predicate=inspect.ismethod):
-            if re.search(r'^should_', action_name) is not None:
+            if re.search(r'^should_.+', action_name) is not None:
                 self.valid_actions[action_name] = action_method
 
     def validate(self, action: str) -> bool:
