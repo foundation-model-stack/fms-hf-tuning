@@ -489,7 +489,8 @@ def test_no_packing_needs_reponse_template():
 
 ### Tests for model dtype edge cases
 @pytest.mark.skipif(
-    torch.cuda.is_bf16_supported(), reason="Only runs if bf16 is unsupported"
+    not (torch.cuda.is_available() and torch.cuda.is_bf16_supported()),
+    reason="Only runs if bf16 is unsupported",
 )
 def test_bf16_still_tunes_if_unsupported():
     """Ensure that even if bf16 is not supported, tuning still works without problems."""
