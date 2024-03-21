@@ -36,8 +36,8 @@ def main():
             multigpu_args.append(f"--{key}")
             multigpu_args.append(str(val))
     
-    # TODO: add training_script // rest of args -- no args 
-    multigpu_args.append("--training_script /app/launch_training.py")    
+    # add training_script
+    multigpu_args.append("/app/launch_training.py")
     
     print("multigpu_args", multigpu_args)
     parser = launch_command_parser()
