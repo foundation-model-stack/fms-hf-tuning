@@ -66,7 +66,8 @@ def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
-    logging.info("Attempting to launch training script")
+    logging.info("Initializing launch training script")
+
     parser = transformers.HfArgumentParser(
         dataclass_types=(
             configs.ModelArguments,
@@ -122,7 +123,7 @@ def main():
     elif peft_method_parsed == "pt":
         tune_config = prompt_tuning_config
 
-    logging.debug(
+    logging.info(
         "Parameters used to launch training: \
     model_args %s, data_args %s, training_args %s, tune_config %s",
         model_args,
