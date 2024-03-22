@@ -26,6 +26,7 @@ import logging
 
 # Third Party
 from accelerate.commands.launch import launch_command_parser, launch_command
+import torch
 
 def txt_to_obj(txt):
     base64_bytes = txt.encode("ascii")
@@ -61,9 +62,20 @@ def main():
             multi_gpu_args.append(str(val))
     
         # add FSDP config
-        fsdp_filepath = os.getenv("FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml")
-        multi_gpu_args.append("--config_file")
-        multi_gpu_args.append(fsdp_filepath)
+        if not json_configs.get("multiGPU").get("config_file"):
+            fsdp_filepath = os.getenv("FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml")
+            if os.path.exists(fsdp_filepath):
+                logging.info(f"Setting accelerate config file to: {fsdp_filepath}")
+                multi_gpu_args.append("--config_file")
+                multi_gpu_args.append(fsdp_filepath)
+
+        # add num_processes to overwrite config file set one
+        if not json_configs.get("multiGPU").get("num_processes"):
+            num_gpus = torch.cuda.device_count()
+            if num_gpus > 1:
+                logging.info(f"Setting accelerate num processes to {num_gpus}")
+                multi_gpu_args.append("--num_processes")
+                multi_gpu_args.append(str(num_gpus))
 
     # add training_script
     multi_gpu_args.append("/app/launch_training.py")
