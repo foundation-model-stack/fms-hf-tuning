@@ -80,6 +80,9 @@ def main():
                 logging.info("Setting accelerate num processes to %s", num_gpus)
                 multi_gpu_args.append("--num_processes")
                 multi_gpu_args.append(str(num_gpus))
+    else:
+        multi_gpu_args.append("--num_processes")
+        multi_gpu_args.append("1")
 
     # add training_script
     multi_gpu_args.append("/app/launch_training.py")
