@@ -57,7 +57,7 @@ def main():
 
     # parse multiGPU args
     multi_gpu_args = []
-    if json_configs.get("multiGPU"):
+    if json_configs.get("multiGPU") is not None:
         logging.info("Using multi-GPU configs: %s", json_configs.get("multiGPU"))
         for key, val in json_configs["multiGPU"].items():
             multi_gpu_args.append(f"--{key}")
@@ -69,7 +69,7 @@ def main():
                 "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
             )
             if os.path.exists(fsdp_filepath):
-                logging.info(f"Setting accelerate config file to: {fsdp_filepath}")
+                logging.info("Setting accelerate config file to: %s", fsdp_filepath)
                 multi_gpu_args.append("--config_file")
                 multi_gpu_args.append(fsdp_filepath)
 
@@ -77,7 +77,7 @@ def main():
         if not json_configs.get("multiGPU").get("num_processes"):
             num_gpus = torch.cuda.device_count()
             if num_gpus > 1:
-                logging.info(f"Setting accelerate num processes to {num_gpus}")
+                logging.info("Setting accelerate num processes to %s", num_gpus)
                 multi_gpu_args.append("--num_processes")
                 multi_gpu_args.append(str(num_gpus))
 
