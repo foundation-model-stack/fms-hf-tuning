@@ -112,11 +112,9 @@ RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
-COPY launch_training.py /app
-RUN chmod +x /app/launch_training.py
-COPY accelerate_launch.py /app
-RUN chmod +x /app/accelerate_launch.py
-COPY accelerate_fsdp_defaults.yaml /app
+# Copy scripts and default configs
+COPY launch_training.py accelerate_launch.py accelerate_fsdp_defaults.yaml /app/
+RUN chmod +x /app/launch_training.py /app/accelerate_launch.py
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 
@@ -128,8 +126,8 @@ RUN touch /.aim_profile && \
 
 # create tuning user and give ownership to dirs
 RUN useradd -u $USER_UID tuning -m -g 0 --system && \
-    chown -R $USER:0 /app /tmp/fms-hf-tuning && \
-    chmod -R g+rwX /app /tmp/fms-hf-tuning
+    chown -R $USER:0 /app /tmp && \
+    chmod -R g+rwX /app /tmp
 
 WORKDIR /app
 USER ${USER}
