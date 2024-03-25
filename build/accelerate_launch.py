@@ -28,6 +28,7 @@ import logging
 from accelerate.commands.launch import launch_command_parser, launch_command
 import torch
 
+
 def txt_to_obj(txt):
     base64_bytes = txt.encode("ascii")
     message_bytes = base64.b64decode(base64_bytes)
@@ -37,6 +38,7 @@ def txt_to_obj(txt):
     except UnicodeDecodeError:
         # Otherwise the bytes are a pickled python dictionary
         return pickle.loads(message_bytes)
+
 
 def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
@@ -60,10 +62,12 @@ def main():
         for key, val in json_configs["multiGPU"].items():
             multi_gpu_args.append(f"--{key}")
             multi_gpu_args.append(str(val))
-    
+
         # add FSDP config
         if not json_configs.get("multiGPU").get("config_file"):
-            fsdp_filepath = os.getenv("FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml")
+            fsdp_filepath = os.getenv(
+                "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
+            )
             if os.path.exists(fsdp_filepath):
                 logging.info(f"Setting accelerate config file to: {fsdp_filepath}")
                 multi_gpu_args.append("--config_file")
@@ -79,11 +83,12 @@ def main():
 
     # add training_script
     multi_gpu_args.append("/app/launch_training.py")
-    
+
     logging.debug("multi_gpu_args: %s", multi_gpu_args)
     parser = launch_command_parser()
     args = parser.parse_args(args=multi_gpu_args)
     launch_command(args)
+
 
 if __name__ == "__main__":
     main()

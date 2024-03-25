@@ -132,4 +132,4 @@ RUN useradd -u $USER_UID tuning -m -g 0 --system && \
 WORKDIR /app
 USER ${USER}
 
-CMD [ "tail", "-f", "/dev/null" ]
+CMD [ "python", "/app/accelerate_launch.py" ]
