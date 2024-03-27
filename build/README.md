@@ -67,10 +67,10 @@ If `multiGPU` is not set, the script will assume single-GPU and run with `num_pr
 
 ## Building the Image
 
-With docker, build the image with:
+With docker, build the image at the top level with:
 
 ```sh
-docker build . -t sft-trainer:mytag
+docker build . -t sft-trainer:mytag -f build/Dockerfile
 ```
 
 ## Running the Image

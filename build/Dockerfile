@@ -109,7 +109,7 @@ RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
 # Copy scripts and default configs
-COPY launch_training.py accelerate_launch.py accelerate_fsdp_defaults.yaml /app/
+COPY build/launch_training.py build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 RUN chmod +x /app/launch_training.py /app/accelerate_launch.py
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
