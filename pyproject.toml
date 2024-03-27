@@ -1,0 +1,34 @@
+[build-system]
+requires = [
+    "setuptools>=61",
+    "setuptools-scm>=8.0"]
+
+[project]
+name = "fms-hf-tuning"
+version = "0.0.1"
+description = "FMS HF Tuning"
+authors = [
+  {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
+  {name = "Anh Uong", email = "anh.uong@ibm.com"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = "~=3.9"
+keywords = ['fms-hf-tuning', 'python', 'tuning']
+classifiers=[
+    "License :: OSI Approved :: Apache Software License"
+]
+
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+dev = ["wheel", "packaging", "ninja"]
+flash-attn = ["flash-attn"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.urls]
+Homepage = "https://github.com/foundation-model-stack/fms-hf-tuning"
+Repository = "https://github.com/foundation-model-stack/fms-hf-tuning"
+Issues = "https://github.com/foundation-model-stack/fms-hf-tuning/issues"
