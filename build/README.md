@@ -9,23 +9,26 @@ The scripts accept a JSON formatted config which are set by environment variable
 ```py
 import base64
 
- def encode_json(my_json_string):
+def encode_json(my_json_string):
     base64_bytes = base64.b64encode(my_json_string.encode("ascii"))
     txt = base64_bytes.decode("ascii")
     return txt
+
+with open("test_config.json") as f:
+    contents = f.read()
+
+encode_json(contents)
 ```
 
 The keys for the JSON config are all of the flags available to use with [SFT Trainer](https://huggingface.co/docs/trl/sft_trainer#trl.SFTTrainer).
 
-For configuring `accelerate launch`, use key `multiGPU` and pass the set of flags accepted by [accelerate launch](https://huggingface.co/docs/accelerate/package_reference/cli#accelerate-launch).
+For configuring `accelerate launch`, use key `accelerate_launch_args` and pass the set of flags accepted by [accelerate launch](https://huggingface.co/docs/accelerate/package_reference/cli#accelerate-launch). Since these flags are passed via the JSON config, the key matches the long formed flag name. For example, to enable flag `--quiet`, use JSON key `"quiet"`, using the short formed `"q"` will fail.
 
-For example, the below config is used for running with two GPUs and FSDP for PEFT tuning:
-
-Note that `num_processes` which is the total number of processes to be launched in parallel,should match the number of GPUs to run on.
+For example, the below config is used for running with two GPUs and FSDP for fine tuning:
 
 ```json
 {
-    "multiGPU": {
+    "accelerate_launch_args": {
         "num_machines": 1,
         "main_process_port": 1234,
         "num_processes": 2,
@@ -36,7 +39,8 @@ Note that `num_processes` which is the total number of processes to be launched 
         "fsdp_cpu_ram_efficient_loading": true,
         "fsdp_sync_module_states": true
     },
-    "model_name_or_path": "/llama/7B",
+    "multi_gpu": true,
+    "model_name_or_path": "/llama/13B",
     "training_data_path": "/data/twitter_complaints.json",
     "output_dir": "/output/llama-7b-pt-multigpu",
     "num_train_epochs": 5.0,
@@ -52,17 +56,19 @@ Note that `num_processes` which is the total number of processes to be launched 
     "include_tokens_per_second": true,
     "response_template": "\n### Label:",
     "dataset_text_field": "output",
-    "use_flash_attn": false,
+    "use_flash_attn": true,
     "torch_dtype": "bfloat16",
-    "tokenizer_name_or_path": "/llama/7B"
+    "tokenizer_name_or_path": "/llama/13B"
 }
 ```
 
-When `multiGPU` is set, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Any of these values can be overwritten by passing in flags via the JSON config or by passing in your own config file using key `config_file`.
+When `multi_gpu` is set to true, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Any of these values can be overwritten by passing in flags via the JSON config or by passing in your own config file using key `config_file`.
 
-If `multiGPU` is set and `num_processes` is not explicitly set, the number of processes/GPUs will be determined by the number of GPUs available via `torch.cuda.device_count()`.
+If `multi_gpu` is set and `num_processes` is not explicitly set, the number of processes/GPUs will be determined by the number of GPUs available via `torch.cuda.device_count()`.
 
-If `multiGPU` is not set, the script will assume single-GPU and run with `num_processes=1`. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`.
+If `multi_gpu` is not set, the script will assume single-GPU and run with `num_processes=1`.
+
+Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`.
 
 
 ## Building the Image
@@ -93,7 +99,7 @@ name: sft-trainer-config
 data:
 config.json: |
     {
-      "multiGPU": {
+        "accelerate_launch_args": {
             "num_machines": 1,
             "main_process_port": 1234,
             "num_processes": 2,
@@ -104,9 +110,10 @@ config.json: |
             "fsdp_cpu_ram_efficient_loading": true,
             "fsdp_sync_module_states": true
         },
-        "model_name_or_path": "/data/input/llama/7B",
-        "training_data_path": "/data/input/twitter_complaints.json",
-        "output_dir": "/data/output/llama-7b-pt-multigpu",
+        "multi_gpu": true,
+        "model_name_or_path": "/llama/13B",
+        "training_data_path": "/data/twitter_complaints.json",
+        "output_dir": "/output/llama-7b-pt-multigpu",
         "num_train_epochs": 5.0,
         "per_device_train_batch_size": 4,
         "per_device_eval_batch_size": 4,
@@ -120,9 +127,9 @@ config.json: |
         "include_tokens_per_second": true,
         "response_template": "\n### Label:",
         "dataset_text_field": "output",
-        "use_flash_attn": false,
+        "use_flash_attn": true,
         "torch_dtype": "bfloat16",
-        "tokenizer_name_or_path": "/data/input/llama/7B"
+        "tokenizer_name_or_path": "/llama/13B"
     }
 ---
 apiVersion: v1

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Script wraps launch_training to run with accelerate for multi and single GPU cases.
-Read multiGPU configuration via environment variable `SFT_TRAINER_CONFIG_JSON_PATH`
+Read accelerate_launch_args configuration via environment variable `SFT_TRAINER_CONFIG_JSON_PATH`
 for the path to the JSON config file with parameters or `SFT_TRAINER_CONFIG_JSON_ENV_VAR`
 for the encoded config string to parse.
 """
@@ -55,41 +55,53 @@ def main():
     elif json_env_var:
         json_configs = txt_to_obj(json_env_var)
 
-    # parse multiGPU args
-    multi_gpu_args = []
-    if json_configs.get("multiGPU") is not None:
-        logging.info("Using multi-GPU configs: %s", json_configs.get("multiGPU"))
-        for key, val in json_configs["multiGPU"].items():
-            multi_gpu_args.append(f"--{key}")
-            multi_gpu_args.append(str(val))
+    parser = launch_command_parser()
+    # determine which flags are store true actions (don't require a value to be set)
+    store_action_params = {}
+    for action in parser._actions:
+        if type(action).__name__ == "_StoreTrueAction":
+            store_action_params[action.dest] = action
 
-        # add FSDP config
-        if not json_configs.get("multiGPU").get("config_file"):
-            fsdp_filepath = os.getenv(
-                "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
-            )
-            if os.path.exists(fsdp_filepath):
-                logging.info("Setting accelerate config file to: %s", fsdp_filepath)
-                multi_gpu_args.append("--config_file")
-                multi_gpu_args.append(fsdp_filepath)
+    # parse accelerate_launch_args
+    accelerate_launch_args = []
+    accelerate_config = json_configs.get("accelerate_launch_args", {})
+    if accelerate_config:
+        logging.info("Using accelerate_launch_args configs: %s", accelerate_config)
+        for key, val in accelerate_config.items():
+            # For flags that don't have value, ie. --quiet, only add if value is true
+            if store_action_params.get(key) and val:
+                accelerate_launch_args.append(f"--{key}")
+            else:
+                accelerate_launch_args.append(f"--{key}")
+                accelerate_launch_args.append(str(val))
 
-        # add num_processes to overwrite config file set one
-        if not json_configs.get("multiGPU").get("num_processes"):
-            num_gpus = torch.cuda.device_count()
-            if num_gpus > 1:
-                logging.info("Setting accelerate num processes to %s", num_gpus)
-                multi_gpu_args.append("--num_processes")
-                multi_gpu_args.append(str(num_gpus))
-    else:
-        multi_gpu_args.append("--num_processes")
-        multi_gpu_args.append("1")
+        if json_configs.get("multi_gpu"):
+            # add FSDP config
+            if not accelerate_config.get("config_file"):
+                fsdp_filepath = os.getenv(
+                    "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
+                )
+                if os.path.exists(fsdp_filepath):
+                    logging.info("Setting accelerate config file to: %s", fsdp_filepath)
+                    accelerate_launch_args.append("--config_file")
+                    accelerate_launch_args.append(fsdp_filepath)
+
+                # add num_processes to overwrite config file set one
+                if not accelerate_config.get("num_processes"):
+                    num_gpus = torch.cuda.device_count()
+                    if num_gpus > 1:
+                        logging.info("Setting accelerate num processes to %s", num_gpus)
+                        accelerate_launch_args.append("--num_processes")
+                        accelerate_launch_args.append(str(num_gpus))
+        else:
+            accelerate_launch_args.append("--num_processes")
+            accelerate_launch_args.append("1")
 
     # add training_script
-    multi_gpu_args.append("/app/launch_training.py")
+    accelerate_launch_args.append("/app/launch_training.py")
 
-    logging.debug("multi_gpu_args: %s", multi_gpu_args)
-    parser = launch_command_parser()
-    args = parser.parse_args(args=multi_gpu_args)
+    logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
+    args = parser.parse_args(args=accelerate_launch_args)
     launch_command(args)
 
 
