@@ -96,18 +96,14 @@ RUN dnf install -y python3.11 git && \
 RUN mkdir /app
 
 WORKDIR /tmp
-RUN python -m pip install packaging && \
-    python -m pip install --upgrade pip && \
-    python -m pip install torch && \
-    python -m pip install wheel
+RUN python -m pip install --upgrade pip
 
 # TODO Move to installing wheel once we have proper releases setup instead of cloning the repo
 RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
     cd fms-hf-tuning && \
-    python -m pip install -r requirements.txt && \
-    python -m pip install -r flashattn_requirements.txt && \
-    python -m pip install -U datasets  && \
-    python -m pip install /tmp/fms-hf-tuning
+    python -m pip install ".[dev]" && \
+    python -m pip install ".[flash-attn]" && \
+    python -m pip install -U datasets
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
