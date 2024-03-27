@@ -1,0 +1,10 @@
+controller-metrics:
+  loss:
+    Loss:
+controllers:
+  - name: loss-controller-wrong-input-rule
+    triggers:
+      - on_log
+    rule: input('Please enter your password:')
+    operations:
+      - hfcontrols.should_training_stop

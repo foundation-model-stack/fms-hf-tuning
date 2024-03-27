@@ -72,3 +72,15 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+
+@dataclass
+class TrainerControllerArguments():
+    trainer_controller_config_file: str = field(
+        default=None,
+        metadata={
+            "help": (
+                "Trainer controller configuration file (e.g trainercontroller_config.yaml) \
+                    in YAML format."
+            )
+        },
+    )

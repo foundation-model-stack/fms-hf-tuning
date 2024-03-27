@@ -1,0 +1,13 @@
+controller-metrics:
+  loss:
+    Loss:
+operations:
+  customoperation:
+    CustomOperationInvalidAction:
+controllers:
+  - name: loss-controller-custom-operation-invalid-action
+    triggers:
+      - on_log
+    rule: loss < 1.0
+    operations:
+      - customoperation.should_
