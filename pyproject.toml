@@ -24,6 +24,7 @@ dynamic = ["dependencies"]
 [project.optional-dependencies]
 dev = ["wheel", "packaging", "ninja"]
 flash-attn = ["flash-attn"]
+aim = ["aim==3.18.1"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}

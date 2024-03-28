@@ -37,11 +37,15 @@ import fire
 import transformers
 
 # Local
-from tuning.aim_loader import get_aimstack_callback
 from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.import_utils import is_aim_available
+
+if is_aim_available():
+    # Local
+    from tuning.aim_loader import get_aimstack_callback
 
 
 class FileLoggingCallback(TrainerCallback):
@@ -215,9 +219,9 @@ def train(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
 
-    aim_callback = get_aimstack_callback()
-    file_logger_callback = FileLoggingCallback(logger)
-    callbacks = [aim_callback, file_logger_callback]
+    callbacks = [FileLoggingCallback(logger)]
+    if is_aim_available():
+        callbacks.append(get_aimstack_callback())
 
     if train_args.packing:
         logger.info("Packing is set to True")
