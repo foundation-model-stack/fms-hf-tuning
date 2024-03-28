@@ -279,7 +279,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         "--peft_method",
         type=str.lower,
         choices=["pt", "lora", None, "none"],
-        default="pt",
+        default="none",
     )
     (
         model_args,
