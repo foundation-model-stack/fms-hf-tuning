@@ -75,33 +75,34 @@ def main():
                 accelerate_launch_args.append(f"--{key}")
                 accelerate_launch_args.append(str(val))
 
-        if json_configs.get("multi_gpu"):
-            # add FSDP config
-            if not accelerate_config.get("config_file"):
-                fsdp_filepath = os.getenv(
-                    "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
-                )
-                if os.path.exists(fsdp_filepath):
-                    logging.info("Setting accelerate config file to: %s", fsdp_filepath)
-                    accelerate_launch_args.append("--config_file")
-                    accelerate_launch_args.append(fsdp_filepath)
+    if json_configs.get("multi_gpu"):
+        # add FSDP config
+        if not accelerate_config.get("config_file"):
+            fsdp_filepath = os.getenv(
+                "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
+            )
+            if os.path.exists(fsdp_filepath):
+                logging.info("Setting accelerate config file to: %s", fsdp_filepath)
+                accelerate_launch_args.append("--config_file")
+                accelerate_launch_args.append(fsdp_filepath)
 
-                # add num_processes to overwrite config file set one
-                if not accelerate_config.get("num_processes"):
-                    num_gpus = torch.cuda.device_count()
-                    if num_gpus > 1:
-                        logging.info("Setting accelerate num processes to %s", num_gpus)
-                        accelerate_launch_args.append("--num_processes")
-                        accelerate_launch_args.append(str(num_gpus))
-        else:
-            accelerate_launch_args.append("--num_processes")
-            accelerate_launch_args.append("1")
+            # add num_processes to overwrite config file set one
+            if not accelerate_config.get("num_processes"):
+                num_gpus = torch.cuda.device_count()
+                if num_gpus > 1:
+                    logging.info("Setting accelerate num processes to %s", num_gpus)
+                    accelerate_launch_args.append("--num_processes")
+                    accelerate_launch_args.append(str(num_gpus))
+    else:
+        accelerate_launch_args.append("--num_processes")
+        accelerate_launch_args.append("1")
 
     # add training_script
     accelerate_launch_args.append("/app/launch_training.py")
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
     args = parser.parse_args(args=accelerate_launch_args)
+    logging.debug("accelerate launch parsed args: %s", args)
     launch_command(args)
 
 
