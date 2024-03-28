@@ -2,15 +2,19 @@
 
 Metrics used: Accuracy / Micro & Macro F1.
 """
-import os
-from sklearn import preprocessing
+# Standard
+from shutil import rmtree
 import argparse
 import json
+import os
+
+# Third Party
+from run_inference import TunedCausalLM
+from sklearn import preprocessing
 from tqdm import tqdm
 import datasets
 import evaluate
-from run_inference import TunedCausalLM
-from shutil import rmtree
+
 
 def parse_and_validate_args():
     """Parse the arguments and ensure everything is valid."""
@@ -27,18 +31,24 @@ def parse_and_validate_args():
         "--split", help="Split to be used for the data", default="train"
     )
     parser.add_argument(
-        "--max_new_tokens", help="Max new tokens to use in generation", type=int,
+        "--max_new_tokens",
+        help="Max new tokens to use in generation",
+        type=int,
     )
     parser.add_argument(
-        "--output_dir", help="Directory path to export results to", default="eval_results"
+        "--output_dir",
+        help="Directory path to export results to",
+        default="eval_results",
     )
-    parser.add_argument('--purge_results', action=argparse.BooleanOptionalAction)
+    parser.add_argument("--purge_results", action=argparse.BooleanOptionalAction)
 
     parsed_args = parser.parse_args()
     # If we have a collision on the outdir, only remove the existing file if we explicitly say to
     if os.path.exists(parsed_args.output_dir):
         if parsed_args.purge_results:
-            print(f"Existing output file/directory: [{parsed_args.output_dir}] will be deleted...")
+            print(
+                f"Existing output file/directory: [{parsed_args.output_dir}] will be deleted..."
+            )
             rmtree(parsed_args.output_dir)
         else:
             raise FileExistsError(
@@ -61,6 +71,7 @@ PROMPT_DICT = {
     ),
 }
 
+
 def get_formatted_example(example: dict) -> dict:
     """Given a single example, format it based on whether or not we have an input provided.
 
@@ -75,17 +86,27 @@ def get_formatted_example(example: dict) -> dict:
                 "input" - the formatted text to run the prediction on.
                 "output" - the target text we aim to generate.
     """
-    prompt_input, prompt_no_input = PROMPT_DICT["prompt_input"], PROMPT_DICT["prompt_no_input"]
-    formatted_input = prompt_input.format_map(example) if example.get("input", "") != "" else prompt_no_input.format_map(example)
+    prompt_input, prompt_no_input = (
+        PROMPT_DICT["prompt_input"],
+        PROMPT_DICT["prompt_no_input"],
+    )
+    formatted_input = (
+        prompt_input.format_map(example)
+        if example.get("input", "") != ""
+        else prompt_no_input.format_map(example)
+    )
     return {
         # Text to run the prediction on
         "input": formatted_input,
         # Text to be generated (does not include the input str)
-        "output": example["output"]
+        "output": example["output"],
     }
 
+
 ### Model evaluation
-def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Dataset, max_new_tokens: int) -> tuple:
+def get_prediction_results(
+    model: TunedCausalLM, data: datasets.arrow_dataset.Dataset, max_new_tokens: int
+) -> tuple:
     """Runs the model over the alpaca formatted data to get the predictions / references to be used
     when computing the metrics of interest.
 
@@ -102,7 +123,7 @@ def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Da
             Tuple containing:
                 predictions [list of strings]
                 references [list of strings]
-                model_pred_file_info [list of dicts containing formatted data to be dumped later]          
+                model_pred_file_info [list of dicts containing formatted data to be dumped later]
     """
     predictions = []
     references = []
@@ -121,15 +142,20 @@ def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Da
         stripped_ref = formatted_datum["output"].strip()
         predictions.append(stripped_pred)
         references.append(stripped_ref)
-        model_pred_file_info.append({
-            "formatted input": formatted_datum["input"],
-            "predicted target": stripped_pred,
-            "ref target": stripped_ref,
-        })
+        model_pred_file_info.append(
+            {
+                "formatted input": formatted_datum["input"],
+                "predicted target": stripped_pred,
+                "ref target": stripped_ref,
+            }
+        )
     return predictions, references, model_pred_file_info
 
+
 ### Metric computation/display & utils for mapping labels to numerics for hf evaluate
-def map_predictions_and_references_to_numerics(predictions: list, references: list) -> tuple:
+def map_predictions_and_references_to_numerics(
+    predictions: list, references: list
+) -> tuple:
     """Maps string predictions and references to numerics for use in accuracy and
     f1 computations. This process is generally ambiguous and can be done a number of
     ways, but the strategy we use is as follows:
@@ -164,15 +190,21 @@ def map_predictions_and_references_to_numerics(predictions: list, references: li
     # Label encoder maps from class indices from [0, n-1], so we use n as our throwaway class
     unk_label = le.classes_.shape[0]
     int_predictions = [get_encoded_label(le, pred, unk_label) for pred in predictions]
-    int_references = [get_encoded_label(le, references, unk_label) for pred in predictions]
+    int_references = [
+        get_encoded_label(le, references, unk_label) for pred in predictions
+    ]
     # Generate the class mapping + the unk label
     label_map = {
-        idx: label for idx, label in enumerate(le.inverse_transform(list(range(unk_label))))
+        idx: label
+        for idx, label in enumerate(le.inverse_transform(list(range(unk_label))))
     }
     label_map[unk_label] = "<UNKNOWN LABEL>"
     return int_predictions, int_references, label_map
 
-def get_encoded_label(le: preprocessing.LabelEncoder, gen_text: str, unk_label: int) -> int:
+
+def get_encoded_label(
+    le: preprocessing.LabelEncoder, gen_text: str, unk_label: int
+) -> int:
     """Gets the encoded label of a text string.
     Args:
         le: preprocessing.LabelEncode
@@ -193,9 +225,10 @@ def get_encoded_label(le: preprocessing.LabelEncoder, gen_text: str, unk_label: 
         # Model generated text that is not a valid label, i.e., is not in the label encoder
         return unk_label
 
+
 def compute_metrics_dict(int_preds: list, int_references: list) -> dict:
     """Calculate the metrics on the (int) lists of preds against ground truth.
-    
+
     Args:
         int_preds: list
             list of class indices for texts generated by the model.
@@ -209,8 +242,12 @@ def compute_metrics_dict(int_preds: list, int_references: list) -> dict:
     f1_metric = evaluate.load("f1")
     accuracy_metric = evaluate.load("accuracy")
     # Compute the micro & macro f1 scores
-    micro_f1 = f1_metric.compute(predictions=int_preds, references=int_references, average="micro")
-    macro_f1 = f1_metric.compute(predictions=int_preds, references=int_references, average="macro")
+    micro_f1 = f1_metric.compute(
+        predictions=int_preds, references=int_references, average="micro"
+    )
+    macro_f1 = f1_metric.compute(
+        predictions=int_preds, references=int_references, average="macro"
+    )
     # Compute the accuracy
     accuracy = accuracy_metric.compute(predictions=int_preds, references=int_references)
     return {
@@ -218,11 +255,17 @@ def compute_metrics_dict(int_preds: list, int_references: list) -> dict:
             "micro": micro_f1,
             "macro": macro_f1,
         },
-        "accuracy": accuracy
+        "accuracy": accuracy,
     }
 
 
-def export_experiment_info(metrics_dict: dict, label_map: dict, model_pred_file_info: dict, experiment_metadata: dict, output_dir: str):
+def export_experiment_info(
+    metrics_dict: dict,
+    label_map: dict,
+    model_pred_file_info: dict,
+    experiment_metadata: dict,
+    output_dir: str,
+):
     """Creates an exports all experiments info / metadata.
 
     Args:
@@ -254,16 +297,25 @@ if __name__ == "__main__":
     args = parse_and_validate_args()
     model = TunedCausalLM.load(args.model)
     data = datasets.load_dataset("json", data_files=args.data_path, split=args.split)
-    predictions, references, model_pred_file_info = get_prediction_results(model, data, args.max_new_tokens)
-    int_preds, int_references, label_map = map_predictions_and_references_to_numerics(predictions, references)
+    predictions, references, model_pred_file_info = get_prediction_results(
+        model, data, args.max_new_tokens
+    )
+    int_preds, int_references, label_map = map_predictions_and_references_to_numerics(
+        predictions, references
+    )
     metrics_dict = compute_metrics_dict(int_preds, int_references)
     experiment_metadata = {
         "model": args.model,
         "max_new_tokens": args.max_new_tokens,
         "data_path": args.data_path,
     }
-    export_experiment_info(metrics_dict, label_map, model_pred_file_info, experiment_metadata, args.output_dir)
-
+    export_experiment_info(
+        metrics_dict,
+        label_map,
+        model_pred_file_info,
+        experiment_metadata,
+        args.output_dir,
+    )
 
 
 """
