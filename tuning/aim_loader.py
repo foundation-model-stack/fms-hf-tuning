@@ -15,11 +15,18 @@
 # Standard
 import os
 
-# Third Party
-from aim.hugging_face import AimCallback
+# Local
+from tuning.utils.import_utils import is_aim_available
+
+if is_aim_available():
+    # Third Party
+    from aim.hugging_face import AimCallback
 
 
 def get_aimstack_callback():
+    if not is_aim_available():
+        raise ImportError("You need to install aim to use this method")
+
     # Initialize a new run
     aim_server = os.environ.get("AIMSTACK_SERVER")
     aim_db = os.environ.get("AIMSTACK_DB")

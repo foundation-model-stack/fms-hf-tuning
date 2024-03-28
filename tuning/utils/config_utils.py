@@ -15,11 +15,13 @@
 # Standard
 from dataclasses import asdict
 
-# Third Party
-from peft import LoraConfig, PromptTuningConfig
-
 # Local
 from tuning.config import peft_config
+from tuning.utils.import_utils import is_peft_available
+
+if is_peft_available():
+    # Third Party
+    from peft import LoraConfig, PromptTuningConfig
 
 
 def update_config(config, **kwargs):
@@ -74,6 +76,8 @@ def get_hf_peft_config(task_type, tuning_config):
         tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
     Return: HF PEFT config or None
     """
+    if not is_peft_available():
+        raise ImportError("you need to install peft to use this method")
     if isinstance(tuning_config, peft_config.LoraConfig):
         lora_config = asdict(tuning_config)
         if lora_config["target_modules"] == ["all-linear"]:

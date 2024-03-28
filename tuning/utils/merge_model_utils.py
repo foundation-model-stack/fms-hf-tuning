@@ -18,9 +18,15 @@ import json
 import os
 
 # Third Party
-from peft import PeftModel
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Local
+from tuning.utils.import_utils import is_peft_available
+
+if is_peft_available():
+    # Third Party
+    from peft import PeftModel
 
 
 def create_merged_model(
@@ -58,6 +64,8 @@ def create_merged_model(
         transformers model
             Merged model created from the checkpoint / base model.
     """
+    if not is_peft_available():
+        raise ImportError("You need to install peft to use this method")
     if isinstance(checkpoint_models, str):
         checkpoint_models = [checkpoint_models]
 

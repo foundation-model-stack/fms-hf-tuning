@@ -20,7 +20,6 @@ import os
 import sys
 
 # Third Party
-from peft.utils.other import fsdp_auto_wrap_policy
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -42,6 +41,11 @@ from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.import_utils import is_peft_available
+
+if is_peft_available():
+    # Third Party
+    from peft.utils.other import fsdp_auto_wrap_policy
 
 
 class FileLoggingCallback(TrainerCallback):
@@ -259,6 +263,8 @@ def train(
     )
 
     if trainer.is_fsdp_enabled and peft_config is not None:
+        if not is_peft_available():
+            raise ImportError("you need to install peft to use this method")
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
             model
         )
@@ -279,7 +285,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         "--peft_method",
         type=str.lower,
         choices=["pt", "lora", None, "none"],
-        default="pt",
+        default="none",
     )
     (
         model_args,
