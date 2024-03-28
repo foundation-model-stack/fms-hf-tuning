@@ -57,10 +57,9 @@ def main():
 
     parser = launch_command_parser()
     # determine which flags are store true actions (don't require a value to be set)
-    store_action_params = {}
-    for action in parser._actions:
-        if type(action).__name__ == "_StoreTrueAction":
-            store_action_params[action.dest] = action
+    actions_type_map = {
+        action.dest: type(action).__name__ for action in parser._actions
+    }
 
     # parse accelerate_launch_args
     accelerate_launch_args = []
@@ -68,12 +67,14 @@ def main():
     if accelerate_config:
         logging.info("Using accelerate_launch_args configs: %s", accelerate_config)
         for key, val in accelerate_config.items():
-            # For flags that don't have value, ie. --quiet, only add if value is true
-            if store_action_params.get(key) and val:
-                accelerate_launch_args.append(f"--{key}")
+            if actions_type_map.get(key) == "_AppendAction":
+                for param_val in val:
+                    accelerate_launch_args.extend([f"--{key}", str(param_val)])
             else:
                 accelerate_launch_args.append(f"--{key}")
-                accelerate_launch_args.append(str(val))
+                # Only need to add key for params that aren't flags ie. --quiet
+                if actions_type_map.get(key) == "_StoreAction":
+                    accelerate_launch_args.append(str(val))
 
     if json_configs.get("multi_gpu"):
         # add FSDP config
