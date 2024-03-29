@@ -66,7 +66,7 @@ When `multi_gpu` is set to true, the [FSDP config](https://github.com/foundation
 
 If `multi_gpu` is set and `num_processes` is not explicitly set, the number of processes/GPUs will be determined by the number of GPUs available via `torch.cuda.device_count()`.
 
-If `multi_gpu` is not set, the script will assume single-GPU and run with `num_processes=1`.
+If `multi_gpu` is not set, the script will assume single-GPU and run with `num_processes=1`. This can be overwritten by setting `num_processes` or a `config_file` which contains `num_processes`.
 
 Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`.
 
@@ -146,9 +146,9 @@ containers:
     name: tuning-test
     resources:
         limits:
-        nvidia.com/gpu: "1"
+            nvidia.com/gpu: "2"
         requests:
-        nvidia.com/gpu: "1"
+            nvidia.com/gpu: "2"
     volumeMounts:
         - mountPath: /data/input
         name: input-data

@@ -76,9 +76,9 @@ def main():
                 if actions_type_map.get(key) == "_StoreAction":
                     accelerate_launch_args.append(str(val))
 
-    if json_configs.get("multi_gpu"):
-        # add FSDP config
-        if not accelerate_config.get("config_file"):
+    if not accelerate_config.get("config_file"):
+        if json_configs.get("multi_gpu"):
+            # add FSDP config
             fsdp_filepath = os.getenv(
                 "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
             )
@@ -94,9 +94,9 @@ def main():
                     logging.info("Setting accelerate num processes to %s", num_gpus)
                     accelerate_launch_args.append("--num_processes")
                     accelerate_launch_args.append(str(num_gpus))
-    else:
-        accelerate_launch_args.append("--num_processes")
-        accelerate_launch_args.append("1")
+        else:
+            accelerate_launch_args.append("--num_processes")
+            accelerate_launch_args.append("1")
 
     # add training_script
     accelerate_launch_args.append("/app/launch_training.py")
