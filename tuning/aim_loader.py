@@ -15,8 +15,12 @@
 # Standard
 import os
 
-# Third Party
-from aim.hugging_face import AimCallback
+# Local
+from tuning.utils.import_utils import is_aim_available
+
+if is_aim_available():
+    # Third Party
+    from aim.hugging_face import AimCallback  # pylint: disable=import-error
 
 
 def get_aimstack_callback():
