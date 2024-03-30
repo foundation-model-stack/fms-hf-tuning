@@ -17,9 +17,16 @@ from dataclasses import asdict
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
+import transformers
 
 # Local
-from tuning.config import peft_config
+from tuning.config import configs, peft_config
+
+JOB_CONFIG_DEFAULTS_MAP = {
+    "torch_dtype": "bfloat16",
+    "save_strategy": "epoch",
+    "use_flash_attn": True,
+}
 
 
 def update_config(config, **kwargs):
@@ -87,3 +94,40 @@ def get_hf_peft_config(task_type, tuning_config):
         hf_peft_config = None  # full parameter tuning
 
     return hf_peft_config
+
+
+def post_process_job_config(job_config_dict):
+    parser = transformers.HfArgumentParser(
+        dataclass_types=(
+            configs.ModelArguments,
+            configs.DataArguments,
+            configs.TrainingArguments,
+            peft_config.LoraConfig,
+            peft_config.PromptTuningConfig,
+        )
+    )
+    peft_method_parsed = "pt"
+
+    for key, val in JOB_CONFIG_DEFAULTS_MAP.items():
+        if key not in job_config_dict:
+            job_config_dict[key] = val
+
+    (
+        model_args,
+        data_args,
+        training_args,
+        lora_config,
+        prompt_tuning_config,
+    ) = parser.parse_dict(job_config_dict, allow_extra_keys=True)
+
+    peft_method_parsed = job_config_dict.get("peft_method")
+
+    tune_config = None
+    merge_model = False
+    if peft_method_parsed == "lora":
+        tune_config = lora_config
+        merge_model = True
+    elif peft_method_parsed == "pt":
+        tune_config = prompt_tuning_config
+
+    return model_args, data_args, training_args, tune_config, merge_model

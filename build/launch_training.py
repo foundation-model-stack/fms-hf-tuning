@@ -28,12 +28,11 @@ import glob
 
 # First Party
 import logging
-from tuning import sft_trainer
-from tuning.config import configs, peft_config
-from tuning.utils.merge_model_utils import create_merged_model
 
-# Third Party
-import transformers
+# Local
+from tuning import sft_trainer
+from tuning.utils.merge_model_utils import create_merged_model
+from tuning.utils.config_utils import post_process_job_config
 
 
 def txt_to_obj(txt):
@@ -67,60 +66,31 @@ def main():
     logging.basicConfig(level=LOGLEVEL)
 
     logging.info("Attempting to launch training script")
-    parser = transformers.HfArgumentParser(
-        dataclass_types=(
-            configs.ModelArguments,
-            configs.DataArguments,
-            configs.TrainingArguments,
-            peft_config.LoraConfig,
-            peft_config.PromptTuningConfig,
-        )
-    )
-    peft_method_parsed = "pt"
+
     json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
     json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
 
     # accepts either path to JSON file or encoded string config
     if json_path:
-        (
-            model_args,
-            data_args,
-            training_args,
-            lora_config,
-            prompt_tuning_config,
-        ) = parser.parse_json_file(json_path, allow_extra_keys=True)
-
-        contents = ""
         with open(json_path, "r", encoding="utf-8") as f:
-            contents = json.load(f)
-        peft_method_parsed = contents.get("peft_method")
-        logging.debug("Input params parsed: %s", contents)
+            job_config_dict = json.load(f)
     elif json_env_var:
         job_config_dict = txt_to_obj(json_env_var)
-        logging.debug("Input params parsed: %s", job_config_dict)
-
-        (
-            model_args,
-            data_args,
-            training_args,
-            lora_config,
-            prompt_tuning_config,
-        ) = parser.parse_dict(job_config_dict, allow_extra_keys=True)
-
-        peft_method_parsed = job_config_dict.get("peft_method")
     else:
         raise ValueError(
             "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
         or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
         )
 
-    tune_config = None
-    merge_model = False
-    if peft_method_parsed == "lora":
-        tune_config = lora_config
-        merge_model = True
-    elif peft_method_parsed == "pt":
-        tune_config = prompt_tuning_config
+    logging.debug("Input params parsed: %s", job_config_dict)
+
+    (
+        model_args,
+        data_args,
+        training_args,
+        tune_config,
+        merge_model,
+    ) = post_process_job_config(job_config_dict)
 
     logging.debug(
         "Parameters used to launch training: \
