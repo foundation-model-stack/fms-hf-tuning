@@ -22,12 +22,6 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 
-JOB_CONFIG_DEFAULTS_MAP = {
-    "torch_dtype": "bfloat16",
-    "save_strategy": "epoch",
-    "use_flash_attn": True,
-}
-
 
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
@@ -107,10 +101,6 @@ def post_process_job_config(job_config_dict):
         )
     )
     peft_method_parsed = "pt"
-
-    for key, val in JOB_CONFIG_DEFAULTS_MAP.items():
-        if key not in job_config_dict:
-            job_config_dict[key] = val
 
     (
         model_args,

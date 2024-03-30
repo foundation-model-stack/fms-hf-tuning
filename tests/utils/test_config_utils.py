@@ -46,7 +46,7 @@ def test_post_process_job_config(job_config):
         tune_config,
         merge_model,
     ) = post_process_job_config(job_config_copy)
-    assert model_args.torch_dtype == "bfloat16"
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
     assert training_args.output_dir == "bloom-twitter"
     assert tune_config == None
@@ -59,7 +59,7 @@ def test_post_process_job_config_defaults(job_config):
     assert job_config_defaults["use_flash_attn"] == False
     assert "save_strategy" not in job_config_defaults
     model_args, _, training_args, _, _ = post_process_job_config(job_config_defaults)
-    assert model_args.torch_dtype == "bfloat16"
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn == False
     assert training_args.save_strategy.value == "epoch"
 

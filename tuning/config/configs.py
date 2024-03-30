@@ -72,3 +72,12 @@ class TrainingArguments(transformers.TrainingArguments):
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
     )
+    save_strategy: str = field(
+        default="epoch",
+        metadata={
+            "help": "The checkpoint save strategy to adopt during training. \
+            Possible values are 'no'(no save is done during training), \
+            'epoch' (save is done at the end of each epoch), \
+            'steps' (save is done every `save_steps`)"
+        },
+    )
