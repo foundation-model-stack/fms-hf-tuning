@@ -92,15 +92,6 @@ def main():
         merge_model,
     ) = post_process_job_config(job_config_dict)
 
-    logging.debug(
-        "Parameters used to launch training: \
-    model_args %s, data_args %s, training_args %s, tune_config %s",
-        model_args,
-        data_args,
-        training_args,
-        tune_config,
-    )
-
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:
         training_args.output_dir = tempdir
