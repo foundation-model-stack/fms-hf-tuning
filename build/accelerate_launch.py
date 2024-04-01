@@ -81,6 +81,8 @@ def main():
 
     num_processes = accelerate_config.get("num_processes")
     if num_processes:
+        # if multi GPU setting and accelerate config_file not passed by user,
+        # use the default config for default set of parameters
         if num_processes > 1 and not accelerate_config.get("config_file"):
             # Add default FSDP config
             fsdp_filepath = os.getenv(
