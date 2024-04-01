@@ -39,7 +39,6 @@ For example, the below config is used for running with two GPUs and FSDP for fin
         "fsdp_cpu_ram_efficient_loading": true,
         "fsdp_sync_module_states": true
     },
-    "multi_gpu": true,
     "model_name_or_path": "/llama/13B",
     "training_data_path": "/data/twitter_complaints.json",
     "output_dir": "/output/llama-7b-pt-multigpu",
@@ -62,13 +61,9 @@ For example, the below config is used for running with two GPUs and FSDP for fin
 }
 ```
 
-When `multi_gpu` is set to true, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Any of these values can be overwritten by passing in flags via the JSON config or by passing in your own config file using key `config_file`.
+Users should always set `num_processes` to be explicit about the number of processes to run tuning on. When `num_processes` is greater than 1, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Any of these values can be overwritten by passing in flags via `accelerate_launch_args` in the JSON config or by passing in your own config file using key `config_file`.
 
-If `multi_gpu` is set and `num_processes` is not explicitly set, the number of processes/GPUs will be determined by the number of GPUs available via `torch.cuda.device_count()`.
-
-If `multi_gpu` is not set, the script will assume single-GPU and run with `num_processes=1`. This can be overwritten by setting `num_processes` or a `config_file` which contains `num_processes`.
-
-Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`.
+Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`. If ``num_processes=1`, the script will assume single-GPU.
 
 
 ## Building the Image

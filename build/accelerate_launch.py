@@ -26,7 +26,6 @@ import logging
 
 # Third Party
 from accelerate.commands.launch import launch_command_parser, launch_command
-import torch
 
 
 def txt_to_obj(txt):
@@ -56,12 +55,12 @@ def main():
         json_configs = txt_to_obj(json_env_var)
 
     parser = launch_command_parser()
-    # determine which flags are store true actions (don't require a value to be set)
+    # Map to determine which flags don't require a value to be set
     actions_type_map = {
         action.dest: type(action).__name__ for action in parser._actions
     }
 
-    # parse accelerate_launch_args
+    # Parse accelerate_launch_args
     accelerate_launch_args = []
     accelerate_config = json_configs.get("accelerate_launch_args", {})
     if accelerate_config:
@@ -70,35 +69,37 @@ def main():
             if actions_type_map.get(key) == "_AppendAction":
                 for param_val in val:
                     accelerate_launch_args.extend([f"--{key}", str(param_val)])
+            elif (actions_type_map.get(key) == "_StoreTrueAction" and val) or (
+                actions_type_map.get(key) == "_StoreFalseAction" and not val
+            ):
+                accelerate_launch_args.append(f"--{key}")
             else:
                 accelerate_launch_args.append(f"--{key}")
                 # Only need to add key for params that aren't flags ie. --quiet
                 if actions_type_map.get(key) == "_StoreAction":
                     accelerate_launch_args.append(str(val))
 
-    if not accelerate_config.get("config_file"):
-        if json_configs.get("multi_gpu"):
-            # add FSDP config
+    num_processes = accelerate_config.get("num_processes")
+    if num_processes:
+        if num_processes > 1 and not accelerate_config.get("config_file"):
+            # Add default FSDP config
             fsdp_filepath = os.getenv(
                 "FSDP_DEFAULTS_FILE_PATH", "/app/accelerate_fsdp_defaults.yaml"
             )
             if os.path.exists(fsdp_filepath):
-                logging.info("Setting accelerate config file to: %s", fsdp_filepath)
-                accelerate_launch_args.append("--config_file")
-                accelerate_launch_args.append(fsdp_filepath)
+                logging.info("Using accelerate config file: %s", fsdp_filepath)
+                accelerate_launch_args.extend(["--config_file", fsdp_filepath])
 
-            # add num_processes to overwrite config file set one
-            if not accelerate_config.get("num_processes"):
-                num_gpus = torch.cuda.device_count()
-                if num_gpus > 1:
-                    logging.info("Setting accelerate num processes to %s", num_gpus)
-                    accelerate_launch_args.append("--num_processes")
-                    accelerate_launch_args.append(str(num_gpus))
-        else:
-            accelerate_launch_args.append("--num_processes")
-            accelerate_launch_args.append("1")
+        elif num_processes == 1:
+            logging.info("num_processes=1 so setting env var CUDA_VISIBLE_DEVICES=0")
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    else:
+        logging.warning(
+            "num_processes param was not passed in. Value from config file (if available) will \
+                be used or accelerate launch will determine number of processes automatically"
+        )
 
-    # add training_script
+    # Add training_script
     accelerate_launch_args.append("/app/launch_training.py")
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
