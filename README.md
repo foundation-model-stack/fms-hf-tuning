@@ -18,6 +18,11 @@ pip install -e ".[flash-attn]"
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
+If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
+```
+pip install -e ".[aim]"
+```
+
 ## Data format
 The data format expectation is a single column text. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 

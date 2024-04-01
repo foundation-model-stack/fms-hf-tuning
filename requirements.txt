@@ -2,7 +2,6 @@ numpy
 accelerate>=0.20.3
 transformers
 torch
-aim==3.18.1
 sentencepiece
 tokenizers>=0.13.3
 tqdm

@@ -103,6 +103,7 @@ RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
     cd fms-hf-tuning && \
     python -m pip install ".[dev]" && \
     python -m pip install ".[flash-attn]" && \
+    python -m pip install ".[aim]" && \
     python -m pip install -U datasets
 
 RUN mkdir -p /licenses
