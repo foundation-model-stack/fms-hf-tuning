@@ -32,7 +32,7 @@ import logging
 # Local
 from tuning import sft_trainer
 from tuning.utils.merge_model_utils import create_merged_model
-from tuning.utils.config_utils import post_process_job_config
+from build.utils import process_launch_training_args
 
 
 def txt_to_obj(txt):
@@ -90,7 +90,7 @@ def main():
         training_args,
         tune_config,
         merge_model,
-    ) = post_process_job_config(job_config_dict)
+    ) = process_launch_training_args(job_config_dict)
 
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:

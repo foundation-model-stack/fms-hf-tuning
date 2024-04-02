@@ -14,14 +14,12 @@
 
 # Standard
 from dataclasses import asdict
-import logging
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
-import transformers
 
 # Local
-from tuning.config import configs, peft_config
+from tuning.config import peft_config
 
 
 def update_config(config, **kwargs):
@@ -89,55 +87,3 @@ def get_hf_peft_config(task_type, tuning_config):
         hf_peft_config = None  # full parameter tuning
 
     return hf_peft_config
-
-
-def post_process_job_config(job_config_dict):
-    """Return parsed config for tuning to pass to SFT Trainer
-    Args:
-        job_config_dict: dict
-    Return:
-        model_args: configs.ModelArguments
-        data_args: configs.DataArguments
-        training_args: configs.TrainingArguments
-        tune_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
-        merge_model: bool
-    """
-    parser = transformers.HfArgumentParser(
-        dataclass_types=(
-            configs.ModelArguments,
-            configs.DataArguments,
-            configs.TrainingArguments,
-            peft_config.LoraConfig,
-            peft_config.PromptTuningConfig,
-        )
-    )
-    peft_method_parsed = "pt"
-
-    (
-        model_args,
-        data_args,
-        training_args,
-        lora_config,
-        prompt_tuning_config,
-    ) = parser.parse_dict(job_config_dict, allow_extra_keys=True)
-
-    peft_method_parsed = job_config_dict.get("peft_method")
-
-    tune_config = None
-    merge_model = False
-    if peft_method_parsed == "lora":
-        tune_config = lora_config
-        merge_model = True
-    elif peft_method_parsed == "pt":
-        tune_config = prompt_tuning_config
-
-    logging.debug(
-        "Parameters used to launch training: \
-    model_args %s, data_args %s, training_args %s, tune_config %s",
-        model_args,
-        data_args,
-        training_args,
-        tune_config,
-    )
-
-    return model_args, data_args, training_args, tune_config, merge_model

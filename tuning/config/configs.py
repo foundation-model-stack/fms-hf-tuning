@@ -81,3 +81,12 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (save is done every `save_steps`)"
         },
     )
+    logging_strategy: str = field(
+        default="epoch",
+        metadata={
+            "help": "The logging strategy to adopt during training. \
+            Possible values are 'no'(no logging is done during training), \
+            'epoch' (logging is done at the end of each epoch), \
+            'steps' (logging is done every `logging_steps`)"
+        },
+    )
