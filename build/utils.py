@@ -42,7 +42,6 @@ def process_launch_training_args(job_config_dict):
             peft_config.PromptTuningConfig,
         )
     )
-    peft_method_parsed = "pt"
 
     (
         model_args,
