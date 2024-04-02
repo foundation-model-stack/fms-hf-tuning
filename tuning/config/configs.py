@@ -34,8 +34,8 @@ DEFAULT_UNK_TOKEN = "<unk>"
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
     use_flash_attn: bool = field(
-        default=False,
-        metadata={"help": "Use Flash attention v2 from transformers, default is False"},
+        default=True,
+        metadata={"help": "Use Flash attention v2 from transformers, default is True"},
     )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
 

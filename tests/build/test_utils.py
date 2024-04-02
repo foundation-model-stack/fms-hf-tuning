@@ -25,7 +25,7 @@ from tuning.config.peft_config import LoraConfig, PromptTuningConfig
 from build.utils import process_launch_training_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "dummy_job_config.json"
+    os.path.dirname(__file__), "dummy_job_config.json"
 )
 
 
