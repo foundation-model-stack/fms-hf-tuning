@@ -65,7 +65,7 @@ def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
-    logging.info("Attempting to launch training script")
+    logging.info("Initializing launch training script")
 
     json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
     json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")

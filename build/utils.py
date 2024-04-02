@@ -61,7 +61,7 @@ def process_launch_training_args(job_config_dict):
     elif peft_method_parsed == "pt":
         tune_config = prompt_tuning_config
 
-    logging.debug(
+    logging.info(
         "Parameters used to launch training: \
     model_args %s, data_args %s, training_args %s, tune_config %s",
         model_args,
