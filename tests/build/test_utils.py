@@ -22,14 +22,14 @@ import pytest
 
 # Local
 from tuning.config.peft_config import LoraConfig, PromptTuningConfig
-from tuning.utils.config_utils import post_process_job_config
+from build.utils import process_launch_training_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "dummy_job_config.json"
 )
 
 
-# Note: job_config dict gets modified during post_process_job_config
+# Note: job_config dict gets modified during process_launch_training_args
 @pytest.fixture(scope="session")
 def job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -37,7 +37,7 @@ def job_config():
     return dummy_job_config_dict
 
 
-def test_post_process_job_config(job_config):
+def test_process_launch_training_args(job_config):
     job_config_copy = copy.deepcopy(job_config)
     (
         model_args,
@@ -45,7 +45,7 @@ def test_post_process_job_config(job_config):
         training_args,
         tune_config,
         merge_model,
-    ) = post_process_job_config(job_config_copy)
+    ) = process_launch_training_args(job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
     assert training_args.output_dir == "bloom-twitter"
@@ -53,26 +53,28 @@ def test_post_process_job_config(job_config):
     assert merge_model == False
 
 
-def test_post_process_job_config_defaults(job_config):
+def test_process_launch_training_args_defaults(job_config):
     job_config_defaults = copy.deepcopy(job_config)
     assert "torch_dtype" not in job_config_defaults
     assert job_config_defaults["use_flash_attn"] == False
     assert "save_strategy" not in job_config_defaults
-    model_args, _, training_args, _, _ = post_process_job_config(job_config_defaults)
+    model_args, _, training_args, _, _ = process_launch_training_args(
+        job_config_defaults
+    )
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn == False
     assert training_args.save_strategy.value == "epoch"
 
 
-def test_post_process_job_config_peft_method(job_config):
+def test_process_launch_training_args_peft_method(job_config):
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, tune_config, merge_model = post_process_job_config(job_config_pt)
+    _, _, _, tune_config, merge_model = process_launch_training_args(job_config_pt)
     assert type(tune_config) == PromptTuningConfig
     assert merge_model == False
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, tune_config, merge_model = post_process_job_config(job_config_lora)
+    _, _, _, tune_config, merge_model = process_launch_training_args(job_config_lora)
     assert type(tune_config) == LoraConfig
     assert merge_model == True
