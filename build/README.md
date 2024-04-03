@@ -168,4 +168,4 @@ volumes:
         name: sft-trainer-config
 ```
 
-The above kube resource values are not hard-defined. However, they are useful when running a LLaMa-13b model. If ephemeral storage is not defined, you will likely hit into error `The node was low on resource: ephemeral-storage. Container was using 1498072868Ki, which exceeds its request of 0.` where the pod runs low on storage while tuning the model.
+The above kube resource values are not hard-defined. However, they are useful when running some models (such as LLaMa-13b model). If ephemeral storage is not defined, you will likely hit into error `The node was low on resource: ephemeral-storage. Container was using 1498072868Ki, which exceeds its request of 0.` where the pod runs low on storage while tuning the model.
