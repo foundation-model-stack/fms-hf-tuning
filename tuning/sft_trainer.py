@@ -63,13 +63,11 @@ class FileLoggingCallback(TrainerCallback):
         if not state.is_world_process_zero:
             return
 
-        # separate evaluation loss with train loss
-        log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
-        eval_log_file_path = os.path.join(args.output_dir, "eval_loss.jsonl")
+        log_file_path = os.path.join(args.output_dir, "training_logs.jsonl")
         if logs is not None and "loss" in logs and "epoch" in logs:
-            self._track_loss("loss", log_file_path, logs, state)
+            self._track_loss("train_loss", log_file_path, logs, state)
         elif logs is not None and "eval_loss" in logs and "epoch" in logs:
-            self._track_loss("eval_loss", eval_log_file_path, logs, state)
+            self._track_loss("eval_loss", log_file_path, logs, state)
 
     def _track_loss(self, loss_key, log_file, logs, state):
         try:
