@@ -101,10 +101,10 @@ def main():
                 num_processes,
             )
     elif user_arg_num_processes:
-        num_processes = user_arg_num_processes
+        num_processes = int(user_arg_num_processes)
 
     if num_processes:
-        accelerate_launch_args.extend(["--num_processes", num_processes])
+        accelerate_launch_args.extend(["--num_processes", str(num_processes)])
         # if multi GPU setting and accelerate config_file not passed by user,
         # use the default config for default set of parameters
         if num_processes > 1 and not accelerate_config.get("config_file"):
