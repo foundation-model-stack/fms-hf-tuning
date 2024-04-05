@@ -293,14 +293,17 @@ def test_run_causallm_ft_and_inference():
 
 def _validate_training(tempdir, check_eval=False):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
-    train_loss_file_path = "{}/train_loss.jsonl".format(tempdir)
-    assert os.path.exists(train_loss_file_path) == True
-    assert os.path.getsize(train_loss_file_path) > 0
+    train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
+    train_log_contents = ""
+    with open(train_logs_file_path) as f:
+        train_log_contents = f.read()
+
+    assert os.path.exists(train_logs_file_path) == True
+    assert os.path.getsize(train_logs_file_path) > 0
+    assert "training_loss" in train_log_contents
 
     if check_eval:
-        eval_loss_file_path = os.path.join(tempdir, "eval_loss.jsonl")
-        assert os.path.exists(eval_loss_file_path)
-        assert os.path.getsize(eval_loss_file_path) > 0
+        assert "validation_loss" in train_log_contents
 
 
 def _get_checkpoint_path(dir_path):

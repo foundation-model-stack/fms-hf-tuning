@@ -56,27 +56,25 @@ class FileLoggingCallback(TrainerCallback):
 
     def on_log(self, args, state, control, logs=None, **kwargs):
         """Checks if this log contains keys of interest, e.g., loss, and if so, creates
-        train_loss.jsonl in the model output dir (if it doesn't already exist),
+        training_logs.jsonl in the model output dir (if it doesn't already exist),
         appends the subdict of the log & dumps the file.
         """
         # All processes get the logs from this node; only update from process 0.
         if not state.is_world_process_zero:
             return
 
-        # separate evaluation loss with train loss
-        log_file_path = os.path.join(args.output_dir, "train_loss.jsonl")
-        eval_log_file_path = os.path.join(args.output_dir, "eval_loss.jsonl")
+        log_file_path = os.path.join(args.output_dir, "training_logs.jsonl")
         if logs is not None and "loss" in logs and "epoch" in logs:
-            self._track_loss("loss", log_file_path, logs, state)
+            self._track_loss("loss", "training_loss", log_file_path, logs, state)
         elif logs is not None and "eval_loss" in logs and "epoch" in logs:
-            self._track_loss("eval_loss", eval_log_file_path, logs, state)
+            self._track_loss("eval_loss", "validation_loss", log_file_path, logs, state)
 
-    def _track_loss(self, loss_key, log_file, logs, state):
+    def _track_loss(self, loss_key, log_name, log_file, logs, state):
         try:
             # Take the subdict of the last log line; if any log_keys aren't part of this log
             # object, assume this line is something else, e.g., train completion, and skip.
             log_obj = {
-                "name": loss_key,
+                "name": log_name,
                 "data": {
                     "epoch": round(logs["epoch"], 2),
                     "step": state.global_step,
