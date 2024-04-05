@@ -4,6 +4,7 @@ Metrics used: Accuracy / Micro & Macro F1.
 """
 import os
 from sklearn import preprocessing
+from sklearn.metrics import f1_score, accuracy_score
 import argparse
 import json
 from tqdm import tqdm
@@ -32,9 +33,16 @@ def parse_and_validate_args():
     parser.add_argument(
         "--output_dir", help="Directory path to export results to", default="eval_results"
     )
+    parser.add_argument(
+        "--delimiter",
+        help="Delimiter to be used for multilabel multiclass evaluation",
+        default=None,
+    )
     parser.add_argument('--purge_results', action=argparse.BooleanOptionalAction)
 
     parsed_args = parser.parse_args()
+
+    print(f"Multiclass / multioutput delimiter: {parsed_args.delimiter}")
     # If we have a collision on the outdir, only remove the existing file if we explicitly say to
     if os.path.exists(parsed_args.output_dir):
         if parsed_args.purge_results:
@@ -85,7 +93,7 @@ def get_formatted_example(example: dict) -> dict:
     }
 
 ### Model evaluation
-def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Dataset, max_new_tokens: int) -> tuple:
+def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Dataset, max_new_tokens: int, delimiter: str) -> tuple:
     """Runs the model over the alpaca formatted data to get the predictions / references to be used
     when computing the metrics of interest.
 
@@ -117,17 +125,22 @@ def get_prediction_results(model: TunedCausalLM, data: datasets.arrow_dataset.Da
             ret_gen_text_only=True,
         )
         # Save the raw output / predicted texts
-        stripped_pred = prediction.strip()
-        stripped_ref = formatted_datum["output"].strip()
-        predictions.append(stripped_pred)
-        references.append(stripped_ref)
+        processed_pred = postprocess_output(prediction, delimiter)
+        processed_ref = postprocess_output(formatted_datum["output"], delimiter)
+        predictions.append(processed_pred)
+        references.append(processed_ref)
         model_pred_file_info.append({
             "formatted input": formatted_datum["input"],
-            "predicted target": stripped_pred,
-            "ref target": stripped_ref,
+            "predicted target": processed_pred,
+            "ref target": processed_ref,
         })
     return predictions, references, model_pred_file_info
 
+def postprocess_output(output_text, delimiter):
+    """NOTE: We are returning a list here, since that is what the one hot encoder module expects. """
+    if delimiter is not None:
+        return [text_substr.strip() for text_substr in output_text.split(delimiter)]
+    return [output_text.strip()]
 ### Metric computation/display & utils for mapping labels to numerics for hf evaluate
 def map_predictions_and_references_to_numerics(predictions: list, references: list) -> tuple:
     """Maps string predictions and references to numerics for use in accuracy and
@@ -193,6 +206,7 @@ def get_encoded_label(le: preprocessing.LabelEncoder, gen_text: str, unk_label: 
         # Model generated text that is not a valid label, i.e., is not in the label encoder
         return unk_label
 
+
 def compute_metrics_dict(int_preds: list, int_references: list) -> dict:
     """Calculate the metrics on the (int) lists of preds against ground truth.
     
@@ -221,6 +235,30 @@ def compute_metrics_dict(int_preds: list, int_references: list) -> dict:
         "accuracy": accuracy
     }
 
+
+#### Replaces legacy logic
+def map_predictions_and_references_to_one_hot_encoded_vectors(predictions: list, references: list):
+    # Currently it's a stub that we can use to validate our metric correctness
+    references = [[1,1,0], [1,0,1], [0,0,1], [0,0,0]]
+    predictions = [[0,1,1], [1,0,0], [0,0,1], [1,0,1]]
+    label_map = {0: "bird", 2: "cat", 3: "dog"}
+    # In this scenario, dog basically represents <UNK>
+    return references, predictions, label_map
+
+def compute_metrics_dict_multi(enc_preds, enc_refs):
+    micro_f1 = f1_score(enc_refs, enc_preds, average="micro")
+    macro_f1 = f1_score(enc_refs, enc_preds, average="macro")
+    # NOTE: For the multiclass / multilabel scenario, sklearn accuracy does NOT assign partial
+    # credit, i.e., instances are only considered correct if they match the ground truth
+    # one hot encoded vectors exactly.
+    accuracy = accuracy_score(enc_refs, enc_preds)
+    return {
+        "f1": {
+            "micro": micro_f1,
+            "macro": macro_f1,
+        },
+        "accuracy": accuracy
+    }
 
 def export_experiment_info(metrics_dict: dict, label_map: dict, model_pred_file_info: dict, experiment_metadata: dict, output_dir: str):
     """Creates an exports all experiments info / metadata.
@@ -254,9 +292,9 @@ if __name__ == "__main__":
     args = parse_and_validate_args()
     model = TunedCausalLM.load(args.model)
     data = datasets.load_dataset("json", data_files=args.data_path, split=args.split)
-    predictions, references, model_pred_file_info = get_prediction_results(model, data, args.max_new_tokens)
-    int_preds, int_references, label_map = map_predictions_and_references_to_numerics(predictions, references)
-    metrics_dict = compute_metrics_dict(int_preds, int_references)
+    predictions, references, model_pred_file_info = get_prediction_results(model, data, args.max_new_tokens, args.delimiter)
+    int_preds, int_references, label_map = map_predictions_and_references_to_one_hot_encoded_vectors(predictions, references)
+    metrics_dict = compute_metrics_dict_multi(int_preds, int_references)
     experiment_metadata = {
         "model": args.model,
         "max_new_tokens": args.max_new_tokens,
