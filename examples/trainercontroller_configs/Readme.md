@@ -1,5 +1,5 @@
 # How-To
 To use one of these files with the trainer, execute the `sft_trainer.py` with the following option: 
 ```
---trainer_controller_config_file "examples/trainer-controller-configs/<file-name>"
+--trainer_controller_config_file "examples/trainercontroller_configs/<file-name>"
 ```

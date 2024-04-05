@@ -170,8 +170,7 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NameError("Rule failed due to use of disallowed variables")
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
-                        logger.info(f"Taking {operation_action.action} \
-                                    action in {control_action.name}")
+                        logger.info(f"Taking {operation_action.action} action in {control_action.name}")
                         operation_action.instance.act(action=operation_action.action, event_name=event_name, **kwargs)
 
     def _actions_on_event(self, event_name: str, **kwargs):
