@@ -105,6 +105,7 @@ class TrainerControllerCallback(TrainerCallback):
         for callback_method_name, _ in inspect.getmembers(self, predicate=inspect.ismethod):
             if re.search(r'^on_', callback_method_name) is not None:
                 self.valid_events.add(callback_method_name)
+        logger.debug(f'List of valid events {self.valid_events}')
 
         # Handlers to trigger on each metric
         self.metric_handlers = {}
