@@ -16,13 +16,14 @@
 import copy
 import json
 import os
+from unittest.mock import patch
 
 # Third Party
 import pytest
 
 # Local
 from tuning.config.peft_config import LoraConfig, PromptTuningConfig
-from build.utils import process_launch_training_args
+from build.utils import process_launch_training_args, process_accelerate_launch_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
     os.path.dirname(__file__), "dummy_job_config.json"
@@ -78,3 +79,37 @@ def test_process_launch_training_args_peft_method(job_config):
     _, _, _, tune_config, merge_model = process_launch_training_args(job_config_lora)
     assert type(tune_config) == LoraConfig
     assert merge_model == True
+
+
+def test_process_accelerate_launch_args(job_config):
+    job_config_copy = copy.deepcopy(job_config)
+    args = process_accelerate_launch_args(job_config_copy)
+    assert args.config_file == "fixtures/accelerate_fsdp_defaults.yaml"
+    assert args.use_fsdp == True
+    assert args.tpu_use_cluster == False
+
+
+@patch("os.path.exists")
+def test_process_accelerate_launch_custom_fsdp(patch_path_exists):
+    patch_path_exists.return_value = True
+
+    dummy_fsdp_path = "dummy_fsdp_config.yaml"
+
+    # When user passes custom fsdp config file, use custom config and accelerate
+    # launch will use `num_processes` from config
+    temp_job_config = {"accelerate_launch_args": {"config_file": dummy_fsdp_path}}
+    args = process_accelerate_launch_args(temp_job_config)
+    assert args.config_file == dummy_fsdp_path
+    assert args.num_processes == None
+
+    # When user passes custom fsdp config file and also `num_processes` as a param, use custom config and
+    # overwrite num_processes from config with param
+    temp_job_config = {
+        "accelerate_launch_args": {
+            "config_file": dummy_fsdp_path,
+            "num_processes": 3,
+        }
+    }
+    args = process_accelerate_launch_args(temp_job_config)
+    assert args.config_file == dummy_fsdp_path
+    assert args.num_processes == 3

@@ -18,10 +18,7 @@ for the encoded config string to parse.
 """
 
 # Standard
-import base64
 import os
-import pickle
-import json
 import tempfile
 import shutil
 import glob
@@ -32,18 +29,7 @@ import logging
 # Local
 from tuning import sft_trainer
 from tuning.utils.merge_model_utils import create_merged_model
-from build.utils import process_launch_training_args
-
-
-def txt_to_obj(txt):
-    base64_bytes = txt.encode("ascii")
-    message_bytes = base64.b64decode(base64_bytes)
-    try:
-        # If the bytes represent JSON string
-        return json.loads(message_bytes)
-    except UnicodeDecodeError:
-        # Otherwise the bytes are a pickled python dictionary
-        return pickle.loads(message_bytes)
+from build.utils import process_launch_training_args, get_job_config
 
 
 def get_highest_checkpoint(dir_path):
@@ -67,22 +53,9 @@ def main():
 
     logging.info("Initializing launch training script")
 
-    json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    job_config = get_job_config()
 
-    # accepts either path to JSON file or encoded string config
-    if json_path:
-        with open(json_path, "r", encoding="utf-8") as f:
-            job_config_dict = json.load(f)
-    elif json_env_var:
-        job_config_dict = txt_to_obj(json_env_var)
-    else:
-        raise ValueError(
-            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
-        or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
-        )
-
-    logging.debug("Input params parsed: %s", job_config_dict)
+    logging.debug("Input params parsed: %s", job_config)
 
     (
         model_args,
@@ -90,7 +63,7 @@ def main():
         training_args,
         tune_config,
         merge_model,
-    ) = process_launch_training_args(job_config_dict)
+    ) = process_launch_training_args(job_config)
 
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:
