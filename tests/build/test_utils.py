@@ -90,8 +90,8 @@ def test_process_accelerate_launch_args(job_config):
 
 
 @patch("os.path.exists")
-def test_process_accelerate_launch_custom_fsdp(patch_path_exisits):
-    patch_path_exisits.return_value = True
+def test_process_accelerate_launch_custom_fsdp(patch_path_exists):
+    patch_path_exists.return_value = True
 
     dummy_fsdp_path = "dummy_fsdp_config.yaml"
 
