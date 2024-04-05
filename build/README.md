@@ -61,7 +61,7 @@ For example, the below config is used for running with two GPUs and FSDP for fin
 }
 ```
 
-Users should always set `num_processes` to be explicit about the number of processes to run tuning on. When `num_processes` is greater than 1, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. You can also set your own default values by specifying your own config file using key `config_file`. Any of these values in configs can be overwritten by passing in flags via `accelerate_launch_args` in the JSON config.
+Users should always set `num_processes` to be explicit about the number of processes to run tuning on. When `num_processes` is greater than 1, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Thus in the above example, you don't need to pass in the FSDP flags since they match the ones used in the default FSDP config. You can also set your own default values by specifying your own config file using key `config_file`. Any of these values in configs can be overwritten by passing in flags via `accelerate_launch_args` in the JSON config.
 
 Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`. If ``num_processes=1`, the script will assume single-GPU.
 
@@ -141,8 +141,12 @@ containers:
     resources:
         limits:
             nvidia.com/gpu: "2"
+            memory: 200Gi
+            cpu: "10"
+            ephemeral-storage: 2Ti
         requests:
-            nvidia.com/gpu: "2"
+            memory: 80Gi
+            cpu: "5"
     volumeMounts:
         - mountPath: /data/input
         name: input-data
@@ -163,3 +167,5 @@ volumes:
     configMap:
         name: sft-trainer-config
 ```
+
+The above kube resource values are not hard-defined. However, they are useful when running some models (such as LLaMa-13b model). If ephemeral storage is not defined, you will likely hit into error `The node was low on resource: ephemeral-storage. Container was using 1498072868Ki, which exceeds its request of 0.` where the pod runs low on storage while tuning the model.
