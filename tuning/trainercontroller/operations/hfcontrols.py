@@ -22,7 +22,7 @@ class HFControls(Operation):
             kwargs: List of arguments (key, value)-pairs
         """
         for control_field in fields(TrainerControl):
-            if re.search(r'^should_', control_field.name) is not None:
+            if re.search(r'^should_.+', control_field.name) is not None:
                 setattr(self, control_field.name, self.control_action)
         super().__init__()
 

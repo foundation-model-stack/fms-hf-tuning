@@ -100,7 +100,8 @@ class TrainerControllerCallback(TrainerCallback):
                     self.trainer_controller_config[OPERATIONS_KEY][operation_name] = \
                         default_operations_config[OPERATIONS_KEY][operation_name]
 
-        # Load list of valid events
+        # Load list of valid events for the trainercontroller callback
+        # These events are assumed to start with "on_" prefix (on_epoch_end(), on_step_end() etc)
         self.valid_events = set()
         for callback_method_name, _ in inspect.getmembers(self, predicate=inspect.ismethod):
             if re.search(r'^on_', callback_method_name) is not None:
