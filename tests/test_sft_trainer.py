@@ -77,7 +77,7 @@ def test_helper_causal_lm_train_kwargs():
     )
 
     assert model_args.model_name_or_path == MODEL_NAME
-    assert model_args.use_flash_attn == False
+    assert model_args.use_flash_attn is False
     assert model_args.torch_dtype == "float32"
 
     assert data_args.training_data_path == TWITTER_COMPLAINTS_DATA
@@ -295,10 +295,10 @@ def _validate_training(tempdir, check_eval=False):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
     train_log_contents = ""
-    with open(train_logs_file_path) as f:
+    with open(train_logs_file_path, encoding="utf-8") as f:
         train_log_contents = f.read()
 
-    assert os.path.exists(train_logs_file_path) == True
+    assert os.path.exists(train_logs_file_path) is True
     assert os.path.getsize(train_logs_file_path) > 0
     assert "training_loss" in train_log_contents
 
@@ -311,7 +311,7 @@ def _get_checkpoint_path(dir_path):
 
 
 def _get_adapter_config(dir_path):
-    with open(os.path.join(dir_path, "adapter_config.json")) as f:
+    with open(os.path.join(dir_path, "adapter_config.json"), encoding="utf-8") as f:
         return json.load(f)
 
 

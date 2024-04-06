@@ -31,8 +31,8 @@ HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
 
 
 # Note: job_config dict gets modified during process_launch_training_args
-@pytest.fixture(scope="session")
-def job_config():
+@pytest.fixture(name="job_config", scope="session")
+def fixture_job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
         dummy_job_config_dict = json.load(f)
     return dummy_job_config_dict
@@ -50,20 +50,20 @@ def test_process_launch_training_args(job_config):
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
     assert training_args.output_dir == "bloom-twitter"
-    assert tune_config == None
-    assert merge_model == False
+    assert tune_config is None
+    assert merge_model is False
 
 
 def test_process_launch_training_args_defaults(job_config):
     job_config_defaults = copy.deepcopy(job_config)
     assert "torch_dtype" not in job_config_defaults
-    assert job_config_defaults["use_flash_attn"] == False
+    assert job_config_defaults["use_flash_attn"] is False
     assert "save_strategy" not in job_config_defaults
     model_args, _, training_args, _, _ = process_launch_training_args(
         job_config_defaults
     )
     assert str(model_args.torch_dtype) == "torch.bfloat16"
-    assert model_args.use_flash_attn == False
+    assert model_args.use_flash_attn is False
     assert training_args.save_strategy.value == "epoch"
 
 
@@ -71,22 +71,22 @@ def test_process_launch_training_args_peft_method(job_config):
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
     _, _, _, tune_config, merge_model = process_launch_training_args(job_config_pt)
-    assert type(tune_config) == PromptTuningConfig
-    assert merge_model == False
+    assert isinstance(tune_config, PromptTuningConfig)
+    assert merge_model is False
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
     _, _, _, tune_config, merge_model = process_launch_training_args(job_config_lora)
-    assert type(tune_config) == LoraConfig
-    assert merge_model == True
+    assert isinstance(tune_config, LoraConfig)
+    assert merge_model is True
 
 
 def test_process_accelerate_launch_args(job_config):
     job_config_copy = copy.deepcopy(job_config)
     args = process_accelerate_launch_args(job_config_copy)
     assert args.config_file == "fixtures/accelerate_fsdp_defaults.yaml"
-    assert args.use_fsdp == True
-    assert args.tpu_use_cluster == False
+    assert args.use_fsdp is True
+    assert args.tpu_use_cluster is False
 
 
 @patch("os.path.exists")
@@ -100,10 +100,10 @@ def test_process_accelerate_launch_custom_fsdp(patch_path_exists):
     temp_job_config = {"accelerate_launch_args": {"config_file": dummy_fsdp_path}}
     args = process_accelerate_launch_args(temp_job_config)
     assert args.config_file == dummy_fsdp_path
-    assert args.num_processes == None
+    assert args.num_processes is None
 
-    # When user passes custom fsdp config file and also `num_processes` as a param, use custom config and
-    # overwrite num_processes from config with param
+    # When user passes custom fsdp config file and also `num_processes` as a param,
+    # use custom config and overwrite num_processes from config with param
     temp_job_config = {
         "accelerate_launch_args": {
             "config_file": dummy_fsdp_path,
