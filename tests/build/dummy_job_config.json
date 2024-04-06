@@ -4,7 +4,6 @@
       "env": ["env1", "env2"],
       "dynamo_use_dynamic": true,
       "num_machines": 1,
-      "num_processes":2,
       "main_process_port": 1234,
       "fsdp_backward_prefetch_policy": "TRANSFORMER_BASED_WRAP",
       "fsdp_sharding_strategy": 1,
@@ -13,7 +12,6 @@
       "fsdp_sync_module_states": true,
       "config_file": "fixtures/accelerate_fsdp_defaults.yaml"
     },
-    "multi_gpu": true,
     "model_name_or_path": "bigscience/bloom-560m",
     "training_data_path": "data/twitter_complaints_small.json",
     "output_dir": "bloom-twitter",
