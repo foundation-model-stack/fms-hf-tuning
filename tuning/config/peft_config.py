@@ -65,11 +65,14 @@ class PromptTuningConfig:
     This is the configuration class for Prompt Tuning.
 
     Args:
-        prompt_tuning_init : str: The initialization of the prompt embedding. Allowed values "TEXT" or "RANDOM".
+        prompt_tuning_init : str: The initialization of the prompt embedding. \
+            Allowed values "TEXT" or "RANDOM".
         prompt_tuning_init_text (`str`, *optional*):
-            The text to initialize the prompt embedding. Only used if `prompt_tuning_init` is `TEXT`.
+            The text to initialize the prompt embedding. \
+            Only used if `prompt_tuning_init` is `TEXT`.
         tokenizer_name_or_path (`str`, *optional*):
-            The name or path of the tokenizer. Only used if `prompt_tuning_init` is `TEXT`.
+            The name or path of the tokenizer. \
+            Only used if `prompt_tuning_init` is `TEXT`.
         num_virtual_tokens (`int`): The number of virtual tokens to use.
     """
 
