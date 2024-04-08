@@ -5,7 +5,8 @@ import json
 import boto3
 from shutil import rmtree
 import os
-# Pull from env
+
+
 S3_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY_ID")
 S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY")
 S3_ENDPOINT = os.getenv("S3_ENDPOINT")
@@ -27,20 +28,24 @@ def format_and_export_cc_tone_file(file_path, export_path):
         json.dump(formatted_data, export_file, sort_keys=True, indent=4)
 
 def format_and_export_entities_file(file_path, export_path):
+    def get_entites_output_text(datum):
+        mentions = datum["mentions"]
+        # TODO: check this for TSA, but seems like it is the same as entities
+        if not mentions:
+            return "None"
+        mention_strs = [f"{mention['text']}: {mention['type']}" for mention in mentions]
+        return ", ".join(mention_strs)
     with open (file_path, "r") as entities_file:
         data = json.load(entities_file)
     formatted_data = [
         {
             "instruction": "",
-            # NOTE: We drop the ID of the records in the unformatted data
             "input": datum["text"],
-            # TODO: Check this
-            "output": json.dumps(datum["mentions"]),
+            "output": get_entites_output_text(datum),
         } for datum in data
     ]
     with open(export_path, "w") as export_file:
         json.dump(formatted_data, export_file, sort_keys=True, indent=4)
-
 
 # Where we will put the downloaded data
 DOWNLOAD_DIR = "unformatted_data"
