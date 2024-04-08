@@ -20,6 +20,7 @@ import base64
 import pickle
 
 # Third Party
+import torch
 import transformers
 from accelerate.commands.launch import launch_command_parser
 
@@ -126,6 +127,10 @@ def process_accelerate_launch_args(job_config_dict):
     if accelerate_config:
         logging.info("Using accelerate_launch_args configs: %s", accelerate_config)
         for key, val in accelerate_config.items():
+            # skip num_processes to assign below based on SET_NUM_PROCESSES_TO_NUM_GPUS
+            if key == "num_processes":
+                continue
+
             if actions_type_map.get(key) == "_AppendAction":
                 for param_val in val:
                     accelerate_launch_args.extend([f"--{key}", str(param_val)])
@@ -139,8 +144,27 @@ def process_accelerate_launch_args(job_config_dict):
                 if actions_type_map.get(key) == "_StoreAction":
                     accelerate_launch_args.append(str(val))
 
-    num_processes = accelerate_config.get("num_processes")
+    # accept setting SET_NUM_PROCESSES_TO_NUM_GPUS=True in Shell interpreted as string
+    set_num_processes_to_num_gpus = os.getenv(
+        "SET_NUM_PROCESSES_TO_NUM_GPUS", "True"
+    ).lower()
+    user_arg_num_processes = accelerate_config.get("num_processes")
+    num_processes = 0
+    if set_num_processes_to_num_gpus == "true":
+        num_processes = torch.cuda.device_count()
+
+        if user_arg_num_processes:
+            logging.warning(
+                "SET_NUM_PROCESSES_TO_NUM_GPUS=True, overwriting user set num_processes %s\
+                to all GPUs available, %s.",
+                user_arg_num_processes,
+                num_processes,
+            )
+    elif user_arg_num_processes:
+        num_processes = int(user_arg_num_processes)
+
     if num_processes:
+        accelerate_launch_args.extend(["--num_processes", str(num_processes)])
         # if multi GPU setting and accelerate config_file not passed by user,
         # use the default config for default set of parameters
         if num_processes > 1 and not accelerate_config.get("config_file"):
