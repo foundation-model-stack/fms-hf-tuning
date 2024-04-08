@@ -187,7 +187,9 @@ class TunedCausalLM:
         model.to(device)
         return cls(model, tokenizer, device)
 
-    def run(self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool=False) -> str:
+    def run(
+        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False
+    ) -> str:
         """Runs inference on an instance of this model.
 
         Args:
@@ -210,7 +212,7 @@ class TunedCausalLM:
             input_ids=input_ids, max_new_tokens=max_new_tokens
         )
         if ret_gen_text_only:
-            tok_to_decode = peft_outputs[:, input_ids.shape[1]:]
+            tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
         else:
             tok_to_decode = peft_outputs
         decoded_result = self.tokenizer.batch_decode(
