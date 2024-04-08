@@ -144,8 +144,9 @@ To summarize you can pick either python for singleGPU jobs or use accelerate lau
 
 ### LoRA Tuning Example
 
-Set peft_method = "lora". You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L7).
-```
+Set peft_method = "lora". You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+```bash
+# Args you can pass
 r: int =8 
 lora_alpha: int = 32
 target_modules: List[str] = field(
@@ -162,6 +163,7 @@ target_modules: List[str] = field(
   lora_dropout: float = 0.05
 
 ```
+Example command to run:
 
 ```bash
 python tuning/sft_trainer.py \
@@ -250,7 +252,7 @@ You can specify attention or linear layers. With the CLI, you can specify layers
 ### Prompt Tuning :
 
 Specify peft_method to 'pt' . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39). 
-``` 
+```bash
     # prompt_tuning_init can be either "TEXT" or "RANDOM"
     prompt_tuning_init: str = "TEXT"
     num_virtual_tokens: int = 8
@@ -258,6 +260,8 @@ Specify peft_method to 'pt' . You can additionally pass any arguments from [Prom
     prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
     tokenizer_name_or_path: str = "llama-7b-hf"
 ```
+
+Example command you can run:  
 
 ```bash
 
@@ -292,6 +296,7 @@ tuning/sft_trainer.py  \
 
 Set peft_method = 'None'
 
+Full fine tuning needs more compute resources, so it is advised to use the MultiGPU method
 ```bash
 
 accelerate launch \
