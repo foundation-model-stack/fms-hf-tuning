@@ -5,9 +5,12 @@ from dataclasses import fields
 
 # Third Part
 from transformers import TrainerControl
+from transformers.utils import logging
 
 # Local
 from tuning.trainercontroller.operations import Operation
+
+logger = logging.get_logger(__name__)
 
 class HFControls(Operation):
     """Implements the control actions for the HuggingFace controls in 
@@ -21,6 +24,7 @@ class HFControls(Operation):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
+        self.kwargs = kwargs
         for control_field in fields(TrainerControl):
             if re.search(r'^should_.+', control_field.name) is not None:
                 setattr(self, control_field.name, self.control_action)
@@ -34,6 +38,7 @@ class HFControls(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
+        logger.debug('Arguments passed to control_action: %s', repr(kwargs))
         frame_info = inspect.currentframe().f_back
         arg_values = inspect.getargvalues(frame_info)
         setattr(control, arg_values.locals["action"], True)

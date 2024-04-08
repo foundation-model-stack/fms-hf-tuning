@@ -42,6 +42,7 @@ class MetricHandler(metaclass=abc.ABCMeta):
         self._name = name
         self._events = events
         self.training_args = args
+        self.kwargs = kwargs
         if not self.validate():
             raise MetricHandlerException(name)
 
@@ -61,7 +62,7 @@ class MetricHandler(metaclass=abc.ABCMeta):
         """
         return self._events
 
-    @abc.abstractmethod 
+    @abc.abstractmethod
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are compatible with 
            the computation of this metric, and log the errors, and return False when
@@ -70,9 +71,8 @@ class MetricHandler(metaclass=abc.ABCMeta):
         Returns:
             bool
         """
-        pass
 
-    @abc.abstractmethod 
+    @abc.abstractmethod
     def compute(self, **kwargs) -> Any:
         """Computes the controller-metric returns the metric.
 
@@ -82,4 +82,3 @@ class MetricHandler(metaclass=abc.ABCMeta):
         Returns:
             Any
         """
-        pass

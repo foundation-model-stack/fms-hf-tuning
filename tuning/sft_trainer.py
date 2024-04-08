@@ -42,12 +42,12 @@ from tuning.data import tokenizer_data_utils
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.import_utils import is_aim_available
+from tuning.trainercontroller import TrainerControllerCallback
 
 if is_aim_available():
     # Local
     from tuning.aim_loader import get_aimstack_callback
 
-from tuning.trainercontroller import TrainerControllerCallback
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -106,11 +106,12 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        trainer_control_args: configs.TrainerControllerArguments for controlling the training loop using policy rules
         peft_config: peft_config.LoraConfig for Lora tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
+        trainer_control_args: configs.TrainerControllerArguments \
+            for controlling the training loop using policy rules
     """
 
     logger = logging.get_logger("sft_trainer")
@@ -224,10 +225,12 @@ def train(
     if is_aim_available():
         callbacks.append(get_aimstack_callback())
 
-    if trainer_controller_args is not None and trainer_controller_args.trainer_controller_config_file is not None:
-        tc_callback = TrainerControllerCallback(trainer_controller_args.trainer_controller_config_file)
+    if (trainer_controller_args is not None) and \
+        (trainer_controller_args.trainer_controller_config_file is not None):
+        tc_callback = \
+        TrainerControllerCallback(trainer_controller_args.trainer_controller_config_file)
         callbacks.append(tc_callback)
-        
+
     if train_args.packing:
         logger.info("Packing is set to True")
         data_collator = None

@@ -25,9 +25,10 @@ from tuning.trainercontroller.controllermetrics.metricshandler import MetricHand
 
 class Loss(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
-    
+
     def __init__(self, **kwargs):
-        """Initializes the metric handler, by registering the event list and arguments with base handler.
+        """Initializes the metric handler, by registering the event \
+            list and arguments with base handler.
 
         Args:
             kwargs: List of arguments (key, value)-pairs
@@ -35,7 +36,8 @@ class Loss(MetricHandler):
         super().__init__(events=['on_log'], **kwargs)
 
     def validate(self) -> bool:
-        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric.
+        """Validate the training arguments (e.g logging_steps) are \
+            compatible with the computation of this metric.
 
         Returns:
             bool
