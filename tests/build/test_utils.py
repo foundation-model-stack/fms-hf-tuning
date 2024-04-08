@@ -147,8 +147,8 @@ def test_process_accelerate_launch_custom_config_file(patch_path_exists):
     assert args.config_file == dummy_config_path
     assert args.num_processes is None
 
-    # When user passes custom fsdp config file and also `num_processes` as a param, use custom config and
-    # overwrite num_processes from config with param
+    # When user passes custom fsdp config file and also `num_processes` as a param,
+    # use custom config and overwrite num_processes from config with param
     temp_job_config = {"accelerate_launch_args": {"config_file": dummy_config_path}}
     args = process_accelerate_launch_args(temp_job_config)
     assert args.config_file == dummy_config_path
