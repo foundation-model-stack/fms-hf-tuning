@@ -223,9 +223,6 @@ def train(
     callbacks = [FileLoggingCallback(logger)]
     if is_aim_available():
         callbacks.append(get_aimstack_callback())
-    aim_callback = get_aimstack_callback()
-    file_logger_callback = FileLoggingCallback(logger)
-    callbacks = [aim_callback, file_logger_callback]
 
     if trainer_controller_args.trainer_controller_config_file is not None:
         tc_callback = TrainerControllerCallback(trainer_controller_args.trainer_controller_config_file)
