@@ -95,10 +95,10 @@ def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    trainer_controller_args: configs.TrainerControllerArguments,
     peft_config: Optional[
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
+    trainer_controller_args: configs.TrainerControllerArguments = None,
 ):
     """Call the SFTTrainer
 
@@ -224,7 +224,7 @@ def train(
     if is_aim_available():
         callbacks.append(get_aimstack_callback())
 
-    if trainer_controller_args.trainer_controller_config_file is not None:
+    if trainer_controller_args is not None and trainer_controller_args.trainer_controller_config_file is not None:
         tc_callback = TrainerControllerCallback(trainer_controller_args.trainer_controller_config_file)
         callbacks.append(tc_callback)
         
@@ -307,7 +307,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = prompt_tuning_config
     else:
         tune_config = None
-    train(model_args, data_args, training_args, trainer_controller_args, tune_config)
+    train(model_args, data_args, training_args, tune_config, trainer_controller_args)
 
 
 if __name__ == "__main__":
