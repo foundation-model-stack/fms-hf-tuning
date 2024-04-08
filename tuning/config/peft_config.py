@@ -38,6 +38,7 @@ class LoraConfig:
             will be updated during training. Be aware that this means that, even when disabling the adapters, the model
             will not produce the same output as the base model would have without adaptation.
     """
+
     r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
@@ -67,6 +68,7 @@ class PromptTuningConfig:
             The name or path of the tokenizer. Only used if `prompt_tuning_init` is `TEXT`.
         num_virtual_tokens (`int`): The number of virtual tokens to use.
     """
+
     prompt_tuning_init: str = "TEXT"
     num_virtual_tokens: int = 8
     prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
