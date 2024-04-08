@@ -26,16 +26,20 @@ class LoraConfig:
         r (`int`):
             Lora attention dimension (the "rank").
         target_modules (List[str]]):
-            The names of the modules to apply the adapter to. If this is specified, only the modules with the specified
-            names will be replaced. Please specify modules as per model architecture. If the value is ["all-linear"], \
-            then LORA selects all linear and Conv1D modules as per model architecture, except for the output layer.
+            The names of the modules to apply the adapter to. \
+            If this is specified, only the modules with the specified \
+            names will be replaced. Please specify modules as per model architecture. \
+            If the value is ["all-linear"], \
+            then LORA selects all linear and Conv1D modules as per model architecture, \
+            except for the output layer.
         lora_alpha (`int`):
             The alpha parameter for Lora scaling.
         lora_dropout (`float`):
             The dropout probability for Lora layers.
         bias (`str`):
-            Bias type for LoRA. Can be 'none', 'all' or 'lora_only'. If 'all' or 'lora_only', the corresponding biases
-            will be updated during training. Be aware that this means that, even when disabling the adapters, the model
+            Bias type for LoRA. Can be 'none', 'all' or 'lora_only'. \
+            If 'all' or 'lora_only', the corresponding biases will be updated during training. \
+            Be aware that this means that, even when disabling the adapters, the model \
             will not produce the same output as the base model would have without adaptation.
     """
 
