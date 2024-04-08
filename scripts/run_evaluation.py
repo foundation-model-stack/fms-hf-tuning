@@ -11,7 +11,7 @@ import os
 # Third Party
 from run_inference import TunedCausalLM
 from sklearn import preprocessing
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
 from tqdm import tqdm
 import datasets
 import numpy as np
@@ -175,6 +175,8 @@ def postprocess_output(output_text, delimiter):
 def map_predictions_and_references_to_encoded_vectors(
     predictions_lists: list, references_lists: list
 ):
+    if not predictions_lists or not references_lists:
+        raise ValueError("Predictions and/or references should not be empty!")
     ohe = preprocessing.OneHotEncoder()
     # Extract the unique (potentially delimited labels) to fit the one hot encoder. We need to do
     # this directly in case it's a multiclass/multilabel scenario, because the 2D arr consumed
@@ -253,6 +255,10 @@ def extract_unique_labels(preds, refs, unk_label):
 def compute_metrics_dict_multi(enc_preds, enc_refs):
     micro_f1 = f1_score(enc_refs, enc_preds, average="micro")
     macro_f1 = f1_score(enc_refs, enc_preds, average="macro")
+    micro_recall = recall_score(enc_refs, enc_preds, average="micro")
+    macro_recall = recall_score(enc_refs, enc_preds, average="macro")
+    micro_prec = precision_score(enc_refs, enc_preds, average="micro")
+    macro_prec = precision_score(enc_refs, enc_preds, average="macro")
     # NOTE: For the multiclass / multilabel scenario, sklearn accuracy does NOT assign partial
     # credit, i.e., instances are only considered correct if they match the ground truth
     # one hot encoded vectors exactly.
@@ -261,6 +267,14 @@ def compute_metrics_dict_multi(enc_preds, enc_refs):
         "f1": {
             "micro": micro_f1,
             "macro": macro_f1,
+        },
+        "recall": {
+            "micro": micro_recall,
+            "macro": macro_recall,
+        },
+        "precision": {
+            "micro": micro_prec,
+            "macro": macro_prec,
         },
         "accuracy": accuracy,
     }
