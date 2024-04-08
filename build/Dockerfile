@@ -17,6 +17,7 @@ FROM registry.access.redhat.com/ubi9/ubi AS release
 ARG CUDA_VERSION=11.8.0
 ARG USER=tuning
 ARG USER_UID=1000
+ARG SET_NUM_PROCESSES_TO_NUM_GPUS=True
 
 USER root
 
