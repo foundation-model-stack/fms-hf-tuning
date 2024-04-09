@@ -90,3 +90,16 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (logging is done every `logging_steps`)"
         },
     )
+
+
+@dataclass
+class TrainerControllerArguments:
+    trainer_controller_config_file: str = field(
+        default=None,
+        metadata={
+            "help": (
+                "Trainer controller configuration file (e.g trainercontroller_config.yaml) \
+                    in YAML format."
+            )
+        },
+    )

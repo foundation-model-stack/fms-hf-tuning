@@ -39,6 +39,7 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
+from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.import_utils import is_aim_available
@@ -97,6 +98,7 @@ def train(
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
+    trainer_controller_args: configs.TrainerControllerArguments = None,
 ):
     """Call the SFTTrainer
 
@@ -108,6 +110,8 @@ def train(
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
+        trainer_control_args: configs.TrainerControllerArguments \
+            for controlling the training loop using policy rules
     """
 
     logger = logging.get_logger("sft_trainer")
@@ -221,6 +225,14 @@ def train(
     if is_aim_available():
         callbacks.append(get_aimstack_callback())
 
+    if (trainer_controller_args is not None) and (
+        trainer_controller_args.trainer_controller_config_file is not None
+    ):
+        tc_callback = TrainerControllerCallback(
+            trainer_controller_args.trainer_controller_config_file
+        )
+        callbacks.append(tc_callback)
+
     if train_args.packing:
         logger.info("Packing is set to True")
         data_collator = None
@@ -273,6 +285,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             configs.ModelArguments,
             configs.DataArguments,
             configs.TrainingArguments,
+            configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
         )
@@ -287,6 +300,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         model_args,
         data_args,
         training_args,
+        trainer_controller_args,
         lora_config,
         prompt_tuning_config,
         peft_method,
@@ -298,7 +312,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = prompt_tuning_config
     else:
         tune_config = None
-    train(model_args, data_args, training_args, tune_config)
+    train(model_args, data_args, training_args, tune_config, trainer_controller_args)
 
 
 if __name__ == "__main__":

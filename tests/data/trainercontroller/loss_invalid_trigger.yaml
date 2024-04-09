@@ -1,0 +1,10 @@
+controller-metrics:
+  loss:
+    Loss:
+controllers:
+  - name: loss-controller-invalid-trigger
+    triggers:
+      - log_it_all_incorrect_trigger_name
+    rule: loss < 1.0
+    operations:
+      - hfcontrols.should_training_stop
