@@ -49,6 +49,7 @@ CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_RULE_KEY = "rule"
 CONTROLLER_OPERATIONS_KEY = "operations"
 
+# pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
     """Implements the trainer loop control based
     on trainer controller configuration file and metrics"""
@@ -169,6 +170,7 @@ class TrainerControllerCallback(TrainerCallback):
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
                 try:
+                    # pylint: disable=eval-used
                     rule_succeeded = \
                         eval(control_action.rule, {'__builtins__': None}, self.metrics)
                 except TypeError as et:

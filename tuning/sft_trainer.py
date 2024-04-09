@@ -95,7 +95,7 @@ def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
-    peft_config: Optional[
+    peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
