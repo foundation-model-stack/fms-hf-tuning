@@ -2,8 +2,8 @@
 from typing import Type
 
 # Local
-from tuning.trainercontroller.operations.hfcontrols import HFControls
-from tuning.trainercontroller.operations.operation import Operation
+from .hfcontrols import HFControls
+from .operation import Operation
 
 # List of operation handlers
 operation_handlers = []

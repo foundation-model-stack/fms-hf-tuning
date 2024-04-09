@@ -4,12 +4,11 @@ import inspect
 import re
 
 # Third Party
-# Third Part
 from transformers import TrainerControl
 from transformers.utils import logging
 
 # Local
-from tuning.trainercontroller.operations import Operation
+from .operation import Operation
 
 logger = logging.get_logger(__name__)
 
