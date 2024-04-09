@@ -21,7 +21,6 @@ for the encoded config string to parse.
 import os
 import tempfile
 import shutil
-import glob
 
 # First Party
 import logging
@@ -107,9 +106,11 @@ def main():
                 dirs_exist_ok=True,
             )
 
-        # copy over any loss logs
-        for file in glob.glob(f"{training_args.output_dir}/*loss.jsonl"):
-            shutil.copy(file, original_output_dir)
+        # copy over logs
+        shutil.copy(
+            os.path.join(training_args.output_dir, sft_trainer.TRAINING_LOGS_FILENAME),
+            original_output_dir,
+        )
 
 
 if __name__ == "__main__":
