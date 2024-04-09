@@ -19,23 +19,33 @@ import os
 
 ### Constants used for data
 _DATA_DIR = os.path.join(os.path.dirname(__file__))
-TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML = \
-    os.path.join(_DATA_DIR, "loss_on_threshold.yaml")
-TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML = \
-    os.path.join(_DATA_DIR, "loss_with_malicious_os_rule.yaml")
-TRAINER_CONFIG_TEST_MALICIOUS_INPUT_RULE_YAML = \
-    os.path.join(_DATA_DIR, "loss_with_malicious_input_rule.yaml")
-TRAINER_CONFIG_TEST_INVALID_TRIGGER_YAML = \
-    os.path.join(_DATA_DIR, "loss_invalid_trigger.yaml")
-TRAINER_CONFIG_TEST_INVALID_OPERATION_YAML = \
-    os.path.join(_DATA_DIR, "loss_invalid_operation.yaml")
-TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML = \
-    os.path.join(_DATA_DIR, "loss_invalid_operation_action.yaml")
-TRAINER_CONFIG_TEST_INVALID_METRIC_YAML = \
-    os.path.join(_DATA_DIR, "loss_invalid_metric.yaml")
-TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML = \
-    os.path.join(_DATA_DIR, "loss_custom_metric.yaml")
-TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML = \
-    os.path.join(_DATA_DIR, "loss_custom_operation.yaml")
-TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML = \
-    os.path.join(_DATA_DIR, "loss_custom_operation_invalid_action.yaml")
+TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML = os.path.join(
+    _DATA_DIR, "loss_on_threshold.yaml"
+)
+TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML = os.path.join(
+    _DATA_DIR, "loss_with_malicious_os_rule.yaml"
+)
+TRAINER_CONFIG_TEST_MALICIOUS_INPUT_RULE_YAML = os.path.join(
+    _DATA_DIR, "loss_with_malicious_input_rule.yaml"
+)
+TRAINER_CONFIG_TEST_INVALID_TRIGGER_YAML = os.path.join(
+    _DATA_DIR, "loss_invalid_trigger.yaml"
+)
+TRAINER_CONFIG_TEST_INVALID_OPERATION_YAML = os.path.join(
+    _DATA_DIR, "loss_invalid_operation.yaml"
+)
+TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML = os.path.join(
+    _DATA_DIR, "loss_invalid_operation_action.yaml"
+)
+TRAINER_CONFIG_TEST_INVALID_METRIC_YAML = os.path.join(
+    _DATA_DIR, "loss_invalid_metric.yaml"
+)
+TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML = os.path.join(
+    _DATA_DIR, "loss_custom_metric.yaml"
+)
+TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML = os.path.join(
+    _DATA_DIR, "loss_custom_operation.yaml"
+)
+TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML = os.path.join(
+    _DATA_DIR, "loss_custom_operation_invalid_action.yaml"
+)

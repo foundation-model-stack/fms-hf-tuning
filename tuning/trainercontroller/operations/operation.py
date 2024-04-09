@@ -1,7 +1,8 @@
 # Standard
 import abc
-import re
 import inspect
+import re
+
 
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""
@@ -12,8 +13,10 @@ class Operation(metaclass=abc.ABCMeta):
         action.
         """
         self.valid_actions = {}
-        for action_name, action_method in inspect.getmembers(self, predicate=inspect.ismethod):
-            if re.search(r'^should_.+', action_name) is not None:
+        for action_name, action_method in inspect.getmembers(
+            self, predicate=inspect.ismethod
+        ):
+            if re.search(r"^should_.+", action_name) is not None:
                 self.valid_actions[action_name] = action_method
 
     def validate(self, action: str) -> bool:
@@ -39,6 +42,5 @@ class Operation(metaclass=abc.ABCMeta):
         self.valid_actions[action](**kwargs)
 
     def get_actions(self):
-        """Gets the list of all valid actions.
-        """
+        """Gets the list of all valid actions."""
         return self.valid_actions.keys()

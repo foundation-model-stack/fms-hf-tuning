@@ -24,6 +24,7 @@ from .loss import Loss
 # List of metric handlers
 handlers = []
 
+
 def register(cl: Type):
     """Registers the list of metric handlers by adding to the handler list.
 
@@ -31,6 +32,7 @@ def register(cl: Type):
         cl: Class type of the handler
     """
     handlers.append(cl)
+
 
 # Register the default metric handlers in this package here
 register(Loss)

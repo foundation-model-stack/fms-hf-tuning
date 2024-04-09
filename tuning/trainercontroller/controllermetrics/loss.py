@@ -21,7 +21,9 @@ from typing import Any
 # Third Party
 from transformers import TrainerState
 
+# Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
+
 
 class Loss(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
@@ -33,7 +35,7 @@ class Loss(MetricHandler):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        super().__init__(events=['on_log'], **kwargs)
+        super().__init__(events=["on_log"], **kwargs)
 
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are \
@@ -57,6 +59,6 @@ class Loss(MetricHandler):
         size_of_log_history = len(state.log_history)
         for i in range(size_of_log_history - 1, -1, -1):
             log = state.log_history[i]
-            if 'loss' not in log:
+            if "loss" not in log:
                 continue
             return float(log["loss"])

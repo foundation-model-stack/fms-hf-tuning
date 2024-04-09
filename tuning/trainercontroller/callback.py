@@ -16,26 +16,33 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-import inspect
-import re
-import yaml
-import os
-from typing import List, Union
 from importlib import resources as impresources
+from typing import List, Union
+import inspect
+import os
+import re
 
 # Third Party
-from transformers import TrainerCallback
+from transformers import (
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+    TrainingArguments,
+)
 from transformers.utils import logging
-from transformers import TrainerState, TrainerControl, TrainingArguments
+import yaml
 
 # Local
-from tuning.trainercontroller import controllermetrics
-from tuning.trainercontroller.controllermetrics import handlers as default_metric_handlers
-from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
-from tuning.trainercontroller import operations
-from tuning.trainercontroller.operations import operation_handlers as default_operation_handlers
-from tuning.trainercontroller.operations import Operation
+from tuning.trainercontroller import controllermetrics, operations
 from tuning.trainercontroller.control import Control, OperationAction
+from tuning.trainercontroller.controllermetrics import (
+    handlers as default_metric_handlers,
+)
+from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
+from tuning.trainercontroller.operations import Operation
+from tuning.trainercontroller.operations import (
+    operation_handlers as default_operation_handlers,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -48,6 +55,7 @@ CONTROLLER_NAME_KEY = "name"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_RULE_KEY = "rule"
 CONTROLLER_OPERATIONS_KEY = "operations"
+
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -68,46 +76,63 @@ class TrainerControllerCallback(TrainerCallback):
                 with open(trainer_controller_config, "r", encoding="utf-8") as f:
                     self.trainer_controller_config = yaml.safe_load(f)
             else:
-                raise FileNotFoundError(f"Trainer controller configuration \
-                                        [{trainer_controller_config}] does NOT exist")
+                raise FileNotFoundError(
+                    f"Trainer controller configuration \
+                                        [{trainer_controller_config}] does NOT exist"
+                )
         else:
             self.trainer_controller_config = trainer_controller_config
 
         # Initialize the list of metrics from default `metrics.yaml` in the \
         # controllermetric package. In addition, any metrics mentioned in \
         # the trainer controller config are added to this list.
-        default_metrics_config_yaml = impresources.files(controllermetrics) / 'metrics.yaml'
+        default_metrics_config_yaml = (
+            impresources.files(controllermetrics) / "metrics.yaml"
+        )
         with default_metrics_config_yaml.open("r") as f:
             default_metrics_config = yaml.safe_load(f)
-        if default_metrics_config is not None and \
-            CONTROLLER_METRICS_KEY in default_metrics_config and \
-            len(default_metrics_config[CONTROLLER_METRICS_KEY]) > 0:
+        if (
+            default_metrics_config is not None
+            and CONTROLLER_METRICS_KEY in default_metrics_config
+            and len(default_metrics_config[CONTROLLER_METRICS_KEY]) > 0
+        ):
             for metric_name in default_metrics_config[CONTROLLER_METRICS_KEY].keys():
-                if metric_name not in self.trainer_controller_config[CONTROLLER_METRICS_KEY]:
-                    self.trainer_controller_config[CONTROLLER_METRICS_KEY][metric_name] = \
-                        default_metrics_config[CONTROLLER_METRICS_KEY][metric_name]
+                if (
+                    metric_name
+                    not in self.trainer_controller_config[CONTROLLER_METRICS_KEY]
+                ):
+                    self.trainer_controller_config[CONTROLLER_METRICS_KEY][
+                        metric_name
+                    ] = default_metrics_config[CONTROLLER_METRICS_KEY][metric_name]
 
         # Initialize the list of operations from default `operations.yaml` \
         # in the operations package. In addition, any operations mentioned \
         # in the trainer controller config are added to this list.
-        default_operations_config_yaml = impresources.files(operations) / 'operations.yaml'
+        default_operations_config_yaml = (
+            impresources.files(operations) / "operations.yaml"
+        )
         with default_operations_config_yaml.open("r") as f:
             default_operations_config = yaml.safe_load(f)
-        if default_operations_config is not None and \
-            OPERATIONS_KEY in default_operations_config and \
-            len(default_operations_config[OPERATIONS_KEY]) > 0:
+        if (
+            default_operations_config is not None
+            and OPERATIONS_KEY in default_operations_config
+            and len(default_operations_config[OPERATIONS_KEY]) > 0
+        ):
             for operation_name in default_operations_config[OPERATIONS_KEY].keys():
                 if OPERATIONS_KEY not in self.trainer_controller_config:
                     self.trainer_controller_config[OPERATIONS_KEY] = {}
                 if operation_name not in self.trainer_controller_config[OPERATIONS_KEY]:
-                    self.trainer_controller_config[OPERATIONS_KEY][operation_name] = \
-                        default_operations_config[OPERATIONS_KEY][operation_name]
+                    self.trainer_controller_config[OPERATIONS_KEY][
+                        operation_name
+                    ] = default_operations_config[OPERATIONS_KEY][operation_name]
 
         # Load list of valid events for the trainercontroller callback
         # These events are assumed to start with "on_" prefix (on_epoch_end(), on_step_end() etc)
         self.valid_events = set()
-        for callback_method_name, _ in inspect.getmembers(self, predicate=inspect.ismethod):
-            if re.search(r'^on_', callback_method_name) is not None:
+        for callback_method_name, _ in inspect.getmembers(
+            self, predicate=inspect.ismethod
+        ):
+            if re.search(r"^on_", callback_method_name) is not None:
                 self.valid_events.add(callback_method_name)
         logger.debug("List of valid events %s", repr(self.valid_events))
 
@@ -134,7 +159,7 @@ class TrainerControllerCallback(TrainerCallback):
             handlers: List[MetricHandler]. List of handlers.
         """
         for handler in handlers:
-            self.metric_handlers[handler.__name__]=handler
+            self.metric_handlers[handler.__name__] = handler
 
     def register_operation_handlers(self, operation_handlers: List[Operation]):
         """Registers the operation handlers
@@ -143,7 +168,7 @@ class TrainerControllerCallback(TrainerCallback):
             operation_handlers: List[Operation]. List of operation handlers.
         """
         for operation_handler in operation_handlers:
-            self.operation_handlers[operation_handler.__name__]=operation_handler
+            self.operation_handlers[operation_handler.__name__] = operation_handler
 
     def _compute_metrics(self, event_name: str, **kwargs):
         """Invokes the compute() for all the metrics registered for a given event.
@@ -153,8 +178,7 @@ class TrainerControllerCallback(TrainerCallback):
         """
         if event_name in self.metrics_on_event:
             for m in self.metrics_on_event[event_name]:
-                self.metrics[m.get_name()] = \
-                    m.compute(event_name=event_name, **kwargs)
+                self.metrics[m.get_name()] = m.compute(event_name=event_name, **kwargs)
 
     def _take_control_actions(self, event_name: str, **kwargs):
         """Invokes the act() method for all the operations registered for a given event. \
@@ -171,22 +195,31 @@ class TrainerControllerCallback(TrainerCallback):
                 rule_succeeded = False
                 try:
                     # pylint: disable=eval-used
-                    rule_succeeded = \
-                        eval(control_action.rule, {'__builtins__': None}, self.metrics)
+                    rule_succeeded = eval(
+                        control_action.rule, {"__builtins__": None}, self.metrics
+                    )
                 except TypeError as et:
                     raise TypeError("Rule failed due to incorrect type usage") from et
                 except ValueError as ev:
-                    raise ValueError("Rule failed due to use of disallowed packages") from ev
+                    raise ValueError(
+                        "Rule failed due to use of disallowed packages"
+                    ) from ev
                 except NameError as en:
-                    raise NameError("Rule failed due to use of disallowed variables") from en
+                    raise NameError(
+                        "Rule failed due to use of disallowed variables"
+                    ) from en
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
-                        logger.info("Taking %s action in %s",
+                        logger.info(
+                            "Taking %s action in %s",
                             operation_action.action,
-                            control_action.name)
-                        operation_action.instance.act(action=operation_action.action,
-                                                      event_name=event_name,
-                                                      **kwargs)
+                            control_action.name,
+                        )
+                        operation_action.instance.act(
+                            action=operation_action.action,
+                            event_name=event_name,
+                            **kwargs,
+                        )
 
     def _actions_on_event(self, event_name: str, **kwargs):
         """Invokes all functions associated with an event.
@@ -199,18 +232,20 @@ class TrainerControllerCallback(TrainerCallback):
         self._take_control_actions(event_name, **kwargs)
 
     def _validate_rule(self, rule):
-        """Validates the rule to check if there are any import attempts 
+        """Validates the rule to check if there are any import attempts
 
         Returns:
             bool
         """
-        return re.search(r'__', rule) is None
+        return re.search(r"__", rule) is None
 
-    def on_init_end(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl,
-                    **kwargs):
+    def on_init_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         """This event gets the training arguments which is finally used by the trainer loop. \
             All metric and operation validation is performed here using these arguments. \
             Following this, validated metrics and operations instances are registered for use.
@@ -232,8 +267,9 @@ class TrainerControllerCallback(TrainerCallback):
             logger.warning("Trainer controller config has no metrics.")
 
         # Metric handler validation and registration is performed here.
-        for metric_name, metric_config in \
-            self.trainer_controller_config[CONTROLLER_METRICS_KEY].items():
+        for metric_name, metric_config in self.trainer_controller_config[
+            CONTROLLER_METRICS_KEY
+        ].items():
             # Get the metric class name from the config section.
             metric_handler_name = next(iter(metric_config.keys()))
             # Get the handler class using the metric class name.
@@ -250,19 +286,20 @@ class TrainerControllerCallback(TrainerCallback):
             for event_name in obj.get_events():
                 if event_name in self.valid_events:
                     if event_name not in self.metrics_on_event:
-                        self.metrics_on_event[event_name]=[]
+                        self.metrics_on_event[event_name] = []
                     self.metrics_on_event[event_name].append(obj)
                 else:
-                    raise \
-                        KeyError("Event name (%s) is not valid in metric %s" % \
-                                   (event_name,
-                                    metric_name))
+                    raise KeyError(
+                        "Event name (%s) is not valid in metric %s"
+                        % (event_name, metric_name)
+                    )
 
         # Check if there any operations listed in the configuration
         if OPERATIONS_KEY in self.trainer_controller_config:
             # Operation handler validation and registration is performed here.
-            for operation_name, operation_config in \
-                self.trainer_controller_config[OPERATIONS_KEY].items():
+            for operation_name, operation_config in self.trainer_controller_config[
+                OPERATIONS_KEY
+            ].items():
                 # Get the operation class name from the config section.
                 operation_handler_name = next(iter(operation_config.keys()))
                 # Get the handler class arguments using the operation class name.
@@ -270,39 +307,43 @@ class TrainerControllerCallback(TrainerCallback):
                 if operation_args is None:
                     operation_args = {}
                 # Operation handler instance is created here.
-                operation = \
-                    self.operation_handlers[operation_handler_name](**operation_args, **kwargs)
+                operation = self.operation_handlers[operation_handler_name](
+                    **operation_args, **kwargs
+                )
                 # Add operation action instances.
                 for action_name in operation.get_actions():
-                    self.operation_actions[operation_name+"."+action_name] = \
-                        OperationAction(instance=operation,
-                                        action=action_name)
+                    self.operation_actions[
+                        operation_name + "." + action_name
+                    ] = OperationAction(instance=operation, action=action_name)
 
         # Initialize controllers with respect to events.
         if CONTROLLERS_KEY in self.trainer_controller_config:
             for controller in self.trainer_controller_config[CONTROLLERS_KEY]:
                 for event_name in controller[CONTROLLER_TRIGGERS_KEY]:
                     if event_name not in self.valid_events:
-                        raise \
-                        KeyError("Controller %s has an invalid event (%s)" % (
-                            controller[CONTROLLER_NAME_KEY],
-                            event_name))
+                        raise KeyError(
+                            "Controller %s has an invalid event (%s)"
+                            % (controller[CONTROLLER_NAME_KEY], event_name)
+                        )
                     # Generates the byte-code for the rule from trainer configuration
                     if not self._validate_rule(controller[CONTROLLER_RULE_KEY]):
-                        raise ValueError("Rule for control %s is invalid" % (
-                            controller[CONTROLLER_NAME_KEY])
+                        raise ValueError(
+                            "Rule for control %s is invalid"
+                            % (controller[CONTROLLER_NAME_KEY])
                         )
-                    control = Control(name=controller[CONTROLLER_NAME_KEY],
-                                      rule = compile(controller[CONTROLLER_RULE_KEY],
-                                                     '',
-                                                     'eval'),
-                                                     operation_actions = [])
+                    control = Control(
+                        name=controller[CONTROLLER_NAME_KEY],
+                        rule=compile(controller[CONTROLLER_RULE_KEY], "", "eval"),
+                        operation_actions=[],
+                    )
                     for control_operation_name in controller[CONTROLLER_OPERATIONS_KEY]:
                         if control_operation_name not in self.operation_actions:
-                            raise \
-                            KeyError("Invalid operation %s for control %s" % (
-                                control_operation_name,
-                                controller[CONTROLLER_NAME_KEY])
+                            raise KeyError(
+                                "Invalid operation %s for control %s"
+                                % (
+                                    control_operation_name,
+                                    controller[CONTROLLER_NAME_KEY],
+                                )
                             )
                         control.operation_actions.append(
                             self.operation_actions[control_operation_name]
@@ -310,113 +351,132 @@ class TrainerControllerCallback(TrainerCallback):
                     if event_name not in self.control_actions_on_event:
                         self.control_actions_on_event[event_name] = []
                     self.control_actions_on_event[event_name].append(control)
-        self._actions_on_event(event_name='on_init_end', **kwargs)
+        self._actions_on_event(event_name="on_init_end", **kwargs)
 
-    def on_step_end(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl, **kwargs):
+    def on_step_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_step_end', **kwargs)
+        self._actions_on_event(event_name="on_step_end", **kwargs)
 
-    def on_epoch_begin(self,
-                       args: TrainingArguments,
-                       state: TrainerState,
-                       control: TrainerControl,
-                       **kwargs):
+    def on_epoch_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_epoch_begin', **kwargs)
+        self._actions_on_event(event_name="on_epoch_begin", **kwargs)
 
-    def on_epoch_end(self,
-                     args: TrainingArguments,
-                     state: TrainerState,
-                     control: TrainerControl,
-                     **kwargs):
+    def on_epoch_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_epoch_end', **kwargs)
+        self._actions_on_event(event_name="on_epoch_end", **kwargs)
 
-    def on_prediction_step(self,
-                           args: TrainingArguments,
-                           state: TrainerState,
-                           control: TrainerControl,
-                           **kwargs):
+    def on_prediction_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_prediction_step', **kwargs)
+        self._actions_on_event(event_name="on_prediction_step", **kwargs)
 
-    def on_predict(self,
-                   args: TrainingArguments,
-                   state: TrainerState,
-                   control: TrainerControl,
-                   metrics,
-                   **kwargs):
+    def on_predict(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        metrics,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
         kwargs["metrics"] = metrics
-        self._actions_on_event(event_name='on_predict', **kwargs)
+        self._actions_on_event(event_name="on_predict", **kwargs)
 
-    def on_log(self,
-               args: TrainingArguments,
-               state: TrainerState,
-               control: TrainerControl,
-               **kwargs):
+    def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_log', **kwargs)
+        self._actions_on_event(event_name="on_log", **kwargs)
 
-    def on_train_end(self,
-                     args: TrainingArguments,
-                     state: TrainerState,
-                     control: TrainerControl,
-                     **kwargs):
+    def on_train_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_train_end', **kwargs)
+        self._actions_on_event(event_name="on_train_end", **kwargs)
 
-    def on_train_begin(self,
-                       args: TrainingArguments,
-                       state: TrainerState,
-                       control: TrainerControl,
-                       **kwargs):
+    def on_train_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_train_begin', **kwargs)
+        self._actions_on_event(event_name="on_train_begin", **kwargs)
 
-    def on_evaluate(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl,
-                    **kwargs):
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
         # Training arguments, state and controls are folded into kwargs to be passed off to
         # handlers
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-        self._actions_on_event(event_name='on_evaluate', **kwargs)
+        self._actions_on_event(event_name="on_evaluate", **kwargs)

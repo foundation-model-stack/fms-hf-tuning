@@ -19,12 +19,13 @@
 from dataclasses import dataclass
 from typing import Any
 
+# Third Party
+from transformers import TrainerControl, TrainerState
+import pytest
+
 # Local
 from tuning.trainercontroller.operations import Operation
 
-# Third Party
-import pytest
-from transformers import TrainerState, TrainerControl
 
 class CustomOperation(Operation):
     """Implements a custom operation for testing"""

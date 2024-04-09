@@ -16,16 +16,19 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-import abc
 from typing import Any, List
+import abc
 
 # Third Party
 from transformers import TrainingArguments
 
+
 class MetricHandlerException(Exception):
     """Initializes the metric handler exception class"""
+
     def __init__(self, name):
         super().__init__(f"Metric handler {name} failed validation.")
+
 
 class MetricHandler(metaclass=abc.ABCMeta):
     """Base class for the controller-metrics"""
@@ -64,7 +67,7 @@ class MetricHandler(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def validate(self) -> bool:
-        """Validate the training arguments (e.g logging_steps) are compatible with 
+        """Validate the training arguments (e.g logging_steps) are compatible with
            the computation of this metric, and log the errors, and return False when
            the metric is incompatible with the configuration
 

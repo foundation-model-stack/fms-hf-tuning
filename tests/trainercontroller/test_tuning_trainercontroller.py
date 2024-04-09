@@ -19,24 +19,31 @@
 from dataclasses import dataclass
 from typing import Any
 
-# Local
-import tuning.trainercontroller as tc
-import tuning.config.configs as config
-import tests.data.trainercontroller as td
+# Third Party
+from transformers import IntervalStrategy, TrainerControl, TrainerState
+import pytest
+
+# First Party
 from tests.trainercontroller.custom_metric import CustomMetric
 from tests.trainercontroller.custom_operation import CustomOperation
-from tests.trainercontroller.custom_operation_invalid_action import CustomOperationInvalidAction
-from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
+from tests.trainercontroller.custom_operation_invalid_action import (
+    CustomOperationInvalidAction,
+)
+import tests.data.trainercontroller as td
 
-# Third Party
-import pytest
-from transformers import TrainerControl, TrainerState, IntervalStrategy
+# Local
+from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
+import tuning.config.configs as config
+import tuning.trainercontroller as tc
+
 
 @dataclass
 class InputData:
     """Stores the operation handler instance and corresponding action"""
+
     args: config.TrainingArguments
     state: TrainerState
+
 
 def _setup_data() -> InputData:
     """
@@ -46,106 +53,138 @@ def _setup_data() -> InputData:
     Returns:
         InputData.
     """
-    # Test data to mimic the fields of trainer loop log-lines 
+    # Test data to mimic the fields of trainer loop log-lines
     # trainer arguments and the initial state
-    return InputData(args=config.TrainingArguments(
-                        output_dir='',
-                        logging_strategy=IntervalStrategy.STEPS,
-                        logging_steps=1,
-                        ),
-                    state=TrainerState(log_history = [{'loss': 2.0, 'epoch': 0.1}, \
-                                                        {'loss': 2.1, 'epoch': 0.25}, \
-                                                        {'loss': 1.3, 'epoch': 0.5}, \
-                                                        {'loss': 0.9, 'epoch': 0.6}]))
+    return InputData(
+        args=config.TrainingArguments(
+            output_dir="",
+            logging_strategy=IntervalStrategy.STEPS,
+            logging_steps=1,
+        ),
+        state=TrainerState(
+            log_history=[
+                {"loss": 2.0, "epoch": 0.1},
+                {"loss": 2.1, "epoch": 0.25},
+                {"loss": 1.3, "epoch": 0.5},
+                {"loss": 0.9, "epoch": 0.6},
+            ]
+        ),
+    )
+
 
 def test_loss_on_threshold():
-    """Tests the loss threshold example in 
+    """Tests the loss threshold example in
     `examples/trainer-controller-configs/loss_on_threshold.yaml`
     """
     test_data = _setup_data()
-    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML)
-    control = TrainerControl(should_training_stop = False)
-    # Trigger on_init_end to perform registration of handlers to events 
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert control.should_training_stop == True
+
 
 def test_custom_metric_handler():
     """Tests the custom metric registration
     `examples/trainer-controller-configs/loss_custom_metric.yaml`
     """
     test_data = _setup_data()
-    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML)
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML
+    )
     tc_callback.register_metric_handlers([CustomMetric])
     control = TrainerControl()
-    # Trigger on_init_end to perform registration of handlers to events 
+    # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert control.should_training_stop == True
+
 
 def test_custom_operation_handler():
     """Tests the custom operation registration
     `examples/trainer-controller-configs/loss_custom_operation.yaml`
     """
     test_data = _setup_data()
-    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML)
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML
+    )
     tc_callback.register_operation_handlers([CustomOperation])
-    control = TrainerControl(should_training_stop = False)
-    # Trigger on_init_end to perform registration of handlers to events 
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert control.should_training_stop == True
 
+
 def test_custom_operation_invalid_action_handler():
-    """Tests the registration of custom operation with an invalid action. Uses: 
+    """Tests the registration of custom operation with an invalid action. Uses:
     `examples/trainer-controller-configs/loss_custom_operation_invalid_action.yaml`
     """
     test_data = _setup_data()
     with pytest.raises(KeyError) as exception_handler:
-        tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML
+        )
         tc_callback.register_operation_handlers([CustomOperationInvalidAction])
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value).strip("'") == \
-"Invalid operation customoperation.should_ for control loss-controller-custom-operation-invalid-action"
-    
+    assert (
+        str(exception_handler.value).strip("'")
+        == "Invalid operation customoperation.should_ for control loss-controller-custom-operation-invalid-action"
+    )
+
 
 def test_malicious_os_rule():
-    """Tests the malicious rule using configuration 
+    """Tests the malicious rule using configuration
     `examples/trainer-controller-configs/loss_with_malicious_os_rule.yaml`
     """
     test_data = _setup_data()
     with pytest.raises(ValueError) as exception_handler:
-        tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML)
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value) == \
-        "Rule for control loss-controller-wrong-os-rule is invalid"
+    assert (
+        str(exception_handler.value)
+        == "Rule for control loss-controller-wrong-os-rule is invalid"
+    )
+
 
 def test_malicious_input_rule():
-    """Tests the malicious rule using configuration 
+    """Tests the malicious rule using configuration
     `examples/trainer-controller-configs/loss_with_malicious_input_rule.yaml`
     """
     test_data = _setup_data()
-    tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_MALICIOUS_INPUT_RULE_YAML)
-    control = TrainerControl(should_training_stop = False)
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_MALICIOUS_INPUT_RULE_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
     with pytest.raises(TypeError) as exception_handler:
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert str(exception_handler.value) == "Rule failed due to incorrect type usage"
+
 
 def test_invalid_trigger():
     """Tests the invalid trigger scenario in the controller. Uses:
@@ -153,15 +192,21 @@ def test_invalid_trigger():
     """
     test_data = _setup_data()
     with pytest.raises(KeyError) as exception_handler:
-        tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_INVALID_TRIGGER_YAML)
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_INVALID_TRIGGER_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value).strip("'") == \
-"Controller loss-controller-invalid-trigger has an invalid event (log_it_all_incorrect_trigger_name)"
+    assert (
+        str(exception_handler.value).strip("'")
+        == "Controller loss-controller-invalid-trigger has an invalid event (log_it_all_incorrect_trigger_name)"
+    )
+
 
 def test_invalid_operation():
     """Tests the invalid operation scenario in the controller. Uses:
@@ -169,15 +214,21 @@ def test_invalid_operation():
     """
     test_data = _setup_data()
     with pytest.raises(KeyError) as exception_handler:
-        tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_INVALID_OPERATION_YAML)
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_INVALID_OPERATION_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value).strip("'") == \
-"Invalid operation missingop.should_training_stop for control loss-controller-invalid-operation"
+    assert (
+        str(exception_handler.value).strip("'")
+        == "Invalid operation missingop.should_training_stop for control loss-controller-invalid-operation"
+    )
+
 
 def test_invalid_operation_action():
     """Tests the invalid operation action scenario in the controller. Uses:
@@ -185,15 +236,21 @@ def test_invalid_operation_action():
     """
     test_data = _setup_data()
     with pytest.raises(KeyError) as exception_handler:
-        tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML)
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value).strip("'") == \
-"Invalid operation hfcontrols.missingaction for control loss-controller-invalid-operation-action"
+    assert (
+        str(exception_handler.value).strip("'")
+        == "Invalid operation hfcontrols.missingaction for control loss-controller-invalid-operation-action"
+    )
+
 
 def test_invalid_metric():
     """Tests the invalid metric scenario in the controller. Uses:
@@ -201,14 +258,17 @@ def test_invalid_metric():
     """
     test_data = _setup_data()
     with pytest.raises(KeyError) as exception_handler:
-        tc_callback = \
-            tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_INVALID_METRIC_YAML)
-        control = TrainerControl(should_training_stop = False)
-        # Trigger on_init_end to perform registration of handlers to events 
-        tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_INVALID_METRIC_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value).strip("'") == "Undefined metric handler MissingMetricClass"
-
-
-
+    assert (
+        str(exception_handler.value).strip("'")
+        == "Undefined metric handler MissingMetricClass"
+    )

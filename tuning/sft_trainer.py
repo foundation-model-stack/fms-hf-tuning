@@ -39,10 +39,10 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 from tuning.data import tokenizer_data_utils
+from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.import_utils import is_aim_available
-from tuning.trainercontroller import TrainerControllerCallback
 
 if is_aim_available():
     # Local
@@ -225,10 +225,12 @@ def train(
     if is_aim_available():
         callbacks.append(get_aimstack_callback())
 
-    if (trainer_controller_args is not None) and \
-        (trainer_controller_args.trainer_controller_config_file is not None):
-        tc_callback = \
-        TrainerControllerCallback(trainer_controller_args.trainer_controller_config_file)
+    if (trainer_controller_args is not None) and (
+        trainer_controller_args.trainer_controller_config_file is not None
+    ):
+        tc_callback = TrainerControllerCallback(
+            trainer_controller_args.trainer_controller_config_file
+        )
         callbacks.append(tc_callback)
 
     if train_args.packing:

@@ -19,23 +19,24 @@
 from dataclasses import dataclass
 from typing import Any
 
+# Third Party
+from transformers import TrainerState
+import pytest
+
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
-# Third Party
-import pytest
-from transformers import TrainerState
 
 class CustomMetric(MetricHandler):
     """Implements a custom metric for testing"""
-    
+
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event list and arguments with base handler.
 
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        super().__init__(events=['on_log'], **kwargs)
+        super().__init__(events=["on_log"], **kwargs)
 
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric.
@@ -56,4 +57,3 @@ class CustomMetric(MetricHandler):
             Any. The exposed variables are returned here.
         """
         return True
-

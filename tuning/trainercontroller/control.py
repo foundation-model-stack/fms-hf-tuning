@@ -22,15 +22,19 @@ from typing import List, Optional
 # Local
 from tuning.trainercontroller.operations import Operation
 
+
 @dataclass
 class OperationAction:
     """Stores the operation handler instance and corresponding action"""
+
     instance: Operation
     action: str
+
 
 @dataclass
 class Control:
     """Stores the name of control, rule byte-code corresponding actions"""
+
     name: str
-    rule: Optional[object] = None # stores bytecode of the compiled rule
+    rule: Optional[object] = None  # stores bytecode of the compiled rule
     operation_actions: Optional[List[OperationAction]] = None

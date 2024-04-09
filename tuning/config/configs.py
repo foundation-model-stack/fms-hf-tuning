@@ -91,8 +91,9 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
 
+
 @dataclass
-class TrainerControllerArguments():
+class TrainerControllerArguments:
     trainer_controller_config_file: str = field(
         default=None,
         metadata={
