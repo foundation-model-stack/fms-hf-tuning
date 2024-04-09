@@ -48,6 +48,8 @@ if is_aim_available():
     # Local
     from tuning.aim_loader import get_aimstack_callback
 
+TRAINING_LOGS_FILENAME = "training_logs.jsonl"
+
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -64,7 +66,7 @@ class FileLoggingCallback(TrainerCallback):
         if not state.is_world_process_zero:
             return
 
-        log_file_path = os.path.join(args.output_dir, "training_logs.jsonl")
+        log_file_path = os.path.join(args.output_dir, TRAINING_LOGS_FILENAME)
         if logs is not None and "loss" in logs and "epoch" in logs:
             self._track_loss("loss", "training_loss", log_file_path, logs, state)
         elif logs is not None and "eval_loss" in logs and "epoch" in logs:
