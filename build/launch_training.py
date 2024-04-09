@@ -21,7 +21,6 @@ for the encoded config string to parse.
 import os
 import tempfile
 import shutil
-import glob
 
 # First Party
 import logging
