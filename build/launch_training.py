@@ -106,11 +106,12 @@ def main():
                 dirs_exist_ok=True,
             )
 
-        # copy over logs
-        shutil.copy(
-            os.path.join(training_args.output_dir, sft_trainer.TRAINING_LOGS_FILENAME),
-            original_output_dir,
+        # copy over any loss logs
+        train_logs_filepath = os.path.join(
+            training_args.output_dir, sft_trainer.TRAINING_LOGS_FILENAME
         )
+        if os.path.exists(train_logs_filepath):
+            shutil.copy(train_logs_filepath, original_output_dir)
 
 
 if __name__ == "__main__":
