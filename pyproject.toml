@@ -33,6 +33,10 @@ aim = ["aim==3.18.1"]
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*"]
+namespaces = false
+
 [tool.setuptools_scm]
 version_file = "tuning/_version.py"
 
