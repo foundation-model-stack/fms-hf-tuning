@@ -32,7 +32,7 @@ dtype_dict = {
 
 
 def test_str_to_torch_dtype():
-    for t in dtype_dict.keys():
+    for t in dtype_dict:
         assert data_type_utils.str_to_torch_dtype(t) == dtype_dict.get(t)
 
 
@@ -42,7 +42,7 @@ def test_str_to_torch_dtype_exit():
 
 
 def test_get_torch_dtype():
-    for t in dtype_dict.keys():
+    for t in dtype_dict:
         # When passed a string, it gets converted to torch.dtype
         assert data_type_utils.get_torch_dtype(t) == dtype_dict.get(t)
         # When passed a torch.dtype, we get the same torch.dtype returned
