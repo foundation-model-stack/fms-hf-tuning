@@ -7,6 +7,7 @@ from shutil import rmtree
 import argparse
 import json
 import os
+from typing import Optional, Any
 
 # Third Party
 from run_inference import TunedCausalLM
@@ -81,16 +82,16 @@ PROMPT_DICT = {
 }
 
 
-def get_formatted_example(example: dict) -> dict:
+def get_formatted_example(example: dict[str, str]) -> dict[str, str]:
     """Given a single example, format it based on whether or not we have an input provided.
 
     Args:
-        example: dict
+        example: dict[str, str]
             Dictionary containing the keys for instruction / input / output, i.e., Alpaca formatted
             data.
 
     Returns:
-        dict
+        dict[str, str]
             Dictionary containing the following:
                 "input" - the formatted text to run the prediction on.
                 "output" - the target text we aim to generate.
@@ -117,8 +118,8 @@ def get_prediction_results(
     model: TunedCausalLM,
     data: datasets.arrow_dataset.Dataset,
     max_new_tokens: int,
-    delimiter: str,
-) -> tuple:
+    delimiter: Optional[str],
+) -> tuple[list]:
     """Runs the model over the alpaca formatted data to get the predictions / references to be used
     when computing the metrics of interest.
 
@@ -129,9 +130,11 @@ def get_prediction_results(
             HF dataset to be processed for evaluation.
         max_new_tokens: int
             Max number of tokens to be used for generation.
+        delimiter: Optional[str]
+            Delimiter to be used for splitting apart multioutput instances.
 
     Returns:
-        tuple
+        tuple[list]
             Tuple containing:
                 predictions [list of strings]
                 references [list of strings]
@@ -164,8 +167,18 @@ def get_prediction_results(
     return preds, refs, model_pred_info
 
 
-def postprocess_output(output_text, delimiter):
-    """NOTE: We are returning a list here, since that is what the one hot encoder module expects."""
+def postprocess_output(output_text: str, delimiter: Optional[str]) -> list[str]:
+    """NOTE: We are returning a list here, since that is what the one hot encoder module expects.
+    Args:
+        output_text: str
+            Raw text to be split into one or more (potentially) delimited instances.
+        delimiter: Optional[str]
+            Delimiter to be used for splitting apart multioutput instances.
+
+    Returns
+        list[str]
+            List of one or more labels.
+    """
     if delimiter is not None:
         return [text_substr.strip() for text_substr in output_text.split(delimiter)]
     return [output_text.strip()]
@@ -173,8 +186,23 @@ def postprocess_output(output_text, delimiter):
 
 ### Metric computation/display & utils for mapping labels to numerics for sklearn
 def map_predictions_and_references_to_encoded_vectors(
-    predictions_lists: list, references_lists: list
-):
+    predictions_lists: list[list[str]], references_lists: list[list[str]]
+) -> tuple[Any]:
+    """Maps the delimited text lists to lists of encoded vectors.
+
+    Args:
+        predictions_lists: list[list[str]]
+            Delimited text lists for model predictions to be encoded.
+        references_lists: list[list[str]]
+            Ground truth delimited text lists to be encoded.
+
+    Returns:
+        tuple[Any]
+            tuple containing:
+                pred_vectors [list of encoded 1D numpy arrays]
+                reference_vectors [list of encoded 1D numpy arrays]
+                label_map dict[str, str] - maps class indices to labels
+    """
     if not predictions_lists or not references_lists:
         raise ValueError("Predictions and/or references should not be empty!")
     ohe = preprocessing.OneHotEncoder()
@@ -205,7 +233,23 @@ def map_predictions_and_references_to_encoded_vectors(
     return pred_vectors, reference_vectors, label_map
 
 
-def get_encoded_vector(ohe, texts, unk_label) -> int:
+def get_encoded_vector(ohe: preprocessing.OneHotEncoder, texts: list[str], unk_label: str) -> np.typing.NDArray:
+    """Get the encoded vector representing one or more generated texts by one hot encoding each
+    individual text and collapsing the result.
+
+    Args:
+        ohe: preprocessing.OneHotEncoder
+            Sklearn one hot encoder to be used for one hot encoding all texts
+            (including the garbage class if we have one).
+        texts: list[str]
+            List of texts to be encoded and collapsed into one vector.
+        unk_label: str
+            Label to be used for garbage generations.
+
+    Returns:
+        np.typing.NDArray
+            Binary vector encoding the list of texts as labels.
+    """
     # Since our encoded vector is built on collapsing one hot encoded vectors,
     # we need to explicitly handle the empty case since it is not one hot encodable.
     # raise ValueError(np.zeros(len(ohe.categories_[0])).dtype )
@@ -217,6 +261,7 @@ def get_encoded_vector(ohe, texts, unk_label) -> int:
     cleaned_texts = list(
         {text if text in ohe.categories_[0] else unk_label for text in texts}
     )
+
     # Encode the cleaned text as a 2D feature array of one hot encoded vectors
     vec_stack = ohe.transform([[text] for text in cleaned_texts]).toarray()
 
@@ -225,8 +270,23 @@ def get_encoded_vector(ohe, texts, unk_label) -> int:
     return vec_stack.sum(axis=0)
 
 
-def extract_unique_labels(preds, refs, unk_label):
-    """Grab all of the unique labels and return them as a list of single feature lists."""
+def extract_unique_labels(preds: list[list[str]], refs: list[list[str]], unk_label: str) -> list[list[str]]:
+    """Grab all of the unique labels and return them as a list of single feature lists.
+    Args:
+        preds: list[list[str]]
+            List of lists, where each sublist contains the stripped delimited substrings of a
+            single model prediction.
+        refs: list[list[str]]
+            List of lists, where each sublist contains the stripped delimited substrings of a
+            single ground truth reference.
+        unk_label: str
+            Label to be used for Unknown - this class is only created in evaluation if the
+            generative model predicts something that is not present in the ground truth refs.
+
+    Returns:
+        list[list[str]]
+            List of single value lists, each of which contains a single label.
+    """
     unique_ref_labels = set()
     for ref in refs:
         for sub_label in ref:
@@ -252,16 +312,30 @@ def extract_unique_labels(preds, refs, unk_label):
     return ref_label_list
 
 
-def compute_metrics_dict_multi(enc_preds, enc_refs):
+def compute_metrics_dict_multi(enc_preds: list[np.typing.NDArray], enc_refs: list[np.typing.NDArray]) -> dict[str, Any]:
+    """Calculate the metrics based on the encoded prediction and reference vector lists.
+    Current metrics: precision, recall f1, accuracy
+
+    Args:
+        enc_preds: list[np.typing.NDArray]
+            List of encoded binary vectors for predictions from the model.
+        enc_refs: list[np.typing.NDArray]
+            List of encoded binary vectors for ground truth references.
+
+    Returns:
+        dict[str, Any]
+            Dictionary of metrics.
+    """
     micro_f1 = f1_score(enc_refs, enc_preds, average="micro")
     macro_f1 = f1_score(enc_refs, enc_preds, average="macro")
-    micro_recall = recall_score(enc_refs, enc_preds, average="micro")
-    macro_recall = recall_score(enc_refs, enc_preds, average="macro")
-    micro_prec = precision_score(enc_refs, enc_preds, average="micro")
-    macro_prec = precision_score(enc_refs, enc_preds, average="macro")
+    # For recall - the UNK class containing only false positives does NOT affect score.
+    micro_recall = recall_score(enc_refs, enc_preds, average="micro", zero_division=np.nan)
+    macro_recall = recall_score(enc_refs, enc_preds, average="macro", zero_division=np.nan)
+    micro_prec = precision_score(enc_refs, enc_preds, average="micro", zero_division=np.nan)
+    macro_prec = precision_score(enc_refs, enc_preds, average="macro", zero_division=np.nan)
     # NOTE: For the multiclass / multilabel scenario, sklearn accuracy does NOT assign partial
     # credit, i.e., instances are only considered correct if they match the ground truth
-    # one hot encoded vectors exactly.
+    # encoded vectors exactly.
     accuracy = accuracy_score(enc_refs, enc_preds)
     return {
         "f1": {
@@ -281,22 +355,22 @@ def compute_metrics_dict_multi(enc_preds, enc_refs):
 
 
 def export_experiment_info(
-    metrics: dict,
-    label_map: dict,
-    model_pred_info: dict,
-    metadata: dict,
+    metrics: dict[str, Any],
+    label_map: dict[str, str],
+    model_pred_info: list[dict[str, Any]],
+    metadata: dict[str, Any],
     output_dir: str,
 ):
     """Creates an exports all experiments info / metadata.
 
     Args:
-        metrics: dict
+        metrics: dict[str, Any],
             Dictionary containing metrics of interest (i.e., F1 / accuracy).
-        label_map: dict
+        label_map: dict[str, str]
             Mapping of class integers / labels.
-        model_pred_info: dict
-            List of dicts containing formatted data to be processed.
-        metadata: dict
+        model_pred_info: list[dict[str, Any]]
+            List of serializable dicts containing formatted data to be processed.
+        metadata: dict[str, Any]
             Other experiment metadata of interest, e.g., model name, max new tokens, etc.
         output_dir: str
             Directory name to be created to hold the experiment files.
@@ -350,3 +424,4 @@ if __name__ == "__main__":
         experiment_metadata,
         args.output_dir,
     )
+    print(f"Exported results to: {args.output_dir}")
