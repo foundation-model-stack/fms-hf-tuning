@@ -62,7 +62,7 @@ def format_and_export_entities_file(file_path, export_path):
         # TODO: check this for TSA, but seems like it is the same as entities
         if not mentions:
             return "None"
-        mention_strs = [f"{mention['text']}: {mention['type']}" for mention in mentions]
+        mention_strs = [f"{mention['text']}: {mention['type']}".replace(",", "\\,") for mention in mentions]
         return ", ".join(mention_strs)
 
     with open(file_path, "r") as entities_file:
