@@ -4,15 +4,15 @@ Metrics used: Accuracy / Micro & Macro F1.
 """
 # Standard
 from shutil import rmtree
+from typing import Any, Optional
 import argparse
 import json
 import os
-from typing import Optional, Any
 
 # Third Party
 from run_inference import TunedCausalLM
 from sklearn import preprocessing
-from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from tqdm import tqdm
 import datasets
 import numpy as np
@@ -233,7 +233,9 @@ def map_predictions_and_references_to_encoded_vectors(
     return pred_vectors, reference_vectors, label_map
 
 
-def get_encoded_vector(ohe: preprocessing.OneHotEncoder, texts: list[str], unk_label: str) -> np.typing.NDArray:
+def get_encoded_vector(
+    ohe: preprocessing.OneHotEncoder, texts: list[str], unk_label: str
+) -> np.typing.NDArray:
     """Get the encoded vector representing one or more generated texts by one hot encoding each
     individual text and collapsing the result.
 
@@ -270,7 +272,9 @@ def get_encoded_vector(ohe: preprocessing.OneHotEncoder, texts: list[str], unk_l
     return vec_stack.sum(axis=0)
 
 
-def extract_unique_labels(preds: list[list[str]], refs: list[list[str]], unk_label: str) -> list[list[str]]:
+def extract_unique_labels(
+    preds: list[list[str]], refs: list[list[str]], unk_label: str
+) -> list[list[str]]:
     """Grab all of the unique labels and return them as a list of single feature lists.
     Args:
         preds: list[list[str]]
@@ -312,7 +316,9 @@ def extract_unique_labels(preds: list[list[str]], refs: list[list[str]], unk_lab
     return ref_label_list
 
 
-def compute_metrics_dict_multi(enc_preds: list[np.typing.NDArray], enc_refs: list[np.typing.NDArray]) -> dict[str, Any]:
+def compute_metrics_dict_multi(
+    enc_preds: list[np.typing.NDArray], enc_refs: list[np.typing.NDArray]
+) -> dict[str, Any]:
     """Calculate the metrics based on the encoded prediction and reference vector lists.
     Current metrics: precision, recall f1, accuracy
 
@@ -329,10 +335,18 @@ def compute_metrics_dict_multi(enc_preds: list[np.typing.NDArray], enc_refs: lis
     micro_f1 = f1_score(enc_refs, enc_preds, average="micro")
     macro_f1 = f1_score(enc_refs, enc_preds, average="macro")
     # For recall - the UNK class containing only false positives does NOT affect score.
-    micro_recall = recall_score(enc_refs, enc_preds, average="micro", zero_division=np.nan)
-    macro_recall = recall_score(enc_refs, enc_preds, average="macro", zero_division=np.nan)
-    micro_prec = precision_score(enc_refs, enc_preds, average="micro", zero_division=np.nan)
-    macro_prec = precision_score(enc_refs, enc_preds, average="macro", zero_division=np.nan)
+    micro_recall = recall_score(
+        enc_refs, enc_preds, average="micro", zero_division=np.nan
+    )
+    macro_recall = recall_score(
+        enc_refs, enc_preds, average="macro", zero_division=np.nan
+    )
+    micro_prec = precision_score(
+        enc_refs, enc_preds, average="micro", zero_division=np.nan
+    )
+    macro_prec = precision_score(
+        enc_refs, enc_preds, average="macro", zero_division=np.nan
+    )
     # NOTE: For the multiclass / multilabel scenario, sklearn accuracy does NOT assign partial
     # credit, i.e., instances are only considered correct if they match the ground truth
     # encoded vectors exactly.
