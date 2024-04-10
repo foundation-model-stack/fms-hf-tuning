@@ -10,3 +10,6 @@ peft>=0.8.0
 datasets>=2.15.0
 fire
 
+# Dependencies needed only to run scripts.
+# TODO: Figure out a better place to put these.
+scikit-learn>=1.0, <2.0

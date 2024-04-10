@@ -187,7 +187,9 @@ class TunedCausalLM:
         model.to(device)
         return cls(model, tokenizer, device)
 
-    def run(self, text: str, *, max_new_tokens: int) -> str:
+    def run(
+        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False
+    ) -> str:
         """Runs inference on an instance of this model.
 
         Args:
@@ -195,6 +197,9 @@ class TunedCausalLM:
                 Text on which we want to run inference.
             max_new_tokens: int
                 Max new tokens to use for inference.
+            ret_gen_text_only: bool
+                Indicates whether or not we should return the full text (i.e., input + new tokens)
+                or just the newly generated tokens.
 
         Returns:
             str
@@ -206,8 +211,12 @@ class TunedCausalLM:
         peft_outputs = self.peft_model.generate(
             input_ids=input_ids, max_new_tokens=max_new_tokens
         )
+        if ret_gen_text_only:
+            tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
+        else:
+            tok_to_decode = peft_outputs
         decoded_result = self.tokenizer.batch_decode(
-            peft_outputs, skip_special_tokens=False
+            tok_to_decode, skip_special_tokens=False
         )[0]
         return decoded_result
 
