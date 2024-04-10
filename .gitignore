@@ -13,6 +13,9 @@ test
 .vscode/
 .idea/
 
+# AIM files
+.aim
+
 # Env files
 .env
 
@@ -28,3 +31,8 @@ venv/
 
 # Aim
 .aim
+
+# Backup files and folders
+*.bkp
+*.bkp.*
+*bkp*
