@@ -332,8 +332,8 @@ def compute_metrics_dict_multi(
         dict[str, Any]
             Dictionary of metrics.
     """
-    micro_f1 = f1_score(enc_refs, enc_preds, average="micro")
-    macro_f1 = f1_score(enc_refs, enc_preds, average="macro")
+    micro_f1 = f1_score(enc_refs, enc_preds, average="micro", zero_division=np.nan)
+    macro_f1 = f1_score(enc_refs, enc_preds, average="macro", zero_division=np.nan)
     # For recall - the UNK class containing only false positives does NOT affect score.
     micro_recall = recall_score(
         enc_refs, enc_preds, average="micro", zero_division=np.nan
