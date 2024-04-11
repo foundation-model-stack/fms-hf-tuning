@@ -21,7 +21,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -32,9 +32,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r setup_requirements.txt
-      - name: Check Formatting
+          python -m pip install tox pre-commit
+      - name: Check formatting
         run: tox -e fmt
       - name: Run pylint
         run: tox -e lint
-
