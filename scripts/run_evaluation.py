@@ -47,6 +47,12 @@ def parse_and_validate_args():
         help="Delimiter to be used for multilabel multiclass evaluation",
         default=None,
     )
+    parser.add_argument(
+        "--num_samples",
+        help="Number of samples to be used in evaluation [selected after shuffling]",
+        default=None,
+        type=int,
+    )
     parser.add_argument("--purge_results", action=argparse.BooleanOptionalAction)
 
     parsed_args = parser.parse_args()
@@ -413,9 +419,16 @@ def export_experiment_info(
 if __name__ == "__main__":
     args = parse_and_validate_args()
     tuned_model = TunedCausalLM.load(args.model)
+    # Load and shuffle the data
     eval_data = datasets.load_dataset(
         "json", data_files=args.data_path, split=args.split
-    )
+    ).shuffle(seed=42)
+
+    # Subsample the shuffled data if needed
+    if args.num_samples:
+        print(f"Subsampling to [{args.num_samples}] samples")
+        eval_data = eval_data.select(range(args.num_samples))
+
     predictions, references, model_pred_file_info = get_prediction_results(
         tuned_model, eval_data, args.max_new_tokens, args.delimiter
     )
