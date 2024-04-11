@@ -3,9 +3,10 @@
 
 # Standard
 from shutil import rmtree
-from typing import Any
+from typing import Any, Optional
 import json
 import os
+import random
 
 # Third Party
 import boto3
@@ -19,7 +20,9 @@ if S3_ACCESS_KEY_ID is None or S3_SECRET_ACCESS_KEY is None or S3_ENDPOINT is No
     )
 
 ##### data formatters
-def format_and_export_cc_tone_file(file_path: str, export_path: str):
+def format_and_export_cc_tone_file(
+    file_path: str, export_path: str, num_samples: Optional[int]
+):
     """Formats the tone dataset by comma separated labels in the output.
 
     Args:
@@ -27,9 +30,19 @@ def format_and_export_cc_tone_file(file_path: str, export_path: str):
             Path to tone file to be formatted.
         export_path: str
             Path to export the formatted data to.
+        num_samples: Optional[int]
+            Number of samples to be included in the formatted file.
     """
     with open(file_path, "r") as tone_file:
         data = [json.loads(line) for line in tone_file.readlines() if line]
+
+    export_path = export_path.split(".")[0] + ".json"
+    if num_samples:
+        data = random.sample(data, num_samples)
+        # Update the file name to prepend num samples
+        base_path, export_name = os.path.split(export_path)
+        export_path = os.path.join(base_path, f"{num_samples}_{export_name}")
+
     formatted_data = [
         {
             "instruction": "",
@@ -38,11 +51,13 @@ def format_and_export_cc_tone_file(file_path: str, export_path: str):
         }
         for datum in data
     ]
-    with open(export_path.split(".")[0] + ".json", "w") as export_file:
+    with open(export_path, "w") as export_file:
         json.dump(formatted_data, export_file, sort_keys=True, indent=4)
 
 
-def format_and_export_entities_file(file_path, export_path):
+def format_and_export_entities_file(
+    file_path: str, export_path: str, num_samples: Optional[int]
+):
     """Formats the entites/TSA datasets by setting the output to literal "None"
     if no target is extracted, and a comma separated list in the format
                                 {text} : {type}
@@ -55,6 +70,8 @@ def format_and_export_entities_file(file_path, export_path):
             Path to tone file to be formatted.
         export_path: str
             Path to export the formatted data to.
+        num_samples: Optional[int]
+            Number of samples to be included in the formatted file.
     """
 
     def get_entites_output_text(datum):
@@ -62,11 +79,20 @@ def format_and_export_entities_file(file_path, export_path):
         # TODO: check this for TSA, but seems like it is the same as entities
         if not mentions:
             return "None"
-        mention_strs = [f"{mention['text']}: {mention['type']}".replace(",", "\\,") for mention in mentions]
+        mention_strs = [
+            f"{mention['text']}: {mention['type']}".replace(",", "\\,")
+            for mention in mentions
+        ]
         return ", ".join(mention_strs)
 
     with open(file_path, "r") as entities_file:
         data = json.load(entities_file)
+    if num_samples:
+        data = random.sample(data, num_samples)
+        # Update the file name to prepend num samples
+        base_path, export_name = os.path.split(export_path)
+        export_path = os.path.join(base_path, f"{num_samples}_{export_name}")
+
     formatted_data = [
         {
             "instruction": "",
@@ -86,18 +112,31 @@ EXPORT_DIR = "formatted_data"
 
 COS_LOCATION_KEY = "cos_location"
 FORMAT_FUNC_KEY = "format_func"
+SUBSAMPLE_KEY = "subsample_info"
 DATASET_INFOS = [
     {
         COS_LOCATION_KEY: "fm-validation-staging-models-and-datasets/datasets/unitxt/cc_tone",
         FORMAT_FUNC_KEY: format_and_export_cc_tone_file,
+        SUBSAMPLE_KEY: {
+            "train.jsonl": 1000,
+            "test.jsonl": 500,
+        },
     },
     {
         COS_LOCATION_KEY: "fm-validation-staging-models-and-datasets/datasets/unitxt/en/Extraction/Entities",
         FORMAT_FUNC_KEY: format_and_export_entities_file,
+        SUBSAMPLE_KEY: {
+            "IBM_NET_2019_DELIVERABLE_VERSION_C_train.json": 1000,
+            "IBM_NET_2019_DELIVERABLE_VERSION_C_test.json": 500,
+        },
     },
     {
         COS_LOCATION_KEY: "fm-validation-staging-models-and-datasets/datasets/unitxt/tsa_mams",
         FORMAT_FUNC_KEY: format_and_export_entities_file,
+        SUBSAMPLE_KEY: {
+            "train.json": 1000,
+            "test.json": 500,
+        },
     },
 ]
 
@@ -167,7 +206,19 @@ def apply_data_formatters(dataset_infos: list[dict[str, Any]]):
             export_path = os.path.join(
                 EXPORT_DIR, data_file[data_file.index(os.sep) + 1 :]
             )
-            dataset_info[FORMAT_FUNC_KEY](data_file, export_path)
+            dataset_info[SUBSAMPLE_KEY]
+            # This is silly :)
+            filename = os.path.split(data_file)[-1]
+            num_samples = (
+                dataset_info[SUBSAMPLE_KEY][filename]
+                if filename in dataset_info[SUBSAMPLE_KEY]
+                else None
+            )
+            if num_samples:
+                print(f"--> File: {data_file} will be subsampled to {num_samples}")
+                # make sure the split is deterministic
+                random.seed(42)
+            dataset_info[FORMAT_FUNC_KEY](data_file, export_path, num_samples)
 
 
 if __name__ == "__main__":
