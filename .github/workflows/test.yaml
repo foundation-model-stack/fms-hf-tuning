@@ -15,14 +15,13 @@ jobs:
             tox: "py39"
           - setup: "3.10"
             tox: "py310"
+          - setup: "3.11"
+            tox: "py311"
     steps:
       - uses: actions/checkout@v3
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install tox build
+          python -m pip install tox
       - name: Run unit tests
         run: tox -e py
-      # TODO: switch to tox
-      - name: Build wheel
-        run: python -m build .

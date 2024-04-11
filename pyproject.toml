@@ -2,11 +2,13 @@
 build-backend = "setuptools.build_meta"
 requires = [
     "setuptools>=60",
-    "setuptools-scm>=8.0"]
+    "setuptools-scm>=8.0",
+    "wheel"
+    ]
 
 [project]
 name = "fms-hf-tuning"
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
 description = "FMS HF Tuning"
 authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
@@ -49,6 +51,7 @@ namespaces = false
 
 [tool.setuptools_scm]
 version_file = "tuning/_version.py"
+
 
 [project.urls]
 Homepage = "https://github.com/foundation-model-stack/fms-hf-tuning"
