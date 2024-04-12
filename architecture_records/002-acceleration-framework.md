@@ -207,4 +207,73 @@ Describe the resulting context, after applying the decision. All consequences sh
 
 This section is optional. Elaborate on details if they’re important to understanding the design, but would make it hard to read the proposal section above.
 
-[IN PROGRESS]
+`acceleration.yaml`
+```
+quantization:
+  - requires_quantization: True
+  - quant_num_bits: 4
+  - quantize_cache: '/home/user/'
+  - quant_kernel: 'gptq-tritonv2'
+  - unsloth: False
+```
+
+```
+from functools import partial
+
+class Framework:
+    def __init__(self, acceleration_config_path:str) -> None:
+        self.acceleration_config = self.read_acceleration_config(acceleration_config_path)
+        self.num_bits = self.acceleration_config.quant_num_bits
+        self.requires_custom_loading = self.acceleration_config.requires_custom_loading
+        self.requires_quantization = self.acceleration_config.requires_quantization
+        self.quantize_cache = self.acceleration_config['quantize_cache']
+        self.kernel = self.acceleration_config['quant_kernel']
+
+    def read_acceleration_config(self, acceleration_config_path):
+        pass
+
+    def callbacks(self, *args, **kwargs):
+        pass
+    
+    def model_loader(self):
+        quantize_config = QuantizeConfig(
+            bits=self.num_bits, 
+        )
+        if self.requires_quantization:
+            return partial(AutoGPTQForCausalLM.from_pretrained, quantize_config = quantize_config)
+        else:
+            return partial(AutoGPTQForCausalLM.from_quantized, quantize_config = quantize_config)
+
+    def augmentation(
+        self, 
+        model, 
+        trainer.accelerator,
+        train_args, 
+        peft_config,
+    ):
+        '''
+        This function is used for any augmentation of the model before trainings 
+        e.g. quantization, unsloth/PEFT installation and also MegaBlocks patching
+        '''
+
+        if self.requires_quantization:
+            model.quantize()
+            model.save_quantized(save_dir = self.quantize_cache)
+
+        if peft_config:
+            # PEFT Installation
+            if 'gptq' in self.kernel:
+                from auto_gptq.utils.peft_utils import get_gptq_peft_model
+                model = get_gptq_peft_model(
+                    model, 
+                    peft_config = peft_config, 
+                )
+            else:
+                from peft import get_peft_model
+                model = get_peft_model(
+                    model, 
+                    peft_config
+                )        
+
+        return model
+```
