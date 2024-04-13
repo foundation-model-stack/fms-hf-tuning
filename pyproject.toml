@@ -1,11 +1,12 @@
 [build-system]
+build-backend = "setuptools.build_meta"
 requires = [
-    "setuptools>=61",
+    "setuptools>=60",
     "setuptools-scm>=8.0"]
 
 [project]
 name = "fms-hf-tuning"
-version = "0.0.1"
+dynamic = ["version", "dependencies"]
 description = "FMS HF Tuning"
 authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
@@ -16,10 +17,13 @@ readme = "README.md"
 requires-python = "~=3.9"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
 classifiers=[
-    "License :: OSI Approved :: Apache Software License"
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
-
-dynamic = ["dependencies"]
 
 [project.optional-dependencies]
 dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0"]
@@ -28,6 +32,13 @@ aim = ["aim==3.18.1"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*"]
+namespaces = false
+
+[tool.setuptools_scm]
+version_file = "tuning/_version.py"
 
 [project.urls]
 Homepage = "https://github.com/foundation-model-stack/fms-hf-tuning"
