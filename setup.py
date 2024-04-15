@@ -15,4 +15,4 @@
 # Third Party
 from setuptools import find_packages, setup
 
-setup(name="fms-hf-tuning", version="0.0.1", packages=find_packages())
+setup(name="fms-hf-tuning", packages=find_packages())
