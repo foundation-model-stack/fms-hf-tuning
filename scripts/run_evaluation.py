@@ -49,7 +49,7 @@ def parse_and_validate_args():
     )
     parser.add_argument(
         "--eos_token",
-        help="EOS token emitted by the model; passing will rstrip() the token if present",
+        help="EOS token emitted by the model; will recursively remove the token if present",
     )
     parser.add_argument("--purge_results", action=argparse.BooleanOptionalAction)
 
@@ -138,7 +138,7 @@ def get_prediction_results(
         delimiter: Optional[str]
             Delimiter to be used for splitting apart multioutput instances.
         eos_token: Optional[str]
-            EOS token emitted by the model, which will be rstripped from predictions.
+            EOS token emitted by the model, which will be recursively removed from predictions.
     Returns:
         tuple[list]
             Tuple containing:
@@ -191,7 +191,8 @@ def postprocess_output(
             List of one or more labels.
     """
     if eos_token is not None:
-        output_text = output_text.rstrip(eos_token)
+        while output_text.removesuffix(eos_token) != output_text:
+            output_text = output_text.removesuffix(eos_token)
     if delimiter is not None:
         return [text_substr.strip() for text_substr in output_text.split(delimiter)]
     return [output_text.strip()]
