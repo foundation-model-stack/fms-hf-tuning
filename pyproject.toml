@@ -2,11 +2,12 @@
 build-backend = "setuptools.build_meta"
 requires = [
     "setuptools>=60",
-    "setuptools-scm>=8.0"]
+    "setuptools-scm>=8.0"
+    ]
 
 [project]
 name = "fms-hf-tuning"
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
 description = "FMS HF Tuning"
 authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
@@ -24,14 +25,24 @@ classifiers=[
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
+dependencies = [
+"numpy",
+"accelerate>=0.20.3",
+"transformers",
+"torch",
+"sentencepiece",
+"tokenizers>=0.13.3",
+"tqdm",
+"trl",
+"peft>=0.8.0",
+"datasets>=2.15.0",
+"fire"
+]
 
 [project.optional-dependencies]
 dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0"]
 flash-attn = ["flash-attn"]
 aim = ["aim==3.18.1"]
-
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
