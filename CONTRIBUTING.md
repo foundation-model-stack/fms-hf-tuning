@@ -38,9 +38,9 @@ Before sending pull requests, make sure your changes pass formatting, linting an
 #### Dependencies
 If additional new Python module dependencies are required, think about where to put them:
 
-- If they're required for fms-hf-tuning, then append them to the end of the requirements.txt file.
-- If they're optional dependencies for additional functionality, then put them in the pyproject.toml file like were done for [flash-attn](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L26) or [aim](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L27).
-- If it's an additional dependency for development, then add it to the [dev](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L25) dependencies.
+- If they're required for fms-hf-tuning, then append them to the [dependencies](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L28) in the pyproject.toml.
+- If they're optional dependencies for additional functionality, then put them in the pyproject.toml file like were done for [flash-attn](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L44) or [aim](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L45).
+- If it's an additional dependency for development, then add it to the [dev](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L43) dependencies.
 
 #### Code Review
 
@@ -139,6 +139,17 @@ Running unit tests ensures your contributions do not break exiting code.
 We use [pytest](https://docs.pytest.org/) framework to run unit tests. The framework is setup to run all run all test_*.py or *_test.py in the [tests](./tests) directory.
 
 > Optionally, run `make test` command to do formatting, linting, and testing at once.
+</details>
+
+<details>
+<summary>Build wheel</summary>
+
+To build a wheel file:
+```shell
+tox -e build
+```
+Running the command will create a single ZIP-format archive containing the library source code with the .whl extension in the `dist/` directory.
+
 </details>
 
 ## Your First Code Contribution
