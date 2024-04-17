@@ -1,6 +1,6 @@
 controller-metrics:
-  loss:
-    MissingMetricClass:
+  - name: loss
+    class: MissingMetricClass
 controllers:
   - name: loss-controller-invalid-metric
     triggers:

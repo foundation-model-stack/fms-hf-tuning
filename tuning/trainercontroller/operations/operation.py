@@ -41,6 +41,6 @@ class Operation(metaclass=abc.ABCMeta):
             raise ValueError(f"Invalid operation {action}")
         self.valid_actions[action](**kwargs)
 
-    def get_actions(self):
+    def get_actions(self) -> list[str]:
         """Gets the list of all valid actions."""
         return self.valid_actions.keys()

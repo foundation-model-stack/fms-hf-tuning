@@ -1,9 +1,9 @@
 controller-metrics:
-  loss:
-    Loss:
+  - name: loss
+    class: Loss
 operations:
-  customoperation:
-    CustomOperationInvalidAction:
+  - name: customoperation
+    class: CustomOperationInvalidAction
 controllers:
   - name: loss-controller-custom-operation-invalid-action
     triggers:
