@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Standard
+import os
+
 # Third Party
 from transformers.utils.import_utils import _is_package_available
 
@@ -19,4 +22,4 @@ _is_aim_available = _is_package_available("aim")
 
 
 def is_aim_available():
-    return _is_aim_available
+    return _is_aim_available and (os.environ.get("AIMSTACK_DB") is not None)

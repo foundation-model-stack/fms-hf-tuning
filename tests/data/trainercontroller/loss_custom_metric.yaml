@@ -1,6 +1,6 @@
 controller-metrics:
-  testflag:
-    CustomMetric:
+  - name: testflag
+    class: CustomMetric
 controllers:
   - name: loss-controller-custom-metric
     triggers:

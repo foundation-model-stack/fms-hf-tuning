@@ -1,9 +1,9 @@
 controller-metrics:
-  loss:
-    Loss:
+  - name: loss
+    class: Loss
 operations:
-  customoperation:
-    CustomOperation:
+  - name: customoperation
+    class: CustomOperation
 controllers:
   - name: loss-controller-custom-operation
     triggers:
