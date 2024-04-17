@@ -36,3 +36,6 @@ venv/
 *.bkp
 *.bkp.*
 *bkp*
+
+# Auto generated file
+tuning/_version.py

@@ -23,6 +23,7 @@ import os
 import re
 
 # Third Party
+from jsonschema import Draft202012Validator, ValidationError
 from transformers import (
     TrainerCallback,
     TrainerControl,
@@ -53,10 +54,70 @@ CONTROLLERS_KEY = "controllers"
 ARGS_KEY = "arguments"
 
 CONTROLLER_NAME_KEY = "name"
-CONTROLLER_CLASS_KEY = "class"
 CONTROLLER_RULE_KEY = "rule"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
+
+CONTROLLER_METRICS_SCHEMA_YAML = f"""
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://example.com/product.schema.json"
+title: "Metrics and Operations"
+description: "Controller metrics and operations."
+type: object
+additionalProperties: false
+properties:
+    "{CONTROLLER_METRICS_KEY}":
+        type: array
+        items:
+            type: object
+            required: ["name", "class"]
+            additionalProperties: false
+            properties:
+                name:
+                    type: string
+                class:
+                    type: string
+                "{ARGS_KEY}":
+                    type: object
+    "{OPERATIONS_KEY}":
+        type: array
+        items:
+            type: object
+            required: ["name", "class"]
+            additionalProperties: false
+            properties:
+                name:
+                    type: string
+                class:
+                    type: string
+                "{ARGS_KEY}":
+                    type: object
+    "{CONTROLLERS_KEY}":
+        type: array
+        items:
+            type: object
+            required: ["name", "rule", "triggers", "operations"]
+            additionalProperties: false
+            properties:
+                {CONTROLLER_NAME_KEY}:
+                    type: string
+                {CONTROLLER_RULE_KEY}:
+                    type: string
+                {CONTROLLER_TRIGGERS_KEY}:
+                    type: array
+                    items:
+                        type: string
+                {CONTROLLER_OPERATIONS_KEY}:
+                    type: array
+                    items:
+                        type: string
+"""
+CONTROLLER_METRICS_SCHEMA = yaml.safe_load(CONTROLLER_METRICS_SCHEMA_YAML)
+assert isinstance(CONTROLLER_METRICS_SCHEMA, dict)
+Draft202012Validator.check_schema(schema=CONTROLLER_METRICS_SCHEMA)
+CONTROLLER_METRICS_SCHEMA_VALIDATOR = Draft202012Validator(
+    schema=CONTROLLER_METRICS_SCHEMA
+)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -92,6 +153,11 @@ class TrainerControllerCallback(TrainerCallback):
         if OPERATIONS_KEY not in self.trainer_controller_config:
             self.trainer_controller_config[OPERATIONS_KEY] = []
 
+        try:
+            CONTROLLER_METRICS_SCHEMA_VALIDATOR.validate(self.trainer_controller_config)
+        except ValidationError as e:
+            raise ValueError("Trainer controller configuration is invalid.") from e
+
         # Initialize the list of metrics from default `metrics.yaml` in the \
         # controllermetric package. In addition, any metrics mentioned in \
         # the trainer controller config are added to this list.
@@ -112,10 +178,10 @@ class TrainerControllerCallback(TrainerCallback):
                 CONTROLLER_METRICS_KEY
             ]
             for metric_obj in default_controller_metrics:
-                metric_name: str = metric_obj[CONTROLLER_NAME_KEY]
+                metric_name: str = metric_obj["name"]
                 found = False
                 for self_controller_metric in self_controller_metrics:
-                    if self_controller_metric[CONTROLLER_NAME_KEY] == metric_name:
+                    if self_controller_metric["name"] == metric_name:
                         found = True
                         break
                 if not found:
@@ -139,10 +205,10 @@ class TrainerControllerCallback(TrainerCallback):
                 OPERATIONS_KEY
             ]
             for op_obj in default_controller_operations:
-                op_name: str = op_obj[CONTROLLER_NAME_KEY]
+                op_name: str = op_obj["name"]
                 found = False
                 for self_controller_operation in self_controller_operations:
-                    if self_controller_operation[CONTROLLER_NAME_KEY] == op_name:
+                    if self_controller_operation["name"] == op_name:
                         found = True
                         break
                 if not found:
@@ -293,9 +359,9 @@ class TrainerControllerCallback(TrainerCallback):
 
         # Metric handler validation and registration is performed here.
         for metric_config in self.trainer_controller_config[CONTROLLER_METRICS_KEY]:
-            metric_name = metric_config[CONTROLLER_NAME_KEY]
+            metric_name = metric_config["name"]
             # Get the metric class name from the config section.
-            metric_handler_name = metric_config[CONTROLLER_CLASS_KEY]
+            metric_handler_name = metric_config["class"]
             # Get the handler class using the metric class name.
             if metric_handler_name not in self.metric_handlers:
                 raise KeyError(f"Undefined metric handler {metric_handler_name}")
@@ -325,9 +391,9 @@ class TrainerControllerCallback(TrainerCallback):
         ):
             # Operation handler validation and registration is performed here.
             for operation_config in self.trainer_controller_config[OPERATIONS_KEY]:
-                operation_name = operation_config[CONTROLLER_NAME_KEY]
+                operation_name = operation_config["name"]
                 # Get the operation class name from the config section.
-                operation_handler_name = operation_config[CONTROLLER_CLASS_KEY]
+                operation_handler_name = operation_config["class"]
                 # Get the handler class arguments using the operation class name.
                 operation_args = (
                     operation_config[ARGS_KEY] if ARGS_KEY in operation_config else {}
