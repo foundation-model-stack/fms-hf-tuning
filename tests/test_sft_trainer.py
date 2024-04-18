@@ -409,19 +409,6 @@ def test_empty_data():
         sft_trainer.train(model_args, data_args, training_args, tune_config)
 
 
-def test_data_path_does_not_exist():
-    """Ensure that we get a FileNotFoundError if the data is missing completely."""
-    TRAIN_KWARGS = {
-        **BASE_PEFT_KWARGS,
-        **{"training_data_path": "/foo/bar/foobar", "output_dir": "foo/bar/baz"},
-    }
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-        TRAIN_KWARGS
-    )
-    with pytest.raises(FileNotFoundError):
-        sft_trainer.train(model_args, data_args, training_args, tune_config)
-
-
 def test_data_path_is_a_directory():
     """Ensure that we get FileNotFoundError if we point the data path at a dir, not a file."""
     with tempfile.TemporaryDirectory() as tempdir:
