@@ -60,13 +60,15 @@ We have implemented a trainer callback (see [here](https://huggingface.co/docs/t
 The trainer controller configuration is structured as shown below. There are list of metric definitions under `controller-metrics`, a list of operations and their actions under `operations` and a list of controllers, each of which define the rules, triggers and control operations.
 ```
 controller-metrics:
-  <controller-name>:
-    <controller-handler-class>:
+  - name: <controller-name>
+    class: <controller-handler-class>
+    arguments:
       <arg1>: <value>
       ...
 operations:
-  <operation-name>:
-    <operation-handler-class>:
+  - name: <operation-name>
+    class: <operation-handler-class>
+    arguments:
       <arg1>: <value>
       ...
 controllers:
@@ -79,7 +81,7 @@ controllers:
       - <operation-action-1>
       ...
 ```
-The `controller-metrics` and `operations` are optional. We provide a set of built-in `controller-metrics` and `operations` which could be referred to without actually defining them as. For example, the below configuration defines a `controller-metric` called `loss` which refers to a built-in `Loss` controller-metric class with custom arguments (in this case, no arguments), but does not define any `operations`. It only refers to a built-in operation.
+The `controller-metrics` and `operations` are optional. We provide a set of built-in `controller-metrics` and `operations` which could be referred to without actually defining them as. For example, the below configuration defines a `controller-metric` called `loss` which refers to a built-in `Loss` controller-metric class with custom arguments (in this case, no arguments. If arguments are required, then they could be listed under a `arguments` section as shown above), but does not define any `operations`. It only refers to a built-in operation.
 ```
 controller-metrics:
   name: loss
