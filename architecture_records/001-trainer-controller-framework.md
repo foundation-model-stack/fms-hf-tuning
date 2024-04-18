@@ -92,6 +92,12 @@ controllers:
     operations:
       - hfcontrols.should_training_stop
  ```
+
+We follow the below naming convention for the above trainer controller configuration:
+1. `-` could be used in the case of key names, and name of the metric, operation or controller. This is usually to break multiple words of a name phrase.
+1. Python convention for [class name](https://visualgit.readthedocs.io/en/latest/pages/naming_convention.html#classes).
+1. `_` are used for events and control actions.
+
 For defining custom handler classes, we have an interface defined as an abstract class as shown below, with two abstract methods, namely: `validate()` to define the validation conditions, and `compute()` to compute the metric. The `compute()` returns an `Any` type. While it could be any value, developers should keep in mind that it should be only key-value pairs that are used in the rule(s) defined in the configuration.
 
 Further, the `init` method of the class should accept variable arguments in the form of key-value pairs. `Important point to note is that keys used in the arguments of the above config should not conflict with any keys used by Hugging face trainer callback. Please try to use unique keys are arguments name`.
