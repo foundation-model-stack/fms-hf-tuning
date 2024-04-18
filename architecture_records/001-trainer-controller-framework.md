@@ -82,8 +82,8 @@ controllers:
 The `controller-metrics` and `operations` are optional. We provide a set of built-in `controller-metrics` and `operations` which could be referred to without actually defining them as. For example, the below configuration defines a `controller-metric` called `loss` which refers to a built-in `Loss` controller-metric class with custom arguments (in this case, no arguments), but does not define any `operations`. It only refers to a built-in operation.
 ```
 controller-metrics:
-  loss:
-    Loss:
+  name: loss
+  class: Loss
 controllers:
   - name: loss-controller
     triggers:
