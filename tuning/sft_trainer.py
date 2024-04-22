@@ -14,7 +14,7 @@
 
 # Standard
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, Union, List
 import json
 import os
 import sys
@@ -49,7 +49,6 @@ if is_aim_available():
     from tuning.aim_loader import get_aimstack_callback
 
 TRAINING_LOGS_FILENAME = "training_logs.jsonl"
-
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -101,6 +100,7 @@ def train(
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
+    freeze_modules: List[str] = [],
 ):
     """Call the SFTTrainer
 
@@ -260,6 +260,18 @@ def train(
         )
         packing = False
 
+    if freeze_modules:
+        logger.info("Freezing parameters with name contains %s", freeze_modules)
+        n_model_params, n_frozen_params = 0, 0
+        for name, param in model.named_parameters():
+            n_params = param.numel()
+            n_model_params +=  n_params
+            if any([x in name for x in freeze_modules]):
+                param.requires_grad = False
+                n_frozen_params +=  n_params
+        logger.info("Total number of parameters: %s", n_model_params)
+        logger.info("Number of frozen parameters: %s", n_frozen_params)
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -293,6 +305,11 @@ def main(**kwargs):  # pylint: disable=unused-argument
         )
     )
     parser.add_argument(
+        "--freeze_modules",
+        type=str,
+        default=[],
+    )
+    parser.add_argument(
         "--peft_method",
         type=str.lower,
         choices=["pt", "lora", None, "none"],
@@ -305,16 +322,25 @@ def main(**kwargs):  # pylint: disable=unused-argument
         trainer_controller_args,
         lora_config,
         prompt_tuning_config,
-        peft_method,
+        custom_args,
         _,
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-    if peft_method.peft_method == "lora":
+    
+    if custom_args.peft_method == "lora":
         tune_config = lora_config
-    elif peft_method.peft_method == "pt":
+    elif custom_args.peft_method == "pt":
         tune_config = prompt_tuning_config
     else:
         tune_config = None
-    train(model_args, data_args, training_args, tune_config, trainer_controller_args)
+
+    train(
+        model_args=model_args,
+        data_args=data_args,
+        training_args=training_args,
+        tune_config=tune_config,
+        trainer_controller_args=trainer_controller_args,
+        freeze_modules=custom_args.freeze_modules
+    )
 
 
 if __name__ == "__main__":
