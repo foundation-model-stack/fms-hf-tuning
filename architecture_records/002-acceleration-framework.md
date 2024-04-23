@@ -216,7 +216,7 @@ Concern| Reason for concern | Possible Solution/s | Recommendation
 --|--|--|--
 Managing python deps not found on PyPI | Enhancement plugins may depend on OSS packages that require custom improvements (e.g., extending an OSS PEFT package to support the latest kernel, etc). | 1. Package can be installed directly from GH, public or private (the latter requires some CI changes to manage deployment keys), 2. Specially host custom wheels for CI/CD purposes. | 2
 Managing CUDA compilations | Deploying certain enchancements may require additional CUDA Toolkit deps for kernel compilation. | 1. Extend GH workflow to have a [GH cuda-toolkit action](https://github.com/marketplace/actions/cuda-toolkit) to build the kernels during CI/DC. 2. If kernels are limited to custom deps that are slow-changing, then pre-build custom deps and store as specially hosted wheels. | 2
-Licences for OSS Packages | Copyright concerns | All packages under consideration to be used in enhancements will have permissive licences (i.e. Apache 2.0 / MIT).
+Licences for OSS Packages | Copyright concerns | At best all packages under consideration to be used in enhancements should have permissive licences (i.e. Apache 2.0 / MIT). Special considerations required if not possible.
 Testing | Do we need to test enchancements? | Request for comment | N/A
 
 Both concerns can be addresed with an artifactory and centralized location to host custom OSS packages.
@@ -232,6 +232,20 @@ Package | Reason for hosting custom wheel | Urgency
 AutoGPTQ | Required changes in `main` (v > 0.7.1) yet to be released. | Low. Can wait for new wheel release (v > 0.7.1) and replace accordingly (last release 1 Mar 2024).
 UnSloth | Limited model support. | High. Unclear if new realeases will address the limited model support.
 MegaBlocks | Limited model support | High. Unclear if new realeases will address the limited model support.
+
+### On Licenses
+
+Plugins will depend on various OSS packages, have to be be careful about licenses. Our plan:
+- keep integration lightweight; extract out key parts if possible (of course with the required credits).
+- maintain them ourselves, best in a [monorepo](https://www.tweag.io/blog/2023-04-04-python-monorepo-1/) so that we can manage each OSS as an independent dependency.
+
+
+Package | License | Notes
+--|--|--
+AutoGPTQ | [Link to repo's MIT License](https://github.com/AutoGPTQ/AutoGPTQ/blob/main/LICENSE) | 
+Unsloth | [Link to repo's Apache 2.0](https://github.com/unslothai/unsloth/blob/main/LICENSE) | Authors also additionally claim that their Apache 2.0 only supports up to 4 GPUs, where these calims are found [only in the code, outside of the license](https://github.com/unslothai/unsloth/blob/ec18e61c854dcf9104386fa63fc6c4f2944d4f35/unsloth/models/llama.py#L1236-L1240). Take note that Unsloth has been [integrated into SFTTrainer](https://huggingface.co/blog/unsloth-trl), so its unclear how they insert such clauses into OSS.
+Megablocks | [Link to repo's Apache 2.0](https://github.com/databricks/megablocks/blob/main/LICENSE) | Used to be under Stanford, now under databricks.
+
 
 <!--
 Describe the resulting context, after applying the decision. All consequences should be listed here, not just the "positive" ones. A particular decision may have positive, negative, and neutral consequences, but all of them affect the team and project in the future.
