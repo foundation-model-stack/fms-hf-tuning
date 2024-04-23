@@ -66,6 +66,7 @@ def mix(
     config_base = AutoConfig.from_pretrained(base_model)
     model_base = AutoModelForCausalLM.from_pretrained(base_model)
     model_base_type = type(model_base)
+    sd_base = model_base.state_dict()
     MOE_MODEL_CLS, MOE_CFG_CLS = MODELS_MOE_CLASS[model_base_type]
 
     # SUPPORT CHECK
@@ -85,32 +86,18 @@ def mix(
         assert len(positive_tokens) == len(ingredients)
 
     # /SUPPORT CHECK
-
-    
-    mixture_of_attention_head = \
-        "q_proj" in modules_to_mix or "k_proj" in modules_to_mix or "v_proj" in modules_to_mix
-    sd_base = model_base.state_dict()
     
     logging.info("creating base model...")
-    if mixture_of_attention_head:
-        #NOTE: supports flash attention only
-        config_base.torch_dtype = torch.float16
-        config = MOE_CFG_CLS(
-            num_local_experts= len(ingredients),
-            moe_mlp ="mlp" in modules_to_mix, 
-            moe_query="q_proj" in modules_to_mix,
-            moe_key = "k_proj" in modules_to_mix,
-            moe_value="v_proj" in modules_to_mix,
-            num_experts_per_tok=num_experts_per_tok,
-            attn_implementation="flash_attention_2",
-            **config_base.to_dict()
-        )
-    else:
-        config = MOE_CFG_CLS(
-            num_local_experts= len(ingredients),
-            num_experts_per_tok=num_experts_per_tok,
-            **config_base.to_dict()
-        )
+    config_base.torch_dtype = torch.float16
+    config = MOE_CFG_CLS(
+        num_local_experts= len(ingredients),
+        moe_mlp ="mlp" in modules_to_mix, 
+        moe_query="q_proj" in modules_to_mix,
+        moe_key = "k_proj" in modules_to_mix,
+        moe_value="v_proj" in modules_to_mix,
+        num_experts_per_tok=num_experts_per_tok,
+        **config_base.to_dict()
+    )
     
     logging.info(config)
     logging.info("creating moe model...")
