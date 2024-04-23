@@ -57,6 +57,11 @@ def parse_and_validate_args():
         action="store_true",
     )
     parser.add_argument("--purge_results", action=argparse.BooleanOptionalAction)
+    parser.add_argument(
+        "--use_flash_attn",
+        help="Whether to load the model using Flash Attention 2",
+        action="store_true",
+    )
     parsed_args = parser.parse_args()
 
     print(f"Multiclass / multioutput delimiter: {parsed_args.delimiter}")
@@ -441,7 +446,7 @@ def export_experiment_info(
 
 if __name__ == "__main__":
     args = parse_and_validate_args()
-    tuned_model = TunedCausalLM.load(args.model)
+    tuned_model = TunedCausalLM.load(args.model, use_flash_attn=args.use_flash_attn)
     eval_data = datasets.load_dataset(
         "json", data_files=args.data_path, split=args.split
     )
