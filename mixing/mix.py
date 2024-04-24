@@ -67,7 +67,7 @@ def mix(
     model_base = AutoModelForCausalLM.from_pretrained(base_model)
     model_base_type = type(model_base)
     sd_base = model_base.state_dict()
-    MOE_MODEL_CLS, MOE_CFG_CLS = MODELS_MOE_CLASS[model_base_type]
+    moe_model_cls, moe_cfg_cls = MODELS_MOE_CLASS[model_base_type]
 
     # SUPPORT CHECK
     assert num_experts_per_tok <= len(ingredients)
@@ -78,9 +78,9 @@ def mix(
     assert any([isinstance(model_base, supported_model) for supported_model in MODELS_MOE_CLASS.keys()]), \
         "Model not supported! Only supports {}!".format(MODELS_MOE_CLASS.keys())
     
-    KEYS_MAPPING = EXPERTS_KEYS_MAPPING[MOE_MODEL_CLS]
-    assert all([mod in KEYS_MAPPING.keys() for mod in modules_to_mix]), \
-        "Only supports {} for {}!".format(KEYS_MAPPING.keys(), model_base_type)
+    keys_mappig = EXPERTS_KEYS_MAPPING[moe_model_cls]
+    assert all([mod in keys_mappig.keys() for mod in modules_to_mix]), \
+        "Only supports {} for {}!".format(keys_mappig.keys(), model_base_type)
     
     if positive_tokens:
         assert len(positive_tokens) == len(ingredients)
@@ -89,7 +89,7 @@ def mix(
     
     logging.info("creating base model...")
     config_base.torch_dtype = torch.float16
-    config = MOE_CFG_CLS(
+    config = moe_cfg_cls(
         num_local_experts= len(ingredients),
         moe_mlp ="mlp" in modules_to_mix, 
         moe_query="q_proj" in modules_to_mix,
@@ -101,7 +101,7 @@ def mix(
     
     logging.info(config)
     logging.info("creating moe model...")
-    moe_model = MOE_MODEL_CLS(config) 
+    moe_model = moe_model_cls(config) 
     moe_sd = moe_model.state_dict()
     moe_model_type = type(moe_model)
     router_name = ROUTERS_NAME[moe_model_type]
@@ -116,7 +116,7 @@ def mix(
 
     for key in moe_sd:
 
-        has_key_in_modules_to_mix = any([KEYS_MAPPING[x] in key for x in modules_to_mix])
+        has_key_in_modules_to_mix = any([keys_mappig[x] in key for x in modules_to_mix])
 
         # stem
         if not has_key_in_modules_to_mix and not router_name in key:
@@ -161,7 +161,7 @@ def mix(
         # for each specified module
         for module_name in modules_to_mix:
 
-            keyword = f"{KEYS_MAPPING[module_name]}.{expert_idx}"
+            keyword = f"{keys_mappig[module_name]}.{expert_idx}"
             matched_keys = [x for x in experts_keys if keyword in x]
             assert matched_keys, keyword
 
@@ -207,7 +207,7 @@ def mix(
                 # for each specified module
                 for module_name in modules_to_mix:
 
-                    keyword = f"{KEYS_MAPPING[module_name]}"
+                    keyword = f"{keys_mappig[module_name]}"
                     if "." in keyword: keyword = keyword[:keyword.find(".")]
                     keyword += router_name
                     matched_keys = [x for x in routers_keys if keyword in x]
