@@ -20,9 +20,11 @@ from typing import Type
 
 # Local
 from .loss import Loss
+from .state_of_trainer import StateOfTrainer
 
 # List of metric handlers
 handlers = []
+INVALID_VALUE = float("nan")
 
 
 def register(cl: Type):
@@ -35,4 +37,5 @@ def register(cl: Type):
 
 
 # Register the default metric handlers in this package here
+register(StateOfTrainer)
 register(Loss)
