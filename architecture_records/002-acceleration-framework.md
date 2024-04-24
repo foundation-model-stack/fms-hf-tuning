@@ -78,38 +78,167 @@ The proposal satisfies the following desiredata:
 Since the [`SFTTrainer`] is designed to work with generic pytorch models, modifying the model is much less intrusive to the training pipeline, then say, modifying [`SFTTrainer`] itself. The hope is then if we constrain ourselves to modify only the model, that we can implement all the method plugins (e.g., quantization, distributed training, etc) that we hope for. 
 
 The framework is designed to only modify them model at two integration points in `sft_trainer.py`. The primary motivation for this is easy code maintenance:
-1. an *optional* `loading` method that acts as a drop-in replacement for `AutoModel.from_pretrained`. 
+1. an *optional* `model_loader` method that acts as a drop-in replacement for `AutoModel.from_pretrained`. 
 2. an *optional* `agumentation` method that provides a way to perform *minor* adjustments to an already instantiated model 
 3. an *optional* `callback` method to install `TrainerCallbacks` (if needed, e.g. custom save logic).
 
+In what follows, we provide:
+- a description of an abstract base class that all plugins must inherit and conform to.
+- a brief description of the framework class that is responsible for managing plugins (e.g., loading, executing).
+
+#### AccelerationPlugin Base Class
+
+Implement concrete plugins that inherit below abstract `AccelerationPlugin` class. 
+* See also [concrete plugin implementation that loads quantized model (using AutoGPTQ) for LoRA training](#detailed-design).
+* Even though all 3 methods are optional, at least one should be implemented.
+
 ```python
-class TuningAccelerationPlugin:
+
+# data class to hold data and pointer to registered plugins
+@dataclass
+class PluginRegistration:
+    plugin: "AccelerationPlugin"
+    configuration_paths: List[str] # path 
+
+# global object to store all registered plugins
+PLUGIN_REGISTRATIONS: List[PluginRegistration] = list()
+
+# this is a base class from which concrete implementations will inherit from
+class AccelerationPlugin:
+
+    @staticmethod
+    def register_plugin(
+        plugin: "AccelerationPlugin", configuration_paths: List[str], 
+        **kwargs,
+    ):
+        global PLUGIN_REGISTRATIONS
+        PLUGIN_REGISTRATIONS.append(
+            PluginRegistration(plugin, configuration_paths)
+        )
 
     # if specified, will restricted plugin to specified model archs
-    # - useful if method is restricted to certain model architectures, e.g., only used 
-    #  for MoEs
+    # - useful if method is restricted to certain model architectures, e.g., only used for MoEs
     restricted_model_archs: Set = None
 
     # if specified, will check if the package/s is/are installed
     required_packages: Set = None
 
-    # if True, will check if environment supports CUDA Toolkit
-    require_cuda_tools: bool = False
+    @property
+    def requires_custom_loading(self):
+        return False # to return True if plugin requires custom model 
 
-    def loading(model_path: str, **kwargs):
-        pass
+    @property
+    def requires_agumentation(self):
+        return False # to return True if plugin requires model augmentation
+
+    def model_loader(model_path: str, **kwargs):
+        pass # to be replaced with concrete
 
     # augment model or accelerator object
     def augmentation(model: nn.Module, **kwargs):
-        # accelerator = kwargs.get('accelerator') # if needed for configs (e.g. FSDP)
         pass
 
     def callbacks(model: nn.Module, **kwargs):
-        cbks = []
-        return cbks
+        return []
 ```
 
-Even though they are all optional, at least one out of the three should be implemented.
+
+#### Implmentation of Acceleration Framework Class
+
+The role of `AccelerationFramework` is to manage implemented plugins. In particular:
+- parse `configuration_file`, see below, and based on contents, decide the `AccelerationPlugin`'s to promote to `active_plugins`. See [implementaiton of AutoGPTQ LoRA Plugin](#detailed-design) for more description on configuration logic.
+- handle *plugin stacking*, i.e., when we have more than one `active_plugins`, apply their `model_loader` / `augmentation` logic in appropriate succession. 
+    * This is very useful, e.g., loading a LoRA-trainable AutoGPTQ model first, then applying additional optimized fused kernels to further improve training speeds.
+- enforce that `AccelerationFramework.model_loader` witll call `AccelerationPlugin.model_loader` of some `active_plugins` *at most once*.
+    * Prevents potential complication as multiple `active_plugins` could load models in conflicting ways.
+- enforce that `AccelerationFramework.augmentation` would apply `AccelerationPlugin.augmentation` in appropriate succession.
+    * c.f. previous example, where first a LoRA-trainable AutoGPTQ model is loaded, then fused_kernels on applied on top.
+
+```python
+class AccelerationFramework:
+
+    active_plugins: Dict[str, AccelerationPlugin] = dict()
+    plugins_require_custom_loading: List = list()
+
+    def __init__(self, configuration_file: Optional[str]=None):
+
+        with open(configuration_file, "r") as f:
+            contents = yaml.safe_load(f)
+        
+        # pepare the plugin configurations
+        plugin_configs = { k:v for k,v in contents[KEY_PLUGINS].items() }
+
+        for selected_configs, cls in get_relevant_configuration_sections(plugin_configs):
+
+            # then the model is to be installed
+            # get the plugin
+            plugin_name = str(cls.__name__)
+            plugin = cls(selected_configs)
+
+            # check plugin (this is a function that checks if the package requirements of plugin are met)
+            check_plugin_packages(plugin)
+
+            # install plugin
+            self.active_plugins[plugin_name] = plugin
+            if plugin.requires_custom_loading:
+                self.plugins_require_custom_loading.append(plugin_name)
+
+        if len(self.active_plugins) == 0:
+            raise ValueError(
+                "No plugins could be configured. Please check the acceleration "
+                "framework configuration file."
+            )
+
+        assert len(self.plugins_require_custom_loading) <= 1, \
+            f"can load at most 1 plugin with custom model loading, but tried to \'{self.plugins_require_custom_loading}\'."
+
+    def model_loader(self, model_name: str, **kwargs):
+
+        if len(self.plugins_require_custom_loading) == 0:
+            raise NotImplementedError(
+                f"Attempted modeling loading, but none of activated plugins \'{list(self.active_plugins.keys())}\' "
+                "require custom loading."
+            )
+
+        # otherwise there should be exactly 1
+        plugin_name = self.plugins_require_custom_loading[0]
+        return self.active_plugins[plugin_name].model_loader(model_name, **kwargs)
+
+    def augmentation(
+        self, 
+        model: PreTrainedModel,
+        train_args: TrainingArguments,
+        modifiable_args: Tuple[LoraConfig],
+    ):
+        model_archs = set(model.config.architectures) # get the config
+
+        # NOTE: this assumes that augmentation order does not matter
+        for plugin_name, plugin in self.active_plugins.items():
+
+            # check the model arcs at augmentation 
+            if (
+                plugin.restricted_model_archs and
+                not any([x in model_archs for x in plugin.restricted_model_archs])
+            ):
+                raise ValueError(
+                    f'Model architectures in \'{model_archs}\' are supported for \'{plugin_name}\'.'
+                )
+
+            if plugin.requires_agumentation:
+                model, modifiable_args = plugin.augmentation(
+                    model, train_args, modifiable_args=modifiable_args
+                )
+
+        return model, modifiable_args
+
+    @property
+    def requires_custom_loading(self):
+        return len(self.plugins_require_custom_loading) > 0
+
+    @property
+    def requires_agumentation(self):
+        return any([x.requires_agumentation for x in self.active_plugins.values()])
+```
 
 ### Dependency Management
 
@@ -120,51 +249,57 @@ Take note:
 
 ### Minimal and Controlled Changes to Training Script
 
-All proposed code changes to `sft_trainer.py` contained in minimal lines of code:
-- Plugins loaded by discovery; transparent to `sft_trainer.py`.
-- Plugin configuration automatically parsed.
-- Passthrough to original operation if `Framework` is disabled.
+Next, we demonstrate how `AccelerationFramework` would be integrated into `sft_trainer.py` with minimal changes:
+- `sft_trainer.py` would take in arguments meant for framework, say via `AccelerationFrameworkArguments`.
+- `AccelerationFramework` constructed only if `AccelerationFrameworkArguments.acceleration_framework_config_file` is specified. Null pattern otherwise.
+- Plugins loading handled inside `AccelerationFramework`, see [above](#implmentation-of-acceleration-framework-class); transparent to `sft_trainer.py`.
+- Fallback to standard logic logic if `AccelerationFrameworkArguments.acceleration_framework_config_file` is `None`.
 
 ```python
 from tuning.acceleration import AccelerationFramework
 
-# Minor Change 1: creating the framework object
-framework = None
-if framework_args.config_file is not None:
-    framework = AccelerationFramework(framework_args.config_file)
+def train(
+    ..., acceleration_framework_args: Optional[configs.AccelerationFrameworkArguments] = None,
+):
 
-# Minor Change 2: custom loader (if necessary)
-_model_loader = AutoModelForCausalLM.from_pretrained # default
-if framework is not None and framework.requires_custom_loading:
-    _model_loader = framework.model_loader # drop in replacement
+    # Minor Change 1: creating the framework object
+    framework = None
+    if acceleration_framework_args.acceleration_framework_config_file is not None:
+        framework = AccelerationFramework(acceleration_framework_args.acceleration_framework_config_file)
 
-# will passthrough the default loader if framework is disabled
-model = _model_loader(
-    model_args.model_name_or_path,
-    cache_dir=train_args.cache_dir,
-    torch_dtype=get_torch_dtype(model_args.torch_dtype),
-    attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
-)
+    # Minor Change 2: custom loader (if necessary)
+    _model_loader = AutoModelForCausalLM.from_pretrained # default
+    if framework is not None and framework.requires_custom_loading:
+        _model_loader = framework.model_loader # drop in replacement
 
-# Minor Change 3: 
-if framework is not None and framework.requires_agumentation:
-    # will also take in some other configs that may affect augmentation
-    # some of these args may be modified due to the augmentation
-    # e.g., peft_config will be consumed in augmentation, and returned as None 
-    #       to prevent SFTTrainer from doing extraneous PEFT logic
-    model, (peft_config,) = framework.augmentation(
-        model, trainer.accelerator,
-        train_args, modifiable_args=(peft_config,),
+    # will passthrough the default loader if framework is disabled
+    model = _model_loader(
+        model_args.model_name_or_path,
+        cache_dir=train_args.cache_dir,
+        torch_dtype=get_torch_dtype(model_args.torch_dtype),
+        attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
     )
 
-# instantiate trainer. Pass in model (with training enchancements)
-trainer = Trainer(model, ...)
+    # Minor Change 3: 
+    if framework is not None and framework.requires_agumentation:
+        # will also take in some other configs that may affect augmentation
+        # some of these args may be modified due to the augmentation
+        # e.g., peft_config will be consumed in augmentation, and returned as None 
+        #       to prevent SFTTrainer from doing extraneous PEFT logic
+        model, (peft_config,) = framework.augmentation(
+            model, trainer.accelerator,
+            train_args, modifiable_args=(peft_config,),
+        )
 
-# Minor Change 4: add trainer callbacsk
-trainer.add_callbacks(framework.callbacks())
+    # instantiate trainer. Pass in model (with training enchancements)
+    trainer = Trainer(model, ...)
 
-# call train
-trainer.train()
+    # Minor Change 4: add trainer callbacsk
+    for x in framework.callbacks():
+        trainer.add_callback(x)
+
+    # call train
+    trainer.train()
 ```
 
 The picture below summarizes the above discussion in more detail. It demonstrates how the design will not contradict internal workings of [`SFTTrainer`].
@@ -178,7 +313,8 @@ The picture below summarizes the above discussion in more detail. It demonstrate
 
 ### Acceleration Methods 
 
-A top priority is to incorporate methods that enchance PEFT. While PEFT is known to be memory efficient, it is known to be slower than full-finetuning if not *properly optimized*. Also, another topic of interest is to add support for 4D masks to enable packing while instruction tuning; this acceleration may require some adjustments to the data processing. 
+A top priority is to incorporate methods that enchance PEFT. While PEFT is known to be memory efficient, but certain scenarios it is has been shown to converge more slowly than full finetuning, e.g., see this [ICLR paper, Fig. 1](https://arxiv.org/pdf/2304.14999.pdf). 
+Also, another topic of interest is to add support for 4D masks to enable packing while instruction tuning; this acceleration may require some adjustments to the data processing. 
 1. Add 4-bit `triton` kernels for PEFT base weights.
 2. Add fused kernels for PEFT base models, as well as reusable kernels for other models (e.g. cross-entropy loss, RoPE).
 3. Add support for 4D masking (may require `TuningAccelerationPlugin.augmentation` to also access the datasets).
@@ -259,44 +395,86 @@ Describe the resulting context, after applying the decision. All consequences sh
 This section is optional. Elaborate on details if they’re important to understanding the design, but would make it hard to read the proposal section above.
 -->
 
-In this section we demonstrate how to implement an `AutoGPTQPlugin` that implements an accelerate PEFT training mode with 4 bit GPTQ base weights.
+### Plugin For Loading LoRA-Traininable AutoGPTQ Model
 
-This is an `acceleration.yaml`
-```yaml
-quantization:
-  - requires_quantization: True
-  - quant_num_bits: 4
-  - quant_kernel: 'gptq-tritonv2'
-```
+In this section we demonstrate an `AutoGPTQAccelerationPlugin` that implements accelerated PEFT training using 4 bit GPTQ base weights with `triton_v2` kernels.
+* inherits `AccelerationPlugin` as described [in the above description](#accelerationplugin-base-class).
+* registers to `peft.quantization.auto_gptq` in configuration file pointed to by `AccelerationFrameworkArguments.acceleration_framework_config_file`. See below [example of acceleration framework configuration file loading `AutoGPTQAccelerationPlugin`]()
+
 
 ```python
+from transformers import TrainingArguments
+from peft import LoraConfig, prepare_model_for_kbit_training
+from .framework_plugin import AccelerationPlugin # this is the one
 
 # Acceleration Plugin for AutoGPTQ acceleration with kernels
-class AutoGPTQPlugin(TuningAccelerationPlugin):
-    def __init__(self, acceleration_config_path:str) -> None:
-        # ...  initialize config
+class AutoGPTQAccelerationPlugin(AccelerationPlugin):
+    def __init__(self, configurations: Dict[str, Dict]):
+        # ... perform any initializations from configurations
 
-    def model_loader(self, model_path, **kwargs):
+    def model_loader(self, model_path: str, **kwargs):
+        from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
-        # ... maybe quantize if needed
-        quantize_config = QuantizeConfig(
-            bits=self.num_bits, 
+        # assume model_name points to a quantized checkpoint. Thus we load the quantization
+        # config directly from the checkpoint.
+        quantize_config = BaseQuantizeConfig.from_pretrained(model_name)
+
+        # .. some code 
+        model = AutoGPTQForCausalLM.from_quantized(
+            model_name, quantize_config=quantize_config,
+            torch_dtype=torch_dtype, ...
         )
-        return AutoGPTQForCausalLM.from_quantized(model_path, quantize_config = quantize_config)
+        # ..  more code and then return the model
+        return model
 
     def augmentation(
-        self, 
-        model, 
-        trainer.accelerator,
-        train_args, 
-        peft_config,
+        self, model, 
+        train_args: TrainingArguments,
+        modifiable_args: Tuple[LoraConfig],
     ):
         assert peft_config is not None, "need peft_config to install PEFT adapters"
+        peft_config, = modifiable_args # unpack modifiable args
 
-        # PEFT Installation
-        from auto_gptq.utils.peft_utils import get_gptq_peft_model
-        return get_gptq_peft_model(
-            model, 
-            peft_config = peft_config, 
+        model = prepare_model_for_kbit_training(
+            model, use_gradient_checkpointing=train_args.gradient_checkpointing,
+            gradient_checkpointing_kwargs=train_args.gradient_checkpointing_kwargs,
         )
+        modifiable_args = (None, ) # return a None for peft_config
+
+        # .. some more code ... and also install the PEFT 
+        from auto_gptq.utils.peft_utils import get_gptq_peft_model
+        model = get_gptq_peft_model(model, peft_config=peft_config, ...)
+
+        # ... some more code ... then return the model and args
+        return model, modifiable_args
+
+# plugin registration
+AccelerationPlugin.register_plugin(
+    AutoGPTQAccelerationPlugin,
+    configuration_paths=["peft.quantization.auto_gptq"], 
+)
+```
+
+### Configuration To Load AutoGPTQ LoRA Plugin
+
+This file pointed to by `AccelerationFrameworkArguments.acceleration_framework_config_file` would looking like the below samle YAML:
+- All contents under `plugins` be parsed by `AccelerationFramework.__init__`. 
+    * For any registered plugin, recall [], we check `PluginRegistration.configuration_paths` against the contents
+    * In this case the path `peft.quantization.auto_gptq` exists, and `AccelerationFramework` instantiates the plugin and stores `active_plugin`
+    * contents under `peft.quantization.auto_gptq` passed to plugin constructor.
+
+```yaml
+plugins:
+
+  # PEFT-related acceleration
+  peft:
+
+    # quantization-releated acceleration
+    # e.g., kernels for quantized base weights
+    quantization: 
+
+      # AutoGPTQ quantized base weights.
+      auto_gptq:
+        kernel: triton_v2
+        from_quantized: True
 ```
