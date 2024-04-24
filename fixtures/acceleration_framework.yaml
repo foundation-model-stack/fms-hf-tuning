@@ -1,0 +1,56 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+
+  # Stanza for accelerated PEFT-related techiniques (e.g. , LoRA)
+  peft:
+
+    # Quantization-releated acceleration
+    quantization: 
+
+      # Configures a AutoGPTQ model loading to serve as 
+      # 4bit base-weights for LoRA PEFT-tuning.
+      auto_gptq:
+
+        # Kernel to be used for GPTQ linear laeyer
+        # NOTE: Not all kernels are suitable for PEFT training; need to use 
+        # kernels that support autograd forward / backward. The best 
+        # recommendation at the moment is "triton_v2".
+        kernel: triton_v2
+
+        # If true, then will already expect quantized checkpoint 
+        # passed into TrainingArguments.model_name_or_path
+        from_quantized: True
+
+      # Uncomment this for loading BitsAndBytes quantized layers
+      # to serve as 4bit base-weights for LoRA PEFT-tuning.
+      # NOTE: currently AutoGPTQ is not properly integrated into huggingface /
+      # bitsandbytes, thus recommended quant_type to be either "nf4"
+      # or "fp4".
+      # bitsandbytes:
+      #   quant_type: nf4 
+
+      # Uncomment this to use optimizations from 
+      # https://github.com/unslothai/unsloth
+      # unsloth: 
+
+      #   # load unsloth optimizations for these 4bit base layer weights.
+      #   # currently only support "auto_gptq" and "bitsandbytes"
+      #   base_layer: auto_gptq
+
+      #   # activate various unsloth optimizations
+      #   # NOTE: currently supports only all-or-nothing.
+
+      #   # fused kernels for lora linear layers
+      #   fused_lora: True
+
+      #   # fast loss triton kernels
+      #   fast_loss: True
+
+      #   # fast rms norm triton kernels
+      #   fast_rsm_layernorm: True
+
+      #   # fast RoPE embedding triton kernels
+      #   fast_rope_embeddings: True
