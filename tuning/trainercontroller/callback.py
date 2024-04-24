@@ -36,6 +36,7 @@ import yaml
 # Local
 from tuning.trainercontroller import controllermetrics, operations
 from tuning.trainercontroller.control import Control, OperationAction
+from tuning.trainercontroller.controllermetrics import INVALID_VALUE
 from tuning.trainercontroller.controllermetrics import (
     handlers as default_metric_handlers,
 )
@@ -267,7 +268,10 @@ class TrainerControllerCallback(TrainerCallback):
         """
         if event_name in self.metrics_on_event:
             for m in self.metrics_on_event[event_name]:
-                self.metrics[m.get_name()] = m.compute(event_name=event_name, **kwargs)
+                metric_data = m.compute(event_name=event_name, **kwargs)
+                self.metrics[m.get_name()] = (
+                    metric_data if metric_data is not None else INVALID_VALUE
+                )
 
     def _take_control_actions(self, event_name: str, **kwargs):
         """Invokes the act() method for all the operations registered for a given event. \
@@ -282,6 +286,8 @@ class TrainerControllerCallback(TrainerCallback):
         if event_name in self.control_actions_on_event:
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
+                if self.metrics is None or len(self.metrics) == 0:
+                    continue
                 try:
                     # pylint: disable=eval-used
                     rule_succeeded = eval(
@@ -350,7 +356,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
-
+        self.trainer_state = state
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
