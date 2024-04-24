@@ -75,7 +75,7 @@ The proposal satisfies the following desiredata:
 
 ### Only the Model is Modified
 
-Since the [`SFTTrainer`] is designed to work with generic pytorch models, modifying the model is much less intrusive to the training pipeline, then say, modifying [`SFTTrainer`] itself. The hope is then if we constrain ourselves to modify only the model, that we can implement all the method plugins (e.g., quantization, distributed training, etc) that we hope for. 
+The [`Trainer`] is designed to work with generic pytorch models; [`trl.SFTTrainer`] inherits from `Trainer` and has sligthly more constraints (such as throwing errors if `tokenizer=None`), but are still bare minimum. With this, we claim that modifying the model is much less intrusive to the training pipeline, then say, modifying [`SFTTrainer`] itself. The hope is then if we constrain ourselves to modify only the model, that we can implement all the method plugins (e.g., quantization, distributed training, etc) that we hope for. 
 
 The framework is designed to only modify them model at two integration points in `sft_trainer.py`. The primary motivation for this is easy code maintenance:
 1. an *optional* `model_loader` method that acts as a drop-in replacement for `AutoModel.from_pretrained`. 
@@ -287,7 +287,7 @@ def train(
         # e.g., peft_config will be consumed in augmentation, and returned as None 
         #       to prevent SFTTrainer from doing extraneous PEFT logic
         model, (peft_config,) = framework.augmentation(
-            model, trainer.accelerator,
+            model,
             train_args, modifiable_args=(peft_config,),
         )
 
