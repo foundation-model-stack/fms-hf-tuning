@@ -286,7 +286,6 @@ class TrainerControllerCallback(TrainerCallback):
         if event_name in self.control_actions_on_event:
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
-                logger.warning(f"METRICS: {self.metrics}")
                 if self.metrics is None or len(self.metrics) == 0:
                     continue
                 try:
