@@ -1,9 +1,7 @@
-import logging, traceback
+import pytest
 import torch
 
 from mixing.models.mixllama import MixLlamaConfig, MixLlamaForCausalLM
-
-logging.basicConfig(level=logging.INFO)
 
 dtype = torch.float16
 simple_arch = dict(
@@ -14,7 +12,7 @@ simple_arch = dict(
     torch_dtype=dtype
 )
 
-configs = [
+test_cases = [
     # (name, cpu_ok, config)
     ("Basic LLaMa (no mixture)", True, 
         MixLlamaConfig(
@@ -73,7 +71,11 @@ configs = [
         )),
 ]
 
-if __name__ == "__main__":
+@pytest.fixture(ids=[x[0] for x in test_cases], params=test_cases)
+def config(request):
+    return request.param
+
+def test_mix(config):
 
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -81,30 +83,10 @@ if __name__ == "__main__":
         device = torch.device("cpu")
 
     dummy = torch.ones((1,8)).int().to(device)
-    results = []
 
-    for idx, (name, cpu_ok, config) in enumerate(configs):
-        
-        try :
-
-            logging.info("### TEST [{}] {}".format(idx, name))
-            if not torch.cuda.is_available() and not cpu_ok:
-                results.append("This test requires GPU")
-                logging.info("This test requires GPU, skipping...")
-                continue
-            m = MixLlamaForCausalLM(config).to(dtype).to(device)
-            o = m(dummy)
-            o = m.generate(dummy)
-            logging.info("### TEST [{}] Passed!".format(idx))
-            del m
-            results.append("Pass")
-    
-        except Exception as e:
-
-            logging.info("### TEST [{}] Failed!".format(idx))
-            traceback.print_exc()
-            results.append("Fail")
-
-    print("\n\n\n")
-    for idx, (name, cpu_ok, config) in enumerate(configs):
-        logging.info("TEST [{}]\tName: {}\tStatus: {}".format(idx, name, results[idx]))
+    name, cpu_ok, model_config = config
+    if not torch.cuda.is_available(): assert cpu_ok, "test requires gpu"
+    m = MixLlamaForCausalLM(model_config).to(dtype).to(device)
+    o = m(dummy)
+    o = m.generate(dummy)
+    del m
