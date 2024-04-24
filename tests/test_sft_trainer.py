@@ -419,8 +419,9 @@ def test_data_path_is_a_directory():
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
-        # Confusingly, if we pass a directory for our data path, it will throw a FileNotFoundError saying
-        # "unable to find '<data_path>'", since it can't find a matchable file in the path.
+        # Confusingly, if we pass a directory for our data path, it will throw a
+        # FileNotFoundError saying "unable to find '<data_path>'", since it can't
+        # find a matchable file in the path.
         with pytest.raises(FileNotFoundError):
             sft_trainer.train(model_args, data_args, training_args, tune_config)
 
