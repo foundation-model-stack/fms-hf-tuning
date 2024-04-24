@@ -1,0 +1,12 @@
+controller-metrics:
+  - name: state
+    class: StateOfTrainer
+  - name: evalmetric
+    class: StateOfEvalMetrics
+controllers:
+  - name: loss-controller
+    triggers:
+      - on_log
+    rule: state['epoch'] > 5 and evalmetric['eval_loss'] < 2.5
+    operations:
+      - hfcontrols.should_training_stop
