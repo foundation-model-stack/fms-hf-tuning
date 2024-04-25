@@ -276,7 +276,7 @@ def train(
 
     if trainer.is_fsdp_enabled and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
-            model
+            trainer.model
         )
     trainer.train()
 
