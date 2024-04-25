@@ -57,20 +57,25 @@ test_cases = [
             pretraining_tp=False,
             **simple_arch
         )),
-    ("MixLLaMa with ALL MOE with flash attn", False,
-        MixLlamaConfig(
-            num_experts_per_tok=2,
-            num_local_experts=4,
-            moe_query=True,
-            moe_key=True,
-            moe_value=True,
-            output_router_logits=True,
-            pretraining_tp=False,
-            _attn_implementation="flash_attention_2",
-            **simple_arch
-        )),
+    
 ]
 
+if torch.cuda.is_available():
+    test_cases += [
+        ("MixLLaMa with ALL MOE with flash attn", False,
+            MixLlamaConfig(
+                num_experts_per_tok=2,
+                num_local_experts=4,
+                moe_query=True,
+                moe_key=True,
+                moe_value=True,
+                output_router_logits=True,
+                pretraining_tp=False,
+                attn_implementation="flash_attention_2",
+                **simple_arch
+            )),
+    ]
+    
 @pytest.fixture(ids=[x[0] for x in test_cases], params=test_cases)
 def config(request):
     return request.param
