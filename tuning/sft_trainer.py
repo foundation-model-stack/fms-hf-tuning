@@ -244,7 +244,9 @@ def train(
 
     callbacks = [FileLoggingCallback(logger)]
     if is_aim_available():
-        callbacks.append(get_aimstack_callback())
+        aimstack_callback = get_aimstack_callback()
+        if aimstack_callback is not None:
+            callbacks.append(aimstack_callback)
 
     if (trainer_controller_args is not None) and (
         trainer_controller_args.trainer_controller_config_file is not None

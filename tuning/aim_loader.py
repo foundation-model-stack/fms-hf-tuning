@@ -38,6 +38,6 @@ def get_aimstack_callback():
     if aim_db:
         aim_callback = AimCallback(repo=aim_db, experiment=aim_experiment)
     else:
-        aim_callback = AimCallback(experiment=aim_experiment)
+        aim_callback = None
 
     return aim_callback
