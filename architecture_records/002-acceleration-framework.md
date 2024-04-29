@@ -16,7 +16,7 @@
 
 ## Summary and Objective
 
-Design and implement a framework to include custom acceleration tools into [`sft_trainer.py`], that improve training metrics such as GPU memory consumption, training speed, etc.
+Design and implement a framework to include custom acceleration tools into `sft_trainer.py`, that improve training metrics such as GPU memory consumption, training speed, etc.
 
 <!--
 Context goes here.
@@ -26,23 +26,36 @@ Describe the forces at play, including technological, political, social, and pro
 
 ### Motivation
 
-Currently `sft_trainer.py` only can access those tools already integrated in HF. Due to rapid developments in AI training methodologies, these technologies are quickly considered "standard", for example:
+<!--
+Currently `sft_trainer.py` only can access those tools already integrated in HF. Due to rapid developments in AI training methodologies, these technologies are quickly considered "standard". Some of these :
 1. LoRA adapters from [PEFT](https://github.com/huggingface/peft).
 2. Prefix tuning from [PEFT](https://github.com/huggingface/peft).
 3. FSDP training from [accelerate](https://github.com/huggingface/accelerate).
+-->
 
-Below are various reasons for a framework to integrate custom training tools into `sft_trainer.py`. 
-* Enable quick integrations of open-source techniques that have yet to be integrated into Huggingface.
-* Enable integrations of custom techniques developed by IBM researchers, that are not planned be integrated into Huggingface.
+Recently, it has been observed that new training techniques are released with an incomplete "preview" version. These "preview" versions tend to be not be fully integrated into OSS. Therefore, using new techniques typically involve additional work. This framework aims to allow timely integrations of such techniques into `sft_trainer.py`, to enable:
+* developers to integrate open-source training improvements into `sft_trainer.py`.
+* researchers to implement custom training improvements into `sft_trainer.py`.
+* users to easily pick and choose which said training improvements to enable when using `sft_trainer.py`.
 
-Recently, it has been observed that new training techniques are released with an incomplete "preview" version. These "preview" versions tend to be not be fully integrated into OSS. Therefore, using new techniques typically involve additional work. This framework aims to allow timely integrations of such techniques into `sft_trainer.py`. A short list of powerful training techniques but are "preview"-only include:
-- Huggingface integration of [AutoGPTQ](https://github.com/AutoGPTQ/AutoGPTQ).
-    * 4-bit quantization kernels to reduce memory storage of the base weights.
+The framework that we propose must be extensible. We propose 3 strong candidates for to be implemented in the near future, but over time new improvements will be available (from open source or from internal development). When a new improvement is added, it should be done in a manner that is minimally intrusive to `sft_trainer.py`.
+
+#### Training Improvements planned for Integration into Framework
+
+The following 3 techniques are currently under strong consideration to be added. In what follows, we explain clearly why these techniques are currently available out-of-the-box from huggingface `SFTTrainer`, to motivate why they need to be added as improvements:
+- [AutoGPTQ](https://github.com/AutoGPTQ/AutoGPTQ).
+    * AutoGPTQ is available only via basic integration through [huggingface optimum](https://github.com/huggingface/optimum). 
+    * AutoGPTQ provides state-of-the-art, 4-bit quantized PEFT-LoRA that greatly reduces memory requirements base weights.
+    * Unfortunately, huggingface integrated [GPTQ kernels that do not work in training](https://github.com/AutoGPTQ/AutoGPTQ/issues/633).
+    * Therefore, a training improvement is planned to properly integrate the [latest triton V2 kernels](https://github.com/AutoGPTQ/AutoGPTQ/pull/596) that can be used for sped-up PEFT training.
 - [Unsloth](https://github.com/unslothai/unsloth).
-    * Fused operation kernels
-    * Kernels for common model architectures (e.g., cross-entropy losses, RoPE embeddings and RMS norms).
+    * Unsloth is a collection of kernels and fused operations that improve PEFT-LoRA. 
+    * Unfortunately, unsloth's codebase contains also a lot of reatures (e.g., fused attention, gradient checkpointing) that we do not want integrated at this moment.
+    * Thefore, a training improvement is planned to incorporate a clean integration of unsloth, that extracts out only the critical code pieces.
 - [megablocks](https://github.com/databricks/megablocks).
-    * acceleration package for distributing mixture-of-experts that improves upon FSDP sharding.
+    * Megablocks is a collection of distributed training methods to speed up mixture-of-experts training.
+    * Megablocks is procured by [databricks](https://github.com/databricks/megablocks), and there is no indication it will be integrated into `SFTTrainer`.
+    * Therefore, a training improvement is under strong consideration, to be added to allow a model with a mixture-of-experts layer, to be sped-up using megablocks techniques.
 
 <!--
 Why this is a valuable problem to solve? What background information is needed to show how this design addresses the problem?
@@ -71,11 +84,11 @@ The proposal satisfies the following desiredata:
 - Modular design allows new methods plugins to be added / removed / deactivated seemlessly.
 - Modular design enforces that plugins interact with `sft_trainer.py` at controlled points, and throw appropriate exceptions.
 - Generic enough for most use cases of interest (e.g., quantization, distributed training, etc).
-- Unobstrusive design that only *modifies the model*, and leaves [`SFTTrainer`] unmodified. Minimal inversion-of-control maintained through [`TrainerCallbacks`].
+- Unobstrusive design that only *modifies the model*, and leaves `SFTTrainer` unmodified. Minimal inversion-of-control maintained through `TrainerCallbacks`.
 
 ### Only the Model is Modified
 
-The [`Trainer`] is designed to work with generic pytorch models; [`trl.SFTTrainer`] inherits from `Trainer` and has sligthly more constraints (such as throwing errors if `tokenizer=None`), but are still bare minimum. With this, we claim that modifying the model is much less intrusive to the training pipeline, then say, modifying [`SFTTrainer`] itself. The hope is then if we constrain ourselves to modify only the model, that we can implement all the method plugins (e.g., quantization, distributed training, etc) that we hope for. 
+The `Trainer` is designed to work with generic pytorch models; `trl.SFTTrainer` inherits from `Trainer` and has sligthly more constraints (such as throwing errors if `tokenizer=None`), but are still bare minimum. With this, we claim that modifying the model is much less intrusive to the training pipeline, then say, modifying `SFTTrainer` itself. The hope is then if we constrain ourselves to modify only the model, that we can implement all the method plugins (e.g., quantization, distributed training, etc) that we hope for. 
 
 The framework is designed to only modify them model at two integration points in `sft_trainer.py`. The primary motivation for this is easy code maintenance:
 1. an *optional* `model_loader` method that acts as a drop-in replacement for `AutoModel.from_pretrained`. 
@@ -302,12 +315,12 @@ def train(
     trainer.train()
 ```
 
-The picture below summarizes the above discussion in more detail. It demonstrates how the design will not contradict internal workings of [`SFTTrainer`].
-- Model is modified and then control passed to [`SFTTrainer`].
-- [`SFTTrainer`] also performs model augmentation internally (e.g., it installs PEFT adapters if `peft_config` is passed in). 
-    * However, [`SFTTrainer`]'s model augmentation should be passed through if configs are omitted (e.g., if `peft_config = None`).
-- [`SFTTrainer`] will prepare model for distributed training (e.g. wrap with `FSDP`) internally. 
-    * thus Plugin implementers need to be aware that `TuningAccelerationPlugin.augmentation` should not interfere with any model preperation that [`SFTTrainer`] will perform.
+The picture below summarizes the above discussion in more detail. It demonstrates how the design will not contradict internal workings of `SFTTrainer`.
+- Model is modified and then control passed to `SFTTrainer`.
+- `SFTTrainer` also performs model augmentation internally (e.g., it installs PEFT adapters if `peft_config` is passed in). 
+    * However, `SFTTrainer`'s model augmentation should be passed through if configs are omitted (e.g., if `peft_config = None`).
+- `SFTTrainer` will prepare model for distributed training (e.g. wrap with `FSDP`) internally. 
+    * thus Plugin implementers need to be aware that `TuningAccelerationPlugin.augmentation` should not interfere with any model preperation that `SFTTrainer` will perform.
 
 ![Framework](imgs/002-framework.png)
 
@@ -399,7 +412,7 @@ This section is optional. Elaborate on details if they’re important to underst
 
 In this section we demonstrate an `AutoGPTQAccelerationPlugin` that implements accelerated PEFT training using 4 bit GPTQ base weights with `triton_v2` kernels.
 * inherits `AccelerationPlugin` as described [in the above description](#accelerationplugin-base-class).
-* registers to `peft.quantization.auto_gptq` in configuration file pointed to by `AccelerationFrameworkArguments.acceleration_framework_config_file`. See below [example of acceleration framework configuration file loading `AutoGPTQAccelerationPlugin`]()
+* registers to `peft.quantization.auto_gptq` in configuration file pointed to by `AccelerationFrameworkArguments.acceleration_framework_config_file`. See below [example of acceleration framework configuration file loading `AutoGPTQAccelerationPlugin`](#configuration-to-load-autogptq-lora-plugin)
 
 
 ```python
@@ -459,7 +472,7 @@ AccelerationPlugin.register_plugin(
 
 This file pointed to by `AccelerationFrameworkArguments.acceleration_framework_config_file` would looking like the below samle YAML:
 - All contents under `plugins` be parsed by `AccelerationFramework.__init__`. 
-    * For any registered plugin, recall [], we check `PluginRegistration.configuration_paths` against the contents
+    * For any registered plugin, recall [above](#plugin-for-loading-lora-traininable-autogptq-model) that we check `PluginRegistration.configuration_paths` against the contents of the configuration file.
     * In this case the path `peft.quantization.auto_gptq` exists, and `AccelerationFramework` instantiates the plugin and stores `active_plugin`
     * contents under `peft.quantization.auto_gptq` passed to plugin constructor.
 
