@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM registry.access.redhat.com/ubi9/python-311 as wheel
+
+ARG WHEEL_VERSION=""
+USER root
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    python -m pip install build
+COPY tuning tuning
+COPY .git .git
+COPY pyproject.toml pyproject.toml
+# build wheel if wheel version is empty else download the wheel from PyPi
+RUN if [[ -z "${WHEEL_VERSION}" ]]; \
+    then python -m build --wheel --outdir /tmp; \
+    else pip download fms-hf-tuning==${WHEEL_VERSION} --dest /tmp --only-binary=:all: --no-deps; \
+    fi && \
+    ls /tmp/*.whl >/tmp/bdist_name
+
+
 FROM registry.access.redhat.com/ubi9/ubi AS release
 
 ARG CUDA_VERSION=11.8.0
@@ -92,24 +110,26 @@ ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 
 RUN dnf install -y python3.11 git && \
     ln -s /usr/bin/python3.11 /bin/python && \
-    python -m ensurepip --upgrade
-
-RUN mkdir /app
+    python -m ensurepip --upgrade && \
+    dnf clean all
 
 WORKDIR /tmp
-RUN python -m pip install --upgrade pip
-
-# TODO Move to installing wheel once we have proper releases setup instead of cloning the repo
-RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
-    cd fms-hf-tuning && \
-    python -m pip install ".[dev]" && \
-    python -m pip install ".[flash-attn]" && \
-    python -m pip install ".[aim]" && \
-    python -m pip install -U datasets
+COPY --from=wheel /tmp/*.whl /tmp/bdist_name /tmp/
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    python -m pip install wheel && \
+    python -m pip install "$(head bdist_name)" && \
+    python -m pip install "$(head bdist_name)[aim]" && \
+    python -m pip install "$(head bdist_name)[flash-attn]" && \
+    # Clean up the wheel module. It's only needed by flash-attn install
+    python -m pip uninstall wheel -y && \
+    # Cleanup the bdist whl file
+    rm $(head bdist_name) /tmp/bdist_name
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
+RUN mkdir /app
 # Copy scripts and default configs
 COPY build/launch_training.py build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 COPY build/utils.py /app/build/
