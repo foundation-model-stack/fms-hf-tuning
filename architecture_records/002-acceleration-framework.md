@@ -99,6 +99,8 @@ In what follows, we provide:
 - a description of an abstract base class that all plugins must inherit and conform to.
 - a brief description of the framework class that is responsible for managing plugins (e.g., loading, executing).
 
+NOTE: We want to note that the implementation of frameworks and plugins may be moved to a separate open source repository . fms-hf-tuning will then include the framework library as an optional dependency and call respective loaders and augmentation techniques as specified. 
+
 #### AccelerationPlugin Base Class
 
 Implement concrete plugins that inherit below abstract `AccelerationPlugin` class. 
