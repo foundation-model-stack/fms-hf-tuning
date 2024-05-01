@@ -28,6 +28,12 @@ from accelerate.commands.launch import launch_command_parser
 from tuning.config import configs, peft_config, tracker_configs
 
 
+def write_termination_log(text, log = "/dev/termination-log"):
+    f = open(log, "a")
+    f.write(text)
+    f.close()
+
+
 def txt_to_obj(txt):
     base64_bytes = txt.encode("ascii")
     message_bytes = base64.b64decode(base64_bytes)
