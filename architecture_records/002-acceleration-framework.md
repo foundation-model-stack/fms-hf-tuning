@@ -26,13 +26,6 @@ Describe the forces at play, including technological, political, social, and pro
 
 ### Motivation
 
-<!--
-Currently `sft_trainer.py` only can access those tools already integrated in HF. Due to rapid developments in AI training methodologies, these technologies are quickly considered "standard". Some of these :
-1. LoRA adapters from [PEFT](https://github.com/huggingface/peft).
-2. Prefix tuning from [PEFT](https://github.com/huggingface/peft).
-3. FSDP training from [accelerate](https://github.com/huggingface/accelerate).
--->
-
 Recently, it has been observed that new training techniques are released with an incomplete "preview" version. These "preview" versions tend to be not be fully integrated into OSS. Therefore, using new techniques typically involve additional work. This framework aims to allow timely integrations of such techniques into `sft_trainer.py`, to enable:
 * developers to integrate open-source training improvements into `sft_trainer.py`.
 * researchers to implement custom training improvements into `sft_trainer.py`.
@@ -350,10 +343,6 @@ Consideration | Why it was decided agianst
 --|--
 Restrict to only performing `augmentation` and not having custom model `loading` | Some methods (e.g., quantization that has special checkpoints) require special loaders. Furthmore any attempt to modify and instantiated models in unintended manners will be error-prone. Finally for extensibility reasons, we decided that preventing drop-in `loading` replacements will be a severe handicap.
 Adding tuning enchancements directly to `SFT_Trainer` | The Huggingface trainer is a very complex, and is not recommended to manipulate it directly. 
-
-<!--
-As such, we choose to allow `TuningAccelerationPlugin.augmentation` to modify only the `Accelerator` object which can already do quite a bit of things, like adjust the FSDP wrapping policy (for distributed training).
--->
 
 <!--
 - Make sure to discuss the relative merits of alternatives to your proposal.
