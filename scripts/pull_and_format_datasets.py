@@ -33,7 +33,7 @@ def format_and_export_cc_tone_file(
         num_samples: Optional[int]
             Number of samples to be included in the formatted file.
     """
-    with open(file_path, "r") as tone_file:
+    with open(file_path, "r", encoding="utf-8") as tone_file:
         data = [json.loads(line) for line in tone_file.readlines() if line]
 
     export_path = export_path.split(".")[0] + ".json"
@@ -51,7 +51,7 @@ def format_and_export_cc_tone_file(
         }
         for datum in data
     ]
-    with open(export_path, "w") as export_file:
+    with open(export_path, "w", encoding="utf-8") as export_file:
         json.dump(formatted_data, export_file, sort_keys=True, indent=4)
 
 
@@ -85,7 +85,7 @@ def format_and_export_entities_file(
         ]
         return ", ".join(mention_strs)
 
-    with open(file_path, "r") as entities_file:
+    with open(file_path, "r", encoding="utf-8") as entities_file:
         data = json.load(entities_file)
     if num_samples:
         data = random.sample(data, num_samples)
@@ -101,7 +101,7 @@ def format_and_export_entities_file(
         }
         for datum in data
     ]
-    with open(export_path, "w") as export_file:
+    with open(export_path, "w", encoding="utf-8") as export_file:
         json.dump(formatted_data, export_file, sort_keys=True, indent=4)
 
 
@@ -123,6 +123,7 @@ DATASET_INFOS = [
         },
     },
     {
+        # pylint: disable=line-too-long
         COS_LOCATION_KEY: "fm-validation-staging-models-and-datasets/datasets/unitxt/en/Extraction/Entities",
         FORMAT_FUNC_KEY: format_and_export_entities_file,
         SUBSAMPLE_KEY: {
