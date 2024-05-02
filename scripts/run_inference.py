@@ -183,7 +183,7 @@ class TunedCausalLM:
                         attn_implementation="flash_attention_2"
                         if use_flash_attn
                         else None,
-                        torch_dtype=torch.float16 if use_flash_attn else None,
+                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
                     )
                 except OSError as e:
                     print("Failed to initialize checkpoint model!")
@@ -194,7 +194,7 @@ class TunedCausalLM:
             model = AutoModelForCausalLM.from_pretrained(
                 checkpoint_path,
                 attn_implementation="flash_attention_2" if use_flash_attn else None,
-                torch_dtype=torch.float16 if use_flash_attn else None,
+                torch_dtype=torch.bfloat16 if use_flash_attn else None,
             )
 
         device = "cuda" if torch.cuda.is_available() else None
