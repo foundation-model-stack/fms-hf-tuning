@@ -12,15 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#General
+import dataclasses
+
 # Local
-from .aimstack_tracker import AimStackTracker
 from .tracker import Tracker
+from tuning.utils.import_utils import is_package_available
 
-REGISTERED_TRACKERS = {"aim": AimStackTracker}
+# Third party
+from transformers.utils import logging
+logger = logging.get_logger("tracker_factory")
 
+REGISTERED_TRACKERS = {}
 
-def get_tracker(tracker_name, tracker_config):
-    if tracker_name in REGISTERED_TRACKERS:
-        T = REGISTERED_TRACKERS[tracker_name]
+if is_package_available("aim"):
+    from tuning.config.tracker_configs import AimConfig
+    from .aimstack_tracker import AimStackTracker
+
+    AimTracker = { "tracker": AimStackTracker,
+                   "config": AimConfig}
+
+    REGISTERED_TRACKERS['aim'] = AimTracker
+
+def get_tracker_config(name, super_configs):
+    if name in REGISTERED_TRACKERS:
+        meta = REGISTERED_TRACKERS[name]
+        C = meta['config']
+        config = C(**dataclasses.asdict(super_configs))
+    else:
+        config = None
+    return config
+
+def get_tracker(name, tracker_config):
+    if name in REGISTERED_TRACKERS:
+        meta = REGISTERED_TRACKERS[name]
+        T = meta['tracker']
         return T(tracker_config)
+    else:
+        logger.warn("Tracker "+name+" requested but package "+name+" not found.\n"
+                         "Please install tracker package before proceeding.")
     return Tracker()

@@ -42,7 +42,7 @@ from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker import Tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.trackers.tracker_factory import get_tracker
+from tuning.trackers.tracker_factory import get_tracker, get_tracker_config
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
@@ -99,7 +99,7 @@ def train(
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     callbacks: Optional[List[TrainerCallback]] = None,
-    tracker: Optional[Tracker] = None,
+    trackers: Optional[List[Tracker]] = None,
     exp_metadata: Optional[Dict] = None,
 ):
     """Call the SFTTrainer
@@ -115,7 +115,7 @@ def train(
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
         callbacks: List of callbacks to attach with SFTtrainer.
-        tracker: One of the available trackers in trackers.tracker_factory.REGISTERED_TRACKERS
+        trackers: List of the available trackers in trackers.tracker_factory.REGISTERED_TRACKERS
                 Initialized using tuning.trackers.tracker_factory.get_tracker
                 Using configs in tuning.config.tracker_configs
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
@@ -301,17 +301,18 @@ def train(
     # We track additional metrics and experiment metadata after
     # Trainer object creation to ensure that this is not repeated
     # multiple times for FSDP runs.
-    if tracker is not None:
-        # Currently tracked only on process zero.
-        if trainer.is_world_process_zero():
-            try:
-                for k, v in additional_metrics.items():
-                    tracker.track(metric=v, name=k, stage="additional_metrics")
-                tracker.set_params(params=exp_metadata, name="experiment_metadata")
-            except ValueError as e:
-                logger.error(
-                    "Exception while saving additional metrics and metadata %s", repr(e)
-                )
+    for tracker in trackers:
+        if tracker is not None:
+            # Currently tracked only on process zero.
+            if trainer.is_world_process_zero():
+                try:
+                    for k, v in additional_metrics.items():
+                        tracker.track(metric=v, name=k, stage="additional_metrics")
+                    tracker.set_params(params=exp_metadata, name="experiment_metadata")
+                except ValueError as e:
+                    logger.error(
+                        "Exception while saving additional metrics and metadata %s", repr(e)
+                    )
 
     if trainer.is_fsdp_enabled and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
@@ -329,7 +330,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
-            tracker_configs.AimConfig,
+            Union[tracker_configs.AimConfig],
         )
     )
     parser.add_argument(
@@ -352,7 +353,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         trainer_controller_args,
         lora_config,
         prompt_tuning_config,
-        aim_config,
+        combined_tracker_configs,
         additional,
         _,
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -367,21 +368,19 @@ def main(**kwargs):  # pylint: disable=unused-argument
     else:
         tune_config = None
 
-    tracker_name = training_args.tracker
-    if tracker_name == "aim":
-        tracker_config = aim_config
-    else:
-        tracker_config = None
-
     # Initialize callbacks
     file_logger_callback = FileLoggingCallback(logger)
     callbacks = [file_logger_callback]
 
     # Initialize the tracker
-    tracker = get_tracker(tracker_name, tracker_config)
-    tracker_callback = tracker.get_hf_callback()
-    if tracker_callback is not None:
-        callbacks.append(tracker_callback)
+    trackers = []
+    for name in training_args.trackers:
+        config = get_tracker_config(name, combined_tracker_configs)
+        t = get_tracker(name, config)
+        cb = t.get_hf_callback()
+        if cb is not None:
+            callbacks.append(cb)
+            trackers.append(t)
 
     # extra metadata passed via client
     metadata = None
@@ -405,10 +404,9 @@ def main(**kwargs):  # pylint: disable=unused-argument
         peft_config=tune_config,
         trainer_controller_args=trainer_controller_args,
         callbacks=callbacks,
-        tracker=tracker,
+        trackers=trackers,
         exp_metadata=metadata,
     )
-
 
 if __name__ == "__main__":
     fire.Fire(main)

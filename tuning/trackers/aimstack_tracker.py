@@ -18,7 +18,6 @@ from aim.hugging_face import AimCallback
 # Local
 from .tracker import Tracker
 from tuning.config.tracker_configs import AimConfig
-from tuning.utils.import_utils import is_package_available
 
 # Aimstack does not initialise the callback at init hence we cannot track
 # additional metrics before the training ends, hence using custom callback
@@ -38,14 +37,6 @@ class AimStackTracker(Tracker):
         super().__init__(name="aim", tracker_config=tracker_config)
 
     def get_hf_callback(self):
-        pkg = "aim"
-
-        if not is_package_available(pkg):
-            self.logger.warn("Aim tracker requested but package "+pkg+" not found.\n"
-                             "Please install aim with this command before proceeding.\n"
-                             "\t pip install "+pkg)
-            return None
-
         c = self.config
         exp = c.experiment
         ip = c.aim_remote_server_ip

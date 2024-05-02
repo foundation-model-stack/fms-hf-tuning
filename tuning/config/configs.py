@@ -14,7 +14,7 @@
 
 # Standard
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 # Third Party
 import torch
@@ -90,10 +90,10 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (logging is done every `logging_steps`)"
         },
     )
-    tracker: str.lower = field(
+    trackers: Optional[List[str.lower]]= field(
         default=None,
         metadata={
-            "help": "Experiment tracker to use.\n"
+            "help": "Experiment trackers to use.\n"
             + "Available trackers are - aim, none\n"
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
