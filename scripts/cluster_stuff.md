@@ -74,6 +74,7 @@ TWe need to run one more conversion step to get the data into the format we expe
 
 ```bash
 python3 alpaca_to_sft_format.py \
+    --files \
     formatted_data/cc_tone/1000_train.json \
     formatted_data/Entities/1000_IBM_NET_2019_DELIVERABLE_VERSION_C_train.json \
     formatted_data/tsa_mams/1000_train.json
