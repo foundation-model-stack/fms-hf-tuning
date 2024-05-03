@@ -1,4 +1,4 @@
-# Copyright The IBM Tuning Team
+# Copyright The FMS HF Tuning Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,18 +17,23 @@ import dataclasses
 
 # Third Party
 from transformers.utils import logging
+from transformers.utils.import_utils import _is_package_available
 
 # Local
 from .tracker import Tracker
-from tuning.utils.import_utils import is_package_available
+
+# Information about all registered trackers
+REGISTERED_TRACKERS = {}
+
+# One time package check for list of trackers.
+_is_aim_available = _is_package_available("aim")
 
 logger = logging.get_logger("tracker_factory")
 
-REGISTERED_TRACKERS = {}
 
-# pylint: disable=import-outside-toplevel
-def register_trackers():
-    if is_package_available("aim"):
+def _register_aim_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_aim_available:
         # Local
         from .aimstack_tracker import AimStackTracker
         from tuning.config.tracker_configs import AimConfig
@@ -44,6 +49,11 @@ def register_trackers():
         )
 
 
+def register_trackers():
+    if "aim" not in REGISTERED_TRACKERS:
+        _register_aim_tracker()
+
+
 def get_tracker(name, super_configs):
     # a one time step.
     if not REGISTERED_TRACKERS:
@@ -54,11 +64,10 @@ def get_tracker(name, super_configs):
         C = meta["config"]
         T = meta["tracker"]
         tracker_config = C(**dataclasses.asdict(super_configs))
-        if tracker_config is not None:
-            return T(tracker_config)
-    else:
-        logger.warning(
-            "Requested Tracker %s not found.\n"
-            "Please check the argument before proceeding."
-        )
+        return T(tracker_config)
+
+    logger.warning(
+        "Requested Tracker %s not found.\n"
+        "Please check the argument before proceeding."
+    )
     return Tracker()

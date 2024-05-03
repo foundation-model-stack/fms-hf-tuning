@@ -51,9 +51,6 @@ TRAINING_LOGS_FILENAME = "training_logs.jsonl"
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
 
-    def __init__(self, logger):
-        self.logger = logger
-
     def on_log(self, args, state, control, logs=None, **kwargs):
         """Checks if this log contains keys of interest, e.g., loss, and if so, creates
         training_logs.jsonl in the model output dir (if it doesn't already exist),
@@ -124,7 +121,7 @@ def train(
     logger = logging.get_logger("sft_trainer")
 
     # Validate parameters
-    if (not isinstance(train_args.num_train_epochs, float)) or (
+    if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
         raise ValueError("num_train_epochs has to be an integer/float >= 1")
@@ -252,6 +249,12 @@ def train(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
 
+    file_logger_callback = FileLoggingCallback()
+    if callbacks:
+        callbacks.append(file_logger_callback)
+    else:
+        callbacks = [file_logger_callback]
+
     if (trainer_controller_args is not None) and (
         trainer_controller_args.trainer_controller_config_file is not None
     ):
@@ -277,19 +280,18 @@ def train(
     # We track additional metrics and experiment metadata after
     # Trainer object creation to ensure that this is not repeated
     # multiple times for FSDP runs.
-    for tracker in trackers:
-        if tracker is not None:
-            # Currently tracked only on process zero.
-            if trainer.is_world_process_zero():
-                try:
-                    for k, v in additional_metrics.items():
-                        tracker.track(metric=v, name=k, stage="additional_metrics")
+    if trackers is not None and trainer.is_world_process_zero():
+        # Currently tracked only on process zero.
+        for tracker in trackers:
+            try:
+                for k, v in additional_metrics.items():
+                    tracker.track(metric=v, name=k, stage="additional_metrics")
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
-                except ValueError as e:
-                    logger.error(
-                        "Exception while saving additional metrics and metadata %s",
-                        repr(e),
-                    )
+            except ValueError as e:
+                logger.error(
+                    "Exception while saving additional metrics and metadata %s",
+                    repr(e),
+                )
 
     if trainer.is_fsdp_enabled and peft_config is not None:
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
@@ -346,8 +348,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = None
 
     # Initialize callbacks
-    file_logger_callback = FileLoggingCallback(logger)
-    callbacks = [file_logger_callback]
+    callbacks = []
 
     # Initialize the tracker
     trackers = []
