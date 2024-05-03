@@ -12,43 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#General
+# Standard
 import dataclasses
+
+# Third Party
+from transformers.utils import logging
 
 # Local
 from .tracker import Tracker
 from tuning.utils.import_utils import is_package_available
 
-# Third party
-from transformers.utils import logging
 logger = logging.get_logger("tracker_factory")
 
 REGISTERED_TRACKERS = {}
 
-if is_package_available("aim"):
-    from tuning.config.tracker_configs import AimConfig
-    from .aimstack_tracker import AimStackTracker
+# pylint: disable=import-outside-toplevel
+def register_trackers():
+    if is_package_available("aim"):
+        # Local
+        from .aimstack_tracker import AimStackTracker
+        from tuning.config.tracker_configs import AimConfig
 
-    AimTracker = { "tracker": AimStackTracker,
-                   "config": AimConfig}
+        AimTracker = {"tracker": AimStackTracker, "config": AimConfig}
 
-    REGISTERED_TRACKERS['aim'] = AimTracker
+        REGISTERED_TRACKERS["aim"] = AimTracker
+    else:
+        logger.info(
+            "Not registering Aimstack tracker due to unavailablity of package.\n"
+            "Please install aim if you intend to use it.\n"
+            "\t pip install aim"
+        )
 
-def get_tracker_config(name, super_configs):
+
+def get_tracker(name, super_configs):
+    # a one time step.
+    if not REGISTERED_TRACKERS:
+        register_trackers()
+
     if name in REGISTERED_TRACKERS:
         meta = REGISTERED_TRACKERS[name]
-        C = meta['config']
-        config = C(**dataclasses.asdict(super_configs))
+        C = meta["config"]
+        T = meta["tracker"]
+        tracker_config = C(**dataclasses.asdict(super_configs))
+        if tracker_config is not None:
+            return T(tracker_config)
     else:
-        config = None
-    return config
-
-def get_tracker(name, tracker_config):
-    if name in REGISTERED_TRACKERS:
-        meta = REGISTERED_TRACKERS[name]
-        T = meta['tracker']
-        return T(tracker_config)
-    else:
-        logger.warn("Tracker "+name+" requested but package "+name+" not found.\n"
-                         "Please install tracker package before proceeding.")
+        logger.warning(
+            "Requested Tracker %s not found.\n"
+            "Please check the argument before proceeding."
+        )
     return Tracker()

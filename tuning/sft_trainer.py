@@ -17,7 +17,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 import json
 import os
-import sys
 import time
 
 # Third Party
@@ -41,12 +40,13 @@ import transformers
 from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker import Tracker
+from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.trackers.tracker_factory import get_tracker, get_tracker_config
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
 TRAINING_LOGS_FILENAME = "training_logs.jsonl"
+
 
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
@@ -260,30 +260,6 @@ def train(
         )
         callbacks.append(tc_callback)
 
-    if train_args.packing:
-        logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
-        logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            logger.error(
-                "Error, response template is None, needs to be set for training"
-            )
-            sys.exit(-1)
-
-        if data_args.dataset_text_field is None:
-            logger.error(
-                "Error, dataset_text_field is None, needs to be set for training"
-            )
-            sys.exit(-1)
-
-        data_collator = DataCollatorForCompletionOnlyLM(
-            response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
-
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -311,7 +287,8 @@ def train(
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
                 except ValueError as e:
                     logger.error(
-                        "Exception while saving additional metrics and metadata %s", repr(e)
+                        "Exception while saving additional metrics and metadata %s",
+                        repr(e),
                     )
 
     if trainer.is_fsdp_enabled and peft_config is not None:
@@ -375,8 +352,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     # Initialize the tracker
     trackers = []
     for name in training_args.trackers:
-        config = get_tracker_config(name, combined_tracker_configs)
-        t = get_tracker(name, config)
+        t = get_tracker(name, combined_tracker_configs)
         cb = t.get_hf_callback()
         if cb is not None:
             callbacks.append(cb)
@@ -407,6 +383,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         trackers=trackers,
         exp_metadata=metadata,
     )
+
 
 if __name__ == "__main__":
     fire.Fire(main)

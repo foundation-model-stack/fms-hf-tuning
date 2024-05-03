@@ -13,28 +13,18 @@
 # limitations under the License.
 
 # Third Party
-from aim.hugging_face import AimCallback
+from aim.hugging_face import AimCallback  # pylint: disable=import-error
+from transformers.utils import logging
 
 # Local
 from .tracker import Tracker
 from tuning.config.tracker_configs import AimConfig
 
-# Aimstack does not initialise the callback at init hence we cannot track
-# additional metrics before the training ends, hence using custom callback
-# We have an open PR in Aim - https://github.com/aimhubio/aim/pull/3116
-# Which fixes this issue.
-class CustomAimCallback(AimCallback):
-    def on_init_end(self, args, state, control, **kwargs):
-        self.setup()  # initializes the run_hash
-
-    def on_train_begin(self, args, state, control, model=None, **kwargs):
-        # call directly to make sure hyper parameters and model info is recorded.
-        self.setup(args=args, state=state, model=model)
-
 
 class AimStackTracker(Tracker):
     def __init__(self, tracker_config: AimConfig):
         super().__init__(name="aim", tracker_config=tracker_config)
+        self.logger = logging.get_logger("aimstack_tracker")
 
     def get_hf_callback(self):
         c = self.config
@@ -44,14 +34,16 @@ class AimStackTracker(Tracker):
         repo = c.aim_repo
 
         if ip is not None and port is not None:
-            aim_callback = CustomAimCallback(
+            aim_callback = AimCallback(
                 repo="aim://" + ip + ":" + port + "/", experiment=exp
             )
         if repo:
-            aim_callback = CustomAimCallback(repo=repo, experiment=exp)
+            aim_callback = AimCallback(repo=repo, experiment=exp)
         else:
-            self.logger.warn("Aim tracker requested but repo or server is not specified\n"
-                             "Please specify either aim repo or aim server ip and port for using aim")
+            self.logger.warning(
+                "Aim tracker requested but repo or server is not specified\n"
+                "Please specify either aim repo or aim server ip and port for using aim"
+            )
             aim_callback = None
 
         self.hf_callback = aim_callback

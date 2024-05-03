@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third party
-from transformers.utils import logging
 
 # Generic Tracker API
 class Tracker:
@@ -24,7 +22,6 @@ class Tracker:
             self._name = "None"
         else:
             self._name = name
-        self.logger = logging.get_logger("tracker")
 
     # we use args here to denote any argument.
     def get_hf_callback(self):
