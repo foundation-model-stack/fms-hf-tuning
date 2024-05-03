@@ -26,7 +26,11 @@ import traceback
 from accelerate.commands.launch import launch_command
 
 # Local
-from build.utils import process_accelerate_launch_args, get_job_config, write_termination_log
+from build.utils import (
+    process_accelerate_launch_args,
+    get_job_config,
+    write_termination_log,
+)
 
 
 def main():
@@ -44,7 +48,11 @@ def main():
         exit(1)
     except (TypeError, ValueError, EnvironmentError) as e:
         logging.error(traceback.format_exc())
-        write_termination_log("Exception raised during training. This may be a problem with your input: {}".format(e))
+        write_termination_log(
+            "Exception raised during training. This may be a problem with your input: {}".format(
+                e
+            )
+        )
         exit(1)
     except Exception as e:
         logging.error(traceback.format_exc())

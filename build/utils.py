@@ -28,7 +28,7 @@ from accelerate.commands.launch import launch_command_parser
 from tuning.config import configs, peft_config, tracker_configs
 
 
-def write_termination_log(text, log_file = "/dev/termination-log"):
+def write_termination_log(text, log_file="/dev/termination-log"):
     try:
         f = open(log_file, "a")
         f.write(text)
