@@ -2,7 +2,7 @@ controller-metrics:
   - name: state
     class: StateOfTrainer
   - name: evalmetric
-    class: StateOfEvalMetrics
+    class: EvalMetrics
 controllers:
   - name: loss-controller
     triggers:

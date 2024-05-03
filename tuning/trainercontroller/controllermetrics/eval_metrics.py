@@ -27,7 +27,7 @@ from tuning.trainercontroller.controllermetrics.metricshandler import MetricHand
 logger = logging.get_logger(__name__)
 
 
-class StateOfEvalMetrics(MetricHandler):
+class EvalMetrics(MetricHandler):
     """Implements the controller metric which exposes the evaluation metrics"""
 
     def __init__(self, **kwargs):
@@ -39,7 +39,6 @@ class StateOfEvalMetrics(MetricHandler):
         """
         super().__init__(
             events=[
-                "on_predict",
                 "on_evaluate",
             ],
             **kwargs

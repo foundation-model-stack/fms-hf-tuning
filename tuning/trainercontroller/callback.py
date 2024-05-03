@@ -286,16 +286,16 @@ class TrainerControllerCallback(TrainerCallback):
         if event_name in self.control_actions_on_event:
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
-                if self.metrics is None or len(self.metrics) == 0:
-                    continue
                 try:
                     # pylint: disable=eval-used
                     rule_succeeded = eval(
                         control_action.rule, {"__builtins__": None}, self.metrics
                     )
-                    logger.warning(f"RULE: {rule_succeeded}")
                 except TypeError as et:
-                    raise TypeError("Rule failed due to incorrect type usage") from et
+                    if self.metrics is not None and len(self.metrics) > 0:
+                        raise TypeError(
+                            "Rule failed due to incorrect type usage"
+                        ) from et
                 except ValueError as ev:
                     raise ValueError(
                         "Rule failed due to use of disallowed packages"
