@@ -32,7 +32,7 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
-from transformers.utils import logging
+from transformers.utils import logging, is_accelerate_available
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
@@ -357,6 +357,15 @@ def train(
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
             model
         )
+
+    if framework is not None:
+        accelerator = None
+        if is_accelerate_available:
+            accelerator = trainer.accelerator
+
+        for x in framework.callbacks(accelerator):
+            trainer.add_callback(x)
+
     trainer.train()
 
 
