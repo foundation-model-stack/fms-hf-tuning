@@ -20,23 +20,43 @@ for the encoded config string to parse.
 # Standard
 import os
 import logging
+import traceback
 
 # Third Party
 from accelerate.commands.launch import launch_command
 
 # Local
-from build.utils import process_accelerate_launch_args, get_job_config
+from build.utils import process_accelerate_launch_args, get_job_config, write_termination_log
 
 
 def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
-    job_config = get_job_config()
+    try:
+        job_config = get_job_config()
 
-    args = process_accelerate_launch_args(job_config)
-    logging.debug("accelerate launch parsed args: %s", args)
-    launch_command(args)
+        args = process_accelerate_launch_args(job_config)
+        logging.debug("accelerate launch parsed args: %s", args)
+    except FileNotFoundError as e:
+        logging.error(traceback.format_exc())
+        write_termination_log("Unable to load file: {}".format(e))
+        exit(1)
+    except (TypeError, ValueError, EnvironmentError) as e:
+        logging.error(traceback.format_exc())
+        write_termination_log("Exception raised during training. This may be a problem with your input: {}".format(e))
+        exit(1)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        write_termination_log("Unhandled exception during training")
+        exit(200)
+
+    try:
+        launch_command(args)
+    except Exception as e:
+        logging.error(traceback.format_exc)
+        write_termination_log("Unhandled exception during training")
+        exit(200)
 
 
 if __name__ == "__main__":

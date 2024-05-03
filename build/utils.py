@@ -28,10 +28,13 @@ from accelerate.commands.launch import launch_command_parser
 from tuning.config import configs, peft_config, tracker_configs
 
 
-def write_termination_log(text, log = "/dev/termination-log"):
-    f = open(log, "a")
-    f.write(text)
-    f.close()
+def write_termination_log(text, log_file = "/dev/termination-log"):
+    try:
+        f = open(log_file, "a")
+        f.write(text)
+        f.close()
+    except Exception as e:
+        logging.warning("Unable to write termination log due to error {}".format(e))
 
 
 def txt_to_obj(txt):
