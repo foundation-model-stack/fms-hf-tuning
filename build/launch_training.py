@@ -70,7 +70,7 @@ def main():
             tune_config,
             merge_model,
         ) = process_launch_training_args(job_config)
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(
             "Exception raised during training. This may be a problem with your input: {}".format(
@@ -117,7 +117,7 @@ def main():
                 f"Exception raised during training. This may be a problem with your input: {e}"
             )
             sys.exit(1)
-        except Exception as e: # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log("Unhandled exception during training")
             sys.exit(200)
@@ -146,7 +146,7 @@ def main():
                     base_model=model_args.model_name_or_path,
                     save_tokenizer=True,
                 )
-            except Exception as e: # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log("Exception encountered merging model checkpoints")
                 sys.exit(200)
@@ -164,7 +164,7 @@ def main():
                     original_output_dir,
                     dirs_exist_ok=True,
                 )
-            except Exception as e: # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log(
                     "Exception encountered writing output model to storage"
@@ -179,7 +179,7 @@ def main():
             )
             if os.path.exists(train_logs_filepath):
                 shutil.copy(train_logs_filepath, original_output_dir)
-        except Exception as e: # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             # Continue, don't fail the training because of this
 

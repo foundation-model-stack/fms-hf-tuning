@@ -55,14 +55,14 @@ def main():
             )
         )
         sys.exit(1)
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log("Unhandled exception during training")
         sys.exit(200)
 
     try:
         launch_command(args)
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc)
         write_termination_log("Unhandled exception during training")
         sys.exit(200)
