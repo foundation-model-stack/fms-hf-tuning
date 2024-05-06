@@ -30,10 +30,9 @@ from tuning.config import configs, peft_config, tracker_configs
 
 def write_termination_log(text, log_file="/dev/termination-log"):
     try:
-        f = open(log_file, "a")
-        f.write(text)
-        f.close()
-    except Exception as e:
+        with open(log_file, "a", encoding="utf-8") as handle:
+            handle.write(text)
+    except Exception as e: # pylint: disable=broad-except
         logging.warning("Unable to write termination log due to error {}".format(e))
 
 

@@ -21,6 +21,7 @@ for the encoded config string to parse.
 import os
 import tempfile
 import shutil
+import sys
 import traceback
 
 # First Party
@@ -69,14 +70,14 @@ def main():
             tune_config,
             merge_model,
         ) = process_launch_training_args(job_config)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(
             "Exception raised during training. This may be a problem with your input: {}".format(
                 e
             )
         )
-        exit(1)
+        sys.exit(1)
 
     (
         model_args,
@@ -102,26 +103,24 @@ def main():
                 peft_config=tune_config,
                 tracker_configs=tracker_config_args,
             )
-        except MemoryError as e:
+        except MemoryError:
             logging.error(traceback.format_exc())
             write_termination_log("OOM error during training")
-            exit(200)
+            sys.exit(200)
         except FileNotFoundError as e:
             logging.error(traceback.format_exc())
             write_termination_log("Unable to load file: {}".format(e))
-            exit(1)
+            sys.exit(1)
         except (TypeError, ValueError, EnvironmentError) as e:
             logging.error(traceback.format_exc())
             write_termination_log(
-                "Exception raised during training. This may be a problem with your input: {}".format(
-                    e
-                )
+                f"Exception raised during training. This may be a problem with your input: {e}"
             )
-            exit(1)
-        except Exception as e:
+            sys.exit(1)
+        except Exception as e: # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log("Unhandled exception during training")
-            exit(200)
+            sys.exit(200)
 
         if merge_model:
             try:
@@ -147,10 +146,10 @@ def main():
                     base_model=model_args.model_name_or_path,
                     save_tokenizer=True,
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log("Exception encountered merging model checkpoints")
-                exit(200)
+                sys.exit(200)
         else:
             try:
                 # copy last checkpoint into mounted output dir
@@ -165,12 +164,12 @@ def main():
                     original_output_dir,
                     dirs_exist_ok=True,
                 )
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log(
                     "Exception encountered writing output model to storage"
                 )
-                exit(200)
+                sys.exit(200)
 
         # copy over any loss logs
         try:
@@ -180,7 +179,7 @@ def main():
             )
             if os.path.exists(train_logs_filepath):
                 shutil.copy(train_logs_filepath, original_output_dir)
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             # Continue, don't fail the training because of this
 

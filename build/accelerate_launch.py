@@ -20,6 +20,7 @@ for the encoded config string to parse.
 # Standard
 import os
 import logging
+import sys
 import traceback
 
 # Third Party
@@ -45,7 +46,7 @@ def main():
     except FileNotFoundError as e:
         logging.error(traceback.format_exc())
         write_termination_log("Unable to load file: {}".format(e))
-        exit(1)
+        sys.exit(1)
     except (TypeError, ValueError, EnvironmentError) as e:
         logging.error(traceback.format_exc())
         write_termination_log(
@@ -53,18 +54,18 @@ def main():
                 e
             )
         )
-        exit(1)
-    except Exception as e:
+        sys.exit(1)
+    except Exception as e: # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log("Unhandled exception during training")
-        exit(200)
+        sys.exit(200)
 
     try:
         launch_command(args)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         logging.error(traceback.format_exc)
         write_termination_log("Unhandled exception during training")
-        exit(200)
+        sys.exit(200)
 
 
 if __name__ == "__main__":
