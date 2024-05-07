@@ -50,11 +50,13 @@ logger = logging.get_logger(__name__)
 CONTROLLER_METRICS_KEY = "controller-metrics"
 OPERATIONS_KEY = "operations"
 CONTROLLERS_KEY = "controllers"
+ARGS_KEY = "arguments"
 
 CONTROLLER_NAME_KEY = "name"
-CONTROLLER_TRIGGERS_KEY = "triggers"
+CONTROLLER_CLASS_KEY = "class"
 CONTROLLER_RULE_KEY = "rule"
-CONTROLLER_OPERATIONS_KEY = "operations"
+CONTROLLER_TRIGGERS_KEY = "triggers"
+CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
 
 # pylint: disable=too-many-instance-attributes
@@ -74,7 +76,13 @@ class TrainerControllerCallback(TrainerCallback):
         if isinstance(trainer_controller_config, str):
             if os.path.exists(trainer_controller_config):
                 with open(trainer_controller_config, "r", encoding="utf-8") as f:
-                    self.trainer_controller_config = yaml.safe_load(f)
+                    self.trainer_controller_config: dict = yaml.safe_load(f)
+                if not isinstance(self.trainer_controller_config, dict):
+                    raise TypeError(
+                        "expected the trainer controller config YAML file"
+                        "to contain a dictionary. actual type: %s"
+                        % (type(self.trainer_controller_config))
+                    )
             else:
                 raise FileNotFoundError(
                     f"Trainer controller configuration \
@@ -82,6 +90,12 @@ class TrainerControllerCallback(TrainerCallback):
                 )
         else:
             self.trainer_controller_config = trainer_controller_config
+
+        if CONTROLLER_METRICS_KEY not in self.trainer_controller_config:
+            self.trainer_controller_config[CONTROLLER_METRICS_KEY] = []
+
+        if OPERATIONS_KEY not in self.trainer_controller_config:
+            self.trainer_controller_config[OPERATIONS_KEY] = []
 
         # Initialize the list of metrics from default `metrics.yaml` in the \
         # controllermetric package. In addition, any metrics mentioned in \
@@ -96,14 +110,21 @@ class TrainerControllerCallback(TrainerCallback):
             and CONTROLLER_METRICS_KEY in default_metrics_config
             and len(default_metrics_config[CONTROLLER_METRICS_KEY]) > 0
         ):
-            for metric_name in default_metrics_config[CONTROLLER_METRICS_KEY].keys():
-                if (
-                    metric_name
-                    not in self.trainer_controller_config[CONTROLLER_METRICS_KEY]
-                ):
-                    self.trainer_controller_config[CONTROLLER_METRICS_KEY][
-                        metric_name
-                    ] = default_metrics_config[CONTROLLER_METRICS_KEY][metric_name]
+            self_controller_metrics = self.trainer_controller_config[
+                CONTROLLER_METRICS_KEY
+            ]
+            default_controller_metrics: list[dict] = default_metrics_config[
+                CONTROLLER_METRICS_KEY
+            ]
+            for metric_obj in default_controller_metrics:
+                metric_name: str = metric_obj[CONTROLLER_NAME_KEY]
+                found = False
+                for self_controller_metric in self_controller_metrics:
+                    if self_controller_metric[CONTROLLER_NAME_KEY] == metric_name:
+                        found = True
+                        break
+                if not found:
+                    self_controller_metrics.append(metric_obj)
 
         # Initialize the list of operations from default `operations.yaml` \
         # in the operations package. In addition, any operations mentioned \
@@ -118,13 +139,19 @@ class TrainerControllerCallback(TrainerCallback):
             and OPERATIONS_KEY in default_operations_config
             and len(default_operations_config[OPERATIONS_KEY]) > 0
         ):
-            for operation_name in default_operations_config[OPERATIONS_KEY].keys():
-                if OPERATIONS_KEY not in self.trainer_controller_config:
-                    self.trainer_controller_config[OPERATIONS_KEY] = {}
-                if operation_name not in self.trainer_controller_config[OPERATIONS_KEY]:
-                    self.trainer_controller_config[OPERATIONS_KEY][
-                        operation_name
-                    ] = default_operations_config[OPERATIONS_KEY][operation_name]
+            self_controller_operations = self.trainer_controller_config[OPERATIONS_KEY]
+            default_controller_operations: list[dict] = default_operations_config[
+                OPERATIONS_KEY
+            ]
+            for op_obj in default_controller_operations:
+                op_name: str = op_obj[CONTROLLER_NAME_KEY]
+                found = False
+                for self_controller_operation in self_controller_operations:
+                    if self_controller_operation[CONTROLLER_NAME_KEY] == op_name:
+                        found = True
+                        break
+                if not found:
+                    self_controller_operations.append(op_obj)
 
         # Load list of valid events for the trainercontroller callback
         # These events are assumed to start with "on_" prefix (on_epoch_end(), on_step_end() etc)
@@ -137,17 +164,17 @@ class TrainerControllerCallback(TrainerCallback):
         logger.debug("List of valid events %s", repr(self.valid_events))
 
         # Handlers to trigger on each metric
-        self.metric_handlers = {}
-        self.metrics_on_event = {}
+        self.metric_handlers: dict[str, type[MetricHandler]] = {}
+        self.metrics_on_event: dict[str, list[MetricHandler]] = {}
         self.register_metric_handlers(default_metric_handlers)
 
         # Supported operations
-        self.operation_handlers = {}
+        self.operation_handlers: dict[str, type[Operation]] = {}
         self.operation_actions = {}
         self.register_operation_handlers(default_operation_handlers)
 
         # controls
-        self.control_actions_on_event = {}
+        self.control_actions_on_event: dict[str, list[Control]] = {}
 
         # List of fields produced by the metrics
         self.metrics = {}
@@ -263,31 +290,33 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["control"] = control
 
         # Check if there any metrics listed in the configuration
-        if CONTROLLER_METRICS_KEY not in self.trainer_controller_config:
+        if (
+            CONTROLLER_METRICS_KEY not in self.trainer_controller_config
+            or len(self.trainer_controller_config[CONTROLLER_METRICS_KEY]) == 0
+        ):
             logger.warning("Trainer controller config has no metrics.")
 
         # Metric handler validation and registration is performed here.
-        for metric_name, metric_config in self.trainer_controller_config[
-            CONTROLLER_METRICS_KEY
-        ].items():
+        for metric_config in self.trainer_controller_config[CONTROLLER_METRICS_KEY]:
+            metric_name = metric_config[CONTROLLER_NAME_KEY]
             # Get the metric class name from the config section.
-            metric_handler_name = next(iter(metric_config.keys()))
+            metric_handler_name = metric_config[CONTROLLER_CLASS_KEY]
             # Get the handler class using the metric class name.
             if metric_handler_name not in self.metric_handlers:
                 raise KeyError(f"Undefined metric handler {metric_handler_name}")
-            metric_handler = self.metric_handlers[metric_handler_name]
+            metric_handler_class = self.metric_handlers[metric_handler_name]
             # Get the metric handler class arguments specified in the config.
-            metric_args = metric_config[metric_handler_name]
-            if metric_args is None:
-                metric_args = {}
+            metric_args = metric_config[ARGS_KEY] if ARGS_KEY in metric_config else {}
             # Metric handler instance is created here.
-            obj = metric_handler(name=metric_name, **metric_args, **kwargs)
+            metric_handler = metric_handler_class(
+                name=metric_name, **metric_args, **kwargs
+            )
             # Add metric instances to the events.
-            for event_name in obj.get_events():
+            for event_name in metric_handler.get_events():
                 if event_name in self.valid_events:
                     if event_name not in self.metrics_on_event:
                         self.metrics_on_event[event_name] = []
-                    self.metrics_on_event[event_name].append(obj)
+                    self.metrics_on_event[event_name].append(metric_handler)
                 else:
                     raise KeyError(
                         "Event name (%s) is not valid in metric %s"
@@ -295,54 +324,68 @@ class TrainerControllerCallback(TrainerCallback):
                     )
 
         # Check if there any operations listed in the configuration
-        if OPERATIONS_KEY in self.trainer_controller_config:
+        if (
+            OPERATIONS_KEY in self.trainer_controller_config
+            and len(self.trainer_controller_config[OPERATIONS_KEY]) > 0
+        ):
             # Operation handler validation and registration is performed here.
-            for operation_name, operation_config in self.trainer_controller_config[
-                OPERATIONS_KEY
-            ].items():
+            for operation_config in self.trainer_controller_config[OPERATIONS_KEY]:
+                operation_name = operation_config[CONTROLLER_NAME_KEY]
                 # Get the operation class name from the config section.
-                operation_handler_name = next(iter(operation_config.keys()))
+                operation_handler_name = operation_config[CONTROLLER_CLASS_KEY]
                 # Get the handler class arguments using the operation class name.
-                operation_args = operation_config[operation_handler_name]
-                if operation_args is None:
-                    operation_args = {}
+                operation_args = (
+                    operation_config[ARGS_KEY] if ARGS_KEY in operation_config else {}
+                )
                 # Operation handler instance is created here.
-                operation = self.operation_handlers[operation_handler_name](
-                    **operation_args, **kwargs
+                operation_handler_class = self.operation_handlers[
+                    operation_handler_name
+                ]
+                operation_handler = operation_handler_class(
+                    name=operation_name, **operation_args, **kwargs
                 )
                 # Add operation action instances.
-                for action_name in operation.get_actions():
-                    self.operation_actions[
-                        operation_name + "." + action_name
-                    ] = OperationAction(instance=operation, action=action_name)
+                for action_name in operation_handler.get_actions():
+                    op_key = operation_name + "." + action_name
+                    if op_key in self.operation_actions:
+                        logger.warning(
+                            "Trying to add the operation '%s' when it already exists, ignoring...",
+                            op_key,
+                        )
+                        continue
+                    self.operation_actions[op_key] = OperationAction(
+                        instance=operation_handler, action=action_name
+                    )
 
         # Initialize controllers with respect to events.
         if CONTROLLERS_KEY in self.trainer_controller_config:
             for controller in self.trainer_controller_config[CONTROLLERS_KEY]:
+                controller_name: str = controller[CONTROLLER_NAME_KEY]
+                controller_ops: list[str] = controller[CONTROLLER_OPERATIONS_KEY]
+                controller_rule: str = controller[CONTROLLER_RULE_KEY]
+                if not self._validate_rule(controller_rule):
+                    raise ValueError(
+                        "Rule for control %s is invalid" % (controller_name)
+                    )
                 for event_name in controller[CONTROLLER_TRIGGERS_KEY]:
                     if event_name not in self.valid_events:
                         raise KeyError(
                             "Controller %s has an invalid event (%s)"
-                            % (controller[CONTROLLER_NAME_KEY], event_name)
+                            % (controller_name, event_name)
                         )
-                    # Generates the byte-code for the rule from trainer configuration
-                    if not self._validate_rule(controller[CONTROLLER_RULE_KEY]):
-                        raise ValueError(
-                            "Rule for control %s is invalid"
-                            % (controller[CONTROLLER_NAME_KEY])
-                        )
+                    # Generates the byte-code for the rule from the trainer configuration
                     control = Control(
-                        name=controller[CONTROLLER_NAME_KEY],
-                        rule=compile(controller[CONTROLLER_RULE_KEY], "", "eval"),
+                        name=controller_name,
+                        rule=compile(controller_rule, "", "eval"),
                         operation_actions=[],
                     )
-                    for control_operation_name in controller[CONTROLLER_OPERATIONS_KEY]:
+                    for control_operation_name in controller_ops:
                         if control_operation_name not in self.operation_actions:
                             raise KeyError(
                                 "Invalid operation %s for control %s"
                                 % (
                                     control_operation_name,
-                                    controller[CONTROLLER_NAME_KEY],
+                                    controller_name,
                                 )
                             )
                         control.operation_actions.append(

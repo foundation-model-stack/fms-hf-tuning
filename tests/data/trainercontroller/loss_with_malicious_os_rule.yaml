@@ -1,6 +1,6 @@
 controller-metrics:
-  loss:
-    Loss:
+  - name: loss
+    class: Loss
 controllers:
   - name: loss-controller-wrong-os-rule
     triggers:
