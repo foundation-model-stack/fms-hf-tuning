@@ -35,6 +35,8 @@ from build.utils import (
     process_launch_training_args,
     get_job_config,
     write_termination_log,
+    USER_ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
 )
 
 
@@ -77,7 +79,7 @@ def main():
                 e
             )
         )
-        sys.exit(1)
+        sys.exit(USER_ERROR_EXIT_CODE)
 
     (
         model_args,
@@ -106,21 +108,21 @@ def main():
         except MemoryError:
             logging.error(traceback.format_exc())
             write_termination_log("OOM error during training")
-            sys.exit(200)
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
         except FileNotFoundError as e:
             logging.error(traceback.format_exc())
             write_termination_log("Unable to load file: {}".format(e))
-            sys.exit(1)
+            sys.exit(USER_ERROR_EXIT_CODE)
         except (TypeError, ValueError, EnvironmentError) as e:
             logging.error(traceback.format_exc())
             write_termination_log(
                 f"Exception raised during training. This may be a problem with your input: {e}"
             )
-            sys.exit(1)
+            sys.exit(USER_ERROR_EXIT_CODE)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log("Unhandled exception during training")
-            sys.exit(200)
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         if merge_model:
             try:
@@ -149,7 +151,7 @@ def main():
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log("Exception encountered merging model checkpoints")
-                sys.exit(200)
+                sys.exit(INTERNAL_ERROR_EXIT_CODE)
         else:
             try:
                 # copy last checkpoint into mounted output dir
@@ -169,7 +171,7 @@ def main():
                 write_termination_log(
                     "Exception encountered writing output model to storage"
                 )
-                sys.exit(200)
+                sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         # copy over any loss logs
         try:

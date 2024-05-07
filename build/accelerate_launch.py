@@ -31,6 +31,8 @@ from build.utils import (
     process_accelerate_launch_args,
     get_job_config,
     write_termination_log,
+    USER_ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
 )
 
 
@@ -46,7 +48,7 @@ def main():
     except FileNotFoundError as e:
         logging.error(traceback.format_exc())
         write_termination_log("Unable to load file: {}".format(e))
-        sys.exit(1)
+        sys.exit(USER_ERROR_EXIT_CODE)
     except (TypeError, ValueError, EnvironmentError) as e:
         logging.error(traceback.format_exc())
         write_termination_log(
@@ -54,18 +56,18 @@ def main():
                 e
             )
         )
-        sys.exit(1)
+        sys.exit(USER_ERROR_EXIT_CODE)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log("Unhandled exception during training")
-        sys.exit(200)
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     try:
         launch_command(args)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc)
         write_termination_log("Unhandled exception during training")
-        sys.exit(200)
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

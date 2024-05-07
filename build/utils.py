@@ -27,6 +27,15 @@ from accelerate.commands.launch import launch_command_parser
 # Local
 from tuning.config import configs, peft_config, tracker_configs
 
+# The USER_ERROR_EXIT_CODE will be thrown when the process must exit
+# as result of a user input error. User-related errors should be
+# >= 1 and <=127 due to how some kubernetes operators interpret them.
+USER_ERROR_EXIT_CODE = 1
+# The INTERNAL_ERROR_EXIT_CODE will be thrown when training
+# abnormally terminates, and it is not clearly fault of the user.
+# System-level errors should be >= 128 and <= 254
+INTERNAL_ERROR_EXIT_CODE = 203
+
 
 def write_termination_log(text, log_file="/dev/termination-log"):
     try:
