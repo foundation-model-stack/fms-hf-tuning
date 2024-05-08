@@ -23,6 +23,12 @@ If you wish to use [aim](https://github.com/aimhubio/aim), then you need to inst
 pip install -e ".[aim]"
 ```
 
+If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
+```
+pip install -e ".[fms-accel]"
+```
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [here](#fms-acceleration).
+
 ## Data format
 We support two data formats:
 
@@ -376,6 +382,55 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
     "peft_method": "None"
 }
 ```
+
+### FMS Acceleration
+
+`fms-acceleration` is our fuss-free approach to access a collection of acceleration plugins curated for `tuning/sft-trainer.py`. The plugins are housed in the seperate [fms-acceleration repo](https://github.com/foundation-model-stack/fms-acceleration).
+
+Ensure that the `fms-accel` dependency [is installed](#installation) then follow these two steps:
+
+- Step 1: Install the required plugins. A convinience script `scripts/fms-acceleration.sh` is provided, do:
+  ```
+  python -m fms_acceleration.cli install $PLUGIN_NAME
+  ```
+  where available plugins are found in the [fms-acceleration README.md](https://github.com/foundation-model-stack/fms-acceleration). The default plugin is the [accelerated-peft plugin](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-peft/README.md).
+
+  TODO: to verify that the plugin correctly installed.
+- Step 2: Obtain the correct plugin configuration file, that will be passed it into the `tuning/sft_trainer.py`. For example when using the accelerated-peft plugin do perform LoRA training, we pass in `--acceleration_framework_config_file` in addition to `--peft_method "lora"` and other lora arguments (including `target_modules` not shown below).
+
+  ```
+  tuning/sft_trainer.py \
+    ... \
+    --peft_method "lora" \
+    --r 8 \
+    --lora_dropout 0.05 \
+    --lora_alpha 16 \
+    --acceleration_framework_config_file $CONFIGURATION_FILE
+  ```
+  For users not familar with running PeFT with lora refer to [here](#lora-tuning-example). 
+
+When training starts check the printouts will appear alongside the `sft_trainer` logs that shows the active plugins, like the below example.
+
+```
+***** FMS AccelerationFramework *****
+Active Plugin: AutoGPTQAccelerationPlugin. Python package: fms_acceleration_peft. Version: 0.0.1.
+***** Running training *****
+  Num examples = 1,549
+  Num Epochs = 1
+  Instantaneous batch size per device = 4
+  Total train batch size (w. parallel, distributed & accumulation) = 4
+  Gradient Accumulation steps = 1
+  Total optimization steps = 200
+  Number of trainable parameters = 13,631,488
+```
+
+As an example `CONFIGURATION_FILE`, refer to our [sample accelerated PeFT with AutoGPTQ-LoRA 4bit triton_v2 kernels](./fixtures/accelerated-peft-autogptq-sample-configuration.yaml). This is a YAML file that configures the plugin installed in Step 1.
+
+Many more configuration files will be updated both in [fixtures](./fixtures/) and also the [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations).
+
+<!-- Thus, a simple two step process of your fms-tuning experience *can be accelerated*. -->
+See [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration) for a collection of our benchmarks.
+
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
