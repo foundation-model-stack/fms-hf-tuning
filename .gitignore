@@ -36,3 +36,9 @@ venv/
 *.bkp
 *.bkp.*
 *bkp*
+
+# Build output
+/build/lib/
+
+# Auto-generated file
+/tuning/_version.py

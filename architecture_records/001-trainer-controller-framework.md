@@ -60,13 +60,15 @@ We have implemented a trainer callback (see [here](https://huggingface.co/docs/t
 The trainer controller configuration is structured as shown below. There are list of metric definitions under `controller-metrics`, a list of operations and their actions under `operations` and a list of controllers, each of which define the rules, triggers and control operations.
 ```
 controller-metrics:
-  <controller-name>:
-    <controller-handler-class>:
+  - name: <controller-name>
+    class: <controller-handler-class>
+    arguments:
       <arg1>: <value>
       ...
 operations:
-  <operation-name>:
-    <operation-handler-class>:
+  - name: <operation-name>
+    class: <operation-handler-class>
+    arguments:
       <arg1>: <value>
       ...
 controllers:
@@ -79,11 +81,11 @@ controllers:
       - <operation-action-1>
       ...
 ```
-The `controller-metrics` and `operations` are optional. We provide a set of built-in `controller-metrics` and `operations` which could be referred to without actually defining them as. For example, the below configuration defines a `controller-metric` called `loss` which refers to a built-in `Loss` controller-metric class with custom arguments (in this case, no arguments), but does not define any `operations`. It only refers to a built-in operation.
+The `controller-metrics` and `operations` are optional. We provide a set of built-in `controller-metrics` and `operations` which could be referred to without actually defining them as. For example, the below configuration defines a `controller-metric` called `loss` which refers to a built-in `Loss` controller-metric class with custom arguments (in this case, no arguments. If arguments are required, then they could be listed under a `arguments` section as shown above), but does not define any `operations`. It only refers to a built-in operation.
 ```
 controller-metrics:
-  loss:
-    Loss:
+  name: loss
+  class: Loss
 controllers:
   - name: loss-controller
     triggers:
@@ -92,6 +94,12 @@ controllers:
     operations:
       - hfcontrols.should_training_stop
  ```
+
+We follow the below naming convention for the above trainer controller configuration:
+1. `-` could be used in the case of key names, and name of the metric, operation or controller. This is usually to break multiple words of a name phrase.
+1. Python convention for [class name](https://visualgit.readthedocs.io/en/latest/pages/naming_convention.html#classes).
+1. `_` are used for events and control actions.
+
 For defining custom handler classes, we have an interface defined as an abstract class as shown below, with two abstract methods, namely: `validate()` to define the validation conditions, and `compute()` to compute the metric. The `compute()` returns an `Any` type. While it could be any value, developers should keep in mind that it should be only key-value pairs that are used in the rule(s) defined in the configuration.
 
 Further, the `init` method of the class should accept variable arguments in the form of key-value pairs. `Important point to note is that keys used in the arguments of the above config should not conflict with any keys used by Hugging face trainer callback. Please try to use unique keys are arguments name`.
@@ -126,4 +134,4 @@ Following is a high-level design diagram. Following are the touch-points to the 
 - **Configuration**: The trainer controller configuration supplies the definition for triggers, rule, operations and metrics to orchestrate the enactment of a particular control policy. These details are split up and passed off to the respective modules by the trainer controller as shown in the figure.
 
 - **Events**: Events supply the state and arguments required for the metric handlers to perform metric computation at the events they are registered for. The framework callback lists out all event handlers with prefix `"on_"` and loads then as event handlers. Every metric declares one or more events from this list of valid handlers. These computed metric variables are stored in a global state of the trainer controller and independently picked up the operations which could potentially be triggered on an entirely different set of events. This decouples the control loop for metrics and operations. I.e. the metric could be computed on event A, while operation could be triggered on event B. The controller rules which use the metric variables from the trainer controller state are evaluated and based on the outcomes specified actions are performed.
-![High-Level Design Diagram: Trainer Controller Framework](arch.png)
+![High-Level Design Diagram: Trainer Controller Framework](imgs/001-arch.png)
