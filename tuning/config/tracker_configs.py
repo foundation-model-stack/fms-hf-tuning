@@ -17,10 +17,15 @@ from dataclasses import dataclass
 
 
 @dataclass
+class FileLoggingTrackerConfig:
+    training_logs_filename: str = "training_logs.jsonl"
+
+
+@dataclass
 class AimConfig:
     # Name of the experiment
     experiment: str = None
-    # aim_repo can point to a locally accessible directory (e.g., '~/.aim')
+    # aim_repo can point to a locally accessible directory
     #    or a remote repository hosted on a server.
     # When 'aim_remote_server_ip' or 'aim_remote_server_port' is set,
     #    it designates a remote aim repo.
@@ -28,6 +33,23 @@ class AimConfig:
     #
     # See https://aimstack.readthedocs.io/en/latest/using/remote_tracking.html
     #     for documentation on Aim remote server tracking.
-    aim_repo: str = ".aim"
+    aim_repo: str = None
     aim_remote_server_ip: str = None
     aim_remote_server_port: int = None
+    aim_url: str = None
+
+    def __post_init__(self):
+        if self.experiment is None:
+            self.experiment = "fms-hf-tuning"
+
+        if (
+            self.aim_remote_server_ip is not None
+            and self.aim_remote_server_port is not None
+        ):
+            self.aim_url = (
+                "aim://"
+                + self.aim_remote_server_ip
+                + ":"
+                + self.aim_remote_server_port
+                + "/"
+            )

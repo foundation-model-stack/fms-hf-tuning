@@ -29,20 +29,17 @@ class AimStackTracker(Tracker):
     def get_hf_callback(self):
         c = self.config
         exp = c.experiment
-        ip = c.aim_remote_server_ip
-        port = c.aim_remote_server_port
+        url = c.aim_url
         repo = c.aim_repo
 
-        if ip is not None and port is not None:
-            aim_callback = AimCallback(
-                repo="aim://" + ip + ":" + port + "/", experiment=exp
-            )
+        if url is not None:
+            aim_callback = AimCallback(repo=url, experiment=exp)
         if repo:
             aim_callback = AimCallback(repo=repo, experiment=exp)
         else:
             self.logger.warning(
-                "Aim tracker requested but repo or server is not specified\n"
-                "Please specify either aim repo or aim server ip and port for using aim"
+                "Aim tracker requested but repo or server is not specified. "
+                + "Please specify either aim repo or aim server ip and port for using Aim."
             )
             aim_callback = None
 
@@ -50,6 +47,9 @@ class AimStackTracker(Tracker):
         return self.hf_callback
 
     def track(self, metric, name, stage="additional_metrics"):
+        if metric is None or name is None:
+            self.logger.warning("Tracked metric value or name should not be None")
+            return
         context = {"subset": stage}
         callback = self.hf_callback
         run = callback.experiment
@@ -57,6 +57,8 @@ class AimStackTracker(Tracker):
             run.track(metric, name=name, context=context)
 
     def set_params(self, params, name="extra_params"):
+        if params is None:
+            return
         callback = self.hf_callback
         run = callback.experiment
         if run is not None:

@@ -94,7 +94,7 @@ class TrainingArguments(transformers.TrainingArguments):
         default=None,
         metadata={
             "help": "Experiment trackers to use.\n"
-            + "Available trackers are - aim, none\n"
+            + "Available trackers are - file_logger(default), aim, none\n"
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )

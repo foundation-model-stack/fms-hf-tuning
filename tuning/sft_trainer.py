@@ -13,10 +13,8 @@
 # limitations under the License.
 
 # Standard
-from datetime import datetime
 from typing import Dict, List, Optional, Union
 import json
-import os
 import time
 
 # Third Party
@@ -39,52 +37,10 @@ import transformers
 # Local
 from tuning.config import configs, peft_config, tracker_configs
 from tuning.data import tokenizer_data_utils
-from tuning.trackers.tracker import Tracker
 from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-
-TRAINING_LOGS_FILENAME = "training_logs.jsonl"
-
-
-class FileLoggingCallback(TrainerCallback):
-    """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
-
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        """Checks if this log contains keys of interest, e.g., loss, and if so, creates
-        training_logs.jsonl in the model output dir (if it doesn't already exist),
-        appends the subdict of the log & dumps the file.
-        """
-        # All processes get the logs from this node; only update from process 0.
-        if not state.is_world_process_zero:
-            return
-
-        log_file_path = os.path.join(args.output_dir, TRAINING_LOGS_FILENAME)
-        if logs is not None and "loss" in logs and "epoch" in logs:
-            self._track_loss("loss", "training_loss", log_file_path, logs, state)
-        elif logs is not None and "eval_loss" in logs and "epoch" in logs:
-            self._track_loss("eval_loss", "validation_loss", log_file_path, logs, state)
-
-    def _track_loss(self, loss_key, log_name, log_file, logs, state):
-        try:
-            # Take the subdict of the last log line; if any log_keys aren't part of this log
-            # object, assume this line is something else, e.g., train completion, and skip.
-            log_obj = {
-                "name": log_name,
-                "data": {
-                    "epoch": round(logs["epoch"], 2),
-                    "step": state.global_step,
-                    "value": logs[loss_key],
-                    "timestamp": datetime.isoformat(datetime.now()),
-                },
-            }
-        except KeyError:
-            return
-
-        # append the current log to the jsonl file
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
 
 
 def train(
@@ -95,8 +51,8 @@ def train(
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
-    callbacks: Optional[List[TrainerCallback]] = None,
-    trackers: Optional[List[Tracker]] = None,
+    tracker_config_args: Optional[Dict] = None,
+    additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
 ):
     """Call the SFTTrainer
@@ -133,6 +89,40 @@ def train(
     task_type = "CAUSAL_LM"
     additional_metrics = {}
 
+    # Initialize Trackers And Callbacks
+    trackers = []
+    trainer_callbacks = []
+
+    if train_args.trackers is not None:
+        requested_trackers = set(train_args.trackers)
+    else:
+        requested_trackers = set()
+
+    # We add file logging tracker as default
+    if "file_logger" not in requested_trackers:
+        requested_trackers.add("file_logger")
+
+    # Now initialize trackers one by one
+    for name in requested_trackers:
+        t = get_tracker(name, tracker_config_args)
+        cb = t.get_hf_callback()
+        if cb is not None:
+            trainer_callbacks.append(cb)
+            trackers.append(t)
+
+    # Now add trainer controller callbacks if requested
+    if (trainer_controller_args is not None) and (
+        trainer_controller_args.trainer_controller_config_file is not None
+    ):
+        tc_callback = TrainerControllerCallback(
+            trainer_controller_args.trainer_controller_config_file
+        )
+        trainer_callbacks.append(tc_callback)
+
+    # Add any extra callback if passed by users
+    if additional_callbacks is not None:
+        trainer_callbacks.append(additional_callbacks)
+
     model_load_time = time.time()
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
@@ -140,14 +130,16 @@ def train(
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
     )
-    additional_metrics["model_load_time"] = time.time() - model_load_time
-
-    peft_config = get_hf_peft_config(task_type, peft_config)
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
     )
+
+    # Calculate and save additional metrics to track later.
+    additional_metrics["model_load_time"] = time.time() - model_load_time
+
+    peft_config = get_hf_peft_config(task_type, peft_config)
 
     # TODO: understand if we need to hardcode these here or just use defaults in model
     if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
@@ -249,20 +241,6 @@ def train(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
 
-    file_logger_callback = FileLoggingCallback()
-    if callbacks:
-        callbacks.append(file_logger_callback)
-    else:
-        callbacks = [file_logger_callback]
-
-    if (trainer_controller_args is not None) and (
-        trainer_controller_args.trainer_controller_config_file is not None
-    ):
-        tc_callback = TrainerControllerCallback(
-            trainer_controller_args.trainer_controller_config_file
-        )
-        callbacks.append(tc_callback)
-
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -273,14 +251,13 @@ def train(
         dataset_text_field=data_args.dataset_text_field,
         args=train_args,
         max_seq_length=max_seq_length,
-        callbacks=callbacks,
+        callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
 
-    # We track additional metrics and experiment metadata after
-    # Trainer object creation to ensure that this is not repeated
-    # multiple times for FSDP runs.
-    if trackers is not None and trainer.is_world_process_zero():
+    # We track additional metrics and experiment metadata after trainer object creation
+    # this ensure that the process is not repeated multiple times for FSDP runs.
+    if trainer.is_world_process_zero():
         # Currently tracked only on process zero.
         for tracker in trackers:
             try:
@@ -309,7 +286,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
-            Union[tracker_configs.AimConfig],
+            tracker_configs.FileLoggingTrackerConfig,
+            tracker_configs.AimConfig,
         )
     )
     parser.add_argument(
@@ -332,7 +310,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
         trainer_controller_args,
         lora_config,
         prompt_tuning_config,
-        combined_tracker_configs,
+        file_logger_config,
+        aim_config,
         additional,
         _,
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -346,18 +325,6 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = prompt_tuning_config
     else:
         tune_config = None
-
-    # Initialize callbacks
-    callbacks = []
-
-    # Initialize the tracker
-    trackers = []
-    for name in training_args.trackers:
-        t = get_tracker(name, combined_tracker_configs)
-        cb = t.get_hf_callback()
-        if cb is not None:
-            callbacks.append(cb)
-            trackers.append(t)
 
     # extra metadata passed via client
     metadata = None
@@ -374,14 +341,16 @@ def main(**kwargs):  # pylint: disable=unused-argument
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
+    combined_tracker_configs = {"file_logger": file_logger_config, "aim": aim_config}
+
     train(
         model_args=model_args,
         data_args=data_args,
         train_args=training_args,
         peft_config=tune_config,
         trainer_controller_args=trainer_controller_args,
-        callbacks=callbacks,
-        trackers=trackers,
+        tracker_config_args=combined_tracker_configs,
+        additional_callbacks=None,
         exp_metadata=metadata,
     )
 
