@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Standard
+import dataclasses
+
 # Third Party
 from transformers.utils import logging
 from transformers.utils.import_utils import _is_package_available
@@ -19,7 +22,7 @@ from transformers.utils.import_utils import _is_package_available
 # Local
 from .filelogging_tracker import FileLoggingTracker
 from .tracker import Tracker
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
 logger = logging.get_logger("tracker_factory")
 
@@ -65,7 +68,7 @@ def _register_file_logging_tracker():
 # List of Available Trackers
 # file_logger - Logs loss to a file
 # aim - Aimstack Tracker
-def register_trackers():
+def _register_trackers():
     logger.info("Registering trackers")
     if AIMSTACK_TRACKER_NAME not in AVAILABLE_TRACKERS:
         _register_aim_tracker()
@@ -73,22 +76,40 @@ def register_trackers():
         _register_file_logging_tracker()
 
 
-def get_tracker(name, tracker_config_args):
+def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):
+    if tracker_configs is None:
+        return
+    c_name = name + "_config"
+    d = dataclasses.asdict(tracker_configs)
+    if c_name in d:
+        return d[c_name]
+    return
 
+
+def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
+    """
+    Returns an instance of the tracker object based on the requested `name`.
+    Expects tracker config to be present as part of the TrackerConfigFactory
+    object passed as `tracker_configs` argument.
+    If a valid tracker config is not found this function tries tracker with
+    default config else returns an empty Tracker()
+    """
     if not AVAILABLE_TRACKERS:
         # a one time step.
-        register_trackers()
+        _register_trackers()
 
     if name in AVAILABLE_TRACKERS:
         meta = AVAILABLE_TRACKERS[name]
         C = meta["config"]
         T = meta["tracker"]
 
-        if tracker_config_args is not None and name in tracker_config_args:
-            tracker_config = tracker_config_args[name]
-        else:
-            tracker_config = C()
-        return T(tracker_config)
+        if tracker_configs is not None:
+            _conf = _get_tracker_config_by_name(name, tracker_configs)
+            if _conf is not None:
+                config = C(**_conf)
+            else:
+                config = C()
+        return T(config)
 
     logger.warning(
         "Requested Tracker %s not found. Please check the argument before proceeding.",

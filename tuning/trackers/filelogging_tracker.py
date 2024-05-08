@@ -29,7 +29,7 @@ from tuning.config.tracker_configs import FileLoggingTrackerConfig
 class FileLoggingCallback(TrainerCallback):
     """Exports metrics, e.g., training loss to a file in the checkpoint directory."""
 
-    training_logs_filename = "training_logs"
+    training_logs_filename = "training_logs.jsonl"
 
     def __init__(self, logs_filename=None):
         self.training_logs_filename = logs_filename
@@ -72,10 +72,17 @@ class FileLoggingCallback(TrainerCallback):
 
 class FileLoggingTracker(Tracker):
     def __init__(self, tracker_config: FileLoggingTrackerConfig):
+        """
+        Tracker which encodes callback to record metric, e.g., training loss
+        to a file in the checkpoint directory.
+        """
         super().__init__(name="file_logger", tracker_config=tracker_config)
         self.logger = logging.get_logger("file_logging_tracker")
 
     def get_hf_callback(self):
+        """
+        Returns the FileLoggingCallback object associated with this tracker.
+        """
         file = self.config.training_logs_filename
         self.hf_callback = FileLoggingCallback(logs_filename=file)
         return self.hf_callback

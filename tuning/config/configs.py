@@ -91,7 +91,7 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
     trackers: Optional[List[str.lower]] = field(
-        default=None,
+        default_factory=lambda: ["file_logger"],
         metadata={
             "help": "Experiment trackers to use.\n"
             + "Available trackers are - file_logger(default), aim, none\n"

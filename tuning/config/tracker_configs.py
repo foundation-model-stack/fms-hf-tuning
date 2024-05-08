@@ -53,3 +53,9 @@ class AimConfig:
                 + self.aim_remote_server_port
                 + "/"
             )
+
+
+@dataclass
+class TrackerConfigFactory:
+    file_logger_config: FileLoggingTrackerConfig = None
+    aim_config: AimConfig = None

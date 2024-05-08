@@ -35,7 +35,12 @@ import fire
 import transformers
 
 # Local
-from tuning.config import configs, peft_config, tracker_configs
+from tuning.config import configs, peft_config
+from tuning.config.tracker_configs import (
+    AimConfig,
+    FileLoggingTrackerConfig,
+    TrackerConfigFactory,
+)
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
@@ -51,7 +56,9 @@ def train(
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
-    tracker_config_args: Optional[Dict] = None,
+    tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
+        file_logger_config=FileLoggingTrackerConfig()
+    ),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
 ):
@@ -67,10 +74,14 @@ def train(
             The peft configuration to pass to trainer
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
-        additional_callbacks: List of callbacks to attach with SFTtrainer , besides those associated with experiment trackers or TrainerControllers. Callbacks associated with tracker with automatically be added.
-        trackers: List of the available trackers in trackers.tracker_factory.REGISTERED_TRACKERS
-                Initialized using tuning.trackers.tracker_factory.get_tracker
-                Using configs in tuning.config.tracker_configs
+        tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigFactory \
+                         which represents the configuration for various trackers\
+                         Note, trackers need to be enabled to use this \
+                         for e.g. --tracker(s) aim \
+        additional_callbacks: List of callbacks to attach with SFTtrainer,\
+                              besides those associated with experiment trackers \
+                              or TrainerControllers. Callbacks associated with \
+                              tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
     """
 
@@ -98,13 +109,9 @@ def train(
     else:
         requested_trackers = set()
 
-    # We add file logging tracker as default
-    if "file_logger" not in requested_trackers:
-        requested_trackers.add("file_logger")
-
     # Now initialize trackers one by one
     for name in requested_trackers:
-        t = get_tracker(name, tracker_config_args)
+        t = get_tracker(name, tracker_configs)
         cb = t.get_hf_callback()
         if cb is not None:
             trainer_callbacks.append(cb)
@@ -286,8 +293,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
-            tracker_configs.FileLoggingTrackerConfig,
-            tracker_configs.AimConfig,
+            FileLoggingTrackerConfig,
+            AimConfig,
         )
     )
     parser.add_argument(
@@ -341,7 +348,10 @@ def main(**kwargs):  # pylint: disable=unused-argument
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
-    combined_tracker_configs = {"file_logger": file_logger_config, "aim": aim_config}
+    combined_tracker_configs = TrackerConfigFactory()
+
+    combined_tracker_configs.file_logger_config = file_logger_config
+    combined_tracker_configs.aim_config = aim_config
 
     train(
         model_args=model_args,
@@ -349,7 +359,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         train_args=training_args,
         peft_config=tune_config,
         trainer_controller_args=trainer_controller_args,
-        tracker_config_args=combined_tracker_configs,
+        tracker_configs=combined_tracker_configs,
         additional_callbacks=None,
         exp_metadata=metadata,
     )

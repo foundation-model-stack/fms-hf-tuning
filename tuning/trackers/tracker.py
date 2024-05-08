@@ -15,6 +15,10 @@
 
 # Generic Tracker API
 class Tracker:
+    """
+    Generic interface for a Tracker Object.
+    """
+
     def __init__(self, name=None, tracker_config=None) -> None:
         if tracker_config is not None:
             self.config = tracker_config

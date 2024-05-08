@@ -23,10 +23,16 @@ from tuning.config.tracker_configs import AimConfig
 
 class AimStackTracker(Tracker):
     def __init__(self, tracker_config: AimConfig):
+        """
+        Tracker which uses Aimstack to collect and store metrics.
+        """
         super().__init__(name="aim", tracker_config=tracker_config)
         self.logger = logging.get_logger("aimstack_tracker")
 
     def get_hf_callback(self):
+        """
+        Returns the aim.hugging_face.AimCallback object associated with this tracker.
+        """
         c = self.config
         exp = c.experiment
         url = c.aim_url
@@ -47,6 +53,12 @@ class AimStackTracker(Tracker):
         return self.hf_callback
 
     def track(self, metric, name, stage="additional_metrics"):
+        """
+        Track any additional `metric` with `name` under Aimstack tracker.
+        Expects metric and name to not be None.
+        stage can be used to pass the metadata associated with metric,
+        like, training metric or eval metric or additional metric
+        """
         if metric is None or name is None:
             self.logger.warning("Tracked metric value or name should not be None")
             return
@@ -57,6 +69,11 @@ class AimStackTracker(Tracker):
             run.track(metric, name=name, context=context)
 
     def set_params(self, params, name="extra_params"):
+        """
+        Attach any extra params with the run information stored in Aimstack tracker.
+        Expects params to be a dict of k:v pairs of parameters to store.
+        name represents the namespace under which parameters will be associated in Aim.
+        """
         if params is None:
             return
         callback = self.hf_callback
