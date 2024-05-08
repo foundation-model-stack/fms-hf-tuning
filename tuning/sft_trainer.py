@@ -67,7 +67,7 @@ def train(
             The peft configuration to pass to trainer
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
-        callbacks: List of callbacks to attach with SFTtrainer.
+        additional_callbacks: List of callbacks to attach with SFTtrainer , besides those associated with experiment trackers or TrainerControllers. Callbacks associated with tracker with automatically be added.
         trackers: List of the available trackers in trackers.tracker_factory.REGISTERED_TRACKERS
                 Initialized using tuning.trackers.tracker_factory.get_tracker
                 Using configs in tuning.config.tracker_configs
