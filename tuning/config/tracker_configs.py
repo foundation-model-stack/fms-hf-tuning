@@ -37,6 +37,12 @@ class AimConfig:
     aim_remote_server_ip: str = None
     aim_remote_server_port: int = None
     aim_url: str = None
+    # Location of where run_hash is to be exported.
+    # This variable overwrites the default location to
+    # training_args.output_dir/aim_run_hash.json if the output_dir is set
+    # Hash is not exported if both variable is not set
+    # or output_dir is not specified.
+    aim_run_id_export_path: str = None
 
     def __post_init__(self):
         if self.experiment is None:
