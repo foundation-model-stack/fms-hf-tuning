@@ -20,16 +20,16 @@ import base64
 import os
 import pickle
 import tempfile
-from unittest import mock
 
 # Third Party
 import pytest
 
 # First Party
 from build.accelerate_launch import main
-from build.utils import USER_ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE
+from build.utils import INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE
 from tests.data import TWITTER_COMPLAINTS_DATA
 
+SCRIPT = "build/launch_training.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 BASE_PEFT_KWARGS = {
     "model_name_or_path": MODEL_NAME,
@@ -56,13 +56,14 @@ BASE_PEFT_KWARGS = {
     "prompt_tuning_init_text": "hello",
     "tokenizer_name_or_path": MODEL_NAME,
     "save_strategy": "epoch",
-    "output_dir": "tmp",
-
+    "output_dir": "tmp"
 }
 
 
 def test_successful_pt():
     """Check if we can bootstrap and peft tune causallm models"""
+    os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
+    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
         message_bytes = pickle.dumps(TRAIN_KWARGS)
@@ -74,7 +75,27 @@ def test_successful_pt():
         assert main() == 0
 
 
+def test_bad_script_path():
+    """Check if we can bootstrap and peft tune causallm models"""
+    os.environ["LAUNCH_TRAINING_SCRIPT"] = "invalid"
+    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
+    with tempfile.TemporaryDirectory() as tempdir:
+        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
+        message_bytes = pickle.dumps(TRAIN_KWARGS)
+        base64_bytes = base64.b64encode(message_bytes)
+        serialized_args = base64_bytes.decode("ascii")
+
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        main()
+    assert pytest_wrapped_e.type == SystemExit
+    assert pytest_wrapped_e.value.code == INTERNAL_ERROR_EXIT_CODE
+
+
 def test_blank_env_var():
+    os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
+    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
     os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = ""
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         main()
@@ -83,9 +104,14 @@ def test_blank_env_var():
 
 
 def test_faulty_file_path():
+    os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
+    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
     with tempfile.TemporaryDirectory() as tempdir:
         faulty_path = os.path.join(tempdir, "non_existent_file.pkl")
-        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"training_data_path": faulty_path, "output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **BASE_PEFT_KWARGS,
+            **{"training_data_path": faulty_path, "output_dir": tempdir},
+        }
         message_bytes = pickle.dumps(TRAIN_KWARGS)
         base64_bytes = base64.b64encode(message_bytes)
         serialized_args = base64_bytes.decode("ascii")
@@ -97,15 +123,18 @@ def test_faulty_file_path():
 
 
 def test_config_parsing_error():
-    with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"num_train_epochs": "five"}}  # Intentional type error
-        message_bytes = pickle.dumps(TRAIN_KWARGS)
-        base64_bytes = base64.b64encode(message_bytes)
-        serialized_args = base64_bytes.decode("ascii")
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
-        with pytest.raises(SystemExit) as pytest_wrapped_e:
-            main()
-        assert pytest_wrapped_e.type == SystemExit
-        assert pytest_wrapped_e.value.code == USER_ERROR_EXIT_CODE
+    os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
+    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
 
-
+    TRAIN_KWARGS = {
+        **BASE_PEFT_KWARGS,
+        **{"num_train_epochs": "five"},
+    }  # Intentional type error
+    message_bytes = pickle.dumps(TRAIN_KWARGS)
+    base64_bytes = base64.b64encode(message_bytes)
+    serialized_args = base64_bytes.decode("ascii")
+    os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        main()
+    assert pytest_wrapped_e.type == SystemExit
+    assert pytest_wrapped_e.value.code == USER_ERROR_EXIT_CODE

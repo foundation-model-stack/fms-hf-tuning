@@ -28,7 +28,7 @@ import traceback
 from accelerate.commands.launch import launch_command
 
 # Local
-from .utils import (
+from build.utils import (
     process_accelerate_launch_args,
     get_job_config,
     write_termination_log,
@@ -78,10 +78,15 @@ def main():
     except subprocess.CalledProcessError as e:
         # If the subprocess throws an exception, the base exception is hidden in the subprocess call
         # and is difficult to access at this level. However, that is not an issue because
-        # launch_training.py would have already written the exception message to the termination log.
+        # launch_training.py would have already written the exception message to termination log.
         logging.error(traceback.format_exc())
         # The exit code that launch_training.py threw is captured in e.returncode
-        sys.exit(e.returncode)
+
+        return_code = e.returncode
+        if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
+            return_code = INTERNAL_ERROR_EXIT_CODE
+            write_termination_log("Unhandled exception during training")
+        sys.exit(return_code)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log("Unhandled exception during training")
