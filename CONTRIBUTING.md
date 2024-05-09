@@ -92,8 +92,8 @@ pip install -e .
 <summary>Linting</summary>
 
 To lint your code:
-```shell
-tox -e lint
+```
+    make lint
 ```
 
 We use Pylint to checks your Python code for errors, coding standards, code convention and refactoring suggestions.
@@ -116,8 +116,8 @@ You should fix all message in the following order:
 <summary>Formatting</summary>
 
 To format your code:
-```shell
-tox -e fmt
+```
+    make fmt
 ```
 We use [black](https://github.com/psf/black) formatter to format the code.
 
@@ -132,13 +132,13 @@ pre-commit install
 <summary>Unit tests</summary>
 
 To run unit tests:
-```shell
-tox -e py
+```
+    make test
 ```
 Running unit tests ensures your contributions do not break exiting code.
 We use [pytest](https://docs.pytest.org/) framework to run unit tests. The framework is setup to run all run all test_*.py or *_test.py in the [tests](./tests) directory.
 
-> Optionally, run `make test` command to do formatting, linting, and testing at once.
+> Optionally, run `make all` command to do formatting, linting, and testing at once.
 </details>
 
 <details>
