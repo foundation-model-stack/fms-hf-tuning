@@ -11,12 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Third Party
-from transformers.utils.import_utils import _is_package_available
-
-_is_aim_available = _is_package_available("aim")
-
-
-def is_aim_available():
-    return _is_aim_available

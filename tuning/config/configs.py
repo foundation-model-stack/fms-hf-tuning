@@ -14,7 +14,7 @@
 
 # Standard
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 # Third Party
 import torch
@@ -88,6 +88,14 @@ class TrainingArguments(transformers.TrainingArguments):
             Possible values are 'no'(no logging is done during training), \
             'epoch' (logging is done at the end of each epoch), \
             'steps' (logging is done every `logging_steps`)"
+        },
+    )
+    trackers: Optional[List[str.lower]] = field(
+        default_factory=lambda: ["file_logger"],
+        metadata={
+            "help": "Experiment trackers to use.\n"
+            + "Available trackers are - file_logger(default), aim, none\n"
+            + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
 
