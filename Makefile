@@ -1,6 +1,10 @@
+# Run all
+.PHONY: all
+all: fmt lint test
+
 # Run unit tests
 .PHONY: test
-test: fmt lint
+test:
 	tox -e py
 
 # Format python code
@@ -9,6 +13,6 @@ fmt:
 	tox -e fmt
 
 # Run pylint to check code
-..PHONY: lint
+.PHONY: lint
 lint:
 	tox -e lint
