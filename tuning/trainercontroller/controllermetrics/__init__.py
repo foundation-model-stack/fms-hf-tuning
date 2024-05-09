@@ -20,6 +20,7 @@ from typing import Type
 
 # Local
 from .loss import Loss
+from .trainingstate import TrainingState
 
 # List of metric handlers
 handlers = []
@@ -35,4 +36,5 @@ def register(cl: Type):
 
 
 # Register the default metric handlers in this package here
+register(TrainingState)
 register(Loss)
