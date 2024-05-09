@@ -220,7 +220,8 @@ def process_accelerate_launch_args(job_config_dict):
         )
 
     # Add training_script
-    accelerate_launch_args.append("/app/launch_training.py")
+    launch_directory = os.path.abspath(os.path.dirname( __file__ ))
+    accelerate_launch_args.append(launch_directory + "/launch_training.py")
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
     args = parser.parse_args(args=accelerate_launch_args)

@@ -185,6 +185,8 @@ def main():
             logging.error(traceback.format_exc())
             # Continue, don't fail the training because of this
 
+    return 0
+
 
 if __name__ == "__main__":
     main()

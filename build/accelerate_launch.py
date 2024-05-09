@@ -20,6 +20,7 @@ for the encoded config string to parse.
 # Standard
 import os
 import logging
+import subprocess
 import sys
 import traceback
 
@@ -27,7 +28,7 @@ import traceback
 from accelerate.commands.launch import launch_command
 
 # Local
-from build.utils import (
+from .utils import (
     process_accelerate_launch_args,
     get_job_config,
     write_termination_log,
@@ -40,6 +41,11 @@ def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
+    ##########
+    #
+    # Parse arguments
+    #
+    ##########
     try:
         job_config = get_job_config()
 
@@ -62,12 +68,26 @@ def main():
         write_termination_log("Unhandled exception during training")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
+    ##########
+    #
+    # Launch training
+    #
+    ##########
     try:
         launch_command(args)
+    except subprocess.CalledProcessError as e:
+        # If the subprocess throws an exception, the base exception is hidden in the subprocess call
+        # and is difficult to access at this level. However, that is not an issue because
+        # launch_training.py would have already written the exception message to the termination log.
+        logging.error(traceback.format_exc())
+        # The exit code that launch_training.py threw is captured in e.returncode
+        sys.exit(e.returncode)
     except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc)
+        logging.error(traceback.format_exc())
         write_termination_log("Unhandled exception during training")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    return 0
 
 
 if __name__ == "__main__":
