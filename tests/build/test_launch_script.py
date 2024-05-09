@@ -56,7 +56,7 @@ BASE_PEFT_KWARGS = {
     "prompt_tuning_init_text": "hello",
     "tokenizer_name_or_path": MODEL_NAME,
     "save_strategy": "epoch",
-    "output_dir": "tmp"
+    "output_dir": "tmp",
 }
 
 
@@ -138,3 +138,9 @@ def test_config_parsing_error():
         main()
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == USER_ERROR_EXIT_CODE
+
+
+def test_cleanup():
+    # This runs to unset env variables that could disrupt other tests
+    os.environ.pop("LAUNCH_TRAINING_SCRIPT", None)
+    assert True

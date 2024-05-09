@@ -183,7 +183,8 @@ def main():
                 shutil.copy(train_logs_filepath, original_output_dir)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
-            # Continue, don't fail the training because of this
+            write_termination_log("Exception encountered in capturing training logs")
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0
 
