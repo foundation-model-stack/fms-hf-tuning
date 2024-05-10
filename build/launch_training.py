@@ -28,6 +28,7 @@ import logging
 # Local
 from tuning import sft_trainer
 from tuning.utils.merge_model_utils import create_merged_model
+from tuning.config.tracker_configs import TrackerConfigFactory
 from build.utils import process_launch_training_args, get_job_config
 
 
@@ -62,12 +63,23 @@ def main():
         training_args,
         tune_config,
         merge_model,
+        file_logger_config,
+        aim_config,
     ) = process_launch_training_args(job_config)
 
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:
         training_args.output_dir = tempdir
-        sft_trainer.train(model_args, data_args, training_args, tune_config)
+        tracker_config_args = TrackerConfigFactory(
+            file_logger_config=file_logger_config, aim_config=aim_config
+        )
+        sft_trainer.train(
+            model_args=model_args,
+            data_args=data_args,
+            train_args=training_args,
+            peft_config=tune_config,
+            tracker_configs=tracker_config_args,
+        )
 
         if merge_model:
             export_path = os.getenv(
@@ -108,7 +120,8 @@ def main():
 
         # copy over any loss logs
         train_logs_filepath = os.path.join(
-            training_args.output_dir, sft_trainer.TRAINING_LOGS_FILENAME
+            training_args.output_dir,
+            tracker_config_args.file_logger_config.training_logs_filename,
         )
         if os.path.exists(train_logs_filepath):
             shutil.copy(train_logs_filepath, original_output_dir)

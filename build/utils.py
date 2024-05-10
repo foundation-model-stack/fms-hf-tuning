@@ -25,7 +25,7 @@ import transformers
 from accelerate.commands.launch import launch_command_parser
 
 # Local
-from tuning.config import configs, peft_config
+from tuning.config import configs, peft_config, tracker_configs
 
 
 def txt_to_obj(txt):
@@ -67,6 +67,8 @@ def process_launch_training_args(job_config_dict):
         training_args: configs.TrainingArguments
         tune_config: peft_config.LoraConfig | peft_config.PromptTuningConfig
         merge_model: bool
+        file_logger_config: tracker_configs.FileLoggingTrackerConfig
+        aim_config: tracker_configs.AimConfig
     """
     parser = transformers.HfArgumentParser(
         dataclass_types=(
@@ -75,6 +77,8 @@ def process_launch_training_args(job_config_dict):
             configs.TrainingArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
+            tracker_configs.FileLoggingTrackerConfig,
+            tracker_configs.AimConfig,
         )
     )
 
@@ -84,6 +88,8 @@ def process_launch_training_args(job_config_dict):
         training_args,
         lora_config,
         prompt_tuning_config,
+        file_logger_config,
+        aim_config,
     ) = parser.parse_dict(job_config_dict, allow_extra_keys=True)
 
     peft_method_parsed = job_config_dict.get("peft_method")
@@ -98,14 +104,25 @@ def process_launch_training_args(job_config_dict):
 
     logging.info(
         "Parameters used to launch training: \
-    model_args %s, data_args %s, training_args %s, tune_config %s",
+    model_args %s, data_args %s, training_args %s, tune_config %s \
+        file_logger_config %s aim_config %s",
         model_args,
         data_args,
         training_args,
         tune_config,
+        file_logger_config,
+        aim_config,
     )
 
-    return model_args, data_args, training_args, tune_config, merge_model
+    return (
+        model_args,
+        data_args,
+        training_args,
+        tune_config,
+        merge_model,
+        file_logger_config,
+        aim_config,
+    )
 
 
 def process_accelerate_launch_args(job_config_dict):
