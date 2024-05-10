@@ -52,6 +52,7 @@ ARG PYTORCH_INDEX="https://download.pytorch.org/whl"
 ARG PYTORCH_VERSION=2.2.1
 
 ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION_SHORT=311
 
 
 ## Base Layer ##################################################################
@@ -214,6 +215,30 @@ FROM base as flash-att-v2-cache
 # Copy just the wheels we built for flash-attention
 COPY --from=flash-att-v2-builder /usr/src/flash-attention-v2 /usr/src/flash-attention-v2
 
+<<<<<<< HEAD
+=======
+
+## Wheel Layer #################################################################
+FROM registry.access.redhat.com/ubi9/python-${PYTHON_VERSION_SHORT} as wheel
+
+ARG WHEEL_VERSION=""
+
+USER root
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    python -m pip install build
+COPY tuning tuning
+COPY .git .git
+COPY pyproject.toml pyproject.toml
+# build wheel if wheel version is empty else download the wheel from PyPi
+RUN if [[ -z "${WHEEL_VERSION}" ]]; \
+    then python -m build --wheel --outdir /tmp; \
+    else pip download fms-hf-tuning==${WHEEL_VERSION} --dest /tmp --only-binary=:all: --no-deps; \
+    fi && \
+    ls /tmp/*.whl >/tmp/bdist_name
+
+
+>>>>>>> a3d039e (Tiny fix for app dir)
 ## Full set of python installations for server release #########################
 
 FROM python-builder as python-installations
@@ -230,6 +255,7 @@ RUN --mount=type=bind,from=flash-att-v2-cache,src=/usr/src/flash-attention-v2,ta
 
 WORKDIR /tmp
 
+<<<<<<< HEAD
 # TODO Move to installing wheel once we have proper releases setup instead of cloning the repo
 RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
     cd fms-hf-tuning && \
@@ -237,6 +263,28 @@ RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
     python -m pip install ".[aim]" && \
     python -m pip install -U datasets
 >>>>>>> d876974 (Multi-stage build)
+=======
+RUN dnf install -y python${PYTHON_VERSION} git \
+    && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
+    && python -m ensurepip --upgrade \
+    && dnf clean all
+
+# Removes the example private key to avoid high severity vulnerability warning
+RUN rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem
+
+WORKDIR /tmp
+COPY --from=wheel /tmp/*.whl /tmp/bdist_name /tmp/
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    python -m pip install wheel && \
+    python -m pip install "$(head bdist_name)" && \
+    python -m pip install "$(head bdist_name)[aim]" && \
+    python -m pip install "$(head bdist_name)[flash-attn]" && \
+    # Clean up the wheel module. It's only needed by flash-attn install
+    python -m pip uninstall wheel -y && \
+    # Cleanup the bdist whl file
+    rm $(head bdist_name) /tmp/bdist_name
+>>>>>>> a3d039e (Tiny fix for app dir)
 
 ## Final image ################################################
 FROM base as release
@@ -259,7 +307,10 @@ RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 RUN mkdir /app
+=======
+>>>>>>> a3d039e (Tiny fix for app dir)
 # Copy scripts and default configs
 COPY build/launch_training.py build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 COPY build/utils.py /app/build/
