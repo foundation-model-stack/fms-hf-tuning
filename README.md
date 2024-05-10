@@ -8,12 +8,20 @@ This repo provides basic tuning scripts with support for specific models. The re
 ## Installation
 
 ```
-pip install -r requirements.txt
-pip install -U datasets
 pip install -e .
 ```
 
-> Note: If you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements: `pip install -r flashattn_requirements`. [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
+> Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
+```
+pip install -e ".[dev]"
+pip install -e ".[flash-attn]"
+```
+[FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
+
+If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
+```
+pip install -e ".[aim]"
+```
 
 ## Data format
 The data format expectation is a single column text. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
@@ -60,9 +68,13 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
 
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+
 python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
---training_data_path $DATA_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 4  \
@@ -83,15 +95,31 @@ python tuning/sft_trainer.py  \
 ```
 
 ### Multiple GPUs with FSDP
+
+The recommendation is to use [huggingface accelerate](https://huggingface.co/docs/accelerate/en/index) to launch multi-gpu jobs, in particular when using FSDP:
+- `accelerate` is written on top of [`torch.distributed.run`](https://github.com/pytorch/pytorch/blob/main/torch/distributed/run.py).
+- `accelerate launch` CLI highly similar to `torchrun`, spawns multiple jobs (one for each gpu).
+- tightly integrated with [huggingface Trainer](https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py).
+
+`accelerate launch` CLI to be run with specific command line arguments, see example below. Default arguments handled by passing in a 
+`--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
+
 ```bash
-torchrun \
---nnodes=1 \
---nproc_per_node=8 \ 
---master_port=1234 \
+# Please set the environment variables:
+# MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the training dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+
+accelerate launch \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
+--num_processes=8 \ 
+--main_process_port=$MASTER_PORT \
 tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---training_data_path $DATA_PATH \
---bf16 True \
+--training_data_path $TRAIN_DATA_PATH \
+--torch_dtype bfloat16 \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 \
@@ -104,23 +132,43 @@ tuning/sft_trainer.py \
 --warmup_ratio 0.03 \
 --lr_scheduler_type "cosine" \
 --logging_steps 1 \
---fsdp "full_shard auto_wrap" \ 
---fsdp_config tuning/config/fsdp_config.json \
 --include_tokens_per_second \
 --packing False \
 --response_template "\n### Response:" \
 --dataset_text_field "output"
 ```
 
+To summarize you can pick either python for singleGPU jobs or use accelerate launch for multiGPU jobs. The following tuning techniques can be applied:
 
-For `GPTBigCode` models, Hugging Face has enabled Flash v2 and one can simply replace the `'LlamaDecoderLayer'` with `'GPTBigCodeBlock'` in `tuning/config/fsdp_config.json` for proper sharding of the model.
+## Tuning Techniques : 
 
 ### LoRA Tuning Example
+
+Set peft_method = "lora". You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+```bash
+# Args you can pass
+r: int =8 
+lora_alpha: int = 32
+target_modules: List[str] = field(
+  default_factory=lambda: ["q_proj", "v_proj"],
+      metadata={
+            "help": "The names of the modules to apply LORA to. LORA selects modules which either \
+            completely match or "
+            'end with one of the strings. If the value is ["all-linear"], \
+            then LORA selects all linear and Conv1D '
+            "modules except for the output layer."
+        },
+    )
+  bias = "none"
+  lora_dropout: float = 0.05
+
+```
+Example command to run:
 
 ```bash
 python tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
---training_data_path $DATA_PATH \
+--training_data_path $TRAIN_DATA_PATH \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 40 \
 --per_device_train_batch_size 4 \
@@ -144,16 +192,6 @@ python tuning/sft_trainer.py \
 --r 8 \
 --lora_dropout 0.05 \
 --lora_alpha 16
-```
-
-where [`LoraConfig`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L7) that is being set looks like:
-```py
-LoraConfig(
-    r=8,
-    lora_alpha=16,
-    target_modules=['q_proj', 'v_proj'],
-    lora_dropout=0.05
-)
 ```
 
 Notice the `target_modules` that are set are the default values. `target_modules` are the names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
@@ -210,6 +248,83 @@ For example for LLaMA model the modules look like:
 ```
 
 You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
+
+### Prompt Tuning :
+
+Specify peft_method to 'pt' . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39). 
+```bash
+    # prompt_tuning_init can be either "TEXT" or "RANDOM"
+    prompt_tuning_init: str = "TEXT"
+    num_virtual_tokens: int = 8
+    # prompt_tuning_init_text only applicable if prompt_tuning_init= "TEXT"
+    prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
+    tokenizer_name_or_path: str = "llama-7b-hf"
+```
+
+Example command you can run:  
+
+```bash
+
+accelerate launch \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
+tuning/sft_trainer.py  \
+--model_name_or_path $MODEL_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
+--output_dir $OUTPUT_PATH  \
+--peft_method pt \
+--torch_dtype bfloat16 \
+--tokenizer_name_or_path $MODEL_PATH  \
+--num_train_epochs 5  \
+--per_device_train_batch_size 1  \
+--per_device_eval_batch_size 1  \
+--gradient_accumulation_steps 1  \
+--evaluation_strategy "no"  \
+--save_strategy "epoch"  \
+--learning_rate 1e-5  \
+--weight_decay 0.  \
+--warmup_ratio 0.03  \
+--lr_scheduler_type "cosine"  \
+--logging_steps 1  \
+--include_tokens_per_second  \
+--packing False  \
+--response_template "\n### Label:"  \
+--dataset_text_field "output" 
+```
+
+### Fine Tuning :
+
+Set peft_method = 'None'
+
+Full fine tuning needs more compute resources, so it is advised to use the MultiGPU method
+```bash
+
+accelerate launch \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
+tuning/sft_trainer.py  \
+--model_name_or_path $MODEL_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
+--output_dir $OUTPUT_PATH  \
+--peft_method "None" \
+--torch_dtype bfloat16 \
+--tokenizer_name_or_path $MODEL_PATH  \
+--num_train_epochs 5  \
+--per_device_train_batch_size 1  \
+--per_device_eval_batch_size 1  \
+--gradient_accumulation_steps 1  \
+--evaluation_strategy "no"  \
+--save_strategy "epoch"  \
+--learning_rate 1e-5  \
+--weight_decay 0.  \
+--warmup_ratio 0.03  \
+--lr_scheduler_type "cosine"  \
+--logging_steps 1  \
+--include_tokens_per_second  \
+--packing False  \
+--response_template "\n### Label:"  \
+--dataset_text_field "output" 
+```
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.

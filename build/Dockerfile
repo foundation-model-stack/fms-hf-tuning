@@ -1,4 +1,4 @@
-# Copyright The IBM Tuning Team
+# Copyright The FMS HF Tuning Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM registry.access.redhat.com/ubi9/python-311 as wheel
+
+ARG WHEEL_VERSION=""
+USER root
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    python -m pip install build
+COPY tuning tuning
+COPY .git .git
+COPY pyproject.toml pyproject.toml
+# build wheel if wheel version is empty else download the wheel from PyPi
+RUN if [[ -z "${WHEEL_VERSION}" ]]; \
+    then python -m build --wheel --outdir /tmp; \
+    else pip download fms-hf-tuning==${WHEEL_VERSION} --dest /tmp --only-binary=:all: --no-deps; \
+    fi && \
+    ls /tmp/*.whl >/tmp/bdist_name
+
+
 FROM registry.access.redhat.com/ubi9/ubi AS release
 
 ARG CUDA_VERSION=11.8.0
 ARG USER=tuning
 ARG USER_UID=1000
+ARG SET_NUM_PROCESSES_TO_NUM_GPUS=True
 
 USER root
 
-RUN dnf remove -y --disableplugin=subscription-manager \
+RUN dnf update -y \
+    && dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
         # we install newer version of requests via pip
         python3.11-requests \
@@ -89,31 +109,37 @@ RUN dnf config-manager \
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 
-RUN dnf install -y python3.11 git && \
-    ln -s /usr/bin/python3.11 /bin/python && \
-    python -m ensurepip --upgrade
+RUN dnf install -y python3.11 git \
+    && ln -s /usr/bin/python3.11 /bin/python \
+    && python -m ensurepip --upgrade \
+    && dnf clean all
 
-RUN mkdir /app
+# Removes the example private key to avoid high severity vulnerability warning
+RUN rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem
 
 WORKDIR /tmp
-RUN python -m pip install packaging && \
+COPY --from=wheel /tmp/*.whl /tmp/bdist_name /tmp/
+RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --upgrade pip && \
-    python -m pip install torch && \
-    python -m pip install wheel
-
-# TODO Move to installing wheel once we have proper releases setup instead of cloning the repo
-RUN git clone https://github.com/foundation-model-stack/fms-hf-tuning.git && \
-    cd fms-hf-tuning && \
-    python -m pip install -r requirements.txt && \
-    python -m pip install -r flashattn_requirements.txt && \
-    python -m pip install -U datasets  && \
-    python -m pip install /tmp/fms-hf-tuning
+    python -m pip install wheel && \
+    python -m pip install "$(head bdist_name)" && \
+    python -m pip install "$(head bdist_name)[aim]" && \
+    python -m pip install "$(head bdist_name)[flash-attn]" && \
+    # Clean up the wheel module. It's only needed by flash-attn install
+    python -m pip uninstall wheel -y && \
+    # Cleanup the bdist whl file
+    rm $(head bdist_name) /tmp/bdist_name
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
-COPY launch_training.py /app
-RUN chmod +x /app/launch_training.py
+RUN mkdir /app
+# Copy scripts and default configs
+COPY build/launch_training.py build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY build/utils.py /app/build/
+RUN chmod +x /app/launch_training.py /app/accelerate_launch.py
+
+ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 
 # Need a better way to address this hack
 RUN touch /.aim_profile && \
@@ -123,10 +149,10 @@ RUN touch /.aim_profile && \
 
 # create tuning user and give ownership to dirs
 RUN useradd -u $USER_UID tuning -m -g 0 --system && \
-    chown -R $USER:0 /app && \
-    chmod -R g+rwX /app
+    chown -R $USER:0 /app /tmp && \
+    chmod -R g+rwX /app /tmp
 
 WORKDIR /app
 USER ${USER}
 
-CMD [ "tail", "-f", "/dev/null" ]
+CMD [ "python", "/app/accelerate_launch.py" ]

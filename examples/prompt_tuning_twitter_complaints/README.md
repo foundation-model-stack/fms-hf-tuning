@@ -30,20 +30,22 @@ dataset.to_json("twitter_complaints.json")
 ### Prompt Tuning
 We will switch our PEFT method from LORA to Prompt Tuning (pt)
 ```bash
-# replace these with your values
-MODEL_PATH=llama-7b-hf
-DATA_PATH=twitter_complaints.json
-OUTPUT_PATH=out
+# Please set the environment variables:
+# MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the training dataset
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
-torchrun \
---nnodes=1 \
---nproc_per_node=8  \
---master_port=1234  \
+
+accelerate launch \
+--main_process_port $MASTER_PORT \
+--config_file fixtures/accelerate_fsdp_defaults.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
---training_data_path $DATA_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --peft_method pt \
+--torch_dtype bfloat16 \
 --tokenizer_name_or_path $MODEL_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 1  \
@@ -56,8 +58,6 @@ tuning/sft_trainer.py  \
 --warmup_ratio 0.03  \
 --lr_scheduler_type "cosine"  \
 --logging_steps 1  \
---fsdp "full_shard auto_wrap"  \
---fsdp_config tuning/config/fsdp_config.json \
 --include_tokens_per_second  \
 --packing False  \
 --response_template "\n### Label:"  \

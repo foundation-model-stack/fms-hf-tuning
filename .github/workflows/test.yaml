@@ -1,5 +1,4 @@
 name: Test
-
 on:
   push:
     branches: [ "main" ]
@@ -9,14 +8,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - setup: "3.9"
+            tox: "py39"
+          - setup: "3.10"
+            tox: "py310"
+          - setup: "3.11"
+            tox: "py311"
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
+      - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          python -m pip install -r setup_requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install tox
       - name: Run unit tests
         run: tox -e py

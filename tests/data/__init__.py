@@ -1,4 +1,4 @@
-# Copyright The IBM Tuning Team
+# Copyright The FMS HF Tuning Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,3 +20,5 @@ import os
 ### Constants used for data
 DATA_DIR = os.path.join(os.path.dirname(__file__))
 TWITTER_COMPLAINTS_DATA = os.path.join(DATA_DIR, "twitter_complaints_small.json")
+EMPTY_DATA = os.path.join(DATA_DIR, "empty_data.json")
+MALFORMATTED_DATA = os.path.join(DATA_DIR, "malformatted_data.json")

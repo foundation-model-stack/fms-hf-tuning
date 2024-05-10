@@ -1,4 +1,4 @@
-# Copyright The IBM Tuning Team
+# Copyright The FMS HF Tuning Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,33 +18,17 @@ for the encoded config string to parse.
 """
 
 # Standard
-import base64
 import os
-import pickle
-import json
 import tempfile
 import shutil
-import glob
 
 # First Party
 import logging
+
+# Local
 from tuning import sft_trainer
-from tuning.config import configs, peft_config
 from tuning.utils.merge_model_utils import create_merged_model
-
-# Third Party
-import transformers
-
-
-def txt_to_obj(txt):
-    base64_bytes = txt.encode("ascii")
-    message_bytes = base64.b64decode(base64_bytes)
-    try:
-        # If the bytes represent JSON string
-        return json.loads(message_bytes)
-    except UnicodeDecodeError:
-        # Otherwise the bytes are a pickled python dictionary
-        return pickle.loads(message_bytes)
+from build.utils import process_launch_training_args, get_job_config
 
 
 def get_highest_checkpoint(dir_path):
@@ -66,70 +50,19 @@ def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
-    logging.info("Attempting to launch training script")
-    parser = transformers.HfArgumentParser(
-        dataclass_types=(
-            configs.ModelArguments,
-            configs.DataArguments,
-            configs.TrainingArguments,
-            peft_config.LoraConfig,
-            peft_config.PromptTuningConfig,
-        )
-    )
-    peft_method_parsed = "pt"
-    json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    logging.info("Initializing launch training script")
 
-    # accepts either path to JSON file or encoded string config
-    if json_path:
-        (
-            model_args,
-            data_args,
-            training_args,
-            lora_config,
-            prompt_tuning_config,
-        ) = parser.parse_json_file(json_path, allow_extra_keys=True)
+    job_config = get_job_config()
 
-        contents = ""
-        with open(json_path, "r", encoding="utf-8") as f:
-            contents = json.load(f)
-        peft_method_parsed = contents.get("peft_method")
-        logging.debug("Input params parsed: %s", contents)
-    elif json_env_var:
-        job_config_dict = txt_to_obj(json_env_var)
-        logging.debug("Input params parsed: %s", job_config_dict)
+    logging.debug("Input params parsed: %s", job_config)
 
-        (
-            model_args,
-            data_args,
-            training_args,
-            lora_config,
-            prompt_tuning_config,
-        ) = parser.parse_dict(job_config_dict, allow_extra_keys=True)
-
-        peft_method_parsed = job_config_dict.get("peft_method")
-    else:
-        raise ValueError(
-            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
-        or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
-        )
-
-    tune_config = None
-    merge_model = False
-    if peft_method_parsed == "lora":
-        tune_config = lora_config
-        merge_model = True
-    elif peft_method_parsed == "pt":
-        tune_config = prompt_tuning_config
-
-    logging.debug(
-        "Parameters used to launch training: \
-    model_args %s, data_args %s, training_args %s, tune_config %s",
+    (
         model_args,
         data_args,
         training_args,
         tune_config,
-    )
+        merge_model,
+    ) = process_launch_training_args(job_config)
 
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:
@@ -174,8 +107,11 @@ def main():
             )
 
         # copy over any loss logs
-        for file in glob.glob(f"{training_args.output_dir}/*loss.jsonl"):
-            shutil.copy(file, original_output_dir)
+        train_logs_filepath = os.path.join(
+            training_args.output_dir, sft_trainer.TRAINING_LOGS_FILENAME
+        )
+        if os.path.exists(train_logs_filepath):
+            shutil.copy(train_logs_filepath, original_output_dir)
 
 
 if __name__ == "__main__":

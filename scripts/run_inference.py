@@ -1,4 +1,4 @@
-# Copyright The IBM Tuning Team
+# Copyright The FMS HF Tuning Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -142,7 +142,10 @@ class TunedCausalLM:
 
     @classmethod
     def load(
-        cls, checkpoint_path: str, base_model_name_or_path: str = None
+        cls,
+        checkpoint_path: str,
+        base_model_name_or_path: str = None,
+        use_flash_attn: bool = False,
     ) -> "TunedCausalLM":
         """Loads an instance of this model.
 
@@ -152,6 +155,8 @@ class TunedCausalLM:
                 adapter_config.json.
             base_model_name_or_path: str [Default: None]
                 Override for the base model to be used.
+            use_flash_attn: bool [Default: False]
+                Whether to load the model using flash attention.
 
         By default, the paths for the base model and tokenizer are contained within the adapter
         config of the tuned model. Note that in this context, a path may refer to a model to be
@@ -173,21 +178,33 @@ class TunedCausalLM:
         try:
             with AdapterConfigPatcher(checkpoint_path, overrides):
                 try:
-                    model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
+                    model = AutoPeftModelForCausalLM.from_pretrained(
+                        checkpoint_path,
+                        attn_implementation="flash_attention_2"
+                        if use_flash_attn
+                        else None,
+                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                    )
                 except OSError as e:
                     print("Failed to initialize checkpoint model!")
                     raise e
         except FileNotFoundError:
             print("No adapter config found! Loading as a merged model...")
             # Unable to find the adapter config; fall back to loading as a merged model
-            model = AutoModelForCausalLM.from_pretrained(checkpoint_path)
+            model = AutoModelForCausalLM.from_pretrained(
+                checkpoint_path,
+                attn_implementation="flash_attention_2" if use_flash_attn else None,
+                torch_dtype=torch.bfloat16 if use_flash_attn else None,
+            )
 
         device = "cuda" if torch.cuda.is_available() else None
         print(f"Inferred device: {device}")
         model.to(device)
         return cls(model, tokenizer, device)
 
-    def run(self, text: str, *, max_new_tokens: int) -> str:
+    def run(
+        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False
+    ) -> str:
         """Runs inference on an instance of this model.
 
         Args:
@@ -195,6 +212,9 @@ class TunedCausalLM:
                 Text on which we want to run inference.
             max_new_tokens: int
                 Max new tokens to use for inference.
+            ret_gen_text_only: bool
+                Indicates whether or not we should return the full text (i.e., input + new tokens)
+                or just the newly generated tokens.
 
         Returns:
             str
@@ -206,8 +226,12 @@ class TunedCausalLM:
         peft_outputs = self.peft_model.generate(
             input_ids=input_ids, max_new_tokens=max_new_tokens
         )
+        if ret_gen_text_only:
+            tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
+        else:
+            tok_to_decode = peft_outputs
         decoded_result = self.tokenizer.batch_decode(
-            peft_outputs, skip_special_tokens=False
+            tok_to_decode, skip_special_tokens=False
         )[0]
         return decoded_result
 
@@ -237,6 +261,11 @@ def main():
         type=int,
         default=20,
     )
+    parser.add_argument(
+        "--use_flash_attn",
+        help="Whether to load the model using Flash Attention 2",
+        action="store_true",
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--text", help="Text to run inference on")
     group.add_argument(
@@ -252,6 +281,7 @@ def main():
     loaded_model = TunedCausalLM.load(
         checkpoint_path=args.model,
         base_model_name_or_path=args.base_model_name_or_path,
+        use_flash_attn=args.use_flash_attn,
     )
 
     # Run inference on the text; if multiple were provided, process them all

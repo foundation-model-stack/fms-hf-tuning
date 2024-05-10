@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
-from setuptools import find_packages, setup
+# SPDX-License-Identifier: Apache-2.0
+# https://spdx.dev/learn/handling-license-info/
 
-setup(name="tuning", version="0.0.1", packages=find_packages())
+# Local
+from .callback import TrainerControllerCallback

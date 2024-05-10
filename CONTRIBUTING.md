@@ -35,6 +35,13 @@ We require new unit tests to be contributed with any new functionality added.
 
 Before sending pull requests, make sure your changes pass formatting, linting and unit tests. These checks will run with the pull request builds. Alternatively, you can run the checks manually on your local machine [as specified below](#development).
 
+#### Dependencies
+If additional new Python module dependencies are required, think about where to put them:
+
+- If they're required for fms-hf-tuning, then append them to the [dependencies](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L28) in the pyproject.toml.
+- If they're optional dependencies for additional functionality, then put them in the pyproject.toml file like were done for [flash-attn](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L44) or [aim](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L45).
+- If it's an additional dependency for development, then add it to the [dev](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L43) dependencies.
+
 #### Code Review
 
 Once you've [created a pull request](#how-can-i-contribute), maintainers will review your code and may make suggestions to fix before merging. It will be easier for your pull request to receive reviews if you consider the criteria the reviewers follow while working. Remember to:
@@ -78,7 +85,6 @@ The following tools are required:
 
 Installation:
 ``` 
-pip install -r requirements.txt
 pip install -U datasets
 pip install -e .
 ```
@@ -86,8 +92,8 @@ pip install -e .
 <summary>Linting</summary>
 
 To lint your code:
-```shell
-tox -e lint
+```
+    make lint
 ```
 
 We use Pylint to checks your Python code for errors, coding standards, code convention and refactoring suggestions.
@@ -110,8 +116,8 @@ You should fix all message in the following order:
 <summary>Formatting</summary>
 
 To format your code:
-```shell
-tox -e fmt
+```
+    make fmt
 ```
 We use [black](https://github.com/psf/black) formatter to format the code.
 
@@ -126,13 +132,24 @@ pre-commit install
 <summary>Unit tests</summary>
 
 To run unit tests:
-```shell
-tox -e py
+```
+    make test
 ```
 Running unit tests ensures your contributions do not break exiting code.
 We use [pytest](https://docs.pytest.org/) framework to run unit tests. The framework is setup to run all run all test_*.py or *_test.py in the [tests](./tests) directory.
 
-> Optionally, run `make test` command to do formatting, linting, and testing at once.
+> Optionally, run `make all` command to do formatting, linting, and testing at once.
+</details>
+
+<details>
+<summary>Build wheel</summary>
+
+To build a wheel file:
+```shell
+tox -e build
+```
+Running the command will create a single ZIP-format archive containing the library source code with the .whl extension in the `dist/` directory.
+
 </details>
 
 ## Your First Code Contribution
