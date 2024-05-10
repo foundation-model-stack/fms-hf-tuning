@@ -83,16 +83,6 @@ def main():
         )
         sys.exit(USER_ERROR_EXIT_CODE)
 
-    (
-        model_args,
-        data_args,
-        training_args,
-        tune_config,
-        merge_model,
-        file_logger_config,
-        aim_config,
-    ) = process_launch_training_args(job_config)
-
     original_output_dir = training_args.output_dir
     with tempfile.TemporaryDirectory() as tempdir:
         training_args.output_dir = tempdir
