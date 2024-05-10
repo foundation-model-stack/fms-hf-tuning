@@ -71,6 +71,8 @@ def main():
             training_args,
             tune_config,
             merge_model,
+            file_logger_config,
+            aim_config,
         ) = process_launch_training_args(job_config)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
