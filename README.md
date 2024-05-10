@@ -400,7 +400,7 @@ Then follow these steps:
     * 'python -m fms_acceleration.cli install <pip-install-flags> PLUGIN_NAME'.
 
     Alternatively, specify a local path <PATH> and do:
-    * 'python -m fms_acceleration.cli install <pip-install-flags> PLUGIN_NAME'.
+    * 'python -m fms_acceleration.cli install <pip-install-flags> PATH'.
 
     List of PLUGIN_NAME [PLUGIN_SHORTNAME]:
 
@@ -410,17 +410,17 @@ Then follow these steps:
     ```
     python -m fms_acceleration.cli install fms_acceleration_peft
     ```
-    The above example command installs the [accelerated-peft plugin that supports 4bit AutoGPTQ-LoRA tuning](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-peft/REAADME.md).
+    The above example command installs the [accelerated-peft plugin that supports 4bit GPTQ-LoRA tuning with AutoGPTQ triton v2](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-peft/REAADME.md).
 
-2. Get the *acceleration framework configuration file*, to be passed into `tuning/sft_trainer.py` via `--acceleration_framework_config_file`. As an example, see the [`accelerated-peft-autogptq-sample-configuration.yaml` file](fixtures/accelerated-peft-autogptq-sample-configuration.yaml) that configures the 4bit AutoGPTQ-LoRA tuning, supported by the `fms_acceleration_peft` plugin. Also, the `fms-acceleration` repository has a list of [sample-configurations](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations)
+2. Get the *acceleration framework configuration file*, to be passed into `tuning/sft_trainer.py` via `--acceleration_framework_config_file`. As an example, see the [`accelerated-peft-autogptq-sample-configuration.yaml` file](fixtures/accelerated-peft-autogptq-sample-configuration.yaml) that configures the 4bit GPTQ-LoRA tuning, supported by the `fms_acceleration_peft` plugin. Also, the `fms-acceleration` repository has a list of [sample-configurations](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations)
 
-3. Construct the correct argument set to be passed to `tuning/sft_trainer.py`. For example, for 4bit AutoGPTQ-LoRA tuning, the `peft` arguments must be passed into `sft_trainer.py`. The `fms-acceleration` repository has a [YAML of sample arguments](https://github.com/foundation-model-stack/fms-acceleration/blob/main/scripts/benchmarks/scenarios.yaml), designed for each corresponding [sample-configuration](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations). More concretely, for 4bit AutoGPTQ-LoRA tuning, the YAML above will provide a guideline to pass the following arguments:
+3. Construct the correct argument set to be passed to `tuning/sft_trainer.py`. For example, for 4bit GPTQ-LoRA tuning, the `peft` arguments must be passed into `sft_trainer.py`. The `fms-acceleration` repository keeps a [arguments corresponding to different](https://github.com/foundation-model-stack/fms-acceleration/blob/main/scripts/benchmarks/scenarios.yaml), designed for each corresponding [sample-configuration](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations). More concretely for 4bit AutoGPTQ-LoRA tuning, the YAML above will provide a guideline to pass the following arguments:
       ```
       tuning/sft_trainer.py \
         ... \
         --peft_method "lora" \
         --r 8 \
-        --lora_dropout 0.05 \
+        --lora_dropout 0 \
         --lora_alpha 16 \
         --acceleration_framework_config_file $CONFIGURATION_FILE
     ```
@@ -439,13 +439,16 @@ Active Plugin: AutoGPTQAccelerationPlugin. Python package: fms_acceleration_peft
   Total optimization steps = 200
   Number of trainable parameters = 13,631,488
 ```
+See [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration) for a collection of our benchmarks.
 
+
+<!-- 
 As an example `CONFIGURATION_FILE`, refer to our [sample accelerated PeFT with AutoGPTQ-LoRA 4bit triton_v2 kernels](./fixtures/accelerated-peft-autogptq-sample-configuration.yaml). This is a YAML file that configures the plugin installed in Step 1.
 
 Many more configuration files will be updated both in [fixtures](./fixtures/) and also the [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations).
+Thus, a simple two step process of your fms-tuning experience *can be accelerated*. 
+-->
 
-<!-- Thus, a simple two step process of your fms-tuning experience *can be accelerated*. -->
-See [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration) for a collection of our benchmarks.
 
 
 ## Inference
