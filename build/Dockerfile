@@ -197,7 +197,7 @@ RUN pip install torch==$PYTORCH_VERSION+cu121 --index-url "${PYTORCH_INDEX}/cu12
 
 ## Build flash attention v2 ####################################################
 FROM python-builder as flash-att-v2-builder
-ARG FLASH_ATT_VERSION=v2.5.6
+ARG FLASH_ATT_VERSION=v2.5.8
 
 WORKDIR /usr/src/flash-attention-v2
 
