@@ -22,6 +22,9 @@ _DATA_DIR = os.path.join(os.path.dirname(__file__))
 TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML = os.path.join(
     _DATA_DIR, "loss_on_threshold.yaml"
 )
+TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_WITH_TRAINER_STATE_YAML = os.path.join(
+    _DATA_DIR, "loss_on_threshold_with_trainer_state.yaml"
+)
 TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML = os.path.join(
     _DATA_DIR, "loss_with_malicious_os_rule.yaml"
 )

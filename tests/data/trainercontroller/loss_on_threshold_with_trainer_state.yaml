@@ -1,0 +1,12 @@
+controller-metrics:
+  - name: state
+    class: TrainingState
+  - name: loss
+    class: Loss
+controllers:
+  - name: loss-controller
+    triggers:
+      - on_log
+    rule: loss < 2 and state["epoch"] >= 0.5
+    operations:
+      - hfcontrols.should_training_stop

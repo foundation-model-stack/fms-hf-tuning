@@ -67,7 +67,8 @@ def _setup_data() -> InputData:
                 {"loss": 2.1, "epoch": 0.25},
                 {"loss": 1.3, "epoch": 0.5},
                 {"loss": 0.9, "epoch": 0.6},
-            ]
+            ],
+            epoch=0.6,
         ),
     )
 
@@ -79,6 +80,22 @@ def test_loss_on_threshold():
     test_data = _setup_data()
     tc_callback = tc.TrainerControllerCallback(
         td.TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert control.should_training_stop == True
+
+
+def test_loss_on_threshold_with_trainer_state():
+    """Tests the loss threshold with trainer state example in
+    `examples/trainer-controller-configs/loss_on_threshold_with_trainer_state.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_WITH_TRAINER_STATE_YAML
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
