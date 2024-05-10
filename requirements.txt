@@ -1,0 +1,15 @@
+numpy
+accelerate>=0.20.3
+packaging
+transformers>=4.34.1
+torch
+aim==3.19.0
+sentencepiece
+tokenizers>=0.13.3
+tqdm
+trl
+ninja
+peft>=0.8.0
+datasets>=2.15.0
+fire
+
