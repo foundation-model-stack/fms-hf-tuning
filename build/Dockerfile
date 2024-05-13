@@ -126,8 +126,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --upgrade pip && \
     python -m pip install wheel && \
     python -m pip install "$(head bdist_name)" && \
-    # Due to FIPS tolerance issues, removing aim at this time
-    #python -m pip install "$(head bdist_name)[aim]" && \
+    python -m pip install "$(head bdist_name)[aim]" && \
     python -m pip install "$(head bdist_name)[flash-attn]" && \
     # Clean up the wheel module. It's only needed by flash-attn install
     python -m pip uninstall wheel -y && \
