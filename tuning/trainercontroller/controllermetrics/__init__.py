@@ -19,6 +19,7 @@
 from typing import Type
 
 # Local
+from .eval_metrics import EvalMetrics
 from .loss import Loss
 from .trainingstate import TrainingState
 
@@ -37,4 +38,5 @@ def register(cl: Type):
 
 # Register the default metric handlers in this package here
 register(TrainingState)
+register(EvalMetrics)
 register(Loss)
