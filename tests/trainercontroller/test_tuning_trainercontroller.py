@@ -102,7 +102,49 @@ def test_loss_on_threshold_with_trainer_state():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+
+
+def test_exposed_metrics():
+    """Tests the expose metric scenario example in
+    `examples/trainer-controller-configs/exposed_metrics.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_EXPOSED_METRICS_YAML)
+    control = TrainerControl(should_training_stop=False)
+    metrics = {"eval_loss": 2.2}
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_evaluate(
+        args=test_data.args, state=test_data.state, control=control, metrics=metrics
+    )
     assert control.should_training_stop == True
+
+
+def test_incorrect_source_event_exposed_metrics():
+    """Tests the expose metric scenario example in
+    `examples/trainer-controller-configs/incorrect_source_event_exposed_metrics.yaml`
+    """
+    with pytest.raises(ValueError) as exception_handler:
+        test_data = _setup_data()
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_INCORRECT_SOURCE_EVENT_EXPOSED_METRICS_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        metrics = {"eval_loss": 2.2}
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
+        # Trigger rule and test the condition
+        tc_callback.on_evaluate(
+            args=test_data.args, state=test_data.state, control=control, metrics=metrics
+        )
+        assert (
+            str(exception_handler.value).strip("'")
+            == "Specified source event [on_incorrect_event] is invalid for EvalMetrics"
+        )
+        assert control.should_training_stop == True
 
 
 def test_custom_metric_handler():

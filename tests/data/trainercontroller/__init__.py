@@ -25,6 +25,10 @@ TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_YAML = os.path.join(
 TRAINER_CONFIG_TEST_LOSS_ON_THRESHOLD_WITH_TRAINER_STATE_YAML = os.path.join(
     _DATA_DIR, "loss_on_threshold_with_trainer_state.yaml"
 )
+TRAINER_CONFIG_EXPOSED_METRICS_YAML = os.path.join(_DATA_DIR, "exposed_metrics.yaml")
+TRAINER_CONFIG_INCORRECT_SOURCE_EVENT_EXPOSED_METRICS_YAML = os.path.join(
+    _DATA_DIR, "incorrect_source_event_exposed_metrics.yaml"
+)
 TRAINER_CONFIG_TEST_MALICIOUS_OS_RULE_YAML = os.path.join(
     _DATA_DIR, "loss_with_malicious_os_rule.yaml"
 )

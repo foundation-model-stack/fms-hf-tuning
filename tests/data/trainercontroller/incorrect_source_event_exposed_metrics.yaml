@@ -1,0 +1,12 @@
+controller-metrics:
+  - name: evalmetric
+    class: EvalMetrics
+    arguments:
+      source-event: on_incorrect_event
+controllers:
+  - name: loss-controller
+    triggers:
+      - on_evaluate
+    rule: evalmetric['eval_loss'] < 2.5
+    operations:
+      - hfcontrols.should_training_stop
