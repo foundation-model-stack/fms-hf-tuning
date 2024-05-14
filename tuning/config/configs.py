@@ -1,6 +1,20 @@
+# Copyright The FMS HF Tuning Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Standard
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import List, Optional, Union
 
 # Third Party
 import torch
@@ -28,7 +42,7 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
-    data_path: str = field(
+    training_data_path: str = field(
         default=None, metadata={"help": "Path to the training data in JSONL format."}
     )
     response_template: str = field(
@@ -47,13 +61,53 @@ class DataArguments:
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
-    model_max_length: int = field(
+    max_seq_length: int = field(
         default=DEFAULT_CONTEXT_LENGTH,
         metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
+            "help": "Maximum sequence length. Sequences will be right padded \
+            (and possibly truncated)."
         },
     )
     packing: bool = field(
         default=False,
         metadata={"help": "Packing to be enabled in SFT Trainer, default is False"},
+    )
+    save_strategy: str = field(
+        default="epoch",
+        metadata={
+            "help": "The checkpoint save strategy to adopt during training. \
+            Possible values are 'no'(no save is done during training), \
+            'epoch' (save is done at the end of each epoch), \
+            'steps' (save is done every `save_steps`)"
+        },
+    )
+    logging_strategy: str = field(
+        default="epoch",
+        metadata={
+            "help": "The logging strategy to adopt during training. \
+            Possible values are 'no'(no logging is done during training), \
+            'epoch' (logging is done at the end of each epoch), \
+            'steps' (logging is done every `logging_steps`)"
+        },
+    )
+    trackers: Optional[List[str.lower]] = field(
+        default_factory=lambda: ["file_logger"],
+        metadata={
+            "help": "Experiment trackers to use.\n"
+            + "Available trackers are - file_logger(default), aim, none\n"
+            + "Requires additional configs, see tuning.configs/tracker_configs.py"
+        },
+    )
+
+
+@dataclass
+class TrainerControllerArguments:
+    trainer_controller_config_file: str = field(
+        default=None,
+        metadata={
+            "help": (
+                "Trainer controller configuration file (e.g trainercontroller_config.yaml) \
+                    in YAML format."
+            )
+        },
     )

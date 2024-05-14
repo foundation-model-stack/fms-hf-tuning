@@ -1,0 +1,60 @@
+# options that can be used with accelerate config are neatly documented here - 
+# https://github.com/huggingface/accelerate/blob/ee163b66fb7848892519e804688cb4ae981aacbe/docs/source/package_reference/cli.md
+
+# type of compute environment, no need to change
+compute_environment: LOCAL_MACHINE # AMAZON_SAGEMAKER
+
+# use FSDP distributed compute
+distributed_type: FSDP
+
+# FSDP specific configurations
+fsdp_config:
+  
+  # use this for training transformers
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+
+  # this controls the FSDP pipelining
+  fsdp_backward_prefetch_policy: BACKWARD_PRE # set to BACKWARD_PRE for the most time-efficient pipeline
+                                              # but requires the most memory. BACKWARD_POST is the less
+                                              # memory intensive option
+
+  # setting this to true will increase forward memory by prefetching the next FSDP all-gather, while performing
+  # the current forward pass. 
+  fsdp_forward_prefetch: false
+
+  # setting this will offload model and optimizer parameters to the CPU, to save GPU memory at a significant
+  # increase of CPU time.
+  fsdp_offload_params: false
+  
+  fsdp_sharding_strategy: 1 # set to FULL_SHARD (1), SHARD_GRAD_OP (2), 
+                            # 3 is NO_SHARD, effectively disabling FSDP
+                            # 4, 5 are HYBRID_ modes for multi-node training only.
+
+  fsdp_state_dict_type: FULL_STATE_DICT # set to FULL_STATE_DICT (1), SHARDED_STATE_DICT (3)
+                                        # 2 is LOCAL_STATE_DICT where parameters are still flattened
+                                        # 3 is efficient, but requires know-how to use the shared checkpoint.
+ 
+  fsdp_cpu_ram_efficient_loading: true # for large models set to true, model loaded on single process
+  fsdp_sync_module_states: true # for large models set to true, model loaded on single process
+
+  # not needed for HF models that have . _no_split_modules
+  # the example below is for GPTBigCode
+  # fsdp_transformer_layer_cls_to_wrap: "GPTBigCodeBlock” 
+
+# for "autocast" mixed precision training, where the weights of the model are kept at higher precision, but the 
+# learning products (e.g., gradients, model parameters) are kept at a lower precision. Default is 'no'. Other options
+# would be fp16, bf16, etc.
+mixed_precision: 'no'
+
+machine_rank: 0 # rank of the machine where accelerate is launched
+num_machines: 1
+num_processes: 1  # default, override with --num_processes
+
+# the rendezvous method to use in distributed training. Other option is c10d
+rdzv_backend: static
+same_network: true
+
+# below arguments are required when training in multi-node setup
+# for multi-gpu single node, the below values default to
+# main_process_ip: 127.0.0.1 # override with --main_process_ip
+# main_process_port: 29500 # override with --main_process_port

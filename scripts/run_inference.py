@@ -1,3 +1,16 @@
+# Copyright The FMS HF Tuning Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """CLI for running loading a tuned model and running one or more inference calls on it.
 
 NOTE: For the moment, this script is intentionally written to contain all dependencies for two
@@ -8,6 +21,7 @@ testing.
 
 If these things change in the future, we should consider breaking it up.
 """
+
 # Standard
 import argparse
 import json
@@ -77,11 +91,11 @@ class AdapterConfigPatcher:
         # If we have no overrides, this context manager is a noop; no need to do anything
         if not overrides:
             return {}
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path, "r", encoding="utf-8") as config_file:
             adapter_config = json.load(config_file)
         overridden_values = self._get_old_config_values(adapter_config, overrides)
         adapter_config = {**adapter_config, **overrides}
-        with open(self.config_path, "w") as config_file:
+        with open(self.config_path, "w", encoding="utf-8") as config_file:
             json.dump(adapter_config, config_file, indent=4)
         return overridden_values
 
@@ -128,7 +142,10 @@ class TunedCausalLM:
 
     @classmethod
     def load(
-        cls, checkpoint_path: str, base_model_name_or_path: str = None
+        cls,
+        checkpoint_path: str,
+        base_model_name_or_path: str = None,
+        use_flash_attn: bool = False,
     ) -> "TunedCausalLM":
         """Loads an instance of this model.
 
@@ -138,6 +155,8 @@ class TunedCausalLM:
                 adapter_config.json.
             base_model_name_or_path: str [Default: None]
                 Override for the base model to be used.
+            use_flash_attn: bool [Default: False]
+                Whether to load the model using flash attention.
 
         By default, the paths for the base model and tokenizer are contained within the adapter
         config of the tuned model. Note that in this context, a path may refer to a model to be
@@ -159,21 +178,33 @@ class TunedCausalLM:
         try:
             with AdapterConfigPatcher(checkpoint_path, overrides):
                 try:
-                    model = AutoPeftModelForCausalLM.from_pretrained(checkpoint_path)
+                    model = AutoPeftModelForCausalLM.from_pretrained(
+                        checkpoint_path,
+                        attn_implementation="flash_attention_2"
+                        if use_flash_attn
+                        else None,
+                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                    )
                 except OSError as e:
                     print("Failed to initialize checkpoint model!")
                     raise e
         except FileNotFoundError:
             print("No adapter config found! Loading as a merged model...")
             # Unable to find the adapter config; fall back to loading as a merged model
-            model = AutoModelForCausalLM.from_pretrained(checkpoint_path)
+            model = AutoModelForCausalLM.from_pretrained(
+                checkpoint_path,
+                attn_implementation="flash_attention_2" if use_flash_attn else None,
+                torch_dtype=torch.bfloat16 if use_flash_attn else None,
+            )
 
         device = "cuda" if torch.cuda.is_available() else None
         print(f"Inferred device: {device}")
         model.to(device)
         return cls(model, tokenizer, device)
 
-    def run(self, text: str, *, max_new_tokens: int) -> str:
+    def run(
+        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False
+    ) -> str:
         """Runs inference on an instance of this model.
 
         Args:
@@ -181,6 +212,9 @@ class TunedCausalLM:
                 Text on which we want to run inference.
             max_new_tokens: int
                 Max new tokens to use for inference.
+            ret_gen_text_only: bool
+                Indicates whether or not we should return the full text (i.e., input + new tokens)
+                or just the newly generated tokens.
 
         Returns:
             str
@@ -192,8 +226,12 @@ class TunedCausalLM:
         peft_outputs = self.peft_model.generate(
             input_ids=input_ids, max_new_tokens=max_new_tokens
         )
+        if ret_gen_text_only:
+            tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
+        else:
+            tok_to_decode = peft_outputs
         decoded_result = self.tokenizer.batch_decode(
-            peft_outputs, skip_special_tokens=False
+            tok_to_decode, skip_special_tokens=False
         )[0]
         return decoded_result
 
@@ -213,7 +251,8 @@ def main():
     )
     parser.add_argument(
         "--base_model_name_or_path",
-        help="Override for base model to be used for non-merged models [default: value in model adapter_config.json]",
+        help="Override for base model to be used for non-merged models \
+            [default: value in model adapter_config.json]",
         default=None,
     )
     parser.add_argument(
@@ -221,6 +260,11 @@ def main():
         help="max new tokens to use for inference",
         type=int,
         default=20,
+    )
+    parser.add_argument(
+        "--use_flash_attn",
+        help="Whether to load the model using Flash Attention 2",
+        action="store_true",
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--text", help="Text to run inference on")
@@ -237,13 +281,14 @@ def main():
     loaded_model = TunedCausalLM.load(
         checkpoint_path=args.model,
         base_model_name_or_path=args.base_model_name_or_path,
+        use_flash_attn=args.use_flash_attn,
     )
 
     # Run inference on the text; if multiple were provided, process them all
     if args.text:
         texts = [args.text]
     else:
-        with open(args.text_file, "r") as text_file:
+        with open(args.text_file, "r", encoding="utf-8") as text_file:
             texts = [line.strip() for line in text_file.readlines()]
 
     # TODO: we should add batch inference support
@@ -256,7 +301,7 @@ def main():
     ]
 
     # Export the results to a file
-    with open(args.out_file, "w") as out_file:
+    with open(args.out_file, "w", encoding="utf-8") as out_file:
         json.dump(results, out_file, sort_keys=True, indent=4)
 
     print(f"Exported results to: {args.out_file}")
