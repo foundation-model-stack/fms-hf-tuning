@@ -1,0 +1,10 @@
+controller-metrics:
+  - name: loss
+    class: Loss
+controllers:
+  - name: loss-controller-wrong-os-rule
+    triggers:
+      - on_log
+    rule: "2+2"
+    operations:
+      - hfcontrols.should_training_stop
