@@ -109,7 +109,9 @@ def main():
             sys.exit(USER_ERROR_EXIT_CODE)
         except HFValidationError as e:
             logging.error(traceback.format_exc())
-            write_termination_log(f"Specified base model not found. Exception: {e}")
+            write_termination_log(
+                f"There may be a problem with loading the model. Exception: {e}"
+            )
             sys.exit(USER_ERROR_EXIT_CODE)
         except (TypeError, ValueError, EnvironmentError) as e:
             logging.error(traceback.format_exc())
