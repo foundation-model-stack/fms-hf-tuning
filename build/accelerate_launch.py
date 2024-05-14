@@ -58,14 +58,12 @@ def main():
     except (TypeError, ValueError, EnvironmentError) as e:
         logging.error(traceback.format_exc())
         write_termination_log(
-            "Exception raised during training. This may be a problem with your input: {}".format(
-                e
-            )
+            f"Exception raised during training. This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
-        write_termination_log("Unhandled exception during training")
+        write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     ##########
@@ -85,11 +83,11 @@ def main():
         return_code = e.returncode
         if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
             return_code = INTERNAL_ERROR_EXIT_CODE
-            write_termination_log("Unhandled exception during training")
+            write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(return_code)
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
-        write_termination_log("Unhandled exception during training")
+        write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0

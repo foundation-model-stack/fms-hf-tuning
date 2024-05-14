@@ -24,6 +24,10 @@ import shutil
 import sys
 import traceback
 
+# Third Party
+from huggingface_hub.utils._validators import HFValidationError
+from torch.cuda import OutOfMemoryError
+
 # First Party
 import logging
 
@@ -77,9 +81,7 @@ def main():
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(
-            "Exception raised during training. This may be a problem with your input: {}".format(
-                e
-            )
+            f"Exception raised during training. This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
 
@@ -97,13 +99,17 @@ def main():
                 peft_config=tune_config,
                 tracker_configs=tracker_config_args,
             )
-        except MemoryError:
+        except (MemoryError, OutOfMemoryError) as e:
             logging.error(traceback.format_exc())
-            write_termination_log("OOM error during training")
+            write_termination_log(f"OOM error during training. {e}")
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
         except FileNotFoundError as e:
             logging.error(traceback.format_exc())
             write_termination_log("Unable to load file: {}".format(e))
+            sys.exit(USER_ERROR_EXIT_CODE)
+        except HFValidationError as e:
+            logging.error(traceback.format_exc())
+            write_termination_log(f"Specified base model not found. Exception: {e}")
             sys.exit(USER_ERROR_EXIT_CODE)
         except (TypeError, ValueError, EnvironmentError) as e:
             logging.error(traceback.format_exc())
@@ -113,7 +119,7 @@ def main():
             sys.exit(USER_ERROR_EXIT_CODE)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
-            write_termination_log("Unhandled exception during training")
+            write_termination_log(f"Unhandled exception during training: {e}")
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         if merge_model:
@@ -142,7 +148,9 @@ def main():
                 )
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
-                write_termination_log("Exception encountered merging model checkpoints")
+                write_termination_log(
+                    f"Exception encountered merging base model with checkpoint. {e}"
+                )
                 sys.exit(INTERNAL_ERROR_EXIT_CODE)
         else:
             try:
@@ -161,7 +169,7 @@ def main():
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log(
-                    "Exception encountered writing output model to storage"
+                    f"Exception encountered writing output model to storage: {e}"
                 )
                 sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
@@ -175,7 +183,9 @@ def main():
                 shutil.copy(train_logs_filepath, original_output_dir)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
-            write_termination_log("Exception encountered in capturing training logs")
+            write_termination_log(
+                f"Exception encountered in capturing training logs: {e}"
+            )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0

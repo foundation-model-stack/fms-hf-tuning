@@ -37,7 +37,8 @@ USER_ERROR_EXIT_CODE = 1
 INTERNAL_ERROR_EXIT_CODE = 203
 
 
-def write_termination_log(text, log_file="/dev/termination-log"):
+def write_termination_log(text):
+    log_file = os.environ.get("TERMINATION_LOG_FILE", "/dev/termination-log")
     try:
         with open(log_file, "a", encoding="utf-8") as handle:
             handle.write(text)
@@ -220,7 +221,7 @@ def process_accelerate_launch_args(job_config_dict):
         )
 
     # Add training_script
-    script = os.environ.get("LAUNCH_TRAINING_SCRIPT") or "/app/launch_training.py"
+    script = os.environ.get("LAUNCH_TRAINING_SCRIPT", "/app/launch_training.py")
     accelerate_launch_args.append(script)
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
