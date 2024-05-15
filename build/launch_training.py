@@ -98,12 +98,13 @@ def main():
                 export_path,
             )
 
-            create_merged_model(
-                checkpoint_models=full_checkpoint_dir,
-                export_path=export_path,
-                base_model=model_args.model_name_or_path,
-                save_tokenizer=True,
-            )
+            if os.path.exists(os.path.join(full_checkpoint_dir, "adapter_config.json")):
+                create_merged_model(
+                    checkpoint_models=full_checkpoint_dir,
+                    export_path=export_path,
+                    base_model=model_args.model_name_or_path,
+                    save_tokenizer=True,
+                )
         else:
             # copy last checkpoint into mounted output dir
             pt_checkpoint_dir = get_highest_checkpoint(training_args.output_dir)
