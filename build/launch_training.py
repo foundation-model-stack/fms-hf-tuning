@@ -142,12 +142,16 @@ def main():
                     export_path,
                 )
 
-                create_merged_model(
-                    checkpoint_models=full_checkpoint_dir,
-                    export_path=export_path,
-                    base_model=model_args.model_name_or_path,
-                    save_tokenizer=True,
-                )
+                # ensure checkpoint dir has correct files, important with multi-gpu tuning
+                if os.path.exists(
+                    os.path.join(full_checkpoint_dir, "adapter_config.json")
+                ):
+                    create_merged_model(
+                        checkpoint_models=full_checkpoint_dir,
+                        export_path=export_path,
+                        base_model=model_args.model_name_or_path,
+                        save_tokenizer=True,
+                    )
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(traceback.format_exc())
                 write_termination_log(
