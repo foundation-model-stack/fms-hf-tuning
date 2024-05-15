@@ -142,7 +142,10 @@ def main():
                     export_path,
                 )
 
-                if os.path.exists(os.path.join(full_checkpoint_dir, "adapter_config.json")):
+                # ensure checkpoint dir has correct files, important with multi-gpu tuning
+                if os.path.exists(
+                    os.path.join(full_checkpoint_dir, "adapter_config.json")
+                ):
                     create_merged_model(
                         checkpoint_models=full_checkpoint_dir,
                         export_path=export_path,
