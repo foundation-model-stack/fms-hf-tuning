@@ -34,8 +34,6 @@ if is_fms_accelerate_available():
 
     # Third Party
     from fms_acceleration.framework import KEY_PLUGINS, AccelerationFramework
-
-    # from fms_acceleration.framework_plugin import PLUGIN_REGISTRATIONS, AccelerationPlugin
     from fms_acceleration.utils.test_utils import build_framework_and_maybe_instantiate
 
     if is_fms_accelerate_available(plugins="peft"):
