@@ -88,6 +88,7 @@ def test_successful_pt():
 
         assert main() == 0
         assert os.path.exists(tempdir + "/termination-log") is False
+        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
 
 
 def test_bad_script_path():
