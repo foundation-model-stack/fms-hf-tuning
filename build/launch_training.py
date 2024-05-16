@@ -190,7 +190,8 @@ def main():
                 shutil.copy(train_logs_filepath, original_output_dir)
             # The .complete file will signal to users that we are finished copying
             # files over
-            Path(os.path.join(original_output_dir, ".complete")).touch()
+            if os.path.exists(original_output_dir):
+                Path(os.path.join(original_output_dir, ".complete")).touch()
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
