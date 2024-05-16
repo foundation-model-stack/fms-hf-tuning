@@ -30,6 +30,7 @@ from tuning import sft_trainer
 from tuning.utils.import_utils import is_fms_accelerate_available
 import tuning.config.configs as config
 
+# pylint: disable=import-error
 if is_fms_accelerate_available():
 
     # Third Party
@@ -40,8 +41,11 @@ if is_fms_accelerate_available():
         # Third Party
         from fms_acceleration_peft import AutoGPTQAccelerationPlugin
 
-# see https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/framework/tests/test_framework.py
-# for more extensive unit tests
+
+# There are more extensive unit tests in the
+# https://github.com/foundation-model-stack/fms-acceleration
+# repository.
+# - see plugins/framework/tests/test_framework.py
 
 CONFIG_PATH_AUTO_GPTQ = os.path.join(
     os.path.dirname(__file__),
@@ -64,9 +68,6 @@ def create_mock_plugin_class(plugin_cls):
         def reset_calls(cls):
             # reset the counters
             cls.model_loader_calls = cls.augmentation_calls = cls.get_callback_calls = 0
-
-        def __init__(self, *args):
-            super().__init__(*args)
 
         def model_loader(self, *args, **kwargs):
             MockPlugin.model_loader_calls += 1
@@ -110,7 +111,7 @@ def test_construct_framework_with_auto_gptq_peft():
     "Ensure that framework object initializes correctly with the sample config"
 
     # the test util below requires to read the file first
-    with open(CONFIG_PATH_AUTO_GPTQ) as f:
+    with open(CONFIG_PATH_AUTO_GPTQ, encoding="utf-8") as f:
         configuration = yaml.safe_load(f)
 
     # for this test we skip the require package check as second order package
