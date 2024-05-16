@@ -385,69 +385,47 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 ### FMS Acceleration
 
-`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that acclerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [seperate repository found here](https://github.com/foundation-model-stack/fms-acceleration), and [as mentioned above](#installation), to access these plugins the first step is to install the `[fms-accel]` dependency. 
-```
-pip install .[fms-accel]
-```
+`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that acclerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [seperate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
 
-Then follow these steps:
+Basic usage includes these steps:
 
-1. Use the FMS Acceleration command line utility `fms_acceleration.cli` to install the plugins of choice. Use the command `list` to view available plugins; we will continue to add [more plugins over time](https://github.com/foundation-model-stack/fms-acceleration):
+1. Install the `[fms-accel]` dependency:
     ```
-    $ python -m fms_acceleration.cli list
-
-    Choose from the list of plugin shortnames, and do:
-    * 'python -m fms_acceleration.cli install <pip-install-flags> PLUGIN_NAME'.
-
-    Alternatively, specify a local path <PATH> and do:
-    * 'python -m fms_acceleration.cli install <pip-install-flags> PATH'.
-
-    List of PLUGIN_NAME [PLUGIN_SHORTNAME]:
-
-    1. fms_acceleration_peft [peft]
+    $ pip install -e .[fms-accel]
     ```
-    and then `install` the plugin dependency:
+
+    The installs the command line utility `fms_acceleration.cli`, used to install plugins.
+3. `install` the required framework plugins; we install the `fms-acceleration-peft` plugin for GPTQ-LoRA tuning with triton v2 as:
     ```
     python -m fms_acceleration.cli install fms_acceleration_peft
     ```
-    The above example command installs the [accelerated-peft plugin that supports 4bit GPTQ-LoRA tuning with AutoGPTQ triton v2](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-peft/REAADME.md).
 
-2. Get the *acceleration framework configuration file*, to be passed into `tuning/sft_trainer.py` via `--acceleration_framework_config_file`. As an example, see the [`accelerated-peft-autogptq-sample-configuration.yaml` file](fixtures/accelerated-peft-autogptq-sample-configuration.yaml) that configures the 4bit GPTQ-LoRA tuning, supported by the `fms_acceleration_peft` plugin. Also, the `fms-acceleration` repository has a list of [sample-configurations](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations)
-
-3. Construct the correct argument set to be passed to `tuning/sft_trainer.py`. For example, for 4bit GPTQ-LoRA tuning, the `peft` arguments must be passed into `sft_trainer.py`. The `fms-acceleration` repository keeps a [arguments corresponding to different](https://github.com/foundation-model-stack/fms-acceleration/blob/main/scripts/benchmarks/scenarios.yaml), designed for each corresponding [sample-configuration](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations). More concretely for 4bit AutoGPTQ-LoRA tuning, the YAML above will provide a guideline to pass the following arguments:
-      ```
-      tuning/sft_trainer.py \
-        ... \
-        --peft_method "lora" \
-        --r 8 \
-        --lora_dropout 0 \
-        --lora_alpha 16 \
-        --acceleration_framework_config_file $CONFIGURATION_FILE
+5. Run `sft_trainer.py` providing the acceleration configuration and arguments; given the basic flow assumption that we simply re-use the same `sft_trainer.py` arguments as we had without using the `fms_acceleration` package:
+    ```
+    python sft_trainer.py \
+        --acceleration_framework_config_file framework_config.yaml \
+        ...  # arguments
     ```
 
-When training starts check the printouts will appear alongside the `sft_trainer` logs that shows the active plugins, like the below example.
+    See [this sample configuration for GPTQ-LoRA with triton v2](./fixtures/accelerated-peft-autogptq-sample-configuration.yaml) to be passed into `--acceleration_framework_config_file` above.
+
+Thats it! Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
 ```
+# this printout will be seen in huggingface trainer logs if acceleration is activated
 ***** FMS AccelerationFramework *****
 Active Plugin: AutoGPTQAccelerationPlugin. Python package: fms_acceleration_peft. Version: 0.0.1.
 ***** Running training *****
-  Num examples = 1,549
-  Num Epochs = 1
-  Instantaneous batch size per device = 4
-  Total train batch size (w. parallel, distributed & accumulation) = 4
-  Gradient Accumulation steps = 1
-  Total optimization steps = 200
-  Number of trainable parameters = 13,631,488
+Num examples = 1,549
+Num Epochs = 1
+Instantaneous batch size per device = 4
+Total train batch size (w. parallel, distributed & accumulation) = 4
+Gradient Accumulation steps = 1
+Total optimization steps = 200
+Number of trainable parameters = 13,631,488
 ```
-See [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration) for a collection of our benchmarks.
 
-
-<!-- 
-As an example `CONFIGURATION_FILE`, refer to our [sample accelerated PeFT with AutoGPTQ-LoRA 4bit triton_v2 kernels](./fixtures/accelerated-peft-autogptq-sample-configuration.yaml). This is a YAML file that configures the plugin installed in Step 1.
-
-Many more configuration files will be updated both in [fixtures](./fixtures/) and also the [fms-acceleration repository](https://github.com/foundation-model-stack/fms-acceleration/tree/main/sample-configurations).
-Thus, a simple two step process of your fms-tuning experience *can be accelerated*. 
--->
+The `fms_acceleration.cli` can do more to search for all available configs, plugins and arguments, [see the advanced flow](https://github.com/foundation-model-stack/fms-acceleration#advanced-flow).
 
 
 
