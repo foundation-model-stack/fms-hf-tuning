@@ -54,6 +54,11 @@ def main():
     ##########
     try:
         job_config = get_json_config()
+        if not job_config:
+            raise ValueError(
+                "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
+            or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
+            )
 
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)

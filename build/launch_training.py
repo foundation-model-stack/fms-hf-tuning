@@ -30,10 +30,8 @@ import logging
 
 # Local
 from tuning import sft_trainer
-from tuning.utils.config_utils import get_json_config
 from tuning.config.tracker_configs import TrackerConfigFactory
 from build.utils import (
-    process_launch_training_args,
     write_termination_log,
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
@@ -43,36 +41,7 @@ from build.utils import (
 def main():
 
     try:
-        job_config = get_json_config()
-        logging.debug("Input params parsed: %s", job_config)
-
-        (
-            model_args,
-            data_args,
-            training_args,
-            tune_config,
-            merge_model,
-            file_logger_config,
-            aim_config,
-        ) = process_launch_training_args(job_config)
-    except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
-        write_termination_log(
-            f"Exception raised during training. This may be a problem with your input: {e}"
-        )
-        sys.exit(USER_ERROR_EXIT_CODE)
-
-    try:
-        tracker_config_args = TrackerConfigFactory(
-            file_logger_config=file_logger_config, aim_config=aim_config
-        )
-        sft_trainer.train(
-            model_args=model_args,
-            data_args=data_args,
-            train_args=training_args,
-            peft_config=tune_config,
-            tracker_configs=tracker_config_args,
-        )
+        sft_trainer.main()
     except (MemoryError, OutOfMemoryError) as e:
         logging.error(traceback.format_exc())
         write_termination_log(f"OOM error during training. {e}")

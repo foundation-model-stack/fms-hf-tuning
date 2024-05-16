@@ -283,8 +283,7 @@ def train(
         )
     trainer.train()
 
-
-def main(**kwargs):  # pylint: disable=unused-argument
+def get_parser():
     parser = transformers.HfArgumentParser(
         dataclass_types=(
             configs.ModelArguments,
@@ -310,22 +309,41 @@ def main(**kwargs):  # pylint: disable=unused-argument
         help='Pass a json string representing K:V pairs to be associated\
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
-    (
-        model_args,
-        data_args,
-        training_args,
-        trainer_controller_args,
-        lora_config,
-        prompt_tuning_config,
-        file_logger_config,
-        aim_config,
-        additional,
-        _,
-    ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    return parser
 
-    logger = logging.get_logger("__main__")
 
-    peft_method = additional.peft_method
+def parse_arguments(parser, json_config=None):
+    # accept arguments via command-line or JSON
+    if json_config:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            lora_config,
+            prompt_tuning_config,
+            file_logger_config,
+            aim_config,
+        ) = parser.parse_dict(json_config, allow_extra_keys=True)
+        peft_method = json_config.get("peft_method")
+        exp_metadata = json_config.get("exp_metadata")
+    else:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            lora_config,
+            prompt_tuning_config,
+            file_logger_config,
+            aim_config,
+            additional,
+            _,
+        ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+        
+        peft_method = additional.peft_method
+        exp_metadata = additional.exp_metadata
+
     if peft_method == "lora":
         tune_config = lora_config
     elif peft_method == "pt":
@@ -333,11 +351,61 @@ def main(**kwargs):  # pylint: disable=unused-argument
     else:
         tune_config = None
 
+    return (
+        model_args,
+        data_args,
+        training_args,
+        trainer_controller_args,
+        tune_config,
+        file_logger_config,
+        aim_config,
+        exp_metadata,
+    )
+
+
+def main(**kwargs):  # pylint: disable=unused-argument
+    logger = logging.get_logger("__main__")
+
+    parser = get_parser()
+    job_config = get_json_config()
+    logger.debug("Input args parsed: %s", job_config)
+    # accept arguments via command-line or JSON
+    (
+        model_args,
+        data_args,
+        training_args,
+        trainer_controller_args,
+        tune_config,
+        file_logger_config,
+        aim_config,
+        exp_metadata,
+    ) = parse_arguments(parser, job_config)
+    logger.debug(
+        "Input args parsed: \
+        model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
+        tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
+        model_args,
+        data_args,
+        training_args,
+        trainer_controller_args,
+        tune_config,
+        file_logger_config,
+        aim_config,
+        exp_metadata,
+    )
+
+        # except Exception as e:  # pylint: disable=broad-except
+    #     logging.error(traceback.format_exc())
+    #     write_termination_log(
+    #         f"Exception raised during training. This may be a problem with your input: {e}"
+    #     )
+    #     sys.exit(USER_ERROR_EXIT_CODE)
+
     # extra metadata passed via client
     metadata = None
-    if additional.exp_metadata is not None:
+    if exp_metadata is not None:
         try:
-            metadata = json.loads(additional.exp_metadata)
+            metadata = json.loads(exp_metadata)
             if metadata is None or not isinstance(metadata, Dict):
                 logger.warning(
                     "metadata cannot be converted to simple k:v dict ignoring"
