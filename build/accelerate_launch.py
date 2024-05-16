@@ -25,6 +25,7 @@ import sys
 import traceback
 import tempfile
 import shutil
+from pathlib import Path
 
 # Third Party
 from accelerate.commands.launch import launch_command
@@ -174,6 +175,10 @@ def main():
             )
             if os.path.exists(train_logs_filepath):
                 shutil.copy(train_logs_filepath, original_output_dir)
+
+            # The .complete file will signal to users that we are finished copying
+            # files over
+            Path(os.path.join(original_output_dir, ".complete")).touch()
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
