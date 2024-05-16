@@ -79,7 +79,9 @@ def test_successful_pt():
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
         assert main() == 0
+        # check termination log and .complete files
         assert os.path.exists(tempdir + "/termination-log") is False
+        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
         # check checkpoint and logs outputted
         assert "adapter_model.safetensors" in os.listdir(tempdir)
         train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
