@@ -15,6 +15,8 @@
 # Standard
 import os
 import logging
+import pickle
+import base64
 
 # Third Party
 import torch
@@ -56,6 +58,11 @@ def get_highest_checkpoint(dir_path):
                 checkpoint_dir = curr_dir
 
     return checkpoint_dir
+
+def serialize_args(args_json):
+    message_bytes = pickle.dumps(args_json)
+    base64_bytes = base64.b64encode(message_bytes)
+    return base64_bytes.decode("ascii")
 
 def process_launch_training_args(job_config_dict):
     """Return parsed config for tuning to pass to SFT Trainer

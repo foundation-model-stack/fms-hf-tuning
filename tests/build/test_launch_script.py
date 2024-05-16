@@ -16,9 +16,7 @@
 """
 
 # Standard
-import base64
 import os
-import pickle
 import tempfile
 
 # Third Party
@@ -26,7 +24,7 @@ import pytest
 
 # First Party
 from build.accelerate_launch import main
-from build.utils import INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE
+from build.utils import INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE, serialize_args
 from tests.data import TWITTER_COMPLAINTS_DATA
 
 SCRIPT = "build/launch_training.py"
@@ -60,12 +58,6 @@ BASE_PEFT_KWARGS = {
 }
 
 
-def serialize_args(args_json):
-    message_bytes = pickle.dumps(args_json)
-    base64_bytes = base64.b64encode(message_bytes)
-    return base64_bytes.decode("ascii")
-
-
 def setup_env(tempdir):
     os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
     os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
@@ -88,6 +80,11 @@ def test_successful_pt():
 
         assert main() == 0
         assert os.path.exists(tempdir + "/termination-log") is False
+        # check checkpoint and logs outputted
+        assert "adapter_model.safetensors" in os.listdir(tempdir)
+        train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
+        assert os.path.exists(train_logs_file_path) is True
+        assert os.path.getsize(train_logs_file_path) > 0
 
 
 def test_bad_script_path():
