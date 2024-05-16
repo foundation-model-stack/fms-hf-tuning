@@ -44,7 +44,7 @@ from tuning.config.tracker_configs import (
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 
 

@@ -34,39 +34,21 @@ import logging
 # Local
 from tuning import sft_trainer
 from tuning.utils.merge_model_utils import create_merged_model
+from tuning.utils.config_utils import get_json_config
 from tuning.config.tracker_configs import TrackerConfigFactory
 from build.utils import (
     process_launch_training_args,
-    get_job_config,
     write_termination_log,
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
+    get_highest_checkpoint,
 )
 
 
-def get_highest_checkpoint(dir_path):
-    checkpoint_dir = ""
-    for curr_dir in os.listdir(dir_path):
-        if curr_dir.startswith("checkpoint"):
-            if checkpoint_dir:
-                curr_dir_num = int(checkpoint_dir.rsplit("-", maxsplit=1)[-1])
-                new_dir_num = int(curr_dir.split("-")[-1])
-                if new_dir_num > curr_dir_num:
-                    checkpoint_dir = curr_dir
-            else:
-                checkpoint_dir = curr_dir
-
-    return checkpoint_dir
-
-
 def main():
-    LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-    logging.basicConfig(level=LOGLEVEL)
-
-    logging.info("Initializing launch training script")
 
     try:
-        job_config = get_job_config()
+        job_config = get_json_config()
         logging.debug("Input params parsed: %s", job_config)
 
         (

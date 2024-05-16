@@ -14,10 +14,7 @@
 
 # Standard
 import os
-import json
 import logging
-import base64
-import pickle
 
 # Third Party
 import torch
@@ -46,34 +43,19 @@ def write_termination_log(text):
         logging.warning("Unable to write termination log due to error {}".format(e))
 
 
-def txt_to_obj(txt):
-    base64_bytes = txt.encode("ascii")
-    message_bytes = base64.b64decode(base64_bytes)
-    try:
-        # If the bytes represent JSON string
-        return json.loads(message_bytes)
-    except UnicodeDecodeError:
-        # Otherwise the bytes are a pickled python dictionary
-        return pickle.loads(message_bytes)
+def get_highest_checkpoint(dir_path):
+    checkpoint_dir = ""
+    for curr_dir in os.listdir(dir_path):
+        if curr_dir.startswith("checkpoint"):
+            if checkpoint_dir:
+                curr_dir_num = int(checkpoint_dir.rsplit("-", maxsplit=1)[-1])
+                new_dir_num = int(curr_dir.split("-")[-1])
+                if new_dir_num > curr_dir_num:
+                    checkpoint_dir = curr_dir
+            else:
+                checkpoint_dir = curr_dir
 
-
-def get_job_config():
-    json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
-
-    # accepts either path to JSON file or encoded string config
-    if json_path:
-        with open(json_path, "r", encoding="utf-8") as f:
-            job_config_dict = json.load(f)
-    elif json_env_var:
-        job_config_dict = txt_to_obj(json_env_var)
-    else:
-        raise ValueError(
-            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
-        or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
-        )
-    return job_config_dict
-
+    return checkpoint_dir
 
 def process_launch_training_args(job_config_dict):
     """Return parsed config for tuning to pass to SFT Trainer

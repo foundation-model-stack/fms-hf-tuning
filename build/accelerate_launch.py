@@ -30,11 +30,11 @@ from accelerate.commands.launch import launch_command
 # Local
 from build.utils import (
     process_accelerate_launch_args,
-    get_job_config,
     write_termination_log,
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
+from tuning.utils.config_utils import get_json_config
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
     #
     ##########
     try:
-        job_config = get_job_config()
+        job_config = get_json_config()
 
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)
@@ -91,7 +91,6 @@ def main():
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0
-
 
 if __name__ == "__main__":
     main()

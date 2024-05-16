@@ -14,6 +14,10 @@
 
 # Standard
 from dataclasses import asdict
+import os
+import json
+import base64
+import pickle
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
@@ -87,3 +91,30 @@ def get_hf_peft_config(task_type, tuning_config):
         hf_peft_config = None  # full parameter tuning
 
     return hf_peft_config
+
+def get_json_config():
+    json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
+    json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+
+    # accepts either path to JSON file or encoded string config
+    if json_path:
+        with open(json_path, "r", encoding="utf-8") as f:
+            job_config_dict = json.load(f)
+    elif json_env_var:
+        job_config_dict = txt_to_obj(json_env_var)
+    else:
+        raise ValueError(
+            "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
+        or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
+        )
+    return job_config_dict
+
+def txt_to_obj(txt):
+    base64_bytes = txt.encode("ascii")
+    message_bytes = base64.b64decode(base64_bytes)
+    try:
+        # If the bytes represent JSON string
+        return json.loads(message_bytes)
+    except UnicodeDecodeError:
+        # Otherwise the bytes are a pickled python dictionary
+        return pickle.loads(message_bytes)
