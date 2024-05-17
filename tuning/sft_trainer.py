@@ -218,14 +218,21 @@ def train(
             # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
             # We should do this validation up front, then do the encoding, then handle the collator
             raise ValueError("Response template is None, needs to be set for training")
-        if data_args.dataset_text_field is None:
-            raise ValueError("Dataset_text_field is None, needs to be set for training")
         data_collator = DataCollatorForCompletionOnlyLM(
             response_template_ids,
             tokenizer=tokenizer,
             ignore_index=configs.IGNORE_INDEX,
         )
         packing = False
+
+    # Currently we support formatted datasets with single sequence instances.
+    if (data_args.dataset_text_field is None) and (data_args.data_formatter_template is None):
+        raise ValueError("Dataset_text_field and data_formatter_template are None. \
+                            One of them needs to be set for training")
+    # Only one of dataset_text_field or data_formatter_template should be set.
+    if data_args.dataset_text_field and data_args.data_formatter_template:
+        raise ValueError("Dataset_text_field and data_formatter_template are set. \
+                            Only one of them needs to be set for training")
 
     # load the data by parsing JSON
     data_files = {"train": data_args.training_data_path}
