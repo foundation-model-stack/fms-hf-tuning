@@ -17,12 +17,13 @@
 
 # Standard
 from importlib import resources as impresources
-from typing import List, Union
+from typing import Dict, List, Union
 import inspect
 import os
 import re
 
 # Third Party
+from simpleeval import EvalWithCompoundTypes, FeatureNotAvailable, NameNotDefined
 from transformers import (
     TrainerCallback,
     TrainerControl,
@@ -43,6 +44,7 @@ from tuning.trainercontroller.operations import Operation
 from tuning.trainercontroller.operations import (
     operation_handlers as default_operation_handlers,
 )
+from tuning.utils.evaluator import get_evaluator
 
 logger = logging.get_logger(__name__)
 
@@ -174,7 +176,7 @@ class TrainerControllerCallback(TrainerCallback):
         self.register_operation_handlers(default_operation_handlers)
 
         # controls
-        self.control_actions_on_event: dict[str, list[Control]] = {}
+        self.control_actions_on_event: Dict[str, list[Control]] = {}
 
         # List of fields produced by the metrics
         self.metrics = {}
@@ -208,23 +210,26 @@ class TrainerControllerCallback(TrainerCallback):
                 self.metrics[m.get_name()] = m.compute(event_name=event_name, **kwargs)
 
     def _take_control_actions(self, event_name: str, **kwargs):
-        """Invokes the act() method for all the operations registered for a given event. \
-            Note here that the eval() is invoked with `__builtins__` set to None. \
-            This is a precaution to restric the scope of eval(), to only the \
-            fields produced by the metrics.
+        """Invokes the act() method for all the operations registered for a given event.
 
         Args:
             event_name: str. Event name.
             kwargs: List of arguments (key, value)-pairs.
         """
         if event_name in self.control_actions_on_event:
+            evaluator = get_evaluator(metrics=self.metrics)
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
                 try:
-                    # pylint: disable=eval-used
-                    rule_succeeded = eval(
-                        control_action.rule, {"__builtins__": None}, self.metrics
+                    rule_succeeded = evaluator.eval(
+                        expr=control_action.rule_str,
+                        previously_parsed=control_action.rule,
                     )
+                    if not isinstance(rule_succeeded, bool):
+                        raise TypeError(
+                            "expected the rule to evaluate to a boolean. actual type: %s"
+                            % (type(rule_succeeded))
+                        )
                 except TypeError as et:
                     raise TypeError("Rule failed due to incorrect type usage") from et
                 except ValueError as ev:
@@ -235,6 +240,14 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NameError(
                         "Rule failed due to use of disallowed variables"
                     ) from en
+                except NameNotDefined as en1:
+                    raise NameError(
+                        "Rule failed because some of the variables are not defined"
+                    ) from en1
+                except FeatureNotAvailable as ef:
+                    raise NotImplementedError(
+                        "Rule failed because it uses some unsupported features"
+                    ) from ef
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
                         logger.info(
@@ -374,9 +387,11 @@ class TrainerControllerCallback(TrainerCallback):
                             % (controller_name, event_name)
                         )
                     # Generates the byte-code for the rule from the trainer configuration
+                    curr_rule = controller[CONTROLLER_RULE_KEY]
                     control = Control(
-                        name=controller_name,
-                        rule=compile(controller_rule, "", "eval"),
+                        name=controller[CONTROLLER_NAME_KEY],
+                        rule_str=curr_rule,
+                        rule=EvalWithCompoundTypes.parse(expr=curr_rule),
                         operation_actions=[],
                     )
                     for control_operation_name in controller_ops:

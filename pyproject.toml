@@ -36,7 +36,8 @@ dependencies = [
 "trl",
 "peft>=0.8.0",
 "datasets>=2.15.0",
-"fire"
+"fire",
+"simpleeval",
 ]
 
 [project.optional-dependencies]

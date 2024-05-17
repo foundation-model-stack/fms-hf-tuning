@@ -27,6 +27,24 @@ from accelerate.commands.launch import launch_command_parser
 # Local
 from tuning.config import configs, peft_config, tracker_configs
 
+# The USER_ERROR_EXIT_CODE will be thrown when the process must exit
+# as result of a user input error. User-related errors should be
+# >= 1 and <=127 due to how some kubernetes operators interpret them.
+USER_ERROR_EXIT_CODE = 1
+# The INTERNAL_ERROR_EXIT_CODE will be thrown when training
+# abnormally terminates, and it is not clearly fault of the user.
+# System-level errors should be >= 128 and <= 254
+INTERNAL_ERROR_EXIT_CODE = 203
+
+
+def write_termination_log(text):
+    log_file = os.environ.get("TERMINATION_LOG_FILE", "/dev/termination-log")
+    try:
+        with open(log_file, "a", encoding="utf-8") as handle:
+            handle.write(text)
+    except Exception as e:  # pylint: disable=broad-except
+        logging.warning("Unable to write termination log due to error {}".format(e))
+
 
 def txt_to_obj(txt):
     base64_bytes = txt.encode("ascii")
@@ -203,7 +221,8 @@ def process_accelerate_launch_args(job_config_dict):
         )
 
     # Add training_script
-    accelerate_launch_args.append("/app/launch_training.py")
+    script = os.environ.get("LAUNCH_TRAINING_SCRIPT", "/app/launch_training.py")
+    accelerate_launch_args.append(script)
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
     args = parser.parse_args(args=accelerate_launch_args)

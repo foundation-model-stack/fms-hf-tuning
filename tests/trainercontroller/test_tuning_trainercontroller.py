@@ -17,9 +17,9 @@
 
 # Standard
 from dataclasses import dataclass
-from typing import Any
 
 # Third Party
+from simpleeval import FunctionNotDefined
 from transformers import IntervalStrategy, TrainerControl, TrainerState
 import pytest
 
@@ -32,7 +32,6 @@ from tests.trainercontroller.custom_operation_invalid_action import (
 import tests.data.trainercontroller as td
 
 # Local
-from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 import tuning.config.configs as config
 import tuning.trainercontroller as tc
 
@@ -204,6 +203,25 @@ def test_custom_operation_invalid_action_handler():
     )
 
 
+def test_invalid_type_rule():
+    """Tests the invalid type rule using configuration
+    `examples/trainer-controller-configs/loss_with_invalid_type_rule.yaml`
+    """
+    test_data = _setup_data()
+    with pytest.raises(TypeError) as exception_handler:
+        tc_callback = tc.TrainerControllerCallback(
+            td.TRAINER_CONFIG_TEST_INVALID_TYPE_RULE_YAML
+        )
+        control = TrainerControl(should_training_stop=False)
+        # Trigger on_init_end to perform registration of handlers to events
+        tc_callback.on_init_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
+        # Trigger rule and test the condition
+        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert str(exception_handler.value) == "Rule failed due to incorrect type usage"
+
+
 def test_malicious_os_rule():
     """Tests the malicious rule using configuration
     `examples/trainer-controller-configs/loss_with_malicious_os_rule.yaml`
@@ -235,14 +253,17 @@ def test_malicious_input_rule():
         td.TRAINER_CONFIG_TEST_MALICIOUS_INPUT_RULE_YAML
     )
     control = TrainerControl(should_training_stop=False)
-    with pytest.raises(TypeError) as exception_handler:
+    with pytest.raises(FunctionNotDefined) as exception_handler:
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
             args=test_data.args, state=test_data.state, control=control
         )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert str(exception_handler.value) == "Rule failed due to incorrect type usage"
+    assert (
+        str(exception_handler.value)
+        == "Function 'input' not defined, for expression 'input('Please enter your password:')'."
+    )
 
 
 def test_invalid_trigger():
