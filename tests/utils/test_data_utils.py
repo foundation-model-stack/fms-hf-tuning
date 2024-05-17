@@ -21,6 +21,7 @@ from tuning.utils import data_utils
 
 # Third Party
 import datasets
+import pytest
 
 def test_formatting_function():
     json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
@@ -41,3 +42,10 @@ def test_formatting_function_adds_eos_token():
     # a new dataset_text_field is created in Dataset
     assert dataset_text_field in formatted_dataset['train'][0]
     assert formatted_dataset['train'][0][dataset_text_field] == expected_response
+
+def test_formatting_function_gives_error_with_wrong_keys():
+    """Tests that the formatting function will throw error if wrong keys are passed to template"""
+    json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
+    template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
+    with pytest.raises(KeyError):
+        data_utils.formatting_function(json_dataset, template, 'EOS')

@@ -63,7 +63,6 @@ BASE_PEFT_KWARGS = {
     "save_strategy": "epoch",
     "output_dir": "tmp",
 }
-
 BASE_LORA_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
 BASE_LORA_KWARGS["peft_method"] = "lora"
 
@@ -148,6 +147,40 @@ def test_run_causallm_pt_and_inference():
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
+def test_run_causallm_pt_and_inference_with_formatting_data():
+    """Check if we can bootstrap and peft tune causallm models
+    This test needs the trainer to format data to a single sequence internally.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(BASE_PEFT_KWARGS)
+        del data_formatting_args["dataset_text_field"]
+        data_formatting_args["data_formatter_template"] = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+
+        TRAIN_KWARGS = {**data_formatting_args, **{"output_dir": tempdir}}
+
+        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+            TRAIN_KWARGS
+        )
+        # Just double checking that formnatter is set
+        assert data_args.data_formatter_template is not None
+
+        sft_trainer.train(model_args, data_args, training_args, tune_config)
+
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "PROMPT_TUNING", data_formatting_args)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 def test_run_causallm_pt_init_text():
     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
@@ -381,6 +414,32 @@ def test_invalid_dataset_text_field():
     with pytest.raises(KeyError):
         sft_trainer.train(model_args, data_args, training_args, tune_config)
 
+### Tests that giving dataset_text_field as well as formatter template gives error
+def test_invalid_dataset_text_field_and_formatter_template():
+    """Only one of dataset_text_field or formatter can be supplied"""
+    TRAIN_KWARGS = {
+        **BASE_PEFT_KWARGS,
+        **{"data_formatter_template": "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"},
+    }
+    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        TRAIN_KWARGS
+    )
+    with pytest.raises(ValueError):
+        sft_trainer.train(model_args, data_args, training_args, tune_config)
+
+### Tests passing formatter with invalid keys gives error
+def test_invalid_formatter_template():
+    data_formatting_args = copy.deepcopy(BASE_PEFT_KWARGS)
+    del data_formatting_args["dataset_text_field"]
+    TRAIN_KWARGS = {
+        **data_formatting_args,
+        **{"data_formatter_template": "### Input: {{not found}} \n\n ### Response: {{text_label}}"},
+    }
+    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        TRAIN_KWARGS
+    )
+    with pytest.raises(KeyError):
+        sft_trainer.train(model_args, data_args, training_args, tune_config)
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
 def test_malformatted_data():
