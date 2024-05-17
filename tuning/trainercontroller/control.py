@@ -18,6 +18,7 @@
 # Standard
 from dataclasses import dataclass
 from typing import List, Optional
+import ast
 
 # Local
 from tuning.trainercontroller.operations import Operation
@@ -36,5 +37,6 @@ class Control:
     """Stores the name of control, rule byte-code corresponding actions"""
 
     name: str
-    rule: Optional[object] = None  # stores bytecode of the compiled rule
+    rule_str: str
+    rule: Optional[ast.AST] = None  # stores the abstract syntax tree of the parsed rule
     operation_actions: Optional[List[OperationAction]] = None
