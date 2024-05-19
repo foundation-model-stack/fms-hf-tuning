@@ -42,8 +42,14 @@ class HFControlsWithPatience(Operation):
             kwargs: List of arguments (key, value)-pairs
         """
         self._patience_counter += 1
-        if self._patience_counter < self._patience_threshold:
+        if self._patience_counter <= self._patience_threshold:
+            logger.info(
+                        "Patience counter %d is within patience threshold of %d",
+                        self._patience_counter,
+                        self._patience_threshold
+                    )
             return
+        logger.info("Patience counter exceeded threshold")
         logger.debug("Arguments passed to control_action: %s", repr(kwargs))
         frame_info = inspect.currentframe().f_back
         arg_values = inspect.getargvalues(frame_info)
