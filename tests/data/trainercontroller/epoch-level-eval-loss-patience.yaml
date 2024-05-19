@@ -9,11 +9,11 @@ operations:
   - name: hfwithpatience
     class: HFControlsWithPatience
     arguments:
-      patience-threshold: 3
+      patience-threshold: 2
 controllers:
   - name: epoch-level-eval-loss-patience
     triggers:
       - on_epoch_end
-    rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2.2 and trainer_state["epoch"] > 2
+    rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2 and trainer_state["epoch"] > 0.1
     operations:
       - hfwithpatience.should_training_stop

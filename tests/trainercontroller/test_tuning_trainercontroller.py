@@ -42,6 +42,7 @@ class InputData:
 
     args: config.TrainingArguments
     state: TrainerState
+    metrics: dict
 
 
 def _setup_data() -> InputData:
@@ -69,6 +70,7 @@ def _setup_data() -> InputData:
             ],
             epoch=0.6,
         ),
+        metrics={"eval_loss": 2.2}
     )
 
 
@@ -85,6 +87,104 @@ def test_loss_on_threshold():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert control.should_training_stop == True
+
+
+def test_thresholded_training_loss():
+    """Tests the thresholded training loss example in
+    `examples/trainer-controller-configs/thresholded-training-loss.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_THRESHOLDED_TRAINING_LOSS_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert control.should_training_stop == True
+
+
+def test_non_decreasing_training_loss():
+    """Tests the non-decreasing training loss example in
+    `examples/trainer-controller-configs/non-decreasing-training-loss.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_NON_DECREASING_TRAINING_LOSS_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    incremental_history = []
+    original_history = test_data.state.log_history
+    for log in original_history:
+        incremental_history.append(log)
+        test_data.state.log_history = incremental_history
+        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    assert control.should_training_stop == True
+
+
+def test_epoch_level_training_loss():
+    """Tests the epoch level training loss example in
+    `examples/trainer-controller-configs/epoch-level-training-loss.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_EPOCH_LEVEL_TRAINING_LOSS_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    incremental_history = []
+    original_history = test_data.state.log_history
+    test_passes = False
+    for log in original_history:
+        incremental_history.append(log)
+        test_data.state.log_history = incremental_history
+        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+        if control.should_training_stop == True:
+            test_passes = True
+    assert test_passes == True
+
+
+def test_epoch_level_eval_loss():
+    """Tests the epoch level eval loss example in
+    `examples/trainer-controller-configs/epoch-level-eval-loss.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_EPOCH_LEVEL_EVAL_LOSS_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_evaluate(args=test_data.args, state=test_data.state, control=control, metrics=test_data.metrics)
+    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+    assert control.should_training_stop == True
+
+
+def test_epoch_level_eval_loss_patience():
+    """Tests the epoch level eval loss with patience threshold example in
+    `examples/trainer-controller-configs/epoch-level-eval-loss-patience.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_EPOCH_LEVEL_EVAL_LOSS_PATIENCE_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_evaluate(args=test_data.args, state=test_data.state, control=control, metrics=test_data.metrics)
+    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
     assert control.should_training_stop == True
 
 
