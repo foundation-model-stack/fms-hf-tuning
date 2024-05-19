@@ -41,8 +41,8 @@ class HFControlsWithPatience(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
+        self._patience_counter += 1
         if self._patience_counter < self._patience_threshold:
-            self._patience_counter += 1
             return
         logger.debug("Arguments passed to control_action: %s", repr(kwargs))
         frame_info = inspect.currentframe().f_back
