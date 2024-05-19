@@ -71,7 +71,7 @@ def _setup_data() -> InputData:
             ],
             epoch=0.6,
         ),
-        metrics={"eval_loss": 2.2}
+        metrics={"eval_loss": 2.2},
     )
 
 
@@ -147,7 +147,9 @@ def test_epoch_level_training_loss():
         incremental_history.append(log)
         test_data.state.log_history = incremental_history
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-        tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_epoch_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
         if control.should_training_stop == True:
             test_passes = True
     assert test_passes == True
@@ -165,8 +167,15 @@ def test_epoch_level_eval_loss():
     # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
-    tc_callback.on_evaluate(args=test_data.args, state=test_data.state, control=control, metrics=test_data.metrics)
-    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_evaluate(
+        args=test_data.args,
+        state=test_data.state,
+        control=control,
+        metrics=test_data.metrics,
+    )
+    tc_callback.on_epoch_end(
+        args=test_data.args, state=test_data.state, control=control
+    )
     assert control.should_training_stop == True
 
 
@@ -182,10 +191,21 @@ def test_epoch_level_eval_loss_patience():
     # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
-    tc_callback.on_evaluate(args=test_data.args, state=test_data.state, control=control, metrics=test_data.metrics)
-    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
-    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
-    tc_callback.on_epoch_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_evaluate(
+        args=test_data.args,
+        state=test_data.state,
+        control=control,
+        metrics=test_data.metrics,
+    )
+    tc_callback.on_epoch_end(
+        args=test_data.args, state=test_data.state, control=control
+    )
+    tc_callback.on_epoch_end(
+        args=test_data.args, state=test_data.state, control=control
+    )
+    tc_callback.on_epoch_end(
+        args=test_data.args, state=test_data.state, control=control
+    )
     assert control.should_training_stop == True
 
 
