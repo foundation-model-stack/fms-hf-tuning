@@ -6,9 +6,9 @@ controller-metrics:
     arguments:
       window-size: 1
 controllers:
-  - name: stop-on-training-loss-not-decreasing
+  - name: epoch-level-training-loss
     triggers:
-      - on_epoch
-    rule: training_loss_window[“loss“][-1] > 2.2 and trainer_state[“epochs”] > 5
+      - on_epoch_end
+    rule: training_loss_window["loss"][-1] > 2 and trainer_state["epoch"] > 3
     operations:
       - hfcontrols.should_training_stop

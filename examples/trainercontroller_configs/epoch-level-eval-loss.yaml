@@ -1,14 +1,14 @@
 controller-metrics:
   - name: trainer_state
     class: TrainingState
-  - name: training_loss_window
+  - name: eval_loss_window
     class: HistoryBasedMetric
     arguments:
       window-size: 1
 controllers:
-  - name: stop-on-training-loss-not-decreasing
+  - name: epoch-level-eval-loss
     triggers:
-      - on_epoch
-    rule: training_loss_window[“eval-loss“][-1] > 2.2 and trainer_state[“epochs”] > 5
+      - on_epoch_end
+    rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2.2 and trainer_state["epoch"] > 3
     operations:
       - hfcontrols.should_training_stop
