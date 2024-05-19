@@ -16,8 +16,8 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-from typing import Any
 from collections import deque
+from typing import Any
 
 # Third Party
 from transformers import TrainerState
@@ -28,12 +28,14 @@ from tuning.trainercontroller.controllermetrics.metricshandler import MetricHand
 
 logger = logging.get_logger(__name__)
 
+
 class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
+
     _METRICS_KEY = "metrics"
     _TRAINING_LOSS_KEY = "loss"
     _WINDOW_SIZE = "window-size"
-    
+
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event \
             list and arguments with base handler.
@@ -42,19 +44,21 @@ class HistoryBasedMetric(MetricHandler):
             kwargs: List of arguments (key, value)-pairs
         """
         self._window_size = kwargs.get("window-size")
-        self._window = {self._TRAINING_LOSS_KEY: deque(), 
-                self._METRICS_KEY: deque(),
-                self._WINDOW_SIZE: self._window_size}
+        self._window = {
+            self._TRAINING_LOSS_KEY: deque(),
+            self._METRICS_KEY: deque(),
+            self._WINDOW_SIZE: self._window_size,
+        }
         if self._window_size is None:
             self._window_size = 1
         super().__init__(events=["on_log", "on_evaluate"], **kwargs)
-    
+
     def _add_to_window(self, data_type, data):
         self._window[data_type].append(data)
 
     def _slide_the_window(self, data_type):
         if len(self._window[data_type]) < self._window_size:
-            return False        
+            return False
         if len(self._window[data_type]) == self._window_size:
             return True
         self._window[data_type].popleft()
@@ -86,7 +90,8 @@ class HistoryBasedMetric(MetricHandler):
             for i in range(size_of_log_history - 1, -1, -1):
                 log = state.log_history[i]
                 if self._TRAINING_LOSS_KEY in log:
-                    self._add_to_window(self._TRAINING_LOSS_KEY, 
-                                       float(log[self._TRAINING_LOSS_KEY]))
+                    self._add_to_window(
+                        self._TRAINING_LOSS_KEY, float(log[self._TRAINING_LOSS_KEY])
+                    )
                     break
         return self._window
