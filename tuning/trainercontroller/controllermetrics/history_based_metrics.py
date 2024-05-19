@@ -32,6 +32,7 @@ class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
     _METRICS_KEY = "metrics"
     _TRAINING_LOSS_KEY = "loss"
+    _WINDOW_SIZE = "window-size"
     
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event \
@@ -40,9 +41,10 @@ class HistoryBasedMetric(MetricHandler):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        self._window = {self._TRAINING_LOSS_KEY: deque(), 
-                        self._METRICS_KEY: deque()}
         self._window_size = kwargs.get("window-size")
+        self._window = {self._TRAINING_LOSS_KEY: deque(), 
+                self._METRICS_KEY: deque(),
+                self._WINDOW_SIZE: self._window_size}
         if self._window_size is None:
             self._window_size = 1
         super().__init__(events=["on_log", "on_evaluate"], **kwargs)
