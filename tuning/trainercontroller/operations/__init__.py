@@ -3,8 +3,8 @@ from typing import Type
 
 # Local
 from .hfcontrols import HFControls
-from .patience_hfcontrols import HFControlsWithPatience
 from .operation import Operation
+from .patience_hfcontrols import HFControlsWithPatience
 
 # List of operation handlers
 operation_handlers = []

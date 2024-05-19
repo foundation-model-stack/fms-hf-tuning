@@ -20,8 +20,8 @@ from typing import Type
 
 # Local
 from .eval_metrics import EvalMetrics
-from .loss import Loss
 from .history_based_metrics import HistoryBasedMetric
+from .loss import Loss
 from .trainingstate import TrainingState
 
 # List of metric handlers

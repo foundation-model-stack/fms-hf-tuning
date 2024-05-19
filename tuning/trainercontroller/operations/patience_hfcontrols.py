@@ -27,7 +27,7 @@ class HFControlsWithPatience(Operation):
         """
         self.kwargs = kwargs
         self._patience_counter = 0
-        self._patience_threshold = kwargs['patience-threshold']
+        self._patience_threshold = kwargs["patience-threshold"]
         for control_field in fields(TrainerControl):
             if re.search(r"^should_.+", control_field.name) is not None:
                 setattr(self, control_field.name, self.control_action)
