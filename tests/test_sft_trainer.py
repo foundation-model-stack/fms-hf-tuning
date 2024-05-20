@@ -68,9 +68,9 @@ BASE_LORA_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
 BASE_LORA_KWARGS["peft_method"] = "lora"
 
 BASE_FT_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
-BASE_FT_KWARGS["peft_method"] = ""
-BASE_FT_KWARGS["prompt_tuning_init"] = ""
-BASE_FT_KWARGS["prompt_tuning_init_text"] = ""
+del BASE_FT_KWARGS["peft_method"]
+del BASE_FT_KWARGS["prompt_tuning_init"]
+del BASE_FT_KWARGS["prompt_tuning_init_text"]
 
 
 def test_helper_causal_lm_train_kwargs():
@@ -282,8 +282,6 @@ def test_run_causallm_ft_and_inference():
         # validate ft tuning configs
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
-        adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING", BASE_FT_KWARGS)
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path)
