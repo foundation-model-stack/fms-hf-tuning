@@ -68,7 +68,7 @@ BASE_LORA_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
 BASE_LORA_KWARGS["peft_method"] = "lora"
 
 BASE_FT_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
-del BASE_FT_KWARGS["peft_method"]
+BASE_FT_KWARGS["peft_method"] = None
 del BASE_FT_KWARGS["prompt_tuning_init"]
 del BASE_FT_KWARGS["prompt_tuning_init_text"]
 
