@@ -277,6 +277,9 @@ def test_run_causallm_ft_and_inference():
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             BASE_FT_KWARGS
         )
+        # Just assuring no tuning config is passed for PT or LoRA
+        assert tune_config is None
+
         sft_trainer.train(model_args, data_args, training_args, tune_config)
 
         # validate ft tuning configs
@@ -294,6 +297,7 @@ def test_run_causallm_ft_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+############################# Helper functions #############################
 def _validate_training(tempdir, check_eval=False):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
@@ -331,6 +335,7 @@ def _validate_adapter_config(adapter_config, peft_type, base_kwargs):
     )
 
 
+############################# Other Tests #############################
 ### Tests for a variety of edge cases and potentially problematic cases;
 # some of these test directly test validation within external dependencies
 # and validate errors that we expect to get from them which might be unintuitive.

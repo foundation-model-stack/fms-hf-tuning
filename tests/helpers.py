@@ -42,9 +42,4 @@ def causal_lm_train_kwargs(train_kwargs):
         tuning_config = lora_config
     elif train_kwargs.get("peft_method") == "pt":
         tuning_config = prompt_tuning_config
-    return (
-        model_args,
-        data_args,
-        training_args,
-        tuning_config
-    )
+    return (model_args, data_args, training_args, tuning_config)
