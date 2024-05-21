@@ -25,7 +25,6 @@ from peft import LoraConfig, PromptTuningConfig
 # Local
 from tuning.config import peft_config
 
-
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
         for c in config:

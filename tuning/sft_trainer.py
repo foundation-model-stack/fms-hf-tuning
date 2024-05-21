@@ -16,6 +16,8 @@
 from typing import Dict, List, Optional, Union
 import json
 import time
+import traceback
+import sys
 
 # Third Party
 from peft.utils.other import fsdp_auto_wrap_policy
@@ -33,6 +35,8 @@ from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
+from torch.cuda import OutOfMemoryError
+from huggingface_hub.utils._validators import HFValidationError
 
 # Local
 from tuning.config import configs, peft_config
@@ -46,6 +50,11 @@ from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.error_logging import (
+    write_termination_log,
+    USER_ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
+)
 
 
 def train(
@@ -370,36 +379,36 @@ def main(**kwargs):  # pylint: disable=unused-argument
     job_config = get_json_config()
     logger.debug("Input args parsed: %s", job_config)
     # accept arguments via command-line or JSON
-    (
-        model_args,
-        data_args,
-        training_args,
-        trainer_controller_args,
-        tune_config,
-        file_logger_config,
-        aim_config,
-        exp_metadata,
-    ) = parse_arguments(parser, job_config)
-    logger.debug(
-        "Input args parsed: \
-        model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-        tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
-        model_args,
-        data_args,
-        training_args,
-        trainer_controller_args,
-        tune_config,
-        file_logger_config,
-        aim_config,
-        exp_metadata,
-    )
-
-        # except Exception as e:  # pylint: disable=broad-except
-    #     logging.error(traceback.format_exc())
-    #     write_termination_log(
-    #         f"Exception raised during training. This may be a problem with your input: {e}"
-    #     )
-    #     sys.exit(USER_ERROR_EXIT_CODE)
+    try:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            tune_config,
+            file_logger_config,
+            aim_config,
+            exp_metadata,
+        ) = parse_arguments(parser, job_config)
+        logger.debug(
+            "Input args parsed: \
+            model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
+            tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            tune_config,
+            file_logger_config,
+            aim_config,
+            exp_metadata,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logging.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during training. This may be a problem with your input: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
 
     # extra metadata passed via client
     metadata = None
@@ -421,16 +430,41 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.file_logger_config = file_logger_config
     combined_tracker_configs.aim_config = aim_config
 
-    train(
-        model_args=model_args,
-        data_args=data_args,
-        train_args=training_args,
-        peft_config=tune_config,
-        trainer_controller_args=trainer_controller_args,
-        tracker_configs=combined_tracker_configs,
-        additional_callbacks=None,
-        exp_metadata=metadata,
-    )
+    try:
+        train(
+            model_args=model_args,
+            data_args=data_args,
+            train_args=training_args,
+            peft_config=tune_config,
+            trainer_controller_args=trainer_controller_args,
+            tracker_configs=combined_tracker_configs,
+            additional_callbacks=None,
+            exp_metadata=metadata,
+        )
+    except (MemoryError, OutOfMemoryError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(f"OOM error during training. {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
+    except FileNotFoundError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log("Unable to load file: {}".format(e))
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except HFValidationError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"There may be a problem with loading the model. Exception: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except (TypeError, ValueError, EnvironmentError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during training. This may be a problem with your input: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(f"Unhandled exception during training: {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

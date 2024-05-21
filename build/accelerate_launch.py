@@ -33,20 +33,26 @@ from accelerate.commands.launch import launch_command
 # Local
 from build.utils import (
     process_accelerate_launch_args,
-    write_termination_log,
-    USER_ERROR_EXIT_CODE,
-    INTERNAL_ERROR_EXIT_CODE,
     serialize_args,
     get_highest_checkpoint
 )
 from tuning.utils.config_utils import get_json_config
 from tuning.utils.merge_model_utils import create_merged_model
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.utils.error_logging import (
+    write_termination_log,
+    USER_ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
+)
 
+ERROR_LOG = "/dev/termination-log"
 
 def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
+
+    if not os.getenv("TERMINATION_LOG_FILE"):
+        os.environ["TERMINATION_LOG_FILE"] = ERROR_LOG
 
     ##########
     #

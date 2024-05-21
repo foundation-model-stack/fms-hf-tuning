@@ -24,10 +24,14 @@ import pytest
 
 # First Party
 from build.accelerate_launch import main
-from build.utils import INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE, serialize_args
+from build.utils import serialize_args
 from tests.data import TWITTER_COMPLAINTS_DATA
+from tuning.utils.error_logging import (
+    USER_ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
+)
 
-SCRIPT = "build/launch_training.py"
+SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 BASE_PEFT_KWARGS = {
     "model_name_or_path": MODEL_NAME,
