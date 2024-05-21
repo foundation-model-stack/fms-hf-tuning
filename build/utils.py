@@ -122,8 +122,11 @@ def process_accelerate_launch_args(job_config_dict):
         )
 
     # Add training_script
-    script = os.environ.get("LAUNCH_TRAINING_SCRIPT", "/app/launch_training.py")
-    accelerate_launch_args.append(script)
+    script = os.environ.get("TRAINING_SCRIPT")
+    if script:
+        accelerate_launch_args.append(script)
+    else:
+        accelerate_launch_args.extend(["--module", "tuning.sft_trainer"])
 
     logging.debug("accelerate_launch_args: %s", accelerate_launch_args)
     args = parser.parse_args(args=accelerate_launch_args)

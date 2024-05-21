@@ -29,7 +29,7 @@ HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
 )
 
 
-# Note: job_config dict gets modified during process_launch_training_args
+# Note: job_config dict gets modified during processing training args
 @pytest.fixture(name="job_config", scope="session")
 def fixture_job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -43,7 +43,7 @@ def test_process_accelerate_launch_args(job_config):
     assert args.use_fsdp is True
     assert args.fsdp_backward_prefetch_policy == "TRANSFORMER_BASED_WRAP"
     assert args.env == ["env1", "env2"]
-    assert args.training_script == "/app/launch_training.py"
+    assert args.training_script == "tuning.sft_trainer"
     assert args.config_file == "fixtures/accelerate_fsdp_defaults.yaml"
 
     # default values

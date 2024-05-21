@@ -63,13 +63,13 @@ BASE_PEFT_KWARGS = {
 
 
 def setup_env(tempdir):
-    os.environ["LAUNCH_TRAINING_SCRIPT"] = SCRIPT
+    os.environ["TRAINING_SCRIPT"] = SCRIPT
     os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
     os.environ["TERMINATION_LOG_FILE"] = tempdir + "/termination-log"
 
 
 def cleanup_env():
-    os.environ.pop("LAUNCH_TRAINING_SCRIPT", None)
+    os.environ.pop("TRAINING_SCRIPT", None)
     os.environ.pop("PYTHONPATH", None)
     os.environ.pop("TERMINATION_LOG_FILE", None)
 
@@ -95,7 +95,7 @@ def test_bad_script_path():
         TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
-        os.environ["LAUNCH_TRAINING_SCRIPT"] = "/not/here"
+        os.environ["TRAINING_SCRIPT"] = "/not/here"
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()

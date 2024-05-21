@@ -134,7 +134,7 @@ HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
 )
 
 
-# Note: job_config dict gets modified during process_launch_training_args
+# Note: job_config dict gets modified during process training args
 @pytest.fixture(name="job_config", scope="session")
 def fixture_job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -145,7 +145,7 @@ def fixture_job_config():
 ############################# Arg Parsing Tests #############################
 
 
-def test_process_launch_training_args(job_config):
+def test_parse_arguments(job_config):
     parser = sft_trainer.get_parser()
     job_config_copy = copy.deepcopy(job_config)
     (
@@ -164,7 +164,7 @@ def test_process_launch_training_args(job_config):
     assert tune_config is None
 
 
-def test_process_launch_training_args_defaults(job_config):
+def test_parse_arguments_defaults(job_config):
     parser = sft_trainer.get_parser()
     job_config_defaults = copy.deepcopy(job_config)
     assert "torch_dtype" not in job_config_defaults
@@ -178,21 +178,21 @@ def test_process_launch_training_args_defaults(job_config):
     assert training_args.save_strategy.value == "epoch"
 
 
-def test_process_launch_training_args_peft_method(job_config):
+def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
     _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
-    assert isinstance(tune_config, PromptTuningConfig)
+    assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
     _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
-    assert isinstance(tune_config, LoraConfig)
+    assert isinstance(tune_config, peft_config.LoraConfig)
 
 
 ############################# Prompt Tuning Tests #############################
