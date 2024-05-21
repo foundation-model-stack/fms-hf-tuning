@@ -34,6 +34,7 @@ from tests.helpers import causal_lm_train_kwargs
 
 # Local
 from tuning import sft_trainer
+from tuning.config import peft_config
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 BASE_PEFT_KWARGS = {
@@ -95,6 +96,15 @@ def test_helper_causal_lm_train_kwargs():
     assert tune_config.prompt_tuning_init_text == "hello"
     assert tune_config.tokenizer_name_or_path == MODEL_NAME
     assert tune_config.num_virtual_tokens == 8
+
+    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        BASE_FT_KWARGS
+    )
+    assert tune_config is None
+    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        BASE_LORA_KWARGS
+    )
+    assert isinstance(tune_config, peft_config.LoraConfig)
 
 
 def test_run_train_requires_output_dir():
