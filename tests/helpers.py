@@ -37,11 +37,9 @@ def causal_lm_train_kwargs(train_kwargs):
         lora_config,
         prompt_tuning_config,
     ) = parser.parse_dict(train_kwargs, allow_extra_keys=True)
-    return (
-        model_args,
-        data_args,
-        training_args,
-        lora_config
-        if train_kwargs.get("peft_method") == "lora"
-        else prompt_tuning_config,
-    )
+    tuning_config = None
+    if train_kwargs.get("peft_method") == "lora":
+        tuning_config = lora_config
+    elif train_kwargs.get("peft_method") == "pt":
+        tuning_config = prompt_tuning_config
+    return (model_args, data_args, training_args, tuning_config)
