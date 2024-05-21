@@ -34,7 +34,7 @@ from accelerate.commands.launch import launch_command
 from build.utils import (
     process_accelerate_launch_args,
     serialize_args,
-    get_highest_checkpoint
+    get_highest_checkpoint,
 )
 from tuning.utils.config_utils import get_json_config
 from tuning.utils.merge_model_utils import create_merged_model
@@ -46,6 +46,7 @@ from tuning.utils.error_logging import (
 )
 
 ERROR_LOG = "/dev/termination-log"
+
 
 def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
@@ -96,14 +97,15 @@ def main():
             job_config["output_dir"] = tempdir
             updated_args = serialize_args(job_config)
             os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = updated_args
-            
+
             launch_command(args)
         except subprocess.CalledProcessError as e:
-            # If the subprocess throws an exception, the base exception is hidden in the subprocess call
-            # and is difficult to access at this level. However, that is not an issue because
-            # launch_training.py would have already written the exception message to termination log.
+            # If the subprocess throws an exception, the base exception is hidden in the
+            # subprocess call and is difficult to access at this level. However, that is not
+            # an issue because sft_trainer.py would have already written the exception
+            # message to termination log.
             logging.error(traceback.format_exc())
-            # The exit code that launch_training.py threw is captured in e.returncode
+            # The exit code that sft_trainer.py threw is captured in e.returncode
 
             return_code = e.returncode
             if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
@@ -127,9 +129,7 @@ def main():
 
                 # get the highest checkpoint dir (last checkpoint)
                 lora_checkpoint_dir = get_highest_checkpoint(tempdir)
-                full_checkpoint_dir = os.path.join(
-                    tempdir, lora_checkpoint_dir
-                )
+                full_checkpoint_dir = os.path.join(tempdir, lora_checkpoint_dir)
 
                 logging.info(
                     "Merging lora tuned checkpoint %s with base model into output path: %s",
@@ -193,6 +193,7 @@ def main():
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0
+
 
 if __name__ == "__main__":
     main()

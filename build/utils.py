@@ -20,11 +20,8 @@ import base64
 
 # Third Party
 import torch
-import transformers
 from accelerate.commands.launch import launch_command_parser
 
-# Local
-from tuning.config import configs, peft_config, tracker_configs
 
 def get_highest_checkpoint(dir_path):
     checkpoint_dir = ""
@@ -39,6 +36,7 @@ def get_highest_checkpoint(dir_path):
                 checkpoint_dir = curr_dir
 
     return checkpoint_dir
+
 
 def serialize_args(args_json):
     message_bytes = pickle.dumps(args_json)

@@ -13,10 +13,8 @@
 # limitations under the License.
 
 # Standard
-import os
-
-# First Party
 import logging
+import os
 
 # The USER_ERROR_EXIT_CODE will be thrown when the process must exit
 # as result of a user input error. User-related errors should be
@@ -26,6 +24,7 @@ USER_ERROR_EXIT_CODE = 1
 # abnormally terminates, and it is not clearly fault of the user.
 # System-level errors should be >= 128 and <= 254
 INTERNAL_ERROR_EXIT_CODE = 203
+
 
 def write_termination_log(text, log_file="error.log"):
     log_file = os.environ.get("TERMINATION_LOG_FILE", log_file)

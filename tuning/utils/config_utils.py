@@ -14,9 +14,9 @@
 
 # Standard
 from dataclasses import asdict
-import os
-import json
 import base64
+import json
+import os
 import pickle
 
 # Third Party
@@ -24,6 +24,7 @@ from peft import LoraConfig, PromptTuningConfig
 
 # Local
 from tuning.config import peft_config
+
 
 def update_config(config, **kwargs):
     if isinstance(config, (tuple, list)):
@@ -91,6 +92,7 @@ def get_hf_peft_config(task_type, tuning_config):
 
     return hf_peft_config
 
+
 def get_json_config():
     json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
     json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
@@ -105,6 +107,7 @@ def get_json_config():
             job_config_dict = json.load(f)
 
     return job_config_dict
+
 
 def txt_to_obj(txt):
     base64_bytes = txt.encode("ascii")

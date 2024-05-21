@@ -22,7 +22,6 @@ from unittest.mock import patch
 import pytest
 
 # Local
-from tuning.config.peft_config import LoraConfig, PromptTuningConfig
 from build.utils import process_accelerate_launch_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
@@ -36,6 +35,7 @@ def fixture_job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
         dummy_job_config_dict = json.load(f)
     return dummy_job_config_dict
+
 
 def test_process_accelerate_launch_args(job_config):
     args = process_accelerate_launch_args(job_config)

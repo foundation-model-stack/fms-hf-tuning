@@ -15,12 +15,14 @@
 # Standard
 from typing import Dict, List, Optional, Union
 import json
+import sys
 import time
 import traceback
-import sys
 
 # Third Party
+from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
+from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -35,8 +37,6 @@ from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
-from torch.cuda import OutOfMemoryError
-from huggingface_hub.utils._validators import HFValidationError
 
 # Local
 from tuning.config import configs, peft_config
@@ -51,9 +51,9 @@ from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
-    write_termination_log,
-    USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
+    USER_ERROR_EXIT_CODE,
+    write_termination_log,
 )
 
 
@@ -292,6 +292,7 @@ def train(
         )
     trainer.train()
 
+
 def get_parser():
     parser = transformers.HfArgumentParser(
         dataclass_types=(
@@ -349,7 +350,7 @@ def parse_arguments(parser, json_config=None):
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-        
+
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
 
