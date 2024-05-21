@@ -1,4 +1,5 @@
-"""Pulls and formats data into alpaca format.
+"""Pulls and formats data into alpaca format. Not that each specific dataset needs its own
+formatter, since it is dependent on the format of the raw dataset being processed.
 """
 
 # Standard
@@ -76,7 +77,6 @@ def format_and_export_entities_file(
 
     def get_entites_output_text(datum):
         mentions = datum["mentions"]
-        # TODO: check this for TSA, but seems like it is the same as entities
         if not mentions:
             return "None"
         mention_strs = [
