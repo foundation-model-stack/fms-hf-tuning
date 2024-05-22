@@ -70,80 +70,12 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init_text =  "hello",
     tokenizer_name_or_path = MODEL_NAME,
 )
-# BASE_PEFT_KWARGS = {
-#     "model_name_or_path": MODEL_NAME,
-#     "training_data_path": TWITTER_COMPLAINTS_DATA,
-#     "num_train_epochs": 5,
-#     "per_device_train_batch_size": 4,
-#     "per_device_eval_batch_size": 4,
-#     "gradient_accumulation_steps": 4,
-#     "learning_rate": 0.00001,
-#     "weight_decay": 0,
-#     "warmup_ratio": 0.03,
-#     "lr_scheduler_type": "cosine",
-#     "logging_steps": 1,
-#     "include_tokens_per_second": True,
-#     "packing": False,
-#     "response_template": "\n### Label:",
-#     "dataset_text_field": "output",
-#     "use_flash_attn": False,
-#     "torch_dtype": "float32",
-#     "max_seq_length": 4096,
-#     "peft_method": "pt",
-#     "prompt_tuning_init": "RANDOM",
-#     "num_virtual_tokens": 8,
-#     "prompt_tuning_init_text": "hello",
-#     "tokenizer_name_or_path": MODEL_NAME,
-#     "save_strategy": "epoch",
-#     "output_dir": "tmp",
-# }
+
 PEFT_LORA_ARGS = peft_config.LoraConfig(
     r = 8,
     lora_alpha = 32,
     lora_dropout = 0.05
 )
-# BASE_LORA_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
-# BASE_LORA_KWARGS["peft_method"] = "lora"
-
-# BASE_FT_KWARGS = copy.deepcopy(BASE_PEFT_KWARGS)
-# BASE_FT_KWARGS["peft_method"] = None
-# del BASE_FT_KWARGS["prompt_tuning_init"]
-# del BASE_FT_KWARGS["prompt_tuning_init_text"]
-
-
-
-# def test_helper_causal_lm_train_kwargs():
-#     """Check happy path kwargs passed and parsed properly."""
-#     model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-#         BASE_PEFT_KWARGS
-#     )
-
-#     assert model_args.model_name_or_path == MODEL_NAME
-#     assert model_args.use_flash_attn is False
-#     assert model_args.torch_dtype == "float32"
-
-#     assert data_args.training_data_path == TWITTER_COMPLAINTS_DATA
-#     assert data_args.response_template == "\n### Label:"
-#     assert data_args.dataset_text_field == "output"
-
-#     assert training_args.num_train_epochs == 5
-#     assert training_args.max_seq_length == 4096
-#     assert training_args.save_strategy == "epoch"
-
-#     assert tune_config.prompt_tuning_init == "RANDOM"
-#     assert tune_config.prompt_tuning_init_text == "hello"
-#     assert tune_config.tokenizer_name_or_path == MODEL_NAME
-#     assert tune_config.num_virtual_tokens == 8
-
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-        BASE_FT_KWARGS
-    )
-    assert tune_config is None
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-        BASE_LORA_KWARGS
-    )
-    assert isinstance(tune_config, peft_config.LoraConfig)
-
 
 def test_run_train_requires_output_dir():
     """Check fails when output dir not provided."""
