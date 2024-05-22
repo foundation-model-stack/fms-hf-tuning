@@ -28,53 +28,47 @@ import torch
 import transformers
 
 # First Party
-from tuning.config import configs, peft_config
 from scripts.run_inference import TunedCausalLM
 from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA
 
 # Local
 from tuning import sft_trainer
-from tuning.config import peft_config
+from tuning.config import configs, peft_config
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 MODEL_ARGS = configs.ModelArguments(
-    model_name_or_path = MODEL_NAME,
-    use_flash_attn = False,
-    torch_dtype = "float32"
+    model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
 )
 DATA_ARGS = configs.DataArguments(
-    training_data_path = TWITTER_COMPLAINTS_DATA,
-    response_template = "\n### Label:",
-    dataset_text_field = "output"
+    training_data_path=TWITTER_COMPLAINTS_DATA,
+    response_template="\n### Label:",
+    dataset_text_field="output",
 )
 TRAIN_ARGS = configs.TrainingArguments(
-    num_train_epochs = 5,
-    per_device_train_batch_size = 4,
-    per_device_eval_batch_size = 4,
-    gradient_accumulation_steps = 4,
-    learning_rate = 0.00001,
-    weight_decay = 0,
-    warmup_ratio = 0.03,
-    lr_scheduler_type = "cosine",
-    logging_steps = 1,
-    include_tokens_per_second = True,
-    packing = False,
-    max_seq_length = 4096,
-    save_strategy = "epoch",
-    output_dir = "tmp",
+    num_train_epochs=5,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    gradient_accumulation_steps=4,
+    learning_rate=0.00001,
+    weight_decay=0,
+    warmup_ratio=0.03,
+    lr_scheduler_type="cosine",
+    logging_steps=1,
+    include_tokens_per_second=True,
+    packing=False,
+    max_seq_length=4096,
+    save_strategy="epoch",
+    output_dir="tmp",
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
-    prompt_tuning_init = "RANDOM",
-    num_virtual_tokens = 8,
-    prompt_tuning_init_text =  "hello",
-    tokenizer_name_or_path = MODEL_NAME,
+    prompt_tuning_init="RANDOM",
+    num_virtual_tokens=8,
+    prompt_tuning_init_text="hello",
+    tokenizer_name_or_path=MODEL_NAME,
 )
 
-PEFT_LORA_ARGS = peft_config.LoraConfig(
-    r = 8,
-    lora_alpha = 32,
-    lora_dropout = 0.05
-)
+PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+
 
 def test_run_train_requires_output_dir():
     """Check fails when output dir not provided."""
@@ -127,11 +121,11 @@ def test_run_causallm_pt_init_text():
         train_args.output_dir = tempdir
 
         tuning_config = peft_config.PromptTuningConfig(
-            prompt_tuning_init = "TEXT",
-            prompt_tuning_init_text =  "hello",
-            tokenizer_name_or_path = MODEL_NAME,
+            prompt_tuning_init="TEXT",
+            prompt_tuning_init_text="hello",
+            tokenizer_name_or_path=MODEL_NAME,
         )
-        
+
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
 
         # validate peft tuning configs
@@ -322,7 +316,7 @@ def test_tokenizer_has_no_eos_token():
         train_args.output_dir = tempdir
         model_args = copy.deepcopy(MODEL_ARGS)
         train_args.model_name_or_path = tempdir
-        
+
         # If we handled this badly, we would probably get something like a
         # TypeError: can only concatenate str (not "NoneType") to str error
         # when we go to apply the data formatter.
