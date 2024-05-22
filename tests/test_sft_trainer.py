@@ -145,10 +145,10 @@ def test_run_train_requires_output_dir():
 
 def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
-    updated_train_path_train_args = copy.deepcopy(TRAIN_ARGS)
-    updated_train_path_train_args.training_data_path = "fake/path"
+    updated_data_path_args = copy.deepcopy(DATA_ARGS)
+    updated_data_path_args.training_data_path = "fake/path"
     with pytest.raises(FileNotFoundError):
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, updated_train_path_train_args, None)
+        sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
 ############################# Prompt Tuning Tests #############################
@@ -220,10 +220,10 @@ def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
     with tempfile.TemporaryDirectory() as tempdir:
         invalid_params = copy.deepcopy(TRAIN_ARGS)
         invalid_params.output_dir = tempdir
-        invalid_params.[param_name] = param_val
+        setattr(invalid_params, param_name, param_val)
 
         with pytest.raises(ValueError, match=exc_msg):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, TRAIN_ARGS, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
 
 
 def test_run_causallm_pt_with_validation():
@@ -452,15 +452,11 @@ def test_no_packing_needs_dataset_text_field():
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{"dataset_text_field": None, "output_dir": tempdir},
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, training_args, tune_config)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
 
 # TODO: Fix this case
@@ -468,15 +464,13 @@ def test_no_packing_needs_dataset_text_field():
 def test_no_packing_needs_reponse_template():
     """Ensure we need to set the response template if packing is False"""
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{"response_template": None, "output_dir": tempdir},
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.response_template = None
+
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, training_args, tune_config)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
 
 ### Tests for model dtype edge cases
@@ -488,26 +482,22 @@ def test_bf16_still_tunes_if_unsupported():
     """Ensure that even if bf16 is not supported, tuning still works without problems."""
     assert not torch.cuda.is_bf16_supported()
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{"torch_dtype": "bfloat16", "output_dir": tempdir},
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
-        sft_trainer.train(model_args, data_args, training_args, tune_config)
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.torch_dtype = "bfloat16"
+
+        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir)
 
 
 def test_bad_torch_dtype():
     """Ensure that specifying an invalid torch dtype yields a ValueError."""
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{"torch_dtype": "not a type", "output_dir": tempdir},
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.torch_dtype = "not a type"
+
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, training_args, tune_config)
+            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
