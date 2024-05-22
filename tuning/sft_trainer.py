@@ -29,8 +29,7 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
-import datasets
+from trl import SFTTrainer
 import fire
 import transformers
 
@@ -46,6 +45,7 @@ from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.preprocessing_utils import get_data_trainer_kwargs
 
 
 def train(
@@ -165,14 +165,6 @@ def train(
             }
         )
 
-    # TODO: near term - how response template ids are parsed out needs to be cleaned.
-    # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
-    # otherwise template is not found. We will create issue to clean this out after we discuss
-    # data formats and collators we will support.
-    response_template_ids = tokenizer.encode(
-        data_args.response_template, add_special_tokens=False
-    )[2:]
-
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
     if train_args.max_seq_length > tokenizer.model_max_length:
@@ -207,59 +199,31 @@ def train(
         model=model,
     )
 
-    # Configure the collator and validate args related to packing prior to formatting the dataset
-    if train_args.packing:
-        logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
-        logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
-            # We should do this validation up front, then do the encoding, then handle the collator
-            raise ValueError("Response template is None, needs to be set for training")
-        if data_args.dataset_text_field is None:
-            raise ValueError("Dataset_text_field is None, needs to be set for training")
-        data_collator = DataCollatorForCompletionOnlyLM(
-            response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
-        packing = False
-
-    # load the data by parsing JSON
-    data_files = {"train": data_args.training_data_path}
-    if data_args.validation_data_path:
-        data_files["validation"] = data_args.validation_data_path
-
-    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
-        f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
-        + tokenizer.eos_token
-    }
-
-    json_dataset = datasets.load_dataset("json", data_files=data_files)
-    formatted_train_dataset = json_dataset["train"].map(format_dataset)
-    logger.info("Training dataset length is %s", len(formatted_train_dataset))
-
-    formatted_validation_dataset = None
-    if data_args.validation_data_path:
-        formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
-        logger.info(
-            "Validation dataset length is %s", len(formatted_validation_dataset)
-        )
+    # Get the trainer args focused on data, specifically those sensitive to
+    # packing, response template, and dataset text field. Currently this consists of
+    # - training dataset
+    # - validation dataset
+    # - data collator
+    trainer_data_args = get_data_trainer_kwargs(
+        training_data_path=data_args.training_data_path,
+        validation_data_path=data_args.validation_data_path,
+        packing=train_args.packing,
+        response_template=data_args.response_template,
+        max_sequence_length=max_seq_length,
+        tokenizer=tokenizer,
+        dataset_text_field=data_args.dataset_text_field,
+    )
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=formatted_train_dataset,
-        eval_dataset=formatted_validation_dataset,
-        packing=packing,
-        data_collator=data_collator,
+        packing=train_args.packing,
         dataset_text_field=data_args.dataset_text_field,
         args=train_args,
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
+        **trainer_data_args
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
@@ -322,7 +286,6 @@ def main(**kwargs):  # pylint: disable=unused-argument
         additional,
         _,
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-
     logger = logging.get_logger("__main__")
 
     peft_method = additional.peft_method
