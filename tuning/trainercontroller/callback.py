@@ -44,7 +44,7 @@ from tuning.trainercontroller.operations import Operation
 from tuning.trainercontroller.operations import (
     operation_handlers as default_operation_handlers,
 )
-from tuning.utils.evaluator import get_evaluator
+from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
 logger = logging.get_logger(__name__)
 
@@ -217,7 +217,7 @@ class TrainerControllerCallback(TrainerCallback):
             kwargs: List of arguments (key, value)-pairs.
         """
         if event_name in self.control_actions_on_event:
-            evaluator = get_evaluator(metrics=self.metrics)
+            evaluator = RuleEvaluator(metrics=self.metrics)
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
                 try:
@@ -248,6 +248,9 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NotImplementedError(
                         "Rule failed because it uses some unsupported features"
                     ) from ef
+                except MetricUnavailableError as em:
+                    logger.warning("Ignoring the rule because %s", em)
+                    continue
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
                         logger.info(
@@ -324,6 +327,9 @@ class TrainerControllerCallback(TrainerCallback):
             metric_handler = metric_handler_class(
                 name=metric_name, **metric_args, **kwargs
             )
+            # Initialize the metric with a None value so that
+            # the evaluator knows that the metric is unavailable.
+            self.metrics[metric_handler.get_name()] = None
             # Add metric instances to the events.
             for event_name in metric_handler.get_events():
                 if event_name in self.valid_events:

@@ -1,0 +1,10 @@
+controller-metrics:
+  - name: loss
+    class: Loss
+controllers:
+  - name: loss-controller-unavailable-metric
+    triggers:
+      - on_step_end
+    rule: loss < 1.0
+    operations:
+      - hfcontrols.should_training_stop
