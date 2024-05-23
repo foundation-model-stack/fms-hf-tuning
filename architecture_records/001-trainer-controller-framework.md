@@ -107,7 +107,7 @@ controllers:
 ```
 
 We follow the below naming convention for the above trainer controller configuration:
-1. `-` could be used in the case of key names, and name of the metric, operation or controller. This is usually to break multiple words of a name phrase.
+1. `_` should be used in the case of key names, and name of the metric, operation or controller. This is usually to break multiple words of a name phrase.
 1. Python convention for [class name](https://visualgit.readthedocs.io/en/latest/pages/naming_convention.html#classes).
 1. `_` are used for events and control actions.
 

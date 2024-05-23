@@ -23,11 +23,15 @@ import numpy as np
 import pytest
 
 # Local
-from tuning.utils.evaluator import get_evaluator
+from tuning.utils.evaluator import RuleEvaluator
 
 
 def test_mailicious_inputs_to_eval():
-    """Tests the malicious rules"""
+    """Tests the malicious rules
+
+    Each test case has the format:
+    (validation_error: str, expected_rule_is_true: bool, rule: str)
+    """
     rules: list[Tuple[str, bool, str]] = [
         # Valid rules
         ("", False, "flags['is_training'] == False"),
@@ -46,12 +50,17 @@ def test_mailicious_inputs_to_eval():
         ("", False, "(loss*loss)*loss < 1.0"),
         ("", True, "int(''.join(['3', '4'])) < loss"),
         ("", True, "loss < 9**9"),
-        ("", False, "loss < sqrt(xs[0]*xs[0] + xs[1]*xs[1])"),
+        ("", False, "loss < math_sqrt(xs[0]*xs[0] + xs[1]*xs[1])"),
         ("", True, "len(xs) > 2"),
         ("", True, "loss < abs(-100)"),
         ("", True, "loss == flags.aaa.bbb[0].ccc"),
         ("", True, "array3d[0][1][1] == 4"),
         ("", True, "numpyarray[0][1][1] == 4"),
+        ("", True, "unavailablemetric == None"),
+        ("", False, "unavailablemetric != None"),
+        ("", False, "loss < 2.0 if unavailablemetric == None else loss > 0.0"),
+        ("", True, "loss < 2.0 if unavailablemetric != None else loss > 0.0"),
+        ("", True, "False if loss == None else loss > 0.0"),
         (
             "",
             True,
@@ -127,6 +136,177 @@ def test_mailicious_inputs_to_eval():
             True,
             "mymetric2(loss) > loss",
         ),
+        (
+            "'<' not supported between instances of 'NoneType' and 'float'",
+            True,
+            "None < 2.0",
+        ),
+        (
+            "'nonexistentmetric' is not defined for expression 'nonexistentmetric < 3.0'",
+            True,
+            "nonexistentmetric < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric <= 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric == 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric != 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric > 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric >= 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric + unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric - unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric * unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric / unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric // unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            r"(unavailablemetric % unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric ** unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric << unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric >> unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric & unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric ^ unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(unavailablemetric | unavailablemetric) < 2.0",
+        ),
+        # https://docs.python.org/3/reference/datamodel.html#object.__radd__
+        (
+            "unsupported operand type(s) for +: 'NoneType' and 'UnavailableMetric'",
+            True,
+            "(None + unavailablemetric) < 2.0",
+        ),
+        (
+            "unsupported operand type(s) for -: 'NoneType' and 'UnavailableMetric'",
+            True,
+            "(None - unavailablemetric) < 2.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "xs[unavailablemetric] < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "unavailablemetric[0] < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "int(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "float(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "-unavailablemetric < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "+unavailablemetric < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "abs(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "(~unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "round(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "math_trunc(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "math_floor(unavailablemetric) < 3.0",
+        ),
+        (
+            "The metric 'unavailablemetric' is not available",
+            True,
+            "math_ceil(unavailablemetric) < 3.0",
+        ),
     ]
     metrics = {
         "loss": 42.0,
@@ -143,9 +323,10 @@ def test_mailicious_inputs_to_eval():
             ],
         ],
         "numpyarray": (np.arange(8).reshape((2, 2, 2)) + 1),
+        "unavailablemetric": None,
     }
 
-    evaluator = get_evaluator(metrics=metrics)
+    evaluator = RuleEvaluator(metrics=metrics)
 
     for validation_error, expected_rule_is_true, rule in rules:
         rule_parsed = evaluator.parse(expr=rule)
@@ -156,7 +337,7 @@ def test_mailicious_inputs_to_eval():
             )
             assert (
                 actual_rule_is_true == expected_rule_is_true
-            ), "failed to execute the rule"
+            ), f"failed to execute the rule: '{rule}'"
         else:
             with pytest.raises(Exception) as exception_handler:
                 evaluator.eval(
