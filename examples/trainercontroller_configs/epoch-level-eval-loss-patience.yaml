@@ -7,7 +7,7 @@ controller-metrics:
       window-size: 1
 operations:
   - name: hfwithpatience
-    class: HFControlsWithPatience
+    class: HFControls
     arguments:
       patience-threshold: 3
 controllers:

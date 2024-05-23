@@ -248,18 +248,18 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NotImplementedError(
                         "Rule failed because it uses some unsupported features"
                     ) from ef
-                if rule_succeeded:
-                    for operation_action in control_action.operation_actions:
-                        logger.info(
-                            "Taking %s action in %s",
-                            operation_action.action,
-                            control_action.name,
-                        )
-                        operation_action.instance.act(
-                            action=operation_action.action,
-                            event_name=event_name,
-                            **kwargs,
-                        )
+                for operation_action in control_action.operation_actions:
+                    logger.info(
+                        "Taking %s action in %s",
+                        operation_action.action,
+                        control_action.name,
+                    )
+                    operation_action.instance.act(
+                        action=operation_action.action,
+                        event_name=event_name,
+                        rule_outcome=rule_succeeded,
+                        **kwargs,
+                    )
 
     def _actions_on_event(self, event_name: str, **kwargs):
         """Invokes all functions associated with an event.

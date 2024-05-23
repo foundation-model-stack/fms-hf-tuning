@@ -27,39 +27,36 @@ from transformers.utils import logging
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
 logger = logging.get_logger(__name__)
-
+METRICS_KEY = "metrics"
+TRAINING_LOSS_KEY = "loss"
+WINDOW_SIZE = "window-size"
 
 class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
 
-    _METRICS_KEY = "metrics"
-    _TRAINING_LOSS_KEY = "loss"
-    _WINDOW_SIZE = "window-size"
 
-    def __init__(self, **kwargs):
+
+    def __init__(self, window_size, **kwargs):
         """Initializes the metric handler, by registering the event \
             list and arguments with base handler.
 
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        self._window_size = kwargs.get("window-size")
         self._window = {
-            self._TRAINING_LOSS_KEY: deque(),
-            self._METRICS_KEY: deque(),
-            self._WINDOW_SIZE: self._window_size,
+            TRAINING_LOSS_KEY: deque(),
+            METRICS_KEY: deque(),
+            WINDOW_SIZE: window_size,
         }
-        if self._window_size is None:
-            self._window_size = 1
         super().__init__(events=["on_log", "on_evaluate"], **kwargs)
 
     def _add_to_window(self, data_type, data):
         self._window[data_type].append(data)
 
     def _slide_the_window(self, data_type):
-        if len(self._window[data_type]) < self._window_size:
+        if len(self._window[data_type]) < self._window[WINDOW_SIZE]:
             return False
-        if len(self._window[data_type]) == self._window_size:
+        if len(self._window[data_type]) == self._window[WINDOW_SIZE]:
             return True
         self._window[data_type].popleft()
         return True
@@ -83,15 +80,17 @@ class HistoryBasedMetric(MetricHandler):
         Returns:
             Any. The exposed variables are returned here.
         """
-        if self._METRICS_KEY in kwargs:
-            self._add_to_window(self._METRICS_KEY, kwargs[self._METRICS_KEY])
+        if METRICS_KEY in kwargs:
+            self._add_to_window(METRICS_KEY, kwargs[METRICS_KEY])
+            self._slide_the_window(METRICS_KEY)
         else:
             size_of_log_history = len(state.log_history)
             for i in range(size_of_log_history - 1, -1, -1):
                 log = state.log_history[i]
-                if self._TRAINING_LOSS_KEY in log:
+                if TRAINING_LOSS_KEY in log:
                     self._add_to_window(
-                        self._TRAINING_LOSS_KEY, float(log[self._TRAINING_LOSS_KEY])
+                        TRAINING_LOSS_KEY, float(log[TRAINING_LOSS_KEY])
                     )
+                    self._slide_the_window(TRAINING_LOSS_KEY)
                     break
         return self._window
