@@ -49,6 +49,11 @@ class DataArguments:
         default=None,
         metadata={"help": "Response template, separator to train on completions only"},
     )
+    # FIXME: Instructlab
+    pretokenized: bool = field(
+        default=False,
+        metadata={"help": "Data is pretokenized having input_ids and labels"},
+    )
     dataset_text_field: str = field(
         default=None, metadata={"help": "Training dataset text field"}
     )
