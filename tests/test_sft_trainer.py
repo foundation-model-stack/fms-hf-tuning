@@ -348,7 +348,7 @@ def test_malformatted_data():
 def test_empty_data():
     """Ensure that malformatted data explodes due to failure to generate the dataset."""
     data_args = copy.deepcopy(DATA_ARGS)
-    data_args.training_data_path = MALFORMATTED_DATA
+    data_args.training_data_path = EMPTY_DATA
 
     with pytest.raises(DatasetGenerationError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
