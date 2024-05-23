@@ -80,7 +80,7 @@ python tuning/sft_trainer.py  \
 --per_device_train_batch_size 4  \
 --per_device_eval_batch_size 4  \
 --gradient_accumulation_steps 4  \
---evaluation_strategy "no"  \
+--eval_strategy "no"  \
 --save_strategy "epoch"  \
 --learning_rate 1e-5  \
 --weight_decay 0.  \
@@ -125,7 +125,7 @@ tuning/sft_trainer.py \
 --per_device_train_batch_size 4 \
 --per_device_eval_batch_size 4 \
 --gradient_accumulation_steps 4 \
---evaluation_strategy "no" \
+--eval_strategy "no" \
 --save_strategy "epoch" \
 --learning_rate 1e-5 \
 --weight_decay 0. \
@@ -279,7 +279,7 @@ tuning/sft_trainer.py  \
 --per_device_train_batch_size 1  \
 --per_device_eval_batch_size 1  \
 --gradient_accumulation_steps 1  \
---evaluation_strategy "no"  \
+--eval_strategy "no"  \
 --save_strategy "epoch"  \
 --learning_rate 1e-5  \
 --weight_decay 0.  \
@@ -313,7 +313,7 @@ tuning/sft_trainer.py  \
 --per_device_train_batch_size 1  \
 --per_device_eval_batch_size 1  \
 --gradient_accumulation_steps 1  \
---evaluation_strategy "no"  \
+--eval_strategy "no"  \
 --save_strategy "epoch"  \
 --learning_rate 1e-5  \
 --weight_decay 0.  \
