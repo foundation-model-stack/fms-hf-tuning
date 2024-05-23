@@ -120,7 +120,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
         data_formatting_args.dataset_text_field = None
-        data_formatting_args.data_formatter_template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        data_formatting_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -202,6 +202,19 @@ def test_run_causallm_pt_with_validation():
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
 
+def test_run_causallm_pt_with_validation_data_formatting():
+    """Check if we can bootstrap and peft tune causallm models with validation dataset"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        _validate_training(tempdir, check_eval=True)
 
 ############################# Lora Tests #############################
 
@@ -367,7 +380,7 @@ def test_invalid_dataset_text_field():
 def test_invalid_dataset_text_field_and_formatter_template():
     """Only one of dataset_text_field or formatter can be supplied"""
     data_args = copy.deepcopy(DATA_ARGS)
-    data_args.data_formatter_template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
     
     with pytest.raises(ValueError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
@@ -376,7 +389,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
 def test_invalid_formatter_template():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.dataset_text_field = None
-    data_args.data_formatter_template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
+    data_args.data_formatter_template = "### Text: {{not found}} \n\n### Label: {{text_label}}"
 
     with pytest.raises(KeyError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
@@ -428,13 +441,15 @@ def test_run_causallm_lora_with_invalid_modules():
 
 
 ### Direct validation tests based on whether or not packing is enabled
-def test_no_packing_needs_dataset_text_field():
+def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
     """Ensure we need to set the dataset text field if packing is False"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
+        # One of dataset_text_field or data_formatter_template should be set
         data_args.dataset_text_field = None
+        data_args.data_formatter_template = None
 
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
