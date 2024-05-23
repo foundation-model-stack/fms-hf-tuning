@@ -4,7 +4,6 @@ from typing import Type
 # Local
 from .hfcontrols import HFControls
 from .operation import Operation
-from .patience_hfcontrols import HFControlsWithPatience
 
 # List of operation handlers
 operation_handlers = []
@@ -21,4 +20,3 @@ def register(cl: Type):
 
 # Register the default operation handlers in this package here
 register(HFControls)
-register(HFControlsWithPatience)
