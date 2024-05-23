@@ -31,10 +31,9 @@ METRICS_KEY = "metrics"
 TRAINING_LOSS_KEY = "loss"
 WINDOW_SIZE = "window-size"
 
+
 class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
-
-
 
     def __init__(self, window_size, **kwargs):
         """Initializes the metric handler, by registering the event \

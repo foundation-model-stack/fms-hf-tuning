@@ -13,10 +13,10 @@ from .operation import Operation
 logger = logging.get_logger(__name__)
 NoPatience = -1
 
+
 class HFControls(Operation):
     """Implements the control actions for the HuggingFace controls in
     transformers.TrainerControl class."""
-
 
     def __init__(self, **kwargs):
         """Initializes the HuggingFace controls. In this init, the fields with `should_` of the
@@ -55,9 +55,11 @@ class HFControls(Operation):
                         self._patience_threshold,
                     )
                     return
-                logger.info("Patience counter %d exceeded threshold %d", 
-                            self._patience_counter,
-                            self._patience_threshold)
+                logger.info(
+                    "Patience counter %d exceeded threshold %d",
+                    self._patience_counter,
+                    self._patience_threshold,
+                )
         elif rule_outcome:
             logger.debug("Arguments passed to control_action: %s", repr(kwargs))
             frame_info = inspect.currentframe().f_back
