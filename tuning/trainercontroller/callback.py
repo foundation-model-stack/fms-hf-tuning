@@ -273,6 +273,7 @@ class TrainerControllerCallback(TrainerCallback):
                         operation_action.instance.act(
                             action=operation_action.action,
                             event_name=event_name,
+                            tc_metrics=self.metrics,
                             **kwargs,
                         )
 
@@ -449,6 +450,20 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
         self._actions_on_event(event_name="on_step_end", **kwargs)
+
+    def on_save(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_save", **kwargs)
 
     def on_epoch_begin(
         self,
