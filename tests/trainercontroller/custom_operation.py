@@ -15,13 +15,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
-# Standard
-from dataclasses import dataclass
-from typing import Any
 
 # Third Party
-from transformers import TrainerControl, TrainerState
-import pytest
+from transformers import TrainerControl
 
 # Local
 from tuning.trainercontroller.operations import Operation
@@ -30,14 +26,14 @@ from tuning.trainercontroller.operations import Operation
 class CustomOperation(Operation):
     """Implements a custom operation for testing"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **_):
         """Initializes the custom operation class.
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
         super().__init__()
 
-    def should_perform_action_xyz(self, control: TrainerControl, **kwargs):
+    def should_perform_action_xyz(self, control: TrainerControl, **_):
         """This method performs a set training stop flag action.
 
         Args:

@@ -50,6 +50,9 @@ TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML = os.path.join(
 TRAINER_CONFIG_TEST_INVALID_METRIC_YAML = os.path.join(
     _DATA_DIR, "loss_invalid_metric.yaml"
 )
+TRAINER_CONFIG_TEST_UNAVAILABLE_METRIC_YAML = os.path.join(
+    _DATA_DIR, "loss_unavailable_metric.yaml"
+)
 TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML = os.path.join(
     _DATA_DIR, "loss_custom_metric.yaml"
 )
