@@ -29,12 +29,10 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
+from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
-
-# First Party
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 
 # Local
 from tuning.config import configs, peft_config
@@ -229,8 +227,7 @@ def train(
         packing = False
 
     # Currently we support formatted datasets with single sequence instances.
-    if not (data_args.dataset_text_field or
-        data_args.data_formatter_template ):
+    if not (data_args.dataset_text_field or data_args.data_formatter_template):
         raise ValueError(
             "Dataset_text_field and data_formatter_template are None. \
                             One of them needs to be set for training"
@@ -254,7 +251,10 @@ def train(
 
     json_dataset = datasets.load_dataset("json", data_files=data_files)
     if data_args.data_formatter_template:
-        formatted_train_dataset, data_args.dataset_text_field = apply_custom_formatting_template(
+        (
+            formatted_train_dataset,
+            data_args.dataset_text_field,
+        ) = apply_custom_formatting_template(
             json_dataset["train"],
             data_args.data_formatter_template,
             tokenizer.eos_token,

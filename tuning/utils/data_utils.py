@@ -18,7 +18,6 @@ def apply_custom_formatting_template(dataset, template, eos_token=""):
     template += eos_token
 
     def formatter(element):
-
         def replace_text(match_obj):
             captured_groups = match_obj.groups()
             if len(captured_groups) != 1:
@@ -32,10 +31,6 @@ def apply_custom_formatting_template(dataset, template, eos_token=""):
 
             return element[index_object]
 
-        return {
-            formatted_dataset_field: re.sub(
-                r"{{(.+)}}", replace_text, template
-            )
-        }
+        return {formatted_dataset_field: re.sub(r"{{(.+)}}", replace_text, template)}
 
     return dataset.map(formatter), formatted_dataset_field
