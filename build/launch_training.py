@@ -34,7 +34,6 @@ import logging
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
 from tuning.utils.merge_model_utils import create_merged_model
 from tuning.config.tracker_configs import TrackerConfigFactory
 from build.utils import (
@@ -182,7 +181,6 @@ def main():
                 sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         # copy over any loss logs
-<<<<<<< HEAD
         try:
             train_logs_filepath = os.path.join(
                 training_args.output_dir,
@@ -202,13 +200,6 @@ def main():
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     return 0
-=======
-        train_logs_filepath = os.path.join(
-            training_args.output_dir, FileLoggingTrackerConfig.training_logs_filename
-        )
-        if os.path.exists(train_logs_filepath):
-            shutil.copy(train_logs_filepath, original_output_dir)
->>>>>>> 99d68b9 (Fix training_logs_filename import error)
 
 
 if __name__ == "__main__":
