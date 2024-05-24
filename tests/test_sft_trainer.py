@@ -29,7 +29,12 @@ import transformers
 
 # First Party
 from scripts.run_inference import TunedCausalLM
-from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA, TWITTER_COMPLAINTS_JSON_FORMAT
+from tests.data import (
+    EMPTY_DATA,
+    MALFORMATTED_DATA,
+    TWITTER_COMPLAINTS_DATA,
+    TWITTER_COMPLAINTS_JSON_FORMAT,
+)
 
 # Local
 from tuning import sft_trainer
@@ -121,11 +126,13 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
         data_formatting_args.dataset_text_field = None
-        data_formatting_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        data_formatting_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-  
+
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
 
         # validate peft tuning configs
@@ -143,7 +150,8 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         )
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
-    
+
+
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -152,7 +160,9 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
         data_args.dataset_text_field = None
-        data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        data_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
@@ -171,6 +181,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         )
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
 
 def test_run_causallm_pt_init_text():
     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
@@ -231,6 +242,7 @@ def test_run_causallm_pt_with_validation():
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
 
+
 def test_run_causallm_pt_with_validation_data_formatting():
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -240,10 +252,13 @@ def test_run_causallm_pt_with_validation_data_formatting():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
         data_args.dataset_text_field = None
-        data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        data_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
+
 
 ############################# Lora Tests #############################
 
@@ -405,23 +420,30 @@ def test_invalid_dataset_text_field():
     with pytest.raises(KeyError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
+
 ### Tests that giving dataset_text_field as well as formatter template gives error
 def test_invalid_dataset_text_field_and_formatter_template():
     """Only one of dataset_text_field or formatter can be supplied"""
     data_args = copy.deepcopy(DATA_ARGS)
-    data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
-    
+    data_args.data_formatter_template = (
+        "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+    )
+
     with pytest.raises(ValueError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+
 
 ### Tests passing formatter with invalid keys gives error
 def test_invalid_formatter_template():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.dataset_text_field = None
-    data_args.data_formatter_template = "### Text: {{not found}} \n\n### Label: {{text_label}}"
+    data_args.data_formatter_template = (
+        "### Text: {{not found}} \n\n### Label: {{text_label}}"
+    )
 
     with pytest.raises(KeyError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
 def test_malformatted_data():
