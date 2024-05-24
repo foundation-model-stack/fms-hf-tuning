@@ -29,12 +29,10 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
+from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
-
-# First Party
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 
 # Local
 from tuning.config import configs, peft_config
