@@ -41,23 +41,13 @@ For example, the below config is used for running with two GPUs and FSDP for fin
     },
     "model_name_or_path": "/llama/13B",
     "training_data_path": "/data/twitter_complaints.json",
-    "output_dir": "/output/llama-7b-pt-multigpu",
+    "output_dir": "/output/llama-13b-ft-multigpu",
     "num_train_epochs": 5.0,
     "per_device_train_batch_size": 4,
-    "per_device_eval_batch_size": 4,
-    "gradient_accumulation_steps": 4,
-    "save_strategy": "epoch",
-    "learning_rate": 0.03,
-    "weight_decay": 0.0,
-    "lr_scheduler_type": "cosine",
-    "logging_steps": 1.0,
-    "packing": false,
-    "include_tokens_per_second": true,
+    "learning_rate": 1e-5,
     "response_template": "\n### Label:",
     "dataset_text_field": "output",
     "use_flash_attn": true,
-    "torch_dtype": "bfloat16",
-    "tokenizer_name_or_path": "/llama/13B"
 }
 ```
 
@@ -107,23 +97,13 @@ config.json: |
         },
         "model_name_or_path": "/llama/13B",
         "training_data_path": "/data/twitter_complaints.json",
-        "output_dir": "/output/llama-7b-pt-multigpu",
+        "output_dir": "/output/llama-13b-ft-multigpu",
         "num_train_epochs": 5.0,
         "per_device_train_batch_size": 4,
-        "per_device_eval_batch_size": 4,
-        "gradient_accumulation_steps": 4,
-        "save_strategy": "epoch",
-        "learning_rate": 0.03,
-        "weight_decay": 0.0,
-        "lr_scheduler_type": "cosine",
-        "logging_steps": 1.0,
-        "packing": false,
-        "include_tokens_per_second": true,
+        "learning_rate": 1e-5,
         "response_template": "\n### Label:",
         "dataset_text_field": "output",
         "use_flash_attn": true,
-        "torch_dtype": "bfloat16",
-        "tokenizer_name_or_path": "/llama/13B"
     }
 ---
 apiVersion: v1
@@ -147,6 +127,7 @@ containers:
         requests:
             memory: 80Gi
             cpu: "5"
+            ephemeral-storage: 1600Gi
     volumeMounts:
         - mountPath: /data/input
         name: input-data

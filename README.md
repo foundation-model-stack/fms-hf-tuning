@@ -78,20 +78,12 @@ python tuning/sft_trainer.py  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 4  \
---per_device_eval_batch_size 4  \
 --gradient_accumulation_steps 4  \
---eval_strategy "no"  \
---save_strategy "epoch"  \
 --learning_rate 1e-5  \
---weight_decay 0.  \
---warmup_ratio 0.03  \
---lr_scheduler_type "cosine"  \
---logging_steps 1  \
---include_tokens_per_second  \
---packing False  \
 --response_template "\n### Response:"  \
---dataset_text_field "output" 
+--dataset_text_field "output"
 
+# Above example will run fine tuning and evaluation with the given datasets and model.
 ```
 
 ### Multiple GPUs with FSDP
@@ -123,29 +115,20 @@ tuning/sft_trainer.py \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 \
---per_device_eval_batch_size 4 \
 --gradient_accumulation_steps 4 \
---eval_strategy "no" \
---save_strategy "epoch" \
 --learning_rate 1e-5 \
---weight_decay 0. \
---warmup_ratio 0.03 \
---lr_scheduler_type "cosine" \
---logging_steps 1 \
---include_tokens_per_second \
---packing False \
 --response_template "\n### Response:" \
 --dataset_text_field "output"
 ```
 
-To summarize you can pick either python for singleGPU jobs or use accelerate launch for multiGPU jobs. The following tuning techniques can be applied:
+To summarize you can pick either python for single-GPU jobs or use accelerate launch for multi-GPU jobs. The following tuning techniques can be applied:
 
-## Tuning Techniques : 
+## Tuning Techniques:
 
 ### LoRA Tuning Example
 
 Set peft_method = "lora". You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
-```bash
+```py
 # Args you can pass
 r: int =8 
 lora_alpha: int = 32
@@ -159,9 +142,8 @@ target_modules: List[str] = field(
             "modules except for the output layer."
         },
     )
-  bias = "none"
-  lora_dropout: float = 0.05
-
+bias = "none"
+lora_dropout: float = 0.05
 ```
 Example command to run:
 
@@ -172,23 +154,10 @@ python tuning/sft_trainer.py \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 40 \
 --per_device_train_batch_size 4 \
---per_device_eval_batch_size 4 \
---gradient_accumulation_steps 4 \
---save_strategy "epoch" \
---learning_rate 1e-4 \
---weight_decay 0. \
---warmup_ratio 0.03 \
---lr_scheduler_type "cosine" \
---logging_steps 1 \
---include_tokens_per_second \
---packing False \
+---learning_rate 1e-4 \
 --response_template "\n### Label:" \
 --dataset_text_field "output" \
---use_flash_attn False \
---tokenizer_name_or_path $MODEL_PATH \
---torch_dtype float32 \
 --peft_method "lora" \
---logging_strategy "epoch" \
 --r 8 \
 --lora_dropout 0.05 \
 --lora_alpha 16
@@ -249,81 +218,56 @@ For example for LLaMA model the modules look like:
 
 You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
 
-### Prompt Tuning :
+### Prompt Tuning:
 
 Specify peft_method to 'pt' . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39). 
-```bash
-    # prompt_tuning_init can be either "TEXT" or "RANDOM"
-    prompt_tuning_init: str = "TEXT"
-    num_virtual_tokens: int = 8
-    # prompt_tuning_init_text only applicable if prompt_tuning_init= "TEXT"
-    prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
-    tokenizer_name_or_path: str = "llama-7b-hf"
+```py
+# prompt_tuning_init can be either "TEXT" or "RANDOM"
+prompt_tuning_init: str = "TEXT"
+num_virtual_tokens: int = 8
+# prompt_tuning_init_text only applicable if prompt_tuning_init= "TEXT"
+prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
+tokenizer_name_or_path: str = "llama-7b-hf"
 ```
 
 Example command you can run:  
 
 ```bash
-
-accelerate launch \
---main_process_port $MASTER_PORT \
---config_file fixtures/accelerate_fsdp_defaults.yaml \
-tuning/sft_trainer.py  \
+python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
 --training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
---peft_method pt \
---torch_dtype bfloat16 \
---tokenizer_name_or_path $MODEL_PATH  \
 --num_train_epochs 5  \
 --per_device_train_batch_size 1  \
---per_device_eval_batch_size 1  \
---gradient_accumulation_steps 1  \
---eval_strategy "no"  \
---save_strategy "epoch"  \
---learning_rate 1e-5  \
---weight_decay 0.  \
---warmup_ratio 0.03  \
---lr_scheduler_type "cosine"  \
---logging_steps 1  \
---include_tokens_per_second  \
---packing False  \
+--learning_rate 0.03  \
 --response_template "\n### Label:"  \
---dataset_text_field "output" 
+--dataset_text_field "output" \
+--peft_method pt \
+--tokenizer_name_or_path $MODEL_PATH
+--prompt_tuning_init "RANDOM" \
+--prompt_tuning_init_text "From the following input, identify target sentiment of following types: neutral, negative, positive"
 ```
 
-### Fine Tuning :
+### Fine Tuning:
 
-Set peft_method = 'None'
+Set `peft_method = 'None'` or do not provide `peft_method` flag.
 
-Full fine tuning needs more compute resources, so it is advised to use the MultiGPU method
+Full fine tuning needs more compute resources, so it is advised to use the MultiGPU method. Example command:
+
 ```bash
-
 accelerate launch \
---main_process_port $MASTER_PORT \
+--num_processes=4
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
 --training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
---peft_method "None" \
---torch_dtype bfloat16 \
---tokenizer_name_or_path $MODEL_PATH  \
 --num_train_epochs 5  \
---per_device_train_batch_size 1  \
---per_device_eval_batch_size 1  \
---gradient_accumulation_steps 1  \
---eval_strategy "no"  \
---save_strategy "epoch"  \
+--per_device_train_batch_size 4  \
 --learning_rate 1e-5  \
---weight_decay 0.  \
---warmup_ratio 0.03  \
---lr_scheduler_type "cosine"  \
---logging_steps 1  \
---include_tokens_per_second  \
---packing False  \
 --response_template "\n### Label:"  \
---dataset_text_field "output" 
+--dataset_text_field "output" \
+--peft_method "None"
 ```
 
 ## Inference
