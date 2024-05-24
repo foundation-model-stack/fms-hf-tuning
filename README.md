@@ -400,3 +400,4 @@ The above runs several tasks with `hendrycksTest-*` being MMLU.
 
 [Prompt Tuning on Twitter Complaints](examples/prompt_tuning_twitter_complaints/README.md)
 
+A good simple example can be found [here](examples/kfto-kueue-sft-trainer.yaml) which launches a Kubernetes-native `PyTorchJob` using the [Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) with [Kueue](https://github.com/kubernetes-sigs/kueue) for the queue management of tuning jobs.
