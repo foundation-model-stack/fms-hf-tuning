@@ -43,7 +43,7 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     training_data_path: str = field(
-        default=None, metadata={"help": "Path to the training data in JSONL format."}
+        default=None, metadata={"help": "Path to the training data in JSON/JSONL format."}
     )
     response_template: str = field(
         default=None,
@@ -54,7 +54,7 @@ class DataArguments:
                                         Either the dataset_text_field or data_formatter_template need to be supplied."}
     )
     validation_data_path: str = field(
-        default=None, metadata={"help": "Path to the validation data in JSONL format."}
+        default=None, metadata={"help": "Path to the validation data in JSON/JSONL format."}
     )
     data_formatter_template: str = field(
         default=None, metadata={"help": "formatter template to format a single sequence from each instance in JSONL files. \

@@ -29,7 +29,7 @@ import transformers
 
 # First Party
 from scripts.run_inference import TunedCausalLM
-from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA
+from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA, TWITTER_COMPLAINTS_JSON_FORMAT
 
 # Local
 from tuning import sft_trainer
@@ -113,6 +113,7 @@ def test_run_causallm_pt_and_inference():
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
+
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -126,6 +127,34 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         train_args.output_dir = tempdir
   
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
+
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+    
+def test_run_causallm_pt_and_inference_JSON_file_formatter():
+    """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
         # validate peft tuning configs
         _validate_training(tempdir)
