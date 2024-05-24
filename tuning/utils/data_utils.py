@@ -1,9 +1,6 @@
 # Standard
 import re
 
-# Third Party
-from datasets import Dataset
-
 
 def formatting_function(dataset, template, eos_token=""):
     """Function to format datasets with Alpaca style / other templates.

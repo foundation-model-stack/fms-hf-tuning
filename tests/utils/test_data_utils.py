@@ -30,7 +30,9 @@ def test_formatting_function():
     json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
     template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
     # First response from the data file that is read.
-    expected_response = "### Input: @HMRCcustomers No this is my first job \n\n ### Response: no complaint"
+    expected_response = (
+        "### Input: No this is my first job \n\n ### Response: no complaint"
+    )
     formatted_dataset, dataset_text_field = data_utils.formatting_function(
         json_dataset, template
     )
@@ -43,7 +45,9 @@ def test_formatting_function_adds_eos_token():
     json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
     template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
     # First response from the data file that is read.
-    expected_response = "### Input: @HMRCcustomers No this is my first job \n\n ### Response: no complaintEOS"
+    expected_response = (
+        "### Input: No this is my first job \n\n ### Response: no complaintEOS"
+    )
     formatted_dataset, dataset_text_field = data_utils.formatting_function(
         json_dataset, template, "EOS"
     )

@@ -54,7 +54,8 @@ class DataArguments:
         default=None,
         metadata={
             "help": "Training dataset text field containing single sequence. \
-                                        Either the dataset_text_field or data_formatter_template need to be supplied."
+                    Either the dataset_text_field \
+                    or data_formatter_template need to be supplied."
         },
     )
     validation_data_path: str = field(
@@ -64,9 +65,11 @@ class DataArguments:
     data_formatter_template: str = field(
         default=None,
         metadata={
-            "help": "formatter template to format a single sequence from each instance in JSONL files. \
-                                        Keys of JSON can be referred to as {{key}} in template. Either the dataset_text_field \
-                                        or data_formatter_template needs to be supplied."
+            "help": "formatter template to format a single sequence \
+                         from each instance in JSONL files. \
+                         Keys of JSON can be referred to as {{key}} in template. \
+                         Either the dataset_text_field \
+                         or data_formatter_template needs to be supplied."
         },
     )
 
