@@ -29,10 +29,12 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
 import transformers
+
+# First Party
+from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 
 # Local
 from tuning.config import configs, peft_config
@@ -46,7 +48,7 @@ from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.utils.data_utils import formatting_function
+from tuning.utils.data_utils import apply_custom_formatting_template
 
 
 def train(
@@ -227,9 +229,8 @@ def train(
         packing = False
 
     # Currently we support formatted datasets with single sequence instances.
-    if (data_args.dataset_text_field is None) and (
-        data_args.data_formatter_template is None
-    ):
+    if not (data_args.dataset_text_field or
+        data_args.data_formatter_template ):
         raise ValueError(
             "Dataset_text_field and data_formatter_template are None. \
                             One of them needs to be set for training"
@@ -253,7 +254,7 @@ def train(
 
     json_dataset = datasets.load_dataset("json", data_files=data_files)
     if data_args.data_formatter_template:
-        formatted_train_dataset, data_args.dataset_text_field = formatting_function(
+        formatted_train_dataset, data_args.dataset_text_field = apply_custom_formatting_template(
             json_dataset["train"],
             data_args.data_formatter_template,
             tokenizer.eos_token,
@@ -268,7 +269,7 @@ def train(
             (
                 formatted_validation_dataset,
                 data_args.dataset_text_field,
-            ) = formatting_function(
+            ) = apply_custom_formatting_template(
                 json_dataset["validation"],
                 data_args.data_formatter_template,
                 tokenizer.eos_token,

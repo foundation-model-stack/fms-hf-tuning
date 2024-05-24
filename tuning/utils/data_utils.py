@@ -2,12 +2,14 @@
 import re
 
 
-def formatting_function(dataset, template, eos_token=""):
+def apply_custom_formatting_template(dataset, template, eos_token=""):
     """Function to format datasets with Alpaca style / other templates.
     Args:
         dataset: the HF Dataset element loaded from a JSON or DatasetDict object.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}
+        eos_token: string EOS token to be appended while formatting data to a single sequence.
+            Defaults to empty
     Returns:
         Formatted HF Dataset, dataset_field name that contains formatted data.
     """
@@ -16,13 +18,12 @@ def formatting_function(dataset, template, eos_token=""):
     template += eos_token
 
     def formatter(element):
-        nonlocal template
 
         def replace_text(match_obj):
             captured_groups = match_obj.groups()
             if len(captured_groups) != 1:
                 raise ValueError(
-                    "Unexpectedly captured multiple groups in verbalizer rendering"
+                    "Unexpectedly captured multiple groups in template formatting"
                 )
 
             index_object = captured_groups[0]
@@ -33,7 +34,7 @@ def formatting_function(dataset, template, eos_token=""):
 
         return {
             formatted_dataset_field: re.sub(
-                r"{{([_a-z\sA-Z0-9]+)}}", replace_text, template
+                r"{{(.+)}}", replace_text, template
             )
         }
 
