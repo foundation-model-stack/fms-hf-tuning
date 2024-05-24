@@ -26,7 +26,8 @@ pip install -e ".[aim]"
 ## Data format
 We support two data formats:
 
-1. Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
+1. #### Pre-process the JSON/JSONL dataset
+ Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
 PROMPT_DICT = {
@@ -60,19 +61,21 @@ The same way can be applied to any dataset, with more info can be found [here](h
 
 Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
 
-2. Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.
+2.  #### Format JSON/JSONL on the fly
+   Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
 
 Example: Train.json
 `[{ "input" : <text>,
     "output" : <text>,
   },
  ...
-]`
+]`  
+data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
 
-data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`
-Formatting will happen pn the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
+Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
-In conclusion, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer. 
+
+##### In conclusion, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer. 
 
 ## Supported Models
 
@@ -90,6 +93,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 # MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
 # TRAIN_DATA_PATH=twitter_complaints.json # Path to the dataset
+                  # contains data in single sequence {"output": "### Input: text \n\n### Response: text"}
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 python tuning/sft_trainer.py  \
