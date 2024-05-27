@@ -70,7 +70,13 @@ def _setup_data() -> InputData:
             ],
             epoch=0.6,
         ),
-        metrics=[{"eval_loss": 2.2},{"eval_loss": 2.1},{"eval_loss": 2.3}, {"eval_loss": 2.4}, {"eval_loss": 2.5}],
+        metrics=[
+            {"eval_loss": 2.2},
+            {"eval_loss": 2.1},
+            {"eval_loss": 2.3},
+            {"eval_loss": 2.4},
+            {"eval_loss": 2.5},
+        ],
     )
 
 
