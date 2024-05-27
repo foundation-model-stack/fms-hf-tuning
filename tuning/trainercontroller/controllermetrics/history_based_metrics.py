@@ -42,7 +42,6 @@ class HistoryBasedMetric(MetricHandler):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        logger.warning(f"Window size used by history-based metric: {window_size}")
         self._window = {
             TRAINING_LOSS_KEY: deque(),
             METRICS_KEY: deque(),
