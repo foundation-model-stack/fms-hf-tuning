@@ -49,19 +49,19 @@ class HFControls(Operation):
             else:
                 self._patience_counter += 1
                 if self._patience_counter <= self._patience_threshold:
-                    logger.info(
+                    logger.warning(
                         "Patience counter %d is within patience threshold of %d",
                         self._patience_counter,
                         self._patience_threshold,
                     )
                     return
-                logger.info(
+                logger.warning(
                     "Patience counter %d exceeded threshold %d",
                     self._patience_counter,
                     self._patience_threshold,
                 )
-        elif rule_outcome:
-            logger.debug("Arguments passed to control_action: %s", repr(kwargs))
+        if rule_outcome:
+            logger.warning("Arguments passed to control_action: %s", repr(kwargs))
             frame_info = inspect.currentframe().f_back
             arg_values = inspect.getargvalues(frame_info)
             setattr(control, arg_values.locals["action"], True)

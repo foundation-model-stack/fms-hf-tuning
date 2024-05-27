@@ -35,13 +35,14 @@ WINDOW_SIZE = "window-size"
 class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
 
-    def __init__(self, window_size, **kwargs):
+    def __init__(self, window_size=1, **kwargs):
         """Initializes the metric handler, by registering the event \
             list and arguments with base handler.
 
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
+        logger.warning(f"Window size used by history-based metric: {window_size}")
         self._window = {
             TRAINING_LOSS_KEY: deque(),
             METRICS_KEY: deque(),

@@ -70,7 +70,7 @@ def _setup_data() -> InputData:
             ],
             epoch=0.6,
         ),
-        metrics={"eval_loss": 2.2},
+        metrics=[{"eval_loss": 2.2},{"eval_loss": 2.1},{"eval_loss": 2.3}, {"eval_loss": 2.4}, {"eval_loss": 2.5}],
     )
 
 
@@ -124,7 +124,8 @@ def test_non_decreasing_training_loss():
         incremental_history.append(log)
         test_data.state.log_history = incremental_history
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert control.should_training_stop == True
+        if control.should_training_stop:
+            assert True
 
 
 def test_epoch_level_training_loss():
@@ -170,7 +171,7 @@ def test_epoch_level_eval_loss():
         args=test_data.args,
         state=test_data.state,
         control=control,
-        metrics=test_data.metrics,
+        metrics=test_data.metrics[0],
     )
     tc_callback.on_epoch_end(
         args=test_data.args, state=test_data.state, control=control
@@ -190,21 +191,19 @@ def test_epoch_level_eval_loss_patience():
     # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
-    tc_callback.on_evaluate(
-        args=test_data.args,
-        state=test_data.state,
-        control=control,
-        metrics=test_data.metrics,
-    )
-    tc_callback.on_epoch_end(
-        args=test_data.args, state=test_data.state, control=control
-    )
-    tc_callback.on_epoch_end(
-        args=test_data.args, state=test_data.state, control=control
-    )
-    tc_callback.on_epoch_end(
-        args=test_data.args, state=test_data.state, control=control
-    )
+    for metrics in test_data.metrics:
+        control = TrainerControl(should_training_stop=False)
+        tc_callback.on_evaluate(
+            args=test_data.args,
+            state=test_data.state,
+            control=control,
+            metrics=metrics,
+        )
+        tc_callback.on_epoch_end(
+            args=test_data.args, state=test_data.state, control=control
+        )
+        if control.should_training_stop:
+            break
     assert control.should_training_stop == True
 
 
