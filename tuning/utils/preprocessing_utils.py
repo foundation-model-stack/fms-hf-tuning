@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Standard
+from typing import Any, Callable, Dict, Optional
 import json
 
 # Third Party
@@ -28,16 +29,37 @@ def get_data_trainer_kwargs(
     training_data_path: str,
     validation_data_path: str,
     packing: bool,
-    response_template,
-    max_sequence_length,
-    tokenizer,
-    dataset_text_field,
-):
+    response_template: Optional[str],
+    max_sequence_length: int,
+    tokenizer: AutoTokenizer,
+    dataset_text_field: Optional[str],
+) -> Dict[str, Any]:
     """Get trainer args related to data / processing. At the moment, this consists of:
         - the training dataset
         - the evaluation dataset
         - the data collator
+        - Maybe a formatting a function [only for a special case for validation]
     The result can be kwarg expanded into the trainer initialization.
+
+    Args:
+        training_data_path: str
+            Path to the training data.
+        validation_data_path: str
+            Path to the validation data.
+        packing: bool
+            Whether or not we should apply packing or not.
+        response_template: Optional[str]
+            Response template to be used for formatting by TRL.
+        max_sequence_length: int
+            Max sequence length to be used for sequence tokenization.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+        dataset_text_field: Optional[str]
+            Dataset text field fto be used for formatting by TRL.
+
+    Returns:
+        Dict[str, Any]
+            Data related kwargs to be used by the SFT Trainer.
     """
     data_collator = get_data_collator(
         packing, dataset_text_field, response_template, max_sequence_length, tokenizer
@@ -80,8 +102,31 @@ def get_data_trainer_kwargs(
 
 
 def get_data_collator(
-    packing, dataset_text_field, response_template, max_sequence_length, tokenizer
-):
+    packing: bool,
+    dataset_text_field: Optional[str],
+    response_template: Optional[str],
+    max_sequence_length: int,
+    tokenizer: AutoTokenizer,
+) -> Callable:
+    """Create and return the the appropriate collator type based on the configuration for packing,
+    response_template, and dataset_text_field.
+
+    Args:
+        packing: bool
+            Whether or not we should apply packing or not.
+        dataset_text_field: Optional[str]
+            Dataset text field fto be used for formatting by TRL.
+        response_template: Optional[str]
+            Response template to be used for formatting by TRL.
+        max_sequence_length: int
+            Max sequence length to be used for sequence tokenization.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+
+    Returns:
+        Callable
+            Callable collator to be leveraged by the trainer.
+    """
     if not packing:
         if dataset_text_field is None and response_template is None:
             # Use the seq2seq data collator; note that this automatically pads labels with -100
@@ -110,14 +155,30 @@ def get_data_collator(
         )
 
 
-def get_formatted_dataset(data_path: str, dataset_text_field, tokenizer):
+def get_formatted_dataset(
+    data_path: str, dataset_text_field: str, tokenizer: AutoTokenizer
+) -> Dataset:
+    """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
+
+    Args:
+        data_path: str
+            Path to the file to be loaded.
+        dataset_text_field: str
+            Dataset text field fto be used for formatting by TRL.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+
+    Returns:
+        Dataset
+            HF Dataset with formatted [str] data.
+    """
     format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
         f"{dataset_text_field}": example[f"{dataset_text_field}"] + tokenizer.eos_token
     }
     json_dataset = datasets.load_dataset("json", data_files=data_path)
     return json_dataset.map(format_dataset)[
         "train"
-    ]  # HACK - just do both datasets separately
+    ]  # HACK - for now, we just do both datasets separately; train is the default split
 
 
 def get_preprocessed_dataset(
@@ -126,7 +187,25 @@ def get_preprocessed_dataset(
     max_sequence_length: int,
     input_field_name: str,
     output_field_name: str,
-):
+) -> Dataset:
+    """Loads the dataset and applies the tokenizer + custom masking logic.
+
+    Args:
+        data_path: str
+            Path to the file to be loaded.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+        max_sequence_length: int
+            Max sequence length to be used for sequence tokenization.
+        input_field_name: str
+            Name of the input field in the data.
+        output_field_name: str
+            Name of the output field in the data.
+
+    Returns:
+        Dataset
+            HF Dataset with the pretokenized data.
+    """
     dataset = load_hf_dataset_from_jsonl_file(
         data_path, input_field_name, output_field_name
     )
@@ -144,8 +223,22 @@ def get_preprocessed_dataset(
 
 ### Utils for loading the data from disk in supported formats [currently only jsonl]
 def load_hf_dataset_from_jsonl_file(
-    data_path, input_field_name: str, output_field_name: str
-):
+    data_path: str, input_field_name: str, output_field_name: str
+) -> Dataset:
+    """Loads the huggingface datase as a generator.
+
+    Args:
+        data_path: str
+            Path to the file to be loaded.
+        input_field_name: str
+            Name of the input field in the data.
+        output_field_name: str
+            Name of the output field in the data.
+
+    Returns:
+        Dataset
+            HF Dataset with the data to be tokenized.
+    """
     if input_field_name == output_field_name:
         raise ValueError("Input field name and output field name should not match!")
 
@@ -163,6 +256,18 @@ def load_hf_dataset_from_jsonl_file(
 
 ### Utils for custom masking / manipulating input / output strs, etc
 def combine_sequence(input_element: str, output_element: str):
+    """Combines / concatenates input & output element.
+
+    Args:
+        input_element: str
+            Input component of the combined sequence.
+        output_element: str
+            Output component of the combined sequence.
+
+    Returns:
+        str
+            Sequence combined with whitespace.
+    """
     if not input_element.endswith((" ", "\n", "\t")) and not output_element.startswith(
         (" ", "\n", "\t")
     ):
@@ -171,9 +276,33 @@ def combine_sequence(input_element: str, output_element: str):
 
 
 def preprocess_and_tokenize(
-    element, tokenizer, max_seq_length, input_field_name, output_field_name
-):
-    """Custom preprocesssing logic to pre-tokenize the HF dataset."""
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    max_seq_length: int,
+    input_field_name: str,
+    output_field_name: str,
+) -> Dict[str, Any]:
+    """Loads the dataset and applies the tokenizer + custom masking logic.
+    NOTE: Truncation is done in this step, but padding is not, and generally
+    handled by the collator.
+
+    Args:
+        element: Dict[str, str]
+            A single element of the raw Dataset of strings, whose data we would like to apply
+            custom masking + tokenization logic to.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+        max_sequence_length: int
+            Max sequence length to be used for sequence tokenization.
+        input_field_name: str
+            Name of the input field in the data.
+        output_field_name: str
+            Name of the output field in the data.
+
+    Returns:
+        Dict[str, Any]
+            Dictionary containing the input IDs/labels/attention mask for this record.
+    """
     combined_seq = combine_sequence(
         element[input_field_name], element[output_field_name]
     )
