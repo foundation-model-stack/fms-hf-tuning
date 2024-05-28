@@ -29,17 +29,12 @@ import transformers
 
 # First Party
 from scripts.run_inference import TunedCausalLM
-<<<<<<< HEAD
-from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA
-=======
 from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
 )
-from tests.helpers import causal_lm_train_kwargs
->>>>>>> Add end to end pretokenized tests, formatting
 
 # Local
 from tuning import sft_trainer
@@ -452,19 +447,13 @@ def test_bad_torch_dtype():
 def test_pretokenized_dataset():
     """Ensure that we can provide a pretokenized dataset with input/output format."""
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{
-                "training_data_path": TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
-                "dataset_text_field": None,
-                "response_template": None,
-                "output_dir": tempdir,
-            },
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
-        sft_trainer.train(model_args, data_args, training_args, tune_config)
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir)
 
 
@@ -478,42 +467,32 @@ def test_pretokenized_dataset():
 def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
     """Ensure that we can't provide only dataset text field / response template for pretok data."""
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{
-                "training_data_path": TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
-                "dataset_text_field": dataset_text_field,
-                "response_template": response_template,
-                "output_dir": tempdir,
-            },
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = dataset_text_field
+        data_args.response_template = response_template
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
         # We should raise an error since we should not have a dataset text
         # field or a response template if we're pretokenized data
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, training_args, tune_config)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
 
 def test_pretokenized_dataset_wrong_format():
     """Ensure that we fail to generate data if the data is in the wrong format."""
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
-            **{
-                "training_data_path": TWITTER_COMPLAINTS_DATA,
-                # NOTE: these args require input/output format
-                "dataset_text_field": None,
-                "response_template": None,
-                "output_dir": tempdir,
-            },
-        }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
-            TRAIN_KWARGS
-        )
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA
+
         # It would be best to handle this in a way that is more understandable; we might
         # need to add directly validation prior to the dataset generation since datasets
         # is essentially swallowing a KeyError here.
         with pytest.raises(DatasetGenerationError):
-            sft_trainer.train(model_args, data_args, training_args, tune_config)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
