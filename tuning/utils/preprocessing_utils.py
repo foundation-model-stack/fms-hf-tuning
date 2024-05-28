@@ -150,13 +150,13 @@ def load_hf_dataset_from_jsonl_file(
         raise ValueError("Input field name and output field name should not match!")
 
     def get_jsonl_object():
-        jsonl_file = open(data_path, "r")
-        data_stream = [json.loads(line) for line in jsonl_file]
-        for data in data_stream:
-            yield {
-                input_field_name: data[input_field_name],
-                output_field_name: data[output_field_name],
-            }
+        with open(data_path, "r", encoding="utf-8") as jsonl_file:
+            data_stream = [json.loads(line) for line in jsonl_file]
+            for data in data_stream:
+                yield {
+                    input_field_name: data[input_field_name],
+                    output_field_name: data[output_field_name],
+                }
 
     return Dataset.from_generator(get_jsonl_object)
 
