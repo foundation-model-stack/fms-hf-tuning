@@ -229,14 +229,14 @@ def train(
     # Currently we support formatted datasets with single sequence instances.
     if not (data_args.dataset_text_field or data_args.data_formatter_template):
         raise ValueError(
-            "Dataset_text_field and data_formatter_template are None. \
+            "dataset_text_field and data_formatter_template are None. \
                             One of them needs to be set for training"
         )
     # Only one of dataset_text_field or data_formatter_template should be set.
     if data_args.dataset_text_field and data_args.data_formatter_template:
         raise ValueError(
-            "Dataset_text_field and data_formatter_template are set. \
-                            Only one of them needs to be set for training"
+            "dataset_text_field and data_formatter_template are both set,\
+                but are mutually exclusive options"
         )
 
     # load the data by parsing JSON
