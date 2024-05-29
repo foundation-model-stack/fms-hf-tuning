@@ -22,6 +22,7 @@ from peft.utils.other import fsdp_auto_wrap_policy
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    DataCollatorForSeq2Seq,
     GPT2Tokenizer,
     GPTNeoXTokenizerFast,
     LlamaTokenizer,
@@ -205,7 +206,9 @@ def train(
     # Configure the collator and validate args related to packing prior to formatting the dataset
     # FIXME: Instructlab - Hack
     packing = train_args.packing
-    data_collator = None
+    data_collator = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer, padding=True, max_length=max_seq_length
+    )
     if data_args.pretokenized:
         logger.info("No data collator since the data is pretokenized")
     if train_args.packing:
@@ -253,14 +256,14 @@ def train(
             attention_masks = tokenizer_data_utils.create_attention_mask(
                 train_dataset["labels"], train_dataset["input_ids"]
             )
-            for i in range(
+            for i in range(  # pylint: disable=consider-using-enumerate
                 len(train_dataset)
-            ):  # pylint: disable=consider-using-enumerate
+            ):
                 train_dataset[i]["attention_mask"] = attention_masks[i]
         formatted_train_dataset = train_dataset.with_format("torch")
         formatting_func = (
-            lambda x: print(x) or x
-        )  # pylint: disable=unnecessary-lambda-assignment
+            lambda x: print(x) or x  # pylint: disable=unnecessary-lambda-assignment
+        )
     logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
@@ -272,13 +275,14 @@ def train(
             )
         else:
             validation_dataset = json_dataset["validation"]
+            # attention_mask = torch.ones_like(input_ids)
             if "attention_mask" not in validation_dataset.features:
                 attention_masks = tokenizer_data_utils.create_attention_mask(
                     validation_dataset["labels"], validation_dataset["input_ids"]
                 )
-                for i in range(
+                for i in range(  # pylint: disable=consider-using-enumerate
                     len(validation_dataset)
-                ):  # pylint: disable=consider-using-enumerate
+                ):
                     validation_dataset[i]["attention_mask"] = attention_masks[i]
             formatted_validation_dataset = validation_dataset.with_format("torch")
         logger.info(
