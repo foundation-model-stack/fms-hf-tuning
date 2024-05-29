@@ -24,7 +24,10 @@ pip install -e ".[aim]"
 ```
 
 ## Data format
-The data format expectation is a single column text. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
+We support two data formats:
+
+1. #### Pre-process the JSON/JSONL dataset
+ Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
 PROMPT_DICT = {
@@ -56,6 +59,24 @@ The `response template` corresponding to the above dataset and the `Llama` token
 
 The same way can be applied to any dataset, with more info can be found [here](https://huggingface.co/docs/trl/main/en/sft_trainer#format-your-input-prompts).
 
+Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
+
+2.  #### Format JSON/JSONL on the fly
+   Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
+   JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
+
+Example: Train.json
+`[{ "input" : <text>,
+    "output" : <text>,
+  },
+ ...
+]`  
+data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
+
+Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
+
+
+##### In conclusion, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer. 
 
 ## Supported Models
 
@@ -64,12 +85,16 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 ## Training
 
 ### Single GPU
+
+1. Using pre-processed dataset for training. 
+
 ```bash
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
 
 # MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
 # TRAIN_DATA_PATH=twitter_complaints.json # Path to the dataset
+                  # contains data in single sequence {"output": "### Input: text \n\n### Response: text"}
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 python tuning/sft_trainer.py  \
@@ -91,6 +116,39 @@ python tuning/sft_trainer.py  \
 --packing False  \
 --response_template "\n### Response:"  \
 --dataset_text_field "output" 
+
+```
+
+2. Using formatter with JSON/JSONL files
+
+```bash
+# if you want to use one GPU on multi-gpu machine
+export CUDA_VISIBLE_DEVICES=0
+
+# MODEL_PATH=meta-llama/Llama-2-7b-hf # Huggingface model id or path to a checkpoint
+# TRAIN_DATA_PATH=twitter_complaints.json # Path to the dataset
+                  # contains data in form of [{"input": text , "output": text}]
+# OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
+
+python tuning/sft_trainer.py  \
+--model_name_or_path $MODEL_PATH  \
+--training_data_path $TRAIN_DATA_PATH  \
+--output_dir $OUTPUT_PATH  \
+--num_train_epochs 5  \
+--per_device_train_batch_size 4  \
+--per_device_eval_batch_size 4  \
+--gradient_accumulation_steps 4  \
+--eval_strategy "no"  \
+--save_strategy "epoch"  \
+--learning_rate 1e-5  \
+--weight_decay 0.  \
+--warmup_ratio 0.03  \
+--lr_scheduler_type "cosine"  \
+--logging_steps 1  \
+--include_tokens_per_second  \
+--packing False  \
+--response_template "\n## Label:"  \
+--data_formatter_template: "### Input: {{input}} \n\n##Label: {{output}}"
 
 ```
 
