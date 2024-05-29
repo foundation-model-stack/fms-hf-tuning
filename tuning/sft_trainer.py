@@ -251,6 +251,7 @@ def train(
     if not data_args.pretokenized:
         formatted_train_dataset = json_dataset["train"].map(format_dataset)
     else:
+        # if pretokenized and does not have attention mask
         train_dataset = json_dataset["train"]
         if "attention_mask" not in train_dataset.features:
             attention_masks = tokenizer_data_utils.create_attention_mask(
@@ -268,12 +269,12 @@ def train(
 
     formatted_validation_dataset = None
     if data_args.validation_data_path:
-        # FIXME: Instructlab - Hack
         if not data_args.pretokenized:
             formatted_validation_dataset = json_dataset["validation"].map(
                 format_dataset
             )
         else:
+            # if pretokenized and does not have attention mask
             validation_dataset = json_dataset["validation"]
             # attention_mask = torch.ones_like(input_ids)
             if "attention_mask" not in validation_dataset.features:
