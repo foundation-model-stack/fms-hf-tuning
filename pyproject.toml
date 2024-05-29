@@ -41,7 +41,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0"]
+dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0", "boto3"]
 flash-attn = ["flash-attn"]
 aim = ["aim==3.19.0"]
 

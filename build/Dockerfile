@@ -39,8 +39,7 @@ ARG SET_NUM_PROCESSES_TO_NUM_GPUS=True
 
 USER root
 
-RUN dnf update -y \
-    && dnf remove -y --disableplugin=subscription-manager \
+RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
         # we install newer version of requests via pip
         python3.11-requests \
@@ -112,10 +111,14 @@ ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 RUN dnf install -y python3.11 git \
     && ln -s /usr/bin/python3.11 /bin/python \
     && python -m ensurepip --upgrade \
+    && dnf update -y \
     && dnf clean all
 
 # Removes the example private key to avoid high severity vulnerability warning
 RUN rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem
+
+# Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
+RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
 
 WORKDIR /tmp
 COPY --from=wheel /tmp/*.whl /tmp/bdist_name /tmp/

@@ -46,6 +46,7 @@ from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.data_utils import apply_custom_formatting_template
 
 
 def train(
@@ -218,14 +219,25 @@ def train(
             # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
             # We should do this validation up front, then do the encoding, then handle the collator
             raise ValueError("Response template is None, needs to be set for training")
-        if data_args.dataset_text_field is None:
-            raise ValueError("Dataset_text_field is None, needs to be set for training")
         data_collator = DataCollatorForCompletionOnlyLM(
             response_template_ids,
             tokenizer=tokenizer,
             ignore_index=configs.IGNORE_INDEX,
         )
         packing = False
+
+    # Currently we support formatted datasets with single sequence instances.
+    if not (data_args.dataset_text_field or data_args.data_formatter_template):
+        raise ValueError(
+            "dataset_text_field and data_formatter_template are None. \
+                            One of them needs to be set for training"
+        )
+    # Only one of dataset_text_field or data_formatter_template should be set.
+    if data_args.dataset_text_field and data_args.data_formatter_template:
+        raise ValueError(
+            "dataset_text_field and data_formatter_template are both set,\
+                but are mutually exclusive options"
+        )
 
     # load the data by parsing JSON
     data_files = {"train": data_args.training_data_path}
@@ -238,12 +250,34 @@ def train(
     }
 
     json_dataset = datasets.load_dataset("json", data_files=data_files)
-    formatted_train_dataset = json_dataset["train"].map(format_dataset)
+    if data_args.data_formatter_template:
+        (
+            formatted_train_dataset,
+            data_args.dataset_text_field,
+        ) = apply_custom_formatting_template(
+            json_dataset["train"],
+            data_args.data_formatter_template,
+            tokenizer.eos_token,
+        )
+    else:
+        formatted_train_dataset = json_dataset["train"].map(format_dataset)
     logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
     if data_args.validation_data_path:
-        formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
+        if data_args.data_formatter_template:
+            (
+                formatted_validation_dataset,
+                data_args.dataset_text_field,
+            ) = apply_custom_formatting_template(
+                json_dataset["validation"],
+                data_args.data_formatter_template,
+                tokenizer.eos_token,
+            )
+        else:
+            formatted_validation_dataset = json_dataset["validation"].map(
+                format_dataset
+            )
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
