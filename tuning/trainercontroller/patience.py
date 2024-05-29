@@ -41,14 +41,12 @@ class PatienceControl:
                 self._patience_counter = 0
         if self._patience_counter <= self._patience_threshold:
             logging.info(
-                "Enforcing patience [patience_counter = %d, patience_threshold = %d]" % (
-                    self._patience_counter, self._patience_threshold
-                )
+                "Enforcing patience [patience_counter = %d, patience_threshold = %d]"
+                % (self._patience_counter, self._patience_threshold)
             )
             return True
         logging.info(
-            "Exceeded patience [patience_counter = %d, patience_threshold = %d]" % (
-                self._patience_counter, self._patience_threshold
-            )
+            "Exceeded patience [patience_counter = %d, patience_threshold = %d]"
+            % (self._patience_counter, self._patience_threshold)
         )
         return False
