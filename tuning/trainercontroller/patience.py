@@ -27,6 +27,7 @@ logger = logging.get_logger(__name__)
 class PatienceControl:
     """Implements the patience control for every rule"""
 
+    # pylint: disable=unused-argument
     def __init__(self, patience_threshold=1, mode=MODE_RESET_ON_FAILURE, **kwargs):
         self._patience_threshold = patience_threshold
         self._patience_counter = 0
@@ -39,14 +40,14 @@ class PatienceControl:
             if self._mode == MODE_RESET_ON_FAILURE:
                 self._patience_counter = 0
         if self._patience_counter <= self._patience_threshold:
-            logging.warning(
-                "Enforcing patience [patience_counter = %d, patience_threshold = %d]".format(
+            logging.info(
+                "Enforcing patience [patience_counter = %d, patience_threshold = %d]" % (
                     self._patience_counter, self._patience_threshold
                 )
             )
             return True
-        logging.warning(
-            "Exceeded patience [patience_counter = %d, patience_threshold = %d]".format(
+        logging.info(
+            "Exceeded patience [patience_counter = %d, patience_threshold = %d]" % (
                 self._patience_counter, self._patience_threshold
             )
         )
