@@ -7,6 +7,7 @@ controllers:
   - name: stop-on-training-loss-not-decreasing
     triggers:
       - on_log
-    rule: training_loss_window["loss"][-1] < 1
+    rule:
+      rule_str: training_loss_window["loss"][-1] < 1
     operations:
       - hfcontrols.should_training_stop

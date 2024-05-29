@@ -35,7 +35,8 @@ import yaml
 
 # Local
 from tuning.trainercontroller import controllermetrics, operations
-from tuning.trainercontroller.control import Control, OperationAction
+from tuning.trainercontroller.control import Control, Rule, OperationAction
+from tuning.trainercontroller.patience import PatienceControl
 from tuning.trainercontroller.controllermetrics import (
     handlers as default_metric_handlers,
 )
@@ -57,6 +58,9 @@ ARGS_KEY = "arguments"
 CONTROLLER_NAME_KEY = "name"
 CONTROLLER_CLASS_KEY = "class"
 CONTROLLER_RULE_KEY = "rule"
+CONTROLLER_RULE_STRING_KEY = "rule_str"
+CONTROLLER_RULE_CONFIG_KEY = "config"
+CONTROLLER_RULE_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
@@ -222,8 +226,8 @@ class TrainerControllerCallback(TrainerCallback):
                 rule_succeeded = False
                 try:
                     rule_succeeded = evaluator.eval(
-                        expr=control_action.rule_str,
-                        previously_parsed=control_action.rule,
+                        expr=control_action.rule.rule_str,
+                        previously_parsed=control_action.rule.rule_ast,
                     )
                     if not isinstance(rule_succeeded, bool):
                         raise TypeError(
@@ -248,6 +252,9 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NotImplementedError(
                         "Rule failed because it uses some unsupported features"
                     ) from ef
+                if control_action.rule.patience is not None and \
+                    not control_action.rule.patience.should_tolerate(rule_outcome=rule_succeeded):
+                    continue
                 for operation_action in control_action.operation_actions:
                     logger.info(
                         "Taking %s action in %s",
@@ -257,7 +264,6 @@ class TrainerControllerCallback(TrainerCallback):
                     operation_action.instance.act(
                         action=operation_action.action,
                         event_name=event_name,
-                        rule_outcome=rule_succeeded,
                         **kwargs,
                     )
 
@@ -375,8 +381,8 @@ class TrainerControllerCallback(TrainerCallback):
             for controller in self.trainer_controller_config[CONTROLLERS_KEY]:
                 controller_name: str = controller[CONTROLLER_NAME_KEY]
                 controller_ops: list[str] = controller[CONTROLLER_OPERATIONS_KEY]
-                controller_rule: str = controller[CONTROLLER_RULE_KEY]
-                if not self._validate_rule(controller_rule):
+                controller_rule: dict = controller[CONTROLLER_RULE_KEY]
+                if not self._validate_rule(controller_rule[CONTROLLER_RULE_STRING_KEY]):
                     raise ValueError(
                         "Rule for control %s is invalid" % (controller_name)
                     )
@@ -387,13 +393,17 @@ class TrainerControllerCallback(TrainerCallback):
                             % (controller_name, event_name)
                         )
                     # Generates the byte-code for the rule from the trainer configuration
-                    curr_rule = controller[CONTROLLER_RULE_KEY]
+                    curr_rule = controller_rule[CONTROLLER_RULE_STRING_KEY]
+                    rule_config = controller_rule.get(CONTROLLER_RULE_CONFIG_KEY)
                     control = Control(
                         name=controller[CONTROLLER_NAME_KEY],
-                        rule_str=curr_rule,
-                        rule=EvalWithCompoundTypes.parse(expr=curr_rule),
+                        rule=Rule(rule_str=curr_rule,
+                                rule_ast=EvalWithCompoundTypes.parse(expr=curr_rule),
+                                config=rule_config),
                         operation_actions=[],
                     )
+                    if rule_config is not None and CONTROLLER_RULE_PATIENCE_CONFIG_KEY in rule_config:
+                        control.rule.patience = PatienceControl(rule_config[CONTROLLER_RULE_PATIENCE_CONFIG_KEY])
                     for control_operation_name in controller_ops:
                         if control_operation_name not in self.operation_actions:
                             raise KeyError(

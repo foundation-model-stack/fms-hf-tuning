@@ -17,11 +17,12 @@
 
 # Standard
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Dict, Optional
 import ast
 
 # Local
 from tuning.trainercontroller.operations import Operation
+from tuning.trainercontroller.patience import PatienceControl
 
 
 @dataclass
@@ -31,12 +32,19 @@ class OperationAction:
     instance: Operation
     action: str
 
+@dataclass
+class Rule:
+    """Stores the rule and its configuration"""
+
+    rule_str: str
+    patience: Optional[PatienceControl] = None
+    rule_ast: Optional[ast.AST] = None  # stores the abstract syntax tree of the parsed rule
+    config: Optional[Dict] = None
 
 @dataclass
 class Control:
     """Stores the name of control, rule byte-code corresponding actions"""
 
     name: str
-    rule_str: str
-    rule: Optional[ast.AST] = None  # stores the abstract syntax tree of the parsed rule
+    rule: Rule
     operation_actions: Optional[List[OperationAction]] = None
