@@ -63,6 +63,7 @@ Once the JSON is converted using the formatting function, pass the `dataset_text
 
 2.  #### Format JSON/JSONL on the fly
    Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
+   JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
 
 Example: Train.json
 `[{ "input" : <text>,

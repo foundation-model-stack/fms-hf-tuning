@@ -31,6 +31,10 @@ def apply_custom_formatting_template(dataset, template, eos_token=""):
 
             return element[index_object]
 
-        return {formatted_dataset_field: re.sub(r"{{(.+)}}", replace_text, template)}
+        return {
+            formatted_dataset_field: re.sub(
+                r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
+            )
+        }
 
     return dataset.map(formatter), formatted_dataset_field
