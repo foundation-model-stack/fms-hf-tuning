@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict
+from typing import Dict, List
 
 # Third Party
 import transformers
@@ -44,3 +44,24 @@ def tokenizer_and_embedding_resize(
 
         input_embeddings[-num_new_tokens:] = input_embeddings_avg
         output_embeddings[-num_new_tokens:] = output_embeddings_avg
+
+
+def create_attention_mask(labels: List[List], input_ids: List[List]) -> List[List]:
+    """create an attention mask with all 1s
+
+    Args:
+        labels (List[List]): labels
+        input_ids (List[List]): input ids
+
+    Raises:
+        ValueError: if batch size of labels and input ids mismatch raises error
+
+    Returns:
+        List[List]: attention mask for the batch
+    """
+    attention_mask = []
+    if len(labels) != len(input_ids):
+        raise ValueError("Number of labels and input sequences must be equal.")
+    for i in range(len(labels)):
+        attention_mask.append([1] * len(input_ids[i]))
+    return attention_mask

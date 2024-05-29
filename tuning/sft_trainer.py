@@ -29,11 +29,10 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import logging
-from transformers import DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
-import transformers, torch
+import transformers
 
 # Local
 from tuning.config import configs, peft_config
@@ -178,39 +177,40 @@ def train(
         )
 
     # # TODO: we need to change this, perhaps follow what open instruct does?
-    special_tokens_dict = {}
-    if tokenizer.pad_token is None:
-        logger.warning("PAD token set to default, missing in tokenizer")
-        special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-    # if tokenizer.eos_token is None:
-    #     logger.warning("EOS token set to default, missing in tokenizer")
-    #     special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-    # if tokenizer.bos_token is None:
-    #     logger.warning("BOS token set to default, missing in tokenizer")
-    #     special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
-    # if tokenizer.unk_token is None:
-    #     logger.warning("UNK token set to default, missing in tokenizer")
-    #     special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
+    if not data_args.pretokenized:
+        special_tokens_dict = {}
+        if tokenizer.pad_token is None:
+            logger.warning("PAD token set to default, missing in tokenizer")
+            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
+        if tokenizer.eos_token is None:
+            logger.warning("EOS token set to default, missing in tokenizer")
+            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+        if tokenizer.bos_token is None:
+            logger.warning("BOS token set to default, missing in tokenizer")
+            special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
+        if tokenizer.unk_token is None:
+            logger.warning("UNK token set to default, missing in tokenizer")
+            special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
 
-    # # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
-    # # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
-        special_tokens_dict=special_tokens_dict,
-        tokenizer=tokenizer,
-        model=model,
-    )
+        # TODO: lower priority but understand if resizing impacts inference
+        # quality and why its needed.
+        # It makes sense if we manipulate tokenizer that we also save it
+        # and provide it to inference.
+        tokenizer_data_utils.tokenizer_and_embedding_resize(
+            special_tokens_dict=special_tokens_dict,
+            tokenizer=tokenizer,
+            model=model,
+        )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     # FIXME: Instructlab - Hack
+    packing = train_args.packing
+    data_collator = None
     if data_args.pretokenized:
-        logger.info("Packing is set to True since the data is pretokenized")
-        data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True, max_length=max_seq_length)
-        packing = train_args.packing
-    elif train_args.packing:
+        logger.info("No data collator since the data is pretokenized")
+    if train_args.packing:
         logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
+    elif not data_args.pretokenized:
         logger.info("Packing is set to False")
         if data_args.response_template is None:
             # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
@@ -231,36 +231,16 @@ def train(
             tokenizer=tokenizer,
             ignore_index=configs.IGNORE_INDEX,
         )
-        packing = False
 
     # load the data by parsing JSON
     data_files = {"train": data_args.training_data_path}
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
 
-    # FIXME: Instructlab - Hack
-    if not data_args.pretokenized:
-        format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
-            f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
-            + tokenizer.eos_token
-        }
-
-    def create_attention_mask(labels, input_ids):
-        attention_mask = []
-        if len(labels) != len(input_ids):
-            raise ValueError("Number of labels and input sequences must be equal.")
-
-        for i in range(len(labels)):
-            token_ids = input_ids[i]
-            token_length = len(token_ids)
-            individual_mask = [1] * token_length 
-            for j in range(token_length):
-                if j != labels[i][j]:
-                    individual_mask[j] = 0
-
-            attention_mask.append(individual_mask)
-
-        return attention_mask
+    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
+        f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
+        + tokenizer.eos_token
+    }
 
     json_dataset = datasets.load_dataset("json", data_files=data_files)
     # FIXME: Instructlab - Hack
@@ -269,23 +249,37 @@ def train(
         formatted_train_dataset = json_dataset["train"].map(format_dataset)
     else:
         train_dataset = json_dataset["train"]
-        attention_masks = create_attention_mask(train_dataset["labels"], train_dataset["input_ids"])
-        for i in range(len(train_dataset)):
-            train_dataset[i]['attention_mask'] = attention_masks[i]
+        if "attention_mask" not in train_dataset.features:
+            attention_masks = tokenizer_data_utils.create_attention_mask(
+                train_dataset["labels"], train_dataset["input_ids"]
+            )
+            for i in range(
+                len(train_dataset)
+            ):  # pylint: disable=consider-using-enumerate
+                train_dataset[i]["attention_mask"] = attention_masks[i]
         formatted_train_dataset = train_dataset.with_format("torch")
-        formatting_func = lambda x: print(x) or x
+        formatting_func = (
+            lambda x: print(x) or x
+        )  # pylint: disable=unnecessary-lambda-assignment
     logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
     if data_args.validation_data_path:
         # FIXME: Instructlab - Hack
         if not data_args.pretokenized:
-            formatted_validation_dataset = json_dataset["validation"].map(format_dataset)
+            formatted_validation_dataset = json_dataset["validation"].map(
+                format_dataset
+            )
         else:
             validation_dataset = json_dataset["validation"]
-            attention_masks = create_attention_mask(validation_dataset["labels"], validation_dataset["input_ids"])
-            for i in range(len(validation_dataset)):
-                validation_dataset[i]['attention_mask'] = attention_masks[i]
+            if "attention_mask" not in validation_dataset.features:
+                attention_masks = tokenizer_data_utils.create_attention_mask(
+                    validation_dataset["labels"], validation_dataset["input_ids"]
+                )
+                for i in range(
+                    len(validation_dataset)
+                ):  # pylint: disable=consider-using-enumerate
+                    validation_dataset[i]["attention_mask"] = attention_masks[i]
             formatted_validation_dataset = validation_dataset.with_format("torch")
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
@@ -299,7 +293,7 @@ def train(
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
-        formatting_func = formatting_func,
+        formatting_func=formatting_func,
         args=train_args,
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
