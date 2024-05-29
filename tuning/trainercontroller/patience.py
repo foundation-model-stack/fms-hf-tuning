@@ -23,6 +23,7 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 
 logger = logging.get_logger(__name__)
 
+
 class PatienceControl:
     """Implements the patience control for every rule"""
 
@@ -38,11 +39,15 @@ class PatienceControl:
             if self._mode == MODE_RESET_ON_FAILURE:
                 self._patience_counter = 0
         if self._patience_counter <= self._patience_threshold:
-            logging.warning("Enforcing patience [patience_counter = %d, patience_threshold = %d]".format(
-                self._patience_counter, 
-                self._patience_threshold))
+            logging.warning(
+                "Enforcing patience [patience_counter = %d, patience_threshold = %d]".format(
+                    self._patience_counter, self._patience_threshold
+                )
+            )
             return True
-        logging.warning("Exceeded patience [patience_counter = %d, patience_threshold = %d]".format(
-            self._patience_counter, 
-            self._patience_threshold))        
+        logging.warning(
+            "Exceeded patience [patience_counter = %d, patience_threshold = %d]".format(
+                self._patience_counter, self._patience_threshold
+            )
+        )
         return False

@@ -17,7 +17,7 @@
 
 # Standard
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 import ast
 
 # Local
@@ -32,14 +32,18 @@ class OperationAction:
     instance: Operation
     action: str
 
+
 @dataclass
 class Rule:
     """Stores the rule and its configuration"""
 
     rule_str: str
     patience: Optional[PatienceControl] = None
-    rule_ast: Optional[ast.AST] = None  # stores the abstract syntax tree of the parsed rule
+    rule_ast: Optional[
+        ast.AST
+    ] = None  # stores the abstract syntax tree of the parsed rule
     config: Optional[Dict] = None
+
 
 @dataclass
 class Control:
