@@ -261,7 +261,8 @@ def train(
                 len(train_dataset)
             ):
                 train_dataset[i]["attention_mask"] = attention_masks[i]
-        formatted_train_dataset = train_dataset.with_format("torch")
+        formatted_train_dataset = train_dataset
+        # formatted_train_dataset = train_dataset.with_format("torch")
         formatting_func = (
             lambda x: print(x) or x  # pylint: disable=unnecessary-lambda-assignment
         )
@@ -285,7 +286,8 @@ def train(
                     len(validation_dataset)
                 ):
                     validation_dataset[i]["attention_mask"] = attention_masks[i]
-            formatted_validation_dataset = validation_dataset.with_format("torch")
+            formatted_validation_dataset = validation_dataset
+            # formatted_validation_dataset = validation_dataset.with_format("torch")
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
