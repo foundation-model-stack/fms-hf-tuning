@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from simpleeval import FunctionNotDefined
 from transformers import IntervalStrategy, TrainerControl, TrainerState
 import pytest
+from transformers.utils import logging
 
 # First Party
 from tests.trainercontroller.custom_metric import CustomMetric
@@ -119,6 +120,24 @@ def test_exposed_metrics():
     )
     assert control.should_training_stop == True
 
+
+def test_log_controller(caplog):
+    """Tests the expose metric scenario example in
+    `examples/trainer-controller-configs/log_controller.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_LOG_CONTROLLER_YAML)
+    control = TrainerControl(should_training_stop=False)
+    metrics = {"eval_loss": 2.2}
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_evaluate(
+        args=test_data.args, state=test_data.state, control=control, metrics=metrics
+    )
+    # Trigger rule and test the condition
+    tc_callback.on_step_end(args=test_data.args, state=test_data.state, control=control)
+    assert 'This is a test log format' in caplog.text
 
 def test_incorrect_source_event_exposed_metrics():
     """Tests the expose metric scenario example in

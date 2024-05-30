@@ -1,0 +1,24 @@
+operations:
+  - name: logcontroleval
+    class: LogControl
+    arguments:
+      log-format: 'This is a test log format [{event_name}] => {metrics}'
+      log-level: WARNING
+  - name: logcontrolstep
+    class: LogControl
+    arguments:
+      log-format: 'This is a test log format [{event_name}] => {state}'
+      log-level: WARNING
+controllers:
+  - name: log-controller-eval
+    triggers:
+      - on_evaluate
+    rule: 'True'
+    operations:
+      - logcontroleval.should_log
+  - name: log-controller-step
+    triggers:
+      - on_step_end
+    rule: 'True'
+    operations:
+      - logcontrolstep.should_log
