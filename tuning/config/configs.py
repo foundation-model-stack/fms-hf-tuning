@@ -116,3 +116,9 @@ class TrainerControllerArguments:
             )
         },
     )
+    logging_level: str = field(
+        default="INFO",
+        metadata={
+            "help": ("logging level to be used one of INFO, DEBUG, WARNING, ERROR")
+        },
+    )

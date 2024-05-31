@@ -369,6 +369,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     logger = logging.get_logger("__main__")
+    logger.setLevel(trainer_controller_args.logging_level)
 
     peft_method = additional.peft_method
     if peft_method == "lora":

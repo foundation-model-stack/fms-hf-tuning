@@ -21,8 +21,8 @@ from dataclasses import dataclass
 # Third Party
 from simpleeval import FunctionNotDefined
 from transformers import IntervalStrategy, TrainerControl, TrainerState
-import pytest
 from transformers.utils import logging
+import pytest
 
 # First Party
 from tests.trainercontroller.custom_metric import CustomMetric
@@ -137,7 +137,8 @@ def test_log_controller(caplog):
     )
     # Trigger rule and test the condition
     tc_callback.on_step_end(args=test_data.args, state=test_data.state, control=control)
-    assert 'This is a test log format' in caplog.text
+    assert "This is a test log format" in caplog.text
+
 
 def test_incorrect_source_event_exposed_metrics():
     """Tests the expose metric scenario example in

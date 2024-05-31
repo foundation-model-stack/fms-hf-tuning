@@ -2,12 +2,12 @@ operations:
   - name: logcontrolstep
     class: LogControl
     arguments:
-      log-format: 'Epoch: {state[epoch]}, Step: {state[global_step]}, Rank: 0, loss = {metrics[loss]}'
+      log-format: 'Epoch: {epoch_int}, Step: {state.global_step}, Rank: 0, loss = {train_loss}'
       log-level: INFO
 controllers:
   - name: instructlab-log-format
     triggers:
-      - on_step_end
+      - on_log
     rule: 'True'
     operations:
       - logcontrolstep.should_log
