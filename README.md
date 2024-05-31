@@ -64,6 +64,8 @@ Current supported and tested models are `Llama2` (7 and 13B configurations have 
 ## Training
 
 ### Single GPU
+
+Below example runs fine tuning with the given datasets and model:
 ```bash
 # if you want to use one GPU on multi-gpu machine
 export CUDA_VISIBLE_DEVICES=0
@@ -82,8 +84,6 @@ python tuning/sft_trainer.py  \
 --learning_rate 1e-5  \
 --response_template "\n### Response:"  \
 --dataset_text_field "output"
-
-# Above example will run fine tuning and evaluation with the given datasets and model.
 ```
 
 ### Multiple GPUs with FSDP
@@ -96,6 +96,7 @@ The recommendation is to use [huggingface accelerate](https://huggingface.co/doc
 `accelerate launch` CLI to be run with specific command line arguments, see example below. Default arguments handled by passing in a 
 `--config_file` argument; see [reference docs](https://huggingface.co/docs/accelerate/en/package_reference/cli#accelerate-launch) and [fixtures/accelerate_fsdp_defaults.yaml](./fixtures/accelerate_fsdp_defaults.yaml) for sample defaults.
 
+Below example runs multi-GPU fine tuning on 8 GPUs with FSDP:
 ```bash
 # Please set the environment variables:
 # MASTER_PORT=1234 # The port at which the process with rank 0 listens to and should be set to an unused port
@@ -127,7 +128,7 @@ To summarize you can pick either python for single-GPU jobs or use accelerate la
 
 ### LoRA Tuning Example
 
-Set peft_method = "lora". You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+Set `peft_method` to `"lora"`. You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
 ```py
 # Args you can pass
 r: int =8 
@@ -160,7 +161,27 @@ python tuning/sft_trainer.py \
 --peft_method "lora" \
 --r 8 \
 --lora_dropout 0.05 \
---lora_alpha 16
+--lora_alpha 16 \
+--target_modules ["c_attn", "c_proj"]
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "lora",
+    "r": 8,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["c_attn", "c_proj"]
+}
 ```
 
 Notice the `target_modules` that are set are the default values. `target_modules` are the names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
@@ -220,7 +241,7 @@ You can specify attention or linear layers. With the CLI, you can specify layers
 
 ### Prompt Tuning:
 
-Specify peft_method to 'pt' . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39). 
+Specify `peft_method` to `'pt'` . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39).
 ```py
 # prompt_tuning_init can be either "TEXT" or "RANDOM"
 prompt_tuning_init: str = "TEXT"
@@ -248,9 +269,27 @@ python tuning/sft_trainer.py  \
 --prompt_tuning_init_text "From the following input, identify target sentiment of following types: neutral, negative, positive"
 ```
 
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 5.0,
+    "per_device_train_batch_size": 1,
+    "learning_rate": 0.03,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "pt",
+    "tokenizer_name_or_path": $MODEL_PATH,
+    "prompt_tuning_init": "RANDOM",
+    "prompt_tuning_init_text": "From the following input, identify target sentiment of following types: neutral, negative, positive"
+}
+```
+
 ### Fine Tuning:
 
-Set `peft_method = 'None'` or do not provide `peft_method` flag.
+Set `peft_method` to `'None'` or do not provide `peft_method` flag.
 
 Full fine tuning needs more compute resources, so it is advised to use the MultiGPU method. Example command:
 
@@ -268,6 +307,21 @@ tuning/sft_trainer.py  \
 --response_template "\n### Label:"  \
 --dataset_text_field "output" \
 --peft_method "None"
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 5.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-5,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "None"
+}
 ```
 
 ## Inference

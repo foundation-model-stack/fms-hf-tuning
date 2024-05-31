@@ -102,8 +102,7 @@ config.json: |
         "per_device_train_batch_size": 4,
         "learning_rate": 1e-5,
         "response_template": "\n### Label:",
-        "dataset_text_field": "output",
-        "use_flash_attn": true,
+        "dataset_text_field": "output"
     }
 ---
 apiVersion: v1

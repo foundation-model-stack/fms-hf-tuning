@@ -43,7 +43,7 @@ spec:
                           - NVIDIA-A100-SXM4-80GB # a100 needed for flash-attn
           containers:
             - name: pytorch
-              # This is the artifactory location, but be sure to select the right tag when deploying
+              # Be sure to replace the image below
               image: $SFT_IMAGE
               imagePullPolicy: IfNotPresent
               env:
