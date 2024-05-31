@@ -20,7 +20,7 @@ class LogControl(Operation):
             kwargs: List of arguments (key, value)-pairs
         """
         self.kwargs = kwargs
-        self.logger = logging.get_logger("__main__")
+        self.logger = logging.get_logger()
         self.logger.setLevel(level=kwargs["logging_level"])
         super().__init__()
 
