@@ -66,7 +66,7 @@ class TrainerControllerCallback(TrainerCallback):
     """Implements the trainer loop control based
     on trainer controller configuration file and metrics"""
 
-    def __init__(self, trainer_controller_config: Union[dict, str]):
+    def __init__(self, trainer_controller_config: Union[dict, str], logging_level: str):
         """Initializes the callback for trainer controller.
 
         Args:
@@ -75,6 +75,7 @@ class TrainerControllerCallback(TrainerCallback):
         # Checks if the trainer control config is of string type, in which case, it \
         # is a file path for the configuration yaml. On the other hand, if it is a \
         # dictionary, then it the yaml directly passed as such.
+        self.logging_level = logging_level
         if isinstance(trainer_controller_config, str):
             if os.path.exists(trainer_controller_config):
                 with open(trainer_controller_config, "r", encoding="utf-8") as f:
@@ -301,6 +302,8 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
+        kwargs["logging_level"] = self.logging_level
 
         # Check if there any metrics listed in the configuration
         if (
@@ -423,6 +426,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_step_end", **kwargs)
 
     def on_epoch_begin(
@@ -437,6 +441,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_epoch_begin", **kwargs)
 
     def on_epoch_end(
@@ -451,6 +456,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_epoch_end", **kwargs)
 
     def on_prediction_step(
@@ -465,6 +471,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_prediction_step", **kwargs)
 
     def on_predict(
@@ -480,6 +487,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         kwargs["metrics"] = metrics
         self._actions_on_event(event_name="on_predict", **kwargs)
 
@@ -495,6 +503,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_log", **kwargs)
 
     def on_train_end(
@@ -509,6 +518,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_train_end", **kwargs)
 
     def on_train_begin(
@@ -523,6 +533,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_train_begin", **kwargs)
 
     def on_evaluate(
@@ -537,4 +548,5 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        kwargs["logging_level"] = self.logging_level
         self._actions_on_event(event_name="on_evaluate", **kwargs)

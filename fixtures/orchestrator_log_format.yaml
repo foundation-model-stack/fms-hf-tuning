@@ -2,7 +2,7 @@ operations:
   - name: logcontrolstep
     class: LogControl
     arguments:
-      log-format: 'Epoch: {epoch_int}, Step: {state.global_step}, Rank: 0, loss = {train_loss}'
+      log-format: 'Epoch: {epoch_int}, Step: {state.global_step}, Rank: {rank}, loss = {train_loss}'
       log-level: INFO
 controllers:
   - name: instructlab-log-format

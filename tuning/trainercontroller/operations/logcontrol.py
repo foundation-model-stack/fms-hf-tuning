@@ -1,11 +1,10 @@
 # Third Party
 from transformers import TrainerControl
 from transformers.utils import logging
+import torch
 
 # Local
 from .operation import Operation
-
-logger = logging.get_logger("__main__")
 
 
 class LogControl(Operation):
@@ -21,6 +20,8 @@ class LogControl(Operation):
             kwargs: List of arguments (key, value)-pairs
         """
         self.kwargs = kwargs
+        self.logger = logging.get_logger("__main__")
+        self.logger.setLevel(level=kwargs["logging_level"])
         super().__init__()
 
     def should_log(
@@ -42,18 +43,20 @@ class LogControl(Operation):
         epoch_int = 0 if state is None else int(state.epoch)
         log_format_string = self.kwargs.get("log-format")
         log_level = self.kwargs.get("log-level")
+        rank = torch.distributed.get_rank()
         log_msg = log_format_string.format(
             epoch_int=epoch_int,
             event_name=event_name,
             metrics=metrics,
             state=state,
             train_loss=train_loss,
+            rank=rank,
         )
         if log_level == "ERROR":
-            logger.error(log_msg)
+            self.logger.error(log_msg)
         elif log_level == "WARNING":
-            logger.warning(log_msg)
+            self.logger.warning(log_msg)
         elif log_level == "INFO":
-            logger.info(log_msg)
+            self.logger.info(log_msg)
         elif log_level == "DEBUG":
-            logger.debug(log_msg)
+            self.logger.debug(log_msg)

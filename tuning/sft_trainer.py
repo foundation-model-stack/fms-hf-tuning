@@ -123,7 +123,8 @@ def train(
         trainer_controller_args.trainer_controller_config_file is not None
     ):
         tc_callback = TrainerControllerCallback(
-            trainer_controller_args.trainer_controller_config_file
+            trainer_controller_args.trainer_controller_config_file,
+            trainer_controller_args.logging_level,
         )
         trainer_callbacks.append(tc_callback)
 
