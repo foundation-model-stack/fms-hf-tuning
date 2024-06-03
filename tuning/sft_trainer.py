@@ -15,6 +15,7 @@
 # Standard
 from typing import Dict, List, Optional, Union
 import json
+import logging as pylogging
 import time
 
 # Third Party
@@ -124,7 +125,6 @@ def train(
     ):
         tc_callback = TrainerControllerCallback(
             trainer_controller_args.trainer_controller_config_file,
-            trainer_controller_args.logging_level,
         )
         trainer_callbacks.append(tc_callback)
 
@@ -370,7 +370,12 @@ def main(**kwargs):  # pylint: disable=unused-argument
     ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
     logger = logging.get_logger("__main__")
-    logger.setLevel(trainer_controller_args.logging_level)
+    if training_args.log_level == "passive":
+        logger.debug('training_args.log_level is set to "passive"')
+    else:
+        log_level = training_args.log_level.upper()
+        pylogging.basicConfig(level=log_level)
+        logger.setLevel(level=log_level)
 
     peft_method = additional.peft_method
     if peft_method == "lora":

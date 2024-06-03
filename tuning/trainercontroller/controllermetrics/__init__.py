@@ -22,6 +22,7 @@ from typing import Type
 from .eval_metrics import EvalMetrics
 from .loss import Loss
 from .trainingstate import TrainingState
+from tuning.trainercontroller.controllermetrics.per_process_state import PerProcessState
 
 # List of metric handlers
 handlers = []
@@ -38,5 +39,6 @@ def register(cl: Type):
 
 # Register the default metric handlers in this package here
 register(TrainingState)
+register(PerProcessState)
 register(EvalMetrics)
 register(Loss)

@@ -41,6 +41,12 @@ class EvalMetrics(MetricHandler):
         source_event = kwargs.get("source-event")
         if source_event is None:
             source_event = "on_evaluate"
+            super().__init__(
+                events=[
+                    source_event,
+                ],
+                **kwargs,
+            )
         elif source_event in source_events_to_check:
             super().__init__(
                 events=[

@@ -2,13 +2,13 @@ operations:
   - name: logcontroleval
     class: LogControl
     arguments:
-      log-format: 'This is a test log format [{event_name}] => {metrics}'
-      log-level: WARNING
+      log_format: 'This is a test log format [{event_name}] => {metrics}'
+      log_level: WARNING
   - name: logcontrolstep
     class: LogControl
     arguments:
-      log-format: 'This is a test log format [{event_name}] => {state}'
-      log-level: WARNING
+      log_format: 'This is a test log format [{event_name}] => {tc_metrics[state]}'
+      log_level: WARNING
 controllers:
   - name: log-controller-eval
     triggers:

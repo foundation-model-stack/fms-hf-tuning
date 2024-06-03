@@ -1,17 +1,25 @@
 # Third Party
-from transformers import TrainerControl
+from transformers import TrainingArguments
 from transformers.utils import logging
-import torch
 
 # Local
 from .operation import Operation
 
+logger = logging.get_logger(__name__)
+logger.setLevel(level=logging.DEBUG)
+
+VALID_LOG_LEVELS = {
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+}
+
 
 class LogControl(Operation):
-    """Implements the control actions for the HuggingFace controls in
-    transformers.TrainerControl class."""
+    """Operation that can be used to log useful information on specific events."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, log_format: str, log_level: str, **kwargs):
         """Initializes the HuggingFace controls. In this init, the fields with `should_` of the
         transformers.TrainerControl data class are extracted, and for each of those fields, the
         control_action() method's pointer is set, and injected as a class member function.
@@ -19,14 +27,21 @@ class LogControl(Operation):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        self.kwargs = kwargs
-        self.logger = logging.get_logger()
-        self.logger.setLevel(level=kwargs["logging_level"])
-        super().__init__()
+        if log_level not in VALID_LOG_LEVELS:
+            raise ValueError(
+                "Specified log_level [%s] is invalid for LogControl" % (log_level)
+            )
+        self.log_level = VALID_LOG_LEVELS[log_level]
+        self.log_format = log_format
+        super().__init__(**kwargs)
 
     def should_log(
-        self, control: TrainerControl, **kwargs
-    ):  # pylint: disable=unused-argument
+        self,
+        event_name: str,
+        tc_metrics: dict,
+        args: TrainingArguments,
+        **kwargs,
+    ):
         """This method peeks into the stack-frame of the caller to get the action the triggered
         a call to it. Using the name of the action, the value of the control is set.
 
@@ -34,29 +49,17 @@ class LogControl(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
-        event_name = kwargs.get("event_name")
-        metrics = kwargs.get("metrics")
-        state = kwargs.get("state")
-        train_loss = None
-        if state is not None and len(state.log_history) > 0:
-            train_loss = state.log_history[-1]["loss"]
-        epoch_int = 0 if state is None else int(state.epoch)
-        log_format_string = self.kwargs.get("log-format")
-        log_level = self.kwargs.get("log-level")
-        rank = torch.distributed.get_rank()
-        log_msg = log_format_string.format(
-            epoch_int=epoch_int,
+        log_msg = self.log_format.format(
             event_name=event_name,
-            metrics=metrics,
-            state=state,
-            train_loss=train_loss,
-            rank=rank,
+            tc_metrics=tc_metrics,
+            args=args,
+            **kwargs,
         )
-        if log_level == "ERROR":
-            self.logger.error(log_msg)
-        elif log_level == "WARNING":
-            self.logger.warning(log_msg)
-        elif log_level == "INFO":
-            self.logger.info(log_msg)
-        elif log_level == "DEBUG":
-            self.logger.debug(log_msg)
+        if self.log_level == logging.ERROR:
+            logger.error(log_msg)
+        elif self.log_level == logging.WARNING:
+            logger.warning(log_msg)
+        elif self.log_level == logging.INFO:
+            logger.info(log_msg)
+        elif self.log_level == logging.DEBUG:
+            logger.debug(log_msg)

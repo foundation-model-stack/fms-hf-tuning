@@ -48,6 +48,7 @@ class TrainingState(MetricHandler):
                 "on_train_end",
                 "on_train_begin",
                 "on_evaluate",
+                "on_save",
             ],
             **kwargs
         )
