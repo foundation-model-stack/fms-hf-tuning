@@ -50,12 +50,12 @@ from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
+from tuning.utils.data_utils import apply_custom_formatting_template
 from tuning.utils.error_logging import (
     INTERNAL_ERROR_EXIT_CODE,
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.data_utils import apply_custom_formatting_template
 
 
 def train(
