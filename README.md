@@ -241,7 +241,7 @@ You can specify attention or linear layers. With the CLI, you can specify layers
 
 ### Prompt Tuning:
 
-Specify `peft_method` to `'pt'` . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L39).
+Specify `peft_method` to `'pt'` . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L63).
 ```py
 # prompt_tuning_init can be either "TEXT" or "RANDOM"
 prompt_tuning_init: str = "TEXT"

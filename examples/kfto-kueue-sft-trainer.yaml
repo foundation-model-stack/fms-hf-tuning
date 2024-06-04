@@ -8,23 +8,24 @@ data:
   config.json: |
     {
       "model_name_or_path": "bigscience/bloom-560m",
-      "training_data_path": "/data/twitter_complaints.json",
+      "training_data_path": "/data/input/twitter_complaints.json",
       "output_dir": "/data/output/tuning/bloom-twitter",
-      "tokenizer_name_or_path": "bigscience/bloom"
       "num_train_epochs": 10.0,
       "per_device_train_batch_size": 4,
       "gradient_accumulation_steps": 4,
       "learning_rate": 1e-05,
       "response_template": "\n### Label:",
-      "dataset_text_field": "output",
+      "dataset_text_field": "output"
     }
 ---
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
   name: kfto-sft
-  labels:
-    kueue.x-k8s.io/queue-name: lq-trainer
+  # This is using Kueue (https://github.com/kubernetes-sigs/kueue) for queue management
+  # To enable, uncomment label below
+  # labels:
+  #   kueue.x-k8s.io/queue-name: lq-trainer
 spec:
   pytorchReplicaSpecs:
     Master:
@@ -60,12 +61,14 @@ spec:
                 mountPath: /data/output
               resources:
                 limits:
+                  # Number of GPUs specified will be number of processes set
                   nvidia.com/gpu: 2
                   memory: 50Gi
                   ephemeral-storage: 100Gi
           imagePullSecrets:
           - name: $MY_SECRET
           volumes:
+          # PVC mounts will need to be updated depending on your cluster environment
           - name: models
             persistentVolumeClaim:
               claimName: model-pvc
