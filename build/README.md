@@ -29,15 +29,7 @@ For example, the below config is used for running with two GPUs and FSDP for fin
 ```json
 {
     "accelerate_launch_args": {
-        "num_machines": 1,
-        "main_process_port": 1234,
-        "num_processes": 2,
-        "use_fsdp": true,
-        "fsdp_backward_prefetch_policy": "TRANSFORMER_BASED_WRAP",
-        "fsdp_sharding_strategy": 1,
-        "fsdp_state_dict_type": "FULL_STATE_DICT",
-        "fsdp_cpu_ram_efficient_loading": true,
-        "fsdp_sync_module_states": true
+        "main_process_port": 1234
     },
     "model_name_or_path": "/llama/13B",
     "training_data_path": "/data/twitter_complaints.json",
@@ -46,8 +38,7 @@ For example, the below config is used for running with two GPUs and FSDP for fin
     "per_device_train_batch_size": 4,
     "learning_rate": 1e-5,
     "response_template": "\n### Label:",
-    "dataset_text_field": "output",
-    "use_flash_attn": true,
+    "dataset_text_field": "output"
 }
 ```
 
@@ -85,15 +76,7 @@ data:
 config.json: |
     {
         "accelerate_launch_args": {
-            "num_machines": 1,
-            "main_process_port": 1234,
-            "num_processes": 2,
-            "use_fsdp": true,
-            "fsdp_backward_prefetch_policy": "TRANSFORMER_BASED_WRAP",
-            "fsdp_sharding_strategy": 1,
-            "fsdp_state_dict_type": "FULL_STATE_DICT",
-            "fsdp_cpu_ram_efficient_loading": true,
-            "fsdp_sync_module_states": true
+            "main_process_port": 1234
         },
         "model_name_or_path": "/llama/13B",
         "training_data_path": "/data/twitter_complaints.json",
