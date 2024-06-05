@@ -328,6 +328,7 @@ def train(
 
 
 def get_parser():
+    """Get the command-line argument parser."""
     parser = transformers.HfArgumentParser(
         dataclass_types=(
             configs.ModelArguments,
@@ -357,7 +358,32 @@ def get_parser():
 
 
 def parse_arguments(parser, json_config=None):
-    # accept arguments via command-line or JSON
+    """Parses arguments provided either via command-line or JSON config.
+
+    Args:
+        parser: argparse.ArgumentParser
+            Command-line argument parser.
+        json_config: dict[str, Any]
+            Dict of arguments to use with tuning.
+
+    Returns:
+        ModelArguments
+            Arguments pertaining to which model we are going to tune.
+        DataArguments
+            Arguments pertaining to what data we are going to use for training and evaluation.
+        TrainingArguments
+            Configuration for training model.
+        TrainerControllerArguments
+            Configuration for custom trainer controller such as early stopping or dynamic scaling.
+        PromptTuningConfig/LoraConfig/None
+            Configuration for running PEFT, different depending on type of PEFT.
+        FileLoggingTrackerConfig
+            Configuration for training log file.
+        AimConfig
+            Configuration for AIM stack.
+        dict[str, str]
+            Extra AIM metadata.
+    """
     if json_config:
         (
             model_args,

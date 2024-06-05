@@ -94,6 +94,14 @@ def get_hf_peft_config(task_type, tuning_config):
 
 
 def get_json_config():
+    """Parses JSON configuration if provided via environment variables
+    SFT_TRAINER_CONFIG_JSON_ENV_VAR or SFT_TRAINER_CONFIG_JSON_PATH.
+
+    SFT_TRAINER_CONFIG_JSON_ENV_VAR is the base64 encoded JSON.
+    SFT_TRAINER_CONFIG_JSON_PATH is the path to the JSON config file.
+
+    Returns: dict or {}
+    """
     json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
     json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
 
@@ -110,6 +118,12 @@ def get_json_config():
 
 
 def txt_to_obj(txt):
+    """Given encoded byte string, converts to base64 decoded dict.
+
+    Args:
+        txt: str
+    Returns: dict[str, Any]
+    """
     base64_bytes = txt.encode("ascii")
     message_bytes = base64.b64decode(base64_bytes)
     try:

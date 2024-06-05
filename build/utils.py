@@ -24,6 +24,14 @@ from accelerate.commands.launch import launch_command_parser
 
 
 def get_highest_checkpoint(dir_path):
+    """Given path to directory, returns name of highest checkpoint directory.
+    Expects checkpoint directories to be formatted 'checkpoint-<number>'
+
+    Args:
+        dir_path: str
+    Returns:
+        str
+    """
     checkpoint_dir = ""
     for curr_dir in os.listdir(dir_path):
         if curr_dir.startswith("checkpoint"):
@@ -39,6 +47,12 @@ def get_highest_checkpoint(dir_path):
 
 
 def serialize_args(args_json):
+    """Given dict, converts to base64 byte representation.
+
+    Args:
+        args_json: dict
+    Returns: str
+    """
     message_bytes = pickle.dumps(args_json)
     base64_bytes = base64.b64encode(message_bytes)
     return base64_bytes.decode("ascii")
