@@ -91,6 +91,72 @@ def test_run_train_fails_training_data_path_not_exist():
         sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
+HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
+    os.path.dirname(__file__), "build", "dummy_job_config.json"
+)
+
+
+# Note: job_config dict gets modified during process training args
+@pytest.fixture(name="job_config", scope="session")
+def fixture_job_config():
+    with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
+        dummy_job_config_dict = json.load(f)
+    return dummy_job_config_dict
+
+
+############################# Arg Parsing Tests #############################
+
+
+def test_parse_arguments(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_copy = copy.deepcopy(job_config)
+    (
+        model_args,
+        data_args,
+        training_args,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_copy)
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
+    assert data_args.dataset_text_field == "output"
+    assert training_args.output_dir == "bloom-twitter"
+    assert tune_config is None
+
+
+def test_parse_arguments_defaults(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_defaults = copy.deepcopy(job_config)
+    assert "torch_dtype" not in job_config_defaults
+    assert job_config_defaults["use_flash_attn"] is False
+    assert "save_strategy" not in job_config_defaults
+    model_args, _, training_args, _, _, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_defaults
+    )
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
+    assert model_args.use_flash_attn is False
+    assert training_args.save_strategy.value == "epoch"
+
+
+def test_parse_arguments_peft_method(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_pt = copy.deepcopy(job_config)
+    job_config_pt["peft_method"] = "pt"
+    _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_pt
+    )
+    assert isinstance(tune_config, peft_config.PromptTuningConfig)
+
+    job_config_lora = copy.deepcopy(job_config)
+    job_config_lora["peft_method"] = "lora"
+    _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_lora
+    )
+    assert isinstance(tune_config, peft_config.LoraConfig)
+
+
 ############################# Prompt Tuning Tests #############################
 
 

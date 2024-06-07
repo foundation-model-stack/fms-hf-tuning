@@ -62,7 +62,7 @@ def create_merged_model(
         checkpoint_models = [checkpoint_models]
 
     if base_model is None:
-        base_model = fetch_base_model_from_checkpoint(checkpoint_models)
+        base_model = fetch_base_model_from_checkpoint(checkpoint_models[0])
     model = AutoModelForCausalLM.from_pretrained(base_model)
 
     # Merge each of the lora adapter models into the base model with equal weights
