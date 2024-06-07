@@ -15,10 +15,14 @@
 # Standard
 from typing import Dict, List, Optional, Union
 import json
+import sys
 import time
+import traceback
 
 # Third Party
+from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
+from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -44,9 +48,14 @@ from tuning.config.tracker_configs import (
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.utils.config_utils import get_hf_peft_config
+from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.data_utils import apply_custom_formatting_template
+from tuning.utils.error_logging import (
+    INTERNAL_ERROR_EXIT_CODE,
+    USER_ERROR_EXIT_CODE,
+    write_termination_log,
+)
 
 
 def train(
@@ -318,7 +327,8 @@ def train(
     trainer.train()
 
 
-def main(**kwargs):  # pylint: disable=unused-argument
+def get_parser():
+    """Get the command-line argument parser."""
     parser = transformers.HfArgumentParser(
         dataclass_types=(
             configs.ModelArguments,
@@ -344,22 +354,66 @@ def main(**kwargs):  # pylint: disable=unused-argument
         help='Pass a json string representing K:V pairs to be associated\
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
-    (
-        model_args,
-        data_args,
-        training_args,
-        trainer_controller_args,
-        lora_config,
-        prompt_tuning_config,
-        file_logger_config,
-        aim_config,
-        additional,
-        _,
-    ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    return parser
 
-    logger = logging.get_logger("__main__")
 
-    peft_method = additional.peft_method
+def parse_arguments(parser, json_config=None):
+    """Parses arguments provided either via command-line or JSON config.
+
+    Args:
+        parser: argparse.ArgumentParser
+            Command-line argument parser.
+        json_config: dict[str, Any]
+            Dict of arguments to use with tuning.
+
+    Returns:
+        ModelArguments
+            Arguments pertaining to which model we are going to tune.
+        DataArguments
+            Arguments pertaining to what data we are going to use for training and evaluation.
+        TrainingArguments
+            Configuration for training model.
+        TrainerControllerArguments
+            Configuration for custom trainer controller such as early stopping or dynamic scaling.
+        PromptTuningConfig/LoraConfig/None
+            Configuration for running PEFT, different depending on type of PEFT.
+        FileLoggingTrackerConfig
+            Configuration for training log file.
+        AimConfig
+            Configuration for AIM stack.
+        dict[str, str]
+            Extra AIM metadata.
+    """
+    if json_config:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            lora_config,
+            prompt_tuning_config,
+            file_logger_config,
+            aim_config,
+        ) = parser.parse_dict(json_config, allow_extra_keys=True)
+        peft_method = json_config.get("peft_method")
+        exp_metadata = json_config.get("exp_metadata")
+    else:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            lora_config,
+            prompt_tuning_config,
+            file_logger_config,
+            aim_config,
+            additional,
+            _,
+        ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+
+        peft_method = additional.peft_method
+        exp_metadata = additional.exp_metadata
+
     if peft_method == "lora":
         tune_config = lora_config
     elif peft_method == "pt":
@@ -367,11 +421,61 @@ def main(**kwargs):  # pylint: disable=unused-argument
     else:
         tune_config = None
 
+    return (
+        model_args,
+        data_args,
+        training_args,
+        trainer_controller_args,
+        tune_config,
+        file_logger_config,
+        aim_config,
+        exp_metadata,
+    )
+
+
+def main(**kwargs):  # pylint: disable=unused-argument
+    logger = logging.get_logger("__main__")
+
+    parser = get_parser()
+    job_config = get_json_config()
+    logger.debug("Input args parsed: %s", job_config)
+    # accept arguments via command-line or JSON
+    try:
+        (
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            tune_config,
+            file_logger_config,
+            aim_config,
+            exp_metadata,
+        ) = parse_arguments(parser, job_config)
+        logger.debug(
+            "Input args parsed: \
+            model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
+            tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
+            model_args,
+            data_args,
+            training_args,
+            trainer_controller_args,
+            tune_config,
+            file_logger_config,
+            aim_config,
+            exp_metadata,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logging.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during training. This may be a problem with your input: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+
     # extra metadata passed via client
     metadata = None
-    if additional.exp_metadata is not None:
+    if exp_metadata is not None:
         try:
-            metadata = json.loads(additional.exp_metadata)
+            metadata = json.loads(exp_metadata)
             if metadata is None or not isinstance(metadata, Dict):
                 logger.warning(
                     "metadata cannot be converted to simple k:v dict ignoring"
@@ -387,16 +491,41 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.file_logger_config = file_logger_config
     combined_tracker_configs.aim_config = aim_config
 
-    train(
-        model_args=model_args,
-        data_args=data_args,
-        train_args=training_args,
-        peft_config=tune_config,
-        trainer_controller_args=trainer_controller_args,
-        tracker_configs=combined_tracker_configs,
-        additional_callbacks=None,
-        exp_metadata=metadata,
-    )
+    try:
+        train(
+            model_args=model_args,
+            data_args=data_args,
+            train_args=training_args,
+            peft_config=tune_config,
+            trainer_controller_args=trainer_controller_args,
+            tracker_configs=combined_tracker_configs,
+            additional_callbacks=None,
+            exp_metadata=metadata,
+        )
+    except (MemoryError, OutOfMemoryError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(f"OOM error during training. {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
+    except FileNotFoundError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log("Unable to load file: {}".format(e))
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except HFValidationError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"There may be a problem with loading the model. Exception: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except (TypeError, ValueError, EnvironmentError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during training. This may be a problem with your input: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(f"Unhandled exception during training: {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":
