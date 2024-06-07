@@ -1,0 +1,86 @@
+# Example ConfigMap running fine tuning on bloom model
+# with twitter complaints dataset on 2 GPUs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  config.json: |
+    {
+      "model_name_or_path": "bigscience/bloom-560m",
+      "training_data_path": "/data/input/twitter_complaints.json",
+      "output_dir": "/data/output/tuning/bloom-twitter",
+      "num_train_epochs": 10.0,
+      "per_device_train_batch_size": 4,
+      "gradient_accumulation_steps": 4,
+      "learning_rate": 1e-05,
+      "response_template": "\n### Label:",
+      "dataset_text_field": "output"
+    }
+---
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: kfto-sft
+  # This is using Kueue (https://github.com/kubernetes-sigs/kueue) for queue management
+  # To enable, uncomment label below
+  # labels:
+  #   kueue.x-k8s.io/queue-name: lq-trainer
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never # Do not restart the pod on failure. If you do set it to OnFailure, be sure to also set backoffLimit
+      template:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: nvidia.com/gpu.product
+                        operator: In
+                        values:
+                          - NVIDIA-A100-SXM4-80GB # a100 needed for flash-attn
+          containers:
+            - name: pytorch
+              # Be sure to replace the image below
+              image: $SFT_IMAGE
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: SFT_TRAINER_CONFIG_JSON_PATH
+                  value: /etc/config/config.json
+              volumeMounts:
+              - name: config-volume
+                mountPath: /etc/config
+              - name: models
+                mountPath: /data/models
+              - name: input-data
+                mountPath: /data/input
+              - name: output-data
+                mountPath: /data/output
+              resources:
+                limits:
+                  # Number of GPUs specified will be number of processes set
+                  nvidia.com/gpu: 2
+                  memory: 50Gi
+                  ephemeral-storage: 100Gi
+          imagePullSecrets:
+          - name: $MY_SECRET
+          volumes:
+          # PVC mounts will need to be updated depending on your cluster environment
+          - name: models
+            persistentVolumeClaim:
+              claimName: model-pvc
+          - name: input-data
+            persistentVolumeClaim:
+              claimName: cos-input
+          - name: output-data
+            persistentVolumeClaim:
+              claimName: cos-output
+          - name: config-volume
+            configMap:
+              name: my-config
+              items:
+              - key: config.json
+                path: config.json
