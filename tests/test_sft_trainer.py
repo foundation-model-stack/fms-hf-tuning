@@ -37,6 +37,7 @@ from tuning import sft_trainer
 from tuning.config import peft_config
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
+
 BASE_PEFT_KWARGS = {
     "model_name_or_path": MODEL_NAME,
     "training_data_path": TWITTER_COMPLAINTS_DATA,
@@ -76,7 +77,7 @@ del BASE_FT_KWARGS["prompt_tuning_init_text"]
 
 def test_helper_causal_lm_train_kwargs():
     """Check happy path kwargs passed and parsed properly."""
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         BASE_PEFT_KWARGS
     )
 
@@ -97,11 +98,11 @@ def test_helper_causal_lm_train_kwargs():
     assert tune_config.tokenizer_name_or_path == MODEL_NAME
     assert tune_config.num_virtual_tokens == 8
 
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         BASE_FT_KWARGS
     )
     assert tune_config is None
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         BASE_LORA_KWARGS
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -111,7 +112,7 @@ def test_run_train_requires_output_dir():
     """Check fails when output dir not provided."""
     updated_output_dir = copy.deepcopy(BASE_PEFT_KWARGS)
     updated_output_dir["output_dir"] = None
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         updated_output_dir
     )
     with pytest.raises(TypeError):
@@ -122,7 +123,7 @@ def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_output_path = copy.deepcopy(BASE_PEFT_KWARGS)
     updated_output_path["training_data_path"] = "fake/path"
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         updated_output_path
     )
     with pytest.raises(FileNotFoundError):
@@ -137,7 +138,7 @@ def test_run_causallm_pt_and_inference():
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
 
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
@@ -166,7 +167,7 @@ def test_run_causallm_pt_init_text():
             **BASE_PEFT_KWARGS,
             **{"output_dir": tempdir, "prompt_tuning_init": "TEXT"},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
@@ -199,7 +200,7 @@ def test_run_causallm_pt_invalid_params(param_name, param_val, exc_msg):
         invalid_params = copy.deepcopy(BASE_PEFT_KWARGS)
         invalid_params["output_dir"] = tempdir
         invalid_params[param_name] = param_val
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             invalid_params
         )
 
@@ -214,7 +215,7 @@ def test_run_causallm_pt_with_validation():
         validation_peft["output_dir"] = tempdir
         validation_peft["validation_data_path"] = TWITTER_COMPLAINTS_DATA
         validation_peft["evaluation_strategy"] = "epoch"
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             validation_peft
         )
 
@@ -252,7 +253,7 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_lora_kwargs["target_modules"] = target_modules
 
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             base_lora_kwargs
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
@@ -284,7 +285,7 @@ def test_run_causallm_ft_and_inference():
     """Check if we can bootstrap and finetune tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         BASE_FT_KWARGS["output_dir"] = tempdir
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             BASE_FT_KWARGS
         )
         # Just assuring no tuning config is passed for PT or LoRA
@@ -371,7 +372,7 @@ def test_tokenizer_has_no_eos_token():
             **BASE_PEFT_KWARGS,
             **{"model_name_or_path": tempdir, "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         # If we handled this badly, we would probably get something like a
@@ -388,7 +389,7 @@ def test_invalid_dataset_text_field():
         **BASE_PEFT_KWARGS,
         **{"dataset_text_field": "not found", "output_dir": "foo/bar/baz"},
     }
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         TRAIN_KWARGS
     )
     with pytest.raises(KeyError):
@@ -402,7 +403,7 @@ def test_malformatted_data():
         **BASE_PEFT_KWARGS,
         **{"training_data_path": MALFORMATTED_DATA, "output_dir": "foo/bar/baz"},
     }
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         TRAIN_KWARGS
     )
     with pytest.raises(DatasetGenerationError):
@@ -415,7 +416,7 @@ def test_empty_data():
         **BASE_PEFT_KWARGS,
         **{"training_data_path": EMPTY_DATA, "output_dir": "foo/bar/baz"},
     }
-    model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+    model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
         TRAIN_KWARGS
     )
     with pytest.raises(DatasetGenerationError):
@@ -429,7 +430,7 @@ def test_data_path_is_a_directory():
             **BASE_PEFT_KWARGS,
             **{"training_data_path": tempdir, "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         # Confusingly, if we pass a directory for our data path, it will throw a
@@ -447,7 +448,7 @@ def test_run_causallm_lora_with_invalid_modules():
             **BASE_PEFT_KWARGS,
             **{"peft_method": "lora", "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         # Defaults are q_proj / v_proj; this will fail lora as the torch module doesn't have them
@@ -465,7 +466,7 @@ def test_no_packing_needs_dataset_text_field():
             **BASE_PEFT_KWARGS,
             **{"dataset_text_field": None, "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         with pytest.raises(ValueError):
@@ -481,7 +482,7 @@ def test_no_packing_needs_reponse_template():
             **BASE_PEFT_KWARGS,
             **{"response_template": None, "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         with pytest.raises(ValueError):
@@ -501,7 +502,7 @@ def test_bf16_still_tunes_if_unsupported():
             **BASE_PEFT_KWARGS,
             **{"torch_dtype": "bfloat16", "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         sft_trainer.train(model_args, data_args, training_args, tune_config)
@@ -515,8 +516,99 @@ def test_bad_torch_dtype():
             **BASE_PEFT_KWARGS,
             **{"torch_dtype": "not a type", "output_dir": tempdir},
         }
-        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
         with pytest.raises(ValueError):
             sft_trainer.train(model_args, data_args, training_args, tune_config)
+
+### Tracker tests.
+
+def _get_basic_training_args(output_dir, dataset):
+    basic_training = copy.deepcopy(BASE_PEFT_KWARGS)
+    basic_training["output_dir"] = output_dir
+    basic_training["validation_data_path"] = dataset
+    basic_training["evaluation_strategy"] = "epoch"
+
+def test_bad_tracker_name():
+    """Ensure code succeeds even with random tracker names."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        basic_training = _get_basic_training_args(tempdir, TWITTER_COMPLAINTS_DATA)
+        basic_training['tracker'] = "deadbeef"
+
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
+            basic_training
+        )
+
+        assert data_args.validation_data_path == TWITTER_COMPLAINTS_DATA
+
+        sft_trainer.train(model_args, data_args, training_args, tune_config)
+        _validate_training(tempdir, check_eval=True)
+
+def test_bad_extra_metadata():
+    """Ensure code succeeds even with bad extra metadata."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        basic_training = _get_basic_training_args(tempdir, TWITTER_COMPLAINTS_DATA)
+        basic_training['tracker'] = "deadbeef"
+
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
+            basic_training
+        )
+
+        bad_metadata =  "str"
+
+        assert data_args.validation_data_path == TWITTER_COMPLAINTS_DATA
+
+        sft_trainer.train(model_args, data_args, training_args, tune_config, exp_metadata=bad_metadata)
+        _validate_training(tempdir, check_eval=True)
+
+def test_correct_additional_args_unknown_tracker():
+    """Ensure code succeeds even with bad tracker name and correct extra metadata."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        basic_training = _get_basic_training_args(tempdir, TWITTER_COMPLAINTS_DATA)
+        basic_training['tracker'] = "deadbeef"
+
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
+            basic_training
+        )
+
+        metadata =  {
+            'one': 1,
+            'two': 'two',
+            'three': 3.0
+        }
+
+        assert data_args.validation_data_path == TWITTER_COMPLAINTS_DATA
+
+        sft_trainer.train(model_args, data_args, training_args, tune_config, exp_metadata=metadata)
+        _validate_training(tempdir, check_eval=True)
+
+def test_update_file_logging_location():
+    """Ensure loss log file name can be configured via FileLoggingCallbackConfig"""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        basic_training = _get_basic_training_args(tempdir, TWITTER_COMPLAINTS_DATA)
+        basic_training['tracker'] = "file_logger"
+
+        model_args, data_args, training_args, tune_config, _, _ = causal_lm_train_kwargs(
+            basic_training
+        )
+
+        metadata =  {
+            'one': 1,
+            'two': 'two',
+            'three': 3.0
+        }
+
+        from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
+        
+        file_logger_config = FileLoggingTrackerConfig(training_logs_filename="training_logs_differentname.jsonl")
+        tracker_configs = TrackerConfigFactory(file_logger_config=file_logger_config)
+
+        assert data_args.validation_data_path == TWITTER_COMPLAINTS_DATA
+
+        sft_trainer.train(model_args, data_args, training_args, tune_config, tracker_config_factory=tracker_configs, exp_metadata=metadata)
+        _validate_training(tempdir, check_eval=True)

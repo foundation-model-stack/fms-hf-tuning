@@ -17,6 +17,7 @@ import transformers
 
 # Local
 from tuning.config import configs, peft_config
+from tuning.config.tracker_configs import AimConfig, FileLoggingTrackerConfig
 
 
 def causal_lm_train_kwargs(train_kwargs):
@@ -28,6 +29,8 @@ def causal_lm_train_kwargs(train_kwargs):
             configs.TrainingArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
+            AimConfig,
+            FileLoggingTrackerConfig,
         )
     )
     (
@@ -36,10 +39,12 @@ def causal_lm_train_kwargs(train_kwargs):
         training_args,
         lora_config,
         prompt_tuning_config,
+        aim_config,
+        file_logging_config,
     ) = parser.parse_dict(train_kwargs, allow_extra_keys=True)
     tuning_config = None
     if train_kwargs.get("peft_method") == "lora":
         tuning_config = lora_config
     elif train_kwargs.get("peft_method") == "pt":
         tuning_config = prompt_tuning_config
-    return (model_args, data_args, training_args, tuning_config)
+    return (model_args, data_args, training_args, tuning_config, aim_config, file_logging_config)
