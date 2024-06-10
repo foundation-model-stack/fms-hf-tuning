@@ -15,7 +15,8 @@ data:
       "gradient_accumulation_steps": 4,
       "learning_rate": 1e-05,
       "response_template": "\n### Label:",
-      "dataset_text_field": "output"
+      "dataset_text_field": "output",
+      "use_flash_attn": false
     }
 ---
 apiVersion: "kubeflow.org/v1"
