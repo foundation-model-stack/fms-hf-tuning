@@ -8,7 +8,8 @@ version = "0.3.0rc0"
 description = "FMS HF Tuning"
 authors = ["Sukriti Sharma <sukriti.sharma4@ibm.com>", "Anh Uong <anh.uong@ibm.com>"]
 readme = "README.md"
-exclude = ["tests"]
+
+exclude = ["tests", "venv"]
 license = "Apache-2.0"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
 
@@ -34,12 +35,21 @@ ninja=">=1.11.1.1,<2.0"
 scikit-learn=">=1.0,<2.0"
 boto3 = ">=1.34,<2.0"
 
+[tool.poetry.group.flash-attn]
+optional=true
+
 [tool.poetry.group.flash-attn.dependencies]
 flash-attn=">=2.5.3,<3.0"
+
+[tool.poetry.group.aim]
+optional=true
 
 [tool.poetry.group.aim.dependencies]
 aim=">=3.19.0,<4.0"
 
+
+[tool.poetry.group.fms-accel]
+optional=true
 [tool.poetry.group.fms-accel.dependencies]
 fms_acceleration = {"git" = "git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework"}
 
