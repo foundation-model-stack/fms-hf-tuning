@@ -112,27 +112,27 @@ RUN dnf install -y git && \
 USER ${USER}
 WORKDIR /tmp
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user build
+    python -m pip install --user wheel packaging build poetry poetry-plugin-export
+
 COPY --chown=${USER}:root tuning tuning
 COPY .git .git
 COPY pyproject.toml pyproject.toml
+COPY poetry.lock poetry.lock
+COPY README.md README.md
 
-# Build a wheel if PyPi wheel_version is empty else download the wheel from PyPi
-RUN if [[ -z "${WHEEL_VERSION}" ]]; \
-    then python -m build --wheel --outdir /tmp; \
-    else pip download fms-hf-tuning==${WHEEL_VERSION} --dest /tmp --only-binary=:all: --no-deps; \
-    fi && \
-    ls /tmp/*.whl >/tmp/bdist_name
-
-# Install from the wheel
+# Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user wheel && \
-    python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
-    # Clean up the wheel module. It's only needed by flash-attn install
-    python -m pip uninstall wheel build -y && \
-    # Cleanup the bdist whl file
-    rm $(head bdist_name) /tmp/bdist_name
+    if [[ -z "${WHEEL_VERSION}" ]]; \
+    then python -m poetry config virtualenvs.create false && \
+         # Extract requirements from poetry and install them \
+         echo installing dependencies && \
+         python -m pip install --user --requirement <(python -m poetry export --format requirements.txt) && \
+         # Install the package \
+         echo installing the package &&\
+         python -m pip install --user ".[flash-attn]"; \
+    else python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" ; \
+    fi && \
+    python -m pip uninstall wheel build -y
 
 ## Final image ################################################
 FROM release-base as release
