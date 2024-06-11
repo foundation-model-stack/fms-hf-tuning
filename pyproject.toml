@@ -21,6 +21,12 @@ classifiers=[
     "Programming Language :: Python :: 3.11",
 ]
 
+packages= [{include="tuning"}]
+
+
+[tool.poetry.group.dev]
+optional=true
+
 [tool.poetry.group.dev.dependencies]
 wheel=">=0.42.0,<1.0"
 packaging =">=23.2,<24"
