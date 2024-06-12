@@ -37,7 +37,6 @@ from build.utils import (
     get_highest_checkpoint,
 )
 from tuning.utils.config_utils import get_json_config
-from tuning.utils.merge_model_utils import create_merged_model
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
 from tuning.utils.error_logging import (
     write_termination_log,
@@ -117,61 +116,25 @@ def main():
             write_termination_log(f"Unhandled exception during training. {e}")
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-        merge_model = False
-        if job_config.get("peft_method") == "lora":
-            merge_model = True
-
-        if merge_model:
-            try:
-                export_path = os.getenv(
-                    "LORA_MERGE_MODELS_EXPORT_PATH", original_output_dir
-                )
-
-                # get the highest checkpoint dir (last checkpoint)
-                lora_checkpoint_dir = get_highest_checkpoint(tempdir)
-                full_checkpoint_dir = os.path.join(tempdir, lora_checkpoint_dir)
-
-                logging.info(
-                    "Merging lora tuned checkpoint %s with base model into output path: %s",
-                    lora_checkpoint_dir,
-                    export_path,
-                )
-
-                # ensure checkpoint dir has correct files, important with multi-gpu tuning
-                if os.path.exists(
-                    os.path.join(full_checkpoint_dir, "adapter_config.json")
-                ):
-                    create_merged_model(
-                        checkpoint_models=full_checkpoint_dir,
-                        export_path=export_path,
-                        save_tokenizer=True,
-                    )
-            except Exception as e:  # pylint: disable=broad-except
-                logging.error(traceback.format_exc())
-                write_termination_log(
-                    f"Exception encountered merging base model with checkpoint. {e}"
-                )
-                sys.exit(INTERNAL_ERROR_EXIT_CODE)
-        else:
-            try:
-                # copy last checkpoint into mounted output dir
-                pt_checkpoint_dir = get_highest_checkpoint(tempdir)
-                logging.info(
-                    "Copying last checkpoint %s into output dir %s",
-                    pt_checkpoint_dir,
-                    original_output_dir,
-                )
-                shutil.copytree(
-                    os.path.join(tempdir, pt_checkpoint_dir),
-                    original_output_dir,
-                    dirs_exist_ok=True,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logging.error(traceback.format_exc())
-                write_termination_log(
-                    f"Exception encountered writing output model to storage: {e}"
-                )
-                sys.exit(INTERNAL_ERROR_EXIT_CODE)
+        try:
+            # copy last checkpoint into mounted output dir
+            pt_checkpoint_dir = get_highest_checkpoint(tempdir)
+            logging.info(
+                "Copying last checkpoint %s into output dir %s",
+                pt_checkpoint_dir,
+                original_output_dir,
+            )
+            shutil.copytree(
+                os.path.join(tempdir, pt_checkpoint_dir),
+                original_output_dir,
+                dirs_exist_ok=True,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error(traceback.format_exc())
+            write_termination_log(
+                f"Exception encountered writing output model to storage: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         # copy over any loss logs
         try:
