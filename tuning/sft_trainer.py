@@ -141,8 +141,8 @@ def train(
     )
 
     if data_args.pretokenized:
-        # TODO: tokenizer_name_or_path has to be moved from peft_config to model_args
-        tokenizer = AutoTokenizer.from_pretrained(peft_config.tokenizer_name_or_path)
+        # TODO: tokenizer_path has been added to model_args without conflicting with tokenizer_name_or_path from peft
+        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_path)
     else:
         # TODO: Move these to a config as well
         tokenizer = AutoTokenizer.from_pretrained(
@@ -392,10 +392,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
     else:
         tune_config = None
 
-    if data_args.pretokenized and not prompt_tuning_config.tokenizer_name_or_path:
-        logger.error(
-            "tokenizer_name_or_path flag is required when using pretokenized option"
-        )
+    if data_args.pretokenized and not model_args.tokenizer_path:
+        logger.error("tokenizer_path flag is required when using pretokenized option")
 
     # extra metadata passed via client
     metadata = None
