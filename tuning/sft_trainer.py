@@ -140,32 +140,37 @@ def train(
         attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
     )
 
-    # TODO: Move these to a config as well
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
-    )
+    if data_args.pretokenized:
+        # TODO: tokenizer_name_or_path has to be moved from peft_config to model_args
+        tokenizer = AutoTokenizer.from_pretrained(peft_config.tokenizer_name_or_path)
+    else:
+        # TODO: Move these to a config as well
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
+        )
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
     peft_config = get_hf_peft_config(task_type, peft_config)
 
-    # TODO: understand if we need to hardcode these here or just use defaults in model
-    if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-        tokenizer.add_special_tokens(
-            {
-                # "bos_token": "<s>",
-                # "eos_token": "</s>",
-                # "unk_token": "<unk>",
-                "pad_token": "<pad>",
-            }
-        )
-    elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-        tokenizer.add_special_tokens(
-            {
-                "pad_token": "<pad>",
-            }
-        )
+    if not data_args.pretokenized:
+        # TODO: understand if we need to hardcode these here or just use defaults in model
+        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
+            tokenizer.add_special_tokens(
+                {
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                }
+            )
+        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
+            tokenizer.add_special_tokens(
+                {
+                    "pad_token": "<pad>",
+                }
+            )
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
@@ -212,6 +217,8 @@ def train(
     )
     if data_args.pretokenized:
         logger.info("No data collator since the data is pretokenized")
+        logger.info("resizing the model embedding layer")
+        tokenizer_data_utils.embedding_resize(model=model, tokenizer=tokenizer)
     if train_args.packing:
         logger.info("Packing is set to True")
     elif not data_args.pretokenized:
@@ -384,6 +391,11 @@ def main(**kwargs):  # pylint: disable=unused-argument
         tune_config = prompt_tuning_config
     else:
         tune_config = None
+
+    if data_args.pretokenized and not prompt_tuning_config.tokenizer_name_or_path:
+        logger.error(
+            "tokenizer_name_or_path flag is required when using pretokenized option"
+        )
 
     # extra metadata passed via client
     metadata = None

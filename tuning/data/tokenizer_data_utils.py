@@ -14,6 +14,7 @@
 
 # Standard
 from typing import Dict, List
+import math
 
 # Third Party
 import transformers
@@ -65,3 +66,16 @@ def create_attention_mask(labels: List[List], input_ids: List[List]) -> List[Lis
     for i in range(len(labels)):
         attention_mask.append([1] * len(input_ids[i]))
     return attention_mask
+
+
+def embedding_resize(
+    model: transformers.PreTrainedModel, tokenizer: transformers.PreTrainedTokenizer
+) -> None:
+    """resize embedding layer of the model to closest multiple of 8 based on the
+    given tokenizer
+
+    Args:
+        model (transformers.PreTrainedModel): model object
+        tokenizer (transformers.PreTrainedTokenizer): tokenizer object
+    """
+    model.resize_token_embeddings(int(8 * math.ceil(len(tokenizer) / 8.0)))

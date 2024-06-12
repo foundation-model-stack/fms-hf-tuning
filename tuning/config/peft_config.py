@@ -79,4 +79,4 @@ class PromptTuningConfig:
     prompt_tuning_init: str = "TEXT"
     num_virtual_tokens: int = 8
     prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
-    tokenizer_name_or_path: str = "llama-7b-hf"
+    tokenizer_name_or_path: str = None
