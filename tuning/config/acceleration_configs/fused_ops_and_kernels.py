@@ -13,8 +13,11 @@
 # limitations under the License.
 
 
+# Standard
 from dataclasses import dataclass
 from typing import List
+
+# Local
 from .utils import EnsureTypes, ensure_nested_dataclasses_initialized
 
 
@@ -36,18 +39,17 @@ class FusedLoraConfig(List):
         # reset for another parse
         self.__args__[0].reset()
 
-        if (
-            self.base_layer is not None and 
-            self.base_layer not in {'auto_gptq', 'bitsandbytes'}
-        ):
-            raise ValueError(
-                f"base_layer set to invalid value '{self.base_layer}'"
-            )
+        if self.base_layer is not None and self.base_layer not in {
+            "auto_gptq",
+            "bitsandbytes",
+        }:
+            raise ValueError(f"base_layer set to invalid value '{self.base_layer}'")
 
         if self.base_layer is not None and not self.fused_lora:
             raise ValueError(
                 f"base_layer set to '{self.base_layer}' so fused_lora must be set to True"
             )
+
 
 @dataclass
 class FastKernelsConfig(List):
@@ -69,13 +71,12 @@ class FastKernelsConfig(List):
         # reset for another parse
         self.__args__[0].reset()
 
-        if not (
-            self.fast_loss == self.fast_rsm_layernorm == self.fast_rope_embeddings
-        ):
+        if not self.fast_loss == self.fast_rsm_layernorm == self.fast_rope_embeddings:
             raise ValueError(
-                'fast_loss, fast_rms_layernorm and fast_rope_embedding must be enabled '
-                'together. This restriction may be relaxed in the future.'
+                "fast_loss, fast_rms_layernorm and fast_rope_embedding must be enabled "
+                "together. This restriction may be relaxed in the future."
             )
+
 
 @dataclass
 class FusedOpsAndKernelsConfig:
@@ -87,14 +88,12 @@ class FusedOpsAndKernelsConfig:
     fast_kernels: FastKernelsConfig = None
 
     def __post_init__(self):
-        if (
-            (self.fused_lora is not None and self.fast_kernels is None)
-            or
-            (self.fused_lora is None and self.fast_kernels is not None)
+        if (self.fused_lora is not None and self.fast_kernels is None) or (
+            self.fused_lora is None and self.fast_kernels is not None
         ):
             raise ValueError(
-                'fused lora and fast_kernels must be used together. '
-                'This restriction may be relaxed in the future.'
+                "fused lora and fast_kernels must be used together. "
+                "This restriction may be relaxed in the future."
             )
 
         # ensure nested dataclasses initialized

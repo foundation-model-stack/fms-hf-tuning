@@ -40,6 +40,11 @@ import transformers
 
 # Local
 from tuning.config import configs, peft_config
+from tuning.config.acceleration_configs import (
+    AccelerationFrameworkConfig,
+    FusedOpsAndKernelsConfig,
+    QuantizedLoraConfig,
+)
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
@@ -374,7 +379,7 @@ def get_parser():
             FileLoggingTrackerConfig,
             AimConfig,
             QuantizedLoraConfig,
-            FusedOpsAndKernelsConfig
+            FusedOpsAndKernelsConfig,
         )
     )
     parser.add_argument(

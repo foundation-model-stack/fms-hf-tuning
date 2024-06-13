@@ -13,19 +13,22 @@
 # limitations under the License.
 
 
+# Standard
 from dataclasses import dataclass
 from typing import List
-from .utils import  EnsureTypes, ensure_nested_dataclasses_initialized
+
+# Local
+from .utils import EnsureTypes, ensure_nested_dataclasses_initialized
 
 
 @dataclass
 class AutoGPTQLoraConfig(List):
-    
+
     # to help the HfArgumentParser arrive at correct types
     __args__ = [EnsureTypes(str, bool)]
 
     # auto_gptq supports various kernels, to select the kernel to use.
-    kernel: str = 'triton_v2'
+    kernel: str = "triton_v2"
 
     # allow auto_gptq to quantize a model before training commences.
     # NOTE: currently this is not allowed.
@@ -35,12 +38,13 @@ class AutoGPTQLoraConfig(List):
 
         # reset for another parse
         self.__args__[0].reset()
-        
-        if self.kernel != 'triton_v2':
+
+        if self.kernel != "triton_v2":
             raise ValueError("only 'triton_v2' kernel currently supported.")
 
         if not self.from_quantized:
             raise ValueError("only 'from_quantized' == True currently supported.")
+
 
 @dataclass
 class BNBQLoraConfig(List):
@@ -49,9 +53,9 @@ class BNBQLoraConfig(List):
     __args__ = [EnsureTypes(str, bool)]
 
     # type of quantization applied
-    quant_type: str = 'nf4'
+    quant_type: str = "nf4"
 
-    # if we only want to quantize the base layer, and defer to the 
+    # if we only want to quantize the base layer, and defer to the
     # huggingface to prepare the peft (i.e. lora) model
     no_peft_model: bool = False
 
@@ -60,8 +64,9 @@ class BNBQLoraConfig(List):
         # reset for another parse
         self.__args__[0].reset()
 
-        if self.quant_type not in ['nf4', 'fp4']:
+        if self.quant_type not in ["nf4", "fp4"]:
             raise ValueError("quant_type can only be either 'nf4' or 'fp4.")
+
 
 @dataclass
 class QuantizedLoraConfig:
@@ -74,7 +79,7 @@ class QuantizedLoraConfig:
 
     def __post_init__(self):
         if self.auto_gptq is None and self.bnb_qlora is None:
-            raise ValueError('at least one quantized config has to be specified.')
-            
+            raise ValueError("at least one quantized config has to be specified.")
+
         # ensure nested dataclasses initialized
         ensure_nested_dataclasses_initialized(self)

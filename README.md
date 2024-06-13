@@ -387,29 +387,37 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 `fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that acclerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [seperate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
 
-Basic usage includes these steps:
+To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
+  ```
+  $ pip install -e .[fms-accel]
+  ```
 
-1. Install the `[fms-accel]` dependency:
-    ```
-    $ pip install -e .[fms-accel]
-    ```
+Furthermore, the required `fms-acceleration` plugin must be installed. This is done via the command line utility `fms_acceleration.cli`. To show available plugins:
+  ```
+  $ python -m fms_acceleration.cli plugins
+  ```
+as well as to install the `fms_acceleration_peft`:
 
-    The installs the command line utility `fms_acceleration.cli`, used to install plugins.
-3. `install` the required framework plugins; we install the `fms-acceleration-peft` plugin for GPTQ-LoRA tuning with triton v2 as:
-    ```
-    python -m fms_acceleration.cli install fms_acceleration_peft
-    ```
+  ```
+  $ python -m fms_acceleration.cli install fms_acceleration_peft
+  ```
 
-5. Run `sft_trainer.py` providing the acceleration configuration and arguments; given the basic flow assumption that we simply re-use the same `sft_trainer.py` arguments as we had without using the `fms_acceleration` package:
-    ```
-    python sft_trainer.py \
-        --acceleration_framework_config_file framework_config.yaml \
-        ...  # arguments
-    ```
+If you do not know what plugin to install (or forget), the framework will remind 
 
-    See [this sample configuration for GPTQ-LoRA with triton v2](./fixtures/accelerated-peft-autogptq-sample-configuration.yaml) to be passed into `--acceleration_framework_config_file` above.
+```
+An acceleration feature is requested by specifying the '--auto_gptq' argument, but the this requires acceleration packages to be installed. Please do:
+- python -m fms_acceleration install fms_acceleration_peft
+```
 
-Thats it! Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
+The list of configurations for various `fms_acceleration` plugins:
+- [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
+  - `--auto_gptq`: 4bit GPTQ_LoRA with AutoGPTQ
+  - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
+- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
+  - `--fused_lora`: fused lora for more efficient LoRA training.
+  - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
+
+Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
 ```
 # this printout will be seen in huggingface trainer logs if acceleration is activated

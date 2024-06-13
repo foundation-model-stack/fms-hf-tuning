@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Type, Dict, get_type_hints
-
+# Standard
 from dataclasses import fields
-from transformers.hf_argparser import string_to_bool, DataClass
+from typing import Dict, Type, get_type_hints
+
+# Third Party
+from transformers.hf_argparser import DataClass, string_to_bool
+
 
 def ensure_nested_dataclasses_initialized(dataclass: DataClass):
     type_hints: Dict[str, type] = get_type_hints(dataclass)
@@ -26,11 +29,11 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
             values = nested_type(*values)
         setattr(dataclass, f.name, values)
 
-class EnsureTypes:
 
+class EnsureTypes:
     def __init__(self, *types: Type):
-        map = {bool: string_to_bool}
-        self.types = [map.get(t, t) for t in types]
+        _map = {bool: string_to_bool}
+        self.types = [_map.get(t, t) for t in types]
         self.reset()
 
     def reset(self):
@@ -38,9 +41,7 @@ class EnsureTypes:
 
     def __call__(self, val):
         if self.cnt >= len(self.types):
-            raise ValueError(
-                "EnsureTypes require 'reset' to be called to be re-used."
-            )
+            raise ValueError("EnsureTypes require 'reset' to be called to be re-used.")
 
         t = self.types[self.cnt]
         self.cnt += 1

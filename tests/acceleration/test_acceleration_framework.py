@@ -18,7 +18,6 @@ import tempfile
 
 # Third Party
 import pytest
-import yaml
 
 # First Party
 from tests.helpers import causal_lm_train_kwargs
@@ -26,20 +25,20 @@ from tests.test_sft_trainer import BASE_LORA_KWARGS
 
 # Local
 from tuning import sft_trainer
-from tuning.utils.import_utils import is_fms_accelerate_available
-import tuning.config.configs as config
 from tuning.config.acceleration_configs import (
-    AccelerationFrameworkConfig, QuantizedLoraConfig
+    AccelerationFrameworkConfig,
+    QuantizedLoraConfig,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
-    AutoGPTQLoraConfig, BNBQLoraConfig
+    AutoGPTQLoraConfig,
+    BNBQLoraConfig,
 )
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 # pylint: disable=import-error
 if is_fms_accelerate_available():
 
     # Third Party
-    from fms_acceleration.framework import KEY_PLUGINS, AccelerationFramework
     from fms_acceleration.utils.test_utils import build_framework_and_maybe_instantiate
 
     if is_fms_accelerate_available(plugins="peft"):
@@ -92,7 +91,8 @@ def test_construct_framework_config_with_incorrect_configurations():
     "Ensure that framework configuration cannot have empty body"
 
     with pytest.raises(
-        ValueError, match="AccelerationFrameworkConfig construction requires at least one dataclass"
+        ValueError,
+        match="AccelerationFrameworkConfig construction requires at least one dataclass",
     ):
         AccelerationFrameworkConfig.from_dataclasses()
 
@@ -102,14 +102,18 @@ def test_construct_framework_config_with_incorrect_configurations():
     ):
         AutoGPTQLoraConfig(from_quantized=False)
 
-    # test an invalid activation of two standalone configs. 
+    # test an invalid activation of two standalone configs.
     quantized_lora_config = QuantizedLoraConfig(
         auto_gptq=AutoGPTQLoraConfig(), bnb_qlora=BNBQLoraConfig()
     )
     with pytest.raises(
-        ValueError, match="Configuration path 'peft.quantization' already has one standalone config."
+        ValueError,
+        match="Configuration path 'peft.quantization' already has one standalone config.",
     ):
-        AccelerationFrameworkConfig.from_dataclasses(quantized_lora_config).get_framework()
+        AccelerationFrameworkConfig.from_dataclasses(
+            quantized_lora_config
+        ).get_framework()
+
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="peft"),
@@ -119,7 +123,9 @@ def test_construct_framework_with_auto_gptq_peft():
     "Ensure that framework object is correctly configured."
 
     quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
-    acceleration_config = AccelerationFrameworkConfig.from_dataclasses(quantized_lora_config)
+    acceleration_config = AccelerationFrameworkConfig.from_dataclasses(
+        quantized_lora_config
+    )
 
     # for this test we skip the require package check as second order package
     # dependencies of accelerated_peft is not required
@@ -132,6 +138,7 @@ def test_construct_framework_with_auto_gptq_peft():
 
         # the configuration file should successfully activate the plugin
         assert len(framework.active_plugins) == 1
+
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(),
@@ -156,19 +163,21 @@ def test_framework_not_installed_or_initalized_properly():
         # patch is_fms_accelerate_available to return False inside sft_trainer
         # to simulate fms_acceleration not installed
         with patch(
-            "tuning.config.acceleration_configs.acceleration_framework_config.is_fms_accelerate_available", return_value=False
+            "tuning.config.acceleration_configs.acceleration_framework_config."
+            "is_fms_accelerate_available",
+            return_value=False,
         ):
             with pytest.raises(
-                ValueError,
-                match="No acceleration framework package found."
+                ValueError, match="No acceleration framework package found."
             ):
                 sft_trainer.train(
                     model_args,
                     data_args,
                     training_args,
                     tune_config,
-                    quantized_lora_config=quantized_lora_config
+                    quantized_lora_config=quantized_lora_config,
                 )
+
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="peft"),
@@ -206,7 +215,7 @@ def test_framework_intialized_properly():
                 training_args,
                 tune_config,
                 # acceleration_framework_args=framework_args,
-                quantized_lora_config=quantized_lora_config
+                quantized_lora_config=quantized_lora_config,
             )
 
         # spy to ensure that the plugin functions were called.

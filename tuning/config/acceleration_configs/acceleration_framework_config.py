@@ -12,112 +12,91 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, fields, asdict, is_dataclass
-from typing import Annotated, List, Dict, Type
-from tuning.utils.import_utils import is_fms_accelerate_available
-from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
-from .fused_ops_and_kernels import FusedLoraConfig, FastKernelsConfig
-import yaml
+# Standard
+from dataclasses import asdict, dataclass, fields, is_dataclass
+from typing import Annotated, Dict, List, Type
 import warnings
+
+# Third Party
+import yaml
+
+# Local
+from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
+from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 if is_fms_accelerate_available():
     # Third Party
     from fms_acceleration import AccelerationFramework  # pylint: disable=import-error
-    from fms_acceleration.framework import KEY_PLUGINS
-
-# DESIGN OF FMS CONFIGS:
-# - FMS will have differnt configs (probably one (or more) / plugin).
-# - e,g. QuantizedLoraConfig will be for the accelerated_peft plugin
-# - e.g, FusedOpsAndKernelsConfig will be for fused_ops_and_kernels plugin
-# - FMS users will understand that to use thse configs, they will need
-#   to install the plugin that corresponds to that config
-# - each FMS config will nest multiple dataclasses in a single level
-# - typically each nested dataclass corresponds to one use case
-# - e.g. for the QuantizedLoraConfig, two use cases of auto_gptq and bnb_qlora
-
-# - the HF dataclass argument parser will create position arguments from the
-#   FMS config
-# - in the usal way, the keys of the FMS config will correspond to a --key
-# - then the use case dataclass will be passed its attributes by position
-# - hence, this is the reason why we enforce the FMS config to be
-#   single-level nested dataclasses.
-
-# DESIGN OF ACCELERATION CONFIGS
-# - An ACCELERATION CONFIG is a monolothic config passed to AccelerationFramework
-# - it is NOT meant to be user facing. Users will only configure
-#   use case dataclasses within.
-# - however, uses can consult the annotations (see below) to understand
-#   which use-case config can be active at the same time.
-# - it is a collection of use-case dataclasses (see above)
-# - every use-case dataclass is annotated with a header
-# - any two use-case dataclasses that are annotated with the 
-#   same header, cannot be active at the same time.
-# - An Acceleration Config is valid only if it does not have any 
-#   use-case dataclass that violates these rules.
+    from fms_acceleration.framework import KEY_PLUGINS  # pylint: disable=import-error
 
 # these are optional annotations that describe different behavior
 @dataclass
 class ConfigAnnotation:
 
     # AccelerationFramework configuration path
-    path: str 
+    path: str
 
     # if omitted, will take the field name
-    key: str = None 
+    key: str = None
 
     # only one that has single=True may exist under its path
-    # - this is used to indicate conflicting configurations 
-    # - we do not allow two configurations that load the model to be 
+    # - this is used to indicate conflicting configurations
+    # - we do not allow two configurations that load the model to be
     #   activated at the same time
-    standalone: bool = False 
+    standalone: bool = False
 
     # set to true to throw a user warning
     experimental: bool = False
 
-    # set to indicate what acceeleration packages are needed 
+    # set to indicate what acceeleration packages are needed
     required_packages: List[str] = None
+
 
 @dataclass
 class AccelerationFrameworkConfig:
     "Dataclass that manages configuration of AccelerationFramework"
 
-    PACKAGE_PREFIX = 'fms_acceleration_'
+    PACKAGE_PREFIX = "fms_acceleration_"
 
     # each field will a single-level use case dataclass
     auto_gptq: Annotated[
-        AutoGPTQLoraConfig, ConfigAnnotation(
-            path="peft.quantization", standalone=True, 
-            required_packages=['peft']
-        )
+        AutoGPTQLoraConfig,
+        ConfigAnnotation(
+            path="peft.quantization", standalone=True, required_packages=["peft"]
+        ),
     ] = None
 
     bitsandbytes: Annotated[
-        BNBQLoraConfig, ConfigAnnotation(
-            path="peft.quantization", standalone=True, 
-            required_packages=['peft']
-        )
+        BNBQLoraConfig,
+        ConfigAnnotation(
+            path="peft.quantization", standalone=True, required_packages=["peft"]
+        ),
     ] = None
-    
+
     fused_lora: Annotated[
-        FusedLoraConfig, ConfigAnnotation(
-            path="peft.quantization", key='fused_ops_and_kernels', 
+        FusedLoraConfig,
+        ConfigAnnotation(
+            path="peft.quantization",
+            key="fused_ops_and_kernels",
             experimental=True,
-            required_packages=['foak']
-        )
+            required_packages=["foak"],
+        ),
     ] = None
 
     fast_kernels: Annotated[
-        FastKernelsConfig, ConfigAnnotation(
-            path="peft.quantization", key='fused_ops_and_kernels', 
+        FastKernelsConfig,
+        ConfigAnnotation(
+            path="peft.quantization",
+            key="fused_ops_and_kernels",
             experimental=True,
-            required_packages=['foak']
-        )
+            required_packages=["foak"],
+        ),
     ] = None
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
         "Convert one or many FMS config dataclasses to a monolithic AccelerationConfig"
-
 
         # Assumption: AccelerationFrameworkConfig only has fields that are
         #             single level dataclasses
@@ -138,19 +117,21 @@ class AccelerationFrameworkConfig:
 
             # make sure that it every field is a dataclass
             for fi in fields(dc):
-                attr = getattr(dc, fi.name) 
+                attr = getattr(dc, fi.name)
                 if attr is None:
-                    break # skip the None attributes
+                    break  # skip the None attributes
 
-                if not is_dataclass(attr): 
-                    raise ValueError(f"field '{fi.name}' is specified but not a dataclass")
+                if not is_dataclass(attr):
+                    raise ValueError(
+                        f"field '{fi.name}' is specified but not a dataclass"
+                    )
 
-                # NOTE: should we also check that these are non-nested 
+                # NOTE: should we also check that these are non-nested
                 # dataclasses?
                 nested_dataclasses.append(attr)
 
         config = AccelerationFrameworkConfig()
-        rem_fields = {fi.name: fi for fi in fields(config)} # these need to be parsed
+        rem_fields = {fi.name: fi for fi in fields(config)}  # these need to be parsed
 
         # process the dataclasses that were nested
         # by assumption these are non-nested dataclasses
@@ -172,7 +153,7 @@ class AccelerationFrameworkConfig:
 
             # assign the dataclass
             setattr(config, fi.name, dc)
-            del rem_fields[fi.name] # remove the field
+            del rem_fields[fi.name]  # remove the field
 
         return config
 
@@ -182,8 +163,12 @@ class AccelerationFrameworkConfig:
 
             # to be eventually be made to be passed as a dict to Acceleration
             # Framework
-            from tempfile import NamedTemporaryFile
-            with NamedTemporaryFile('w') as f:
+            # Standard
+            from tempfile import (  # pylint: disable=import-outside-toplevel
+                NamedTemporaryFile,
+            )
+
+            with NamedTemporaryFile("w") as f:
                 self.to_yaml(f.name)
                 return AccelerationFramework(f.name)
         else:
@@ -208,11 +193,11 @@ class AccelerationFrameworkConfig:
             r = configuration_contents
             for p in path[:-1]:
                 if p not in r:
-                    r[p] = {} # new branch
+                    r[p] = {}  # new branch
                 r = r[p]
 
             p = path[-1]
-            r[p] = {**r.get(p, {}), **d} # merge dict if exists
+            r[p] = {**r.get(p, {}), **d}  # merge dict if exists
 
         # parse each field
         already_set = set()
@@ -222,19 +207,20 @@ class AccelerationFrameworkConfig:
                 # this is the documented way to get annotations
                 # https://docs.python.org/3/library/typing.html#typing.Annotated
                 annotate: ConfigAnnotation
-                annotate, = fi.type.__metadata__
-                prefix_path = tuple(annotate.path.split('.'))
-                if (
-                    annotate.standalone and
-                    prefix_path in already_set
-                ):
-                    raise ValueError(f"Configuration path '{'.'.join(prefix_path)}' already has one standalone config.")
+                (annotate,) = fi.type.__metadata__
+                prefix_path = tuple(annotate.path.split("."))
+                if annotate.standalone and prefix_path in already_set:
+                    raise ValueError(
+                        f"Configuration path '{'.'.join(prefix_path)}' "
+                        "already has one standalone config."
+                    )
 
                 if annotate.experimental:
                     warnings.warn(
                         "An experimental acceleration feature is requested by specifying the "
                         f"'--{fi.name}' argument. Please note this feature may not support certain "
-                        "edge cases at this juncture. When the feature matures this message will be turned off."
+                        "edge cases at this juncture. When the feature matures this "
+                        "message will be turned off."
                     )
 
                 if not all(
@@ -243,12 +229,14 @@ class AccelerationFrameworkConfig:
                     raise ValueError(
                         "An acceleration feature is requested by specifying the "
                         f"'--{fi.name}' argument, but the this requires acceleration packages "
-                        "to be installed. Please do:\n" + 
-                        "\n".join([
-                            '- python -m fms_acceleration install '
-                            f'{AccelerationFrameworkConfig.PACKAGE_PREFIX + x}' 
-                            for x in annotate.required_packages
-                        ])
+                        "to be installed. Please do:\n"
+                        + "\n".join(
+                            [
+                                "- python -m fms_acceleration install "
+                                f"{AccelerationFrameworkConfig.PACKAGE_PREFIX + x}"
+                                for x in annotate.required_packages
+                            ]
+                        )
                     )
 
                 key = annotate.key if annotate.key is not None else fi.name
@@ -261,5 +249,5 @@ class AccelerationFrameworkConfig:
     def to_yaml(self, filename: str):
         "convert a valid AccelerationConfig dataclass into a yaml"
         configuration_contents = self.to_dict()
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             yaml.dump({KEY_PLUGINS: configuration_contents}, f)

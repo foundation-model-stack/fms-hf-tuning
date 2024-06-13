@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Local
 from .acceleration_framework_config import AccelerationFrameworkConfig
-
-from .quantized_lora_config import QuantizedLoraConfig
 from .fused_ops_and_kernels import FusedOpsAndKernelsConfig
+from .quantized_lora_config import QuantizedLoraConfig
