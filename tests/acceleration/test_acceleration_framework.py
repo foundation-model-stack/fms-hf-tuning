@@ -24,6 +24,7 @@ from tests.helpers import causal_lm_train_kwargs
 from tests.test_sft_trainer import BASE_LORA_KWARGS
 
 # Local
+from .spying_utils import create_mock_plugin_class
 from tuning import sft_trainer
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
@@ -51,58 +52,15 @@ if is_fms_accelerate_available():
 # repository.
 # - see plugins/framework/tests/test_framework.py
 
-# helper function
-def create_mock_plugin_class(plugin_cls):
-    "Create a mocked acceleration framework class that can be used to spy"
 
-    # mocked plugin class
-    class MockPlugin(plugin_cls):
+def test_acceleration_framework_fail_construction():
+    """Ensure that construct of the framework will fail if rules regarding
+    the dataclasess are violated.
+    """
 
-        # counters used for spying
-        model_loader_calls: int
-        augmentation_calls: int
-        get_callback_calls: int
-
-        @classmethod
-        def reset_calls(cls):
-            # reset the counters
-            cls.model_loader_calls = cls.augmentation_calls = cls.get_callback_calls = 0
-
-        def model_loader(self, *args, **kwargs):
-            MockPlugin.model_loader_calls += 1
-            return super().model_loader(*args, **kwargs)
-
-        def augmentation(
-            self,
-            *args,
-            **kwargs,
-        ):
-            MockPlugin.augmentation_calls += 1
-            return super().augmentation(*args, **kwargs)
-
-        def get_callbacks_and_ready_for_train(self, *args, **kwargs):
-            MockPlugin.get_callback_calls += 1
-            return super().get_callbacks_and_ready_for_train(*args, **kwargs)
-
-    return MockPlugin
-
-
-def test_construct_framework_config_with_incorrect_configurations():
-    "Ensure that framework configuration cannot have empty body"
-
-    with pytest.raises(
-        ValueError,
-        match="AccelerationFrameworkConfig construction requires at least one dataclass",
-    ):
-        AccelerationFrameworkConfig.from_dataclasses()
-
-    # test a currently not supported config
-    with pytest.raises(
-        ValueError, match="only 'from_quantized' == True currently supported."
-    ):
-        AutoGPTQLoraConfig(from_quantized=False)
-
-    # test an invalid activation of two standalone configs.
+    # 1. Rule 1: No two standalone dataclasses can exist at the same path
+    # - Test that the framework will fail to construct if there are multiple
+    #    standalone plugins under the same path that are simultaneously requested.
     quantized_lora_config = QuantizedLoraConfig(
         auto_gptq=AutoGPTQLoraConfig(), bnb_qlora=BNBQLoraConfig()
     )
@@ -114,29 +72,62 @@ def test_construct_framework_config_with_incorrect_configurations():
             quantized_lora_config
         ).get_framework()
 
+    # 2. Rule 2: Dataclass cannot request a plugin that is not yet installed.
+    # - Test that framework will fail to construct if trying to activate a plugin
+    #   that is not yet installed
+    # with patch(
+    #     "tuning.config.acceleration_configs.acceleration_framework_config."
+    #     "is_fms_accelerate_available",
+    #     return_value=False,
+    # ):
+
+
+@pytest.mark.skip(
+    """ NOTE: this scenario will actually never happen, since in the code we always
+    provide at least one dataclass (can consider to remove this test).
+    """
+)
+def test_construct_framework_config_raise_if_constructing_with_no_dataclassess():
+    """Ensure that framework configuration config will refused to construct
+    if no dataclasses are provided.
+    """
+
+    with pytest.raises(
+        ValueError,
+        match="AccelerationFrameworkConfig construction requires at least one dataclass",
+    ):
+        AccelerationFrameworkConfig.from_dataclasses()
+
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="peft"),
     reason="Only runs if fms-accelerate is installed along with accelerated-peft plugin",
 )
-def test_construct_framework_with_auto_gptq_peft():
+def test_construct_framework_with_auto_gptq_peft_successfully():
     "Ensure that framework object is correctly configured."
 
+    # 1. correctly initialize a set of quantized lora config dataclass
+    #    with auto-gptq
     quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
+
+    # - instantiate the acceleration config
     acceleration_config = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config
     )
 
-    # for this test we skip the require package check as second order package
-    # dependencies of accelerated_peft is not required
+    # build the framework by
+    # - passing acceleration configuration contents (via .to_dict()).
+    # - NOTE: we skip the required packages check in the framework since it is
+    #         not necessary for this test (e.g., we do not need auto_gptq installed)
+    # - check that the plugin is correctly activated
     with build_framework_and_maybe_instantiate(
         [],
-        acceleration_config.to_dict(),
+        acceleration_config.to_dict(),  # pass in contents
         reset_registrations=False,
-        require_packages_check=False,
+        require_packages_check=False,  # not required
     ) as framework:
 
-        # the configuration file should successfully activate the plugin
+        # plugin activated!
         assert len(framework.active_plugins) == 1
 
 
@@ -144,9 +135,9 @@ def test_construct_framework_with_auto_gptq_peft():
     not is_fms_accelerate_available(),
     reason="Only runs if fms-accelerate is installed",
 )
-def test_framework_not_installed_or_initalized_properly():
-    """Ensure that specifying an framework config without installing fms_acceleration
-    results in raise.
+def test_framework_raises_if_used_with_missing_package():
+    """Ensure that trying the use the framework, without first installing fms_acceleration
+    will raise.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {
@@ -184,8 +175,8 @@ def test_framework_not_installed_or_initalized_properly():
     reason="Only runs if fms-accelerate is installed along with accelerated-peft plugin",
 )
 def test_framework_intialized_properly():
-    """Ensure that specifying an framework config without installing fms_acceleration
-    results in raise.
+    """Ensure that specifying a properly configured acceleration dataclass
+    properly activates the framework plugin and runs the train sucessfully.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {
@@ -197,16 +188,20 @@ def test_framework_intialized_properly():
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
+
+        # setup default quantized lora args dataclass
+        # - with auth gptq as the quantized method
         quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
         # create mocked plugin class for spying
-        MockedClass = create_mock_plugin_class(AutoGPTQAccelerationPlugin)
-        MockedClass.reset_calls()
+        MockedPlugin = create_mock_plugin_class(AutoGPTQAccelerationPlugin)
+        MockedPlugin.reset_calls()
 
-        # test utils to register the mocked pluigin class and call
-        # sft_trainer
+        # 1. mock a plugin class
+        # 2. register the mocked plugin
+        # 3. call sft_trainer.train
         with build_framework_and_maybe_instantiate(
-            [(["peft.quantization.auto_gptq"], MockedClass)],
+            [(["peft.quantization.auto_gptq"], MockedPlugin)],
             instantiate=False,
         ):
             sft_trainer.train(
@@ -214,12 +209,14 @@ def test_framework_intialized_properly():
                 data_args,
                 training_args,
                 tune_config,
-                # acceleration_framework_args=framework_args,
                 quantized_lora_config=quantized_lora_config,
             )
 
-        # spy to ensure that the plugin functions were called.
-        # as expected given the configuration pointed to by CONFIG_PATH_AUTO_GPTQ
-        assert MockedClass.model_loader_calls == 1
-        assert MockedClass.augmentation_calls == 1
-        assert MockedClass.get_callback_calls == 1
+        # spy inside the train to ensure that the acceleration plugin
+        # was called. In the context of the AutoGPTQ plugin
+        # 1. Will sucessfully load the model (to load AutoGPTQ 4-bit linear)
+        # 2. Will successfully agument the model (to install PEFT)
+        # 3. Will succesfully call get_ready_for_train
+        assert MockedPlugin.model_loader_calls == 1
+        assert MockedPlugin.augmentation_calls == 1
+        assert MockedPlugin.get_ready_for_train_calls == 1
