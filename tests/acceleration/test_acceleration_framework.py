@@ -13,6 +13,8 @@
 # limitations under the License.
 
 # Standard
+from dataclasses import dataclass
+from typing import Annotated
 from unittest.mock import patch
 import tempfile
 
@@ -29,6 +31,9 @@ from tuning import sft_trainer
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
     QuantizedLoraConfig,
+)
+from tuning.config.acceleration_configs.acceleration_framework_config import (
+    ConfigAnnotation,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
@@ -61,7 +66,7 @@ def test_acceleration_framework_fail_construction():
     # 1. Rule 1: No two standalone dataclasses can exist at the same path
     # - Test that the framework will fail to construct if there are multiple
     #    standalone plugins under the same path that are simultaneously requested.
-    quantized_lora_config = QuantizedLoraConfig(
+    invalid_quantized_lora_config = QuantizedLoraConfig(
         auto_gptq=AutoGPTQLoraConfig(), bnb_qlora=BNBQLoraConfig()
     )
     with pytest.raises(
@@ -69,17 +74,74 @@ def test_acceleration_framework_fail_construction():
         match="Configuration path 'peft.quantization' already has one standalone config.",
     ):
         AccelerationFrameworkConfig.from_dataclasses(
-            quantized_lora_config
+            invalid_quantized_lora_config
         ).get_framework()
+
+    def peft_unavailable(plugin=None):
+        if plugin == "peft":
+            return False
+        return True
+
+    quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
     # 2. Rule 2: Dataclass cannot request a plugin that is not yet installed.
     # - Test that framework will fail to construct if trying to activate a plugin
     #   that is not yet installed
-    # with patch(
-    #     "tuning.config.acceleration_configs.acceleration_framework_config."
-    #     "is_fms_accelerate_available",
-    #     return_value=False,
-    # ):
+    with pytest.raises(
+        ValueError,
+        match="An acceleration feature is requested by specifying the '--auto_gptq' argument, "
+        "but the this requires acceleration packages to be installed.",
+    ):
+        with patch(
+            "tuning.config.acceleration_configs.acceleration_framework_config."
+            "is_fms_accelerate_available",
+            peft_unavailable,
+        ):
+            AccelerationFrameworkConfig.from_dataclasses(
+                quantized_lora_config
+            ).get_framework()
+
+    # 3. Rule 3: Dataclass that corresponds to experimental plugin will
+    #            give user a warning.
+    # - Test that if a plugin is experimental the user will be warned
+
+    # - create a dataclas with an experimental annotation that to be
+    #   used for mocking
+    # - mocked auto_gptq here to be experimental
+    @dataclass
+    class DataClassWithExperimental:
+        auto_gptq: Annotated[
+            AutoGPTQLoraConfig,
+            ConfigAnnotation(path="peft.quantization", experimental=True),
+        ] = None
+
+    with pytest.warns(
+        UserWarning,
+        match="An experimental acceleration feature is requested by specifying the "
+        "'--auto_gptq' argument. Please note this feature may not support certain "
+        "edge cases at this juncture. When the feature matures this "
+        "message will be turned off.",
+    ):
+        with patch.dict(
+            "tuning.config.acceleration_configs.acceleration_framework_config."
+            "AccelerationFrameworkConfig.__dataclass_fields__",
+            DataClassWithExperimental.__dataclass_fields__,
+        ):
+
+            AccelerationFrameworkConfig.from_dataclasses(
+                quantized_lora_config
+            ).get_framework()
+
+
+def test_acceleration_framework_pass_construction_with_no_active_configs():
+    """Ensure framework is properly constructed in the null pattern where
+    no configs are active
+    """
+
+    # for the fallback, if the dataclasses
+    AccelerationFrameworkConfig.from_dataclasses(QuantizedLoraConfig)
+    assert QuantizedLoraConfig.auto_gptq is None
+    assert QuantizedLoraConfig.bnb_qlora is None
 
 
 @pytest.mark.skip(

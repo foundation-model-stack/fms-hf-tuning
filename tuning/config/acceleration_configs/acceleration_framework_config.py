@@ -52,6 +52,10 @@ class ConfigAnnotation:
     # set to indicate what acceeleration packages are needed
     required_packages: List[str] = None
 
+    def __post_init__(self):
+        if self.required_packages is None:
+            self.required_packages = []
+
 
 @dataclass
 class AccelerationFrameworkConfig:

@@ -36,6 +36,11 @@ from tuning.config.acceleration_configs.quantized_lora_config import (
 def test_dataclass_parse_successfully():
     parser = transformers.HfArgumentParser(dataclass_types=QuantizedLoraConfig)
 
+    # if nothing is specified then it will parse into the null class
+    (cfg, _) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    assert cfg.auto_gptq is None
+    assert cfg.bnb_qlora is None
+
     # 1.1 specifying "--auto_gptq" with the first item of AutoGPTQLoraConfig
     #    will parse
     (cfg,) = parser.parse_args_into_dataclasses(
@@ -128,4 +133,3 @@ def test_dataclass_will_fail_to_accept_illegal_args():
         ValueError, match="quant_type can only be either 'nf4' or 'fp4."
     ):
         BNBQLoraConfig(quant_type="fake-quant-type")
-

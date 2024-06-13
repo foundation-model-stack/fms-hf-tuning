@@ -78,8 +78,5 @@ class QuantizedLoraConfig:
     bnb_qlora: BNBQLoraConfig = None
 
     def __post_init__(self):
-        if self.auto_gptq is None and self.bnb_qlora is None:
-            raise ValueError("at least one quantized config has to be specified.")
-
         # ensure nested dataclasses initialized
         ensure_nested_dataclasses_initialized(self)
