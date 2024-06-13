@@ -57,6 +57,11 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.import_utils import is_fms_accelerate_available
+from tuning.config.acceleration_configs import (
+    AccelerationFrameworkConfig,
+    QuantizedLoraConfig,
+    FusedOpsAndKernelsConfig
+)
 
 if is_fms_accelerate_available():
     # Third Party
@@ -76,9 +81,8 @@ def train(
     ),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
-    acceleration_framework_args: Optional[
-        configs.AccelerationFrameworkArguments
-    ] = None,
+    quantized_lora_config: Optional[QuantizedLoraConfig] = None,
+    fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
 ):
     """Call the SFTTrainer
 
@@ -101,27 +105,11 @@ def train(
                               or TrainerControllers. Callbacks associated with \
                               tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
-        acceleration_framework_args: configs.AccelerationFrameworkArguments \
-            for controlling acceleration framework
+        quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
+        fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
     """
 
     logger = logging.get_logger("sft_trainer")
-
-    framework = None
-    if (
-        acceleration_framework_args is not None
-        and acceleration_framework_args.acceleration_framework_config_file is not None
-    ):
-        if is_fms_accelerate_available():
-            framework = AccelerationFramework(
-                acceleration_framework_args.acceleration_framework_config_file
-            )
-        else:
-            raise ValueError(
-                "Specified acceleration framework config "
-                f"'{acceleration_framework_args.acceleration_framework_config_file}', "
-                "but fms_acceleration package not available"
-            )
 
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
@@ -165,6 +153,10 @@ def train(
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
         trainer_callbacks.append(additional_callbacks)
+
+    framework = AccelerationFrameworkConfig.from_dataclasses(
+        quantized_lora_config, fusedops_kernels_config
+    ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
     if framework is not None and framework.requires_custom_loading:
@@ -377,11 +369,12 @@ def get_parser():
             configs.DataArguments,
             configs.TrainingArguments,
             configs.TrainerControllerArguments,
-            configs.AccelerationFrameworkArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
             FileLoggingTrackerConfig,
             AimConfig,
+            QuantizedLoraConfig,
+            FusedOpsAndKernelsConfig
         )
     )
     parser.add_argument(
@@ -424,6 +417,10 @@ def parse_arguments(parser, json_config=None):
             Configuration for training log file.
         AimConfig
             Configuration for AIM stack.
+        QuantizedLoraConfig
+            Configuration for quantized LoRA (a form of PEFT).
+        FusedOpsAndKernelsConfig
+            Configuration for fused operations and kernels.
         dict[str, str]
             Extra AIM metadata.
     """
@@ -433,11 +430,12 @@ def parse_arguments(parser, json_config=None):
             data_args,
             training_args,
             trainer_controller_args,
-            acceleration_framework_args,
             lora_config,
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config, 
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -447,11 +445,12 @@ def parse_arguments(parser, json_config=None):
             data_args,
             training_args,
             trainer_controller_args,
-            acceleration_framework_args,
             lora_config,
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config, 
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -471,10 +470,11 @@ def parse_arguments(parser, json_config=None):
         data_args,
         training_args,
         trainer_controller_args,
-        acceleration_framework_args,
         tune_config,
         file_logger_config,
         aim_config,
+        quantized_lora_config,
+        fusedops_kernels_config, 
         exp_metadata,
     )
 
@@ -492,17 +492,19 @@ def main(**kwargs):  # pylint: disable=unused-argument
             data_args,
             training_args,
             trainer_controller_args,
-            acceleration_framework_args,
             tune_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config, 
             exp_metadata,
         ) = parse_arguments(parser, job_config)
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            acceleration_framework_args %s, \
-            tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
+            tune_config %s, file_logger_config, %s aim_config %s, \
+            quantized_lora_config %s, fusedops_kernels_config %s, \
+            exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -510,6 +512,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             tune_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config, 
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -539,42 +543,18 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.file_logger_config = file_logger_config
     combined_tracker_configs.aim_config = aim_config
 
-    try:
-        train(
-            model_args=model_args,
-            data_args=data_args,
-            train_args=training_args,
-            peft_config=tune_config,
-            trainer_controller_args=trainer_controller_args,
-            tracker_configs=combined_tracker_configs,
-            additional_callbacks=None,
-            exp_metadata=metadata,
-            acceleration_framework_args=acceleration_framework_args,
-        )
-    except (MemoryError, OutOfMemoryError) as e:
-        logger.error(traceback.format_exc())
-        write_termination_log(f"OOM error during training. {e}")
-        sys.exit(INTERNAL_ERROR_EXIT_CODE)
-    except FileNotFoundError as e:
-        logger.error(traceback.format_exc())
-        write_termination_log("Unable to load file: {}".format(e))
-        sys.exit(USER_ERROR_EXIT_CODE)
-    except HFValidationError as e:
-        logger.error(traceback.format_exc())
-        write_termination_log(
-            f"There may be a problem with loading the model. Exception: {e}"
-        )
-        sys.exit(USER_ERROR_EXIT_CODE)
-    except (TypeError, ValueError, EnvironmentError) as e:
-        logger.error(traceback.format_exc())
-        write_termination_log(
-            f"Exception raised during training. This may be a problem with your input: {e}"
-        )
-        sys.exit(USER_ERROR_EXIT_CODE)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error(traceback.format_exc())
-        write_termination_log(f"Unhandled exception during training: {e}")
-        sys.exit(INTERNAL_ERROR_EXIT_CODE)
+    train(
+        model_args=model_args,
+        data_args=data_args,
+        train_args=training_args,
+        peft_config=tune_config,
+        trainer_controller_args=trainer_controller_args,
+        tracker_configs=combined_tracker_configs,
+        additional_callbacks=None,
+        exp_metadata=metadata,
+        quantized_lora_config=quantized_lora_config,
+        fusedops_kernels_config=fusedops_kernels_config,
+    )
 
 
 if __name__ == "__main__":

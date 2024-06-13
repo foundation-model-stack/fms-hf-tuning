@@ -128,16 +128,3 @@ class TrainerControllerArguments:
             )
         },
     )
-
-
-@dataclass
-class AccelerationFrameworkArguments:
-    acceleration_framework_config_file: str = field(
-        default=None,
-        metadata={
-            "help": (
-                "Acceleration Framework configuration file (e.g acceleration_framework.yaml) \
-                    in YAML format."
-            )
-        },
-    )
