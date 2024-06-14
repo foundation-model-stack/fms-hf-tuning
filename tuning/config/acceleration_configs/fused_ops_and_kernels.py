@@ -18,9 +18,14 @@ from dataclasses import dataclass
 from typing import List
 
 # Local
-from .utils import EnsureTypes, ensure_nested_dataclasses_initialized
+from .utils import (
+    EnsureTypes,
+    ensure_nested_dataclasses_initialized,
+    parsable_dataclass,
+)
 
 
+@parsable_dataclass
 @dataclass
 class FusedLoraConfig(List):
 
@@ -51,6 +56,7 @@ class FusedLoraConfig(List):
             )
 
 
+@parsable_dataclass
 @dataclass
 class FastKernelsConfig(List):
 

@@ -13,14 +13,19 @@
 # limitations under the License.
 
 # Standard
-from dataclasses import fields
-from typing import Dict, Type, get_type_hints
+from dataclasses import fields, is_dataclass
+from typing import Dict, List, Type, get_type_hints
 
 # Third Party
 from transformers.hf_argparser import DataClass, string_to_bool
 
 
 def ensure_nested_dataclasses_initialized(dataclass: DataClass):
+    """HfArgumentParser will think of the dataclass as a List with
+    multiple inputs, but it will not call the constructor, so
+    this is to be called at the top-level class to init all the
+    nested dataclasses.
+    """
     type_hints: Dict[str, type] = get_type_hints(dataclass)
     for f in fields(dataclass):
         nested_type = type_hints[f.name]
@@ -31,6 +36,12 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
 
 
 class EnsureTypes:
+    """EnsureTypes is a caster with an internal state to memorize the
+    the casting order, so that we can apply the correct casting type.
+
+    e.g., EnsureTypes(int, str) will cast [x1, x2] as [int(x1), str(x2)]
+    """
+
     def __init__(self, *types: Type):
         _map = {bool: string_to_bool}
         self.types = [_map.get(t, t) for t in types]
@@ -46,3 +57,32 @@ class EnsureTypes:
         t = self.types[self.cnt]
         self.cnt += 1
         return t(val)
+
+
+def parsable_dataclass(cls):
+    """dataset decorator to masquarade as a list type, so that
+    HfArgumentParser will take in multiple arguments after the
+    --key arg1 arg2, ...,
+
+    * when we override __args__, we can ensure the parseds
+      - arg1 arg2 .. will get casted to the correct type
+
+    """
+
+    if not is_dataclass(cls):
+        raise ValueError("parsable only works with dataclass")
+
+    types = [fi.type for fi in fields(cls)]
+
+    class ParsableDataclass(cls, List):
+
+        # to help the HfArgumentParser arrive at correct types
+        __args__ = [EnsureTypes(*types)]
+
+        def __post_init__(self):
+            # reset for another parse
+            ParsableDataclass.__args__[0].reset()
+
+            super().__post_init__()
+
+    return ParsableDataclass

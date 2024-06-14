@@ -18,14 +18,16 @@ from dataclasses import dataclass
 from typing import List
 
 # Local
-from .utils import EnsureTypes, ensure_nested_dataclasses_initialized
+from .utils import (
+    EnsureTypes,
+    ensure_nested_dataclasses_initialized,
+    parsable_dataclass,
+)
 
 
+@parsable_dataclass
 @dataclass
-class AutoGPTQLoraConfig(List):
-
-    # to help the HfArgumentParser arrive at correct types
-    __args__ = [EnsureTypes(str, bool)]
+class AutoGPTQLoraConfig:
 
     # auto_gptq supports various kernels, to select the kernel to use.
     kernel: str = "triton_v2"
@@ -36,9 +38,6 @@ class AutoGPTQLoraConfig(List):
 
     def __post_init__(self):
 
-        # reset for another parse
-        self.__args__[0].reset()
-
         if self.kernel != "triton_v2":
             raise ValueError("only 'triton_v2' kernel currently supported.")
 
@@ -46,6 +45,7 @@ class AutoGPTQLoraConfig(List):
             raise ValueError("only 'from_quantized' == True currently supported.")
 
 
+@parsable_dataclass
 @dataclass
 class BNBQLoraConfig(List):
 
