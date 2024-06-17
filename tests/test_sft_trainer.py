@@ -29,7 +29,12 @@ import transformers
 
 # First Party
 from scripts.run_inference import TunedCausalLM
-from tests.data import EMPTY_DATA, MALFORMATTED_DATA, TWITTER_COMPLAINTS_DATA
+from tests.data import (
+    EMPTY_DATA,
+    MALFORMATTED_DATA,
+    TWITTER_COMPLAINTS_DATA,
+    TWITTER_COMPLAINTS_JSON_FORMAT,
+)
 
 # Local
 from tuning import sft_trainer
@@ -86,6 +91,72 @@ def test_run_train_fails_training_data_path_not_exist():
         sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
+HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
+    os.path.dirname(__file__), "build", "dummy_job_config.json"
+)
+
+
+# Note: job_config dict gets modified during process training args
+@pytest.fixture(name="job_config", scope="session")
+def fixture_job_config():
+    with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
+        dummy_job_config_dict = json.load(f)
+    return dummy_job_config_dict
+
+
+############################# Arg Parsing Tests #############################
+
+
+def test_parse_arguments(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_copy = copy.deepcopy(job_config)
+    (
+        model_args,
+        data_args,
+        training_args,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_copy)
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
+    assert data_args.dataset_text_field == "output"
+    assert training_args.output_dir == "bloom-twitter"
+    assert tune_config is None
+
+
+def test_parse_arguments_defaults(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_defaults = copy.deepcopy(job_config)
+    assert "torch_dtype" not in job_config_defaults
+    assert job_config_defaults["use_flash_attn"] is False
+    assert "save_strategy" not in job_config_defaults
+    model_args, _, training_args, _, _, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_defaults
+    )
+    assert str(model_args.torch_dtype) == "torch.bfloat16"
+    assert model_args.use_flash_attn is False
+    assert training_args.save_strategy.value == "epoch"
+
+
+def test_parse_arguments_peft_method(job_config):
+    parser = sft_trainer.get_parser()
+    job_config_pt = copy.deepcopy(job_config)
+    job_config_pt["peft_method"] = "pt"
+    _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_pt
+    )
+    assert isinstance(tune_config, peft_config.PromptTuningConfig)
+
+    job_config_lora = copy.deepcopy(job_config)
+    job_config_lora["peft_method"] = "lora"
+    _, _, _, _, tune_config, _, _, _ = sft_trainer.parse_arguments(
+        parser, job_config_lora
+    )
+    assert isinstance(tune_config, peft_config.LoraConfig)
+
+
 ############################# Prompt Tuning Tests #############################
 
 
@@ -96,6 +167,70 @@ def test_run_causallm_pt_and_inference():
         train_args.output_dir = tempdir
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
+
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def test_run_causallm_pt_and_inference_with_formatting_data():
+    """Check if we can bootstrap and peft tune causallm models
+    This test needs the trainer to format data to a single sequence internally.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
+
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def test_run_causallm_pt_and_inference_JSON_file_formatter():
+    """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -169,6 +304,23 @@ def test_run_causallm_pt_with_validation():
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        _validate_training(tempdir, check_eval=True)
+
+
+def test_run_causallm_pt_with_validation_data_formatting():
+    """Check if we can bootstrap and peft tune causallm models with validation dataset"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
@@ -335,6 +487,30 @@ def test_invalid_dataset_text_field():
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
+### Tests that giving dataset_text_field as well as formatter template gives error
+def test_invalid_dataset_text_field_and_formatter_template():
+    """Only one of dataset_text_field or formatter can be supplied"""
+    data_args = copy.deepcopy(DATA_ARGS)
+    data_args.data_formatter_template = (
+        "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+    )
+
+    with pytest.raises(ValueError):
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+
+
+### Tests passing formatter with invalid keys gives error
+def test_invalid_formatter_template():
+    data_args = copy.deepcopy(DATA_ARGS)
+    data_args.dataset_text_field = None
+    data_args.data_formatter_template = (
+        "### Text: {{not found}} \n\n### Label: {{text_label}}"
+    )
+
+    with pytest.raises(KeyError):
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+
+
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
 def test_malformatted_data():
     """Ensure that malformatted data explodes due to failure to generate the dataset."""
@@ -382,13 +558,15 @@ def test_run_causallm_lora_with_invalid_modules():
 
 
 ### Direct validation tests based on whether or not packing is enabled
-def test_no_packing_needs_dataset_text_field():
+def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
     """Ensure we need to set the dataset text field if packing is False"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
+        # One of dataset_text_field or data_formatter_template should be set
         data_args.dataset_text_field = None
+        data_args.data_formatter_template = None
 
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
