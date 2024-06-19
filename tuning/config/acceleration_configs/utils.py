@@ -30,7 +30,7 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
     for f in fields(dataclass):
         nested_type = type_hints[f.name]
         values = getattr(dataclass, f.name)
-        if values is not None:
+        if values is not None and not is_dataclass(values):
             values = nested_type(*values)
         setattr(dataclass, f.name, values)
 

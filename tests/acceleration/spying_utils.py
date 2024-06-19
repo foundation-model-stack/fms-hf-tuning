@@ -12,39 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# utility for spying into a framework plugin
-def create_mock_plugin_class(plugin_cls):
-    "Create a mocked acceleration framework class that can be used to spy"
 
-    # mocked plugin class
-    class MockPlugin(plugin_cls):
+def create_mock_plugin_class_and_spy(class_name, plugin_cls):
+    "helper function to create plugin class"
 
-        # counters used for spying
-        model_loader_calls: int
-        augmentation_calls: int
-        get_ready_for_train_calls: int
+    spy = {
+        "model_loader_calls": 0,
+        "augmentation_calls": 0,
+        "get_ready_for_train_calls": 0,
+    }
 
-        @classmethod
-        def reset_calls(cls):
-            # reset the counters
-            cls.model_loader_calls = (
-                cls.augmentation_calls
-            ) = cls.get_ready_for_train_calls = 0
+    def model_loader(self, *args, **kwargs):
+        spy["model_loader_calls"] += 1
+        return plugin_cls.model_loader(self, *args, **kwargs)
 
-        def model_loader(self, *args, **kwargs):
-            MockPlugin.model_loader_calls += 1
-            return super().model_loader(*args, **kwargs)
+    def augmentation(
+        self,
+        *args,
+        **kwargs,
+    ):
+        spy["augmentation_calls"] += 1
+        return plugin_cls.augmentation(self, *args, **kwargs)
 
-        def augmentation(
-            self,
-            *args,
-            **kwargs,
-        ):
-            MockPlugin.augmentation_calls += 1
-            return super().augmentation(*args, **kwargs)
+    def get_callbacks_and_ready_for_train(self, *args, **kwargs):
+        spy["get_ready_for_train_calls"] += 1
+        return plugin_cls.get_callbacks_and_ready_for_train(self, args, **kwargs)
 
-        def get_callbacks_and_ready_for_train(self, *args, **kwargs):
-            MockPlugin.get_ready_for_train_calls += 1
-            return super().get_callbacks_and_ready_for_train(*args, **kwargs)
+    attributes = {
+        "model_loader": model_loader,
+        "augmentation": augmentation,
+        "get_callbacks_and_ready_for_train": get_callbacks_and_ready_for_train,
+    }
 
-    return MockPlugin
+    return type(class_name, (plugin_cls,), attributes), spy

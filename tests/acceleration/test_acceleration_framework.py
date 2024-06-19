@@ -20,20 +20,26 @@ import tempfile
 
 # Third Party
 import pytest
+import torch
 
 # First Party
 from tests.helpers import causal_lm_train_kwargs
 from tests.test_sft_trainer import BASE_LORA_KWARGS
 
 # Local
-from .spying_utils import create_mock_plugin_class
+from .spying_utils import create_mock_plugin_class_and_spy
 from tuning import sft_trainer
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
+    FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
 from tuning.config.acceleration_configs.acceleration_framework_config import (
     ConfigAnnotation,
+)
+from tuning.config.acceleration_configs.fused_ops_and_kernels import (
+    FastKernelsConfig,
+    FusedLoraConfig,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
@@ -50,6 +56,10 @@ if is_fms_accelerate_available():
     if is_fms_accelerate_available(plugins="peft"):
         # Third Party
         from fms_acceleration_peft import AutoGPTQAccelerationPlugin
+
+    if is_fms_accelerate_available(plugins="foak"):
+        # Third Party
+        from fms_acceleration_foak import FastQuantizedPeftAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -236,16 +246,19 @@ def test_framework_raises_if_used_with_missing_package():
     not is_fms_accelerate_available(plugins="peft"),
     reason="Only runs if fms-accelerate is installed along with accelerated-peft plugin",
 )
-def test_framework_intialized_properly():
+def test_framework_intialized_properly_peft():
     """Ensure that specifying a properly configured acceleration dataclass
     properly activates the framework plugin and runs the train sucessfully.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
-            **{"fp16": True},
-            **{"model_name_or_path": "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ"},
-            **{"output_dir": tempdir},
+            **{
+                "fp16": True,
+                "model_name_or_path": "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
+                "output_dir": tempdir,
+                "save_strategy": "no",
+            },
         }
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             TRAIN_KWARGS
@@ -256,8 +269,9 @@ def test_framework_intialized_properly():
         quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
         # create mocked plugin class for spying
-        MockedPlugin = create_mock_plugin_class(AutoGPTQAccelerationPlugin)
-        MockedPlugin.reset_calls()
+        MockedPlugin, spy = create_mock_plugin_class_and_spy(
+            "PluginMock", AutoGPTQAccelerationPlugin
+        )
 
         # 1. mock a plugin class
         # 2. register the mocked plugin
@@ -279,6 +293,80 @@ def test_framework_intialized_properly():
         # 1. Will sucessfully load the model (to load AutoGPTQ 4-bit linear)
         # 2. Will successfully agument the model (to install PEFT)
         # 3. Will succesfully call get_ready_for_train
-        assert MockedPlugin.model_loader_calls == 1
-        assert MockedPlugin.augmentation_calls == 1
-        assert MockedPlugin.get_ready_for_train_calls == 1
+        assert spy["model_loader_calls"] == 1
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins=["peft", "foak"]),
+    reason=(
+        "Only runs if fms-accelerate is installed along with accelerated-peft "
+        "and foak plugins",
+    ),
+)
+def test_framework_intialized_properly_foak():
+    """Ensure that specifying a properly configured acceleration dataclass
+    properly activates the framework plugin and runs the train sucessfully.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "fp16": True,
+                "torch_dtype": torch.float16,
+                "model_name_or_path": "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
+                "output_dir": tempdir,
+                "save_strategy": "no",
+            },
+        }
+        model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
+            TRAIN_KWARGS
+        )
+
+        # setup default quantized lora args dataclass
+        # - with auth gptq as the quantized method
+        quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
+        fusedops_kernels_config = FusedOpsAndKernelsConfig(
+            fused_lora=FusedLoraConfig(base_layer="auto_gptq", fused_lora=True),
+            fast_kernels=FastKernelsConfig(
+                fast_loss=True, fast_rsm_layernorm=True, fast_rope_embeddings=True
+            ),
+        )
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "AutoGPTQMock", AutoGPTQAccelerationPlugin
+        )
+        MockedPlugin2, spy2 = create_mock_plugin_class_and_spy(
+            "FastPeftMock", FastQuantizedPeftAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["peft.quantization.auto_gptq"], MockedPlugin1),
+                (["peft.quantization.fused_ops_and_kernels"], MockedPlugin2),
+            ],
+            instantiate=False,
+        ):
+            sft_trainer.train(
+                model_args,
+                data_args,
+                training_args,
+                tune_config,
+                quantized_lora_config=quantized_lora_config,
+                fusedops_kernels_config=fusedops_kernels_config,
+            )
+
+        # spy inside the train to ensure that the AutoGPTQ plugin is called
+        assert spy["model_loader_calls"] == 1
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
+
+        # also test that the FusedOpsPlugin is called
+        assert spy2["model_loader_calls"] == 0
+        assert spy2["augmentation_calls"] == 1
+        assert spy2["get_ready_for_train_calls"] == 1
