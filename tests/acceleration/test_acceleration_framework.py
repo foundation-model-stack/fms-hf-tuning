@@ -56,6 +56,7 @@ if is_fms_accelerate_available():
     if is_fms_accelerate_available(plugins="peft"):
         # Third Party
         from fms_acceleration_peft import AutoGPTQAccelerationPlugin
+        from fms_acceleration_peft import BNBAccelerationPlugin
 
     if is_fms_accelerate_available(plugins="foak"):
         # Third Party
@@ -241,12 +242,42 @@ def test_framework_raises_if_used_with_missing_package():
                     quantized_lora_config=quantized_lora_config,
                 )
 
+if is_fms_accelerate_available(plugins="peft"):
+    acceleration_configs_map = [
+        (
+            QuantizedLoraConfig(bnb_qlora=BNBQLoraConfig()),
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            (
+                "peft.quantization.bitsandbytes",
+                create_mock_plugin_class_and_spy(
+                    "PluginMock", BNBAccelerationPlugin
+                )
+            ),
+        ),
+        (
+            QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig()),
+            "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
+            (
+                "peft.quantization.auto_gptq",
+                create_mock_plugin_class_and_spy(
+                    "PluginMock", AutoGPTQAccelerationPlugin
+                )
+            ),
+        ),
+    ]
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="peft"),
     reason="Only runs if fms-accelerate is installed along with accelerated-peft plugin",
 )
-def test_framework_intialized_properly_peft():
+@pytest.mark.parametrize(
+    "quantized_lora_config,model_name_or_path,mock_and_spy", 
+    acceleration_configs_map,
+    ids=['bitsandbytes', 'auto_gptq'],
+)
+def test_framework_intialized_properly_peft(
+    quantized_lora_config, model_name_or_path, mock_and_spy
+):
     """Ensure that specifying a properly configured acceleration dataclass
     properly activates the framework plugin and runs the train sucessfully.
     """
@@ -255,7 +286,7 @@ def test_framework_intialized_properly_peft():
             **BASE_LORA_KWARGS,
             **{
                 "fp16": True,
-                "model_name_or_path": "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
+                "model_name_or_path": model_name_or_path,
                 "output_dir": tempdir,
                 "save_strategy": "no",
             },
@@ -263,21 +294,13 @@ def test_framework_intialized_properly_peft():
         model_args, data_args, training_args, tune_config = causal_lm_train_kwargs(
             TRAIN_KWARGS
         )
-
-        # setup default quantized lora args dataclass
-        # - with auth gptq as the quantized method
-        quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
-
-        # create mocked plugin class for spying
-        MockedPlugin, spy = create_mock_plugin_class_and_spy(
-            "PluginMock", AutoGPTQAccelerationPlugin
-        )
+        installation_path, (MockedPlugin, spy) = mock_and_spy
 
         # 1. mock a plugin class
         # 2. register the mocked plugin
         # 3. call sft_trainer.train
         with build_framework_and_maybe_instantiate(
-            [(["peft.quantization.auto_gptq"], MockedPlugin)],
+            [([installation_path], MockedPlugin)],
             instantiate=False,
         ):
             sft_trainer.train(
@@ -296,7 +319,6 @@ def test_framework_intialized_properly_peft():
         assert spy["model_loader_calls"] == 1
         assert spy["augmentation_calls"] == 1
         assert spy["get_ready_for_train_calls"] == 1
-
 
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins=["peft", "foak"]),
