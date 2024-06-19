@@ -123,7 +123,7 @@ class AccelerationFrameworkConfig:
             for fi in fields(dc):
                 attr = getattr(dc, fi.name)
                 if attr is None:
-                    continue # skip the None attributes
+                    continue  # skip the None attributes
 
                 if not is_dataclass(attr):
                     raise ValueError(
