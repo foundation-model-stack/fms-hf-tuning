@@ -176,7 +176,7 @@ class AccelerationFrameworkConfig:
                 self.to_yaml(f.name)
                 return AccelerationFramework(f.name)
         else:
-            if len(self.to_dict()) > 0:
+            if not self.is_empty():
                 raise ValueError(
                     "No acceleration framework package found. To use, first "
                     "ensure that 'pip install -e.[fms-accel]' is done first to "
@@ -184,6 +184,13 @@ class AccelerationFrameworkConfig:
                     "acceleration plugins make be required depending on the requsted "
                     "acceleration. See README.md for instructions."
                 )
+
+    def is_empty(self):
+        "check if the configuration is empty"
+        for fi in fields(self):
+            if getattr(self, fi.name) is not None:
+                return False
+        return True
 
     def to_dict(self):
         """convert a valid AccelerationFrameworkConfig dataclass into a schema-less dictionary
