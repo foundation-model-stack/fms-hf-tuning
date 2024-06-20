@@ -176,13 +176,14 @@ class AccelerationFrameworkConfig:
                 self.to_yaml(f.name)
                 return AccelerationFramework(f.name)
         else:
-            raise ValueError(
-                "No acceleration framework package found. To use, first "
-                "ensure that 'pip install -e.[fms-accel]' is done first to "
-                "obtain the acceleration framework dependency. Additional "
-                "acceleration plugins make be required depending on the requsted "
-                "acceleration. See README.md for instructions."
-            )
+            if len(self.to_dict()) > 0:
+                raise ValueError(
+                    "No acceleration framework package found. To use, first "
+                    "ensure that 'pip install -e.[fms-accel]' is done first to "
+                    "obtain the acceleration framework dependency. Additional "
+                    "acceleration plugins make be required depending on the requsted "
+                    "acceleration. See README.md for instructions."
+                )
 
     def to_dict(self):
         """convert a valid AccelerationFrameworkConfig dataclass into a schema-less dictionary

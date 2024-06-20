@@ -71,6 +71,10 @@ if is_fms_accelerate_available():
 # - see plugins/framework/tests/test_framework.py
 
 
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="peft"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-peft plugin",
+)
 def test_acceleration_framework_fail_construction():
     """Ensure that construct of the framework will fail if rules regarding
     the dataclasess are violated.
@@ -301,10 +305,10 @@ acceleration_configs_map = [
         (
             "peft.quantization.bitsandbytes",
             create_mock_plugin_class_and_spy(
-                "PluginMock", 
-                BNBAccelerationPlugin 
-                if is_fms_accelerate_available(plugins='peft')
-                else object
+                "PluginMock",
+                BNBAccelerationPlugin
+                if is_fms_accelerate_available(plugins="peft")
+                else object,
             ),
         ),
     ),
@@ -314,10 +318,10 @@ acceleration_configs_map = [
         (
             "peft.quantization.auto_gptq",
             create_mock_plugin_class_and_spy(
-                "PluginMock", 
+                "PluginMock",
                 AutoGPTQAccelerationPlugin
-                if is_fms_accelerate_available(plugins='peft')
-                else object
+                if is_fms_accelerate_available(plugins="peft")
+                else object,
             ),
         ),
     ),
@@ -379,7 +383,7 @@ def test_framework_intialized_properly_peft(
     not is_fms_accelerate_available(plugins=["peft", "foak"]),
     reason=(
         "Only runs if fms-accelerate is installed along with accelerated-peft "
-        "and foak plugins",
+        "and foak plugins"
     ),
 )
 def test_framework_intialized_properly_foak():

@@ -62,6 +62,7 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 
+
 def train(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
@@ -577,6 +578,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
 
 if __name__ == "__main__":
     fire.Fire(main)
