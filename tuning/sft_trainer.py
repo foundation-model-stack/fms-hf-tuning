@@ -32,7 +32,7 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
-from transformers.utils import logging
+from transformers.utils import is_accelerate_available, logging
 from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
 import datasets
 import fire
@@ -40,6 +40,11 @@ import transformers
 
 # Local
 from tuning.config import configs, peft_config
+from tuning.config.acceleration_configs import (
+    AccelerationFrameworkConfig,
+    FusedOpsAndKernelsConfig,
+    QuantizedLoraConfig,
+)
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
@@ -71,6 +76,8 @@ def train(
     ),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
+    quantized_lora_config: Optional[QuantizedLoraConfig] = None,
+    fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
 ):
     """Call the SFTTrainer
 
@@ -93,6 +100,11 @@ def train(
                               or TrainerControllers. Callbacks associated with \
                               tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
+        quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
+            Should be used in combination with peft_config.LoraConfig for Lora tuning \
+        fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
+            Should be used in combination with quantized_lora_config. Also currently 
+            fused_lora and fast_kernels must used together (may change in future). \
     """
 
     logger = logging.get_logger("sft_trainer")
@@ -140,8 +152,15 @@ def train(
     if additional_callbacks is not None:
         trainer_callbacks.append(additional_callbacks)
 
+    framework = AccelerationFrameworkConfig.from_dataclasses(
+        quantized_lora_config, fusedops_kernels_config
+    ).get_framework()
+
+    model_loader = AutoModelForCausalLM.from_pretrained
+    if framework is not None and framework.requires_custom_loading:
+        model_loader = framework.model_loader  # drop-in new loader
     model_load_time = time.time()
-    model = AutoModelForCausalLM.from_pretrained(
+    model = model_loader(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
@@ -291,6 +310,11 @@ def train(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
 
+    if framework is not None and framework.requires_agumentation:
+        model, (peft_config,) = framework.augmentation(
+            model, train_args, modifiable_args=(peft_config,)
+        )
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -324,6 +348,14 @@ def train(
         trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
             model
         )
+
+    if framework is not None:
+        accelerator = None if not is_accelerate_available else trainer.accelerator
+
+        # ready for train may produce additional callbacks for the trainer
+        for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
+            trainer.add_callback(x)
+
     trainer.train()
 
 
@@ -339,6 +371,8 @@ def get_parser():
             peft_config.PromptTuningConfig,
             FileLoggingTrackerConfig,
             AimConfig,
+            QuantizedLoraConfig,
+            FusedOpsAndKernelsConfig,
         )
     )
     parser.add_argument(
@@ -381,6 +415,10 @@ def parse_arguments(parser, json_config=None):
             Configuration for training log file.
         AimConfig
             Configuration for AIM stack.
+        QuantizedLoraConfig
+            Configuration for quantized LoRA (a form of PEFT).
+        FusedOpsAndKernelsConfig
+            Configuration for fused operations and kernels.
         dict[str, str]
             Extra AIM metadata.
     """
@@ -394,6 +432,8 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -407,6 +447,8 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -429,6 +471,8 @@ def parse_arguments(parser, json_config=None):
         tune_config,
         file_logger_config,
         aim_config,
+        quantized_lora_config,
+        fusedops_kernels_config,
         exp_metadata,
     )
 
@@ -449,12 +493,16 @@ def main(**kwargs):  # pylint: disable=unused-argument
             tune_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, file_logger_config, %s aim_config %s, exp_metadata %s",
+            tune_config %s, file_logger_config, %s aim_config %s, \
+            quantized_lora_config %s, fusedops_kernels_config %s, \
+            exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -462,6 +510,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             tune_config,
             file_logger_config,
             aim_config,
+            quantized_lora_config,
+            fusedops_kernels_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -501,6 +551,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             tracker_configs=combined_tracker_configs,
             additional_callbacks=None,
             exp_metadata=metadata,
+            quantized_lora_config=quantized_lora_config,
+            fusedops_kernels_config=fusedops_kernels_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())
