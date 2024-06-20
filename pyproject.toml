@@ -44,6 +44,9 @@ dependencies = [
 dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0", "boto3"]
 flash-attn = ["flash-attn"]
 aim = ["aim==3.19.0"]
+fms-accel = [
+  "fms_acceleration @ git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework"
+]
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
