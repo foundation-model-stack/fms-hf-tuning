@@ -406,16 +406,25 @@ If you do not know what plugin to install (or forget), the framework will remind
 
 ```
 An acceleration feature is requested by specifying the '--auto_gptq' argument, but the this requires acceleration packages to be installed. Please do:
-- python -m fms_acceleration install fms_acceleration_peft
+- python -m fms_acceleration.cli install fms_acceleration_peft
 ```
 
 The list of configurations for various `fms_acceleration` plugins:
 - [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
-  - `--auto_gptq`: 4bit GPTQ_LoRA with AutoGPTQ
+  - `--auto_gptq`: 4bit GPTQ-LoRA with AutoGPTQ
   - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
 - [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
+
+Notes: 
+ * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
+ * When setting `--auto_gptq triton_v2` plus note to also pass `--torch_dtype float16` and `--fp16`, or an exception will be raised. This is because these kernels only support this dtype.
+ * Currently, the `fused_ops_and_kernels` is to be used used together QLoRA or GPTQ-LORA via the `quantized_lora_config`. In the future it may be made more flexible such that `fast_kernels` can even be used with full-finetuning.
+ * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
+ make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
+ * Currently `fused_ops_and_kernels` only supports activating `fast_loss,fast_rsm_layernorm,fast_rope_embeddings` all to `True`, so pass `--fast_kernels True True True`.
+
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 

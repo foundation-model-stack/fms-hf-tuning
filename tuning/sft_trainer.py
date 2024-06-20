@@ -111,7 +111,10 @@ def train(
                               tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
         quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
+            Should be used in combination with peft_config.LoraConfig for Lora tuning \
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
+            Should be used in combination with quantized_lora_config. Also currently 
+            fused_lora and fast_kernels must used together (may change in future). \
     """
 
     logger = logging.get_logger("sft_trainer")
