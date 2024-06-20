@@ -26,24 +26,24 @@ classifiers=[
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-"numpy",
-"accelerate>=0.20.3",
-"transformers",
-"torch",
-"sentencepiece",
-"tokenizers>=0.13.3",
-"tqdm",
+"numpy>=1.26.4,<2.0",
+"accelerate>=0.20.3,<0.40",
+"transformers>=4.34.1,<5.0,!=4.38.2",
+"torch>=2.2.0,<3.0",
+"sentencepiece>=0.1.99,<0.3",
+"tokenizers>=0.13.3,<1.0",
+"tqdm>=4.66.2,<5.0",
 "trl==0.8.6",
-"peft>=0.8.0",
-"datasets>=2.15.0",
-"fire",
-"simpleeval",
+"peft>=0.8.0,<0.13",
+"datasets>=2.15.0,<3.0",
+"fire>=0.5.0,<1.0",
+"simpleeval>=0.9.13,<1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["wheel", "packaging", "ninja", "scikit-learn>=1.0, <2.0", "boto3"]
-flash-attn = ["flash-attn"]
-aim = ["aim==3.19.0"]
+dev = ["wheel>=0.42.0,<1.0", "packaging>=23.2,<24", "ninja>=1.11.1.1,<2.0", "scikit-learn>=1.0, <2.0", "boto3>=1.34, <2.0"]
+flash-attn = ["flash-attn>=2.5.3,<3.0"]
+aim = ["aim>=3.19.0,<4.0"]
 fms-accel = [
   "fms_acceleration @ git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework"
 ]
