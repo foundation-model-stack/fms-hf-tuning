@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # Standard
-import copy
 from dataclasses import dataclass, replace
 from typing import Annotated
 from unittest.mock import patch
+import copy
 import tempfile
 
 # Third Party
@@ -24,7 +24,7 @@ import pytest
 import torch
 
 # First Party
-from tests.test_sft_trainer import MODEL_ARGS, DATA_ARGS, TRAIN_ARGS, PEFT_LORA_ARGS
+from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, PEFT_LORA_ARGS, TRAIN_ARGS
 
 # Local
 from .spying_utils import create_mock_plugin_class_and_spy
@@ -279,7 +279,7 @@ def test_framework_raises_due_to_invalid_arguments(
         model_args = replace(model_args, **bad_kwargs)
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        
+
         quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
         # 1. activate the accelerated peft plugin
@@ -294,27 +294,34 @@ def test_framework_raises_due_to_invalid_arguments(
             )
 
 
-if is_fms_accelerate_available(plugins="peft"):
-    acceleration_configs_map = [
+acceleration_configs_map = [
+    (
+        QuantizedLoraConfig(bnb_qlora=BNBQLoraConfig()),
+        "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         (
-            QuantizedLoraConfig(bnb_qlora=BNBQLoraConfig()),
-            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            (
-                "peft.quantization.bitsandbytes",
-                create_mock_plugin_class_and_spy("PluginMock", BNBAccelerationPlugin),
+            "peft.quantization.bitsandbytes",
+            create_mock_plugin_class_and_spy(
+                "PluginMock", 
+                BNBAccelerationPlugin 
+                if is_fms_accelerate_available(plugins='peft')
+                else object
             ),
         ),
+    ),
+    (
+        QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig()),
+        "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
         (
-            QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig()),
-            "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ",
-            (
-                "peft.quantization.auto_gptq",
-                create_mock_plugin_class_and_spy(
-                    "PluginMock", AutoGPTQAccelerationPlugin
-                ),
+            "peft.quantization.auto_gptq",
+            create_mock_plugin_class_and_spy(
+                "PluginMock", 
+                AutoGPTQAccelerationPlugin
+                if is_fms_accelerate_available(plugins='peft')
+                else object
             ),
         ),
-    ]
+    ),
+]
 
 
 @pytest.mark.skipif(
@@ -338,7 +345,7 @@ def test_framework_intialized_properly_peft(
         model_args.torch_dtype = torch.float16
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.save_strategy = 'no'
+        train_args.save_strategy = "no"
         train_args.fp16 = True
 
         installation_path, (MockedPlugin, spy) = mock_and_spy
@@ -386,7 +393,7 @@ def test_framework_intialized_properly_foak():
         model_args.torch_dtype = torch.float16
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.save_strategy = 'no'
+        train_args.save_strategy = "no"
         train_args.fp16 = True
 
         # setup default quantized lora args dataclass

@@ -61,17 +61,6 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.import_utils import is_fms_accelerate_available
-from tuning.config.acceleration_configs import (
-    AccelerationFrameworkConfig,
-    QuantizedLoraConfig,
-    FusedOpsAndKernelsConfig
-)
-
-if is_fms_accelerate_available():
-    # Third Party
-    from fms_acceleration import AccelerationFramework  # pylint: disable=import-error
-
 
 def train(
     model_args: configs.ModelArguments,
@@ -443,7 +432,7 @@ def parse_arguments(parser, json_config=None):
             file_logger_config,
             aim_config,
             quantized_lora_config,
-            fusedops_kernels_config, 
+            fusedops_kernels_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -458,7 +447,7 @@ def parse_arguments(parser, json_config=None):
             file_logger_config,
             aim_config,
             quantized_lora_config,
-            fusedops_kernels_config, 
+            fusedops_kernels_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -482,7 +471,7 @@ def parse_arguments(parser, json_config=None):
         file_logger_config,
         aim_config,
         quantized_lora_config,
-        fusedops_kernels_config, 
+        fusedops_kernels_config,
         exp_metadata,
     )
 
@@ -504,7 +493,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             file_logger_config,
             aim_config,
             quantized_lora_config,
-            fusedops_kernels_config, 
+            fusedops_kernels_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
         logger.debug(
@@ -521,7 +510,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             file_logger_config,
             aim_config,
             quantized_lora_config,
-            fusedops_kernels_config, 
+            fusedops_kernels_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -551,19 +540,43 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.file_logger_config = file_logger_config
     combined_tracker_configs.aim_config = aim_config
 
-    train(
-        model_args=model_args,
-        data_args=data_args,
-        train_args=training_args,
-        peft_config=tune_config,
-        trainer_controller_args=trainer_controller_args,
-        tracker_configs=combined_tracker_configs,
-        additional_callbacks=None,
-        exp_metadata=metadata,
-        quantized_lora_config=quantized_lora_config,
-        fusedops_kernels_config=fusedops_kernels_config,
-    )
-
+    try:
+        train(
+            model_args=model_args,
+            data_args=data_args,
+            train_args=training_args,
+            peft_config=tune_config,
+            trainer_controller_args=trainer_controller_args,
+            tracker_configs=combined_tracker_configs,
+            additional_callbacks=None,
+            exp_metadata=metadata,
+            quantized_lora_config=quantized_lora_config,
+            fusedops_kernels_config=fusedops_kernels_config,
+        )
+    except (MemoryError, OutOfMemoryError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(f"OOM error during training. {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
+    except FileNotFoundError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log("Unable to load file: {}".format(e))
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except HFValidationError as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"There may be a problem with loading the model. Exception: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except (TypeError, ValueError, EnvironmentError) as e:
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during training. This may be a problem with your input: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(f"Unhandled exception during training: {e}")
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 if __name__ == "__main__":
     fire.Fire(main)
