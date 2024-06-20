@@ -14,6 +14,10 @@
 
 # Standard
 from dataclasses import asdict
+import base64
+import json
+import os
+import pickle
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
@@ -87,3 +91,44 @@ def get_hf_peft_config(task_type, tuning_config):
         hf_peft_config = None  # full parameter tuning
 
     return hf_peft_config
+
+
+def get_json_config():
+    """Parses JSON configuration if provided via environment variables
+    SFT_TRAINER_CONFIG_JSON_ENV_VAR or SFT_TRAINER_CONFIG_JSON_PATH.
+
+    SFT_TRAINER_CONFIG_JSON_ENV_VAR is the base64 encoded JSON.
+    SFT_TRAINER_CONFIG_JSON_PATH is the path to the JSON config file.
+
+    Returns: dict or {}
+    """
+    json_env_var = os.getenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    json_path = os.getenv("SFT_TRAINER_CONFIG_JSON_PATH")
+
+    # accepts either path to JSON file or encoded string config
+    # env var takes precedent
+    job_config_dict = {}
+    if json_env_var:
+        job_config_dict = txt_to_obj(json_env_var)
+    elif json_path:
+        with open(json_path, "r", encoding="utf-8") as f:
+            job_config_dict = json.load(f)
+
+    return job_config_dict
+
+
+def txt_to_obj(txt):
+    """Given encoded byte string, converts to base64 decoded dict.
+
+    Args:
+        txt: str
+    Returns: dict[str, Any]
+    """
+    base64_bytes = txt.encode("ascii")
+    message_bytes = base64.b64decode(base64_bytes)
+    try:
+        # If the bytes represent JSON string
+        return json.loads(message_bytes)
+    except UnicodeDecodeError:
+        # Otherwise the bytes are a pickled python dictionary
+        return pickle.loads(message_bytes)
