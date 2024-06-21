@@ -2879,6 +2879,17 @@ files = [
 dev = ["pytest (>=6)", "pytest-cov", "pytest-timeout"]
 
 [[package]]
+name = "simpleeval"
+version = "0.9.13"
+description = "A simple, safe single expression evaluator library."
+optional = false
+python-versions = "*"
+files = [
+    {file = "simpleeval-0.9.13-py2.py3-none-any.whl", hash = "sha256:22a2701a5006e4188d125d34accf2405c2c37c93f6b346f2484b6422415ae54a"},
+    {file = "simpleeval-0.9.13.tar.gz", hash = "sha256:4a30f9cc01825fe4c719c785e3762623e350c4840d5e6855c2a8496baaa65fac"},
+]
+
+[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -4021,4 +4032,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "488210ee2b58fcff978801774f9bc66eb3c168b00346b3f657676ea3f4c893e7"
+content-hash = "942885f3278b78f63a2a671062b2d0a774f472ec126f98793391b22c47ac01fa"
