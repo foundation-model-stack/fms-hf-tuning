@@ -5,7 +5,7 @@ import time
 import argparse
 import yaml
 import logging
-# from typing import Optional
+from typing import List
 
 # Third Party
 import grpc
@@ -18,6 +18,184 @@ import tgis.generation_pb2
 import tgis.generation_pb2_grpc
 
 # TODO: turn print statements into logging warnings
+
+# Default configurations to use for preset ConfigMap and tuning Pod
+FINE_TUNE_RESOURCE_NAME = "sft-trainer-test-fine-tune"
+LORA_TUNE_RESOURCE_NAME = "sft-trainer-test-lora-tune"
+FINE_TUNE_MODEL = "/granite/granite-13b-base-v2/step_300000_ckpt"
+LORA_TUNE_MODEL = "/llama/LLaMa/models/hf/13B"
+RESPONSE_TEMPLATE = "\n### Response:"
+SFT_TRAINER_IMAGE = "docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b592f_ubi9_py311"
+IMAGE_PULL_SECRET = "artifactory-docker"
+
+def get_configmap(
+    name: str,
+    namespace: str,
+    tuning_technique: str,
+    output_dir: str,
+    data_path: str,
+    model: str,
+    response_template: str,
+    target_modules: str = ""
+) -> tuple[kubernetes.client.V1ObjectMeta, str]:
+
+    data = {
+      "model_name_or_path": model,
+      "training_data_path": data_path,
+      "output_dir": output_dir,
+      "num_train_epochs": 10,
+      "per_device_train_batch_size": 4,
+      "gradient_accumulation_steps": 1,
+      "learning_rate": 1e-4,
+      "num_virtual_tokens": 100,
+      "dataset_text_field": "output",
+      "response_template": response_template
+    } 
+    if tuning_technique == "lora":
+        if not target_modules:
+            target_modules = ["q_proj", "v_proj"]
+            if "granite" in model:
+                target_modules = ["c_attn", "c_proj"]
+
+        data.update(
+            {
+                "peft_method": "lora",
+                "r": 8,
+                "lora_alpha": 16,
+                "lora_dropout": 0.05,
+                "target_modules": target_modules
+            }
+        )
+    
+    metadata = kubernetes.client.V1ObjectMeta(
+        name=name,
+        namespace=namespace,
+    )
+
+    return kubernetes.client.V1ConfigMap(
+        metadata=metadata,
+        data={
+            "config.json": json.dumps(data)
+        },
+    )
+
+
+def get_pod_template(
+    name: str,
+    namespace: str,
+    configmap_name: str,
+    image: str,
+    image_pull_secret: str,
+):
+    metadata = kubernetes.client.V1ObjectMeta(
+        name=name,
+        namespace=namespace,
+    )
+
+    security_context = kubernetes.client.V1PodSecurityContext(
+        run_as_user=1000,
+        run_as_group=0,
+        fs_group=1000,
+        fs_group_change_policy="OnRootMismatch"
+    )
+
+    container = kubernetes.client.V1Container(
+        name="sft-training",
+        # v0.3.0 of fms-hf-tuning image
+        image=image,
+        env=[
+            kubernetes.client.V1EnvVar(
+                name="SFT_TRAINER_CONFIG_JSON_PATH",
+                value="/config/config.json"
+            ),
+            # kubernetes.client.V1EnvVar(
+            #     name="LOG_LEVEL",
+            #     value="debug"
+            # ),
+        ],
+        # TODO: lower for devstage?
+        # TODO: single vs multi-gpu?
+        resources=kubernetes.client.V1ResourceRequirements(
+            requests={"cpu": "10", "memory": "80Gi", "ephemeral-storage": "1600Gi", "nvidia.com/gpu": "2"},
+            limits={"cpu": "5", "memory": "200Gi", "ephemeral-storage": "3Ti"},
+        ),
+        # TODO: make sure across devstage + research cluster the PVCs are the same name
+        # TODO: make sure the mount_paths are teh same across both, how people use
+        volume_mounts=[
+            kubernetes.client.V1VolumeMount(
+                mount_path="/config",
+                name="sft-trainer-config"
+            ),
+            kubernetes.client.V1VolumeMount(
+                mount_path="/granite",
+                name="ibm-granite-pvc"
+            ),
+            kubernetes.client.V1VolumeMount(
+                mount_path="/llama",
+                name="llama-eval-pvc"
+            ),
+            kubernetes.client.V1VolumeMount(
+                mount_path="/fmaas-integration-tests",
+                name="fmaas-integration-tests"
+            ),
+        ],
+    )
+
+    # Create the specification of pod
+    spec = kubernetes.client.V1PodSpec(
+        containers=[container],
+        security_context=security_context,
+        # TODO: should create this secret beforehand if it doesn't exist?
+        image_pull_secrets=[
+            kubernetes.client.V1LocalObjectReference(
+                name=image_pull_secret,
+            )
+        ],
+        restart_policy="Never",
+        termination_grace_period_seconds=30,
+        volumes=[
+            kubernetes.client.V1Volume(
+                name="sft-trainer-config",
+                config_map=kubernetes.client.V1ConfigMapVolumeSource(name=configmap_name)
+            ),
+            kubernetes.client.V1Volume(
+                name="ibm-granite-pvc",
+                config_map=kubernetes.client.V1PersistentVolumeClaimVolumeSource(claim_name="ibm-granite-pvc")
+            ),
+            kubernetes.client.V1Volume(
+                name="llama-eval-pvc",
+                config_map=kubernetes.client.V1PersistentVolumeClaimVolumeSource(claim_name="llama-eval-pvc")
+            ),
+            kubernetes.client.V1Volume(
+                name="fmaas-integration-tests",
+                config_map=kubernetes.client.V1PersistentVolumeClaimVolumeSource(claim_name="fmaas-integration-tests")
+            ),
+        ]
+    )
+
+    # Instantiate the pod object
+    return kubernetes.client.V1Pod(
+        metadata=metadata,
+        spec=spec,
+    )
+
+def delete_kube_resource_and_wait(api_instance, kube_resource_name, namespace, kube_kind):
+    deleting = True
+    while deleting:
+        try:
+            logging.warning(f"Deleting {kube_kind}: {kube_resource_name}")
+            if kube_kind == "Pod":
+                api_instance.delete_namespaced_pod(kube_resource_name, namespace)
+            elif kube_kind == "ConfigMap":
+                api_instance.delete_namespaced_config_map(kube_resource_name, namespace)
+            else:
+                raise RuntimeError(f"Unknown kube resource provided {kube_kind}, failed to delete")
+            # give small time to delete before looping
+            time.sleep(3)
+        except kubernetes.client.exceptions.ApiException as e:
+            has_deleted = json.loads(e.body)['code'] == 404
+            if has_deleted:
+                deleting = False
 
 def get_api_client() -> kubernetes.client.ApiClient:
     """Return kube API client with kube config loaded."""
@@ -41,14 +219,37 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Deploys configuration for tuning and TGIS config to test tuning and inference."
     )
+    #########################   yamls to deploy   #########################
     parser.add_argument(
-        "--tuning_yaml", help="Path to kube yaml to deploy tuning Pod/PytorchJob/Job", required=True
-    )
-    parser.add_argument(
-        "--tuning_configmap", help="Path to kube yaml with ConfigMap for tuning", required=False
+        "--tuning_yaml", help="Path to kube yaml to deploy tuning Pod and ConfigMap", required=False
     )
     parser.add_argument(
         "--tgis_yaml", help="Path to kube yaml to deploy TGIS server", required=True
+    )
+    #########################   preset tuning example configurations   #########################
+    parser.add_argument(
+        "--model_path", help="Path to model in cluster to add to ConfigMap", required=False
+    )
+    parser.add_argument(
+        "--output_dir", help="Path to output_dir in cluster to add to ConfigMap", required=False
+    )
+    parser.add_argument(
+        "--data_path", help="Path to dataset in cluster to add to ConfigMap", required=False
+    )
+    parser.add_argument(
+        "--response_template", help="Tuning response template to add to ConfigMap", required=False
+    )
+    parser.add_argument(
+        "--resource_name", help="Name to use for ConfigMap and Pod", required=False
+    )
+    parser.add_argument(
+        "--tuning_technique", choices=['lora', 'fine-tune', 'ft'], help="Which preset tuning yaml to deploy", required=False, default="fine-tune"
+    )
+    parser.add_argument(
+        "--sft_image_name", help="Full sft-trainer image name to use in pod. Ex. docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b592f_ubi9_py311", required=False
+    )
+    parser.add_argument(
+        "--sft_image_pull_secret", help="Kube Secret to use in pod to pull the sft-trainer image", required=False
     )
     parsed_args = parser.parse_args()
 
@@ -59,11 +260,17 @@ def parse_args():
 
     return parsed_args
 
+
 def main():
+    #########################   setup   #########################
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(level=LOGLEVEL)
 
     args = parse_args()
+
+    # need to pass tuning_yaml or data_path and output_dir
+    if not (args.tuning_yaml or (args.output_dir and args.data_path)):
+        raise RuntimeError("Need to provide either tuning_yaml or output_dir and data_path.")
 
     # setup kube - requires logged in already
     client = get_api_client()
@@ -71,48 +278,119 @@ def main():
     print("Current kube namespace:", current_namespace)
     v1_api_instance = kubernetes.client.CoreV1Api(client)
 
-    # deploy fine tuned model
-    # in future can turn whole kube yaml into python kube object
-    # will be easier to track status i think
-    creating = True
-    fine_tune_resources = {}
-    pod_name = ""
-    with open(args.tuning_yaml) as f:
-        yaml_resources = yaml.safe_load_all(f)
-        for item in yaml_resources:
-            name = item["metadata"]["name"]
-            kind = item["kind"]
-            fine_tune_resources[kind] = name
-            if kind == "Pod":
-                pod_name = name
+    output_dir = ""  # TODO: could pull output_dir and use in TGIS yaml
+    #########################   deploy user provided tuning yaml   #########################
+    if args.tuning_yaml:
+        pod_name = ""
+        fine_tune_resources = {}
+        if args.output_dir or args.data_path or args.model_path:
+            logging.warning("Deploying provided tuning_yaml verbatim, ignoring values provided for data_path, model_name, and output_dir")
 
-    # deletes kube resources if they already exist
-    while creating:
-        try:
-            fine_tune_resources = kubernetes.utils.create_from_yaml(client, args.tuning_yaml, namespace=current_namespace)
-            creating = False
-        except kubernetes.utils.FailToCreateError as e:
-            if "already exists" in e.__str__():
-                for kind, name in fine_tune_resources.items():
-                    deleting = True
-                    while deleting:
-                        try:
-                            print(f"Deleting kube resource {kind} {name}")
-                            if kind == "ConfigMap":
-                                v1_api_instance.delete_namespaced_config_map(name, current_namespace)
-                            elif kind == "Pod":
-                                v1_api_instance.delete_namespaced_pod(name, current_namespace)
-                            else:
-                                raise RuntimeError(f"Unable to delete kube resource {name} of kind {kind}")
-                            
-                            # give small time to delete before looping
-                            time.sleep(3)
-                        except kubernetes.client.exceptions.ApiException as e:
-                            has_deleted = json.loads(e.body)['code'] == 404
-                            if has_deleted:
-                                deleting = False
+        with open(args.tuning_yaml) as f:
+            yaml_resources = yaml.safe_load_all(f)
+            for item in yaml_resources:
+                name = item["metadata"]["name"]
+                kind = item["kind"]
+                fine_tune_resources[kind] = name
+                if kind == "Pod":
+                    pod_name = name
+                if kind == "ConfigMap":
+                    configmap_data = item.get("data")
+                    if not configmap_data:
+                        logging.warn("Could not get output_dir from ConfigMap, unable to find data")
+                    
+                    for values in configmap_data.values():
+                        tuning_configs = json.loads(values)
+                        output_dir = tuning_configs.get("output_dir")
 
-    # deploy TGIS-es
+        # deploy fine tuned model
+        # deletes kube resources if they already exist
+        creating = True
+        while creating:
+            try:
+                fine_tune_resources = kubernetes.utils.create_from_yaml(client, args.tuning_yaml, namespace=current_namespace)
+                creating = False
+            except kubernetes.utils.FailToCreateError as e:
+                if "already exists" in e.__str__():
+                    for kind, name in fine_tune_resources.items():
+                        delete_kube_resource_and_wait(v1_api_instance, name, current_namespace, kind)
+
+        logging.info(f"Waiting for tuning pod {pod_name} state to be complete...")
+        # timeout_seconds by default set to 1hr
+        wait_for_pod_state(
+            namespace=current_namespace,
+            name=pod_name,
+            state=PodState.Succeeded,
+            label_selector=None,
+            debug=True,
+        )
+
+    #########################   deploy preset configmap and tuning pod   #########################
+    else:
+        configmap_and_pod_name = args.resource_name
+        model_name = args.model_path
+        image_name = args.sft_image_name or SFT_TRAINER_IMAGE
+        image_pull_secret = args.sft_image_pull_secret or IMAGE_PULL_SECRET
+        output_dir = args.output_dir
+        if args.tuning_technique == "ft" or args.tuning_technique == "fine-tune":
+            if not configmap_and_pod_name:
+                configmap_and_pod_name = FINE_TUNE_RESOURCE_NAME
+            if not args.model_path:
+                model_name = FINE_TUNE_MODEL
+        elif args.tuning_technique == "lora":
+            if not configmap_and_pod_name:
+                configmap_and_pod_name = LORA_TUNE_RESOURCE_NAME
+            if not args.model_path:
+                model_name = LORA_TUNE_MODEL
+
+        configmap = get_configmap(
+            name=configmap_and_pod_name,
+            namespace=current_namespace,
+            tuning_technique=args.tuning_technique,
+            output_dir=args.output_dir,
+            data_path=args.data_path,
+            model=model_name,
+            response_template=args.response_template
+        )
+
+        creating_configmap = True
+        while creating_configmap:
+            try:
+                fine_tune_resources = v1_api_instance.create_namespaced_config_map(body=configmap, namespace=current_namespace)
+                creating_configmap = False
+            except kubernetes.utils.FailToCreateError as e:
+                if "already exists" in e.__str__():
+                    delete_kube_resource_and_wait(v1_api_instance, configmap_and_pod_name, current_namespace, "ConfigMap")
+
+        tuning_pod = get_pod_template(
+            name=configmap_and_pod_name,
+            namespace=current_namespace,
+            configmap_name=configmap_and_pod_name,
+            image=image_name,
+            image_pull_secret=image_pull_secret
+        )
+
+        creating_pod = True
+        while creating_pod:
+            try:
+                fine_tune_resources = v1_api_instance.create_namespaced_pod(body=tuning_pod, namespace=current_namespace)
+                creating_pod = False
+            except kubernetes.utils.FailToCreateError as e:
+                if "already exists" in e.__str__():
+                    delete_kube_resource_and_wait(v1_api_instance, configmap_and_pod_name, current_namespace, "Pod")
+
+        logging.info(f"Waiting for tuning pod {configmap_and_pod_name} state to be complete...")
+        # timeout_seconds by default set to 1hr
+        wait_for_pod_state(
+            namespace=current_namespace,
+            name=configmap_and_pod_name,
+            state=PodState.Succeeded,
+            label_selector=None,
+            debug=True,
+        )
+
+
+    #########################   deploy TGIS   #########################
     # TODO: need to resuse output dir as MODEL_NAME
     try:
         tgis_ft_resources = kubernetes.utils.create_from_yaml(client, args.tgis_yaml, namespace=current_namespace)
@@ -122,15 +400,6 @@ def main():
         else:
             print("TGIS pod already exists, will reuse")
 
-    print(f"Waiting for tuning pod {pod_name} state to be complete...")
-    # timeout_seconds by default set to 1hr
-    wait_for_pod_state(
-        namespace=current_namespace,
-        name=pod_name,
-        state=PodState.Succeeded,
-        label_selector=None,
-        debug=True,
-    )
 
     print(f"Waiting for TGIS pod state to be complete...")
     # TODO: check that this works if pod already up
