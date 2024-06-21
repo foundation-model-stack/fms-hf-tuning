@@ -7,6 +7,11 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+
+### Most recent versions of python dependencies
+
+If you want to use the most recent versions of python dependencies then use `pip`.
+
 ```
 pip install fms-hf-tuning
 ```
@@ -28,6 +33,37 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
 ```
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+
+
+### Using versions of python dependencies that are known to be compatible with fms-hf-tuning
+
+This repository uses [`poetry`](https://python-poetry.org/) for reproducible builds. You can use poetry to create the same virtual environment that we use for our CI/CD tests like so:
+
+```
+python -m venv venv
+. ./venv/bin/activate
+pip install poetry
+
+poetry install
+```
+
+> Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
+ 
+```
+poetry install --with dev,flash-attn
+```
+
+If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
+```
+poetry install --with aim
+```
+
+If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
+```
+poetry install --with fms-accel
+```
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+
 
 ## Data format
 We support two data formats:
