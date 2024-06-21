@@ -16,7 +16,7 @@ initial-content = """
 """
 
 [tool.poetry]
-# poertry-dynamic-version will auto-generate this when running commands like `poetry build`
+# poetry-dynamic-versioning will auto-generate this when running commands like `poetry build`
 version = "0.0.0"
 
 name = "fms-hf-tuning"
