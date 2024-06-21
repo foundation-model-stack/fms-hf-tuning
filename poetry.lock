@@ -920,18 +920,16 @@ termcolor = "*"
 
 [[package]]
 name = "flash-attn"
-version = "2.5.6"
+version = "2.5.9.post1"
 description = "Flash Attention: Fast and Memory-Efficient Exact Attention"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "flash_attn-2.5.6.tar.gz", hash = "sha256:d25801aa060877cad997939bd7130faf620fdbeda947c3ffde5865906d430c36"},
+    {file = "flash_attn-2.5.9.post1.tar.gz", hash = "sha256:a92db1683a5b141a0f4371d251ae9f73e9aef629b3a58a50d0ef430266c68782"},
 ]
 
 [package.dependencies]
 einops = "*"
-ninja = "*"
-packaging = "*"
 torch = "*"
 
 [[package]]
@@ -4023,4 +4021,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "ea97b5336906b2e56729e2bbfb8df5075cd5f53234c5197405d63ce6b85cc81b"
+content-hash = "488210ee2b58fcff978801774f9bc66eb3c168b00346b3f657676ea3f4c893e7"
