@@ -110,29 +110,31 @@ RUN dnf install -y git && \
     rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem && \
     dnf clean all
 USER ${USER}
-WORKDIR /tmp
+# Ensure that git directory is owned by current user, otherwise git raises
+# "fatal: detected dubious ownership" for `/tmp`
+WORKDIR /tmp/fms-hf-tuning
+
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user wheel packaging build poetry poetry-plugin-export
+    python -m pip install --user wheel packaging poetry poetry-plugin-export
 
 COPY --chown=${USER}:root tuning tuning
-COPY .git .git
+COPY --chown=${USER}:root .git .git
 COPY pyproject.toml pyproject.toml
 COPY poetry.lock poetry.lock
 COPY README.md README.md
 
 # Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    if [[ -z "${WHEEL_VERSION}" ]]; \
-    then python -m poetry config virtualenvs.create false && \
-         # Extract requirements from poetry and install them \
-         echo installing dependencies && \
-         python -m pip install --user --requirement <(python -m poetry export --format requirements.txt) && \
-         # Install the package \
-         echo installing the package &&\
-         python -m pip install --user ".[flash-attn]"; \
-    else python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" ; \
+    if [[ -z "${WHEEL_VERSION}" ]]; then \
+      # Extract requirements from poetry and install them in ~/.local
+      python -m pip install --user --requirement <(python -m poetry export --format requirements.txt) &&  \
+      # Next install the package with flash-attn \
+      python -m pip install --user ".[flash-attn]"; \
+    else \
+      # This will use whatever dependency versions satisfy the pyproject.toml constraints
+      python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" ; \
     fi && \
-    python -m pip uninstall wheel build -y
+      python -m pip uninstall wheel -y
 
 ## Final image ################################################
 FROM release-base as release
