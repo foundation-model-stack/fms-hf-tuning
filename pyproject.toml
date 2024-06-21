@@ -69,7 +69,7 @@ optional=true
 fms_acceleration = {"git" = "git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework"}
 
 [tool.poetry.dependencies]
-python = ">=3.9,<=3.11"
+python = ">=3.9,<3.12"
 numpy = ">=1.26.4,<2.0"
 accelerate = ">=0.20.3,<0.40"
 transformers = ">=4.34.1,<=4.40.2,!=4.38.2"
