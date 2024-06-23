@@ -24,7 +24,7 @@ import pytest
 import torch
 
 # First Party
-from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, PEFT_LORA_ARGS, TRAIN_ARGS
+from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, PEFT_LORA_ARGS, get_train_args
 
 # Local
 from .spying_utils import create_mock_plugin_class_and_spy
@@ -218,8 +218,7 @@ def test_framework_raises_if_used_with_missing_package():
     """Ensure that trying the use the framework, without first installing fms_acceleration
     will raise.
     """
-    train_args = copy.deepcopy(TRAIN_ARGS)
-    train_args.output_dir = None
+    train_args = get_train_args(output_dir=None)
 
     quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
@@ -236,7 +235,7 @@ def test_framework_raises_if_used_with_missing_package():
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
-                TRAIN_ARGS,
+                train_args,
                 PEFT_LORA_ARGS,
                 quantized_lora_config=quantized_lora_config,
             )
@@ -281,8 +280,7 @@ def test_framework_raises_due_to_invalid_arguments(
     with tempfile.TemporaryDirectory() as tempdir:
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args = replace(model_args, **bad_kwargs)
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
 
         quantized_lora_config = QuantizedLoraConfig(auto_gptq=AutoGPTQLoraConfig())
 
@@ -347,10 +345,7 @@ def test_framework_intialized_properly_peft(
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.model_name_or_path = model_name_or_path
         model_args.torch_dtype = torch.float16
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-        train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args = get_train_args(output_dir=tempdir, save_strategy="no", fp16=True)
 
         installation_path, (MockedPlugin, spy) = mock_and_spy
 
@@ -395,10 +390,7 @@ def test_framework_intialized_properly_foak():
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.model_name_or_path = "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ"
         model_args.torch_dtype = torch.float16
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-        train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args = get_train_args(output_dir=tempdir, save_strategy="no", fp16=True)
 
         # setup default quantized lora args dataclass
         # - with auth gptq as the quantized method

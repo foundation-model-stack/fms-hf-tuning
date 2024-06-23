@@ -50,22 +50,22 @@ DATA_ARGS = configs.DataArguments(
     response_template="\n### Label:",
     dataset_text_field="output",
 )
-TRAIN_ARGS = configs.TrainingArguments(
-    num_train_epochs=5,
-    per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
-    gradient_accumulation_steps=4,
-    learning_rate=0.00001,
-    weight_decay=0,
-    warmup_ratio=0.03,
-    lr_scheduler_type="cosine",
-    logging_steps=1,
-    include_tokens_per_second=True,
-    packing=False,
-    max_seq_length=4096,
-    save_strategy="epoch",
-    output_dir="tmp",
-)
+TRAIN_ARGS = {
+    "num_train_epochs": 5,
+    "per_device_train_batch_size": 4,
+    "per_device_eval_batch_size": 4,
+    "gradient_accumulation_steps": 4,
+    "learning_rate": 0.00001,
+    "weight_decay": 0,
+    "warmup_ratio": 0.03,
+    "lr_scheduler_type": "cosine",
+    "logging_steps": 1,
+    "include_tokens_per_second": True,
+    "packing": False,
+    "max_seq_length": 4096,
+    "save_strategy": "epoch",
+    "output_dir": "tmp",
+}
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=8,
@@ -76,12 +76,17 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
 
+def get_train_args(**kwargs) -> configs.TrainingArguments:
+    args = copy.deepcopy(TRAIN_ARGS)
+    args.update(kwargs)
+
+    return configs.TrainingArguments(**args)
+
+
 def test_run_train_requires_output_dir():
     """Check fails when output dir not provided."""
-    updated_output_dir_train_args = copy.deepcopy(TRAIN_ARGS)
-    updated_output_dir_train_args.output_dir = None
     with pytest.raises(TypeError):
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, updated_output_dir_train_args, None)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, get_train_args(output_dir=None), None)
 
 
 def test_run_train_fails_training_data_path_not_exist():
@@ -89,11 +94,11 @@ def test_run_train_fails_training_data_path_not_exist():
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
     with pytest.raises(FileNotFoundError):
-        sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
+        sft_trainer.train(MODEL_ARGS, updated_data_path_args, get_train_args(), None)
 
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
-    os.path.dirname(__file__), "build", "dummy_job_config.json"
+    os.path.dirname(__file__), "launcher", "dummy_job_config.json"
 )
 
 
@@ -166,8 +171,7 @@ def test_parse_arguments_peft_method(job_config):
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
 
@@ -199,8 +203,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
         )
 
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
 
@@ -224,8 +227,8 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
+
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
         data_args.dataset_text_field = None
@@ -255,8 +258,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
 def test_run_causallm_pt_init_text():
     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
 
         tuning_config = peft_config.PromptTuningConfig(
             prompt_tuning_init="TEXT",
@@ -291,20 +293,23 @@ invalid_params_map = [
 def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
     """Check if error is raised when invalid params are used to peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        invalid_params = copy.deepcopy(TRAIN_ARGS)
-        invalid_params.output_dir = tempdir
-        setattr(invalid_params, param_name, param_val)
+        train_args = get_train_args(output_dir=tempdir, **{param_name: param_val})
 
         with pytest.raises(ValueError, match=exc_msg):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
 
 
 def test_run_causallm_pt_with_validation():
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-        train_args.evaluation_strategy = "epoch"
+        if "eval_strategy" in dir(configs.TrainingArguments):
+            # in transformers 4.39.3 the field is called eval_strategy
+            eval_strategy = {"eval_strategy": "epoch"}
+        else:
+            eval_strategy = {"evaluation_strategy": "epoch"}
+
+        train_args = get_train_args(output_dir=tempdir, **eval_strategy)
+
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
 
@@ -315,9 +320,14 @@ def test_run_causallm_pt_with_validation():
 def test_run_causallm_pt_with_validation_data_formatting():
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-        train_args.evaluation_strategy = "epoch"
+        if "eval_strategy" in dir(configs.TrainingArguments):
+            # in transformers 4.39.3 the field is called eval_strategy
+            eval_strategy = {"eval_strategy": "epoch"}
+        else:
+            eval_strategy = {"evaluation_strategy": "epoch"}
+
+        train_args = get_train_args(output_dir=tempdir, **eval_strategy)
+
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
         data_args.dataset_text_field = None
@@ -352,8 +362,7 @@ target_modules_val_map = [
 def test_run_causallm_lora_and_inference(request, target_modules, expected):
     """Check if we can bootstrap and lora tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
         base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
         if "default" not in request._pyfuncitem.callspec.id:
             base_lora_args.target_modules = target_modules
@@ -386,8 +395,7 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
 def test_run_causallm_ft_and_inference():
     """Check if we can bootstrap and finetune tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
 
@@ -466,11 +474,9 @@ def test_tokenizer_has_no_eos_token():
     with tempfile.TemporaryDirectory() as tempdir:
         tokenizer.save_pretrained(tempdir)
         model.save_pretrained(tempdir)
-
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
         model_args = copy.deepcopy(MODEL_ARGS)
-        train_args.model_name_or_path = tempdir
+
+        train_args = get_train_args(output_dir=tempdir)
 
         # If we handled this badly, we would probably get something like a
         # TypeError: can only concatenate str (not "NoneType") to str error
@@ -487,7 +493,7 @@ def test_invalid_dataset_text_field():
     data_args.dataset_text_field = "not found"
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 ### Tests that giving dataset_text_field as well as formatter template gives error
@@ -499,7 +505,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
     )
 
     with pytest.raises(ValueError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 ### Tests passing formatter with invalid keys gives error
@@ -511,7 +517,7 @@ def test_invalid_formatter_template():
     )
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
@@ -521,7 +527,7 @@ def test_malformatted_data():
     data_args.training_data_path = MALFORMATTED_DATA
 
     with pytest.raises(DatasetGenerationError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 def test_empty_data():
@@ -530,7 +536,7 @@ def test_empty_data():
     data_args.training_data_path = EMPTY_DATA
 
     with pytest.raises(DatasetGenerationError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 def test_data_path_is_a_directory():
@@ -543,15 +549,15 @@ def test_data_path_is_a_directory():
         # FileNotFoundError saying "unable to find '<data_path>'", since it can't
         # find a matchable file in the path.
         with pytest.raises(FileNotFoundError):
-            sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, get_train_args(), PEFT_PT_ARGS)
 
 
 ### Tests for bad tuning module configurations
 def test_run_causallm_lora_with_invalid_modules():
     """Check that we throw a value error if the target modules for lora don't exist."""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
+
         # Defaults are q_proj / v_proj; this will fail lora as the torch module doesn't have them
         lora_config = copy.deepcopy(PEFT_LORA_ARGS)
         lora_config.target_modules = ["foo", "bar"]
@@ -564,7 +570,7 @@ def test_run_causallm_lora_with_invalid_modules():
 def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
     """Ensure we need to set the dataset text field if packing is False"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = get_train_args()
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
         # One of dataset_text_field or data_formatter_template should be set
@@ -580,7 +586,7 @@ def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
 def test_no_packing_needs_reponse_template():
     """Ensure we need to set the response template if packing is False"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = get_train_args()
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.response_template = None
@@ -598,7 +604,7 @@ def test_bf16_still_tunes_if_unsupported():
     """Ensure that even if bf16 is not supported, tuning still works without problems."""
     assert not torch.cuda.is_bf16_supported()
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = get_train_args()
         train_args.output_dir = tempdir
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.torch_dtype = "bfloat16"
@@ -610,7 +616,7 @@ def test_bf16_still_tunes_if_unsupported():
 def test_bad_torch_dtype():
     """Ensure that specifying an invalid torch dtype yields a ValueError."""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = get_train_args()
         train_args.output_dir = tempdir
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.torch_dtype = "not a type"
