@@ -121,6 +121,7 @@ COPY --chown=${USER}:root tuning tuning
 COPY --chown=${USER}:root .git .git
 COPY --chown=${USER}:root pyproject.toml pyproject.toml
 COPY --chown=${USER}:root poetry.lock poetry.lock
+COPY --chown=${USER}:root launcher launcher
 COPY README.md README.md
 
 # Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
