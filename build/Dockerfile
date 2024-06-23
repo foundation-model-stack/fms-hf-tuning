@@ -149,8 +149,8 @@ RUN mkdir /app && \
     chmod -R g+rwX /app /tmp
 
 # Copy scripts and default configs
-COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
-COPY build/utils.py /app/build/
+COPY launcher/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY launcher/utils.py /app/build/
 RUN chmod +x /app/accelerate_launch.py
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"

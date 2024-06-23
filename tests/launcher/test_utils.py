@@ -13,16 +13,16 @@
 # limitations under the License.
 
 # Standard
+from unittest.mock import patch
 import copy
 import json
 import os
-from unittest.mock import patch
 
 # Third Party
 import pytest
 
-# Local
-from build.utils import process_accelerate_launch_args
+# First Party
+from launcher.utils import process_accelerate_launch_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
     os.path.dirname(__file__), "dummy_job_config.json"
