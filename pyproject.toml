@@ -74,7 +74,7 @@ aim=">=3.19.0,<4.0"
 optional=true
 
 [tool.poetry.group.fms-accel.dependencies]
-fms_acceleration = {git = "https://github.com/foundation-model-stack/fms-acceleration.git", subdirectory="plugins/framework", rev = "40aad4683e01be3faebbcaae2670524c431cbf3e"}
+fms_acceleration = {git = "https://github.com/foundation-model-stack/fms-acceleration.git", subdirectory="plugins/framework"}
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
