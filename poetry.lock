@@ -1086,7 +1086,7 @@ transformers = "<4.40"
 [package.source]
 type = "git"
 url = "https://github.com/foundation-model-stack/fms-acceleration.git"
-reference = "40aad4683e01be3faebbcaae2670524c431cbf3e"
+reference = "HEAD"
 resolved_reference = "40aad4683e01be3faebbcaae2670524c431cbf3e"
 subdirectory = "plugins/framework"
 
@@ -4447,4 +4447,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "2f8a6f73ba1c76d59beb8d225c1bdf5cdaf4a3f820569245715ccba3e7658746"
+content-hash = "6c5ac02eaf67f71024d682d953446561778e4b7287487ae087b89e993a94a48c"
