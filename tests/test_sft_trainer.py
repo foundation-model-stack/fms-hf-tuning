@@ -23,6 +23,7 @@ import tempfile
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError
+from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
 import transformers
@@ -616,3 +617,20 @@ def test_bad_torch_dtype():
 
         with pytest.raises(ValueError):
             sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+
+
+def test_run_with_additional_callbacks():
+    """Ensure that train() can work with additional_callbacks"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        model_args = copy.deepcopy(MODEL_ARGS)
+
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_callbacks=[TrainerCallback()],
+        )

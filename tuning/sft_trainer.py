@@ -150,7 +150,7 @@ def train(
 
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
-        trainer_callbacks.append(additional_callbacks)
+        trainer_callbacks.extend(additional_callbacks)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config, fusedops_kernels_config
