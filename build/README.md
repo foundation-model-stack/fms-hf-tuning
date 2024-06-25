@@ -1,6 +1,6 @@
 # Building fms-hf-tuning as an Image
 
-The Dockerfile provides a way of running fms-hf-tuning SFT Trainer. It installs the dependencies needed and adds two additional scripts that helps to parse arguments to pass to SFT Trainer. The [`accelerate_launch.py`](../launcher/accelerate_launch.py) script is run by default when running the image to trigger SFT trainer for single or multi GPU by parsing arguments and running `accelerate launch launch_training.py`. 
+The Dockerfile provides a way of running fms-hf-tuning SFT Trainer. It installs the dependencies needed and adds two additional scripts that helps to parse arguments to pass to SFT Trainer. The accelerate_launch.py script is run by default when running the image to trigger SFT trainer for single or multi GPU by parsing arguments and running `accelerate launch launch_training.py`. 
 
 ## Configuration
 

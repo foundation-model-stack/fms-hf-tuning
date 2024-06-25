@@ -121,7 +121,6 @@ COPY --chown=${USER}:root tuning tuning
 COPY --chown=${USER}:root .git .git
 COPY --chown=${USER}:root pyproject.toml pyproject.toml
 COPY --chown=${USER}:root poetry.lock poetry.lock
-COPY --chown=${USER}:root launcher launcher
 COPY README.md README.md
 
 # Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
@@ -150,8 +149,8 @@ RUN mkdir /app && \
     chmod -R g+rwX /app /tmp
 
 # Copy scripts and default configs
-COPY launcher/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
-COPY launcher/utils.py /app/build/
+COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY build/utils.py /app/build/
 RUN chmod +x /app/accelerate_launch.py
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"

@@ -98,7 +98,7 @@ def test_run_train_fails_training_data_path_not_exist():
 
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
-    os.path.dirname(__file__), "launcher", "dummy_job_config.json"
+    os.path.dirname(__file__), "build", "dummy_job_config.json"
 )
 
 

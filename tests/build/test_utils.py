@@ -22,7 +22,7 @@ import os
 import pytest
 
 # First Party
-from launcher.utils import process_accelerate_launch_args
+from build.utils import process_accelerate_launch_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
     os.path.dirname(__file__), "dummy_job_config.json"

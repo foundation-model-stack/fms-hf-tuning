@@ -37,7 +37,7 @@ classifiers=[
     "Programming Language :: Python :: 3.11",
 ]
 
-packages= [{include="tuning"}, {include="launcher"}]
+packages= [{include="tuning"}]
 
 
 [tool.poetry.group.dev]

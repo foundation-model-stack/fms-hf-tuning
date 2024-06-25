@@ -32,7 +32,7 @@ from accelerate.commands.launch import launch_command
 import torch.distributed.elastic.multiprocessing.errors
 
 # First Party
-from launcher.utils import (
+from build.utils import (
     get_highest_checkpoint,
     process_accelerate_launch_args,
     serialize_args,

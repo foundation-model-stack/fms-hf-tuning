@@ -25,8 +25,8 @@ import tempfile
 import pytest
 
 # First Party
-from launcher.accelerate_launch import main
-from launcher.utils import serialize_args
+from build.accelerate_launch import main
+from build.utils import serialize_args
 from tests.data import TWITTER_COMPLAINTS_DATA
 
 # Local
