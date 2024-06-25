@@ -107,6 +107,24 @@ python3 -m venv venv
 poetry install --with dev
 ```
 
+
+> Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
+ 
+```
+poetry install --with dev,flash-attn
+```
+
+If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
+```
+poetry install --with aim
+```
+
+If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
+```
+poetry install --with fms-accel
+```
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+
 <details>
 <summary>Linting</summary>
 
