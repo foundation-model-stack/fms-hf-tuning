@@ -1,5 +1,25 @@
 # FMS HF Tuning
 
+- [Installation](#installation)
+- [Data format](#data-format)
+- [Supported Models](#supported-models)
+- [Training](#training)
+  - [Single GPU](#single-gpu)
+  - [Multiple GPUs with FSDP](#multiple-gpus-with-fsdp)
+- [Tuning Techniques](#tuning-techniques)
+  - [LoRA Tuning Example](#lora-tuning-example)
+  - [Prompt Tuning](#prompt-tuning)
+  - [Fine Tuning](#fine-tuning)
+  - [FMS Acceleration](#fms-acceleration)
+- [Inference](#inference)
+  - [Running a single example](#running-a-single-example)
+  - [Running multiple examples](#running-multiple-examples)
+  - [Inference Results Format](#inference-results-format)
+  - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
+- [Validation](#validation)
+- [Trainer Controller Framework](#trainer-controller-framework)
+- [More Examples](#more-examples)
+
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
 1. Models are loaded from Hugging Face `transformers` or the [foundation-model-stack](https://github.com/foundation-model-stack/foundation-model-stack) -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
 2. Hugging Face `SFTTrainer` for the training loop
@@ -515,6 +535,14 @@ python main.py \
 ```
 
 The above runs several tasks with `hendrycksTest-*` being MMLU.
+
+## Trainer Controller Framework
+
+Trainer controller is a framework for controlling the trainer loop using user-defined rules and metrics.
+
+This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
+
+For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
 
 ## More Examples
 
