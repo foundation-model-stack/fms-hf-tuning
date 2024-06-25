@@ -123,7 +123,7 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 ```
 poetry install --with fms-accel
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section in the README.md](README.md#fms-acceleration).
 
 <details>
 <summary>Linting</summary>
