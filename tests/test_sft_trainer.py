@@ -629,8 +629,7 @@ def test_run_with_additional_callbacks():
     """Ensure that train() can work with additional_callbacks"""
 
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+        train_args = get_train_args(output_dir=tempdir)
         model_args = copy.deepcopy(MODEL_ARGS)
 
         sft_trainer.train(
