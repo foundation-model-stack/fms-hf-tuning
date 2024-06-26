@@ -27,7 +27,7 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 ```
 pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
 
 ## Data format
 We support two data formats:
