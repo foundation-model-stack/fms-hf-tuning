@@ -14,6 +14,7 @@
 
 # Standard
 from typing import Dict, List, Optional, Union
+import dataclasses
 import json
 import sys
 import time
@@ -33,7 +34,7 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import is_accelerate_available, logging
-from trl import DataCollatorForCompletionOnlyLM, SFTTrainer
+from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
 import datasets
 import fire
 import transformers
@@ -315,6 +316,23 @@ def train(
             model, train_args, modifiable_args=(peft_config,)
         )
 
+    # HACK - The SFT Trainer has internal validation which inspects the name of the class
+    # being used for the HF training args; if it's a TrainingArguments class, which is
+    # presumably from transformers, it tries to build it into an SFT Config.
+    #
+    # This is unfortunately a naming collision with one of our own classes, which has extra
+    # fields, and therefore can't be used to initialize the SFT Config. For now, to sidestep
+    # this validation, we just drop the things that aren't part of the SFT Config and build one
+    # from our object directly. In the future, we should consider renaming this class and / or
+    # not adding things that are not directly used by the trainer instance to it.
+    transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
+    transformer_kwargs = {
+        k: v
+        for k, v in train_args.to_dict().items()
+        if k in transformer_train_arg_fields
+    }
+    training_args = SFTConfig(**transformer_kwargs)
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -323,7 +341,7 @@ def train(
         packing=packing,
         data_collator=data_collator,
         dataset_text_field=data_args.dataset_text_field,
-        args=train_args,
+        args=training_args,
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
