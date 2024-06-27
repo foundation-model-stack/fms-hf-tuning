@@ -179,6 +179,7 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
     # Needed to sidestep TRL validation
     assert trainer_kwargs["formatting_func"] is not None
 
+
 # Tests for fetching train args
 @pytest.mark.parametrize(
     "dataset_text_field, response_template",
@@ -188,5 +189,5 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
     ],
 )
 def test_validate_args(dataset_text_field, response_template):
-   with pytest.raises(ValueError):
-       validate_data_args(dataset_text_field, response_template)
+    with pytest.raises(ValueError):
+        validate_data_args(dataset_text_field, response_template)
