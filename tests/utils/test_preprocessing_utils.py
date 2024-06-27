@@ -18,6 +18,7 @@ from tuning.utils.preprocessing_utils import (
     get_data_trainer_kwargs,
     get_preprocessed_dataset,
     load_hf_dataset_from_jsonl_file,
+    validate_data_args,
 )
 
 
@@ -177,3 +178,15 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
     assert set(trainer_kwargs["train_dataset"].column_names) == column_names
     # Needed to sidestep TRL validation
     assert trainer_kwargs["formatting_func"] is not None
+
+# Tests for fetching train args
+@pytest.mark.parametrize(
+    "dataset_text_field, response_template",
+    [
+        ("input", None),
+        (None, "output"),
+    ],
+)
+def test_validate_args(dataset_text_field, response_template):
+   with pytest.raises(ValueError):
+       validate_data_args(dataset_text_field, response_template)

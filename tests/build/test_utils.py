@@ -22,69 +22,19 @@ from unittest.mock import patch
 import pytest
 
 # Local
-from tuning.config.peft_config import LoraConfig, PromptTuningConfig
-from build.utils import process_launch_training_args, process_accelerate_launch_args
+from build.utils import process_accelerate_launch_args
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
     os.path.dirname(__file__), "dummy_job_config.json"
 )
 
 
-# Note: job_config dict gets modified during process_launch_training_args
+# Note: job_config dict gets modified during processing training args
 @pytest.fixture(name="job_config", scope="session")
 def fixture_job_config():
     with open(HAPPY_PATH_DUMMY_CONFIG_PATH, "r", encoding="utf-8") as f:
         dummy_job_config_dict = json.load(f)
     return dummy_job_config_dict
-
-
-def test_process_launch_training_args(job_config):
-    job_config_copy = copy.deepcopy(job_config)
-    (
-        model_args,
-        data_args,
-        training_args,
-        tune_config,
-        merge_model,
-        _,
-        _,
-    ) = process_launch_training_args(job_config_copy)
-    assert str(model_args.torch_dtype) == "torch.bfloat16"
-    assert data_args.dataset_text_field == "output"
-    assert training_args.output_dir == "bloom-twitter"
-    assert tune_config is None
-    assert merge_model is False
-
-
-def test_process_launch_training_args_defaults(job_config):
-    job_config_defaults = copy.deepcopy(job_config)
-    assert "torch_dtype" not in job_config_defaults
-    assert job_config_defaults["use_flash_attn"] is False
-    assert "save_strategy" not in job_config_defaults
-    model_args, _, training_args, _, _, _, _ = process_launch_training_args(
-        job_config_defaults
-    )
-    assert str(model_args.torch_dtype) == "torch.bfloat16"
-    assert model_args.use_flash_attn is False
-    assert training_args.save_strategy.value == "epoch"
-
-
-def test_process_launch_training_args_peft_method(job_config):
-    job_config_pt = copy.deepcopy(job_config)
-    job_config_pt["peft_method"] = "pt"
-    _, _, _, tune_config, merge_model, _, _ = process_launch_training_args(
-        job_config_pt
-    )
-    assert isinstance(tune_config, PromptTuningConfig)
-    assert merge_model is False
-
-    job_config_lora = copy.deepcopy(job_config)
-    job_config_lora["peft_method"] = "lora"
-    _, _, _, tune_config, merge_model, _, _ = process_launch_training_args(
-        job_config_lora
-    )
-    assert isinstance(tune_config, LoraConfig)
-    assert merge_model is True
 
 
 def test_process_accelerate_launch_args(job_config):
@@ -93,7 +43,7 @@ def test_process_accelerate_launch_args(job_config):
     assert args.use_fsdp is True
     assert args.fsdp_backward_prefetch_policy == "TRANSFORMER_BASED_WRAP"
     assert args.env == ["env1", "env2"]
-    assert args.training_script == "/app/launch_training.py"
+    assert args.training_script == "tuning.sft_trainer"
     assert args.config_file == "fixtures/accelerate_fsdp_defaults.yaml"
 
     # default values

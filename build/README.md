@@ -29,35 +29,16 @@ For example, the below config is used for running with two GPUs and FSDP for fin
 ```json
 {
     "accelerate_launch_args": {
-        "num_machines": 1,
-        "main_process_port": 1234,
-        "num_processes": 2,
-        "use_fsdp": true,
-        "fsdp_backward_prefetch_policy": "TRANSFORMER_BASED_WRAP",
-        "fsdp_sharding_strategy": 1,
-        "fsdp_state_dict_type": "FULL_STATE_DICT",
-        "fsdp_cpu_ram_efficient_loading": true,
-        "fsdp_sync_module_states": true
+        "main_process_port": 1234
     },
     "model_name_or_path": "/llama/13B",
     "training_data_path": "/data/twitter_complaints.json",
-    "output_dir": "/output/llama-7b-pt-multigpu",
+    "output_dir": "/output/llama-13b-ft-multigpu",
     "num_train_epochs": 5.0,
     "per_device_train_batch_size": 4,
-    "per_device_eval_batch_size": 4,
-    "gradient_accumulation_steps": 4,
-    "save_strategy": "epoch",
-    "learning_rate": 0.03,
-    "weight_decay": 0.0,
-    "lr_scheduler_type": "cosine",
-    "logging_steps": 1.0,
-    "packing": false,
-    "include_tokens_per_second": true,
+    "learning_rate": 1e-5,
     "response_template": "\n### Label:",
-    "dataset_text_field": "output",
-    "use_flash_attn": true,
-    "torch_dtype": "bfloat16",
-    "tokenizer_name_or_path": "/llama/13B"
+    "dataset_text_field": "output"
 }
 ```
 
@@ -95,35 +76,16 @@ data:
 config.json: |
     {
         "accelerate_launch_args": {
-            "num_machines": 1,
-            "main_process_port": 1234,
-            "num_processes": 2,
-            "use_fsdp": true,
-            "fsdp_backward_prefetch_policy": "TRANSFORMER_BASED_WRAP",
-            "fsdp_sharding_strategy": 1,
-            "fsdp_state_dict_type": "FULL_STATE_DICT",
-            "fsdp_cpu_ram_efficient_loading": true,
-            "fsdp_sync_module_states": true
+            "main_process_port": 1234
         },
         "model_name_or_path": "/llama/13B",
         "training_data_path": "/data/twitter_complaints.json",
-        "output_dir": "/output/llama-7b-pt-multigpu",
+        "output_dir": "/output/llama-13b-ft-multigpu",
         "num_train_epochs": 5.0,
         "per_device_train_batch_size": 4,
-        "per_device_eval_batch_size": 4,
-        "gradient_accumulation_steps": 4,
-        "save_strategy": "epoch",
-        "learning_rate": 0.03,
-        "weight_decay": 0.0,
-        "lr_scheduler_type": "cosine",
-        "logging_steps": 1.0,
-        "packing": false,
-        "include_tokens_per_second": true,
+        "learning_rate": 1e-5,
         "response_template": "\n### Label:",
-        "dataset_text_field": "output",
-        "use_flash_attn": true,
-        "torch_dtype": "bfloat16",
-        "tokenizer_name_or_path": "/llama/13B"
+        "dataset_text_field": "output"
     }
 ---
 apiVersion: v1
@@ -147,6 +109,7 @@ containers:
         requests:
             memory: 80Gi
             cpu: "5"
+            ephemeral-storage: 1600Gi
     volumeMounts:
         - mountPath: /data/input
         name: input-data
@@ -169,3 +132,7 @@ volumes:
 ```
 
 The above kube resource values are not hard-defined. However, they are useful when running some models (such as LLaMa-13b model). If ephemeral storage is not defined, you will likely hit into error `The node was low on resource: ephemeral-storage. Container was using 1498072868Ki, which exceeds its request of 0.` where the pod runs low on storage while tuning the model.
+
+Note that additional accelerate launch arguments can be passed, however, FSDP defaults are set and no `accelerate_launch_args` need to be passed.
+
+Another good example can be found [here](../examples/kfto-kueue-sft-trainer.yaml) which launches a Kubernetes-native `PyTorchJob` using the [Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) with [Kueue](https://github.com/kubernetes-sigs/kueue) for the queue management of tuning jobs. The KFTO example is running fine tuning on a bloom model with a twitter complaints dataset on two GPUs with FSDP.

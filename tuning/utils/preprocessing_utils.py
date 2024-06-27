@@ -24,6 +24,24 @@ import datasets
 # Local
 from tuning.config import configs
 
+def validate_data_args(
+    dataset_text_field: Optional[str],
+    response_template: Optional[str],
+):
+    # Dataset containing single sequence needs a single sequence and a response template
+    if dataset_text_field is None and response_template is not None:
+        raise ValueError(
+            "Needs a corresponding dataset_text_feld in which to look for response_template"
+        )
+    if response_template is None and dataset_text_field is not None:
+        raise ValueError(
+            "Since dataset_text_field is provided, needs a corresponding response template for masking"
+        )
+    # Dataset containing JSON with fields and a formatter template
+    # TO DO load JSON and check input/output field is present
+
+    # in future : pretokenized Dataset may be added.
+
 
 def get_data_trainer_kwargs(
     training_data_path: str,
@@ -132,14 +150,6 @@ def get_data_collator(
             # Use the seq2seq data collator; note that this automatically pads labels with -100
             return DataCollatorForSeq2Seq(
                 tokenizer=tokenizer, padding=True, max_length=max_sequence_length
-            )
-        if dataset_text_field is None and response_template is not None:
-            raise ValueError(
-                "Packing is disabled, but no dataset_text_field is provided"
-            )
-        if response_template is None and dataset_text_field is not None:
-            raise ValueError(
-                "Packing is disabled, but no response template is provided"
             )
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
         # The [2:] here applies if response template has \n prefix, it is needed to strip \n,

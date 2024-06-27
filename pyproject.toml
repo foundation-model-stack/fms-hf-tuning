@@ -33,7 +33,7 @@ dependencies = [
 "sentencepiece",
 "tokenizers>=0.13.3",
 "tqdm",
-"trl",
+"trl==0.8.6",
 "peft>=0.8.0",
 "datasets>=2.15.0",
 "fire",
