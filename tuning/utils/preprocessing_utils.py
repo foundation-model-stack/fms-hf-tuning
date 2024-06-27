@@ -32,11 +32,13 @@ def validate_data_args(
     # Dataset containing single sequence needs a single sequence and a response template
     if dataset_text_field is None and response_template is not None:
         raise ValueError(
-            "Needs a corresponding dataset_text_feld in which to look for response_template"
+            "Needs a corresponding dataset_text_feld \
+                in which to look for response_template"
         )
     if response_template is None and dataset_text_field is not None:
         raise ValueError(
-            "Since dataset_text_field is provided, needs a corresponding response template for masking"
+            "Since dataset_text_field is provided, \
+                needs a corresponding response template for masking"
         )
     # Dataset containing JSON with fields and a formatter template
     # TO DO load JSON and check input/output field is present
