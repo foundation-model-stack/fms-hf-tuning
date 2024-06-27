@@ -114,8 +114,11 @@ USER ${USER}
 # "fatal: detected dubious ownership" for `/tmp`
 WORKDIR /tmp/fms-hf-tuning
 
+# Install poetry and its dependencies inside an isolated virtual environment which we
+# will not copy into the release-base layer
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user wheel packaging poetry poetry-plugin-export
+    python -m venv venv /tmp/isolated && \
+    /tmp/isolated/bin/pip install poetry poetry-plugin-export
 
 COPY --chown=${USER}:root tuning tuning
 COPY --chown=${USER}:root .git .git
@@ -126,15 +129,21 @@ COPY README.md README.md
 # Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     if [[ -z "${WHEEL_VERSION}" ]]; then \
-      # Extract requirements from poetry and install them in ~/.local
-      python -m pip install --user --requirement <(python -m poetry export --format requirements.txt) &&  \
+      # Extract requirements from poetry and install them in ~/.local \
+      python -m pip install --user --requirement <(/tmp/isolated/bin/poetry export --format requirements.txt) &&  \
       # Next install the package with flash-attn \
-      python -m pip install --user ".[flash-attn]"; \
+      python -m pip install --user ".[flash-attn]" ; \
     else \
-      # This will use whatever dependency versions satisfy the pyproject.toml constraints
-      python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" ; \
-    fi && \
-      python -m pip uninstall wheel -y
+      # This will use whatever dependencies versions satisfy the pyproject.toml constraints \
+      # but they won't necessarily be the exact same versions as present in poetry.lock \
+      # First, install fms-hf-tuning first to get its dependencies which include torch. \
+      # Then install with the flash-attn group as the latter expects torch to be present \
+      python -m pip install --user "fms-hf-tuning==${WHEEL_VERSION}" && \
+      python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" && \
+      python -m pip uninstall wheel build -y ; \
+    fi
+
+RUN python -m pip freeze
 
 ## Final image ################################################
 FROM release-base as release
