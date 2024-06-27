@@ -20,6 +20,9 @@ import os
 ### Constants used for data
 DATA_DIR = os.path.join(os.path.dirname(__file__))
 TWITTER_COMPLAINTS_DATA = os.path.join(DATA_DIR, "twitter_complaints_small.json")
+TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT = os.path.join(
+    DATA_DIR, "twitter_complaints_input_output.json"
+)
 TWITTER_COMPLAINTS_JSON_FORMAT = os.path.join(DATA_DIR, "twitter_complaints_json.json")
 EMPTY_DATA = os.path.join(DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(DATA_DIR, "malformatted_data.json")
