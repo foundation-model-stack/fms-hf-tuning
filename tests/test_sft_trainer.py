@@ -304,7 +304,7 @@ def test_run_causallm_pt_with_validation():
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.eval_strategy = "epoch"
+        train_args.evaluation_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
 
@@ -317,7 +317,7 @@ def test_run_causallm_pt_with_validation_data_formatting():
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.eval_strategy = "epoch"
+        train_args.evaluation_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
         data_args.dataset_text_field = None
