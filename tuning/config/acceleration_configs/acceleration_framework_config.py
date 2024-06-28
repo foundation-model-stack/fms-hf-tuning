@@ -178,10 +178,10 @@ class AccelerationFrameworkConfig:
         else:
             if not self.is_empty():
                 raise ValueError(
-                    "No acceleration framework package found. To use, first "
-                    "ensure that 'pip install -e.[fms-accel]' is done first to "
-                    "obtain the acceleration framework dependency. Additional "
-                    "acceleration plugins make be required depending on the requsted "
+                    "No acceleration framework package found. To use, first ensure that "
+                    "'pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework' "  # pylint: disable=line-too-long
+                    "is done first to obtain the acceleration framework dependency. Additional "
+                    "acceleration plugins make be required depending on the requested "
                     "acceleration. See README.md for instructions."
                 )
 
