@@ -12,17 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Helpful datasets for configuring individual unit tests.
-"""
 # Standard
-import os
+from typing import List, Union
 
-### Constants used for data
-DATA_DIR = os.path.join(os.path.dirname(__file__))
-TWITTER_COMPLAINTS_DATA = os.path.join(DATA_DIR, "twitter_complaints_small.json")
-TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT = os.path.join(
-    DATA_DIR, "twitter_complaints_input_output.json"
-)
-TWITTER_COMPLAINTS_JSON_FORMAT = os.path.join(DATA_DIR, "twitter_complaints_json.json")
-EMPTY_DATA = os.path.join(DATA_DIR, "empty_data.json")
-MALFORMATTED_DATA = os.path.join(DATA_DIR, "malformatted_data.json")
+# Third Party
+from transformers.utils.import_utils import _is_package_available
+
+
+def is_fms_accelerate_available(
+    plugins: Union[str, List[str]] = None, package_name: str = "fms_acceleration"
+):
+    names = [package_name]
+    if plugins is not None:
+        if isinstance(plugins, str):
+            plugins = [plugins]
+        names.extend([package_name + "_" + x for x in plugins])
+
+    for n in names:
+        if not _is_package_available(n):
+            return False
+    return True

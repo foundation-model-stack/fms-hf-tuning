@@ -18,6 +18,7 @@
 # Standard
 import os
 import tempfile
+import glob
 
 # Third Party
 import pytest
@@ -33,7 +34,7 @@ from tuning.utils.error_logging import (
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
-BASE_PEFT_KWARGS = {
+BASE_KWARGS = {
     "model_name_or_path": MODEL_NAME,
     "training_data_path": TWITTER_COMPLAINTS_DATA,
     "num_train_epochs": 5,
@@ -52,13 +53,27 @@ BASE_PEFT_KWARGS = {
     "use_flash_attn": False,
     "torch_dtype": "float32",
     "max_seq_length": 4096,
-    "peft_method": "pt",
-    "prompt_tuning_init": "RANDOM",
-    "num_virtual_tokens": 8,
-    "prompt_tuning_init_text": "hello",
-    "tokenizer_name_or_path": MODEL_NAME,
-    "save_strategy": "epoch",
-    "output_dir": "tmp",
+}
+BASE_PEFT_KWARGS = {
+    **BASE_KWARGS,
+    **{
+        "peft_method": "pt",
+        "prompt_tuning_init": "RANDOM",
+        "num_virtual_tokens": 8,
+        "prompt_tuning_init_text": "hello",
+        "tokenizer_name_or_path": MODEL_NAME,
+        "save_strategy": "epoch",
+        "output_dir": "tmp",
+    },
+}
+BASE_LORA_KWARGS = {
+    **BASE_KWARGS,
+    **{
+        "peft_method": "lora",
+        "r": 8,
+        "lora_alpha": 32,
+        "lora_dropout": 0.05,
+    },
 }
 
 
@@ -74,6 +89,22 @@ def cleanup_env():
     os.environ.pop("TERMINATION_LOG_FILE", None)
 
 
+def test_successful_ft():
+    """Check if we can bootstrap and fine tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {**BASE_KWARGS, **{"output_dir": tempdir}}
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check termination log and .complete files
+        assert os.path.exists(tempdir + "/termination-log") is False
+        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
+        assert os.path.exists(tempdir + "/adapter_config.json") is False
+        assert len(glob.glob(f"{tempdir}/model*.safetensors")) > 0
+
+
 def test_successful_pt():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -86,6 +117,24 @@ def test_successful_pt():
         # check termination log and .complete files
         assert os.path.exists(tempdir + "/termination-log") is False
         assert os.path.exists(os.path.join(tempdir, ".complete")) is True
+        assert os.path.exists(tempdir + "/adapter_model.safetensors") is True
+        assert os.path.exists(tempdir + "/adapter_config.json") is True
+
+
+def test_successful_lora():
+    """Check if we can bootstrap and LoRA tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check termination log and .complete files
+        assert os.path.exists(tempdir + "/termination-log") is False
+        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
+        assert os.path.exists(tempdir + "/adapter_model.safetensors") is True
+        assert os.path.exists(tempdir + "/adapter_config.json") is True
 
 
 def test_bad_script_path():
