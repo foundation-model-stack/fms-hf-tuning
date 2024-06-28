@@ -8,24 +8,24 @@ This repo provides basic tuning scripts with support for specific models. The re
 ## Installation
 
 ```
-pip install -e .
+pip install fms-hf-tuning
 ```
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
 ```
-pip install -e ".[dev]"
-pip install -e ".[flash-attn]"
+pip install fms-hf-tuning[dev]
+pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
 If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
 ```
-pip install -e ".[aim]"
+pip install fms-hf-tuning[aim]
 ```
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
-pip install -e ".[fms-accel]"
+pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
 ```
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
 
@@ -389,7 +389,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
   ```
-  $ pip install -e .[fms-accel]
+  $ pip install https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
   ```
 
 Furthermore, the required `fms-acceleration` plugin must be installed. This is done via the command line utility `fms_acceleration.cli`. To show available plugins:
