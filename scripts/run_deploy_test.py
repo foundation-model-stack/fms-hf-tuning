@@ -955,13 +955,12 @@ def main():
 
         print(f"Waiting for TGIS pod state to be Running...")
         # timeout_seconds by default set to 1hr
-        tgis_pod_name = wait_for_deployment_replicas_available(
+        tgis_deployment = wait_for_deployment_replicas_available(
             namespace=current_namespace,
             name=tgis_svc_and_deploy_name,
             label_selector=None,
             replicas_wanted=1,
             timeout_seconds=args.timeout,
-            debug=True,
         )
 
         tgis_pod_name = wait_for_pod_state(
