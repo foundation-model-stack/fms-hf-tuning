@@ -94,3 +94,114 @@ Assumptions:
 ## Testing Running Example
 
 Run coded tuning and TGIS resources with LoRA. Note this still does the LoRA merging of the adapter since it is deploying TGIS and not vLLM. TODO: update that if using LoRA will update TGIS resource to deploy vLLM.
+
+Note that since my connection to the cluster is insecure, I get the below warning after every kubebernetes API call:
+```sh
+/usr/local/lib/python3.9/site-packages/urllib3/connectionpool.py:1045: InsecureRequestWarning: Unverified HTTPS request is being made to host 'api.pok.res.ibm.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+```
+
+I have removed these from the below example for ease in reading the output.
+
+```sh
+$ python3.9 scripts/run_deploy_test.py --output_dir "/data/anhuong/tuning_output/test-script-lora-default-config-twitter-with-inference" --mount_fms_tuning_pvc --data_path /data/anhuong/twitter_complaints.json --sft_image_pull_secret artifactory-docker-anh --run_as_root --num_train_epochs 5 --tuning_technique lora --response_template "\n### Label:" --inference_text "### Text: This wallpaper is so cute\n\n### Label:" --overwrite
+
+Deploying Configmap sft-trainer-test-lora-tune into namespace fms-tuning
+Deploying Pod sft-trainer-test-lora-tune into namespace fms-tuning
+WARNING:root:Pod sft-trainer-test-lora-tune already exists
+WARNING:root:Deleting Pod: sft-trainer-test-lora-tune
+Deploying Pod sft-trainer-test-lora-tune into namespace fms-tuning
+Waiting for tuning pod sft-trainer-test-lora-tune state to be complete...
+
+[01:44:39] Trying to find a pod using label_selector None and field_selector                                    pods.py:248
+           metadata.name=sft-trainer-test-lora-tune                                                                        
+/usr/local/lib/python3.9/site-packages/urllib3/connectionpool.py:1045: InsecureRequestWarning: Unverified HTTPS request is being made to host 'api.pok.res.ibm.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+           Pod sft-trainer-test-lora-tune is in phase Pending                                                   pods.py:307
+[01:44:42] Container status:  {'allocated_resources': None,                                                     pods.py:317
+            'container_id': None,                                                                                          
+            'image':                                                                                                       
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b59            
+           2f_ubi9_py311',                                                                                                 
+            'image_id': '',                                                                                                
+            'last_state': {'running': None, 'terminated': None, 'waiting': None},                                          
+            'name': 'sft-training',                                                                                        
+            'ready': False,                                                                                                
+            'resources': None,                                                                                             
+            'restart_count': 0,                                                                                            
+            'started': False,                                                                                              
+            'state': {'running': None,                                                                                     
+                      'terminated': None,                                                                                  
+                      'waiting': {'message': None, 'reason': 'ContainerCreating'}}}                                        
+           Container is Waiting with reason ContainerCreating                                                   pods.py:339
+[01:44:48] Container status:  {'allocated_resources': None,                                                     pods.py:317
+            'container_id': None,                                                                                          
+            'image':                                                                                                       
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b59            
+           2f_ubi9_py311',                                                                                                 
+            'image_id': '',                                                                                                
+            'last_state': {'running': None, 'terminated': None, 'waiting': None},                                          
+            'name': 'sft-training',                                                                                        
+            'ready': False,                                                                                                
+            'resources': None,                                                                                             
+            'restart_count': 0,                                                                                            
+            'started': False,                                                                                              
+            'state': {'running': None,                                                                                     
+                      'terminated': None,                                                                                  
+                      'waiting': {'message': None, 'reason': 'ContainerCreating'}}}                                        
+           Container is Waiting with reason ContainerCreating                                                   pods.py:339
+[01:44:52] Pod sft-trainer-test-lora-tune is in phase Running                                                   pods.py:307
+           Container status:  {'allocated_resources': None,                                                     pods.py:317
+            'container_id': 'cri-o://31ecdaf7d7f4617891921e39dc56934ed8268a68d6acfd89bb33d7fb2ad5900f',                    
+            'image':                                                                                                       
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b59            
+           2f_ubi9_py311',                                                                                                 
+            'image_id':                                                                                                    
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer@sha25            
+           6:a44ac7403100b7ec100052e58ca1f93e7fd043e5ad031ef6bc2ccb13301e2ee1',                                            
+            'last_state': {'running': None, 'terminated': None, 'waiting': None},                                          
+            'name': 'sft-training',                                                                                        
+            'ready': True,                                                                                                 
+            'resources': None,                                                                                             
+            'restart_count': 0,                                                                                            
+            'started': True,                                                                                               
+            'state': {'running': {'started_at': datetime.datetime(2024, 6, 29, 7, 44, 51, tzinfo=tzutc())},                
+                      'terminated': None,                                                                                  
+                      'waiting': None}}                                                                                    
+[01:51:29] Container status:  {'allocated_resources': None,                                                     pods.py:317
+            'container_id': 'cri-o://31ecdaf7d7f4617891921e39dc56934ed8268a68d6acfd89bb33d7fb2ad5900f',                    
+            'image':                                                                                                       
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b59            
+           2f_ubi9_py311',                                                                                                 
+            'image_id':                                                                                                    
+           'docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer@sha25            
+           6:a44ac7403100b7ec100052e58ca1f93e7fd043e5ad031ef6bc2ccb13301e2ee1',                                            
+            'last_state': {'running': None, 'terminated': None, 'waiting': None},                                          
+            'name': 'sft-training',                                                                                        
+            'ready': False,                                                                                                
+            'resources': None,                                                                                             
+            'restart_count': 0,                                                                                            
+            'started': False,                                                                                              
+            'state': {'running': None,                                                                                     
+                      'terminated': {'container_id':                                                                       
+           'cri-o://31ecdaf7d7f4617891921e39dc56934ed8268a68d6acfd89bb33d7fb2ad5900f',                                     
+                                     'exit_code': 0,                                                                       
+                                     'finished_at': datetime.datetime(2024, 6, 29, 7, 51, 28, tzinfo=tzutc()),             
+                                     'message': None,                                                                      
+                                     'reason': 'Completed',                                                                
+                                     'signal': None,                                                                       
+                                     'started_at': datetime.datetime(2024, 6, 29, 7, 44, 51, tzinfo=tzutc())},             
+                      'waiting': None}}         
+[01:51:33] Pod sft-trainer-test-lora-tune is in phase Succeeded                                                 pods.py:286
+Deploying Service tuning-dev-inference-server-lora into namespace fms-tuning
+WARNING:root:Service tuning-dev-inference-server-lora already exists
+WARNING:root:Deleting Service: tuning-dev-inference-server-lora
+Deploying Service tuning-dev-inference-server-lora into namespace fms-tuning
+Deploying Deployment tuning-dev-inference-server-lora into namespace fms-tuning
+Waiting for TGIS pod state to be Running...
+[01:54:41] Trying to find a pod using label_selector app=text-gen-tuning-dev-lora and field_selector None       pods.py:248
+[01:54:42] Pod tuning-dev-inference-server-lora-6df66bd64b-8dwct is in phase Running                            pods.py:286
+Sending batch request...
+input: ### Text: This wallpaper is so cute\n\n### Label:
+response:  no complaint
+stop_reason: 2
+```
