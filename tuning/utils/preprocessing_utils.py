@@ -18,10 +18,8 @@ import json
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-import datasets
-
-# First Party
 from trl import DataCollatorForCompletionOnlyLM
+import datasets
 
 # Local
 from tuning.config import configs
