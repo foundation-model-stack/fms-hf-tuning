@@ -18,11 +18,7 @@ from dataclasses import dataclass
 from typing import List
 
 # Local
-from .utils import (
-    EnsureTypes,
-    ensure_nested_dataclasses_initialized,
-    parsable_dataclass,
-)
+from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
 
 @parsable_dataclass
@@ -49,9 +45,6 @@ class AutoGPTQLoraConfig:
 @dataclass
 class BNBQLoraConfig(List):
 
-    # to help the HfArgumentParser arrive at correct types
-    __args__ = [EnsureTypes(str, bool)]
-
     # type of quantization applied
     quant_type: str = "nf4"
 
@@ -60,9 +53,6 @@ class BNBQLoraConfig(List):
     no_peft_model: bool = False
 
     def __post_init__(self):
-
-        # reset for another parse
-        self.__args__[0].reset()
 
         if self.quant_type not in ["nf4", "fp4"]:
             raise ValueError("quant_type can only be either 'nf4' or 'fp4.")
