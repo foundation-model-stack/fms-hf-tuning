@@ -2,6 +2,7 @@
 from datasets import Dataset
 from datasets.exceptions import DatasetGenerationError
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from trl import DataCollatorForCompletionOnlyLM
 import pytest
 
 # First Party
@@ -10,7 +11,6 @@ from tests.data import (
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
 )
-from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
