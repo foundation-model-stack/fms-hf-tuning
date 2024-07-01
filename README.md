@@ -538,7 +538,16 @@ The above runs several tasks with `hendrycksTest-*` being MMLU.
 
 ## Trainer Controller Framework
 
-For details about the trainer controller framework see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
+Trainer controller is a framework for controlling the trainer loop using user-defined rules and metrics.
+
+The motivation for this framework:
+
+- If there is a need for stopping an ongoing training when some stopping criteria is satisfied (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
+- There is a [EarlyStoppingCallback](https://github.com/huggingface/transformers/blob/v4.37.2/src/transformers/trainer_callback.py#L543) in HuggingFace, but the granularity of stopping is only on `evaluate` events, and handles only compares instantaneous metric value to a threshold.
+- Therefore, there is a need for a mechanism to capture the user-defined custom stopping criteria which could involve multiple metrics.
+- In addition to user-defined stopping criteria, there could other types of control operations with respect to training (for instance, should the trainer perform saving, logging or evaluation operations or not, should we scale resources dynamically so that training could run faster and so on). Therefore, there is a need for general need to capture all these use-cases in a single framework. This PR attempts to provide such a framework.
+
+For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
 
 ## More Examples
 
