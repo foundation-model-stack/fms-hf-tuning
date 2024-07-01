@@ -104,7 +104,7 @@ def get_data_collator(
         # TO DO with future changes,
         # 1. Support no packing and seq2seq colator without response template
         #     # if dataset_text_field is None and response_template is None:
-        #         # Use the seq2seq data collator; 
+        #         # Use the seq2seq data collator;
         #         # Note that this automatically pads labels with -100
         #         return DataCollatorForSeq2Seq(
         #             tokenizer=tokenizer, padding=True, max_length=max_sequence_length
