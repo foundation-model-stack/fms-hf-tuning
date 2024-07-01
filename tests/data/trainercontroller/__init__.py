@@ -29,6 +29,7 @@ TRAINER_CONFIG_EXPOSED_METRICS_YAML = os.path.join(_DATA_DIR, "exposed_metrics.y
 TRAINER_CONFIG_INCORRECT_SOURCE_EVENT_EXPOSED_METRICS_YAML = os.path.join(
     _DATA_DIR, "incorrect_source_event_exposed_metrics.yaml"
 )
+TRAINER_CONFIG_LOG_CONTROLLER_YAML = os.path.join(_DATA_DIR, "log_controller.yaml")
 TRAINER_CONFIG_TEST_INVALID_TYPE_RULE_YAML = os.path.join(
     _DATA_DIR, "loss_with_invalid_type_rule.yaml"
 )
@@ -49,6 +50,9 @@ TRAINER_CONFIG_TEST_INVALID_OPERATION_ACTION_YAML = os.path.join(
 )
 TRAINER_CONFIG_TEST_INVALID_METRIC_YAML = os.path.join(
     _DATA_DIR, "loss_invalid_metric.yaml"
+)
+TRAINER_CONFIG_TEST_UNAVAILABLE_METRIC_YAML = os.path.join(
+    _DATA_DIR, "loss_unavailable_metric.yaml"
 )
 TRAINER_CONFIG_TEST_CUSTOM_METRIC_YAML = os.path.join(
     _DATA_DIR, "loss_custom_metric.yaml"
