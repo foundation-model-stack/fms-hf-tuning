@@ -34,7 +34,7 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import is_accelerate_available, logging
-from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
+from trl import SFTConfig, SFTTrainer
 import datasets
 import fire
 import transformers
@@ -62,6 +62,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.preprocessing_utils import get_data_collator, validate_data_args
 
 
 def train(
@@ -195,14 +196,6 @@ def train(
             }
         )
 
-    # TODO: near term - how response template ids are parsed out needs to be cleaned.
-    # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
-    # otherwise template is not found. We will create issue to clean this out after we discuss
-    # data formats and collators we will support.
-    response_template_ids = tokenizer.encode(
-        data_args.response_template, add_special_tokens=False
-    )[2:]
-
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
     if train_args.max_seq_length > tokenizer.model_max_length:
@@ -244,31 +237,14 @@ def train(
         packing = True
     else:
         logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
-            # We should do this validation up front, then do the encoding, then handle the collator
-            raise ValueError("Response template is None, needs to be set for training")
-        data_collator = DataCollatorForCompletionOnlyLM(
-            response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
         packing = False
 
-    # Currently we support formatted datasets with single sequence instances.
-    if not (data_args.dataset_text_field or data_args.data_formatter_template):
-        raise ValueError(
-            "dataset_text_field and data_formatter_template are None. \
-                            One of them needs to be set for training"
-        )
-    # Only one of dataset_text_field or data_formatter_template should be set.
-    if data_args.dataset_text_field and data_args.data_formatter_template:
-        raise ValueError(
-            "dataset_text_field and data_formatter_template are both set,\
-                but are mutually exclusive options"
-        )
+    # Validate if data args are set properly
+    validate_data_args(data_args, packing)
+    data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
 
     # load the data by parsing JSON
+    ### TODO: all the jSON file formatting will be moved to a separate function
     data_files = {"train": data_args.training_data_path}
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
@@ -310,6 +286,7 @@ def train(
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
+    ### JSON file formatting ends here
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(

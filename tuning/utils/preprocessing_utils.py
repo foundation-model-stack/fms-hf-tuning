@@ -25,104 +25,98 @@ import datasets
 from tuning.config import configs
 
 
-def validate_data_args(
-    dataset_text_field: Optional[str],
-    response_template: Optional[str],
-):
-    # Dataset containing single sequence needs a single sequence and a response template
-    if dataset_text_field is None and response_template is not None:
-        raise ValueError(
-            "Needs a corresponding dataset_text_feld \
-                in which to look for response_template"
-        )
-    if response_template is None and dataset_text_field is not None:
-        raise ValueError(
-            "Since dataset_text_field is provided, \
-                needs a corresponding response template for masking"
-        )
-    # Dataset containing JSON with fields and a formatter template
-    # TO DO load JSON and check input/output field is present
+def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
-    # in future : pretokenized Dataset may be added.
+    assert isinstance(
+        data_args.training_data_path, str
+    ), "Training data path has to be set and str"
+
+    # Dataset containing single sequence needs a response template for masking
+    if data_args.response_template is None and data_args.dataset_text_field is not None:
+        if packing is False:
+            raise ValueError(
+                "Since dataset_text_field is provided and packing is disabled, \
+                   needs a corresponding response template for masking"
+            )
+
+    # Currently if packing is false, we require a response_template. This may change in future.
+    if packing is False:
+        if data_args.response_template is None:
+            raise ValueError(
+                "Response template is None, needs to be set for training \
+                                with packing disabled."
+            )
+
+    if data_args.response_template:
+        # To use Response template, pass datasets with single sequence instances \
+        # or a formatter template to create single sequence on the fly.
+        if not (data_args.dataset_text_field or data_args.data_formatter_template):
+            raise ValueError(
+                "dataset_text_field and data_formatter_template are None. \
+                            One of them needs to be set to use response_template"
+            )
+        # Only one of dataset_text_field or data_formatter_template should be set.
+        if data_args.dataset_text_field and data_args.data_formatter_template:
+            raise ValueError(
+                "dataset_text_field and data_formatter_template are both set,\
+                but are mutually exclusive options"
+            )
+    # TODO(s) In future seupport two more formats:
+    # 1. Allow no response template, and JSON with input/output fields and mask input
+
+    # 2. Allow pretokenized Dataset besides JSON.
 
 
-def get_data_trainer_kwargs(
-    training_data_path: str,
-    validation_data_path: str,
+def get_data_collator(
     packing: bool,
     response_template: Optional[str],
-    max_sequence_length: int,
     tokenizer: AutoTokenizer,
-    dataset_text_field: Optional[str],
-) -> Dict[str, Any]:
-    """Get trainer args related to data / processing. At the moment, this consists of:
-        - the training dataset
-        - the evaluation dataset
-        - the data collator
-        - Maybe a formatting a function [only for a special case for validation]
-    The result can be kwarg expanded into the trainer initialization.
+) -> Callable:
+    """Create and return the the appropriate collator type based on the configuration for packing,
+    response_template, and dataset_text_field.
 
     Args:
-        training_data_path: str
-            Path to the training data.
-        validation_data_path: str
-            Path to the validation data.
         packing: bool
             Whether or not we should apply packing or not.
         response_template: Optional[str]
             Response template to be used for formatting by TRL.
-        max_sequence_length: int
-            Max sequence length to be used for sequence tokenization.
         tokenizer: AutoTokenizer
             Loaded tokenizer object to be used by the collator.
-        dataset_text_field: Optional[str]
-            Dataset text field fto be used for formatting by TRL.
 
     Returns:
-        Dict[str, Any]
-            Data related kwargs to be used by the SFT Trainer.
+        Callable
+            Callable collator to be leveraged by the trainer.
     """
-    data_collator = get_data_collator(
-        packing, dataset_text_field, response_template, max_sequence_length, tokenizer
-    )
-    eval_dataset = None
-    data_kwargs = {}
-    if isinstance(data_collator, DataCollatorForSeq2Seq):
-        # HACK: This function is never called, but is needed to sidestep TRL's internal validation.
-        data_kwargs["formatting_func"] = lambda x: x
-        train_dataset = get_preprocessed_dataset(
-            training_data_path,
-            tokenizer,
-            max_sequence_length,
-            input_field_name="input",
-            output_field_name="output",
-        )
-        if validation_data_path:
-            eval_dataset = get_preprocessed_dataset(
-                validation_data_path,
-                tokenizer,
-                max_sequence_length,
-                input_field_name="input",
-                output_field_name="output",
+    if not packing:
+        # TODO: near term - how response template ids are parsed out needs to be cleaned.
+        # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
+        # otherwise template is not found. We will create issue to clean this out after we discuss
+        # data formats and collators we will support.
+        if response_template:
+            response_template_ids = tokenizer.encode(
+                response_template, add_special_tokens=False
+            )[2:]
+            return DataCollatorForCompletionOnlyLM(
+                response_template=response_template_ids,
+                tokenizer=tokenizer,
+                ignore_index=configs.IGNORE_INDEX,
             )
-    else:
-        # Collator is a DataCollatorForCompletionOnlyLM or None;
-        # Load it as JSON and apply our normal preprocessing logic
-        train_dataset = get_formatted_dataset(
-            training_data_path, dataset_text_field, tokenizer
-        )
-        if validation_data_path:
-            eval_dataset = get_formatted_dataset(
-                validation_data_path, dataset_text_field, tokenizer
-            )
-
-    data_kwargs["data_collator"] = data_collator
-    data_kwargs["train_dataset"] = train_dataset
-    data_kwargs["eval_dataset"] = eval_dataset
-    return data_kwargs
+        # TO DO with future changes,
+        # 1. Support no packing and seq2seq colator without response template
+        #     # if dataset_text_field is None and response_template is None:
+        #         # Use the seq2seq data collator;
+        #         # Note that this automatically pads labels with -100
+        #         return DataCollatorForSeq2Seq(
+        #             tokenizer=tokenizer, padding=True, max_length=max_sequence_length
+        #         )
+        # 2. add anything needed for preprocessed input
 
 
-def get_data_collator(
+###################################################################################
+### The functions below are not yet used. Iterative development towards new features
+
+
+def get_data_collator_temp(
     packing: bool,
     dataset_text_field: Optional[str],
     response_template: Optional[str],
@@ -166,6 +160,82 @@ def get_data_collator(
             tokenizer=tokenizer,
             ignore_index=configs.IGNORE_INDEX,
         )
+
+
+def get_data_trainer_kwargs(
+    training_data_path: str,
+    validation_data_path: str,
+    packing: bool,
+    response_template: Optional[str],
+    max_sequence_length: int,
+    tokenizer: AutoTokenizer,
+    dataset_text_field: Optional[str],
+) -> Dict[str, Any]:
+    """Get trainer args related to data / processing. At the moment, this consists of:
+        - the training dataset
+        - the evaluation dataset
+        - the data collator
+        - Maybe a formatting a function [only for a special case for validation]
+    The result can be kwarg expanded into the trainer initialization.
+
+    Args:
+        training_data_path: str
+            Path to the training data.
+        validation_data_path: str
+            Path to the validation data.
+        packing: bool
+            Whether or not we should apply packing or not.
+        response_template: Optional[str]
+            Response template to be used for formatting by TRL.
+        max_sequence_length: int
+            Max sequence length to be used for sequence tokenization.
+        tokenizer: AutoTokenizer
+            Loaded tokenizer object to be used by the collator.
+        dataset_text_field: Optional[str]
+            Dataset text field fto be used for formatting by TRL.
+
+    Returns:
+        Dict[str, Any]
+            Data related kwargs to be used by the SFT Trainer.
+    """
+    data_collator = get_data_collator_temp(
+        packing, dataset_text_field, response_template, max_sequence_length, tokenizer
+    )
+    eval_dataset = None
+    data_kwargs = {}
+    if isinstance(data_collator, DataCollatorForSeq2Seq):
+        # HACK: This function is never called, but is needed to sidestep TRL's internal validation.
+        data_kwargs["formatting_func"] = lambda x: x
+        train_dataset = get_preprocessed_dataset(
+            training_data_path,
+            tokenizer,
+            max_sequence_length,
+            input_field_name="input",
+            output_field_name="output",
+        )
+        if validation_data_path:
+            eval_dataset = get_preprocessed_dataset(
+                validation_data_path,
+                tokenizer,
+                max_sequence_length,
+                input_field_name="input",
+                output_field_name="output",
+            )
+    else:
+        # Collator is a DataCollatorForCompletionOnlyLM or None;
+        # Load it as JSON and apply our normal preprocessing logic
+        train_dataset = get_formatted_dataset(
+            training_data_path, dataset_text_field, tokenizer
+        )
+        if validation_data_path:
+            eval_dataset = get_formatted_dataset(
+                validation_data_path, dataset_text_field, tokenizer
+            )
+
+    data_kwargs["data_collator"] = data_collator
+    data_kwargs["train_dataset"] = train_dataset
+    data_kwargs["eval_dataset"] = eval_dataset
+    return data_kwargs
 
 
 def get_formatted_dataset(
