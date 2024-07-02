@@ -16,12 +16,10 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-from dataclasses import dataclass
 from typing import Any
 
 # Third Party
 from transformers import TrainerState
-import pytest
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
@@ -31,7 +29,8 @@ class CustomMetric(MetricHandler):
     """Implements a custom metric for testing"""
 
     def __init__(self, **kwargs):
-        """Initializes the metric handler, by registering the event list and arguments with base handler.
+        """Initializes the metric handler,
+        by registering the event list and arguments with base handler.
 
         Args:
             kwargs: List of arguments (key, value)-pairs
@@ -39,14 +38,15 @@ class CustomMetric(MetricHandler):
         super().__init__(events=["on_log"], **kwargs)
 
     def validate(self) -> bool:
-        """Validate the training arguments (e.g logging_steps) are compatible with the computation of this metric.
+        """Validate the training arguments (e.g logging_steps)
+        are compatible with the computation of this metric.
 
         Returns:
             bool
         """
         return True
 
-    def compute(self, state: TrainerState = None, **kwargs) -> Any:
+    def compute(self, _: TrainerState = None, **__) -> Any:
         """Just returns True (for testing purposes only).
 
         Args:
