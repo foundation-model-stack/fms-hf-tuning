@@ -228,6 +228,7 @@ def train(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
+        multiple=model_args.embedding_size_multiple,
     )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset

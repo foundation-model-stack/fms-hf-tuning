@@ -38,6 +38,7 @@ class ModelArguments:
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
     )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
+    embedding_size_multiple: Optional[int] = 8
 
 
 @dataclass
