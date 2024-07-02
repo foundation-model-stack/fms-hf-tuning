@@ -8,6 +8,7 @@ controllers:
   - name: loss-controller-custom-operation-invalid-action
     triggers:
       - on_log
-    rule: loss < 1.0
+    rule:
+      rule_str: loss < 1.0
     operations:
       - customoperation.should_

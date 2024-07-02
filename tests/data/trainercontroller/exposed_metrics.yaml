@@ -7,6 +7,7 @@ controllers:
   - name: loss-controller
     triggers:
       - on_evaluate
-    rule: evalmetric['eval_loss'] < 2.5
+    rule:
+      rule_str: evalmetric['eval_loss'] < 2.5
     operations:
       - hfcontrols.should_training_stop

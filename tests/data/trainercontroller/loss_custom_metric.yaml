@@ -5,6 +5,7 @@ controllers:
   - name: loss-controller-custom-metric
     triggers:
       - on_log
-    rule: testflag == True
+    rule: 
+      rule_str: testflag == True
     operations:
       - hfcontrols.should_training_stop
