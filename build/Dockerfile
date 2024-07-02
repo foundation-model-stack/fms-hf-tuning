@@ -130,14 +130,18 @@ COPY README.md README.md
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     if [[ -z "${WHEEL_VERSION}" ]]; then \
       # Extract requirements from poetry and install them in ~/.local \
+      # Need wheel and build for the flash-attn package \
+      python -m pip install --user wheel build && \
       python -m pip install --user --requirement <(/tmp/isolated/bin/poetry export --format requirements.txt) &&  \
       # Next install the package with flash-attn \
-      python -m pip install --user ".[flash-attn]" ; \
+      python -m pip install --user ".[flash-attn]" && \
+      python -m pip uninstall wheel build -y ; \
     else \
       # This will use whatever dependencies versions satisfy the pyproject.toml constraints \
       # but they won't necessarily be the exact same versions as present in poetry.lock \
-      # First, install fms-hf-tuning first to get its dependencies which include torch. \
-      # Then install with the flash-attn group as the latter expects torch to be present \
+      # First, install fms-hf-tuning to get its dependencies which include torch. \
+      # Then install with the flash-attn extras as the latter expects torch to be present \
+      python -m pip install --user wheel build && \
       python -m pip install --user "fms-hf-tuning==${WHEEL_VERSION}" && \
       python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" && \
       python -m pip uninstall wheel build -y ; \
