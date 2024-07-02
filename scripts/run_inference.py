@@ -28,10 +28,13 @@ import json
 import os
 
 # Third Party
-from peft import AutoPeftModelForCausalLM
+from peft import PeftModel
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+
+# Local
+from tuning.data import tokenizer_data_utils
 
 
 ### Utilities
@@ -178,14 +181,31 @@ class TunedCausalLM:
         try:
             with AdapterConfigPatcher(checkpoint_path, overrides):
                 try:
-                    model = AutoPeftModelForCausalLM.from_pretrained(
+                    if base_model_name_or_path is None:
+                        raise KeyError("base_model_name_or_path has to be passed")
+                    modelbase = AutoModelForCausalLM.from_pretrained(
+                        base_model_name_or_path,
+                        attn_implementation="flash_attention_2"
+                        if use_flash_attn
+                        else None,
+                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                    )
+                    # since the peft library does not handle cases where the model's layers
+                    # are modified in PEFTModelForCausalLM in our case the embedding layer
+                    # is modified, so we resize the backbone model's embedding layer with our own
+                    # utility before passing it along to load the PEFT model.
+                    tokenizer_data_utils.tokenizer_and_embedding_resize(
+                        {}, tokenizer=tokenizer, model=modelbase
+                    )
+                    model = PeftModel.from_pretrained(
+                        modelbase,
                         checkpoint_path,
                         attn_implementation="flash_attention_2"
                         if use_flash_attn
                         else None,
                         torch_dtype=torch.bfloat16 if use_flash_attn else None,
                     )
-                except OSError as e:
+                except (OSError, KeyError) as e:
                     print("Failed to initialize checkpoint model!")
                     raise e
         except FileNotFoundError:
