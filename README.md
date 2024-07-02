@@ -385,7 +385,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 ### FMS Acceleration
 
-`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that acclerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [seperate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
+`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that accelerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [separate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
 
 To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
   ```

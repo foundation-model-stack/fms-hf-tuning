@@ -119,11 +119,7 @@ If you wish to use [aim](https://github.com/aimhubio/aim), then you need to inst
 poetry install --extras aim
 ```
 
-If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
-```
-poetry install --extras fms-accel
-```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section in README.md](README.md#fms-acceleration).
+If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration) follow the instructions in [this section of README.md](README.md#fms-acceleration).
 
 <details>
 <summary>Linting</summary>
