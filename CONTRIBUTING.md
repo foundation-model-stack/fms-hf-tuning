@@ -82,12 +82,45 @@ The following tools are required:
 - [git](https://git-scm.com)
 - [python](https://www.python.org) (v3.8+)
 - [pip](https://pypi.org/project/pip/) (v23.0+)
+- [poetry](https://python-poetry.org/docs/#installation) (v1.8.3+)
+  - Poetry should always be installed in a dedicated virtual environment to isolate it from the rest of your system. It should in no case be installed in the environment of the project that is to be managed by Poetry. This ensures that Poetry’s own dependencies will not be accidentally upgraded or uninstalled.
+- [tox](https://tox.wiki/en/4.15.1/installation.html) (v4.15.1+)
+  - Just like `poetry` install `tox` in an isolated virtual environment
 
 Installation:
-``` 
-pip install -U datasets
-pip install -e .
+
+```bash 
+: Install poetry and tox in an isolated virtual environment
+python3 -m venv isolated
+./isolated/bin/pip install -U pip setuptools
+./isolated/bin/pip install poetry tox
+
+: Ensure you can access poetry and tox without activating the
+: the isolated virtual environment
+export PATH=$PATH:`pwd`/isolated/bin
+
+: Create your development virtual environment
+python3 -m venv venv
+. venv/bin/activate
+
+: Install a dev version (similar to pip -e ".[dev]") of fms-hf-tuning
+poetry install --extras dev
 ```
+
+
+> Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
+ 
+```
+poetry install --extras dev,flash-attn
+```
+
+If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
+```
+poetry install --extras aim
+```
+
+If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration) follow the instructions in [this section of README.md](README.md#fms-acceleration).
+
 <details>
 <summary>Linting</summary>
 

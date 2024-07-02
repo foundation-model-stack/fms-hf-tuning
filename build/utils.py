@@ -13,14 +13,14 @@
 # limitations under the License.
 
 # Standard
-import os
-import logging
-import pickle
 import base64
+import logging
+import os
+import pickle
 
 # Third Party
-import torch
 from accelerate.commands.launch import launch_command_parser
+import torch
 
 
 def get_highest_checkpoint(dir_path):

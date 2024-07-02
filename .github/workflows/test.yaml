@@ -23,5 +23,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox
+          python -m pip install poetry --user
+          echo "PATH=$PATH:~/.local/bin" >> "$GITHUB_ENV"
       - name: Run unit tests
         run: tox -e py

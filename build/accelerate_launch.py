@@ -18,30 +18,33 @@ for the encoded config string to parse.
 """
 
 # Standard
-import os
+from pathlib import Path
 import logging
+import os
+import shutil
 import subprocess
 import sys
-import traceback
 import tempfile
-import shutil
-from pathlib import Path
+import traceback
 
 # Third Party
 from accelerate.commands.launch import launch_command
+import torch.distributed.elastic.multiprocessing.errors
 
-# Local
+# First Party
 from build.utils import (
+    get_highest_checkpoint,
     process_accelerate_launch_args,
     serialize_args,
-    get_highest_checkpoint,
 )
-from tuning.utils.config_utils import get_json_config
+
+# Local
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.utils.config_utils import get_json_config
 from tuning.utils.error_logging import (
-    write_termination_log,
-    USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
+    USER_ERROR_EXIT_CODE,
+    write_termination_log,
 )
 
 ERROR_LOG = "/dev/termination-log"
@@ -89,6 +92,20 @@ def main():
     # Launch training
     #
     ##########
+
+    def handle_sft_trainer_exit_error(return_code):
+        # If the subprocess throws an exception, the base exception is hidden in the
+        # subprocess call and is difficult to access at this level. However, that is not
+        # an issue because sft_trainer.py would have already written the exception
+        # message to termination log.
+        logging.error(traceback.format_exc())
+        # The exit code that sft_trainer.py threw is captured in e.returncode
+
+        if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
+            return_code = INTERNAL_ERROR_EXIT_CODE
+            write_termination_log(f"Unhandled exception during training. {e}")
+        sys.exit(return_code)
+
     original_output_dir = job_config.get("output_dir")
     with tempfile.TemporaryDirectory() as tempdir:
         try:
@@ -98,19 +115,13 @@ def main():
             os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = updated_args
 
             launch_command(args)
+        except torch.distributed.elastic.multiprocessing.errors.ChildFailedError as e:
+            # This is what accelerate.commands.launch.multi_gpu_launcher() raises
+            # (when using >1 GPUs)
+            handle_sft_trainer_exit_error(e.get_first_failure()[1].exitcode)
         except subprocess.CalledProcessError as e:
-            # If the subprocess throws an exception, the base exception is hidden in the
-            # subprocess call and is difficult to access at this level. However, that is not
-            # an issue because sft_trainer.py would have already written the exception
-            # message to termination log.
-            logging.error(traceback.format_exc())
-            # The exit code that sft_trainer.py threw is captured in e.returncode
-
-            return_code = e.returncode
-            if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
-                return_code = INTERNAL_ERROR_EXIT_CODE
-                write_termination_log(f"Unhandled exception during training. {e}")
-            sys.exit(return_code)
+            # This is what accelerate.commands.launch.simple_launcher() raises
+            handle_sft_trainer_exit_error(e.returncode)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(f"Unhandled exception during training. {e}")
