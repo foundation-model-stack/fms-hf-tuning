@@ -3675,13 +3675,12 @@ tutorials = ["matplotlib", "pandas", "tabulate", "torch"]
 
 [[package]]
 name = "trl"
-version = "0.8.6"
+version = "0.9.4"
 description = "Train transformer language models with reinforcement learning."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "trl-0.8.6-py3-none-any.whl", hash = "sha256:0c9ee3faa7a6ddc158debaea0f725edb3143b4cc43babc5b5a05374de3e6352c"},
-    {file = "trl-0.8.6.tar.gz", hash = "sha256:3785683f5b3e20d4b28481070dbdf736def42bcd6d3323e8a92f458925683da3"},
+    {file = "trl-0.9.4-py3-none-any.whl", hash = "sha256:a7322f73d818e4ff73441520ae2494ce46ce4c8052058fff7cb80d323ff87e28"},
 ]
 
 [package.dependencies]
@@ -3695,11 +3694,11 @@ tyro = ">=0.5.11"
 [package.extras]
 benchmark = ["deepspeed", "ghapi", "openrlbenchmark (==0.2.1a5)", "requests", "wandb"]
 deepspeed = ["deepspeed (>=0.9.5)"]
-dev = ["accelerate", "bitsandbytes (<=0.41.1)", "deepspeed", "deepspeed (>=0.9.5)", "diffusers (>=0.18.0)", "ghapi", "openrlbenchmark (==0.2.1a5)", "parameterized", "peft (>=0.4.0)", "pytest", "pytest-cov", "pytest-xdist", "requests", "wandb"]
+dev = ["accelerate", "bitsandbytes (<=0.41.1)", "deepspeed", "deepspeed (>=0.9.5)", "diffusers (>=0.18.0)", "ghapi", "openrlbenchmark (==0.2.1a5)", "parameterized", "peft (>=0.4.0)", "pytest", "pytest-cov", "pytest-xdist", "requests", "scikit-learn", "wandb"]
 diffusers = ["diffusers (>=0.18.0)"]
 peft = ["peft (>=0.4.0)"]
 quantization = ["bitsandbytes (<=0.41.1)"]
-test = ["accelerate", "parameterized", "pytest", "pytest-cov", "pytest-xdist"]
+test = ["accelerate", "parameterized", "pytest", "pytest-cov", "pytest-xdist", "scikit-learn"]
 
 [[package]]
 name = "typer"
@@ -4383,4 +4382,4 @@ fms-accel = ["fms_acceleration"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "8424abbbf2213ae281f7657d4ac515acadb349355bc217de62f8ab710147be3f"
+content-hash = "8547b5b5ba05ea8cfa6137445d9d98b8a902dc23da6020bd05815b2095200e93"
