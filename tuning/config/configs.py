@@ -41,7 +41,8 @@ class ModelArguments:
     embedding_size_multiple: Optional[int] = field(
         default=8,
         metadata={
-            "help": "Resize model embedding layer to the given nearest multiple after tokenizer modifications."
+            "help": "Resize model embedding layer to the given nearest multiple after \
+                tokenizer modifications."
         },
     )
 

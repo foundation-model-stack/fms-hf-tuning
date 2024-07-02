@@ -178,7 +178,7 @@ def test_run_causallm_pt_and_inference():
         _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
 
         # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
         # Run inference on the text
         output_inference = loaded_model.run(
@@ -211,7 +211,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
 
         # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
         # Run inference on the text
         output_inference = loaded_model.run(
@@ -242,7 +242,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
 
         # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
         # Run inference on the text
         output_inference = loaded_model.run(
@@ -370,7 +370,7 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
             assert module in adapter_config.get("target_modules")
 
         # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
         # Run inference on the text
         output_inference = loaded_model.run(
