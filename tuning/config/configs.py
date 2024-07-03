@@ -38,11 +38,11 @@ class ModelArguments:
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
     )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
-    embedding_size_multiple: Optional[int] = field(
+    embedding_size_multiple_of: Optional[int] = field(
         default=8,
         metadata={
-            "help": "Resize model embedding layer to the given nearest multiple after \
-                tokenizer modifications."
+            "help": "Resize model embedding layer to the nearest multiple of \
+                the given number after tokenizer modifications."
         },
     )
 

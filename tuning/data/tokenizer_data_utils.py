@@ -24,11 +24,11 @@ def tokenizer_and_embedding_resize(
     special_tokens_dict: Dict,
     tokenizer: transformers.PreTrainedTokenizer,
     model: transformers.PreTrainedModel,
-    multiple: int = 8,
+    multiple_of: int = 8,
 ):
     """Resize tokenizer and embedding."""
     num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
-    embedding_size = int(multiple * math.ceil(len(tokenizer) / multiple))
+    embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
     model.resize_token_embeddings(embedding_size)
     if num_new_tokens > 0:
