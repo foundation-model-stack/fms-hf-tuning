@@ -7,6 +7,7 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+### 1. Install from wheel 
 ```
 pip install fms-hf-tuning
 ```
@@ -28,6 +29,12 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
 ```
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
+
+### 2. Build from source 
+
+We have committed a `poetry.lock` file to allow reproducible enviornments. If building from source, you can clone the repository and use poetry to install as mentioned in [development docs](/CONTRIBUTING.md#development) 
+
+If building in a dockerfile use `poetry export --format requirements.txt` can install same dependencies from the lock file. Maintainers regularly update the lock file. 
 
 ## Data format
 We support two data formats:
