@@ -42,6 +42,8 @@ If additional new Python module dependencies are required, think about where to 
 - If they're optional dependencies for additional functionality, then put them in the pyproject.toml file like were done for [flash-attn](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L44) or [aim](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L45).
 - If it's an additional dependency for development, then add it to the [dev](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/pyproject.toml#L43) dependencies.
 
+if using `poetry` to install dependencies, you can optionally leverage [poetry add](https://python-poetry.org/docs/cli/#add) to add new dependencies to pyproject.  
+
 #### Code Review
 
 Once you've [created a pull request](#how-can-i-contribute), maintainers will review your code and may make suggestions to fix before merging. It will be easier for your pull request to receive reviews if you consider the criteria the reviewers follow while working. Remember to:
