@@ -35,7 +35,6 @@ from transformers import (
 )
 from transformers.utils import is_accelerate_available, logging
 from trl import SFTConfig, SFTTrainer
-import datasets
 import fire
 import transformers
 
@@ -55,6 +54,7 @@ from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
+from tuning.utils.data_load_utils import load_dataset
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.data_utils import apply_custom_formatting_template
 from tuning.utils.error_logging import (
@@ -245,27 +245,25 @@ def train(
 
     # load the data by parsing JSON
     ### TODO: all the jSON file formatting will be moved to a separate function
-    data_files = {"train": data_args.training_data_path}
-    if data_args.validation_data_path:
-        data_files["validation"] = data_args.validation_data_path
+    train_dataset = load_dataset(data_args.training_data_path)
+    validation_dataset = load_dataset(data_args.validation_data_path)
 
     format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
         f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
         + tokenizer.eos_token
     }
 
-    json_dataset = datasets.load_dataset("json", data_files=data_files)
     if data_args.data_formatter_template:
         (
             formatted_train_dataset,
             data_args.dataset_text_field,
         ) = apply_custom_formatting_template(
-            json_dataset["train"],
+            train_dataset,
             data_args.data_formatter_template,
             tokenizer.eos_token,
         )
     else:
-        formatted_train_dataset = json_dataset["train"].map(format_dataset)
+        formatted_train_dataset = train_dataset.map(format_dataset)
     logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
@@ -275,14 +273,12 @@ def train(
                 formatted_validation_dataset,
                 data_args.dataset_text_field,
             ) = apply_custom_formatting_template(
-                json_dataset["validation"],
+                validation_dataset,
                 data_args.data_formatter_template,
                 tokenizer.eos_token,
             )
         else:
-            formatted_validation_dataset = json_dataset["validation"].map(
-                format_dataset
-            )
+            formatted_validation_dataset = validation_dataset.map(format_dataset)
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
