@@ -1,19 +1,14 @@
 controller-metrics:
-  - name: trainer_state
-    class: TrainingState
   - name: eval_loss_window
     class: HistoryBasedMetric
     arguments:
-      window-size: 1
-operations:
-  - name: hfwithpatience
-    class: HFControls
-    arguments:
-      patience-threshold: 3
+      window_size: 2
 controllers:
   - name: epoch-level-eval-loss-patience
     triggers:
       - on_epoch_end
-    rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2.2 and trainer_state["epoch"] > 2
+    rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2
+    patience:
+      patience_threshold: 2
     operations:
-      - hfwithpatience.should_training_stop
+      - hfcontrols.should_training_stop

@@ -2,7 +2,7 @@ controller-metrics:
   - name: loss
     class: Loss
 operations:
-  - name: customoperation
+  - name: custom_operation
     class: CustomOperation
 controllers:
   - name: loss-controller-custom-operation
@@ -10,4 +10,4 @@ controllers:
       - on_log
     rule: loss < 1.0
     operations:
-      - customoperation.should_perform_action_xyz
+      - custom_operation.should_perform_action_xyz

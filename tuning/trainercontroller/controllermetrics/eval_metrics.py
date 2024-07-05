@@ -38,7 +38,7 @@ class EvalMetrics(MetricHandler):
             kwargs: List of arguments (key, value)-pairs
         """
         source_events_to_check = {"on_evaluate", "on_predict"}
-        source_event = kwargs.get("source-event")
+        source_event = kwargs.get("source_event")
         if source_event is None:
             source_event = "on_evaluate"
         elif source_event in source_events_to_check:

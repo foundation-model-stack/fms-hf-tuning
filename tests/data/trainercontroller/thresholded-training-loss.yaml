@@ -2,7 +2,7 @@ controller-metrics:
   - name: training_loss_window
     class: HistoryBasedMetric
     arguments:
-      window-size: 1
+      window_size: 1
 controllers:
   - name: stop-on-training-loss-not-decreasing
     triggers:

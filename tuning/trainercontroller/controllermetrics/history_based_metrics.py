@@ -29,14 +29,13 @@ from tuning.trainercontroller.controllermetrics.metricshandler import MetricHand
 logger = logging.get_logger(__name__)
 METRICS_KEY = "metrics"
 TRAINING_LOSS_KEY = "loss"
-WINDOW_SIZE = "window-size"
+WINDOW_SIZE = "window_size"
+
 
 class HistoryBasedMetric(MetricHandler):
     """Implements the controller metric which evaluates loss-per-step"""
 
-
-
-    def __init__(self, window_size, **kwargs):
+    def __init__(self, window_size=1, **kwargs):
         """Initializes the metric handler, by registering the event \
             list and arguments with base handler.
 
@@ -50,13 +49,14 @@ class HistoryBasedMetric(MetricHandler):
         }
         super().__init__(events=["on_log", "on_evaluate"], **kwargs)
 
-    def _add_to_window(self, data_type, data):
+    def _add_and_slide(self, data_type, data):
         self._window[data_type].append(data)
-
-    def _slide_the_window(self, data_type):
-        if len(self._window[data_type]) < self._window[WINDOW_SIZE]:
+        window_size = self._window[WINDOW_SIZE]
+        if window_size < 0:
+            return True
+        if len(self._window[data_type]) < window_size:
             return False
-        if len(self._window[data_type]) == self._window[WINDOW_SIZE]:
+        if len(self._window[data_type]) == window_size:
             return True
         self._window[data_type].popleft()
         return True
@@ -81,16 +81,14 @@ class HistoryBasedMetric(MetricHandler):
             Any. The exposed variables are returned here.
         """
         if METRICS_KEY in kwargs:
-            self._add_to_window(METRICS_KEY, kwargs[METRICS_KEY])
-            self._slide_the_window(METRICS_KEY)
+            self._add_and_slide(METRICS_KEY, kwargs[METRICS_KEY])
         else:
             size_of_log_history = len(state.log_history)
             for i in range(size_of_log_history - 1, -1, -1):
                 log = state.log_history[i]
                 if TRAINING_LOSS_KEY in log:
-                    self._add_to_window(
+                    self._add_and_slide(
                         TRAINING_LOSS_KEY, float(log[TRAINING_LOSS_KEY])
                     )
-                    self._slide_the_window(TRAINING_LOSS_KEY)
                     break
         return self._window
