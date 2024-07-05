@@ -110,7 +110,7 @@ def test_thresholded_training_loss():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_non_decreasing_training_loss():
@@ -157,9 +157,9 @@ def test_epoch_level_training_loss():
         tc_callback.on_epoch_end(
             args=test_data.args, state=test_data.state, control=control
         )
-        if control.should_training_stop == True:
+        if control.should_training_stop is True:
             test_passes = True
-    assert test_passes == True
+    assert test_passes is True
 
 
 def test_epoch_level_eval_loss():
@@ -183,7 +183,7 @@ def test_epoch_level_eval_loss():
     tc_callback.on_epoch_end(
         args=test_data.args, state=test_data.state, control=control
     )
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_epoch_level_eval_loss_patience():
@@ -211,7 +211,7 @@ def test_epoch_level_eval_loss_patience():
         )
         if control.should_training_stop:
             break
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_loss_on_threshold_with_trainer_state():
@@ -325,7 +325,7 @@ def test_custom_operation_invalid_action_handler():
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation custom_operation.should_ for control"
-        + " loss-controller-custom-operation-invalid-action"
+        + " loss_controller_custom_operation_invalid_action"
     )
 
 
@@ -366,7 +366,7 @@ def test_malicious_os_rule():
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert (
         str(exception_handler.value)
-        == "Rule for control loss-controller-wrong-os-rule is invalid"
+        == "Rule for control loss_controller_wrong_os_rule is invalid"
     )
 
 
@@ -409,7 +409,7 @@ def test_invalid_trigger():
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert str(exception_handler.value).strip("'") == (
-        "Controller loss-controller-invalid-trigger has"
+        "Controller loss_controller_invalid_trigger has"
         + " an invalid event (log_it_all_incorrect_trigger_name)"
     )
 
@@ -432,7 +432,7 @@ def test_invalid_operation():
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation missingop.should_training_stop"
-        + " for control loss-controller-invalid-operation"
+        + " for control loss_controller_invalid_operation"
     )
 
 
@@ -454,7 +454,7 @@ def test_invalid_operation_action():
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation hfcontrols.missingaction"
-        + " for control loss-controller-invalid-operation-action"
+        + " for control loss_controller_invalid_operation_action"
     )
 
 

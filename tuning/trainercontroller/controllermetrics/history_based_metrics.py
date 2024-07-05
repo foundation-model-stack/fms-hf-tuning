@@ -28,8 +28,11 @@ from tuning.trainercontroller.controllermetrics.metricshandler import MetricHand
 
 logger = logging.get_logger(__name__)
 METRICS_KEY = "metrics"
-TRAINING_LOSS_KEY = "loss"
+LOG_LOSS_KEY = "loss"
+TRAINING_LOSS_KEY = "training_loss"
 WINDOW_SIZE = "window_size"
+STEP_KEY = "steps"
+EPOCH_KEY = "epoch"
 
 
 class HistoryBasedMetric(MetricHandler):
@@ -43,23 +46,53 @@ class HistoryBasedMetric(MetricHandler):
             kwargs: List of arguments (key, value)-pairs
         """
         self._window = {
-            TRAINING_LOSS_KEY: deque(),
-            METRICS_KEY: deque(),
+            TRAINING_LOSS_KEY: {},
+            METRICS_KEY: {},
             WINDOW_SIZE: window_size,
         }
         super().__init__(events=["on_log", "on_evaluate"], **kwargs)
 
-    def _add_and_slide(self, data_type, data):
-        self._window[data_type].append(data)
+    def _add_and_slide(self, data_type: str, data: dict) -> bool:
+        """Add field values to vectors for each field in the data source.
+
+        Args:
+            type: Data type.
+            data_source: Keys in data source.
+
+        Returns:
+            bool
+        """
+        data_sources = list(self._window[data_type].keys())
+        for data_source in data_sources:
+            self._window[data_type][data_source].append(data[data_source])
         window_size = self._window[WINDOW_SIZE]
         if window_size < 0:
             return True
-        if len(self._window[data_type]) < window_size:
+        # All metrics in a data_type group are expected to computed together
+        if len(self._window[data_type][data_sources[0]]) < window_size:
             return False
-        if len(self._window[data_type]) == window_size:
+        if len(self._window[data_type][data_sources[0]]) == window_size:
             return True
-        self._window[data_type].popleft()
+        for data_source in data_sources:
+            self._window[data_type][data_source].popleft()
         return True
+
+    def _exists_already(self, data_type: str, data: dict) -> bool:
+        """Checks if the data already exists in the window.
+
+        Args:
+            data_type: Data type.
+            data_source: Keys in data source.
+
+        Returns:
+            bool
+        """
+        exist_count = 0
+        data_sources = data.keys()
+        for data_source in data_sources:
+            if self._window[data_type][data_source][-1] == data[data_source]:
+                exist_count += 1
+        return exist_count == len(data_sources)
 
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are \
@@ -69,6 +102,18 @@ class HistoryBasedMetric(MetricHandler):
             bool
         """
         return True
+
+    def _create_vectors_if_not_exists(self, data_type: str, data_source: dict):
+        """Creates vectors for each field in the data source.
+
+        Args:
+            data_type: Data type.
+            data_source: Keys in data source.
+        """
+        if len(self._window[data_type]) > 0:
+            return
+        for data_source_name in data_source.keys():
+            self._window[data_type][data_source_name] = deque()
 
     def compute(self, state: TrainerState = None, **kwargs) -> Any:
         """Exposes  the window of loss and metrics values in the log.
@@ -81,14 +126,24 @@ class HistoryBasedMetric(MetricHandler):
             Any. The exposed variables are returned here.
         """
         if METRICS_KEY in kwargs:
-            self._add_and_slide(METRICS_KEY, kwargs[METRICS_KEY])
+            metrics = kwargs[METRICS_KEY]
+            metrics[STEP_KEY] = state.global_step
+            metrics[EPOCH_KEY] = state.epoch
+            self._create_vectors_if_not_exists(METRICS_KEY, metrics)
+            self._add_and_slide(METRICS_KEY, metrics)
         else:
+            self._create_vectors_if_not_exists(
+                TRAINING_LOSS_KEY, dict({TRAINING_LOSS_KEY, STEP_KEY})
+            )
             size_of_log_history = len(state.log_history)
             for i in range(size_of_log_history - 1, -1, -1):
                 log = state.log_history[i]
-                if TRAINING_LOSS_KEY in log:
-                    self._add_and_slide(
-                        TRAINING_LOSS_KEY, float(log[TRAINING_LOSS_KEY])
-                    )
+                if LOG_LOSS_KEY in log:
+                    data = {
+                        TRAINING_LOSS_KEY: float(log[LOG_LOSS_KEY]),
+                        STEP_KEY: state.global_step,
+                    }
+                    if not self._exists_already(TRAINING_LOSS_KEY, data):
+                        self._add_and_slide(TRAINING_LOSS_KEY, data)
                     break
         return self._window

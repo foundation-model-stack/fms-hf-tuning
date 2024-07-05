@@ -1,8 +1,8 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: Loss
 controllers:
-  - name: loss-controller-wrong-os-rule
+  - name: loss_controller_wrong_os_rule
     triggers:
       - on_log
     rule: __import__('os').system('clear')

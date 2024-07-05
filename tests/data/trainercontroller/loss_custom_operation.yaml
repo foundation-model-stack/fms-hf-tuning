@@ -1,11 +1,11 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: Loss
 operations:
   - name: custom_operation
     class: CustomOperation
 controllers:
-  - name: loss-controller-custom-operation
+  - name: loss_controller_custom_operation
     triggers:
       - on_log
     rule: loss < 1.0

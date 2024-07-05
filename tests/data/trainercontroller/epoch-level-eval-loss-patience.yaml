@@ -1,10 +1,10 @@
-controller-metrics:
+controller_metrics:
   - name: eval_loss_window
     class: HistoryBasedMetric
     arguments:
       window_size: 2
 controllers:
-  - name: epoch-level-eval-loss-patience
+  - name: epoch_level_eval_loss_patience
     triggers:
       - on_epoch_end
     rule: len(eval_loss_window["metrics"]) > 0 and eval_loss_window["metrics"][-1]["eval_loss"] > 2

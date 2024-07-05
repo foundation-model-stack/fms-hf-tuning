@@ -44,13 +44,13 @@ from tuning.trainercontroller.operations import Operation
 from tuning.trainercontroller.operations import (
     operation_handlers as default_operation_handlers,
 )
-from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 from tuning.trainercontroller.patience import PatienceControl
+from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
 logger = logging.get_logger(__name__)
 
 # Configuration keys
-CONTROLLER_METRICS_KEY = "controller-metrics"
+CONTROLLER_METRICS_KEY = "controller_metrics"
 OPERATIONS_KEY = "operations"
 CONTROLLERS_KEY = "controllers"
 ARGS_KEY = "arguments"

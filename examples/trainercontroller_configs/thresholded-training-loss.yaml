@@ -1,10 +1,10 @@
-controller-metrics:
+controller_metrics:
   - name: training_loss_window
     class: HistoryBasedMetric
     arguments:
       window_size: 1
 controllers:
-  - name: stop-on-training-loss-not-decreasing
+  - name: stop_on_training_loss_not_decreasing
     triggers:
       - on_log
     rule: training_loss_window["loss"][-1] > 2.2

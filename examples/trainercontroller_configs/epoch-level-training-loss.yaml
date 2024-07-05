@@ -1,4 +1,4 @@
-controller-metrics:
+controller_metrics:
   - name: trainer_state
     class: TrainingState
   - name: training_loss_window
@@ -6,7 +6,7 @@ controller-metrics:
     arguments:
       window_size: 1
 controllers:
-  - name: epoch-level-training-loss
+  - name: epoch_level_training_loss
     triggers:
       - on_epoch_end
     rule: training_loss_window["loss"][-1] > 2 and trainer_state["epoch"] > 3
