@@ -46,7 +46,8 @@ class InputData:
 
 def _setup_data() -> InputData:
     """
-    Sets up the test data for the test cases. This includes the logs, arguments for training and state
+    Sets up the test data for the test cases.
+    This includes the logs, arguments for training and state
     of the training.
 
     Returns:
@@ -85,7 +86,7 @@ def test_loss_on_threshold():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_loss_on_threshold_with_trainer_state():
@@ -117,7 +118,7 @@ def test_exposed_metrics():
     tc_callback.on_evaluate(
         args=test_data.args, state=test_data.state, control=control, metrics=metrics
     )
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_incorrect_source_event_exposed_metrics():
@@ -143,7 +144,7 @@ def test_incorrect_source_event_exposed_metrics():
             str(exception_handler.value).strip("'")
             == "Specified source event [on_incorrect_event] is invalid for EvalMetrics"
         )
-        assert control.should_training_stop == True
+        assert control.should_training_stop is True
 
 
 def test_custom_metric_handler():
@@ -160,7 +161,7 @@ def test_custom_metric_handler():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_custom_operation_handler():
@@ -177,7 +178,7 @@ def test_custom_operation_handler():
     tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
     # Trigger rule and test the condition
     tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert control.should_training_stop == True
+    assert control.should_training_stop is True
 
 
 def test_custom_operation_invalid_action_handler():
@@ -197,9 +198,9 @@ def test_custom_operation_invalid_action_handler():
         )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert (
-        str(exception_handler.value).strip("'")
-        == "Invalid operation customoperation.should_ for control loss-controller-custom-operation-invalid-action"
+    assert str(exception_handler.value).strip("'") == (
+        "Invalid operation customoperation.should_ for control"
+        + " loss-controller-custom-operation-invalid-action"
     )
 
 
@@ -282,9 +283,9 @@ def test_invalid_trigger():
         )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert (
-        str(exception_handler.value).strip("'")
-        == "Controller loss-controller-invalid-trigger has an invalid event (log_it_all_incorrect_trigger_name)"
+    assert str(exception_handler.value).strip("'") == (
+        "Controller loss-controller-invalid-trigger has"
+        + " an invalid event (log_it_all_incorrect_trigger_name)"
     )
 
 
@@ -304,9 +305,9 @@ def test_invalid_operation():
         )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert (
-        str(exception_handler.value).strip("'")
-        == "Invalid operation missingop.should_training_stop for control loss-controller-invalid-operation"
+    assert str(exception_handler.value).strip("'") == (
+        "Invalid operation missingop.should_training_stop"
+        + " for control loss-controller-invalid-operation"
     )
 
 
@@ -326,9 +327,9 @@ def test_invalid_operation_action():
         )
         # Trigger rule and test the condition
         tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
-    assert (
-        str(exception_handler.value).strip("'")
-        == "Invalid operation hfcontrols.missingaction for control loss-controller-invalid-operation-action"
+    assert str(exception_handler.value).strip("'") == (
+        "Invalid operation hfcontrols.missingaction"
+        + " for control loss-controller-invalid-operation-action"
     )
 
 
@@ -352,3 +353,18 @@ def test_invalid_metric():
         str(exception_handler.value).strip("'")
         == "Undefined metric handler MissingMetricClass"
     )
+
+
+def test_unavailable_metric():
+    """Tests the invalid metric scenario in the controller. Uses:
+    `examples/trainer-controller-configs/loss_invalid_metric.yaml`
+    """
+    test_data = _setup_data()
+    tc_callback = tc.TrainerControllerCallback(
+        td.TRAINER_CONFIG_TEST_UNAVAILABLE_METRIC_YAML
+    )
+    control = TrainerControl(should_training_stop=False)
+    # Trigger on_init_end to perform registration of handlers to events
+    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    # Trigger rule and test the condition
+    tc_callback.on_step_end(args=test_data.args, state=test_data.state, control=control)
