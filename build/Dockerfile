@@ -110,29 +110,44 @@ RUN dnf install -y git && \
     rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem && \
     dnf clean all
 USER ${USER}
-WORKDIR /tmp
+# Ensure that git directory is owned by current user, otherwise git raises
+# "fatal: detected dubious ownership" for `/tmp`
+WORKDIR /tmp/fms-hf-tuning
+
+# Install poetry and its dependencies inside an isolated virtual environment which we
+# will not copy into the release-base layer
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user build
+    python -m venv venv /tmp/isolated && \
+    /tmp/isolated/bin/pip install poetry poetry-plugin-export
+
 COPY --chown=${USER}:root tuning tuning
-COPY .git .git
-COPY pyproject.toml pyproject.toml
+COPY --chown=${USER}:root .git .git
+COPY --chown=${USER}:root pyproject.toml pyproject.toml
+COPY --chown=${USER}:root poetry.lock poetry.lock
+COPY README.md README.md
 
-# Build a wheel if PyPi wheel_version is empty else download the wheel from PyPi
-RUN if [[ -z "${WHEEL_VERSION}" ]]; \
-    then python -m build --wheel --outdir /tmp; \
-    else pip download fms-hf-tuning==${WHEEL_VERSION} --dest /tmp --only-binary=:all: --no-deps; \
-    fi && \
-    ls /tmp/*.whl >/tmp/bdist_name
-
-# Install from the wheel
+# Install using poetry if PyPi wheel_version is empty else download the wheel from PyPi
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
-    python -m pip install --user wheel && \
-    python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
-    # Clean up the wheel module. It's only needed by flash-attn install
-    python -m pip uninstall wheel build -y && \
-    # Cleanup the bdist whl file
-    rm $(head bdist_name) /tmp/bdist_name
+    if [[ -z "${WHEEL_VERSION}" ]]; then \
+      # Extract requirements from poetry and install them in ~/.local \
+      # Need wheel and build for the flash-attn package \
+      python -m pip install --user wheel build && \
+      python -m pip install --user --requirement <(/tmp/isolated/bin/poetry export --format requirements.txt) &&  \
+      # Next install the package with flash-attn \
+      python -m pip install --user ".[flash-attn]" && \
+      python -m pip uninstall wheel build -y ; \
+    else \
+      # This will use whatever dependencies versions satisfy the pyproject.toml constraints \
+      # but they won't necessarily be the exact same versions as present in poetry.lock \
+      # First, install fms-hf-tuning to get its dependencies which include torch. \
+      # Then install with the flash-attn extras as the latter expects torch to be present \
+      python -m pip install --user wheel build && \
+      python -m pip install --user "fms-hf-tuning==${WHEEL_VERSION}" && \
+      python -m pip install --user "fms-hf-tuning[flash-attn]==${WHEEL_VERSION}" && \
+      python -m pip uninstall wheel build -y ; \
+    fi
+
+RUN python -m pip freeze
 
 ## Final image ################################################
 FROM release-base as release

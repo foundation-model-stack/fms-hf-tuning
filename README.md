@@ -7,6 +7,7 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+### 1. Install from wheel 
 ```
 pip install fms-hf-tuning
 ```
@@ -27,7 +28,13 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 ```
 pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
+
+### 2. Build from source 
+
+We have committed a `poetry.lock` file to allow reproducible enviornments. If building from source, you can clone the repository and use poetry to install as mentioned in [development docs](/CONTRIBUTING.md#development) 
+
+If building in a dockerfile use `poetry export --format requirements.txt` can install same dependencies from the lock file. Maintainers regularly update the lock file. 
 
 ## Data format
 We support two data formats:
@@ -385,7 +392,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 ### FMS Acceleration
 
-`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that acclerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [seperate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
+`fms-acceleration` is fuss-free approach to access a curated collection of acceleration plugins that accelerate your `tuning/sft-trainer.py` experience. Accelerations that apply to a variety of use-cases, e.g., PeFT / full-finetuning, are being planned for. As such, the accelerations are grouped into *plugins*; only install the plugins needed for the acceleration of interest. The plugins are housed in the [separate repository found here](https://github.com/foundation-model-stack/fms-acceleration).
 
 To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
   ```

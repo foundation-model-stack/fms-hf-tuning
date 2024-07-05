@@ -16,9 +16,10 @@
 """
 
 # Standard
-import os
-import tempfile
 import glob
+import os
+import socket
+import tempfile
 
 # Third Party
 import pytest
@@ -27,10 +28,9 @@ import pytest
 from build.accelerate_launch import main
 from build.utils import serialize_args
 from tests.data import TWITTER_COMPLAINTS_DATA
-from tuning.utils.error_logging import (
-    USER_ERROR_EXIT_CODE,
-    INTERNAL_ERROR_EXIT_CODE,
-)
+
+# Local
+from tuning.utils.error_logging import INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
@@ -89,11 +89,30 @@ def cleanup_env():
     os.environ.pop("TERMINATION_LOG_FILE", None)
 
 
-def test_successful_ft():
+# Use name="free_port" to avoid W0621: redefined-outer-name pylint warning
+@pytest.fixture(scope="function", name="free_port")
+def fixture_free_port() -> int:
+    # This does not guarantee that a different process doesn't use this port
+    # immediately after sock.close()
+    sock = socket.socket()
+    sock.bind(("", 0))
+
+    port = sock.getsockname()[1]
+    sock.close()
+
+    return port
+
+
+def test_successful_ft(free_port: int):
     """Check if we can bootstrap and fine tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **BASE_KWARGS,
+            **{"output_dir": tempdir},
+            "accelerate_launch_args": {"main_process_port": free_port},
+        }
+
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
@@ -105,11 +124,15 @@ def test_successful_ft():
         assert len(glob.glob(f"{tempdir}/model*.safetensors")) > 0
 
 
-def test_successful_pt():
+def test_successful_pt(free_port: int):
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **BASE_PEFT_KWARGS,
+            **{"output_dir": tempdir},
+            "accelerate_launch_args": {"main_process_port": free_port},
+        }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
@@ -121,11 +144,15 @@ def test_successful_pt():
         assert os.path.exists(tempdir + "/adapter_config.json") is True
 
 
-def test_successful_lora():
+def test_successful_lora(free_port: int):
     """Check if we can bootstrap and LoRA tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{"output_dir": tempdir},
+            "accelerate_launch_args": {"main_process_port": free_port},
+        }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
@@ -137,11 +164,15 @@ def test_successful_lora():
         assert os.path.exists(tempdir + "/adapter_config.json") is True
 
 
-def test_bad_script_path():
+def test_bad_script_path(free_port: int):
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **BASE_PEFT_KWARGS,
+            **{"output_dir": tempdir},
+            "accelerate_launch_args": {"main_process_port": free_port},
+        }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
         os.environ["TRAINING_SCRIPT"] = "/not/here"
@@ -164,13 +195,14 @@ def test_blank_env_var():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_faulty_file_path():
+def test_faulty_file_path(free_port: int):
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
         faulty_path = os.path.join(tempdir, "non_existent_file.pkl")
         TRAIN_KWARGS = {
             **BASE_PEFT_KWARGS,
             **{"training_data_path": faulty_path, "output_dir": tempdir},
+            "accelerate_launch_args": {"main_process_port": free_port},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
@@ -181,12 +213,13 @@ def test_faulty_file_path():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_bad_base_model_path():
+def test_bad_base_model_path(free_port: int):
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
         TRAIN_KWARGS = {
             **BASE_PEFT_KWARGS,
             **{"model_name_or_path": "/wrong/path"},
+            "accelerate_launch_args": {"main_process_port": free_port},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
@@ -197,12 +230,13 @@ def test_bad_base_model_path():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_config_parsing_error():
+def test_config_parsing_error(free_port: int):
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
         TRAIN_KWARGS = {
             **BASE_PEFT_KWARGS,
             **{"num_train_epochs": "five"},
+            "accelerate_launch_args": {"main_process_port": free_port},
         }  # Intentional type error
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
