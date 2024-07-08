@@ -165,4 +165,6 @@ USER ${USER}
 COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
 ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
+RUN pip list
+
 CMD [ "python", "/app/accelerate_launch.py" ]
