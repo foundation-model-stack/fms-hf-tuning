@@ -62,7 +62,11 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.preprocessing_utils import get_data_collator, validate_data_args
+from tuning.utils.preprocessing_utils import (
+    get_data_collator,
+    validate_data_args,
+    validate_train_args,
+)
 
 
 def train(
@@ -242,6 +246,8 @@ def train(
 
     # Validate if data args are set properly
     validate_data_args(data_args, packing)
+    validate_train_args(train_args=train_args)
+
     data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
 
     # load the data by parsing JSON
@@ -310,6 +316,13 @@ def train(
         if k in transformer_train_arg_fields
     }
     training_args = SFTConfig(**transformer_kwargs)
+
+    if train_args.streaming:
+        formatted_train_dataset = formatted_train_dataset.to_iterable_dataset()
+        if formatted_validation_dataset:
+            formatted_validation_dataset = (
+                formatted_validation_dataset.to_iterable_dataset()
+            )
 
     trainer = SFTTrainer(
         model=model,

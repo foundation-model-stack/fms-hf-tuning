@@ -82,7 +82,9 @@ class DataArguments:
 
 
 @dataclass
-class TrainingArguments(transformers.TrainingArguments):
+class TrainingArguments(
+    transformers.TrainingArguments
+):  # pylint: disable=too-many-instance-attributes
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     max_seq_length: int = field(
@@ -122,6 +124,19 @@ class TrainingArguments(transformers.TrainingArguments):
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
+    streaming: bool = field(
+        default=False,
+        metadata={"help": "set to True to stream data during training"},
+    )
+
+    def __post_init__(self):
+        # when using iterable datasets it is needed to provide data dispatch strategy
+        # if split_batches is True, the data is fetched only by rank 0 process
+        # and is distributed across worker processes
+        # related - https://github.com/huggingface/accelerate/issues/2023
+        if self.streaming:
+            self.split_batches
+            self.accelerator_config = {"split_batches": True}
 
 
 @dataclass

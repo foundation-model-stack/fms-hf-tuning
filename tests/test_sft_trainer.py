@@ -140,7 +140,7 @@ def test_parse_arguments_defaults(job_config):
     )
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
-    assert training_args.save_strategy.value == "epoch"
+    assert training_args.save_strategy == "epoch"
 
 
 def test_parse_arguments_peft_method(job_config):

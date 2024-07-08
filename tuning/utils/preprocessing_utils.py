@@ -25,6 +25,13 @@ import datasets
 from tuning.config import configs
 
 
+def validate_train_args(train_args: configs.TrainingArguments):
+    if train_args.streaming:
+        # IterableDatasets do not yet support training in terms of epochs yet
+        if train_args.max_steps == -1:
+            raise ValueError("IterableDatasets only support max_steps for training")
+
+
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
     assert isinstance(
