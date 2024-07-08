@@ -17,6 +17,7 @@
 
 # Standard
 from dataclasses import dataclass
+from typing import List
 
 # Third Party
 from simpleeval import FunctionNotDefined
@@ -41,7 +42,7 @@ class InputData:
     """Stores the operation handler instance and corresponding action"""
 
     args: config.TrainingArguments
-    state: TrainerState
+    states: List[TrainerState]
     metrics: dict
 
 
@@ -62,15 +63,35 @@ def _setup_data() -> InputData:
             logging_strategy=IntervalStrategy.STEPS,
             logging_steps=1,
         ),
-        state=TrainerState(
-            log_history=[
-                {"loss": 2.0, "epoch": 0.1},
-                {"loss": 2.1, "epoch": 0.25},
-                {"loss": 1.3, "epoch": 0.5},
-                {"loss": 0.9, "epoch": 0.6},
-            ],
-            epoch=0.6,
-        ),
+        states=[
+            TrainerState(
+                log_history=[
+                    {"loss": 2.0, "epoch": 0.1},
+                    {"loss": 2.1, "epoch": 0.25},
+                ],
+                epoch=0.6,
+                global_step=1,
+            ),
+            TrainerState(
+                log_history=[
+                    {"loss": 2.0, "epoch": 0.1},
+                    {"loss": 2.1, "epoch": 0.25},
+                    {"loss": 1.3, "epoch": 0.5},
+                ],
+                epoch=1.0,
+                global_step=2,
+            ),
+            TrainerState(
+                log_history=[
+                    {"loss": 2.0, "epoch": 0.1},
+                    {"loss": 2.1, "epoch": 0.25},
+                    {"loss": 1.3, "epoch": 0.5},
+                    {"loss": 0.9, "epoch": 0.6},
+                ],
+                epoch=1.6,
+                global_step=3,
+            ),
+        ],
         metrics=[
             {"eval_loss": 2.2},
             {"eval_loss": 2.1},
@@ -91,9 +112,11 @@ def test_loss_on_threshold():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
 
@@ -107,9 +130,11 @@ def test_thresholded_training_loss():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
 
@@ -123,14 +148,18 @@ def test_non_decreasing_training_loss():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
     incremental_history = []
-    original_history = test_data.state.log_history
+    original_history = test_data.states[2].log_history
     for log in original_history:
         incremental_history.append(log)
-        test_data.state.log_history = incremental_history
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        test_data.states[2].log_history = incremental_history
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
         if control.should_training_stop:
             assert True
 
@@ -145,17 +174,21 @@ def test_epoch_level_training_loss():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
     incremental_history = []
-    original_history = test_data.state.log_history
+    original_history = test_data.states[2].log_history
     test_passes = False
     for log in original_history:
         incremental_history.append(log)
-        test_data.state.log_history = incremental_history
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        test_data.states[2].log_history = incremental_history
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
         tc_callback.on_epoch_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         if control.should_training_stop is True:
             test_passes = True
@@ -172,16 +205,18 @@ def test_epoch_level_eval_loss():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
     tc_callback.on_evaluate(
         args=test_data.args,
-        state=test_data.state,
+        state=test_data.states[2],
         control=control,
         metrics=test_data.metrics[0],
     )
     tc_callback.on_epoch_end(
-        args=test_data.args, state=test_data.state, control=control
+        args=test_data.args, state=test_data.states[2], control=control
     )
     assert control.should_training_stop is True
 
@@ -196,18 +231,20 @@ def test_epoch_level_eval_loss_patience():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
     for metrics in test_data.metrics:
         control = TrainerControl(should_training_stop=False)
         tc_callback.on_evaluate(
             args=test_data.args,
-            state=test_data.state,
+            state=test_data.states[2],
             control=control,
             metrics=metrics,
         )
         tc_callback.on_epoch_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         if control.should_training_stop:
             break
@@ -224,9 +261,11 @@ def test_loss_on_threshold_with_trainer_state():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
 
 
 def test_exposed_metrics():
@@ -238,10 +277,12 @@ def test_exposed_metrics():
     control = TrainerControl(should_training_stop=False)
     metrics = {"eval_loss": 2.2}
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
     tc_callback.on_evaluate(
-        args=test_data.args, state=test_data.state, control=control, metrics=metrics
+        args=test_data.args, state=test_data.states[2], control=control, metrics=metrics
     )
     assert control.should_training_stop is True
 
@@ -259,11 +300,14 @@ def test_incorrect_source_event_exposed_metrics():
         metrics = {"eval_loss": 2.2}
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
         tc_callback.on_evaluate(
-            args=test_data.args, state=test_data.state, control=control, metrics=metrics
+            args=test_data.args,
+            state=test_data.states[2],
+            control=control,
+            metrics=metrics,
         )
         assert (
             str(exception_handler.value).strip("'")
@@ -283,9 +327,11 @@ def test_custom_metric_handler():
     tc_callback.register_metric_handlers([CustomMetric])
     control = TrainerControl()
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
 
@@ -300,9 +346,11 @@ def test_custom_operation_handler():
     tc_callback.register_operation_handlers([CustomOperation])
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
 
@@ -319,10 +367,12 @@ def test_custom_operation_invalid_action_handler():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation custom_operation.should_ for control"
         + " loss_controller_custom_operation_invalid_action"
@@ -341,10 +391,12 @@ def test_invalid_type_rule():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert str(exception_handler.value) == "Rule failed due to incorrect type usage"
 
 
@@ -360,10 +412,12 @@ def test_malicious_os_rule():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert (
         str(exception_handler.value)
         == "Rule for control loss_controller_wrong_os_rule is invalid"
@@ -382,10 +436,12 @@ def test_malicious_input_rule():
     with pytest.raises(FunctionNotDefined) as exception_handler:
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert (
         str(exception_handler.value)
         == "Function 'input' not defined, for expression 'input('Please enter your password:')'."
@@ -404,10 +460,12 @@ def test_invalid_trigger():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert str(exception_handler.value).strip("'") == (
         "Controller loss_controller_invalid_trigger has"
         + " an invalid event (log_it_all_incorrect_trigger_name)"
@@ -426,10 +484,12 @@ def test_invalid_operation():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation missingop.should_training_stop"
         + " for control loss_controller_invalid_operation"
@@ -448,10 +508,12 @@ def test_invalid_operation_action():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert str(exception_handler.value).strip("'") == (
         "Invalid operation hfcontrols.missingaction"
         + " for control loss_controller_invalid_operation_action"
@@ -470,10 +532,12 @@ def test_invalid_metric():
         control = TrainerControl(should_training_stop=False)
         # Trigger on_init_end to perform registration of handlers to events
         tc_callback.on_init_end(
-            args=test_data.args, state=test_data.state, control=control
+            args=test_data.args, state=test_data.states[2], control=control
         )
         # Trigger rule and test the condition
-        tc_callback.on_log(args=test_data.args, state=test_data.state, control=control)
+        tc_callback.on_log(
+            args=test_data.args, state=test_data.states[2], control=control
+        )
     assert (
         str(exception_handler.value).strip("'")
         == "Undefined metric handler MissingMetricClass"
@@ -490,6 +554,10 @@ def test_unavailable_metric():
     )
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
-    tc_callback.on_init_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_init_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
     # Trigger rule and test the condition
-    tc_callback.on_step_end(args=test_data.args, state=test_data.state, control=control)
+    tc_callback.on_step_end(
+        args=test_data.args, state=test_data.states[2], control=control
+    )
