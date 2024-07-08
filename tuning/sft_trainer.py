@@ -16,6 +16,7 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import os
 import sys
 import time
 import traceback
@@ -266,7 +267,9 @@ def train(
             tokenizer.eos_token,
         )
     else:
-        formatted_train_dataset = json_dataset["train"].map(format_dataset)
+        formatted_train_dataset = json_dataset["train"].map(
+            format_dataset, num_proc=os.cpu_count()
+        )
     logger.info("Training dataset length is %s", len(formatted_train_dataset))
 
     formatted_validation_dataset = None
@@ -282,7 +285,7 @@ def train(
             )
         else:
             formatted_validation_dataset = json_dataset["validation"].map(
-                format_dataset
+                format_dataset, num_proc=os.cpu_count()
             )
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
