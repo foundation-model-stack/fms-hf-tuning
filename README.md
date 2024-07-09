@@ -25,7 +25,7 @@ pip install fms-hf-tuning[aim]
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
-pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
+pip install fms-hf-tuning[fms-accel]
 ```
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
 
@@ -389,7 +389,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
   ```
-  $ pip install https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
+  $ pip install fms-hf-tuning[fms-accel]
   ```
 
 Furthermore, the required `fms-acceleration` plugin must be installed. This is done via the command line utility `fms_acceleration.cli`. To show available plugins:
