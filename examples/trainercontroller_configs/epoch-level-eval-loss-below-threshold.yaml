@@ -1,0 +1,12 @@
+controller_metrics:
+  - name: trainer_state
+    class: TrainingState
+  - name: evalmetric
+    class: EvalMetrics
+controllers:
+  - name: epoch_level_eval_loss_below_threshold
+    triggers:
+      - on_epoch_end
+    rule: evalmetric['eval_loss'] < 2.25 and trainer_state["epoch"] > 2
+    operations:
+      - hfcontrols.should_training_stop

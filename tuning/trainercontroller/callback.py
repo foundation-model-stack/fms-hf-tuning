@@ -265,8 +265,8 @@ class TrainerControllerCallback(TrainerCallback):
                     continue
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
-                        logger.info(
-                            "Taking %s action in %s",
+                        logger.warning(
+                            "Taking [%s] action in controller [%s]",
                             operation_action.action,
                             control_action.name,
                         )
