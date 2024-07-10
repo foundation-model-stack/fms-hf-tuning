@@ -20,6 +20,9 @@ from typing import List, Optional, Union
 import torch
 import transformers
 
+# Local
+from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER
+
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_OPTIMIZER = "adamw_torch"
 
@@ -126,7 +129,7 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
     trackers: Optional[List[str.lower]] = field(
-        default_factory=lambda: ["file_logger"],
+        default_factory=lambda: [FILE_LOGGING_TRACKER],
         metadata={
             "help": "Experiment trackers to use.\n"
             + "Available trackers are - file_logger(default), aim, none\n"

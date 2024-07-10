@@ -43,11 +43,13 @@ class AimStackTracker(Tracker):
         if repo:
             aim_callback = AimCallback(repo=repo, experiment=exp)
         else:
-            self.logger.warning(
+            self.logger.error(
                 "Aim tracker requested but repo or server is not specified. "
                 + "Please specify either aim repo or aim server ip and port for using Aim."
             )
-            aim_callback = None
+            raise ValueError(
+                "Aim tracker requested but repo or server is not specified."
+            )
 
         self.hf_callback = aim_callback
         return self.hf_callback
@@ -60,8 +62,9 @@ class AimStackTracker(Tracker):
         like, training metric or eval metric or additional metric
         """
         if metric is None or name is None:
-            self.logger.warning("Tracked metric value or name should not be None")
-            return
+            raise ValueError(
+                "track function should not be called with None metric value or name"
+            )
         context = {"subset": stage}
         callback = self.hf_callback
         run = callback.experiment
@@ -74,8 +77,8 @@ class AimStackTracker(Tracker):
         Expects params to be a dict of k:v pairs of parameters to store.
         name represents the namespace under which parameters will be associated in Aim.
         """
-        if params is None:
-            return
+        if params is None or (not isinstance(params, dict)):
+            raise ValueError("set_params should be called with a dict of params")
         callback = self.hf_callback
         run = callback.experiment
         if run is not None:

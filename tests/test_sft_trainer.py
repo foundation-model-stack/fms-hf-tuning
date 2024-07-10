@@ -399,15 +399,18 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
 
 
 ############################# Finetuning Tests #############################
-
-
 def test_run_causallm_ft_and_inference():
     """Check if we can bootstrap and finetune tune causallm models"""
+    _test_run_causallm_ft_and_inference(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS)
+
+
+############################# Helper functions #############################
+def _test_run_causallm_ft_and_inference(training_args, model_args, data_args):
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = copy.deepcopy(training_args)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(model_args, data_args, train_args, None)
 
         # validate ft tuning configs
         _validate_training(tempdir)
@@ -424,7 +427,6 @@ def test_run_causallm_ft_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-############################# Helper functions #############################
 def _validate_training(tempdir, check_eval=False):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
@@ -640,12 +642,131 @@ def test_run_with_additional_callbacks():
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        model_args = copy.deepcopy(MODEL_ARGS)
 
         sft_trainer.train(
-            model_args,
+            MODEL_ARGS,
             DATA_ARGS,
             train_args,
             PEFT_PT_ARGS,
             additional_callbacks=[TrainerCallback()],
         )
+
+
+def test_run_with_bad_additional_callbacks():
+    """Ensure that train() raises error with bad additional_callbacks"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with pytest.raises(ValueError):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+                additional_callbacks=["NotSupposedToBeHere"],
+            )
+
+
+def test_run_with_bad_experimental_metadata():
+    """Ensure that train() throws error with bad experimental metadata"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        metadata = "deadbeef"
+
+        with pytest.raises(ValueError):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+                additional_callbacks=[TrainerCallback()],
+                exp_metadata=metadata,
+            )
+
+
+def test_run_with_good_experimental_metadata():
+    """Ensure that train() can work with good experimental metadata"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        metadata = {"dead": "beef"}
+
+        sft_trainer.train(
+            MODEL_ARGS,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_callbacks=[TrainerCallback()],
+            exp_metadata=metadata,
+        )
+
+
+#### Tracker subsystem checks
+
+
+def test_run_with_bad_tracker_config():
+    """Ensure that train() raises error with bad tracker configs"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with pytest.raises(ValueError):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+                tracker_configs="NotSupposedToBeHere",
+            )
+
+
+def test_run_with_bad_tracker_name():
+    """Ensure that train() raises error with bad tracker name"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        train_args.trackers = ["NotAValidTracker"]
+
+        with pytest.raises(ValueError):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+            )
+
+
+def test_run_with_good_tracker_name_but_no_args():
+    """Ensure that train() raises error with bad tracker name"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        train_args.trackers = ["aim"]
+
+        with pytest.raises(ValueError):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+            )
+
+
+def test_run_with_good_tracker_name():
+    """Ensure that training succeeds with a good tracker name"""
+
+    train_args = copy.deepcopy(TRAIN_ARGS)
+    train_args.trackers = ["file_logger"]
+    _test_run_causallm_ft_and_inference(train_args, MODEL_ARGS, DATA_ARGS)
