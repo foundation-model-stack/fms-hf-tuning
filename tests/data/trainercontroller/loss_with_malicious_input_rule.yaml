@@ -1,8 +1,8 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: Loss
 controllers:
-  - name: loss-controller-wrong-input-rule
+  - name: loss_controller_wrong_input_rule
     triggers:
       - on_log
     rule: input('Please enter your password:')

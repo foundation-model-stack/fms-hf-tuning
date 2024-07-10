@@ -1,8 +1,8 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: MissingMetricClass
 controllers:
-  - name: loss-controller-invalid-metric
+  - name: loss_controller_invalid_metric
     triggers:
       - on_log
     rule: loss < 1.0

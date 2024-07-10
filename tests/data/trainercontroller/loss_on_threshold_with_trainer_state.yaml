@@ -1,10 +1,10 @@
-controller-metrics:
+controller_metrics:
   - name: state
     class: TrainingState
   - name: loss
     class: Loss
 controllers:
-  - name: loss-controller
+  - name: loss_controller
     triggers:
       - on_log
     rule: loss < 2 and state["epoch"] >= 0.5

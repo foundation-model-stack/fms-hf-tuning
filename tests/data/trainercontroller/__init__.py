@@ -62,3 +62,18 @@ TRAINER_CONFIG_TEST_CUSTOM_OPERATION_YAML = os.path.join(
 TRAINER_CONFIG_TEST_CUSTOM_OPERATION_INVALID_ACTION_YAML = os.path.join(
     _DATA_DIR, "loss_custom_operation_invalid_action.yaml"
 )
+TRAINER_CONFIG_TEST_EPOCH_LEVEL_EVAL_LOSS_PATIENCE_YAML = os.path.join(
+    _DATA_DIR, "epoch-level-eval-loss-patience.yaml"
+)
+TRAINER_CONFIG_TEST_EPOCH_LEVEL_EVAL_LOSS_YAML = os.path.join(
+    _DATA_DIR, "epoch-level-eval-loss.yaml"
+)
+TRAINER_CONFIG_TEST_EPOCH_LEVEL_TRAINING_LOSS_YAML = os.path.join(
+    _DATA_DIR, "epoch-level-training-loss.yaml"
+)
+TRAINER_CONFIG_TEST_NON_DECREASING_TRAINING_LOSS_YAML = os.path.join(
+    _DATA_DIR, "non-decreasing-training-loss.yaml"
+)
+TRAINER_CONFIG_TEST_THRESHOLDED_TRAINING_LOSS_YAML = os.path.join(
+    _DATA_DIR, "thresholded-training-loss.yaml"
+)

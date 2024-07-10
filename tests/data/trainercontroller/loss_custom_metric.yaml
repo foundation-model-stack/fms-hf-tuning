@@ -1,8 +1,8 @@
-controller-metrics:
+controller_metrics:
   - name: testflag
     class: CustomMetric
 controllers:
-  - name: loss-controller-custom-metric
+  - name: loss_controller_custom-metric
     triggers:
       - on_log
     rule: testflag == True
