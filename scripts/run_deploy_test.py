@@ -6,27 +6,27 @@ import logging
 import os
 import sys
 import time
+import yaml
 
 # Third Party
-from kr8s.objects import Pod
-from testharness.utils.k8s.deployments import *
-
-# pip install caikit-test-harness --> ai-foundation, useful tools
-from testharness.utils.k8s.pods import *
 import grpc
 import kubernetes
+from kr8s.objects import Pod
+
+# pip install caikit-test-harness --> ai-foundation, useful kube methods
+from testharness.utils.k8s.deployments import *
+from testharness.utils.k8s.pods import *
 
 # requires running `python -m grpc_tools.protoc -I ./proto --python_out=. --grpc_python_out=. generation.proto` in TGIS repo
 import tgis.generation_pb2
 import tgis.generation_pb2_grpc
-import yaml
 
 # Default configurations to use for preset ConfigMap and tuning Pod
 FINE_TUNE_RESOURCE_NAME = "sft-trainer-test-fine-tune"
 LORA_TUNE_RESOURCE_NAME = "sft-trainer-test-lora-tune"
 FINE_TUNE_MODEL = "/granite/granite-13b-base-v2/step_300000_ckpt"
 LORA_TUNE_MODEL = "/llama/LLaMa/models/hf/13B"
-RESPONSE_TEMPLATE = "\n### Response:"
+RESPONSE_TEMPLATE = "\n### Label:"
 SFT_TRAINER_IMAGE = "docker-na-public.artifactory.swg-devops.com/wcp-ai-foundation-team-docker-virtual/sft-trainer:b6b592f_ubi9_py311"
 IMAGE_PULL_SECRET = "artifactory-docker"
 TGIS_IMAGE = "quay.io/wxpe/text-gen-server:main.9b4aea8"
