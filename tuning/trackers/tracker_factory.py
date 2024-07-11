@@ -97,12 +97,36 @@ def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory
 
 
 def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
-    """
-    Returns an instance of the tracker object based on the requested `name`.
-    Expects tracker config to be present as part of the TrackerConfigFactory
-    object passed as `tracker_configs` argument.
-    If a valid tracker config is not found this function tries tracker with
-    default config else returns an empty Tracker()
+    """Returns an instance of the tracker object based on the requested name.
+
+    Args:
+        name (str): name of the tracker requested.
+        tracker_configs (tuning.config.tracker_configs.TrackerConfigFactory):
+            An instance of TrackerConfigFactory passed which contains a
+            non None instance of config for the requested tracker
+    Raises:
+        ValueError: If a valid tracker config is not found this function raises a ValueError
+        ValueError: If a valid tracker is found but its config is not passed the tracker might
+            raise a ValueError. See tuning.trackers.tracker.aimstack_tracker.AimStackTracker
+
+    Returns:
+        tuning.trackers.tracker.Tracker: A subclass of tuning.trackers.tracker.Tracker
+            Valid classes available are,
+            tuning.trackers.tracker.aimstack_tracker.AimStackTracker,
+            tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker
+
+    Examples:
+        file_logging_tracker = get_tracker("file_logger", TrackerConfigFactory(
+                                    file_logger_config=FileLoggingTrackerConfig(
+                                        training_logs_filename=logs_file
+                                    )
+                                ))
+        aim_tracker = get_tracker("aim", TrackerConfigFactory(
+                            aim_config=AimConfig(
+                                experiment="unit_test",
+                                aim_repo=tempdir + "/"
+                            )
+                    ))
     """
     if not REGISTERED_TRACKERS:
         # a one time step.
@@ -110,7 +134,11 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
 
     if name not in REGISTERED_TRACKERS:
         if name in AVAILABLE_TRACKERS and (not _is_tracker_installed(name)):
-            err = "Requested tracker " + name + " is not installed. Please check."
+            err = (
+                "Requested tracker " + name + " is not installed.\n"
+                "List of installed trackers is "
+                + (",".join(str(t) for t in AVAILABLE_TRACKERS))
+            )
         else:
             err = (
                 "Requested Tracker "

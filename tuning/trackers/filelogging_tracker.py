@@ -72,16 +72,22 @@ class FileLoggingCallback(TrainerCallback):
 
 class FileLoggingTracker(Tracker):
     def __init__(self, tracker_config: FileLoggingTrackerConfig):
-        """
-        Tracker which encodes callback to record metric, e.g., training loss
+        """Tracker which encodes callback to record metric, e.g., training loss
         to a file in the checkpoint directory.
+
+        Args:
+            tracker_config (FileLoggingTrackerConfig): An instance of file logging tracker
+                which contains the location of file where logs are recorded.
         """
         super().__init__(name="file_logger", tracker_config=tracker_config)
         self.logger = logging.get_logger("file_logging_tracker")
 
     def get_hf_callback(self):
-        """
-        Returns the FileLoggingCallback object associated with this tracker.
+        """Returns the FileLoggingCallback object associated with this tracker.
+
+        Returns:
+            FileLoggingCallback: The file logging callback which inherits
+                transformers.TrainerCallback and records the metrics to a file.
         """
         file = self.config.training_logs_filename
         self.hf_callback = FileLoggingCallback(logs_filename=file)

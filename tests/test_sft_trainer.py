@@ -24,6 +24,7 @@ import tempfile
 # Third Party
 from datasets.exceptions import DatasetGenerationError
 from transformers.trainer_callback import TrainerCallback
+from transformers.utils.import_utils import _is_package_available
 import pytest
 import torch
 import transformers
@@ -40,6 +41,11 @@ from tests.data import (
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.config.tracker_configs import (
+    AimConfig,
+    FileLoggingTrackerConfig,
+    TrackerConfigFactory,
+)
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 MODEL_ARGS = configs.ModelArguments(
@@ -401,35 +407,40 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
 ############################# Finetuning Tests #############################
 def test_run_causallm_ft_and_inference():
     """Check if we can bootstrap and finetune tune causallm models"""
-    _test_run_causallm_ft_and_inference(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS)
+    with tempfile.TemporaryDirectory() as tempdir:
+        _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
+        _test_run_inference(tempdir=tempdir)
 
 
 ############################# Helper functions #############################
-def _test_run_causallm_ft_and_inference(training_args, model_args, data_args):
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(training_args)
-        train_args.output_dir = tempdir
+def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
+    train_args = copy.deepcopy(training_args)
+    train_args.output_dir = tempdir
+    sft_trainer.train(model_args, data_args, train_args, None)
 
-        sft_trainer.train(model_args, data_args, train_args, None)
-
-        # validate ft tuning configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
-
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path)
-
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-        )
-        assert len(output_inference) > 0
-        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+    # validate ft tuning configs
+    _validate_training(tempdir)
 
 
-def _validate_training(tempdir, check_eval=False):
+def _test_run_inference(tempdir):
+    checkpoint_path = _get_checkpoint_path(tempdir)
+
+    # Load the model
+    loaded_model = TunedCausalLM.load(checkpoint_path)
+
+    # Run inference on the text
+    output_inference = loaded_model.run(
+        "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+    )
+    assert len(output_inference) > 0
+    assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def _validate_training(
+    tempdir, check_eval=False, train_logs_file="training_logs.jsonl"
+):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
-    train_logs_file_path = "{}/training_logs.jsonl".format(tempdir)
+    train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
     train_log_contents = ""
     with open(train_logs_file_path, encoding="utf-8") as f:
         train_log_contents = f.read()
@@ -659,7 +670,9 @@ def test_run_with_bad_additional_callbacks():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="additional callbacks should be of type TrainerCallback"
+        ):
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
@@ -678,7 +691,9 @@ def test_run_with_bad_experimental_metadata():
 
         metadata = "deadbeef"
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="exp metadata passed should be a dict with valid json"
+        ):
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
@@ -718,7 +733,10 @@ def test_run_with_bad_tracker_config():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="tracker configs should adhere to the TrackerConfigFactory type",
+        ):
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
@@ -735,9 +753,13 @@ def test_run_with_bad_tracker_name():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        train_args.trackers = ["NotAValidTracker"]
+        bad_name = "NotAValidTracker"
+        train_args.trackers = [bad_name]
 
-        with pytest.raises(ValueError):
+        # ensure bad tracker name gets called out
+        with pytest.raises(
+            ValueError, match=r"Requested Tracker {} not found.".format(bad_name)
+        ):
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
@@ -746,8 +768,51 @@ def test_run_with_bad_tracker_name():
             )
 
 
+def test_run_with_file_logging_tracker():
+    """Ensure that training succeeds with a good tracker name"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.trackers = ["file_logger"]
+
+        _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
+        _test_run_inference(tempdir=tempdir)
+
+
+def test_sample_run_with_file_logger_updated_filename():
+    """Ensure that file_logger filename can be updated"""
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        train_args.trackers = ["file_logger"]
+
+        logs_file = "new_train_logs.jsonl"
+
+        tracker_configs = TrackerConfigFactory(
+            file_logger_config=FileLoggingTrackerConfig(
+                training_logs_filename=logs_file
+            )
+        )
+
+        sft_trainer.train(
+            MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        )
+
+        # validate ft tuning configs
+        _validate_training(tempdir, train_logs_file=logs_file)
+
+
+is_aim_available = _is_package_available("aim")
+
+
+@pytest.mark.skipif(
+    not is_aim_available,
+    reason="This test is required only if aim is installed"
+    " else see test_run_with_bad_tracker_name.",
+)
 def test_run_with_good_tracker_name_but_no_args():
-    """Ensure that train() raises error with bad tracker name"""
+    """Ensure that train() raises error with aim tracker name but no args"""
 
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -755,7 +820,10 @@ def test_run_with_good_tracker_name_but_no_args():
 
         train_args.trackers = ["aim"]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="Aim tracker requested but repo or server is not specified.",
+        ):
             sft_trainer.train(
                 MODEL_ARGS,
                 DATA_ARGS,
@@ -764,9 +832,36 @@ def test_run_with_good_tracker_name_but_no_args():
             )
 
 
-def test_run_with_good_tracker_name():
-    """Ensure that training succeeds with a good tracker name"""
+@pytest.mark.skipif(
+    not is_aim_available,
+    reason="E2E happy path test for aim tracker."
+    " Runs only when aim tracker is installed.",
+)
+def test_sample_run_with_aim_tracker():
+    """Ensure that training succeeds with aim tracker"""
 
-    train_args = copy.deepcopy(TRAIN_ARGS)
-    train_args.trackers = ["file_logger"]
-    _test_run_causallm_ft_and_inference(train_args, MODEL_ARGS, DATA_ARGS)
+    with tempfile.TemporaryDirectory() as tempdir:
+        # setup aim in the tempdir
+        os.system("cd " + tempdir + " ; aim init")
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        # This should not mean file logger is not present.
+        # code will add it by default
+        # The below validate_training check will test for that too.
+        train_args.trackers = ["aim"]
+
+        tracker_configs = TrackerConfigFactory(
+            aim_config=AimConfig(experiment="unit_test", aim_repo=tempdir + "/")
+        )
+
+        sft_trainer.train(
+            MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        )
+
+        # validate ft tuning configs
+        _validate_training(tempdir)
+
+        # validate inference
+        _test_run_inference(tempdir)
