@@ -174,7 +174,12 @@ def test_run_causallm_pt_and_inference():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING")
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -207,7 +212,12 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING")
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -238,7 +248,12 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING")
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -268,7 +283,12 @@ def test_run_causallm_pt_init_text():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING")
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
 
 invalid_params_map = [
@@ -429,9 +449,14 @@ def _get_adapter_config(dir_path):
         return json.load(f)
 
 
-def _validate_adapter_config(adapter_config, peft_type):
+def _validate_adapter_config(adapter_config, peft_type, tokenizer_name_or_path=None):
     assert adapter_config.get("task_type") == "CAUSAL_LM"
     assert adapter_config.get("peft_type") == peft_type
+    assert (
+        (adapter_config.get("tokenizer_name_or_path") == tokenizer_name_or_path)
+        if peft_type == "PROMPT_TUNING"
+        else True
+    )
 
 
 ############################# Other Tests #############################
