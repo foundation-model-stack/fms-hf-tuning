@@ -19,16 +19,16 @@
 from typing import Any
 
 # Third Party
-from transformers.utils import logging
+from transformers import TrainerState
+import torch
+import torch.distributed
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
-logger = logging.get_logger(__name__)
 
-
-class EvalMetrics(MetricHandler):
-    """Implements the controller metric which exposes the evaluation metrics"""
+class PerProcessState(MetricHandler):
+    """Implements the controller metric which exposes the per process state"""
 
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event \
@@ -37,28 +37,22 @@ class EvalMetrics(MetricHandler):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        source_events_to_check = {"on_evaluate", "on_predict"}
-        source_event = kwargs.get("source_event")
-        if source_event is None:
-            source_event = "on_evaluate"
-            super().__init__(
-                events=[
-                    source_event,
-                ],
-                **kwargs,
-            )
-        elif source_event in source_events_to_check:
-            super().__init__(
-                events=[
-                    source_event,
-                ],
-                **kwargs,
-            )
-        else:
-            raise ValueError(
-                "Specified source event [%s] is invalid for EvalMetrics"
-                % (source_event)
-            )
+        super().__init__(
+            events=[
+                "on_init_end",
+                "on_step_end",
+                "on_epoch_begin",
+                "on_epoch_end",
+                "on_prediction_step",
+                "on_predict",
+                "on_log",
+                "on_train_end",
+                "on_train_begin",
+                "on_evaluate",
+                "on_save",
+            ],
+            **kwargs,
+        )
 
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are \
@@ -69,13 +63,18 @@ class EvalMetrics(MetricHandler):
         """
         return True
 
-    def compute(self, **kwargs) -> Any:
+    def compute(self, _: TrainerState = None, **kwargs) -> Any:
         """Exposes the trainer state.
 
         Args:
+            state: TrainerState object
             kwargs: Remaining event arguments
 
         Returns:
             dict. Trainer state as a dictionary
         """
-        return kwargs["metrics"]
+        try:
+            rank = torch.distributed.get_rank()
+        except ValueError:
+            return {"rank": None}
+        return {"rank": rank}
