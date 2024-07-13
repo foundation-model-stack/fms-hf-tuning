@@ -71,11 +71,12 @@ def create_tuning_config(peft_method, **kwargs):
     return tune_config
 
 
-def get_hf_peft_config(task_type, tuning_config):
+def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
     """Return HF PEFT config for tuning based on type of tuning config passed
     Args:
         task_type: str
         tuning_config: peft_config.LoraConfig | peft_config.PromptTuningConfig | None
+        tokenizer_name_or_path: str
     Return: HF PEFT config or None
     """
     if isinstance(tuning_config, peft_config.LoraConfig):
@@ -85,7 +86,9 @@ def get_hf_peft_config(task_type, tuning_config):
         hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
         hf_peft_config = PromptTuningConfig(
-            task_type=task_type, **asdict(tuning_config)
+            task_type=task_type,
+            tokenizer_name_or_path=tokenizer_name_or_path,
+            **asdict(tuning_config),
         )
     else:
         hf_peft_config = None  # full parameter tuning

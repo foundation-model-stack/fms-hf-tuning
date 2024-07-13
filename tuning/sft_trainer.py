@@ -171,13 +171,15 @@ def train(
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
+        model_args.tokenizer_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
     )
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
-    peft_config = get_hf_peft_config(task_type, peft_config)
+    peft_config = get_hf_peft_config(
+        task_type, peft_config, model_args.tokenizer_name_or_path
+    )
 
     # TODO: understand if we need to hardcode these here or just use defaults in model
     if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):

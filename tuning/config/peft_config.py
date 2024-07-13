@@ -70,13 +70,9 @@ class PromptTuningConfig:
         prompt_tuning_init_text (`str`, *optional*):
             The text to initialize the prompt embedding. \
             Only used if `prompt_tuning_init` is `TEXT`.
-        tokenizer_name_or_path (`str`, *optional*):
-            The name or path of the tokenizer. \
-            Only used if `prompt_tuning_init` is `TEXT`.
         num_virtual_tokens (`int`): The number of virtual tokens to use.
     """
 
     prompt_tuning_init: str = "TEXT"
     num_virtual_tokens: int = 8
     prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
-    tokenizer_name_or_path: str = "llama-7b-hf"

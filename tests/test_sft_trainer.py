@@ -70,7 +70,6 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=8,
     prompt_tuning_init_text="hello",
-    tokenizer_name_or_path=MODEL_NAME,
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
@@ -175,7 +174,12 @@ def test_run_causallm_pt_and_inference():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -208,7 +212,12 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -239,7 +248,12 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING", PEFT_PT_ARGS)
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
@@ -261,7 +275,6 @@ def test_run_causallm_pt_init_text():
         tuning_config = peft_config.PromptTuningConfig(
             prompt_tuning_init="TEXT",
             prompt_tuning_init_text="hello",
-            tokenizer_name_or_path=MODEL_NAME,
         )
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
@@ -270,7 +283,12 @@ def test_run_causallm_pt_init_text():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "PROMPT_TUNING", tuning_config)
+        # tokenizer_name_or_path from model arguments is passed
+        # while preparing the prompt tuning config which
+        # defaults to model_name_or_path if not explicitly set.
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+        )
 
 
 invalid_params_map = [
@@ -364,7 +382,7 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(adapter_config, "LORA", base_lora_args)
+        _validate_adapter_config(adapter_config, "LORA")
 
         for module in expected:
             assert module in adapter_config.get("target_modules")
@@ -431,14 +449,11 @@ def _get_adapter_config(dir_path):
         return json.load(f)
 
 
-def _validate_adapter_config(adapter_config, peft_type, tuning_config):
+def _validate_adapter_config(adapter_config, peft_type, tokenizer_name_or_path=None):
     assert adapter_config.get("task_type") == "CAUSAL_LM"
     assert adapter_config.get("peft_type") == peft_type
     assert (
-        (
-            adapter_config.get("tokenizer_name_or_path")
-            == tuning_config.tokenizer_name_or_path
-        )
+        (adapter_config.get("tokenizer_name_or_path") == tokenizer_name_or_path)
         if peft_type == "PROMPT_TUNING"
         else True
     )
