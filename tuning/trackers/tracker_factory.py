@@ -63,8 +63,8 @@ def _register_aim_tracker():
         )
 
 
-def _is_tracker_installed(t):
-    if t == "aim":
+def _is_tracker_available(name):
+    if name == "aim":
         return _is_aim_available
     return False
 
@@ -133,11 +133,11 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
         _register_trackers()
 
     if name not in REGISTERED_TRACKERS:
-        if name in AVAILABLE_TRACKERS and (not _is_tracker_installed(name)):
+        if name in AVAILABLE_TRACKERS and (not _is_tracker_available(name)):
             err = (
                 "Requested tracker " + name + " is not installed.\n"
                 "List of installed trackers is "
-                + (",".join(str(t) for t in AVAILABLE_TRACKERS))
+                + (", ".join(str(t) for t in AVAILABLE_TRACKERS))
             )
         else:
             err = (
