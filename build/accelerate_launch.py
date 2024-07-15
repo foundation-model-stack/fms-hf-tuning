@@ -124,10 +124,9 @@ def main():
                 pt_checkpoint_dir,
                 original_output_dir,
             )
-            shutil.copytree(
+            shutil.copyfile(
                 os.path.join(tempdir, pt_checkpoint_dir),
-                original_output_dir,
-                dirs_exist_ok=True,
+                original_output_dir
             )
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
