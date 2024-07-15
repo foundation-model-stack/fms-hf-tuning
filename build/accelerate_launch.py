@@ -25,6 +25,7 @@ import sys
 import traceback
 import tempfile
 import shutil
+import stat
 from pathlib import Path
 
 # Third Party
@@ -46,6 +47,39 @@ from tuning.utils.error_logging import (
 
 ERROR_LOG = "/dev/termination-log"
 
+def copytree(source, destination, symlinks = False, ignore = None):
+  
+  if not os.path.exists(destination):
+    os.makedirs(destination)
+    shutil.copystat(source, destination)
+  file_list = os.listdir(source)
+  # If we want to ignore any files
+  if ignore:
+    exclude = ignore(source, file_list)
+    file_list = [a_file for a_file in file_list if a_file not in exclude]
+  # Have a list of directory objects, now iterate over them.
+  for item in file_list:
+    source_file = os.path.join(source, item)
+    destination_file = os.path.join(destination, item)
+    if symlinks and os.path.islink(source_file):
+      if os.path.lexists(destination_file):
+        os.remove(destination_file)
+      os.symlink(os.readlink(source_file), destination_file)
+      # Improvement over shutil.copytree: BAD CHMOD IS NOT FATAL.
+      try:
+        # get the permissions on the source file
+        st = os.lstat(source_file)
+        mode = stat.S_IMODE(st.st_mode)
+        # apply them to the destination file 
+        os.lchmod(destination_file, mode)
+      except:
+        pass # Not fatal.
+    elif os.path.isdir(source_file):
+      # recursive call for subdirectories
+      copytree(source_file, destination_file, symlinks, ignore)
+    else:
+      # straight copy.
+      shutil.copy2(source_file, destination_file)
 
 def main():
     LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
@@ -124,7 +158,7 @@ def main():
                 pt_checkpoint_dir,
                 original_output_dir,
             )
-            shutil.copyfile(
+            copytree(
                 os.path.join(tempdir, pt_checkpoint_dir),
                 original_output_dir
             )
