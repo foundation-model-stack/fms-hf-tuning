@@ -52,7 +52,7 @@ from tuning.config.tracker_configs import (
     TrackerConfigFactory,
 )
 from tuning.data import tokenizer_data_utils
-from tuning.trackers.tracker_factory import get_tracker
+from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
@@ -128,10 +128,22 @@ def train(
     trackers = []
     trainer_callbacks = []
 
+    if exp_metadata and (not isinstance(exp_metadata, dict)):
+        raise ValueError("exp metadata passed should be a dict with valid json")
+
     if train_args.trackers is not None:
         requested_trackers = set(train_args.trackers)
     else:
         requested_trackers = set()
+
+    # Ensure file logging is present
+    if FILE_LOGGING_TRACKER not in requested_trackers:
+        requested_trackers.add(FILE_LOGGING_TRACKER)
+
+    if not isinstance(tracker_configs, TrackerConfigFactory):
+        raise ValueError(
+            "tracker configs should adhere to the TrackerConfigFactory type"
+        )
 
     # Now initialize trackers one by one
     for name in requested_trackers:
@@ -152,7 +164,12 @@ def train(
 
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
-        trainer_callbacks.extend(additional_callbacks)
+        for cb in additional_callbacks:
+            if not isinstance(cb, TrainerCallback):
+                raise ValueError(
+                    "additional callbacks should be of type TrainerCallback"
+                )
+            trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config, fusedops_kernels_config
