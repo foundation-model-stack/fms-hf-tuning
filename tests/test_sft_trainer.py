@@ -715,4 +715,3 @@ def test_run_with_good_experimental_metadata():
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
-

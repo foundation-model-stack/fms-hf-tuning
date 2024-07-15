@@ -38,17 +38,25 @@ from tests.test_sft_trainer import (
 from tuning import sft_trainer
 from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
 
-## Aimstack tracker tests
+aim_not_available = not _is_package_available("aim")
 
 
-is_aim_available = _is_package_available("aim")
+@pytest.fixture(name="aimrepo", scope="module", autouse=True)
+def fixture_aimrepo():
+
+    if aim_not_available:
+        yield None
+        return
+
+    # if Aim is installed, this fixture sets up an aim repo for the tests to follow
+    # yeilds the aimstack repo path which is cleaned up later.
+    with tempfile.TemporaryDirectory() as aimstackrepo_path:
+        os.system("cd " + aimstackrepo_path + " ; aim init")
+        yield aimstackrepo_path
+        return
 
 
-@pytest.mark.skipif(
-    not is_aim_available,
-    reason="This test is required only if aim is installed"
-    " else see test_run_with_bad_tracker_name.",
-)
+@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
 def test_run_with_good_tracker_name_but_no_args():
     """Ensure that train() raises error with aim tracker name but no args"""
 
@@ -65,18 +73,11 @@ def test_run_with_good_tracker_name_but_no_args():
             sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
 
 
-@pytest.mark.skipif(
-    not is_aim_available,
-    reason="E2E happy path test for aim tracker."
-    " Runs only when aim tracker is installed.",
-)
-def test_e2e_run_with_aim_tracker():
+@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
+def test_e2e_run_with_aim_tracker(aimrepo):
     """Ensure that training succeeds with aim tracker"""
 
     with tempfile.TemporaryDirectory() as tempdir:
-        # setup aim in the tempdir
-        os.system("cd " + tempdir + " ; aim init")
-
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
@@ -86,7 +87,7 @@ def test_e2e_run_with_aim_tracker():
         train_args.trackers = ["aim"]
 
         tracker_configs = TrackerConfigFactory(
-            aim_config=AimConfig(experiment="unit_test", aim_repo=tempdir + "/")
+            aim_config=AimConfig(experiment="unit_test", aim_repo=aimrepo)
         )
 
         sft_trainer.train(
@@ -100,18 +101,11 @@ def test_e2e_run_with_aim_tracker():
         _test_run_inference(tempdir)
 
 
-@pytest.mark.skipif(
-    not is_aim_available,
-    reason="E2E happy path test for aim tracker with custom runid export."
-    " Runs only when aim tracker is installed.",
-)
-def test_e2e_run_with_aim_runid_export_default_path():
+@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
+def test_e2e_run_with_aim_runid_export_default_path(aimrepo):
     """Ensure that aim outputs runid hash in the output dir by default"""
 
     with tempfile.TemporaryDirectory() as tempdir:
-        # setup aim in the tempdir
-        os.system("cd " + tempdir + " ; aim init")
-
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
@@ -121,7 +115,7 @@ def test_e2e_run_with_aim_runid_export_default_path():
         train_args.trackers = ["aim"]
 
         tracker_configs = TrackerConfigFactory(
-            aim_config=AimConfig(experiment="unit_test", aim_repo=tempdir + "/")
+            aim_config=AimConfig(experiment="unit_test", aim_repo=aimrepo)
         )
 
         sft_trainer.train(
