@@ -1,5 +1,25 @@
 # FMS HF Tuning
 
+- [Installation](#installation)
+- [Data format](#data-format)
+- [Supported Models](#supported-models)
+- [Training](#training)
+  - [Single GPU](#single-gpu)
+  - [Multiple GPUs with FSDP](#multiple-gpus-with-fsdp)
+- [Tuning Techniques](#tuning-techniques)
+  - [LoRA Tuning Example](#lora-tuning-example)
+  - [Prompt Tuning](#prompt-tuning)
+  - [Fine Tuning](#fine-tuning)
+  - [FMS Acceleration](#fms-acceleration)
+- [Inference](#inference)
+  - [Running a single example](#running-a-single-example)
+  - [Running multiple examples](#running-multiple-examples)
+  - [Inference Results Format](#inference-results-format)
+  - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
+- [Validation](#validation)
+- [Trainer Controller Framework](#trainer-controller-framework)
+- [More Examples](#more-examples)
+
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
 1. Models are loaded from Hugging Face `transformers` or the [foundation-model-stack](https://github.com/foundation-model-stack/foundation-model-stack) -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
 2. Hugging Face `SFTTrainer` for the training loop
@@ -25,7 +45,7 @@ pip install fms-hf-tuning[aim]
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
-pip install git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
+pip install fms-hf-tuning[fms-accel]
 ```
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
 
@@ -389,7 +409,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 
 To access `fms-acceleration` features the `[fms-accel]` dependency must first be installed:
   ```
-  $ pip install https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
+  $ pip install fms-hf-tuning[fms-accel]
   ```
 
 Furthermore, the required `fms-acceleration` plugin must be installed. This is done via the command line utility `fms_acceleration.cli`. To show available plugins:
@@ -515,6 +535,14 @@ python main.py \
 ```
 
 The above runs several tasks with `hendrycksTest-*` being MMLU.
+
+## Trainer Controller Framework
+
+Trainer controller is a framework for controlling the trainer loop using user-defined rules and metrics.
+
+This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
+
+For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
 
 ## More Examples
 

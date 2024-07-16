@@ -20,6 +20,9 @@ from typing import List, Optional, Union
 import torch
 import transformers
 
+# Local
+from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER
+
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_OPTIMIZER = "adamw_torch"
 
@@ -45,6 +48,17 @@ class ModelArguments:
                 the given number after tokenizer modifications."
         },
     )
+    tokenizer_name_or_path: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Path to custom tokenizer.\
+                    If not provided it defaults to model_name_or_path"
+        },
+    )
+
+    def __post_init__(self):
+        if not self.tokenizer_name_or_path:
+            self.tokenizer_name_or_path = self.model_name_or_path
 
 
 @dataclass
@@ -115,7 +129,7 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
     trackers: Optional[List[str.lower]] = field(
-        default_factory=lambda: ["file_logger"],
+        default_factory=lambda: [FILE_LOGGING_TRACKER],
         metadata={
             "help": "Experiment trackers to use.\n"
             + "Available trackers are - file_logger(default), aim, none\n"

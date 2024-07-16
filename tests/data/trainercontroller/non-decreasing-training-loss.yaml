@@ -1,0 +1,12 @@
+controller_metrics:
+  - name: training_loss_window
+    class: HistoryBasedMetric
+    arguments:
+      window_size: 2
+controllers:
+  - name: stop_on_training_loss_not_decreasing
+    triggers:
+      - on_log
+    rule: training_loss_window["training_loss"]["loss"][0] < training_loss_window["training_loss"]["loss"][-1] and len(training_loss_window["training_loss"]["loss"]) == training_loss_window["window_size"]
+    operations:
+      - hfcontrols.should_training_stop

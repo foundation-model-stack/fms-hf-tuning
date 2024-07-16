@@ -35,7 +35,7 @@ import yaml
 
 # Local
 from tuning.trainercontroller import controllermetrics, operations
-from tuning.trainercontroller.control import Control, OperationAction
+from tuning.trainercontroller.control import Control, OperationAction, Rule
 from tuning.trainercontroller.controllermetrics import (
     handlers as default_metric_handlers,
 )
@@ -44,12 +44,13 @@ from tuning.trainercontroller.operations import Operation
 from tuning.trainercontroller.operations import (
     operation_handlers as default_operation_handlers,
 )
+from tuning.trainercontroller.patience import PatienceControl
 from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
 logger = logging.get_logger(__name__)
 
 # Configuration keys
-CONTROLLER_METRICS_KEY = "controller-metrics"
+CONTROLLER_METRICS_KEY = "controller_metrics"
 OPERATIONS_KEY = "operations"
 CONTROLLERS_KEY = "controllers"
 ARGS_KEY = "arguments"
@@ -57,6 +58,8 @@ ARGS_KEY = "arguments"
 CONTROLLER_NAME_KEY = "name"
 CONTROLLER_CLASS_KEY = "class"
 CONTROLLER_RULE_KEY = "rule"
+CONTROLLER_CONFIG_KEY = "config"
+CONTROLLER_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
@@ -222,8 +225,8 @@ class TrainerControllerCallback(TrainerCallback):
                 rule_succeeded = False
                 try:
                     rule_succeeded = evaluator.eval(
-                        expr=control_action.rule_str,
-                        previously_parsed=control_action.rule,
+                        expr=control_action.rule.rule,
+                        previously_parsed=control_action.rule.rule_ast,
                     )
                     if not isinstance(rule_succeeded, bool):
                         raise TypeError(
@@ -251,10 +254,19 @@ class TrainerControllerCallback(TrainerCallback):
                 except MetricUnavailableError as em:
                     logger.warning("Ignoring the rule because %s", em)
                     continue
+                if (
+                    control_action.patience is not None
+                    and control_action.patience.should_tolerate(
+                        rule_outcome=rule_succeeded,
+                        event_name=event_name,
+                        control_name=control_action.name,
+                    )
+                ):
+                    continue
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
                         logger.info(
-                            "Taking %s action in %s",
+                            "Taking [%s] action in controller [%s]",
                             operation_action.action,
                             control_action.name,
                         )
@@ -393,13 +405,20 @@ class TrainerControllerCallback(TrainerCallback):
                             % (controller_name, event_name)
                         )
                     # Generates the byte-code for the rule from the trainer configuration
-                    curr_rule = controller[CONTROLLER_RULE_KEY]
                     control = Control(
                         name=controller[CONTROLLER_NAME_KEY],
-                        rule_str=curr_rule,
-                        rule=EvalWithCompoundTypes.parse(expr=curr_rule),
+                        rule=Rule(
+                            rule=controller_rule,
+                            rule_ast=EvalWithCompoundTypes.parse(expr=controller_rule),
+                        ),
                         operation_actions=[],
                     )
+                    if CONTROLLER_CONFIG_KEY in controller:
+                        control.config = controller[CONTROLLER_CONFIG_KEY]
+                    if CONTROLLER_PATIENCE_CONFIG_KEY in controller:
+                        control.patience = PatienceControl(
+                            **controller[CONTROLLER_PATIENCE_CONFIG_KEY]
+                        )
                     for control_operation_name in controller_ops:
                         if control_operation_name not in self.operation_actions:
                             raise KeyError(

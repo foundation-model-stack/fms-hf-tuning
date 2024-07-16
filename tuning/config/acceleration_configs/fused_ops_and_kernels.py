@@ -18,19 +18,12 @@ from dataclasses import dataclass
 from typing import List
 
 # Local
-from .utils import (
-    EnsureTypes,
-    ensure_nested_dataclasses_initialized,
-    parsable_dataclass,
-)
+from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
 
 @parsable_dataclass
 @dataclass
 class FusedLoraConfig(List):
-
-    # to help the HfArgumentParser arrive at correct types
-    __args__ = [EnsureTypes(str, bool)]
 
     # load unsloth optimizations for these 4bit base layer weights.
     # currently only support "auto_gptq" and "bitsandbytes"
@@ -40,9 +33,6 @@ class FusedLoraConfig(List):
     fused_lora: bool = False
 
     def __post_init__(self):
-
-        # reset for another parse
-        self.__args__[0].reset()
 
         if self.base_layer is not None and self.base_layer not in {
             "auto_gptq",
@@ -60,9 +50,6 @@ class FusedLoraConfig(List):
 @dataclass
 class FastKernelsConfig(List):
 
-    # to help the HfArgumentParser arrive at correct types
-    __args__ = [EnsureTypes(bool, bool, bool)]
-
     # fast loss triton kernels
     fast_loss: bool = False
 
@@ -73,9 +60,6 @@ class FastKernelsConfig(List):
     fast_rope_embeddings: bool = False
 
     def __post_init__(self):
-
-        # reset for another parse
-        self.__args__[0].reset()
 
         if not self.fast_loss == self.fast_rsm_layernorm == self.fast_rope_embeddings:
             raise ValueError(

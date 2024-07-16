@@ -1,13 +1,13 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: Loss
 operations:
-  - name: customoperation
+  - name: custom_operation
     class: CustomOperationInvalidAction
 controllers:
-  - name: loss-controller-custom-operation-invalid-action
+  - name: loss_controller_custom_operation_invalid_action
     triggers:
       - on_log
     rule: loss < 1.0
     operations:
-      - customoperation.should_
+      - custom_operation.should_

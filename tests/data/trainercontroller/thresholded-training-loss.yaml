@@ -1,0 +1,12 @@
+controller_metrics:
+  - name: training_loss_window
+    class: HistoryBasedMetric
+    arguments:
+      window_size: 1
+controllers:
+  - name: stop_on_training_loss_not_decreasing
+    triggers:
+      - on_log
+    rule: training_loss_window["training_loss"]["loss"][0] < 1
+    operations:
+      - hfcontrols.should_training_stop
