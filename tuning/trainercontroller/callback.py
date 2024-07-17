@@ -104,7 +104,7 @@ class TrainerControllerCallback(TrainerCallback):
             self.trainer_controller_config[OPERATIONS_KEY] = []
 
         if (
-            DEFAULT_METRICS is not None
+            DEFAULT_METRICS
             and CONTROLLER_METRICS_KEY in DEFAULT_METRICS
             and len(DEFAULT_METRICS[CONTROLLER_METRICS_KEY]) > 0
         ):
@@ -125,7 +125,7 @@ class TrainerControllerCallback(TrainerCallback):
                     self_controller_metrics.append(metric_obj)
 
         if (
-            DEFAULT_OPERATIONS is not None
+            DEFAULT_OPERATIONS
             and OPERATIONS_KEY in DEFAULT_OPERATIONS
             and len(DEFAULT_OPERATIONS[OPERATIONS_KEY]) > 0
         ):
