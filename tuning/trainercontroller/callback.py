@@ -62,7 +62,7 @@ CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
 # Default operations / metrics to register
-DEFAULT_OPERATIONS = {'operations': [{'name': 'hfcontrols', 'class': 'HFControls'}]}
+DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
 DEFAULT_METRICS = None
 
 # pylint: disable=too-many-instance-attributes
