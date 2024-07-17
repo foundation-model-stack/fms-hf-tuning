@@ -2,19 +2,19 @@
 import re
 
 
-def apply_custom_formatting_template(dataset, template, eos_token=""):
+def apply_custom_formatting_template(dataset, template, formatted_dataset_field = "formatted_data_field", eos_token=""):
     """Function to format datasets with Alpaca style / other templates.
     Args:
         dataset: the HF Dataset element loaded from a JSON or DatasetDict object.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}
+        formatted_dataset_field: Dataset_text_field 
         eos_token: string EOS token to be appended while formatting data to a single sequence.
             Defaults to empty
     Returns:
-        Formatted HF Dataset, dataset_field name that contains formatted data.
+        Formatted HF Dataset
     """
 
-    formatted_dataset_field = "formatted_data_field"
     template += eos_token
 
     def formatter(element):
@@ -37,4 +37,4 @@ def apply_custom_formatting_template(dataset, template, eos_token=""):
             )
         }
 
-    return dataset.map(formatter), formatted_dataset_field
+    return dataset.map(formatter)

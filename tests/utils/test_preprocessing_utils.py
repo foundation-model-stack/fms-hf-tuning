@@ -207,3 +207,5 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
 def test_validate_args(data_args, packing):
     with pytest.raises(ValueError):
         validate_data_args(data_args, packing)
+
+def test_get_formatted_dataset_with_single_sequence
