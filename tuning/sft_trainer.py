@@ -322,6 +322,7 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
+    train_args.use_cpu=True
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
         k: v
