@@ -126,6 +126,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 --training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
@@ -149,6 +150,7 @@ export CUDA_VISIBLE_DEVICES=0
 
 python tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 --training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
@@ -193,7 +195,8 @@ tuning/sft_trainer.py \
 --gradient_accumulation_steps 4 \
 --learning_rate 1e-5 \
 --response_template "\n### Response:" \
---dataset_text_field "output"
+--dataset_text_field "output" \
+--tokenizer_name_or_path $MODEL_PATH  # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 ```
 
 To summarize you can pick either python for single-GPU jobs or use accelerate launch for multi-GPU jobs. The following tuning techniques can be applied:
@@ -225,6 +228,7 @@ Example command to run:
 ```bash
 python tuning/sft_trainer.py \
 --model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 --training_data_path $TRAIN_DATA_PATH \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 40 \
@@ -343,7 +347,7 @@ python tuning/sft_trainer.py  \
 --response_template "\n### Label:"  \
 --dataset_text_field "output" \
 --peft_method pt \
---tokenizer_name_or_path $MODEL_PATH
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 --prompt_tuning_init "RANDOM" \
 --prompt_tuning_init_text "From the following input, identify target sentiment of following types: neutral, negative, positive"
 ```
@@ -378,6 +382,7 @@ accelerate launch \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 tuning/sft_trainer.py  \
 --model_name_or_path $MODEL_PATH  \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
 --training_data_path $TRAIN_DATA_PATH  \
 --output_dir $OUTPUT_PATH  \
 --num_train_epochs 5  \
