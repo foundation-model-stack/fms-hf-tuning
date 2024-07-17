@@ -72,7 +72,7 @@ def copytree(source, destination, symlinks=False, ignore=None):
                 mode = stat.S_IMODE(st.st_mode)
                 # apply them to the destination file
                 os.lchmod(destination_file, mode)
-            except:
+            except Exception as e:  # pylint: disable=broad-except
                 pass  # Not fatal.
         elif os.path.isdir(source_file):
             # recursive call for subdirectories
