@@ -14,6 +14,7 @@
 
 # Standard
 from typing import Dict
+import math
 
 # Third Party
 import transformers
@@ -23,14 +24,13 @@ def tokenizer_and_embedding_resize(
     special_tokens_dict: Dict,
     tokenizer: transformers.PreTrainedTokenizer,
     model: transformers.PreTrainedModel,
+    multiple_of: int = 8,
 ):
-    """Resize tokenizer and embedding.
-
-    TODO: In the future, make sure we can have vocab size divisible by 64.
-    """
+    """Resize tokenizer and embedding."""
     num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
-    model.resize_token_embeddings(len(tokenizer))
-
+    embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
+    num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
+    model.resize_token_embeddings(embedding_size)
     if num_new_tokens > 0:
         input_embeddings = model.get_input_embeddings().weight.data
         output_embeddings = model.get_output_embeddings().weight.data

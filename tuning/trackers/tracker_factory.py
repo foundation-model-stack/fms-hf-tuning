@@ -21,16 +21,20 @@ from transformers.utils.import_utils import _is_package_available
 
 # Local
 from .filelogging_tracker import FileLoggingTracker
-from .tracker import Tracker
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
 logger = logging.get_logger("tracker_factory")
 
-# Information about all registered trackers
-AVAILABLE_TRACKERS = {}
 
-AIMSTACK_TRACKER_NAME = "aim"
-FILE_LOGGING_TRACKER_NAME = "file_logger"
+# Information about all registered trackers
+AIMSTACK_TRACKER = "aim"
+FILE_LOGGING_TRACKER = "file_logger"
+
+AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER]
+
+
+# Trackers which can be used
+REGISTERED_TRACKERS = {}
 
 # One time package check for list of external trackers.
 _is_aim_available = _is_package_available("aim")
@@ -49,7 +53,7 @@ def _register_aim_tracker():
 
         AimTracker = _get_tracker_class(AimStackTracker, AimConfig)
 
-        AVAILABLE_TRACKERS[AIMSTACK_TRACKER_NAME] = AimTracker
+        REGISTERED_TRACKERS[AIMSTACK_TRACKER] = AimTracker
         logger.info("Registered aimstack tracker")
     else:
         logger.info(
@@ -59,9 +63,15 @@ def _register_aim_tracker():
         )
 
 
+def _is_tracker_installed(name):
+    if name == "aim":
+        return _is_aim_available
+    return False
+
+
 def _register_file_logging_tracker():
     FileTracker = _get_tracker_class(FileLoggingTracker, FileLoggingTrackerConfig)
-    AVAILABLE_TRACKERS[FILE_LOGGING_TRACKER_NAME] = FileTracker
+    REGISTERED_TRACKERS[FILE_LOGGING_TRACKER] = FileTracker
     logger.info("Registered file logging tracker")
 
 
@@ -70,9 +80,9 @@ def _register_file_logging_tracker():
 # aim - Aimstack Tracker
 def _register_trackers():
     logger.info("Registering trackers")
-    if AIMSTACK_TRACKER_NAME not in AVAILABLE_TRACKERS:
+    if AIMSTACK_TRACKER not in REGISTERED_TRACKERS:
         _register_aim_tracker()
-    if FILE_LOGGING_TRACKER_NAME not in AVAILABLE_TRACKERS:
+    if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
         _register_file_logging_tracker()
 
 
@@ -87,32 +97,62 @@ def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory
 
 
 def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
+    """Returns an instance of the tracker object based on the requested name.
+
+    Args:
+        name (str): name of the tracker requested.
+        tracker_configs (tuning.config.tracker_configs.TrackerConfigFactory):
+            An instance of TrackerConfigFactory passed which contains a
+            non None instance of config for the requested tracker
+    Raises:
+        ValueError: If a valid tracker config is not found this function raises a ValueError
+        ValueError: If a valid tracker is found but its config is not passed the tracker might
+            raise a ValueError. See tuning.trackers.tracker.aimstack_tracker.AimStackTracker
+
+    Returns:
+        tuning.trackers.tracker.Tracker: A subclass of tuning.trackers.tracker.Tracker
+            Valid classes available are,
+            tuning.trackers.tracker.aimstack_tracker.AimStackTracker,
+            tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker
+
+    Examples:
+        file_logging_tracker = get_tracker("file_logger", TrackerConfigFactory(
+                                    file_logger_config=FileLoggingTrackerConfig(
+                                        training_logs_filename=logs_file
+                                    )
+                                ))
+        aim_tracker = get_tracker("aim", TrackerConfigFactory(
+                            aim_config=AimConfig(
+                                experiment="unit_test",
+                                aim_repo=tempdir + "/"
+                            )
+                    ))
     """
-    Returns an instance of the tracker object based on the requested `name`.
-    Expects tracker config to be present as part of the TrackerConfigFactory
-    object passed as `tracker_configs` argument.
-    If a valid tracker config is not found this function tries tracker with
-    default config else returns an empty Tracker()
-    """
-    if not AVAILABLE_TRACKERS:
+    if not REGISTERED_TRACKERS:
         # a one time step.
         _register_trackers()
 
-    if name in AVAILABLE_TRACKERS:
-        meta = AVAILABLE_TRACKERS[name]
-        C = meta["config"]
-        T = meta["tracker"]
+    if name not in REGISTERED_TRACKERS:
+        if name in AVAILABLE_TRACKERS and (not _is_tracker_installed(name)):
+            e = "Requested tracker {} is not installed. Please install before proceeding".format(
+                name
+            )
+        else:
+            available = ", ".join(str(t) for t in AVAILABLE_TRACKERS)
+            e = "Requested Tracker {} not found. List trackers available for use is - {} ".format(
+                name, available
+            )
+        logger.error(e)
+        raise ValueError(e)
 
-        if tracker_configs is not None:
-            _conf = _get_tracker_config_by_name(name, tracker_configs)
-            if _conf is not None:
-                config = C(**_conf)
-            else:
-                config = C()
-        return T(config)
+    meta = REGISTERED_TRACKERS[name]
+    C = meta["config"]
+    T = meta["tracker"]
 
-    logger.warning(
-        "Requested Tracker %s not found. Please check the argument before proceeding.",
-        name,
-    )
-    return Tracker()
+    if tracker_configs is not None:
+        _conf = _get_tracker_config_by_name(name, tracker_configs)
+        if _conf is not None:
+            config = C(**_conf)
+        else:
+            config = C()
+    return T(config)
