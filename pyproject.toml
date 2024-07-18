@@ -26,7 +26,7 @@ classifiers=[
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-"numpy>=1.26.4,<2.0",
+"numpy>=1.26.4,<3.0",
 "accelerate>=0.20.3,<0.40",
 "transformers>4.41,<5.0",
 "torch>=2.2.0,<3.0",
