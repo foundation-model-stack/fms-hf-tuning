@@ -35,6 +35,7 @@ from build.utils import (
     process_accelerate_launch_args,
     serialize_args,
     get_highest_checkpoint,
+    copytree,
 )
 from tuning.utils.config_utils import get_json_config
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
@@ -124,11 +125,7 @@ def main():
                 pt_checkpoint_dir,
                 original_output_dir,
             )
-            shutil.copytree(
-                os.path.join(tempdir, pt_checkpoint_dir),
-                original_output_dir,
-                dirs_exist_ok=True,
-            )
+            copytree(os.path.join(tempdir, pt_checkpoint_dir), original_output_dir)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
