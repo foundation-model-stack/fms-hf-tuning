@@ -138,7 +138,7 @@ def test_successful_lora():
 
 
 # def test_ft_with_lm_head_deletion():
-#     """Check that successfully fine tune and delete lm_head from 
+#     """Check that successfully fine tune and delete lm_head from
 #     granite model with llama arch"""
 #     with tempfile.TemporaryDirectory() as tempdir:
 #         setup_env(tempdir)
@@ -152,6 +152,7 @@ def test_successful_lora():
 #         assert os.path.exists(os.path.join(tempdir, ".complete")) is True
 #         assert os.path.exists(tempdir + "/adapter_config.json") is False
 #         assert len(glob.glob(f"{tempdir}/model*.safetensors")) > 0
+
 
 def test_bad_script_path():
     """Check for appropriate error for an invalid training script location"""

@@ -121,37 +121,33 @@ def main():
             last_checkpoint_dir = get_highest_checkpoint(tempdir)
             last_checkpoint_path = os.path.join(tempdir, last_checkpoint_dir)
 
-            # need to do these for last checkpoint
-            # if base_model is None:
-            #     base_model = fetch_base_model_from_checkpoint(checkpoint_models[0])
-            # model = AutoModelForCausalLM.from_pretrained(base_model)
-
-            # # Merge each of the lora adapter models into the base model with equal weights
-            # for checkpoint_model in tqdm(checkpoint_models):
-            #     model = PeftModel.from_pretrained(model, checkpoint_model)
-
             model = AutoModelForCausalLM.from_pretrained(last_checkpoint_path)
             model_arch = model.config.architectures[0]
             if len(model.config.architectures) > 1:
                 logging.warning("More than one architecture found for model")
 
             # check that it is a granite model with llama architecture with tied weights
-            # ie. lm_head is duplicate of embeddings 
-            if model_arch == "LlamaForCausalLM" and hasattr(model, "lm_head") and hasattr(model.model, "embed_tokens"):
-                params_dict = dict(model.named_parameters())
-                if model.lm_head.weight.untyped_storage().data_ptr() == params_dict['model.embed_tokens.weight'].untyped_storage().data_ptr():
-                    logging.info("Removing lm_head from checkpoint")
-                    del model.lm_head
-                    
-                    if hasattr(model, "lm_head"):
-                        logging.warning("Failed to delete lm_head.weight from model")
+            # ie. lm_head is duplicate of embeddings
+            params_dict = dict(model.named_parameters())
+            if (
+                model_arch == "LlamaForCausalLM"
+                and hasattr(model, "lm_head")
+                and hasattr(model.model, "embed_tokens")
+                and model.lm_head.weight.untyped_storage().data_ptr()
+                == params_dict["model.embed_tokens.weight"].untyped_storage().data_ptr()
+            ):
+                logging.info("Removing lm_head from checkpoint")
+                del model.lm_head
 
-                    model.save_pretrained(original_output_dir)
+                if hasattr(model, "lm_head"):
+                    logging.warning("Failed to delete lm_head.weight from model")
 
-                    # save tokenizer with model
-                    tokenizer = AutoTokenizer.from_pretrained(model_with_lmhead)
-                    tokenizer.save_pretrained(output_dir)
-            
+                model.save_pretrained(original_output_dir)
+
+                # save tokenizer with model
+                tokenizer = AutoTokenizer.from_pretrained(last_checkpoint_path)
+                tokenizer.save_pretrained(original_output_dir)
+
             # copy last checkpoint into mounted output dir
             else:
                 logging.info(
