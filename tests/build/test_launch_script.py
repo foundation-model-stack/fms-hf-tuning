@@ -137,6 +137,22 @@ def test_successful_lora():
         assert os.path.exists(tempdir + "/adapter_config.json") is True
 
 
+# def test_ft_with_lm_head_deletion():
+#     """Check that successfully fine tune and delete lm_head from 
+#     granite model with llama arch"""
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         setup_env(tempdir)
+#         TRAIN_KWARGS = {**BASE_KWARGS, **{"model_name_or_path": "ibm-granite/granite-3b-code-base", "output_dir": tempdir}}
+#         serialized_args = serialize_args(TRAIN_KWARGS)
+#         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+#         assert main() == 0
+#         # check termination log and .complete files
+#         assert os.path.exists(tempdir + "/termination-log") is False
+#         assert os.path.exists(os.path.join(tempdir, ".complete")) is True
+#         assert os.path.exists(tempdir + "/adapter_config.json") is False
+#         assert len(glob.glob(f"{tempdir}/model*.safetensors")) > 0
+
 def test_bad_script_path():
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:

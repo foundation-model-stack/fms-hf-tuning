@@ -29,6 +29,7 @@ from pathlib import Path
 
 # Third Party
 from accelerate.commands.launch import launch_command
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Local
 from build.utils import (
@@ -117,18 +118,52 @@ def main():
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
         try:
+            last_checkpoint_dir = get_highest_checkpoint(tempdir)
+            last_checkpoint_path = os.path.join(tempdir, last_checkpoint_dir)
+
+            # need to do these for last checkpoint
+            # if base_model is None:
+            #     base_model = fetch_base_model_from_checkpoint(checkpoint_models[0])
+            # model = AutoModelForCausalLM.from_pretrained(base_model)
+
+            # # Merge each of the lora adapter models into the base model with equal weights
+            # for checkpoint_model in tqdm(checkpoint_models):
+            #     model = PeftModel.from_pretrained(model, checkpoint_model)
+
+            model = AutoModelForCausalLM.from_pretrained(last_checkpoint_path)
+            model_arch = model.config.architectures[0]
+            if len(model.config.architectures) > 1:
+                logging.warning("More than one architecture found for model")
+
+            # check that it is a granite model with llama architecture with tied weights
+            # ie. lm_head is duplicate of embeddings 
+            if model_arch == "LlamaForCausalLM" and hasattr(model, "lm_head") and hasattr(model.model, "embed_tokens"):
+                params_dict = dict(model.named_parameters())
+                if model.lm_head.weight.untyped_storage().data_ptr() == params_dict['model.embed_tokens.weight'].untyped_storage().data_ptr():
+                    logging.info("Removing lm_head from checkpoint")
+                    del model.lm_head
+                    
+                    if hasattr(model, "lm_head"):
+                        logging.warning("Failed to delete lm_head.weight from model")
+
+                    model.save_pretrained(original_output_dir)
+
+                    # save tokenizer with model
+                    tokenizer = AutoTokenizer.from_pretrained(model_with_lmhead)
+                    tokenizer.save_pretrained(output_dir)
+            
             # copy last checkpoint into mounted output dir
-            pt_checkpoint_dir = get_highest_checkpoint(tempdir)
-            logging.info(
-                "Copying last checkpoint %s into output dir %s",
-                pt_checkpoint_dir,
-                original_output_dir,
-            )
-            shutil.copytree(
-                os.path.join(tempdir, pt_checkpoint_dir),
-                original_output_dir,
-                dirs_exist_ok=True,
-            )
+            else:
+                logging.info(
+                    "Copying last checkpoint %s into output dir %s",
+                    last_checkpoint_dir,
+                    original_output_dir,
+                )
+                shutil.copytree(
+                    last_checkpoint_path,
+                    original_output_dir,
+                    dirs_exist_ok=True,
+                )
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
