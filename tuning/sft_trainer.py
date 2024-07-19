@@ -34,7 +34,7 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import is_accelerate_available, logging
-from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
+from trl import SFTConfig, SFTTrainer
 import datasets
 import fire
 import transformers
@@ -52,7 +52,7 @@ from tuning.config.tracker_configs import (
     TrackerConfigFactory,
 )
 from tuning.data import tokenizer_data_utils
-from tuning.trackers.tracker_factory import get_tracker
+from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
@@ -62,6 +62,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.preprocessing_utils import get_data_collator, validate_data_args
 
 
 def train(
@@ -127,10 +128,22 @@ def train(
     trackers = []
     trainer_callbacks = []
 
+    if exp_metadata and (not isinstance(exp_metadata, dict)):
+        raise ValueError("exp metadata passed should be a dict with valid json")
+
     if train_args.trackers is not None:
         requested_trackers = set(train_args.trackers)
     else:
         requested_trackers = set()
+
+    # Ensure file logging is present
+    if FILE_LOGGING_TRACKER not in requested_trackers:
+        requested_trackers.add(FILE_LOGGING_TRACKER)
+
+    if not isinstance(tracker_configs, TrackerConfigFactory):
+        raise ValueError(
+            "tracker configs should adhere to the TrackerConfigFactory type"
+        )
 
     # Now initialize trackers one by one
     for name in requested_trackers:
@@ -151,7 +164,12 @@ def train(
 
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
-        trainer_callbacks.extend(additional_callbacks)
+        for cb in additional_callbacks:
+            if not isinstance(cb, TrainerCallback):
+                raise ValueError(
+                    "additional callbacks should be of type TrainerCallback"
+                )
+            trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config, fusedops_kernels_config
@@ -170,13 +188,15 @@ def train(
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
+        model_args.tokenizer_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
     )
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
-    peft_config = get_hf_peft_config(task_type, peft_config)
+    peft_config = get_hf_peft_config(
+        task_type, peft_config, model_args.tokenizer_name_or_path
+    )
 
     # TODO: understand if we need to hardcode these here or just use defaults in model
     if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
@@ -194,14 +214,6 @@ def train(
                 "pad_token": "<pad>",
             }
         )
-
-    # TODO: near term - how response template ids are parsed out needs to be cleaned.
-    # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
-    # otherwise template is not found. We will create issue to clean this out after we discuss
-    # data formats and collators we will support.
-    response_template_ids = tokenizer.encode(
-        data_args.response_template, add_special_tokens=False
-    )[2:]
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
@@ -235,6 +247,7 @@ def train(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
+        multiple_of=model_args.embedding_size_multiple_of,
     )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
@@ -244,31 +257,14 @@ def train(
         packing = True
     else:
         logger.info("Packing is set to False")
-        if data_args.response_template is None:
-            # TODO: Fix this, currently unreachable due to crashing in batch encoding tokenization
-            # We should do this validation up front, then do the encoding, then handle the collator
-            raise ValueError("Response template is None, needs to be set for training")
-        data_collator = DataCollatorForCompletionOnlyLM(
-            response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
         packing = False
 
-    # Currently we support formatted datasets with single sequence instances.
-    if not (data_args.dataset_text_field or data_args.data_formatter_template):
-        raise ValueError(
-            "dataset_text_field and data_formatter_template are None. \
-                            One of them needs to be set for training"
-        )
-    # Only one of dataset_text_field or data_formatter_template should be set.
-    if data_args.dataset_text_field and data_args.data_formatter_template:
-        raise ValueError(
-            "dataset_text_field and data_formatter_template are both set,\
-                but are mutually exclusive options"
-        )
+    # Validate if data args are set properly
+    validate_data_args(data_args, packing)
+    data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
 
     # load the data by parsing JSON
+    ### TODO: all the jSON file formatting will be moved to a separate function
     data_files = {"train": data_args.training_data_path}
     if data_args.validation_data_path:
         data_files["validation"] = data_args.validation_data_path
@@ -310,6 +306,7 @@ def train(
         logger.info(
             "Validation dataset length is %s", len(formatted_validation_dataset)
         )
+    ### JSON file formatting ends here
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(

@@ -20,6 +20,7 @@ from typing import Type
 
 # Local
 from .eval_metrics import EvalMetrics
+from .history_based_metrics import HistoryBasedMetric
 from .loss import Loss
 from .trainingstate import TrainingState
 
@@ -40,3 +41,4 @@ def register(cl: Type):
 register(TrainingState)
 register(EvalMetrics)
 register(Loss)
+register(HistoryBasedMetric)

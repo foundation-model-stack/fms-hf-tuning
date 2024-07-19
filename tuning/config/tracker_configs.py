@@ -37,6 +37,14 @@ class AimConfig:
     aim_remote_server_ip: str = None
     aim_remote_server_port: int = None
     aim_url: str = None
+    # Location of where aimstack's run hash is to be exported.
+    # If aim_run_id_export_path is set the run hash will be output in a json format
+    # to the location pointed to by `aim_run_id_export_path/aimstack_tracker.json`
+    # If this is not set then the default location where run hash will be exported
+    # is training_args.output_dir/aimstack_tracker.json
+    # Hash is not exported if aim_run_id_export_path variable is not set
+    # and output_dir is not specified.
+    aim_run_id_export_path: str = None
 
     def __post_init__(self):
         if self.experiment is None:

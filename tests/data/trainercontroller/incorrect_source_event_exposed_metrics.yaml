@@ -1,10 +1,10 @@
-controller-metrics:
+controller_metrics:
   - name: evalmetric
     class: EvalMetrics
     arguments:
-      source-event: on_incorrect_event
+      source_event: on_incorrect_event
 controllers:
-  - name: loss-controller
+  - name: loss_controller
     triggers:
       - on_evaluate
     rule: evalmetric['eval_loss'] < 2.5

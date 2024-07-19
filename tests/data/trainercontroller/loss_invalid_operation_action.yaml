@@ -1,8 +1,8 @@
-controller-metrics:
+controller_metrics:
   - name: loss
     class: Loss
 controllers:
-  - name: loss-controller-invalid-operation-action
+  - name: loss_controller_invalid_operation_action
     triggers:
       - on_log
     rule: loss < 1.0

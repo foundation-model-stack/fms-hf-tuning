@@ -16,7 +16,6 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-from importlib import resources as impresources
 from typing import Dict, List, Union
 import inspect
 import os
@@ -34,8 +33,7 @@ from transformers.utils import logging
 import yaml
 
 # Local
-from tuning.trainercontroller import controllermetrics, operations
-from tuning.trainercontroller.control import Control, OperationAction
+from tuning.trainercontroller.control import Control, OperationAction, Rule
 from tuning.trainercontroller.controllermetrics import (
     handlers as default_metric_handlers,
 )
@@ -44,12 +42,13 @@ from tuning.trainercontroller.operations import Operation
 from tuning.trainercontroller.operations import (
     operation_handlers as default_operation_handlers,
 )
-from tuning.utils.evaluator import get_evaluator
+from tuning.trainercontroller.patience import PatienceControl
+from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
 logger = logging.get_logger(__name__)
 
 # Configuration keys
-CONTROLLER_METRICS_KEY = "controller-metrics"
+CONTROLLER_METRICS_KEY = "controller_metrics"
 OPERATIONS_KEY = "operations"
 CONTROLLERS_KEY = "controllers"
 ARGS_KEY = "arguments"
@@ -57,9 +56,14 @@ ARGS_KEY = "arguments"
 CONTROLLER_NAME_KEY = "name"
 CONTROLLER_CLASS_KEY = "class"
 CONTROLLER_RULE_KEY = "rule"
+CONTROLLER_CONFIG_KEY = "config"
+CONTROLLER_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
+# Default operations / metrics to register
+DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
+DEFAULT_METRICS = {}
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -99,23 +103,15 @@ class TrainerControllerCallback(TrainerCallback):
         if OPERATIONS_KEY not in self.trainer_controller_config:
             self.trainer_controller_config[OPERATIONS_KEY] = []
 
-        # Initialize the list of metrics from default `metrics.yaml` in the \
-        # controllermetric package. In addition, any metrics mentioned in \
-        # the trainer controller config are added to this list.
-        default_metrics_config_yaml = (
-            impresources.files(controllermetrics) / "metrics.yaml"
-        )
-        with default_metrics_config_yaml.open("r") as f:
-            default_metrics_config = yaml.safe_load(f)
         if (
-            default_metrics_config is not None
-            and CONTROLLER_METRICS_KEY in default_metrics_config
-            and len(default_metrics_config[CONTROLLER_METRICS_KEY]) > 0
+            DEFAULT_METRICS
+            and CONTROLLER_METRICS_KEY in DEFAULT_METRICS
+            and len(DEFAULT_METRICS[CONTROLLER_METRICS_KEY]) > 0
         ):
             self_controller_metrics = self.trainer_controller_config[
                 CONTROLLER_METRICS_KEY
             ]
-            default_controller_metrics: list[dict] = default_metrics_config[
+            default_controller_metrics: list[dict] = DEFAULT_METRICS[
                 CONTROLLER_METRICS_KEY
             ]
             for metric_obj in default_controller_metrics:
@@ -128,21 +124,13 @@ class TrainerControllerCallback(TrainerCallback):
                 if not found:
                     self_controller_metrics.append(metric_obj)
 
-        # Initialize the list of operations from default `operations.yaml` \
-        # in the operations package. In addition, any operations mentioned \
-        # in the trainer controller config are added to this list.
-        default_operations_config_yaml = (
-            impresources.files(operations) / "operations.yaml"
-        )
-        with default_operations_config_yaml.open("r") as f:
-            default_operations_config = yaml.safe_load(f)
         if (
-            default_operations_config is not None
-            and OPERATIONS_KEY in default_operations_config
-            and len(default_operations_config[OPERATIONS_KEY]) > 0
+            DEFAULT_OPERATIONS
+            and OPERATIONS_KEY in DEFAULT_OPERATIONS
+            and len(DEFAULT_OPERATIONS[OPERATIONS_KEY]) > 0
         ):
             self_controller_operations = self.trainer_controller_config[OPERATIONS_KEY]
-            default_controller_operations: list[dict] = default_operations_config[
+            default_controller_operations: list[dict] = DEFAULT_OPERATIONS[
                 OPERATIONS_KEY
             ]
             for op_obj in default_controller_operations:
@@ -217,13 +205,13 @@ class TrainerControllerCallback(TrainerCallback):
             kwargs: List of arguments (key, value)-pairs.
         """
         if event_name in self.control_actions_on_event:
-            evaluator = get_evaluator(metrics=self.metrics)
+            evaluator = RuleEvaluator(metrics=self.metrics)
             for control_action in self.control_actions_on_event[event_name]:
                 rule_succeeded = False
                 try:
                     rule_succeeded = evaluator.eval(
-                        expr=control_action.rule_str,
-                        previously_parsed=control_action.rule,
+                        expr=control_action.rule.rule,
+                        previously_parsed=control_action.rule.rule_ast,
                     )
                     if not isinstance(rule_succeeded, bool):
                         raise TypeError(
@@ -248,10 +236,22 @@ class TrainerControllerCallback(TrainerCallback):
                     raise NotImplementedError(
                         "Rule failed because it uses some unsupported features"
                     ) from ef
+                except MetricUnavailableError as em:
+                    logger.warning("Ignoring the rule because %s", em)
+                    continue
+                if (
+                    control_action.patience is not None
+                    and control_action.patience.should_tolerate(
+                        rule_outcome=rule_succeeded,
+                        event_name=event_name,
+                        control_name=control_action.name,
+                    )
+                ):
+                    continue
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
                         logger.info(
-                            "Taking %s action in %s",
+                            "Taking [%s] action in controller [%s]",
                             operation_action.action,
                             control_action.name,
                         )
@@ -324,6 +324,9 @@ class TrainerControllerCallback(TrainerCallback):
             metric_handler = metric_handler_class(
                 name=metric_name, **metric_args, **kwargs
             )
+            # Initialize the metric with a None value so that
+            # the evaluator knows that the metric is unavailable.
+            self.metrics[metric_handler.get_name()] = None
             # Add metric instances to the events.
             for event_name in metric_handler.get_events():
                 if event_name in self.valid_events:
@@ -387,13 +390,20 @@ class TrainerControllerCallback(TrainerCallback):
                             % (controller_name, event_name)
                         )
                     # Generates the byte-code for the rule from the trainer configuration
-                    curr_rule = controller[CONTROLLER_RULE_KEY]
                     control = Control(
                         name=controller[CONTROLLER_NAME_KEY],
-                        rule_str=curr_rule,
-                        rule=EvalWithCompoundTypes.parse(expr=curr_rule),
+                        rule=Rule(
+                            rule=controller_rule,
+                            rule_ast=EvalWithCompoundTypes.parse(expr=controller_rule),
+                        ),
                         operation_actions=[],
                     )
+                    if CONTROLLER_CONFIG_KEY in controller:
+                        control.config = controller[CONTROLLER_CONFIG_KEY]
+                    if CONTROLLER_PATIENCE_CONFIG_KEY in controller:
+                        control.patience = PatienceControl(
+                            **controller[CONTROLLER_PATIENCE_CONFIG_KEY]
+                        )
                     for control_operation_name in controller_ops:
                         if control_operation_name not in self.operation_actions:
                             raise KeyError(

@@ -13,6 +13,7 @@ from tests.data import (
 )
 
 # Local
+from tuning.config import configs
 from tuning.utils.preprocessing_utils import (
     combine_sequence,
     get_data_trainer_kwargs,
@@ -180,14 +181,29 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
     assert trainer_kwargs["formatting_func"] is not None
 
 
-# Tests for fetching train args
+# Tests for validating data args
+# Invalid args return ValueError
 @pytest.mark.parametrize(
-    "dataset_text_field, response_template",
+    "data_args, packing",
     [
-        ("input", None),
-        (None, "output"),
+        # dataset_text_field with no response_template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA,
+                dataset_text_field="output",
+            ),
+            False,
+        ),
+        # response template with no dataset_text_field or formatter
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA,
+                response_template="\n### Label:",
+            ),
+            False,
+        ),
     ],
 )
-def test_validate_args(dataset_text_field, response_template):
+def test_validate_args(data_args, packing):
     with pytest.raises(ValueError):
-        validate_data_args(dataset_text_field, response_template)
+        validate_data_args(data_args, packing)
