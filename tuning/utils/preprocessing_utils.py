@@ -28,6 +28,7 @@ from tuning.utils.data_utils import apply_custom_formatting_template
 
 logger = logging.get_logger("sft_trainer_preprocessing")
 
+
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
     assert isinstance(
@@ -132,14 +133,18 @@ def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
             dataset_text_field = "new_formatted_field"
         print("what is set ", dataset_text_field)
         train_dataset = get_formatted_dataset_with_single_sequence(
-            data_args.training_data_path, dataset_text_field, tokenizer, data_args.data_formatter_template
+            data_args.training_data_path,
+            dataset_text_field,
+            tokenizer,
+            data_args.data_formatter_template,
         )
         logger.info("Training dataset length is %s", len(train_dataset))
         if data_args.validation_data_path:
-            (
-                eval_dataset
-            ) = get_formatted_dataset_with_single_sequence(
-                data_args.validation_data_path, dataset_text_field, tokenizer, data_args.data_formatter_template
+            (eval_dataset) = get_formatted_dataset_with_single_sequence(
+                data_args.validation_data_path,
+                dataset_text_field,
+                tokenizer,
+                data_args.data_formatter_template,
             )
             logger.info("Validation dataset length is %s", len(eval_dataset))
     # TODO: add a else here for preprocessing
@@ -274,7 +279,7 @@ def get_formatted_dataset_with_single_sequence(
     data_path: str,
     dataset_text_field: str,
     tokenizer: AutoTokenizer,
-    data_formatter_template: Optional[str]=None,
+    data_formatter_template: Optional[str] = None,
 ) -> Dataset:
     """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
 
@@ -295,9 +300,12 @@ def get_formatted_dataset_with_single_sequence(
     """
 
     json_dataset = datasets.load_dataset("json", data_files=data_path)
-    format_dataset_EOS = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
-        f"{dataset_text_field}": example[f"{dataset_text_field}"] + tokenizer.eos_token
-    }
+    format_dataset_EOS = (
+        lambda example: {  # pylint: disable=unnecessary-lambda-assignment
+            f"{dataset_text_field}": example[f"{dataset_text_field}"]
+            + tokenizer.eos_token
+        }
+    )
     if data_formatter_template:
         formatted_train_dataset = apply_custom_formatting_template(
             json_dataset["train"],
