@@ -19,11 +19,14 @@ import json
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
+from transformers.utils import logging
 import datasets
 
 # Local
 from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
+
+logger = logging.get_logger("sft_trainer_preprocessing")
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
@@ -111,31 +114,38 @@ def get_data_collator(
         #         )
         # 2. add anything needed for preprocessed input
 
+
 def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
     """
     Args:
         data_args: tuning.config.configs.DataArguments
         tokenizer: AutoTokenizer
     Returns:
-        data_kwargs: dict
-            Dictionary containing train_dataset, eval_dataset and dataset_text_field
+        Tuple(Dataset, Dataset, str)
+            tuple containing train_dataset, eval_dataset and dataset_text_field
     """
     eval_dataset = None
-    data_kwargs = {}
-    if data_args.dataset_text_field or data_args.data_formatter_template:
-        train_dataset, dataset_text_field = get_formatted_dataset_with_single_sequence(
-            data_args.training_data_path, data_args.dataset_text_field, tokenizer
+    dataset_text_field = data_args.dataset_text_field
+    print("what is passed ", dataset_text_field)
+    if data_args.data_formatter_template or dataset_text_field:
+        if dataset_text_field is None:
+            dataset_text_field = "new_formatted_field"
+        print("what is set ", dataset_text_field)
+        train_dataset = get_formatted_dataset_with_single_sequence(
+            data_args.training_data_path, dataset_text_field, tokenizer, data_args.data_formatter_template
         )
+        logger.info("Training dataset length is %s", len(train_dataset))
         if data_args.validation_data_path:
-            eval_dataset, dataset_text_field = get_formatted_dataset_with_single_sequence(
-                data_args.validation_data_path, data_args.dataset_text_field, tokenizer
+            (
+                eval_dataset
+            ) = get_formatted_dataset_with_single_sequence(
+                data_args.validation_data_path, dataset_text_field, tokenizer, data_args.data_formatter_template
             )
+            logger.info("Validation dataset length is %s", len(eval_dataset))
     # TODO: add a else here for preprocessing
-    data_kwargs["train_dataset"] = train_dataset
-    data_kwargs["eval_dataset"] = eval_dataset
-    data_kwargs["dataset_text_field"] = dataset_text_field
-    return data_kwargs
-    
+    return train_dataset, eval_dataset, dataset_text_field
+
+
 ###################################################################################
 ### The functions below are not yet used. Iterative development towards new features
 
@@ -259,8 +269,12 @@ def get_data_trainer_kwargs(
     data_kwargs["eval_dataset"] = eval_dataset
     return data_kwargs
 
+
 def get_formatted_dataset_with_single_sequence(
-    data_path: str, dataset_text_field: str, tokenizer: AutoTokenizer, data_formatter_template: Optional[str]
+    data_path: str,
+    dataset_text_field: str,
+    tokenizer: AutoTokenizer,
+    data_formatter_template: Optional[str]=None,
 ) -> Dataset:
     """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
 
@@ -277,11 +291,11 @@ def get_formatted_dataset_with_single_sequence(
 
     Returns:
         Dataset
-            HF Dataset with formatted [str] data. 
+            HF Dataset with formatted [str] data.
     """
-    
+
     json_dataset = datasets.load_dataset("json", data_files=data_path)
-    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
+    format_dataset_EOS = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
         f"{dataset_text_field}": example[f"{dataset_text_field}"] + tokenizer.eos_token
     }
     if data_formatter_template:
@@ -292,7 +306,7 @@ def get_formatted_dataset_with_single_sequence(
             tokenizer.eos_token,
         )
     else:
-        formatted_train_dataset = json_dataset.map(format_dataset)[
+        formatted_train_dataset = json_dataset.map(format_dataset_EOS)[
             "train"
         ]  # HACK - for now, we just do both datasets separately; train is the default split
     return formatted_train_dataset
