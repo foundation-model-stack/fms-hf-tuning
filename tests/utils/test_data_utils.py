@@ -66,4 +66,6 @@ def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
     formatted_dataset_field = "formatted_data_field"
     with pytest.raises(KeyError):
-        data_utils.apply_custom_formatting_template(json_dataset, template, formatted_dataset_field, "EOS")
+        data_utils.apply_custom_formatting_template(
+            json_dataset, template, formatted_dataset_field, "EOS"
+        )
