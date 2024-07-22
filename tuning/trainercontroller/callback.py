@@ -257,7 +257,9 @@ class TrainerControllerCallback(TrainerCallback):
                             event_name=event_name,
                             tc_metrics=self.metrics,
                             control_name=control_action.name,
-                            log_level=control_action.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL],
+                            log_level=control_action.config[
+                                CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
+                            ],
                             **kwargs,
                         )
 
@@ -402,10 +404,17 @@ class TrainerControllerCallback(TrainerCallback):
                         control.config = controller[CONTROLLER_CONFIG_KEY]
                         log_levels = logging.get_log_levels_dict()
                         config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
-                        if CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL in control.config and \
-                            control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] in log_levels: 
-                            config_log_level_str = control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL]
-                        control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[config_log_level_str]
+                        if (
+                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL in control.config
+                            and control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL]
+                            in log_levels
+                        ):
+                            config_log_level_str = control.config[
+                                CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
+                            ]
+                        control.config[
+                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
+                        ] = log_levels[config_log_level_str]
                     if CONTROLLER_PATIENCE_CONFIG_KEY in controller:
                         control.patience = PatienceControl(
                             **controller[CONTROLLER_PATIENCE_CONFIG_KEY]

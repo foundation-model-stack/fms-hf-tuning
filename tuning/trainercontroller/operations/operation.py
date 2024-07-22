@@ -8,6 +8,7 @@ from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
+
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""
 
@@ -36,7 +37,9 @@ class Operation(metaclass=abc.ABCMeta):
         """
         return action in self.valid_actions
 
-    def act(self, action: str, event_name: str, control_name: str, log_level: int, **kwargs):
+    def act(
+        self, action: str, event_name: str, control_name: str, log_level: int, **kwargs
+    ):
         """Validates the action and invokes it.
 
         Args:
