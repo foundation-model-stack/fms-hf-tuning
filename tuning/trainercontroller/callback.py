@@ -16,7 +16,6 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Standard
-from importlib import resources as impresources
 from typing import Dict, List, Union
 import inspect
 import os
@@ -34,7 +33,6 @@ from transformers.utils import logging
 import yaml
 
 # Local
-from tuning.trainercontroller import controllermetrics, operations
 from tuning.trainercontroller.control import Control, OperationAction, Rule
 from tuning.trainercontroller.controllermetrics import (
     handlers as default_metric_handlers,
@@ -63,6 +61,9 @@ CONTROLLER_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
+# Default operations / metrics to register
+DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
+DEFAULT_METRICS = {}
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -102,23 +103,15 @@ class TrainerControllerCallback(TrainerCallback):
         if OPERATIONS_KEY not in self.trainer_controller_config:
             self.trainer_controller_config[OPERATIONS_KEY] = []
 
-        # Initialize the list of metrics from default `metrics.yaml` in the \
-        # controllermetric package. In addition, any metrics mentioned in \
-        # the trainer controller config are added to this list.
-        default_metrics_config_yaml = (
-            impresources.files(controllermetrics) / "metrics.yaml"
-        )
-        with default_metrics_config_yaml.open("r") as f:
-            default_metrics_config = yaml.safe_load(f)
         if (
-            default_metrics_config is not None
-            and CONTROLLER_METRICS_KEY in default_metrics_config
-            and len(default_metrics_config[CONTROLLER_METRICS_KEY]) > 0
+            DEFAULT_METRICS
+            and CONTROLLER_METRICS_KEY in DEFAULT_METRICS
+            and len(DEFAULT_METRICS[CONTROLLER_METRICS_KEY]) > 0
         ):
             self_controller_metrics = self.trainer_controller_config[
                 CONTROLLER_METRICS_KEY
             ]
-            default_controller_metrics: list[dict] = default_metrics_config[
+            default_controller_metrics: list[dict] = DEFAULT_METRICS[
                 CONTROLLER_METRICS_KEY
             ]
             for metric_obj in default_controller_metrics:
@@ -131,21 +124,13 @@ class TrainerControllerCallback(TrainerCallback):
                 if not found:
                     self_controller_metrics.append(metric_obj)
 
-        # Initialize the list of operations from default `operations.yaml` \
-        # in the operations package. In addition, any operations mentioned \
-        # in the trainer controller config are added to this list.
-        default_operations_config_yaml = (
-            impresources.files(operations) / "operations.yaml"
-        )
-        with default_operations_config_yaml.open("r") as f:
-            default_operations_config = yaml.safe_load(f)
         if (
-            default_operations_config is not None
-            and OPERATIONS_KEY in default_operations_config
-            and len(default_operations_config[OPERATIONS_KEY]) > 0
+            DEFAULT_OPERATIONS
+            and OPERATIONS_KEY in DEFAULT_OPERATIONS
+            and len(DEFAULT_OPERATIONS[OPERATIONS_KEY]) > 0
         ):
             self_controller_operations = self.trainer_controller_config[OPERATIONS_KEY]
-            default_controller_operations: list[dict] = default_operations_config[
+            default_controller_operations: list[dict] = DEFAULT_OPERATIONS[
                 OPERATIONS_KEY
             ]
             for op_obj in default_controller_operations:
