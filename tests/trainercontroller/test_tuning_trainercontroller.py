@@ -137,14 +137,13 @@ def test_thresholded_training_loss():
     tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
+
 def test_thresholded_training_loss_on_save():
     """Tests the thresholded training loss example in
     `examples/trainer-controller-configs/on-save.yaml`
     """
     test_data = _setup_data()
-    tc_callback = tc.TrainerControllerCallback(
-        td.TRAINER_CONFIG_TEST_ON_SAVE_YAML
-    )
+    tc_callback = tc.TrainerControllerCallback(td.TRAINER_CONFIG_TEST_ON_SAVE_YAML)
     control = TrainerControl(should_training_stop=False)
     # Trigger on_init_end to perform registration of handlers to events
     tc_callback.on_init_end(
