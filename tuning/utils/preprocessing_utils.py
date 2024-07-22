@@ -288,7 +288,8 @@ def get_formatted_dataset_with_single_sequence(
             Path to the file to be loaded.
         dataset_text_field: str
             Dataset text field to be used for formatting.
-            If data_formatter_template specified, this will be the new field creating single sequence.
+            If data_formatter_template specified, \
+                this will be the new field creating single sequence.
         tokenizer: AutoTokenizer
             Loaded tokenizer object to be used by the collator.
         data_formatter_template: str
