@@ -305,6 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
+        log_levels = logging.get_log_levels_dict()
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
@@ -401,10 +402,9 @@ class TrainerControllerCallback(TrainerCallback):
                         ),
                         operation_actions=[],
                     )
+                    config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     if CONTROLLER_CONFIG_KEY in controller:
                         control.config = controller[CONTROLLER_CONFIG_KEY]
-                        log_levels = logging.get_log_levels_dict()
-                        config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                         if (
                             CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL in control.config
                             and control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL]
