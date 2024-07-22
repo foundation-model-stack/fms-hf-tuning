@@ -61,11 +61,12 @@ CONTROLLER_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL = "trigger_log_level"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
-DEFAULT_TRIGGER_LOG_LEVEL = "debug"
 
-# Default operations / metrics to register
+# Default values
 DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
 DEFAULT_METRICS = {}
+DEFAULT_CONFIG = {}
+DEFAULT_TRIGGER_LOG_LEVEL = "debug"
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -412,9 +413,11 @@ class TrainerControllerCallback(TrainerCallback):
                             config_log_level_str = control.config[
                                 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
                             ]
-                        control.config[
-                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
-                        ] = log_levels[config_log_level_str]
+                    else:
+                        control.config = DEFAULT_CONFIG
+                    control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[
+                        config_log_level_str
+                    ]
                     if CONTROLLER_PATIENCE_CONFIG_KEY in controller:
                         control.patience = PatienceControl(
                             **controller[CONTROLLER_PATIENCE_CONFIG_KEY]

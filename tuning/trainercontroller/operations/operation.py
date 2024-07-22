@@ -53,9 +53,10 @@ class Operation(metaclass=abc.ABCMeta):
             raise ValueError(f"Invalid operation {action}")
         logger.log(
             log_level,
-            "Taking [%s] action in controller [%s]",
+            "Taking [%s] action in controller [%s] triggered at event [%s]",
             action,
             control_name,
+            event_name,
         )
         self.valid_actions[action](**kwargs)
 
