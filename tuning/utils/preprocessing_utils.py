@@ -18,8 +18,8 @@ import json
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-from trl import DataCollatorForCompletionOnlyLM
 from transformers.utils import logging
+from trl import DataCollatorForCompletionOnlyLM
 import datasets
 
 # Local
