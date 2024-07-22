@@ -8,5 +8,7 @@ controllers:
     triggers:
       - on_log
     rule: len(training_loss_window["training_loss"]["loss"]) == training_loss_window["window_size"] and training_loss_window["training_loss"]["loss"][0] < 2.2 and training_loss_window["training_loss"]["epoch"][0] > 2
+    config:
+      trigger_log_level: info
     operations:
       - hfcontrols.should_training_stop
