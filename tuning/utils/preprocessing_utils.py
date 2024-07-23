@@ -36,20 +36,14 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
     ), "Training data path has to be set and str"
 
     # Dataset containing single sequence needs a response template for masking
-    if data_args.response_template is None and data_args.dataset_text_field is not None:
-        if packing is False:
-            raise ValueError(
-                "Since dataset_text_field is provided and packing is disabled, \
-                   needs a corresponding response template for masking"
-            )
-
-    # Currently if packing is false, we require a response_template. This may change in future.
-    if packing is False:
+    if data_args.dataset_text_field or data_args.data_formatter_template:
         if data_args.response_template is None:
-            raise ValueError(
-                "Response template is None, needs to be set for training \
-                                with packing disabled."
-            )
+            if packing is False:
+                raise ValueError(
+                    "Since dataset_text_field or data_formatter_template \
+                       is provided and packing is disabled, \
+                       needs a corresponding response template for masking"
+                )
 
     if data_args.response_template:
         # To use Response template, pass datasets with single sequence instances \
@@ -65,10 +59,24 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
                 "dataset_text_field and data_formatter_template are both set,\
                 but are mutually exclusive options"
             )
-    # TODO(s) In future seupport two more formats:
-    # 1. Allow no response template, and JSON with input/output fields and mask input
 
-    # 2. Allow pretokenized Dataset besides JSON.
+    # If not single sequence, JSON should contain input/output fields
+    if not (data_args.dataset_text_field or data_args.data_formatter_template):
+        json_dataset = datasets.load_dataset(
+            "json", data_files=data_args.training_data_path
+        )
+        if "input" not in json_dataset.column_names:
+            raise ValueError(
+                "JSON should contain input field if no dataset_text_field or \
+                     data_formatter_template specified"
+            )
+        if "output" not in json_dataset.column_names:
+            raise ValueError(
+                "JSON should contain output field if no dataset_text_field or \
+                    data_formatter_template specified"
+            )
+    # TODO(s) In future support
+    # Allow pretokenized Dataset besides JSON.
 
 
 def get_data_collator(

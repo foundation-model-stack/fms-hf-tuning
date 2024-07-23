@@ -196,11 +196,26 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
             ),
             False,
         ),
+        # data formatter with no response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA,
+                data_formatter_template="### Input: {{input}} \n\n### Response: {{output}}",
+            ),
+            False,
+        ),
         # response template with no dataset_text_field or formatter
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA,
                 response_template="\n### Label:",
+            ),
+            False,
+        ),
+        # JSON without input / output for no single sequence arguments
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA,
             ),
             False,
         ),
