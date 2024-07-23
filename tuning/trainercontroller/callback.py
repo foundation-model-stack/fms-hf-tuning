@@ -405,14 +405,16 @@ class TrainerControllerCallback(TrainerCallback):
                     config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     if CONTROLLER_CONFIG_KEY in controller:
                         control.config = controller[CONTROLLER_CONFIG_KEY]
-                        if (
-                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL in control.config
-                            and control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL]
-                            in log_levels
-                        ):
-                            config_log_level_str = control.config[
-                                CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
-                            ]
+                        config_log_level_str = control.config.get(
+                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL, config_log_level_str
+                        )
+                        if config_log_level_str not in log_levels:
+                            logger.warning(
+                                "Incorrect trigger log-level [%s] specified in the config."
+                                " Defaulting to 'debug' level",
+                                config_log_level_str,
+                            )
+                            config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     else:
                         control.config = DEFAULT_CONFIG
                     control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[
