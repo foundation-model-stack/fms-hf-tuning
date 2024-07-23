@@ -277,7 +277,7 @@ def get_formatted_dataset_with_single_sequence(
     data_path: str,
     dataset_text_field: str,
     tokenizer: AutoTokenizer,
-    data_formatter_template: Optional[str] = None
+    data_formatter_template: Optional[str] = None,
 ) -> Dataset:
     """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
 
@@ -317,6 +317,7 @@ def get_formatted_dataset_with_single_sequence(
             "train"
         ]  # HACK - for now, we just do both datasets separately; train is the default split
     return formatted_train_dataset
+
 
 def get_preprocessed_dataset(
     data_path: str,
