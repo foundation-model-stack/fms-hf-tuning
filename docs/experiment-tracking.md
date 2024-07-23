@@ -2,45 +2,44 @@
 
 Experiment tracking is an optional feature of this repo. We have introduced experiment tracking to help in systematically recording hyperparameters, model configurations, and results from each experiment automatically and with the help of third party trackers like [Aimstack](https://aimstack.io).
 
-Tracking can be enabled by passing a config in the [Training Arguments](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/configs.py#L131)
+Tracking can be enabled by passing a config in the [Training Arguments](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/configs.py#L131)
 with the name of the enabled trackers passed as a list.
 
 ```
 from tuning import sft_trainer
 
-training_args = {
-    ..
-    ..
-    trackers: ["aim", "file_logger"]
-}
+training_args = new TrainingArguments(
+    ...,
+    trackers = ["aim", "file_logger"]
+)
 
-sft_trainer.train(train_args=training_args,....)
+sft_trainer.train(train_args=training_args,...)
 ```
 
-For each of the requested trackers the code expects you to pass a config to the `sft_trainer.train` function as well which can be specified as the `tracker_conifgs` argument [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/sft_trainer.py#L76) details of which are present below.
+For each of the requested trackers the code expects you to pass a config to the `sft_trainer.train` function which can be specified through `tracker_conifgs` argument [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/sft_trainer.py#L78) details of which are present below.  
 
 
-The list of available trackers and their details are as follows,
 
-## Tracker Configs.
+The list of available trackers and their details are as follows  
+
+## Tracker Configurations
 
 ## File Logging Tracker
 
-[File Logger](../tuning/trackers/filelogging_tracker.py) is an inbuilt tracker which can be used to dump contents of the loss curve generated while training to a file.
+[File Logger](../tuning/trackers/filelogging_tracker.py) is an inbuilt tracker which can be used to dump loss at every log interval to a file.  
 
-Currently File Logger is enabled by default and will dump the loss curve of a training to a default file path specified [here](../tuning/config/tracker_configs.py) inside the output folder passed during training.
+Currently File Logger is enabled by default and will dump loss at every log interval of a training to a default file path specified [here](../tuning/config/tracker_configs.py) inside the output folder passed during training.  
 
-To override the location of file logger please pass an instance of the [FileLoggingTrackerConfig](../tuning/config/tracker_configs.py) in the `tracker_configs` argument.
+To override the location of file logger please pass an instance of the [FileLoggingTrackerConfig](../tuning/config/tracker_configs.py) to `tracker_configs` argument.  
 
 ```
 from tuning import sft_trainer
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
-training_args = {
-    ..
-    ..
-    trackers: ["file_logger"]
-}
+training_args = new TrainingArguments(
+    ...,
+    trackers = ["file_logger"]
+)
 
 
 logs_file = "new_train_logs.jsonl"
@@ -51,7 +50,7 @@ tracker_configs = TrackerConfigFactory(
         )
     )
 
-sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....)
+sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs, ...)
 ```
 
 Currently File Logging tacker supports only one argument and this file will be placed inside the `train_args.output` folder.
@@ -64,22 +63,23 @@ To enable [Aim](https://aimstack.io) users need to pass `"aim"` as the requested
 When using Aimstack, users need to specify additional arguments which specify where the Aimstack database is present and what experiment name to use
 for tracking the training.
 
-Aimstack supports either a local (`filesystem path`) based db location or a remote (`aim_server:port`) based databse location.
+Aimstack supports either a local (`filesystem path`) based db location or a remote (`aim_server:port`) based database location.  
+
 See Aim [documentation](https://aimstack.readthedocs.io/en/latest/using/remote_tracking.html) for more details.
 
 After [initialising a repo](https://aimstack.readthedocs.io/en/latest/quick_start/setup.html#initializing-aim-repository), users can specify the location of the
 repo either local or remote.
 
-For a local aim database where `aim_repo` should point to the path of where the Aimstack repo is present,
+For a local aim database where `aim_repo` should point to the path of where the initiased Aimstack repo is present,  
 
 ```
 from tuning import sft_trainer
 from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
 
-training_args = {
-    ..
-    trackers: ["aim"]
-}
+training_args = new TrainingArguments(
+    ...,
+    trackers = ["aim"],
+)
 
 tracker_configs = TrackerConfigFactory(
     aim_config=AimConfig(
@@ -97,10 +97,10 @@ sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....
 from tuning import sft_trainer
 from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
 
-training_args = {
-    ..
-    trackers: ["aim"]
-}
+training_args = new TrainingArguments(
+    ...,
+    trackers = ["aim"],
+)
 
 tracker_configs = TrackerConfigFactory(
     aim_config=AimConfig(
@@ -114,7 +114,7 @@ sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....
 ```
 
 The code expects either the `local` or `remote` repo to be specified and will result in a `ValueError` otherwise.
-See [AimConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/tracker_configs.py#L25) for more details.
+See [AimConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/tracker_configs.py#L25) for more details.
 
 
 ## Running the code via command line `tuning/sft_trainer::main` function

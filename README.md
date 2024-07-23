@@ -53,8 +53,7 @@ pip install fms-hf-tuning[fms-accel]
 
 ### Using Experiment Trackers
 
-If you wish to use experiment tracking with popular trackers like [Aim](https://github.com/aimhubio/aim) some of the trackers are marked as optional dependencies.
-You can install them as, 
+To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
 ```
 pip install fms-hf-tuning[aim]
 ```
@@ -563,16 +562,12 @@ For details about how you can use set a custom stopping criteria and perform cus
 
 ## Experiment Tracking
 
-Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aim](https://aimstack.io/) or custom trackers built into the code like
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
 [FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
 The code supports currently two trackers out of the box, 
 * FileLoggingTracker : A built in tracker which supports logging training loss to a file.
-* [Aimstack](https://aimstack.io/) : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
-
-    To use this, you need to first install the package marked as an optional dependency, as described in [Installation](#installation).
-
-* Support for more trackers like [WandB](https://wandb.io) coming soon.
+* Aimstack : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
 
 Further details about how you can enable and use the trackers mentioned above can be found inside [experiment-tracking.md](docs/experiment-tracking.md).
 
