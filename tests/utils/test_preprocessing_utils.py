@@ -269,12 +269,26 @@ def test_get_formatted_dataset_with_single_sequence(
                 data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
             )
         ),
+        # input/output JSON with masking on input
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
+            )
+        ),
     ],
 )
 def test_format_dataset(data_args):
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
-    train_set, eval_set, dataset_text_field = format_dataset(data_args, tokenizer)
+    train_set, eval_set, dataset_text_field = format_dataset(
+        data_args, tokenizer, max_seq_length=1024
+    )
     assert isinstance(train_set, Dataset)
     assert isinstance(eval_set, Dataset)
-    assert dataset_text_field in train_set.column_names
-    assert dataset_text_field in eval_set.column_names
+    if dataset_text_field is None:
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(eval_set.column_names) == column_names
+        assert set(train_set.column_names) == column_names
+    else:
+        assert dataset_text_field in train_set.column_names
+        assert dataset_text_field in eval_set.column_names

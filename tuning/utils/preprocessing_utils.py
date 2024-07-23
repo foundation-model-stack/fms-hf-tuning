@@ -124,7 +124,9 @@ def get_data_collator(
         # 2. add anything needed for preprocessed input
 
 
-def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
+def format_dataset(
+    data_args: configs.DataArguments, tokenizer: AutoTokenizer, max_seq_length: int
+):
     """
     Args:
         data_args: tuning.config.configs.DataArguments
@@ -153,7 +155,24 @@ def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
                 data_args.data_formatter_template,
             )
             logger.info("Validation dataset length is %s", len(eval_dataset))
-    # TODO: add a else here for preprocessing
+    else:
+        # This is for JSON containing input/output fields
+        train_dataset = get_preprocessed_dataset(
+            data_args.training_data_path,
+            tokenizer,
+            max_seq_length,
+            input_field_name="input",
+            output_field_name="output",
+        )
+        if data_args.validation_data_path:
+            eval_dataset = get_preprocessed_dataset(
+                data_args.validation_data_path,
+                tokenizer,
+                max_seq_length,
+                input_field_name="input",
+                output_field_name="output",
+            )
+
     return train_dataset, eval_dataset, dataset_text_field
 
 

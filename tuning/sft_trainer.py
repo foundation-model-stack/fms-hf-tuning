@@ -268,7 +268,7 @@ def train(
         formatted_train_dataset,
         formatted_validation_dataset,
         dataset_text_field,
-    ) = format_dataset(data_args, tokenizer)
+    ) = format_dataset(data_args, tokenizer, max_seq_length)
     data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
 
     if framework is not None and framework.requires_agumentation:
