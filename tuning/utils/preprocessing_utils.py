@@ -127,11 +127,9 @@ def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
     """
     eval_dataset = None
     dataset_text_field = data_args.dataset_text_field
-    print("what is passed ", dataset_text_field)
     if data_args.data_formatter_template or dataset_text_field:
         if dataset_text_field is None:
             dataset_text_field = "new_formatted_field"
-        print("what is set ", dataset_text_field)
         train_dataset = get_formatted_dataset_with_single_sequence(
             data_args.training_data_path,
             dataset_text_field,
