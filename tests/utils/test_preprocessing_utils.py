@@ -18,7 +18,6 @@ from tuning.utils.preprocessing_utils import (
     combine_sequence,
     format_dataset,
     get_data_collator,
-    get_data_trainer_kwargs,
     get_formatted_dataset_with_single_sequence,
     get_preprocessed_dataset,
     load_hf_dataset_from_jsonl_file,
@@ -108,50 +107,6 @@ def test_get_preprocessed_dataset(max_sequence_length):
         assert key_lengths.pop() <= max_sequence_length
 
 
-# Tests for fetching train args
-@pytest.mark.parametrize(
-    "use_validation_data, collator_type, packing",
-    [
-        (True, None, True),
-        (False, None, True),
-        (True, DataCollatorForCompletionOnlyLM, False),
-        (False, DataCollatorForCompletionOnlyLM, False),
-    ],
-)
-def test_get_trainer_kwargs_with_response_template_and_text_field(
-    use_validation_data, collator_type, packing
-):
-    training_data_path = TWITTER_COMPLAINTS_DATA
-    validation_data_path = training_data_path if use_validation_data else None
-    # Expected columns in the raw loaded dataset for the twitter data
-    column_names = set(["Tweet text", "ID", "Label", "text_label", "output"])
-    trainer_kwargs = get_data_trainer_kwargs(
-        training_data_path=training_data_path,
-        validation_data_path=validation_data_path,
-        packing=packing,
-        response_template="\n### Label:",
-        max_sequence_length=100,
-        tokenizer=AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
-        dataset_text_field="output",
-    )
-    assert len(trainer_kwargs) == 3
-    # If we are packing, we should not have a data collator
-    if collator_type is None:
-        assert trainer_kwargs["data_collator"] is None
-    else:
-        assert isinstance(trainer_kwargs["data_collator"], collator_type)
-
-    # We should only have a validation dataset if one is present
-    if validation_data_path is None:
-        assert trainer_kwargs["eval_dataset"] is None
-    else:
-        assert isinstance(trainer_kwargs["eval_dataset"], Dataset)
-        assert set(trainer_kwargs["eval_dataset"].column_names) == column_names
-
-    assert isinstance(trainer_kwargs["train_dataset"], Dataset)
-    assert set(trainer_kwargs["train_dataset"].column_names) == column_names
-
-
 @pytest.mark.parametrize(
     "packing, response_template, formatted_train_dataset, max_seq_length, expected_collator",
     [
@@ -198,38 +153,6 @@ def test_get_data_collator(
         max_seq_length,
     )
     assert isinstance(collator, expected_collator)
-
-
-@pytest.mark.parametrize("use_validation_data", [True, False])
-def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
-    training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
-    validation_data_path = training_data_path if use_validation_data else None
-    # Expected columns in the raw loaded dataset for the twitter data
-    column_names = set(["input_ids", "attention_mask", "labels"])
-    trainer_kwargs = get_data_trainer_kwargs(
-        training_data_path=training_data_path,
-        validation_data_path=validation_data_path,
-        packing=False,
-        response_template=None,
-        max_sequence_length=100,
-        tokenizer=AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
-        dataset_text_field=None,
-    )
-    assert len(trainer_kwargs) == 4
-    # If we are packing, we should not have a data collator
-    assert isinstance(trainer_kwargs["data_collator"], DataCollatorForSeq2Seq)
-
-    # We should only have a validation dataset if one is present
-    if validation_data_path is None:
-        assert trainer_kwargs["eval_dataset"] is None
-    else:
-        assert isinstance(trainer_kwargs["eval_dataset"], Dataset)
-        assert set(trainer_kwargs["eval_dataset"].column_names) == column_names
-
-    assert isinstance(trainer_kwargs["train_dataset"], Dataset)
-    assert set(trainer_kwargs["train_dataset"].column_names) == column_names
-    # Needed to sidestep TRL validation
-    assert trainer_kwargs["formatting_func"] is not None
 
 
 # Tests for validating data args
