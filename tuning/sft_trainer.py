@@ -269,7 +269,13 @@ def train(
         formatted_validation_dataset,
         dataset_text_field,
     ) = format_dataset(data_args, tokenizer, max_seq_length)
-    data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
+    data_collator = get_data_collator(
+        packing,
+        data_args.response_template,
+        tokenizer,
+        formatted_train_dataset,
+        max_seq_length,
+    )
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(

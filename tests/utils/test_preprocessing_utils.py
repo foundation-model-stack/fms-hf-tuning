@@ -17,6 +17,7 @@ from tuning.config import configs
 from tuning.utils.preprocessing_utils import (
     combine_sequence,
     format_dataset,
+    get_data_collator,
     get_data_trainer_kwargs,
     get_formatted_dataset_with_single_sequence,
     get_preprocessed_dataset,
@@ -149,6 +150,54 @@ def test_get_trainer_kwargs_with_response_template_and_text_field(
 
     assert isinstance(trainer_kwargs["train_dataset"], Dataset)
     assert set(trainer_kwargs["train_dataset"].column_names) == column_names
+
+
+@pytest.mark.parametrize(
+    "packing, response_template, formatted_train_dataset, max_seq_length, expected_collator",
+    [
+        (
+            False,
+            "\n### Label:",
+            load_hf_dataset_from_jsonl_file(
+                TWITTER_COMPLAINTS_DATA,
+                input_field_name="Tweet text",
+                output_field_name="text_label",
+            ),
+            1024,
+            DataCollatorForCompletionOnlyLM,
+        ),
+        (
+            False,
+            None,
+            Dataset.from_list(
+                [
+                    {
+                        "input_ids": [9437, 29, 210],
+                        "attention_mask": [1, 1, 1],
+                        "labels": [1, 20, 30],
+                    }
+                ]
+            ),
+            1024,
+            DataCollatorForSeq2Seq,
+        ),
+    ],
+)
+def test_get_data_collator(
+    packing,
+    response_template,
+    formatted_train_dataset,
+    max_seq_length,
+    expected_collator,
+):
+    collator = get_data_collator(
+        packing,
+        response_template,
+        AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
+        formatted_train_dataset,
+        max_seq_length,
+    )
+    assert isinstance(collator, expected_collator)
 
 
 @pytest.mark.parametrize("use_validation_data", [True, False])

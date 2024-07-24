@@ -83,6 +83,8 @@ def get_data_collator(
     packing: bool,
     response_template: Optional[str],
     tokenizer: AutoTokenizer,
+    formatted_train_dataset: Dataset,
+    max_seq_length: int,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -94,6 +96,10 @@ def get_data_collator(
             Response template to be used for formatting by TRL.
         tokenizer: AutoTokenizer
             Loaded tokenizer object to be used by the collator.
+        formatted_train_dataset: Dataset
+            Train Dataset formatted for tuning
+        max_seq_length: int
+            Max sequence length expected
 
     Returns:
         Callable
@@ -113,15 +119,15 @@ def get_data_collator(
                 tokenizer=tokenizer,
                 ignore_index=configs.IGNORE_INDEX,
             )
-        # TO DO with future changes,
-        # 1. Support no packing and seq2seq colator without response template
-        #     # if dataset_text_field is None and response_template is None:
-        #         # Use the seq2seq data collator;
-        #         # Note that this automatically pads labels with -100
-        #         return DataCollatorForSeq2Seq(
-        #             tokenizer=tokenizer, padding=True, max_length=max_sequence_length
-        #         )
-        # 2. add anything needed for preprocessed input
+        # Note that this automatically pads labels with -100
+        # TODO check if this is sufficient for preprocessed
+        if (
+            "attention_mask" in formatted_train_dataset.column_names
+            and "labels" in formatted_train_dataset.column_names
+        ):
+            return DataCollatorForSeq2Seq(
+                tokenizer=tokenizer, padding=True, max_length=max_seq_length
+            )
 
 
 def format_dataset(
@@ -131,6 +137,8 @@ def format_dataset(
     Args:
         data_args: tuning.config.configs.DataArguments
         tokenizer: AutoTokenizer
+        max_seq_length: int
+            Max sequence length expected
     Returns:
         Tuple(Dataset, Dataset, str)
             tuple containing train_dataset, eval_dataset and dataset_text_field
