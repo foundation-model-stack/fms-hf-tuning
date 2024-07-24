@@ -114,8 +114,18 @@ def test_process_accelerate_launch_custom_config_file(patch_path_exists):
 
 
 class CopyCheckpointTestConfig:
-
     def __init__(self, test_root):
+
+        # Create the following file tree for testing:
+        # test_root
+        #   test_copytree_source
+        #      tf1.txt
+        #      tf2.txt
+        #      tf3.txt
+        #      subdir1
+        #         tf4.txt
+        #         tf5.txt
+        #         tf6.txt
 
         assert os.path.isdir(test_root)
 
@@ -161,6 +171,7 @@ class CopyCheckpointTestConfig:
 def test_copy_checkpoint_dest_dir_does_not_exist():
 
     # Init source directory
+
     config = CopyCheckpointTestConfig("/tmp")
 
     target_dir_does_not_exist = os.path.join(config.test_root, "test_copytree_target")
@@ -182,7 +193,8 @@ def test_copy_checkpoint_dest_dir_does_exist():
     # Init target directory
     target_dir_does_exist = os.path.join(config.test_root, "test_copytree_target2")
     os.mkdir(target_dir_does_exist)
-
+    # Add a file to the target. This file will be overwritten during the copy.
+    open(os.path.join(target_dir_does_exist, "tf1.txt"), "a").close()
     # Execute the copy
     copy_checkpoint(config.source_dir, target_dir_does_exist)
     assert config.are_dir_trees_equal(config.source_dir, target_dir_does_exist)
@@ -205,7 +217,7 @@ def test_copy_checkpoint_dest_dir_not_writeable():
     os.makedirs(target_dir_not_writeable, mode=0o446)
 
     # Execute the copy. Should FAIL
-    with pytest.raises(Exception) as e:
+    with pytest.raises(PermissionError) as e:
         copy_checkpoint(config.source_dir, target_dir_not_writeable)
     assert "Permission denied:" in str(e.value)
 
@@ -215,6 +227,6 @@ def test_copy_checkpoint_dest_dir_not_writeable():
 
 
 def test_copy_checkpoint_source_dir_does_not_exist():
-    with pytest.raises(Exception) as e:
+    with pytest.raises(FileNotFoundError) as e:
         copy_checkpoint("/doesnotexist", "/tmp")
     assert "No such file or directory" in str(e.value)
