@@ -21,18 +21,21 @@ import os
 import pickle
 
 # Third Party
-import pytest
 from peft import LoraConfig, PromptTuningConfig
+import pytest
 
+# First Party
+from tests.build.test_utils import HAPPY_PATH_DUMMY_CONFIG_PATH
 
 # Local
-from tuning.utils import config_utils
 from tuning.config import peft_config
-from tests.build.test_utils import HAPPY_PATH_DUMMY_CONFIG_PATH
+from tuning.utils import config_utils
+
 
 def test_get_hf_peft_config_returns_None_for_FT():
     expected_config = None
     assert expected_config == config_utils.get_hf_peft_config("", None, "")
+
 
 def test_get_hf_peft_config_returns_Lora_config_correctly():
     # Test that when a value is not defined, the default values are used
@@ -44,8 +47,11 @@ def test_get_hf_peft_config_returns_Lora_config_correctly():
     assert config.task_type == "CAUSAL_LM"
     assert config.r == 3
     assert config.lora_alpha == 3
-    assert config.lora_dropout == 0.05 # default value from peft_config.LoraConfig
-    assert config.target_modules == {'q_proj', 'v_proj'} # default value from peft_config.LoraConfig
+    assert config.lora_dropout == 0.05  # default value from peft_config.LoraConfig
+    assert config.target_modules == {
+        "q_proj",
+        "v_proj",
+    }  # default value from peft_config.LoraConfig
 
     # Test that when target_modules is ["all-linear"], we convert it to str type "all-linear"
     tuning_config = peft_config.LoraConfig(r=234, target_modules=["all-linear"])
@@ -54,7 +60,8 @@ def test_get_hf_peft_config_returns_Lora_config_correctly():
     assert isinstance(config, LoraConfig)
     assert config.r == 234
     assert config.target_modules == "all-linear"
-    assert config.lora_dropout == 0.05 # default value from peft_config.LoraConfig
+    assert config.lora_dropout == 0.05  # default value from peft_config.LoraConfig
+
 
 def test_get_hf_peft_config_returns_PT_config_correctly():
     # Test that the prompt tuning config is set properly for each field
@@ -69,7 +76,9 @@ def test_get_hf_peft_config_returns_PT_config_correctly():
     assert config.task_type == "CAUSAL_LM"
     assert config.prompt_tuning_init == "TEXT"
     assert config.num_virtual_tokens == 12
-    assert config.prompt_tuning_init_text == "Classify if the tweet is a complaint or not:"
+    assert (
+        config.prompt_tuning_init_text == "Classify if the tweet is a complaint or not:"
+    )
     assert config.tokenizer_name_or_path == "foo/bar/path"
 
     # Test that tokenizer path is allowed to be None only when prompt_tuning_init is not TEXT
@@ -87,7 +96,7 @@ def test_get_hf_peft_config_returns_PT_config_correctly():
 def test_create_tuning_config():
     # Test that LoraConfig is created for peft_method Lora
     # and fields are set properly
-    tune_config = config_utils.create_tuning_config("lora", foo= "x", r= 234)
+    tune_config = config_utils.create_tuning_config("lora", foo="x", r=234)
     assert isinstance(tune_config, peft_config.LoraConfig)
     assert tune_config.r == 234
     assert tune_config.lora_alpha == 32
@@ -95,49 +104,54 @@ def test_create_tuning_config():
 
     # Test that PromptTuningConfig is created for peft_method pt
     # and fields are set properly
-    tune_config = config_utils.create_tuning_config("pt", foo= "x", prompt_tuning_init= "RANDOM")
+    tune_config = config_utils.create_tuning_config(
+        "pt", foo="x", prompt_tuning_init="RANDOM"
+    )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
     assert tune_config.prompt_tuning_init == "RANDOM"
 
     # Test that None is created for peft_method "None" or None
     # and fields are set properly
-    tune_config = config_utils.create_tuning_config("None", foo= "x")
+    tune_config = config_utils.create_tuning_config("None", foo="x")
     assert tune_config is None
 
-    tune_config = config_utils.create_tuning_config(None, foo= "x")
+    tune_config = config_utils.create_tuning_config(None, foo="x")
     assert tune_config is None
 
     # Test that this function does not recognize any other peft_method
     with pytest.raises(AssertionError) as err:
-        tune_config = config_utils.create_tuning_config("hello", foo = "x")
+        tune_config = config_utils.create_tuning_config("hello", foo="x")
         assert err.value == "peft config hello not defined in peft.py"
+
 
 def test_update_config_can_handle_dot_for_nested_field():
     # Test update_config allows nested field
-    config = peft_config.LoraConfig(r = 5)
-    assert config.lora_alpha == 32 # default value is 32
+    config = peft_config.LoraConfig(r=5)
+    assert config.lora_alpha == 32  # default value is 32
 
     # update lora_alpha to 98
-    kwargs = {'LoraConfig.lora_alpha': 98}
+    kwargs = {"LoraConfig.lora_alpha": 98}
     config_utils.update_config(config, **kwargs)
     assert config.lora_alpha == 98
 
     # update an unknown field
-    kwargs = {'LoraConfig.foobar': 98}
-    config_utils.update_config(config, **kwargs) # nothing happens
+    kwargs = {"LoraConfig.foobar": 98}
+    config_utils.update_config(config, **kwargs)  # nothing happens
+
 
 def test_update_config_can_handle_multiple_config_updates():
     # update a tuple of configs
-    config = (peft_config.LoraConfig(r = 5), peft_config.LoraConfig(r = 7))
-    kwargs = {'r': 98}
+    config = (peft_config.LoraConfig(r=5), peft_config.LoraConfig(r=7))
+    kwargs = {"r": 98}
     config_utils.update_config(config, **kwargs)
     assert config[0].r == 98
     assert config[1].r == 98
 
+
 def test_get_json_config_can_load_from_path_or_envvar():
     # Load from path
     if "SFT_TRAINER_CONFIG_JSON_ENV_VAR" in os.environ:
-        del os.environ['SFT_TRAINER_CONFIG_JSON_ENV_VAR']
+        del os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"]
     os.environ["SFT_TRAINER_CONFIG_JSON_PATH"] = HAPPY_PATH_DUMMY_CONFIG_PATH
 
     job_config = config_utils.get_json_config()
@@ -145,7 +159,7 @@ def test_get_json_config_can_load_from_path_or_envvar():
     assert job_config["model_name_or_path"] == "bigscience/bloom-560m"
 
     # Load from envvar
-    config_json = {'model_name_or_path': 'foobar'}
+    config_json = {"model_name_or_path": "foobar"}
     message_bytes = pickle.dumps(config_json)
     base64_bytes = base64.b64encode(message_bytes)
     encoded_json = base64_bytes.decode("ascii")
