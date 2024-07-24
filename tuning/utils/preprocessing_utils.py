@@ -65,12 +65,12 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
         json_dataset = datasets.load_dataset(
             "json", data_files=data_args.training_data_path
         )
-        if "input" not in json_dataset.column_names:
+        if "input" not in json_dataset["train"].column_names:
             raise ValueError(
                 "JSON should contain input field if no dataset_text_field or \
                      data_formatter_template specified"
             )
-        if "output" not in json_dataset.column_names:
+        if "output" not in json_dataset["train"].column_names:
             raise ValueError(
                 "JSON should contain output field if no dataset_text_field or \
                     data_formatter_template specified"
