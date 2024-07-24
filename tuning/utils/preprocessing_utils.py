@@ -114,6 +114,9 @@ def get_data_collator(
         #             tokenizer=tokenizer, padding=True, max_length=max_sequence_length
         #         )
         # 2. add anything needed for preprocessed input
+        raise ValueError(
+            "Could not pick a data collator. Please refer to supported data formats"
+        )
 
 
 def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):

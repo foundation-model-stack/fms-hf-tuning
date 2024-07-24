@@ -8,6 +8,7 @@ import pytest
 # First Party
 from tests.data import (
     MALFORMATTED_DATA,
+    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
 )
@@ -86,7 +87,7 @@ def test_load_hf_dataset_from_jsonl_file_duplicate_keys():
 # Tests for custom masking / preprocessing logic
 @pytest.mark.parametrize("max_sequence_length", [1, 10, 100, 1000])
 def test_get_preprocessed_dataset(max_sequence_length):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     preprocessed_data = get_preprocessed_dataset(
         data_path=TWITTER_COMPLAINTS_DATA,
         tokenizer=tokenizer,
@@ -130,7 +131,7 @@ def test_get_trainer_kwargs_with_response_template_and_text_field(
         packing=packing,
         response_template="\n### Label:",
         max_sequence_length=100,
-        tokenizer=AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
+        tokenizer=AutoTokenizer.from_pretrained(MODEL_NAME),
         dataset_text_field="output",
     )
     assert len(trainer_kwargs) == 3
@@ -163,7 +164,7 @@ def test_get_trainer_kwargs_with_custom_masking(use_validation_data):
         packing=False,
         response_template=None,
         max_sequence_length=100,
-        tokenizer=AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
+        tokenizer=AutoTokenizer.from_pretrained(MODEL_NAME),
         dataset_text_field=None,
     )
     assert len(trainer_kwargs) == 4
@@ -225,7 +226,7 @@ def test_validate_args(data_args, packing):
 def test_get_formatted_dataset_with_single_sequence(
     data_path, dataset_text_field, data_formatter_template
 ):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset = get_formatted_dataset_with_single_sequence(
         data_path, dataset_text_field, tokenizer, data_formatter_template
     )
@@ -257,7 +258,7 @@ def test_get_formatted_dataset_with_single_sequence(
     ],
 )
 def test_format_dataset(data_args):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     train_set, eval_set, dataset_text_field = format_dataset(data_args, tokenizer)
     assert isinstance(train_set, Dataset)
     assert isinstance(eval_set, Dataset)

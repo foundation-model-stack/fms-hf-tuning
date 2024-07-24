@@ -19,7 +19,10 @@ def apply_custom_formatting_template(
 
     template += eos_token
 
-    assert formatted_dataset_field is not None
+    if not formatted_dataset_field:
+        raise ValueError(
+            "Unable to apply custom formatting because the formatted_dataset_field was not provided"
+        )
 
     def formatter(element):
         def replace_text(match_obj):
