@@ -137,14 +137,22 @@ class CopyCheckpointTestConfig:
             shutil.rmtree(self.source_dir)
 
         os.mkdir(self.source_dir)
-        open(os.path.join(self.source_dir, "tf1.txt"), "a").close()
-        open(os.path.join(self.source_dir, "tf2.txt"), "a").close()
-        open(os.path.join(self.source_dir, "tf3.txt"), "a").close()
+        for file_number in range(2):
+            with open(
+                os.path.join(self.source_dir, f"tf{file_number+1}.txt"),
+                "a",
+                encoding="utf-8",
+            ) as f:
+                f.close()
 
         os.mkdir(self.source_sub_dir)
-        open(os.path.join(self.source_sub_dir, "tf4.txt"), "a").close()
-        open(os.path.join(self.source_sub_dir, "tf5.txt"), "a").close()
-        open(os.path.join(self.source_sub_dir, "tf6.txt"), "a").close()
+        for file_number in range(2):
+            with open(
+                os.path.join(self.source_sub_dir, f"tf{file_number+4}.txt"),
+                "a",
+                encoding="utf-8",
+            ) as f:
+                f.close()
 
     def are_dir_trees_equal(self, dir1, dir2):
 
@@ -194,9 +202,19 @@ def test_copy_checkpoint_dest_dir_does_exist():
     target_dir_does_exist = os.path.join(config.test_root, "test_copytree_target2")
     os.mkdir(target_dir_does_exist)
     # Add a file to the target. This file will be overwritten during the copy.
-    open(os.path.join(target_dir_does_exist, "tf1.txt"), "a").close()
+    with open(
+        os.path.join(target_dir_does_exist, "tf1.txt"),
+        "a",
+        encoding="utf-8",
+    ) as f:
+        f.close()
     # Add a file to the target. This file does not exist in source.
-    open(os.path.join(target_dir_does_exist, "tf9.txt"), "a").close()
+    with open(
+        os.path.join(target_dir_does_exist, "tf9.txt"),
+        "a",
+        encoding="utf-8",
+    ) as f:
+        f.close()
     # Execute the copy
     copy_checkpoint(config.source_dir, target_dir_does_exist)
     # Validate the file that did not exist in source is still there.
