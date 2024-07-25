@@ -25,6 +25,7 @@ from tuning.trainercontroller.operations import Operation
 
 class CustomOperation(Operation):
     """Implements a custom operation for testing"""
+
     def should_perform_action_xyz(self, control: TrainerControl, **_):
         """This method performs a set training stop flag action.
 

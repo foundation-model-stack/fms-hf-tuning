@@ -25,6 +25,7 @@ from tuning.trainercontroller.operations import Operation
 
 class CustomOperationInvalidAction(Operation):
     """Implements a custom operation for testing"""
+
     def should_(self, control: TrainerControl, **_):
         """This method defines an action within an invalid name.
 
