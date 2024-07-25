@@ -17,6 +17,8 @@ class Operation(metaclass=abc.ABCMeta):
         every action should preceed with prefix `should_`. If so, it is treated as a valid
         action.
         """
+        self._name = name
+        self.kwargs = kwargs
         self.valid_actions = {}
         self.name = name
         self.kwargs = kwargs
@@ -25,6 +27,14 @@ class Operation(metaclass=abc.ABCMeta):
         ):
             if re.search(r"^should_.+", action_name) is not None:
                 self.valid_actions[action_name] = action_method
+
+    def get_name(self) -> str:
+        """Returns the name of the operation.
+
+        Returns:
+            str
+        """
+        return self._name
 
     def validate(self, action: str) -> bool:
         """Validates the action by checking if it valid action or not.
