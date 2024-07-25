@@ -128,6 +128,9 @@ def get_data_collator(
             return DataCollatorForSeq2Seq(
                 tokenizer=tokenizer, padding=True, max_length=max_seq_length
             )
+        raise ValueError(
+            "Could not pick a data collator. Please refer to supported data formats"
+        )
 
 
 def format_dataset(

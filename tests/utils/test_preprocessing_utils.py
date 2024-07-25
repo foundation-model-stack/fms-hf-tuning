@@ -8,6 +8,7 @@ import pytest
 # First Party
 from tests.data import (
     MALFORMATTED_DATA,
+    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
 )
@@ -86,7 +87,7 @@ def test_load_hf_dataset_from_jsonl_file_duplicate_keys():
 # Tests for custom masking / preprocessing logic
 @pytest.mark.parametrize("max_sequence_length", [1, 10, 100, 1000])
 def test_get_preprocessed_dataset(max_sequence_length):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     preprocessed_data = get_preprocessed_dataset(
         data_path=TWITTER_COMPLAINTS_DATA,
         tokenizer=tokenizer,
@@ -148,7 +149,7 @@ def test_get_data_collator(
     collator = get_data_collator(
         packing,
         response_template,
-        AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0"),
+        AutoTokenizer.from_pretrained(MODEL_NAME),
         formatted_train_dataset,
         max_seq_length,
     )
@@ -212,7 +213,7 @@ def test_validate_args(data_args, packing):
 def test_get_formatted_dataset_with_single_sequence(
     data_path, dataset_text_field, data_formatter_template
 ):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset = get_formatted_dataset_with_single_sequence(
         data_path, dataset_text_field, tokenizer, data_formatter_template
     )
