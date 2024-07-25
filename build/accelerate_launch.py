@@ -193,9 +193,10 @@ def main():
                     logging.info("Removing lm_head from checkpoint")
                     del model.lm_head.weight
 
-                    if hasattr(model, "lm_head"):
+                    if hasattr(model, "lm_head.weight"):
                         logging.warning("Failed to delete lm_head.weight from model")
 
+                    logging.info("Saving checkpoint to %s", original_output_dir)
                     model.save_pretrained(original_output_dir)
                     # save tokenizer with model
                     tokenizer.save_pretrained(original_output_dir)
