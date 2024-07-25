@@ -240,7 +240,7 @@ python tuning/sft_trainer.py \
 --r 8 \
 --lora_dropout 0.05 \
 --lora_alpha 16 \
---target_modules ["c_attn", "c_proj"]
+--target_modules c_attn c_proj
 ```
 
 Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
@@ -547,7 +547,7 @@ Trainer controller is a framework for controlling the trainer loop using user-de
 
 This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
 
-For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
+For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
 
 ## More Examples
 
