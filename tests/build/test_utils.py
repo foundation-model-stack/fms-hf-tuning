@@ -21,7 +21,6 @@ import tempfile
 
 # Third Party
 import pytest
-import shutil
 import filecmp
 
 # Local
