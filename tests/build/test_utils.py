@@ -195,8 +195,14 @@ def test_copy_checkpoint_dest_dir_does_exist():
     os.mkdir(target_dir_does_exist)
     # Add a file to the target. This file will be overwritten during the copy.
     open(os.path.join(target_dir_does_exist, "tf1.txt"), "a").close()
+    # Add a file to the target. This file does not exist in source.
+    open(os.path.join(target_dir_does_exist, "tf9.txt"), "a").close()
     # Execute the copy
     copy_checkpoint(config.source_dir, target_dir_does_exist)
+    # Validate the file that did not exist in source is still there.
+    assert os.path.exists(os.path.join(target_dir_does_exist, "tf9.txt"))
+    # Remove it so we can validate the dir trees are equal.
+    os.remove(os.path.join(target_dir_does_exist, "tf9.txt"))
     assert config.are_dir_trees_equal(config.source_dir, target_dir_does_exist)
 
     # Cleanup
