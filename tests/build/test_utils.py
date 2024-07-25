@@ -17,6 +17,7 @@ import copy
 import json
 import os
 from unittest.mock import patch
+import tempfile
 
 # Third Party
 import pytest
@@ -114,7 +115,7 @@ def test_process_accelerate_launch_custom_config_file(patch_path_exists):
 
 
 class CopyCheckpointTestConfig:
-    def __init__(self, test_root):
+    def __init__(self, temp_root):
 
         # Create the following file tree for testing:
         # test_root
@@ -127,14 +128,10 @@ class CopyCheckpointTestConfig:
         #         tf5.txt
         #         tf6.txt
 
-        assert os.path.isdir(test_root)
-
-        self.test_root = test_root
+        self.test_root = temp_root
+        print(f"ROOT: {self.test_root}")
         self.source_dir = os.path.join(self.test_root, "test_copytree_source")
         self.source_sub_dir = os.path.join(self.source_dir, "subdir1")
-
-        if os.path.isdir(self.source_dir):
-            shutil.rmtree(self.source_dir)
 
         os.mkdir(self.source_dir)
         for file_number in range(2):
@@ -179,75 +176,75 @@ class CopyCheckpointTestConfig:
 def test_copy_checkpoint_dest_dir_does_not_exist():
 
     # Init source directory
+    with tempfile.TemporaryDirectory() as test_root:
+        config = CopyCheckpointTestConfig(test_root)
 
-    config = CopyCheckpointTestConfig("/tmp")
+        target_dir_does_not_exist = os.path.join(
+            config.test_root, "test_copytree_target"
+        )
 
-    target_dir_does_not_exist = os.path.join(config.test_root, "test_copytree_target")
-
-    # Execute the copy
-    copy_checkpoint(config.source_dir, target_dir_does_not_exist)
-    assert config.are_dir_trees_equal(config.source_dir, target_dir_does_not_exist)
-
-    # Cleanup
-    shutil.rmtree(config.source_dir)
-    shutil.rmtree(target_dir_does_not_exist)
+        # Execute the copy
+        copy_checkpoint(config.source_dir, target_dir_does_not_exist)
+        assert config.are_dir_trees_equal(config.source_dir, target_dir_does_not_exist)
 
 
 def test_copy_checkpoint_dest_dir_does_exist():
 
     # Init source directory
-    config = CopyCheckpointTestConfig("/tmp")
+    with tempfile.TemporaryDirectory() as test_root:
+        config = CopyCheckpointTestConfig(test_root)
 
-    # Init target directory
-    target_dir_does_exist = os.path.join(config.test_root, "test_copytree_target2")
-    os.mkdir(target_dir_does_exist)
-    # Add a file to the target. This file will be overwritten during the copy.
-    with open(
-        os.path.join(target_dir_does_exist, "tf1.txt"),
-        "a",
-        encoding="utf-8",
-    ) as f:
-        f.close()
-    # Add a file to the target. This file does not exist in source.
-    with open(
-        os.path.join(target_dir_does_exist, "tf9.txt"),
-        "a",
-        encoding="utf-8",
-    ) as f:
-        f.close()
-    # Execute the copy
-    copy_checkpoint(config.source_dir, target_dir_does_exist)
-    # Validate the file that did not exist in source is still there.
-    assert os.path.exists(os.path.join(target_dir_does_exist, "tf9.txt"))
-    # Remove it so we can validate the dir trees are equal.
-    os.remove(os.path.join(target_dir_does_exist, "tf9.txt"))
-    assert config.are_dir_trees_equal(config.source_dir, target_dir_does_exist)
+        # Init target directory
+        target_dir_does_exist = os.path.join(config.test_root, "test_copytree_target2")
+        os.mkdir(target_dir_does_exist)
+        # Add a file to the target. This file will be overwritten during the copy.
+        with open(
+            os.path.join(target_dir_does_exist, "tf1.txt"),
+            "a",
+            encoding="utf-8",
+        ) as f:
+            f.close()
+        # Add a file to the target. This file does not exist in source.
+        with open(
+            os.path.join(target_dir_does_exist, "tf9.txt"),
+            "a",
+            encoding="utf-8",
+        ) as f:
+            f.close()
+        # Execute the copy
+        copy_checkpoint(config.source_dir, target_dir_does_exist)
+        # Validate the file that did not exist in source is still there.
+        assert os.path.exists(os.path.join(target_dir_does_exist, "tf9.txt"))
+        # Remove it so we can validate the dir trees are equal.
+        os.remove(os.path.join(target_dir_does_exist, "tf9.txt"))
+        assert config.are_dir_trees_equal(config.source_dir, target_dir_does_exist)
 
-    # Cleanup
-    shutil.rmtree(config.source_dir)
-    shutil.rmtree(target_dir_does_exist)
+        # Cleanup
+        shutil.rmtree(config.source_dir)
+        shutil.rmtree(target_dir_does_exist)
 
 
 def test_copy_checkpoint_dest_dir_not_writeable():
 
     # Init source directory
-    config = CopyCheckpointTestConfig("/tmp")
+    with tempfile.TemporaryDirectory() as test_root:
+        config = CopyCheckpointTestConfig(test_root)
 
-    # Init target directory
-    target_dir_not_writeable = os.path.join(
-        config.test_root, "test_copytree_notwriteable"
-    )
+        # Init target directory
+        target_dir_not_writeable = os.path.join(
+            config.test_root, "test_copytree_notwriteable"
+        )
 
-    os.makedirs(target_dir_not_writeable, mode=0o446)
+        os.makedirs(target_dir_not_writeable, mode=0o446)
 
-    # Execute the copy. Should FAIL
-    with pytest.raises(PermissionError) as e:
-        copy_checkpoint(config.source_dir, target_dir_not_writeable)
-    assert "Permission denied:" in str(e.value)
+        # Execute the copy. Should FAIL
+        with pytest.raises(PermissionError) as e:
+            copy_checkpoint(config.source_dir, target_dir_not_writeable)
+        assert "Permission denied:" in str(e.value)
 
-    # Cleanup
-    shutil.rmtree(config.source_dir)
-    shutil.rmtree(target_dir_not_writeable)
+        # Cleanup
+        shutil.rmtree(config.source_dir)
+        shutil.rmtree(target_dir_not_writeable)
 
 
 def test_copy_checkpoint_source_dir_does_not_exist():
