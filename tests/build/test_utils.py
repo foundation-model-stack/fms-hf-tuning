@@ -219,10 +219,6 @@ def test_copy_checkpoint_dest_dir_does_exist():
         os.remove(os.path.join(target_dir_does_exist, "tf9.txt"))
         assert config.are_dir_trees_equal(config.source_dir, target_dir_does_exist)
 
-        # Cleanup
-        shutil.rmtree(config.source_dir)
-        shutil.rmtree(target_dir_does_exist)
-
 
 def test_copy_checkpoint_dest_dir_not_writeable():
 
@@ -241,10 +237,6 @@ def test_copy_checkpoint_dest_dir_not_writeable():
         with pytest.raises(PermissionError) as e:
             copy_checkpoint(config.source_dir, target_dir_not_writeable)
         assert "Permission denied:" in str(e.value)
-
-        # Cleanup
-        shutil.rmtree(config.source_dir)
-        shutil.rmtree(target_dir_not_writeable)
 
 
 def test_copy_checkpoint_source_dir_does_not_exist():
