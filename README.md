@@ -240,7 +240,7 @@ python tuning/sft_trainer.py \
 --r 8 \
 --lora_dropout 0.05 \
 --lora_alpha 16 \
---target_modules ["c_attn", "c_proj"]
+--target_modules c_attn c_proj
 ```
 
 Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
