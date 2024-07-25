@@ -129,7 +129,6 @@ class CopyCheckpointTestConfig:
         #         tf6.txt
 
         self.test_root = temp_root
-        print(f"ROOT: {self.test_root}")
         self.source_dir = os.path.join(self.test_root, "test_copytree_source")
         self.source_sub_dir = os.path.join(self.source_dir, "subdir1")
 
@@ -213,7 +212,6 @@ def test_copy_checkpoint_dest_dir_does_exist():
             f.close()
         # Execute the copy
         copy_checkpoint(config.source_dir, target_dir_does_exist)
-        # Validate the file that did not exist in source is still there.
         assert os.path.exists(os.path.join(target_dir_does_exist, "tf9.txt"))
         # Remove it so we can validate the dir trees are equal.
         os.remove(os.path.join(target_dir_does_exist, "tf9.txt"))
