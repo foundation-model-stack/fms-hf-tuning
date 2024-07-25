@@ -74,5 +74,4 @@ class TrainingState(MetricHandler):
         Returns:
             dict. Trainer state as a dictionary
         """
-        logger.warning(f"Trainer state: {dataclasses.asdict(state)}")
         return dataclasses.asdict(state)
