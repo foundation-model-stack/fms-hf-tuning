@@ -53,6 +53,7 @@ ERROR_LOG = "/dev/termination-log"
 
 
 def get_base_model_from_adapter_config(adapter_config):
+    """Given path to adapter_config.json file, returns the base model name"""
     with open(adapter_config, "r", encoding="utf-8") as config_file:
         adapter_config = json.load(config_file)
         return adapter_config.get("base_model_name_or_path")
@@ -132,7 +133,9 @@ def main():
             last_checkpoint_path = os.path.join(tempdir, last_checkpoint_dir)
 
             use_flash_attn = job_config.get("use_flash_attn", True)
-            adapter_config_path = f"{last_checkpoint_path}/adapter_config.json"
+            adapter_config_path = os.path.join(
+                last_checkpoint_path, "adapter_config.json"
+            )
             tokenizer = AutoTokenizer.from_pretrained(last_checkpoint_path)
 
             if os.path.exists(adapter_config_path):
