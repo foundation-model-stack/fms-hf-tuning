@@ -212,9 +212,7 @@ def main():
                     last_checkpoint_dir,
                     original_output_dir,
                 )
-                copy_checkpoint(
-                    last_checkpoint_path, original_output_dir
-                )
+                copy_checkpoint(last_checkpoint_path, original_output_dir)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
