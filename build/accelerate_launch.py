@@ -39,6 +39,7 @@ from build.utils import (
     process_accelerate_launch_args,
     serialize_args,
     get_highest_checkpoint,
+    copy_checkpoint,
 )
 from tuning.utils.config_utils import get_json_config
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
@@ -175,7 +176,7 @@ def main():
             # a fine tuned model will have params_dict.get("model.embed_tokens.weight")
             # a prompt adapter has params_dict.get("base_model.model.embed_tokens.weight")
             # a lora adapter has params_dict.get("base_model.model.model.embed_tokens.weight")
-            copy_checkpoint = True
+            copy_checkpoint_bool = True
             if model_arch == "llama" and hasattr(model, "lm_head"):
                 if (
                     # lora tuned model has an addt model layer
@@ -192,7 +193,7 @@ def main():
                     )
                 ):
 
-                    copy_checkpoint = False
+                    copy_checkpoint_bool = False
                     logging.info("Removing lm_head from checkpoint")
                     del model.lm_head.weight
 
@@ -205,16 +206,14 @@ def main():
                     tokenizer.save_pretrained(original_output_dir)
 
             # copy last checkpoint into mounted output dir
-            if copy_checkpoint:
+            if copy_checkpoint_bool:
                 logging.info(
                     "Copying last checkpoint %s into output dir %s",
                     last_checkpoint_dir,
                     original_output_dir,
                 )
-                shutil.copytree(
-                    last_checkpoint_path,
-                    original_output_dir,
-                    dirs_exist_ok=True,
+                copy_checkpoint(
+                    last_checkpoint_path, original_output_dir
                 )
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
