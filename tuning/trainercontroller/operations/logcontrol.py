@@ -8,6 +8,7 @@ from .operation import Operation
 logger = logging.get_logger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
+
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""
 
