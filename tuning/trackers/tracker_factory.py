@@ -149,10 +149,9 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
     C = meta["config"]
     T = meta["tracker"]
 
-    if tracker_configs is not None:
-        _conf = _get_tracker_config_by_name(name, tracker_configs)
-        if _conf is not None:
-            config = C(**_conf)
-        else:
-            config = C()
+    _conf = _get_tracker_config_by_name(name, tracker_configs)
+    if _conf is not None:
+        config = C(**_conf)
+    else:
+        config = C()
     return T(config)
