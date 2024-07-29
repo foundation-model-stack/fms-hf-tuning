@@ -759,7 +759,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         data_args.response_template = response_template
         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
         # We should raise an error since we should not have a dataset text
-        # field or a response template if we're pretokenized data
+        # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
@@ -776,7 +776,7 @@ def test_pretokenized_dataset_wrong_format():
         data_args.training_data_path = TWITTER_COMPLAINTS_DATA
 
         # It would be best to handle this in a way that is more understandable; we might
-        # need to add directly validation prior to the dataset generation since datasets
+        # need to directly add validation prior to the dataset generation since datasets
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)

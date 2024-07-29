@@ -42,6 +42,24 @@ def test_combine_sequence(input_element, output_element, expected_res):
     assert comb_seq == expected_res
 
 
+@pytest.mark.parametrize(
+    "input_element,output_element,expected_res",
+    [
+        ("foo ", "bar", "foo bar"),
+        ("foo\n", "bar", "foo\nbar"),
+        ("foo\t", "bar", "foo\tbar"),
+        ("foo", "bar", "foo bar"),
+    ],
+)
+def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
+    """Ensure that input / output elements are combined with correct whitespace handling."""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    comb_seq = combine_sequence(input_element, output_element, tokenizer.eos_token)
+    expected_res += tokenizer.eos_token
+    assert isinstance(comb_seq, str)
+    assert comb_seq == expected_res
+
+
 # Tests for loading the dataset from disk
 def test_load_hf_dataset_from_jsonl_file():
     input_field_name = "Tweet text"

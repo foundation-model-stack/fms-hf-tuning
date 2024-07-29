@@ -307,7 +307,7 @@ def load_hf_dataset_from_jsonl_file(
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
-def combine_sequence(input_element: str, output_element: str):
+def combine_sequence(input_element: str, output_element: str, eos_token: str = ""):
     """Combines / concatenates input & output element.
 
     Args:
@@ -315,6 +315,9 @@ def combine_sequence(input_element: str, output_element: str):
             Input component of the combined sequence.
         output_element: str
             Output component of the combined sequence.
+        eos_token: str
+            EOS token associated with the tokenizer. \
+            If passed, it will be concatenated at end
 
     Returns:
         str
@@ -323,8 +326,8 @@ def combine_sequence(input_element: str, output_element: str):
     if not input_element.endswith((" ", "\n", "\t")) and not output_element.startswith(
         (" ", "\n", "\t")
     ):
-        return input_element + " " + output_element
-    return input_element + output_element
+        return input_element + " " + output_element + eos_token
+    return input_element + output_element + eos_token
 
 
 def preprocess_and_tokenize(
@@ -356,7 +359,7 @@ def preprocess_and_tokenize(
             Dictionary containing the input IDs/labels/attention mask for this record.
     """
     combined_seq = combine_sequence(
-        element[input_field_name], element[output_field_name]
+        element[input_field_name], element[output_field_name], tokenizer
     )
 
     tokenized_comb_seqs = tokenizer(
