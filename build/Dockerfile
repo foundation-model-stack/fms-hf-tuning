@@ -174,7 +174,11 @@ ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
 CMD [ "python", "/app/accelerate_launch.py" ]
 
+## fms-acceleration deps ################################################
 FROM nvcr.io/nvidia/pytorch:24.01-py3 as fms-acceleration
+
+ARG USER
+ARG PYTHON_VERSION
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
