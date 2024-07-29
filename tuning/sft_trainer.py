@@ -35,7 +35,6 @@ from transformers import (
 )
 from transformers.utils import is_accelerate_available, logging
 from trl import SFTConfig, SFTTrainer
-import datasets
 import fire
 import transformers
 
@@ -56,13 +55,16 @@ from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
-from tuning.utils.data_utils import apply_custom_formatting_template
 from tuning.utils.error_logging import (
     INTERNAL_ERROR_EXIT_CODE,
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.preprocessing_utils import get_data_collator, validate_data_args
+from tuning.utils.preprocessing_utils import (
+    format_dataset,
+    get_data_collator,
+    validate_data_args,
+)
 
 
 def train(
@@ -261,52 +263,13 @@ def train(
 
     # Validate if data args are set properly
     validate_data_args(data_args, packing)
+
+    (
+        formatted_train_dataset,
+        formatted_validation_dataset,
+        dataset_text_field,
+    ) = format_dataset(data_args, tokenizer)
     data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
-
-    # load the data by parsing JSON
-    ### TODO: all the jSON file formatting will be moved to a separate function
-    data_files = {"train": data_args.training_data_path}
-    if data_args.validation_data_path:
-        data_files["validation"] = data_args.validation_data_path
-
-    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
-        f"{data_args.dataset_text_field}": example[f"{data_args.dataset_text_field}"]
-        + tokenizer.eos_token
-    }
-
-    json_dataset = datasets.load_dataset("json", data_files=data_files)
-    if data_args.data_formatter_template:
-        (
-            formatted_train_dataset,
-            data_args.dataset_text_field,
-        ) = apply_custom_formatting_template(
-            json_dataset["train"],
-            data_args.data_formatter_template,
-            tokenizer.eos_token,
-        )
-    else:
-        formatted_train_dataset = json_dataset["train"].map(format_dataset)
-    logger.info("Training dataset length is %s", len(formatted_train_dataset))
-
-    formatted_validation_dataset = None
-    if data_args.validation_data_path:
-        if data_args.data_formatter_template:
-            (
-                formatted_validation_dataset,
-                data_args.dataset_text_field,
-            ) = apply_custom_formatting_template(
-                json_dataset["validation"],
-                data_args.data_formatter_template,
-                tokenizer.eos_token,
-            )
-        else:
-            formatted_validation_dataset = json_dataset["validation"].map(
-                format_dataset
-            )
-        logger.info(
-            "Validation dataset length is %s", len(formatted_validation_dataset)
-        )
-    ### JSON file formatting ends here
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(
@@ -337,7 +300,7 @@ def train(
         eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
-        dataset_text_field=data_args.dataset_text_field,
+        dataset_text_field=dataset_text_field,
         args=training_args,
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
