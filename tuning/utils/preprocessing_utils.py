@@ -359,7 +359,7 @@ def preprocess_and_tokenize(
             Dictionary containing the input IDs/labels/attention mask for this record.
     """
     combined_seq = combine_sequence(
-        element[input_field_name], element[output_field_name], tokenizer
+        element[input_field_name], element[output_field_name], tokenizer.eos_token
     )
 
     tokenized_comb_seqs = tokenizer(
