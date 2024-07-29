@@ -8,14 +8,6 @@ from .operation import Operation
 logger = logging.get_logger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
-VALID_LOG_LEVELS = {
-    "ERROR": logging.ERROR,
-    "WARNING": logging.WARNING,
-    "INFO": logging.INFO,
-    "DEBUG": logging.DEBUG,
-}
-
-
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""
 
@@ -27,11 +19,12 @@ class LogControl(Operation):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        if log_level not in VALID_LOG_LEVELS:
+        log_levels = logging.get_log_levels_dict()
+        if log_level not in log_levels:
             raise ValueError(
                 "Specified log_level [%s] is invalid for LogControl" % (log_level)
             )
-        self.log_level = VALID_LOG_LEVELS[log_level]
+        self.log_level = log_levels[log_level]
         self.log_format = log_format
         super().__init__(**kwargs)
 
