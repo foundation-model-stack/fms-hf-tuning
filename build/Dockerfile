@@ -141,7 +141,7 @@ RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
     rm $(head bdist_name) /tmp/bdist_name
 
-## Release image ################################################
+## Final image ################################################
 FROM release-base as release
 ARG USER
 ARG PYTHON_VERSION
@@ -173,25 +173,3 @@ COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
 ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
 CMD [ "python", "/app/accelerate_launch.py" ]
-
-## fms-acceleration deps ################################################
-FROM nvcr.io/nvidia/pytorch:24.01-py3 as fms-acceleration
-
-ARG USER
-ARG PYTHON_VERSION
-
-RUN mkdir -p /licenses
-COPY LICENSE /licenses/
-
-# Copy scripts and default configs
-COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
-COPY build/utils.py /app/build/
-RUN chmod +x /app/accelerate_launch.py
-
-ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
-ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
-
-WORKDIR /app
-USER ${USER}
-COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
-ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
