@@ -21,12 +21,15 @@ from typing import Any
 
 # Third Party
 from transformers import TrainerState
-from transformers.utils import logging
+import logging, os
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
-logger = logging.get_logger(__name__)
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger(__name__)
 METRICS_KEY = "metrics"
 LOG_LOSS_KEY = "loss"
 TRAINING_LOSS_KEY = "training_loss"

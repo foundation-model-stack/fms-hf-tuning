@@ -16,7 +16,7 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Third Party
-from transformers.utils import logging
+import logging, os
 
 # Resets the patience if the rule outcome happens to be false.
 # Here, the expectation is to have unbroken "True"s for patience
@@ -31,7 +31,10 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 # will be exceeded afer the fifth event.
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
-logger = logging.get_logger(__name__)
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger(__name__)
 
 
 class PatienceControl:

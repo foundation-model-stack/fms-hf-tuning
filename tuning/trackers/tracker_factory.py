@@ -16,14 +16,17 @@
 import dataclasses
 
 # Third Party
-from transformers.utils import logging
+import logging, os
 from transformers.utils.import_utils import _is_package_available
 
 # Local
 from .filelogging_tracker import FileLoggingTracker
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
-logger = logging.get_logger("tracker_factory")
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger("tracker_factory")
 
 
 # Information about all registered trackers

@@ -16,10 +16,13 @@
 from typing import Union
 
 # Third Party
-from transformers.utils import logging
+import logging, os
 import torch
 
-logger = logging.get_logger("data_utils")
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger("data_utils")
 
 
 def str_to_torch_dtype(dtype_str: str) -> torch.dtype:

@@ -18,7 +18,7 @@ import json
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-from transformers.utils import logging
+import logging, os
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
 
@@ -26,7 +26,10 @@ import datasets
 from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
 
-logger = logging.get_logger("sft_trainer_preprocessing")
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger("sft_trainer_preprocessing")
 
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):

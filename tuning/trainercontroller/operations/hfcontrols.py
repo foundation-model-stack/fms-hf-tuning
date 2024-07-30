@@ -5,12 +5,15 @@ import re
 
 # Third Party
 from transformers import TrainerControl
-from transformers.utils import logging
+import logging, os
 
 # Local
 from .operation import Operation
 
-logger = logging.get_logger(__name__)
+# Configure log level
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+logging.basicConfig(level=LOGLEVEL)
+logger = logging.getLogger(__name__)
 
 
 class HFControls(Operation):
