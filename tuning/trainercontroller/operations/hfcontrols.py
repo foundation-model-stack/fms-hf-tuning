@@ -12,7 +12,9 @@ from transformers import TrainerControl
 from .operation import Operation
 
 # Configure log level
-LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
+LOGLEVEL = os.environ.get(
+    "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
+).upper()
 logging.basicConfig(level=LOGLEVEL)
 logger = logging.getLogger(__name__)
 

@@ -61,7 +61,9 @@ def get_base_model_from_adapter_config(adapter_config):
 
 
 def main():
-    LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
+    LOGLEVEL = os.environ.get(
+        "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
+    ).upper()
     logging.basicConfig(level=LOGLEVEL)
 
     if not os.getenv("TERMINATION_LOG_FILE"):

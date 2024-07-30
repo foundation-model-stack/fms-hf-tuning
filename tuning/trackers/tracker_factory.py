@@ -25,7 +25,9 @@ from .filelogging_tracker import FileLoggingTracker
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
 # Configure log level
-LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
+LOGLEVEL = os.environ.get(
+    "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
+).upper()
 logging.basicConfig(level=LOGLEVEL)
 logger = logging.getLogger("tracker_factory")
 
