@@ -28,6 +28,9 @@ from tuning.utils.data_utils import apply_custom_formatting_template
 
 logger = logging.get_logger("sft_trainer_preprocessing")
 
+# In future we may make the fields configurable
+JSON_INPUT_KEY = "input"
+JSON_OUTPUT_KEY = "output"
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
@@ -65,12 +68,12 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
         json_dataset = datasets.load_dataset(
             "json", data_files=data_args.training_data_path
         )
-        if "input" not in json_dataset["train"].column_names:
+        if JSON_INPUT_KEY not in json_dataset["train"].column_names:
             raise ValueError(
                 "JSON should contain input field if no dataset_text_field or \
                      data_formatter_template specified"
             )
-        if "output" not in json_dataset["train"].column_names:
+        if JSON_OUTPUT_KEY not in json_dataset["train"].column_names:
             raise ValueError(
                 "JSON should contain output field if no dataset_text_field or \
                     data_formatter_template specified"
@@ -172,16 +175,16 @@ def format_dataset(
             data_args.training_data_path,
             tokenizer,
             max_seq_length,
-            input_field_name="input",
-            output_field_name="output",
+            input_field_name=JSON_INPUT_KEY,
+            output_field_name=JSON_OUTPUT_KEY,
         )
         if data_args.validation_data_path:
             eval_dataset = get_preprocessed_dataset(
                 data_args.validation_data_path,
                 tokenizer,
                 max_seq_length,
-                input_field_name="input",
-                output_field_name="output",
+                input_field_name=JSON_INPUT_KEY,
+                output_field_name=JSON_OUTPUT_KEY,
             )
 
     return train_dataset, eval_dataset, dataset_text_field
