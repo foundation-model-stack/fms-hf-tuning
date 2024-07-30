@@ -14,9 +14,10 @@
 
 # Standard
 from typing import Union
+import logging
+import os
 
 # Third Party
-import logging, os
 import torch
 
 # Configure log level

@@ -18,10 +18,11 @@
 # Standard
 from collections import deque
 from typing import Any
+import logging
+import os
 
 # Third Party
 from transformers import TrainerState
-import logging, os
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler

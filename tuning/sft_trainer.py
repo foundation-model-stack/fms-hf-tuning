@@ -16,6 +16,8 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import logging
+import os
 import sys
 import time
 import traceback
@@ -34,7 +36,6 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import is_accelerate_available
-import logging, os
 from trl import SFTConfig, SFTTrainer
 import fire
 import transformers
@@ -472,16 +473,16 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
-        # Configure log level: 
+        # Configure log level:
         # If log_level is "passive" (not set by cli), then check environment variable.
         if training_args.log_level == "passive":
             LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
 
-            # If log_level is set by environment variable, assign the transformers log_level value 
-            # along with log level value of python logger 
+            # If log_level is set by environment variable, assign the transformers log_level value
+            # along with log level value of python logger
             # OR else set both as default value ("warning")
             logging.basicConfig(level=LOGLEVEL)
-            training_args.log_level=LOGLEVEL.lower()
+            training_args.log_level = LOGLEVEL.lower()
 
         # If log_level is set using cli argument, set same value to log level of python logger
         else:

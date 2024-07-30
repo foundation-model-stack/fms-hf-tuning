@@ -15,11 +15,11 @@
 # Standard
 from datetime import datetime
 import json
+import logging
 import os
 
 # Third Party
 from transformers import TrainerCallback
-import logging
 
 # Local
 from .tracker import Tracker

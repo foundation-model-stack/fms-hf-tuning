@@ -14,11 +14,12 @@
 # Standard
 from typing import Any, Callable, Dict, Optional
 import json
+import logging
+import os
 
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-import logging, os
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
 

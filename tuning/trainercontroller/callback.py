@@ -18,6 +18,7 @@
 # Standard
 from typing import Dict, List, Union
 import inspect
+import logging
 import os
 import re
 
@@ -29,7 +30,6 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
-import logging
 import yaml
 
 # Local

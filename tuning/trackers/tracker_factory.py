@@ -14,9 +14,10 @@
 
 # Standard
 import dataclasses
+import logging
+import os
 
 # Third Party
-import logging, os
 from transformers.utils.import_utils import _is_package_available
 
 # Local

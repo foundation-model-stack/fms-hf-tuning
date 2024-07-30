@@ -1,11 +1,12 @@
 # Standard
 from dataclasses import fields
 import inspect
+import logging
+import os
 import re
 
 # Third Party
 from transformers import TrainerControl
-import logging, os
 
 # Local
 from .operation import Operation

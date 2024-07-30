@@ -17,9 +17,8 @@
 
 # Standard
 from typing import Any
-
-# Third Party
-import logging, os
+import logging
+import os
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler

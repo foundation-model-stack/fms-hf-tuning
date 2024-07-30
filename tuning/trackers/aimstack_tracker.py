@@ -14,11 +14,11 @@
 
 # Standard
 import json
+import logging
 import os
 
 # Third Party
 from aim.hugging_face import AimCallback  # pylint: disable=import-error
-import logging
 
 # Local
 from .tracker import Tracker

@@ -15,8 +15,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
-# Third Party
-import logging, os
+# Standard
+import logging
+import os
 
 # Resets the patience if the rule outcome happens to be false.
 # Here, the expectation is to have unbroken "True"s for patience
