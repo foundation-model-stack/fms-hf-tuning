@@ -49,11 +49,17 @@ def test_get_hf_peft_config_returns_lora_config_correctly():
     assert config.task_type == "CAUSAL_LM"
     assert config.r == 3
     assert config.lora_alpha == 3
-    assert config.lora_dropout == 0.05  # default value from peft_config.LoraConfig
+    assert (
+        config.lora_dropout == 0.05
+    )  # default value from local peft_config.LoraConfig
     assert config.target_modules == {
         "q_proj",
         "v_proj",
-    }  # default value from peft_config.LoraConfig
+    }  # default value from local peft_config.LoraConfig
+    assert config.init_lora_weights is True  # default value from HF peft.LoraConfig
+    assert (
+        config.megatron_core == "megatron.core"
+    )  # default value from HF peft.LoraConfig
 
 
 def test_get_hf_peft_config_returns_lora_config_with_correct_value_for_all_linear():
@@ -74,12 +80,18 @@ def test_get_hf_peft_config_returns_pt_config_correctly():
     config = config_utils.get_hf_peft_config("CAUSAL_LM", tuning_config, "foo/bar/path")
     assert isinstance(config, PromptTuningConfig)
     assert config.task_type == "CAUSAL_LM"
-    assert config.prompt_tuning_init == "TEXT"  # default value
+    assert (
+        config.prompt_tuning_init == "TEXT"
+    )  # default value from local peft_config.PromptTuningConfig
     assert config.num_virtual_tokens == 12
     assert (
         config.prompt_tuning_init_text == "Classify if the tweet is a complaint or not:"
-    )  # default value
+    )  # default value from local peft_config.PromptTuningConfig
     assert config.tokenizer_name_or_path == "foo/bar/path"
+    assert config.num_layers is None  # default value from HF peft.PromptTuningConfig
+    assert (
+        config.inference_mode is False
+    )  # default value from HF peft.PromptTuningConfig
 
 
 def test_get_hf_peft_config_returns_pt_config_with_correct_tokenizer_path():
