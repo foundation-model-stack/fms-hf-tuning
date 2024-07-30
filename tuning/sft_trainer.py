@@ -475,8 +475,10 @@ def main(**kwargs):  # pylint: disable=unused-argument
 
         # Configure log level:
         # If log_level is "passive" (not set by cli), then check environment variable.
+        # First check TRANSFORMERS_VERBOSITY and then Fallback to check LOG_LEVEL. 
+        # If both env var is not set, then assign "WARNING" as default.
         if training_args.log_level == "passive":
-            LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+            LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
 
             # If log_level is set by environment variable, assign the transformers log_level value
             # along with log level value of python logger

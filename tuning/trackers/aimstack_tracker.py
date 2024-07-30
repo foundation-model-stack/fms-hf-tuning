@@ -98,7 +98,7 @@ class AimStackTracker(Tracker):
         """
         super().__init__(name="aim", tracker_config=tracker_config)
         # Configure log level
-        LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+        LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
         logging.basicConfig(level=LOGLEVEL)
         self.logger = logging.getLogger("aimstack_tracker")
 

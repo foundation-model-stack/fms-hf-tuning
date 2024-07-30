@@ -33,7 +33,7 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
 # Configure log level
-LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+LOGLEVEL = os.environ.get("TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")).upper()
 logging.basicConfig(level=LOGLEVEL)
 logger = logging.getLogger(__name__)
 
