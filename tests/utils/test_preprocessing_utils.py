@@ -164,6 +164,7 @@ def test_get_data_collator(
     max_seq_length,
     expected_collator,
 ):
+    """Ensure that the correct collator type is fetched based on the data args"""
     collator = get_data_collator(
         packing,
         response_template,
@@ -213,6 +214,7 @@ def test_get_data_collator(
     ],
 )
 def test_validate_args(data_args, packing):
+    """Ensure that respective errors are thrown for incorrect data arguments"""
     with pytest.raises(ValueError):
         validate_data_args(data_args, packing)
 
@@ -270,7 +272,8 @@ def test_get_formatted_dataset_with_single_sequence(
     ],
 )
 def test_format_dataset(data_args):
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0")
+    """Ensure that the train/eval data are properly formatted based on the data args / text field"""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     train_set, eval_set, dataset_text_field = format_dataset(
         data_args, tokenizer, max_seq_length=1024
     )
