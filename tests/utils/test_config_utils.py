@@ -62,6 +62,22 @@ def test_get_hf_peft_config_returns_lora_config_correctly():
     )  # default value from HF peft.LoraConfig
 
 
+def test_get_hf_peft_config_ignores_tokenizer_path_for_lora_config():
+    """Test that if tokenizer is given with a LoraConfig, it is ignored"""
+    tuning_config = peft_config.LoraConfig(r=3, lora_alpha=3)
+
+    config = config_utils.get_hf_peft_config(
+        task_type="CAUSAL_LM",
+        tuning_config=tuning_config,
+        tokenizer_name_or_path="foo/bar/path",
+    )
+    assert isinstance(config, LoraConfig)
+    assert config.task_type == "CAUSAL_LM"
+    assert config.r == 3
+    assert config.lora_alpha == 3
+    assert not hasattr(config, "tokenizer_name_or_path")
+
+
 def test_get_hf_peft_config_returns_lora_config_with_correct_value_for_all_linear():
     """Test that when target_modules is ["all-linear"], we convert it to str type "all-linear" """
     tuning_config = peft_config.LoraConfig(r=234, target_modules=["all-linear"])
@@ -95,18 +111,25 @@ def test_get_hf_peft_config_returns_pt_config_correctly():
 
 
 def test_get_hf_peft_config_returns_pt_config_with_correct_tokenizer_path():
-    """Test that tokenizer path is allowed to be None only when prompt_tuning_init is not TEXT"""
+    """Test that tokenizer path is allowed to be None only when prompt_tuning_init is not TEXT
+    Reference:
+    https://github.com/huggingface/peft/blob/main/src/peft/tuners/prompt_tuning/config.py#L73
+    """
 
     # When prompt_tuning_init is not TEXT, we can pass in None for tokenizer path
     tuning_config = peft_config.PromptTuningConfig(prompt_tuning_init="RANDOM")
-    config = config_utils.get_hf_peft_config(None, tuning_config, None)
+    config = config_utils.get_hf_peft_config(
+        task_type=None, tuning_config=tuning_config, tokenizer_name_or_path=None
+    )
     assert isinstance(config, PromptTuningConfig)
     assert config.tokenizer_name_or_path is None
 
     # When prompt_tuning_init is TEXT, exception is raised if tokenizer path is None
     tuning_config = peft_config.PromptTuningConfig(prompt_tuning_init="TEXT")
     with pytest.raises(ValueError) as err:
-        config_utils.get_hf_peft_config(None, tuning_config, None)
+        config_utils.get_hf_peft_config(
+            task_type=None, tuning_config=tuning_config, tokenizer_name_or_path=None
+        )
         assert "tokenizer_name_or_path can't be None" in err.value
 
 
