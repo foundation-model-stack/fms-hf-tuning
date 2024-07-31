@@ -1,5 +1,5 @@
 controller_metrics:
-  - name: loss
+  - name: training_loss
     class: Loss
 operations:
   - name: custom_operation
@@ -8,6 +8,6 @@ controllers:
   - name: loss_controller_custom_operation
     triggers:
       - on_log
-    rule: loss < 1.0
+    rule: training_loss['loss'] < 1.0
     operations:
       - custom_operation.should_perform_action_xyz
