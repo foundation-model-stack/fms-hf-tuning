@@ -33,7 +33,54 @@ JSON_INPUT_KEY = "input"
 JSON_OUTPUT_KEY = "output"
 
 
+# check if the provided dataset is pretokenized or not
+# the check is taken from trl
+# https://github.com/huggingface/trl/blob/ddf4c8dc3ecf6d9ee2b24f94c62182ffd682c808/trl/trainer/sft_trainer.py#L498-L509
+def is_pretokenized_dataset(data_path: str):
+    if data_path:
+        # load one sample from the dataset in order to inspect columns
+        dataset = datasets.load_dataset("json", data_files=data_path, split="train[:1]")
+        return ("input_ids" in dataset.column_names) and (
+            "labels" in dataset.column_names
+        )
+    return False
+
+
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
+
+    is_train_data_pretokenized = is_pretokenized_dataset(
+        data_path=data_args.training_data_path
+    )
+    is_eval_data_pretokenized = is_pretokenized_dataset(
+        data_path=data_args.validation_data_path
+    )
+
+    # if the provided train dataset is pretokenized
+    # however user provides formatting flags, error out
+    if is_train_data_pretokenized:
+        if (
+            data_args.response_template
+            or data_args.data_formatter_template
+            or data_args.dataset_text_field
+        ):
+            raise ValueError(
+                "fields response_template, data_formatter_template, and dataset_text_field \
+                                are not applicable for pretokenized datasets"
+            )
+
+        # if the train dataset is pretokenized
+        # ensure validation dataset is pretokenized otherwise error out
+        if data_args.validation_data_path and not is_eval_data_pretokenized:
+            raise ValueError(
+                "validation data should be pretokenized to be used \
+                along with pretokenized train data"
+            )
+
+        # packing wont be available for pretokenized datasets in trl library
+        # see: https://github.com/huggingface/trl/issues/1848
+        if packing:
+            logger.warning("packing will not be used when datasets are pretokenized")
+        return
 
     assert isinstance(
         data_args.training_data_path, str
@@ -109,6 +156,15 @@ def get_data_collator(
         Callable
             Callable collator to be leveraged by the trainer.
     """
+    is_train_data_pretokenized = is_pretokenized_dataset(data_path=training_data_path)
+
+    if is_train_data_pretokenized:
+        return DataCollatorForSeq2Seq(
+            tokenizer=tokenizer,
+            padding=configs.PADDING_STRATEGY_LONGEST,
+            max_length=max_sequence_length,
+            return_tensors="pt",
+        )
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
         # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
@@ -151,6 +207,21 @@ def format_dataset(
             tuple containing train_dataset, eval_dataset and dataset_text_field
     """
     eval_dataset = None
+    is_train_data_pretokenized = is_pretokenized_dataset(
+        data_path=data_args.training_data_path
+    )
+
+    if is_train_data_pretokenized:
+        train_dataset = datasets.load_dataset(
+            "json", data_files=data_args.training_data_path, split="train"
+        )
+        if data_args.validation_data_path:
+            eval_dataset = datasets.load_dataset(
+                "json", data_files=data_args.validation_data_path, split="train"
+            )
+        # dataset_text_field is irrelevant to pretokenized datasets
+        return train_dataset, eval_dataset, None
+
     dataset_text_field = data_args.dataset_text_field
     if data_args.data_formatter_template or dataset_text_field:
         if dataset_text_field is None:

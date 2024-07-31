@@ -268,13 +268,22 @@ def train(
         formatted_train_dataset,
         formatted_validation_dataset,
         dataset_text_field,
+<<<<<<< HEAD
     ) = format_dataset(data_args, tokenizer, max_seq_length)
+=======
+    ) = format_dataset(data_args, tokenizer)
+>>>>>>> d48ea3c (feat: support pretokenized datasets)
     data_collator = get_data_collator(
         packing,
         data_args.response_template,
         tokenizer,
+<<<<<<< HEAD
         formatted_train_dataset,
         max_seq_length,
+=======
+        max_seq_length,
+        data_args.training_data_path,
+>>>>>>> d48ea3c (feat: support pretokenized datasets)
     )
 
     if framework is not None and framework.requires_agumentation:

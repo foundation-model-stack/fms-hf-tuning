@@ -32,6 +32,8 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 
+PADDING_STRATEGY_LONGEST = "longest"
+
 
 @dataclass
 class ModelArguments:

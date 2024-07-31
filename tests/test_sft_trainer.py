@@ -22,7 +22,9 @@ import os
 import tempfile
 
 # Third Party
+from datasets import load_dataset
 from datasets.exceptions import DatasetGenerationError
+from transformers import AutoTokenizer
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -414,6 +416,53 @@ def test_run_causallm_ft_and_inference():
     with tempfile.TemporaryDirectory() as tempdir:
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
         _test_run_inference(tempdir=tempdir)
+
+
+def test_run_causallm_ft_pretokenized():
+    """Check if we can bootstrap and finetune causallm models using pretokenized data"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+        tokenized_data_path = os.path.join(tempdir, "tokenized_data.json")
+
+        # below args not needed for pretokenized data
+        data_formatting_args.data_formatter_template = None
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.response_template = None
+
+        # load, tokenize the data, and save it to a file
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_ARGS.model_name_or_path)
+        loaded_data = load_dataset(
+            "json", data_files=data_formatting_args.training_data_path, split="train"
+        )
+
+        loaded_data = loaded_data.map(
+            lambda sample: {"input_ids": tokenizer.encode(sample["output"])}
+        )
+        loaded_data = loaded_data.map(lambda sample: {"labels": sample["input_ids"]})
+
+        loaded_data.to_json(tokenized_data_path)
+
+        # update the training data path to tokenized data
+        data_formatting_args.training_data_path = tokenized_data_path
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
 ############################# Helper functions #############################
