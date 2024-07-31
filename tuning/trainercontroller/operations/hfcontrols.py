@@ -29,7 +29,7 @@ class HFControls(Operation):
         for control_field in fields(TrainerControl):
             if re.search(r"^should_.+", control_field.name) is not None:
                 setattr(self, control_field.name, self.control_action)
-        super().__init__()
+        super().__init__(**kwargs)
 
     def control_action(self, control: TrainerControl, **kwargs):
         """This method peeks into the stack-frame of the caller to get the action the triggered
