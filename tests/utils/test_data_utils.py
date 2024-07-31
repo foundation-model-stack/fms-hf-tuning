@@ -34,12 +34,13 @@ def test_apply_custom_formatting_template():
         "### Input: @HMRCcustomers No this is my first job"
         + " \n\n ### Response: no complaint"
     )
-    formatted_dataset, dataset_text_field = data_utils.apply_custom_formatting_template(
-        json_dataset, template
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = data_utils.apply_custom_formatting_template(
+        json_dataset, template, formatted_dataset_field
     )
     # a new dataset_text_field is created in Dataset
-    assert dataset_text_field in formatted_dataset["train"][0]
-    assert formatted_dataset["train"][0][dataset_text_field] == expected_response
+    assert formatted_dataset_field in formatted_dataset["train"][0]
+    assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
 
 def test_apply_custom_formatting_template_adds_eos_token():
@@ -50,17 +51,21 @@ def test_apply_custom_formatting_template_adds_eos_token():
         "### Input: @HMRCcustomers No this is my first job"
         + " \n\n ### Response: no complaintEOS"
     )
-    formatted_dataset, dataset_text_field = data_utils.apply_custom_formatting_template(
-        json_dataset, template, "EOS"
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = data_utils.apply_custom_formatting_template(
+        json_dataset, template, formatted_dataset_field, "EOS"
     )
     # a new dataset_text_field is created in Dataset
-    assert dataset_text_field in formatted_dataset["train"][0]
-    assert formatted_dataset["train"][0][dataset_text_field] == expected_response
+    assert formatted_dataset_field in formatted_dataset["train"][0]
+    assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
 
 def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     """Tests that the formatting function will throw error if wrong keys are passed to template"""
     json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
     template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
+    formatted_dataset_field = "formatted_data_field"
     with pytest.raises(KeyError):
-        data_utils.apply_custom_formatting_template(json_dataset, template, "EOS")
+        data_utils.apply_custom_formatting_template(
+            json_dataset, template, formatted_dataset_field, "EOS"
+        )

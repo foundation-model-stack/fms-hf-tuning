@@ -18,11 +18,15 @@ import json
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from transformers.utils import logging
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
 
 # Local
 from tuning.config import configs
+from tuning.utils.data_utils import apply_custom_formatting_template
+
+logger = logging.get_logger("sft_trainer_preprocessing")
 
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
@@ -110,6 +114,42 @@ def get_data_collator(
         #             tokenizer=tokenizer, padding=True, max_length=max_sequence_length
         #         )
         # 2. add anything needed for preprocessed input
+        raise ValueError(
+            "Could not pick a data collator. Please refer to supported data formats"
+        )
+
+
+def format_dataset(data_args: configs.DataArguments, tokenizer: AutoTokenizer):
+    """
+    Args:
+        data_args: tuning.config.configs.DataArguments
+        tokenizer: AutoTokenizer
+    Returns:
+        Tuple(Dataset, Dataset, str)
+            tuple containing train_dataset, eval_dataset and dataset_text_field
+    """
+    eval_dataset = None
+    dataset_text_field = data_args.dataset_text_field
+    if data_args.data_formatter_template or dataset_text_field:
+        if dataset_text_field is None:
+            dataset_text_field = "new_formatted_field"
+        train_dataset = get_formatted_dataset_with_single_sequence(
+            data_args.training_data_path,
+            dataset_text_field,
+            tokenizer,
+            data_args.data_formatter_template,
+        )
+        logger.info("Training dataset length is %s", len(train_dataset))
+        if data_args.validation_data_path:
+            (eval_dataset) = get_formatted_dataset_with_single_sequence(
+                data_args.validation_data_path,
+                dataset_text_field,
+                tokenizer,
+                data_args.data_formatter_template,
+            )
+            logger.info("Validation dataset length is %s", len(eval_dataset))
+    # TODO: add a else here for preprocessing
+    return train_dataset, eval_dataset, dataset_text_field
 
 
 ###################################################################################
@@ -222,13 +262,11 @@ def get_data_trainer_kwargs(
                 output_field_name="output",
             )
     else:
-        # Collator is a DataCollatorForCompletionOnlyLM or None;
-        # Load it as JSON and apply our normal preprocessing logic
-        train_dataset = get_formatted_dataset(
+        train_dataset = get_formatted_dataset_with_single_sequence(
             training_data_path, dataset_text_field, tokenizer
         )
         if validation_data_path:
-            eval_dataset = get_formatted_dataset(
+            eval_dataset = get_formatted_dataset_with_single_sequence(
                 validation_data_path, dataset_text_field, tokenizer
             )
 
@@ -238,8 +276,11 @@ def get_data_trainer_kwargs(
     return data_kwargs
 
 
-def get_formatted_dataset(
-    data_path: str, dataset_text_field: str, tokenizer: AutoTokenizer
+def get_formatted_dataset_with_single_sequence(
+    data_path: str,
+    dataset_text_field: str,
+    tokenizer: AutoTokenizer,
+    data_formatter_template: Optional[str] = None,
 ) -> Dataset:
     """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
 
@@ -247,21 +288,38 @@ def get_formatted_dataset(
         data_path: str
             Path to the file to be loaded.
         dataset_text_field: str
-            Dataset text field fto be used for formatting by TRL.
+            Dataset text field to be used for formatting.
+            If data_formatter_template specified, \
+                this will be the new field creating single sequence.
         tokenizer: AutoTokenizer
             Loaded tokenizer object to be used by the collator.
+        data_formatter_template: str
+            Template to apply to create single sequence and store it in dataset_text_field
 
     Returns:
         Dataset
             HF Dataset with formatted [str] data.
     """
-    format_dataset = lambda example: {  # pylint: disable=unnecessary-lambda-assignment
-        f"{dataset_text_field}": example[f"{dataset_text_field}"] + tokenizer.eos_token
-    }
+
     json_dataset = datasets.load_dataset("json", data_files=data_path)
-    return json_dataset.map(format_dataset)[
-        "train"
-    ]  # HACK - for now, we just do both datasets separately; train is the default split
+    format_dataset_EOS = (
+        lambda example: {  # pylint: disable=unnecessary-lambda-assignment
+            f"{dataset_text_field}": example[f"{dataset_text_field}"]
+            + tokenizer.eos_token
+        }
+    )
+    if data_formatter_template:
+        formatted_train_dataset = apply_custom_formatting_template(
+            json_dataset["train"],
+            data_formatter_template,
+            dataset_text_field,
+            tokenizer.eos_token,
+        )
+    else:
+        formatted_train_dataset = json_dataset.map(format_dataset_EOS)[
+            "train"
+        ]  # HACK - for now, we just do both datasets separately; train is the default split
+    return formatted_train_dataset
 
 
 def get_preprocessed_dataset(
