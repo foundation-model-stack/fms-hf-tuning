@@ -113,9 +113,10 @@ Formatting will happen on the fly while tuning. The keys in template should matc
 
 Example: Train.jsonl
 
-`{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"}
+```
+{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
 {"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
-`
+```
 
 ## Supported Models
 
