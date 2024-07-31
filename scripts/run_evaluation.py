@@ -62,6 +62,10 @@ def parse_and_validate_args():
         help="Whether to load the model using Flash Attention 2",
         action="store_true",
     )
+    parser.add_argument(
+        "--base_model_name_or_path",
+        help="Base model for adapter",
+    )
     parsed_args = parser.parse_args()
 
     print(f"Multiclass / multioutput delimiter: {parsed_args.delimiter}")
@@ -446,7 +450,20 @@ def export_experiment_info(
 
 if __name__ == "__main__":
     args = parse_and_validate_args()
-    tuned_model = TunedCausalLM.load(args.model, use_flash_attn=args.use_flash_attn)
+
+    base_model_name_or_path = args.base_model_name_or_path
+    if not base_model_name_or_path:
+        adapter_config_path = os.path.join(args.model, "adapter_config.json")
+        if os.path.exists(adapter_config_path):
+            with open(adapter_config_path, "r", encoding="utf-8") as config_file:
+                adapter_config = json.load(config_file)
+                base_model_name_or_path = adapter_config.get("base_model_name_or_path")
+
+    tuned_model = TunedCausalLM.load(
+        args.model,
+        use_flash_attn=args.use_flash_attn,
+        base_model_name_or_path=base_model_name_or_path,
+    )
     eval_data = datasets.load_dataset(
         "json", data_files=args.data_path, split=args.split
     )
