@@ -258,6 +258,7 @@ class TrainerControllerCallback(TrainerCallback):
                         operation_action.instance.act(
                             action=operation_action.action,
                             event_name=event_name,
+                            tc_metrics=self.metrics,
                             **kwargs,
                         )
 
