@@ -52,7 +52,7 @@ pip install fms-hf-tuning[fms-accel]
 ## Data format
 We support the following data formats:
 
-1. #### JSON formats with a single sequence and a specified response_template to use for masking on completion.
+### 1. JSON formats with a single sequence and a specified response_template to use for masking on completion.
 
 #### 1.1 Pre-process the JSON/JSONL dataset
  Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
@@ -105,7 +105,7 @@ Formatting will happen on the fly while tuning. The keys in template should matc
 
 ##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-2. #### JSONL with input and output fields (no response template)
+### 2. JSONL with input and output fields (no response template)
 
   Pass a JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
 

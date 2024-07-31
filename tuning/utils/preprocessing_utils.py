@@ -32,6 +32,7 @@ logger = logging.get_logger("sft_trainer_preprocessing")
 JSON_INPUT_KEY = "input"
 JSON_OUTPUT_KEY = "output"
 
+
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
     assert isinstance(
