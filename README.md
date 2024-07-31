@@ -111,11 +111,11 @@ Formatting will happen on the fly while tuning. The keys in template should matc
 
   The "input" and "output" field names are mandatory and cannot be changed. 
 
-Example: Train.json
-`{
-  "input": "### Input: Colorado is a state in USA ### Output:",
-  "output": "USA : Location"
-}`
+Example: Train.jsonl
+
+`{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"}
+{"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
+`
 
 ## Supported Models
 
