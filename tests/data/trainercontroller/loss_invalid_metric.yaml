@@ -1,10 +1,10 @@
 controller_metrics:
-  - name: loss
+  - name: training_loss
     class: MissingMetricClass
 controllers:
   - name: loss_controller_invalid_metric
     triggers:
       - on_log
-    rule: loss < 1.0
+    rule: training_loss['loss'] < 1.0
     operations:
       - hfcontrols.should_training_stop

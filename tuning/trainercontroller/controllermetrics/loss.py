@@ -61,4 +61,4 @@ class Loss(MetricHandler):
             log = state.log_history[i]
             if "loss" not in log:
                 continue
-            return float(log["loss"])
+            return log
