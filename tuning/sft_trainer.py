@@ -42,6 +42,7 @@ import transformers
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
+    FastAttentionConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
@@ -82,6 +83,7 @@ def train(
     exp_metadata: Optional[Dict] = None,
     quantized_lora_config: Optional[QuantizedLoraConfig] = None,
     fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
+    fast_attention_config: Optional[FastAttentionConfig] = None,
 ):
     """Call the SFTTrainer
 
@@ -109,6 +111,7 @@ def train(
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
+        fast_attention_config: Used for padding free and multipack.
     """
 
     logger = logging.get_logger("sft_trainer")
@@ -174,7 +177,7 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
-        quantized_lora_config, fusedops_kernels_config
+        quantized_lora_config, fusedops_kernels_config, fast_attention_config
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
@@ -374,6 +377,7 @@ def get_parser():
             AimConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
+            FastAttentionConfig,
         )
     )
     parser.add_argument(
@@ -422,6 +426,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for fused operations and kernels.
         dict[str, str]
             Extra AIM metadata.
+        PaddingFreeConfig
+            ...
     """
     if json_config:
         (
@@ -435,6 +441,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            padding_free_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -450,6 +457,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            padding_free_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -474,6 +482,7 @@ def parse_arguments(parser, json_config=None):
         aim_config,
         quantized_lora_config,
         fusedops_kernels_config,
+        padding_free_config,
         exp_metadata,
     )
 
@@ -496,6 +505,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            padding_free_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
         logger.debug(
@@ -554,6 +564,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
+            fast_attention_config=padding_free_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())

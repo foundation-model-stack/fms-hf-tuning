@@ -21,6 +21,13 @@ import warnings
 import yaml
 
 # Local
+from .fast_attention_config import (
+    EmbeddingDropoutConfig,
+    LossAcrossGPUsConfig,
+    MLPDropoutConfig,
+    MultipackConfig,
+    PaddingFreeConfig,
+)
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
@@ -98,6 +105,54 @@ class AccelerationFrameworkConfig:
         ),
     ] = None
 
+    multipack: Annotated[
+        MultipackConfig,
+        ConfigAnnotation(
+            path="training.dataloader",
+            experimental=True,
+            required_packages=["attn"],
+        ),
+    ] = None
+
+    loss_across_gpus: Annotated[
+        LossAcrossGPUsConfig,
+        ConfigAnnotation(
+            path="training.loss",
+            experimental=True,
+            key="across_gpus",
+            required_packages=["attn"],
+        ),
+    ] = None
+
+    padding_free: Annotated[
+        PaddingFreeConfig,
+        ConfigAnnotation(
+            path="training.attention",
+            experimental=True,
+            required_packages=["attn"],
+        ),
+    ] = None
+
+    mlp_dropout: Annotated[
+        MLPDropoutConfig,
+        ConfigAnnotation(
+            path="training.mlp",
+            key="dropout",
+            experimental=True,
+            required_packages=["attn"],
+        ),
+    ] = None
+
+    emb_dropout: Annotated[
+        EmbeddingDropoutConfig,
+        ConfigAnnotation(
+            path="training.embedding",
+            key="dropout",
+            experimental=True,
+            required_packages=["attn"],
+        ),
+    ] = None
+
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
         "Convert one or many FMS config dataclasses to a monolithic AccelerationConfig"
@@ -163,6 +218,9 @@ class AccelerationFrameworkConfig:
 
     def get_framework(self):
 
+        if self.is_empty():
+            return
+
         if is_fms_accelerate_available():
 
             # to be eventually be made to be passed as a dict to Acceleration
@@ -189,14 +247,13 @@ class AccelerationFrameworkConfig:
 
                 raise e
         else:
-            if not self.is_empty():
-                raise ValueError(
-                    "No acceleration framework package found. To use, first "
-                    "ensure that 'pip install fms-hf-tuning[fms-accel]' is done first to "
-                    "obtain the acceleration framework dependency. Additional "
-                    "acceleration plugins make be required depending on the requsted "
-                    "acceleration. See README.md for instructions."
-                )
+            raise ValueError(
+                "No acceleration framework package found. To use, first "
+                "ensure that 'pip install fms-hf-tuning[fms-accel]' is done first to "
+                "obtain the acceleration framework dependency. Additional "
+                "acceleration plugins make be required depending on the requsted "
+                "acceleration. See README.md for instructions."
+            )
 
     def is_empty(self):
         "check if the configuration is empty"
