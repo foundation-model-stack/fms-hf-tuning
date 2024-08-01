@@ -39,6 +39,7 @@ from tests.data import (
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
@@ -429,21 +430,8 @@ def test_run_causallm_ft_pretokenized():
         data_formatting_args.dataset_text_field = None
         data_formatting_args.response_template = None
 
-        # load, tokenize the data, and save it to a file
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_ARGS.model_name_or_path)
-        loaded_data = load_dataset(
-            "json", data_files=data_formatting_args.training_data_path, split="train"
-        )
-
-        loaded_data = loaded_data.map(
-            lambda sample: {"input_ids": tokenizer.encode(sample["output"])}
-        )
-        loaded_data = loaded_data.map(lambda sample: {"labels": sample["input_ids"]})
-
-        loaded_data.to_json(tokenized_data_path)
-
         # update the training data path to tokenized data
-        data_formatting_args.training_data_path = tokenized_data_path
+        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir

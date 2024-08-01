@@ -11,6 +11,7 @@ from tests.data import (
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
@@ -235,12 +236,85 @@ def test_is_pretokenized_dat(data, result):
             ),
             False,
         ),
+        # pretokenized dataset with dataset_text_field
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                dataset_text_field="output",
+            ),
+            False,
+        ),
+        # pretokenized dataset with data formatter
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                data_formatter_template="### Input: {{input}} \n\n### Response: {{output}}",
+            ),
+            False,
+        ),
+        # pretokenized dataset with response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                response_template="\n### Label:",
+            ),
+            False,
+        ),
+        # pretokenized training dataset with validation data not pretokenized
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_DATA,
+            ),
+            False,
+        ),
+        # pretokenized data with dataset_text_field and response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                response_template="\n### Label:",
+                dataset_text_field="output",
+            ),
+            False,
+        ),
+        # pretokenized data with packing to True
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            True,
+        ),
     ],
 )
 def test_validate_args(data_args, packing):
     """Ensure that respective errors are thrown for incorrect data arguments"""
     with pytest.raises(ValueError):
         validate_data_args(data_args, packing)
+
+
+@pytest.mark.parametrize(
+    "data_args, packing",
+    [
+        # pretokenized train dataset and no validation dataset passed
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            False,
+        ),
+        # pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            False,
+        ),
+    ],
+)
+def test_validate_args(data_args, packing):
+    """Ensure that supported data args do not error out when passing pretokenized datasets"""
+    validate_data_args(data_args, packing)
 
 
 @pytest.mark.parametrize(
@@ -310,3 +384,32 @@ def test_format_dataset(data_args):
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
+
+
+@pytest.mark.parametrize(
+    "data_args",
+    [
+        # pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            )
+        ),
+        # pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            )
+        ),
+    ],
+)
+def test_format_dataset_pretokenized(data_args):
+    """Ensure that pretokenized datasets are loaded and returned as is"""
+    train_set, eval_set, _ = format_dataset(data_args, None, max_seq_length=1024)
+    assert isinstance(train_set, Dataset)
+    assert isinstance(eval_set, Dataset)
+
+    column_names = set(["input_ids", "labels"])
+    assert set(eval_set.column_names) == column_names
+    assert set(train_set.column_names) == column_names
