@@ -1,0 +1,9 @@
+controller-metrics:
+  - name: loss
+    class: Loss
+  - name: state
+    class: TrainingState
+  - name: eval_metrics
+    class: EvalMetrics
+  - name: per_process_state
+    class: PerProcessState
