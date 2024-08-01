@@ -21,6 +21,7 @@ from tuning.utils.preprocessing_utils import (
     get_data_collator,
     get_formatted_dataset_with_single_sequence,
     get_preprocessed_dataset,
+    is_pretokenized_dataset,
     load_hf_dataset_from_jsonl_file,
     validate_data_args,
 )
@@ -173,6 +174,29 @@ def test_get_data_collator(
         max_seq_length,
     )
     assert isinstance(collator, expected_collator)
+
+
+@pytest.mark.parametrize(
+    "data, result",
+    [
+        (TWITTER_COMPLAINTS_DATA, False),
+        (
+            Dataset.from_list(
+                [
+                    {
+                        "input_ids": [9437, 29, 210],
+                        "attention_mask": [1, 1, 1],
+                        "labels": [1, 20, 30],
+                    }
+                ]
+            ),
+            True,
+        ),
+    ],
+)
+def test_is_pretokenized_dat(data, result):
+    """Ensure that the correct collator type is fetched based on the data args"""
+    assert is_pretokenized_dataset(data=data) == result
 
 
 # Tests for validating data args

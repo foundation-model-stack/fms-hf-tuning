@@ -44,7 +44,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         try:
             data = datasets.load_dataset("json", data_files=data, split="train[:1]")
         except DatasetGenerationError as e:
-            raise ValueError("failed to load the provided dataset") from e
+            raise DatasetGenerationError("failed to load the provided dataset") from e
 
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
