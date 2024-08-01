@@ -35,6 +35,7 @@ from tests.data import (
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
 )
 
@@ -724,3 +725,58 @@ def test_run_with_good_experimental_metadata():
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
+
+
+### Tests for pretokenized data
+def test_pretokenized_dataset():
+    """Ensure that we can provide a pretokenized dataset with input/output format."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        _validate_training(tempdir)
+
+
+@pytest.mark.parametrize(
+    "dataset_text_field,response_template",
+    [
+        ("foo", None),
+        (None, "bar"),
+    ],
+)
+def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
+    """Ensure that we can't provide only dataset text field / response template for pretok data."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = dataset_text_field
+        data_args.response_template = response_template
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        # We should raise an error since we should not have a dataset text
+        # field or a response template if we have pretokenized data
+        with pytest.raises(ValueError):
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+
+
+def test_pretokenized_dataset_wrong_format():
+    """Ensure that we fail to generate data if the data is in the wrong format."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA
+
+        # It would be best to handle this in a way that is more understandable; we might
+        # need to directly add validation prior to the dataset generation since datasets
+        # is essentially swallowing a KeyError here.
+        with pytest.raises(ValueError):
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
