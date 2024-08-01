@@ -728,7 +728,6 @@ def test_run_with_good_experimental_metadata():
         )
 
 
-<<<<<<< Updated upstream
 ### Tests for pretokenized data
 def test_pretokenized_dataset():
     """Ensure that we can provide a pretokenized dataset with input/output format."""
@@ -782,7 +781,6 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
-=======
 def test_set_log_level_for_logger_default():
     """
     Ensure that the correct log level is being set
@@ -839,4 +837,3 @@ def test_set_log_level_for_logger_with_env_var_and_cli():
     training_args, logger = sft_trainer.set_log_level(train_args)
     assert logger.level == logging.ERROR
     assert training_args.log_level == "error"
->>>>>>> Stashed changes
