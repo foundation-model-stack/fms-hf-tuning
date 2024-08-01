@@ -14,5 +14,6 @@
 
 # Local
 from .acceleration_framework_config import AccelerationFrameworkConfig
+from .fast_attention_config import FastAttentionConfig
 from .fused_ops_and_kernels import FusedOpsAndKernelsConfig
 from .quantized_lora_config import QuantizedLoraConfig
