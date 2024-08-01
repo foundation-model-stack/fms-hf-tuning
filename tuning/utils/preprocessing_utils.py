@@ -44,19 +44,15 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         try:
             data = datasets.load_dataset("json", data_files=data, split="train[:1]")
         except DatasetGenerationError as e:
-            raise ValueError(f"failed to load the provided dataset. {e}")
+            raise ValueError("failed to load the provided dataset") from e
 
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
-    is_train_data_pretokenized = is_pretokenized_dataset(
-        data_path=data_args.training_data_path
-    )
-    is_eval_data_pretokenized = is_pretokenized_dataset(
-        data_path=data_args.validation_data_path
-    )
+    is_train_data_pretokenized = is_pretokenized_dataset(data_args.training_data_path)
+    is_eval_data_pretokenized = is_pretokenized_dataset(data_args.validation_data_path)
 
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
@@ -159,9 +155,7 @@ def get_data_collator(
         Callable
             Callable collator to be leveraged by the trainer.
     """
-    is_train_data_pretokenized = is_pretokenized_dataset(
-        data_path=formatted_train_dataset
-    )
+    is_train_data_pretokenized = is_pretokenized_dataset(formatted_train_dataset)
 
     if is_train_data_pretokenized:
         return DataCollatorForSeq2Seq(
@@ -211,9 +205,7 @@ def format_dataset(
             tuple containing train_dataset, eval_dataset and dataset_text_field
     """
     eval_dataset = None
-    is_train_data_pretokenized = is_pretokenized_dataset(
-        data_path=data_args.training_data_path
-    )
+    is_train_data_pretokenized = is_pretokenized_dataset(data_args.training_data_path)
 
     if is_train_data_pretokenized:
         train_dataset = datasets.load_dataset(
