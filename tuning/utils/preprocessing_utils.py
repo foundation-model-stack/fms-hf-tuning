@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Standard
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 import json
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
+from datasets.exceptions import DatasetGenerationError
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from transformers.utils import logging
 from trl import DataCollatorForCompletionOnlyLM
@@ -36,14 +37,16 @@ JSON_OUTPUT_KEY = "output"
 # check if the provided dataset is pretokenized or not
 # the check is taken from trl
 # https://github.com/huggingface/trl/blob/ddf4c8dc3ecf6d9ee2b24f94c62182ffd682c808/trl/trainer/sft_trainer.py#L498-L509
-def is_pretokenized_dataset(data_path: str):
-    if data_path:
-        # load one sample from the dataset in order to inspect columns
-        dataset = datasets.load_dataset("json", data_files=data_path, split="train[:1]")
-        return ("input_ids" in dataset.column_names) and (
-            "labels" in dataset.column_names
-        )
-    return False
+def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
+    if not data:
+        return False
+    if isinstance(data, str):
+        try:
+            data = datasets.load_dataset("json", data_files=data, split="train[:1]")
+        except DatasetGenerationError as e:
+            raise ValueError(f"failed to load the provided dataset. {e}")
+
+    return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
@@ -63,7 +66,7 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
             or data_args.data_formatter_template
             or data_args.dataset_text_field
         ):
-            raise ValueError(
+            logger.warning(
                 "fields response_template, data_formatter_template, and dataset_text_field \
                                 are not applicable for pretokenized datasets"
             )
@@ -156,14 +159,15 @@ def get_data_collator(
         Callable
             Callable collator to be leveraged by the trainer.
     """
-    is_train_data_pretokenized = is_pretokenized_dataset(data_path=training_data_path)
+    is_train_data_pretokenized = is_pretokenized_dataset(
+        data_path=formatted_train_dataset
+    )
 
     if is_train_data_pretokenized:
         return DataCollatorForSeq2Seq(
             tokenizer=tokenizer,
             padding=configs.PADDING_STRATEGY_LONGEST,
-            max_length=max_sequence_length,
-            return_tensors="pt",
+            max_length=max_seq_length,
         )
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
