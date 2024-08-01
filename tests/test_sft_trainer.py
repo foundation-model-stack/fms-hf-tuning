@@ -22,9 +22,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets import load_dataset
 from datasets.exceptions import DatasetGenerationError
-from transformers import AutoTokenizer
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -423,7 +421,6 @@ def test_run_causallm_ft_pretokenized():
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
-        tokenized_data_path = os.path.join(tempdir, "tokenized_data.json")
 
         # below args not needed for pretokenized data
         data_formatting_args.data_formatter_template = None

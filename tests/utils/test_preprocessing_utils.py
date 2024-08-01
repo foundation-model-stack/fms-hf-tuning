@@ -312,7 +312,7 @@ def test_validate_args(data_args, packing):
         ),
     ],
 )
-def test_validate_args(data_args, packing):
+def test_validate_args_pretokenized(data_args, packing):
     """Ensure that supported data args do not error out when passing pretokenized datasets"""
     validate_data_args(data_args, packing)
 
