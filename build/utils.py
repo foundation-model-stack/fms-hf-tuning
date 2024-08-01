@@ -21,6 +21,23 @@ import base64
 # Third Party
 import torch
 from accelerate.commands.launch import launch_command_parser
+import shutil
+
+
+def copy_checkpoint(source, destination):
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+        shutil.copystat(source, destination)
+    # Have a list of directory objects, now iterate over them.
+    for item in os.listdir(source):
+        source_file = os.path.join(source, item)
+        destination_file = os.path.join(destination, item)
+        if os.path.isdir(source_file):
+            # recursive call for subdirectories
+            copy_checkpoint(source_file, destination_file)
+        else:
+            # straight copy.
+            shutil.copy2(source_file, destination_file)
 
 
 def get_highest_checkpoint(dir_path):

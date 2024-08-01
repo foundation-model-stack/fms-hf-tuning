@@ -1,0 +1,14 @@
+controller_metrics:
+  - name: training_loss_window
+    class: HistoryBasedMetric
+    arguments:
+      window_size: 1
+controllers:
+  - name: epoch_level_stop_on_training_loss_below_threshold
+    triggers:
+      - on_step_end
+    rule: len(training_loss_window["training_loss"]["loss"]) == training_loss_window["window_size"] and training_loss_window["training_loss"]["loss"][0] < 2.2 and training_loss_window["training_loss"]["epoch"][0] > 2
+    config:
+      trigger_log_level: warning
+    operations:
+      - hfcontrols.should_training_stop

@@ -50,9 +50,11 @@ pip install fms-hf-tuning[fms-accel]
 `fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
 
 ## Data format
-We support two data formats:
+We support the following data formats:
 
-1. #### Pre-process the JSON/JSONL dataset
+### 1. JSON formats with a single sequence and a specified response_template to use for masking on completion.
+
+#### 1.1 Pre-process the JSON/JSONL dataset
  Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
@@ -87,7 +89,7 @@ The same way can be applied to any dataset, with more info can be found [here](h
 
 Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
 
-2.  #### Format JSON/JSONL on the fly
+#### 1.2 Format JSON/JSONL on the fly
    Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
    JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
 
@@ -101,8 +103,20 @@ data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`
 
 Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
+##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-##### In conclusion, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer. 
+### 2. JSONL with input and output fields (no response template)
+
+  Pass a JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+
+  The "input" and "output" field names are mandatory and cannot be changed. 
+
+Example: Train.jsonl
+
+```
+{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
+{"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
+```
 
 ## Supported Models
 
@@ -240,7 +254,7 @@ python tuning/sft_trainer.py \
 --r 8 \
 --lora_dropout 0.05 \
 --lora_alpha 16 \
---target_modules ["c_attn", "c_proj"]
+--target_modules c_attn c_proj
 ```
 
 Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
@@ -547,7 +561,7 @@ Trainer controller is a framework for controlling the trainer loop using user-de
 
 This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
 
-For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainer_controller/README.md](examples/trainer_controller/README.md)
+For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
 
 ## More Examples
 
