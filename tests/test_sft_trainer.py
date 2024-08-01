@@ -33,6 +33,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
+    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_JSON_FORMAT,
 )
@@ -41,7 +42,6 @@ from tests.data import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 
-MODEL_NAME = "Maykeye/TinyLLama-v0"
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
 )
