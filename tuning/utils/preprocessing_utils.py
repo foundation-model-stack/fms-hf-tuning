@@ -157,12 +157,6 @@ def get_data_collator(
     """
     is_train_data_pretokenized = is_pretokenized_dataset(formatted_train_dataset)
 
-    if is_train_data_pretokenized:
-        return DataCollatorForSeq2Seq(
-            tokenizer=tokenizer,
-            padding=configs.PADDING_STRATEGY_LONGEST,
-            max_length=max_seq_length,
-        )
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
         # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
@@ -179,10 +173,7 @@ def get_data_collator(
             )
         # Note that this automatically pads labels with -100
         # TODO check if this is sufficient for preprocessed
-        if (
-            "attention_mask" in formatted_train_dataset.column_names
-            and "labels" in formatted_train_dataset.column_names
-        ):
+        if is_train_data_pretokenized:
             return DataCollatorForSeq2Seq(
                 tokenizer=tokenizer, padding=True, max_length=max_seq_length
             )
