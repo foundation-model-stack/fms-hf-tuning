@@ -51,9 +51,14 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 
 def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
+    assert isinstance(
+        data_args.training_data_path, str
+    ), "Training data path has to be set and str"
+
     is_train_data_pretokenized = is_pretokenized_dataset(data_args.training_data_path)
     is_eval_data_pretokenized = is_pretokenized_dataset(data_args.validation_data_path)
 
+    ### Data format 1
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
     if is_train_data_pretokenized:
@@ -62,7 +67,7 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
             or data_args.data_formatter_template
             or data_args.dataset_text_field
         ):
-            logger.warning(
+            raise ValueError(
                 "fields response_template, data_formatter_template, and dataset_text_field \
                                 are not applicable for pretokenized datasets"
             )
@@ -78,13 +83,10 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
         # packing wont be available for pretokenized datasets in trl library
         # see: https://github.com/huggingface/trl/issues/1848
         if packing:
-            logger.warning("packing will not be used when datasets are pretokenized")
+            raise ValueError("packing will not be used when datasets are pretokenized")
         return
 
-    assert isinstance(
-        data_args.training_data_path, str
-    ), "Training data path has to be set and str"
-
+    ### Data format 2
     # Dataset containing single sequence needs a response template for masking
     if data_args.dataset_text_field or data_args.data_formatter_template:
         if data_args.response_template is None:
@@ -110,6 +112,7 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
                 but are mutually exclusive options"
             )
 
+    ### Data format 3
     # If not single sequence, JSON should contain input/output fields
     if not (data_args.dataset_text_field or data_args.data_formatter_template):
         json_dataset = datasets.load_dataset(
@@ -125,8 +128,6 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
                 "JSON should contain output field if no dataset_text_field or \
                     data_formatter_template specified"
             )
-    # TODO(s) In future support
-    # Allow pretokenized Dataset besides JSON.
 
 
 def get_data_collator(
