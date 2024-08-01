@@ -28,9 +28,7 @@ from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
 
 # Configure log level
-LOGLEVEL = os.environ.get(
-    "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
-).upper()
+LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
 logging.basicConfig(level=LOGLEVEL)
 logger = logging.getLogger("sft_trainer_preprocessing")
 

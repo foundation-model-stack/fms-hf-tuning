@@ -18,6 +18,7 @@
 # Standard
 import copy
 import json
+import logging
 import os
 import tempfile
 
@@ -727,6 +728,7 @@ def test_run_with_good_experimental_metadata():
         )
 
 
+<<<<<<< Updated upstream
 ### Tests for pretokenized data
 def test_pretokenized_dataset():
     """Ensure that we can provide a pretokenized dataset with input/output format."""
@@ -780,3 +782,61 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+=======
+def test_set_log_level_for_logger_default():
+    """
+    Ensure that the correct log level is being set
+    for python native logger and transformers logger
+    """
+
+    # Set env var TRANSFORMERS_VERBOSITY as None and test
+    os.unsetenv("TRANSFORMERS_VERBOSITY")
+    os.unsetenv("LOG_LEVEL")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
+    train_args = copy.deepcopy(TRAIN_ARGS)
+
+    # TEST IF NO ENV VAR ARE SET AND NO CLI ARGUMENT IS PASSED
+    training_args, logger = sft_trainer.set_log_level(train_args)
+    assert logger.level == logging.WARNING
+    assert training_args.log_level == "warning"
+
+
+def test_set_log_level_for_logger_with_env_var():
+    """
+    Ensure that the correct log level is being set
+    for python native logger and transformers logger
+    """
+
+    os.unsetenv("TRANSFORMERS_VERBOSITY")
+    os.unsetenv("LOG_LEVEL")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
+    train_args = copy.deepcopy(TRAIN_ARGS)
+
+    # TEST IF LOG_LEVEL ENV VAR IS SET AND NO CLI ARGUMENT IS PASSED
+    os.environ["LOG_LEVEL"] = "info"
+    training_args, logger = sft_trainer.set_log_level(train_args)
+    assert logger.level == logging.INFO
+    assert training_args.log_level == "info"
+
+
+def test_set_log_level_for_logger_with_env_var_and_cli():
+    """
+    Ensure that the correct log level is being set
+    for python native logger and transformers logger
+    """
+
+    os.unsetenv("TRANSFORMERS_VERBOSITY")
+    os.unsetenv("LOG_LEVEL")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
+    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
+    train_args = copy.deepcopy(TRAIN_ARGS)
+
+    # TEST IF LOG_LEVEL ENV VAR IS SET AND --log_level CLI ARGUMENT IS PASSED
+    os.environ["LOG_LEVEL"] = "info"
+    train_args.log_level = "error"
+    training_args, logger = sft_trainer.set_log_level(train_args)
+    assert logger.level == logging.ERROR
+    assert training_args.log_level == "error"
+>>>>>>> Stashed changes

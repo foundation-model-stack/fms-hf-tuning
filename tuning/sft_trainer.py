@@ -461,6 +461,43 @@ def parse_arguments(parser, json_config=None):
     )
 
 
+def set_log_level(parsed_training_args):
+    """Set log level of python native logger and TF logger via argument from CLI or env variable.
+
+    Args:
+        parsed_training_args
+            Training arguments for training model.
+    """
+
+    # Clear any existing handlers if necessary
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    # Configure Python native logger log level
+    # If CLI arg is passed, assign same log level to python native logger
+    if parsed_training_args.log_level != "passive":
+        logging.basicConfig(level=parsed_training_args.log_level.upper())
+    else:
+        # Assign value of either env var LOG_LEVEL or warning
+        LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+        logging.basicConfig(level=LOGLEVEL)
+        train_logger = logging.getLogger()
+
+    # Check if env var TRANSFORMERS_VERBOSITY is not set.
+    # Else if env var is already set then, log level of transformers is automatically set.
+    if os.environ.get("TRANSFORMERS_VERBOSITY") is None:
+
+        # Check if "--log_level" CLI argument is not used (passive/warning is the default log level)
+        if parsed_training_args.log_level == "passive":
+            LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+
+            # Set log_level in TrainingArguments
+            parsed_training_args.log_level = LOGLEVEL.lower()
+
+    train_logger = logging.getLogger()
+    return parsed_training_args, train_logger
+
+
 def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
     job_config = get_json_config()
@@ -479,24 +516,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
-        # Configure log level:
-        # If log_level is "passive" (not set by cli), then check environment variable.
-        # First check TRANSFORMERS_VERBOSITY and then Fallback to check LOG_LEVEL.
-        # If both env var is not set, then assign "WARNING" as default.
-        if training_args.log_level == "passive":
-            LOGLEVEL = os.environ.get(
-                "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
-            ).upper()
-
-            # If log_level is set by environment variable, assign the transformers log_level value
-            # along with log level value of python logger
-            # OR else set both as default value ("warning")
-            logging.basicConfig(level=LOGLEVEL)
-            training_args.log_level = LOGLEVEL.lower()
-
-        # If log_level is set using cli argument, set same value to log level of python logger
-        else:
-            logging.basicConfig(level=training_args.log_level.upper())
+        # Function to set log level for python native logger and transformers training logger
+        training_args, _ = set_log_level(training_args)
 
         logging.debug(
             "Input args parsed: \

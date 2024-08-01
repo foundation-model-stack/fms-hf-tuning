@@ -77,15 +77,13 @@ def main():
             or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
             )
 
-        # Get log_level to be applied and Configure it.
+        # Configure log_level of python native logger.
         LOGLEVEL = None
         if "log_level" in job_config and job_config["log_level"]:
             LOGLEVEL = job_config["log_level"].upper()
             logging.basicConfig(level=LOGLEVEL)
         else:
-            LOGLEVEL = os.environ.get(
-                "TRANSFORMERS_VERBOSITY", os.environ.get("LOG_LEVEL", "WARNING")
-            ).upper()
+            LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
             logging.basicConfig(level=LOGLEVEL)
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)
@@ -117,14 +115,10 @@ def main():
             updated_args = serialize_args(job_config)
             os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = updated_args
 
-            # LAUNCH COMMAND ALWAYS TAKES LOG LEVEL FROM ENV VAR EVEN THOUGH, \
-            # CODE LOGIC IN SFTTRAINER.PY TELLS TO TAKE FROM CLI.
-            # HENCE ITS BETTER TO MODIFY ENV VAR HERE AND ASSIGN THE VALUE BASED ON CODE LOGIC HERE,
-            # THEREFORE APPLYING THIS LOG LEVEL TO WHOLE TUNING JOB AND PYTHON NATIVE LOGGING
-            if os.environ.get("TRANSFORMERS_VERBOSITY"):
-                os.environ["TRANSFORMERS_VERBOSITY"] = LOGLEVEL.lower()
-            else:
-                os.environ["LOG_LEVEL"] = LOGLEVEL
+            # Configure for Image to get log level as the code after
+            # launch_command only takes log level from env var LOG_LEVEL and not CLI
+            os.environ["LOG_LEVEL"] = LOGLEVEL
+
             launch_command(args)
         except subprocess.CalledProcessError as e:
             # If the subprocess throws an exception, the base exception is hidden in the

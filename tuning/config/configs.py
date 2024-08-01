@@ -137,7 +137,7 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
     log_level: str = field(
-        default="warning",
+        default="passive",
         metadata={
             "help": "The log level to adopt during training. \
             Possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
