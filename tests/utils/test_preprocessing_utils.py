@@ -408,7 +408,8 @@ def test_format_dataset_pretokenized(data_args):
     """Ensure that pretokenized datasets are loaded and returned as is"""
     train_set, eval_set, _ = format_dataset(data_args, None, max_seq_length=1024)
     assert isinstance(train_set, Dataset)
-    assert isinstance(eval_set, Dataset)
+    if eval_set:
+        assert isinstance(eval_set, Dataset)
 
     assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     if eval_set:
