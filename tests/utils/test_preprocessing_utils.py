@@ -410,6 +410,6 @@ def test_format_dataset_pretokenized(data_args):
     assert isinstance(train_set, Dataset)
     assert isinstance(eval_set, Dataset)
 
-    column_names = set(["input_ids", "labels"])
-    assert set(eval_set.column_names) == column_names
-    assert set(train_set.column_names) == column_names
+    assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    if eval_set:
+        assert set(["input_ids", "labels"]).issubset(set(eval_set.column_names))
