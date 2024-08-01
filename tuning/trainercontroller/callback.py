@@ -18,7 +18,6 @@
 # Standard
 from typing import Dict, List, Union
 import inspect
-import logging
 import os
 import re
 
@@ -30,6 +29,7 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
+from transformers.utils import logging
 import yaml
 
 # Local
@@ -45,10 +45,7 @@ from tuning.trainercontroller.operations import (
 from tuning.trainercontroller.patience import PatienceControl
 from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
-# Configure log level
-LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=LOGLEVEL)
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 # Configuration keys
 CONTROLLER_METRICS_KEY = "controller_metrics"

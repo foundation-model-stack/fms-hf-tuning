@@ -781,6 +781,8 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+
+
 def test_set_log_level_for_logger_default():
     """
     Ensure that the correct log level is being set
