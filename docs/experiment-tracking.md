@@ -8,7 +8,7 @@ with the name of the enabled trackers passed as a list.
 ```
 from tuning import sft_trainer
 
-training_args = new TrainingArguments(
+training_args = TrainingArguments(
     ...,
     trackers = ["aim", "file_logger"]
 )
@@ -20,7 +20,6 @@ For each of the requested trackers the code expects you to pass a config to the 
 
 
 
-The list of available trackers and their details are as follows  
 
 ## Tracker Configurations
 
@@ -28,7 +27,7 @@ The list of available trackers and their details are as follows
 
 [File Logger](../tuning/trackers/filelogging_tracker.py) is an inbuilt tracker which can be used to dump loss at every log interval to a file.  
 
-Currently File Logger is enabled by default and will dump loss at every log interval of a training to a default file path specified [here](../tuning/config/tracker_configs.py) inside the output folder passed during training.  
+Currently `File Logger` is enabled by default and will dump loss at every log interval of a training to a default file path specified [here](../tuning/config/tracker_configs.py) inside the output folder passed during training.  
 
 To override the location of file logger please pass an instance of the [FileLoggingTrackerConfig](../tuning/config/tracker_configs.py) to `tracker_configs` argument.  
 
@@ -36,7 +35,7 @@ To override the location of file logger please pass an instance of the [FileLogg
 from tuning import sft_trainer
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
-training_args = new TrainingArguments(
+training_args = TrainingArguments(
     ...,
     trackers = ["file_logger"]
 )
@@ -57,7 +56,7 @@ Currently File Logging tacker supports only one argument and this file will be p
 
 ## Aimstack Tracker
 
-To enable [Aim](https://aimstack.io) users need to pass `"aim"` as the requested tracker.
+To enable [Aim](https://aimstack.io) users need to pass `"aim"` as the requested tracker as part of the [training argument](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/configs.py#L131).
 
 
 When using Aimstack, users need to specify additional arguments which specify where the Aimstack database is present and what experiment name to use
@@ -70,13 +69,13 @@ See Aim [documentation](https://aimstack.readthedocs.io/en/latest/using/remote_t
 After [initialising a repo](https://aimstack.readthedocs.io/en/latest/quick_start/setup.html#initializing-aim-repository), users can specify the location of the
 repo either local or remote.
 
-For a local aim database where `aim_repo` should point to the path of where the initiased Aimstack repo is present,  
+For a local aim database where `aim_repo` should point to the path of where the initialized Aimstack repo is present,
 
 ```
 from tuning import sft_trainer
 from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
 
-training_args = new TrainingArguments(
+training_args = TrainingArguments(
     ...,
     trackers = ["aim"],
 )
@@ -84,7 +83,7 @@ training_args = new TrainingArguments(
 tracker_configs = TrackerConfigFactory(
     aim_config=AimConfig(
         experiment="experiment-name",
-        aim_repo=<path to the repo>
+        aim_repo=<path_to_the_repo>
         )
     )
 
@@ -97,7 +96,7 @@ sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....
 from tuning import sft_trainer
 from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
 
-training_args = new TrainingArguments(
+training_args = TrainingArguments(
     ...,
     trackers = ["aim"],
 )
@@ -105,8 +104,8 @@ training_args = new TrainingArguments(
 tracker_configs = TrackerConfigFactory(
     aim_config=AimConfig(
         experiment="experiment-name",
-        aim_remote_server_ip=<url of the server>,
-        aim_remote_server_port=<port of the server>
+        aim_remote_server_ip=<server_url>,
+        aim_remote_server_port=<server_port>
         )
     )
 

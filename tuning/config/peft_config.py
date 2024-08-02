@@ -46,7 +46,7 @@ class LoraConfig:
     r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
-        default_factory=lambda: ["q_proj", "v_proj"],
+        default=None,
         metadata={
             "help": "The names of the modules to apply LORA to. LORA selects modules which either \
             completely match or "

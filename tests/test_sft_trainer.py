@@ -37,6 +37,7 @@ from tests.data import (
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
@@ -163,9 +164,6 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -196,9 +194,6 @@ def test_run_causallm_pt_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -237,9 +232,6 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -414,6 +406,39 @@ def test_run_causallm_ft_and_inference():
     with tempfile.TemporaryDirectory() as tempdir:
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
         _test_run_inference(tempdir=tempdir)
+
+
+def test_run_causallm_ft_pretokenized():
+    """Check if we can bootstrap and finetune causallm models using pretokenized data"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # below args not needed for pretokenized data
+        data_formatting_args.data_formatter_template = None
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.response_template = None
+
+        # update the training data path to tokenized data
+        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
 ############################# Helper functions #############################

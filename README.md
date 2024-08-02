@@ -49,7 +49,7 @@ If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/
 ```
 pip install fms-hf-tuning[fms-accel]
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
 
 ### Using Experiment Trackers
 
@@ -57,7 +57,7 @@ To use experiment tracking with popular tools like [Aim](https://github.com/aimh
 ```
 pip install fms-hf-tuning[aim]
 ```
-For more details on how to enable and use the trackers, Please see, [the section below](#experiment-tracking).
+For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data format
 We support the following data formats:
@@ -580,10 +580,11 @@ Experiment tracking in fms-hf-tuning allows users to track their experiments wit
 [FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
 The code supports currently two trackers out of the box, 
-* FileLoggingTracker : A built in tracker which supports logging training loss to a file.
+* `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
 * Aimstack : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
 
-Further details about how you can enable and use the trackers mentioned above can be found inside [experiment-tracking.md](docs/experiment-tracking.md).
+Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
+
 
 ## More Examples
 
