@@ -22,6 +22,7 @@ import yaml
 
 # Local
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
+from .instruct_lab_config import PaddingFree
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
 
@@ -95,6 +96,15 @@ class AccelerationFrameworkConfig:
             key="fused_ops_and_kernels",
             experimental=True,
             required_packages=["foak"],
+        ),
+    ] = None
+
+    padding_free: Annotated[
+        PaddingFree,
+        ConfigAnnotation(
+            path="training.attention",
+            experimental=True,
+            required_packages=["ilab"],
         ),
     ] = None
 

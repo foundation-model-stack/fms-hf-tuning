@@ -27,6 +27,7 @@ import torch
 from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, PEFT_LORA_ARGS, TRAIN_ARGS
 
 # Local
+from ..data import TWITTER_COMPLAINTS_JSON_FORMAT, TWITTER_COMPLAINTS_TOKENIZED
 from .spying_utils import create_mock_plugin_class_and_spy
 from tuning import sft_trainer
 from tuning.config.acceleration_configs import (
@@ -41,6 +42,10 @@ from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
 )
+from tuning.config.acceleration_configs.instruct_lab_config import (
+    InstructLabConfig,
+    PaddingFree,
+)
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
     BNBQLoraConfig,
@@ -51,7 +56,10 @@ from tuning.utils.import_utils import is_fms_accelerate_available
 if is_fms_accelerate_available():
 
     # Third Party
-    from fms_acceleration.utils.test_utils import build_framework_and_maybe_instantiate
+    from fms_acceleration.utils.test_utils import (
+        build_framework_and_maybe_instantiate,
+        instantiate_model_patcher,
+    )
 
     if is_fms_accelerate_available(plugins="peft"):
         # Third Party
@@ -63,6 +71,10 @@ if is_fms_accelerate_available():
     if is_fms_accelerate_available(plugins="foak"):
         # Third Party
         from fms_acceleration_foak import FastQuantizedPeftAccelerationPlugin
+
+    if is_fms_accelerate_available(plugins="ilab"):
+        # Third Party
+        from fms_acceleration_ilab import PaddingFreeAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -351,6 +363,8 @@ def test_framework_intialized_properly_peft(
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
         train_args.fp16 = True
+        peft_args = copy.deepcopy(PEFT_LORA_ARGS)
+        peft_args.target_modules = ["q_proj", "k_proj"]
 
         installation_path, (MockedPlugin, spy) = mock_and_spy
 
@@ -361,13 +375,14 @@ def test_framework_intialized_properly_peft(
             [([installation_path], MockedPlugin)],
             instantiate=False,
         ):
-            sft_trainer.train(
-                model_args,
-                DATA_ARGS,
-                train_args,
-                PEFT_LORA_ARGS,
-                quantized_lora_config=quantized_lora_config,
-            )
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    DATA_ARGS,
+                    train_args,
+                    peft_args,
+                    quantized_lora_config=quantized_lora_config,
+                )
 
         # spy inside the train to ensure that the acceleration plugin
         # was called. In the context of the AutoGPTQ plugin
@@ -399,6 +414,8 @@ def test_framework_intialized_properly_foak():
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
         train_args.fp16 = True
+        peft_args = copy.deepcopy(PEFT_LORA_ARGS)
+        peft_args.target_modules = ["q_proj", "k_proj"]
 
         # setup default quantized lora args dataclass
         # - with auth gptq as the quantized method
@@ -428,14 +445,15 @@ def test_framework_intialized_properly_foak():
             ],
             instantiate=False,
         ):
-            sft_trainer.train(
-                model_args,
-                DATA_ARGS,
-                train_args,
-                PEFT_LORA_ARGS,
-                quantized_lora_config=quantized_lora_config,
-                fusedops_kernels_config=fusedops_kernels_config,
-            )
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    DATA_ARGS,
+                    train_args,
+                    peft_args,
+                    quantized_lora_config=quantized_lora_config,
+                    fusedops_kernels_config=fusedops_kernels_config,
+                )
 
         # spy inside the train to ensure that the AutoGPTQ plugin is called
         assert spy["model_loader_calls"] == 1
@@ -446,3 +464,111 @@ def test_framework_intialized_properly_foak():
         assert spy2["model_loader_calls"] == 0
         assert spy2["augmentation_calls"] == 1
         assert spy2["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="ilab"),
+    reason="Only runs if fms-accelerate is installed along with instruct-lab plugin",
+)
+def test_framework_initialize_and_trains_with_ilab():
+    """
+    Ensure that a properly configured ilab dataclass is
+    correctly activated in train.
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+        data_args.response_template = None
+        data_args.dataset_text_field = None
+
+        # initialize a config
+        instruct_lab_config = InstructLabConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "PaddingFreeMock", PaddingFreeAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.attention.padding_free"], MockedPlugin1),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    instruct_lab_config=instruct_lab_config,
+                )
+
+        # spy inside the train to ensure that the ilab plugin is called
+        assert spy["model_loader_calls"] == 0
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="ilab"),
+    reason="Only runs if fms-accelerate is installed along with instruct-lab plugin",
+)
+def test_padding_free_plugin_raises_error_with_untokenized_dataset():
+    """
+    Currently sft_trainer uses DataCollatorForCompletionOnlyLM for unformatted,
+    untokenized datasets. It uses a DataCollatorForSeq2Seq as default for pretokenized
+    datasets.
+    Ensure that padding free plugin will raise an error when an untokenized
+    dataset is passed to the padding-free plugin when it checks the data collator.
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n### Response:"
+        data_args.dataset_text_field = "output"
+
+        # initialize a config
+        instruct_lab_config = InstructLabConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
+
+        with pytest.raises(
+            TypeError,
+            match="The padding-free plugin currently only works with a \
+                    `DataCollatorForSeq2Seq` collate_fn",
+        ):
+            with build_framework_and_maybe_instantiate(
+                [
+                    (
+                        ["training.attention.padding_free"],
+                        PaddingFreeAccelerationPlugin,
+                    ),
+                ],
+                instantiate=False,
+            ):
+                with instantiate_model_patcher():
+                    sft_trainer.train(
+                        model_args,
+                        data_args,
+                        train_args,
+                        instruct_lab_config=instruct_lab_config,
+                    )

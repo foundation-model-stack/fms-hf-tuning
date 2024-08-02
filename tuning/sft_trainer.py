@@ -45,6 +45,7 @@ from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
     FusedOpsAndKernelsConfig,
+    InstructLabConfig,
     QuantizedLoraConfig,
 )
 from tuning.config.tracker_configs import (
@@ -86,6 +87,7 @@ def train(
     exp_metadata: Optional[Dict] = None,
     quantized_lora_config: Optional[QuantizedLoraConfig] = None,
     fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
+    instruct_lab_config: Optional[InstructLabConfig] = None,
 ):
     """Call the SFTTrainer
 
@@ -113,6 +115,7 @@ def train(
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
+        instruct_lab_config: Used for padding free and multipack.
     """
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
@@ -178,7 +181,7 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
-        quantized_lora_config, fusedops_kernels_config
+        quantized_lora_config, fusedops_kernels_config, instruct_lab_config
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
@@ -369,7 +372,7 @@ def train(
         )
 
     if framework is not None:
-        accelerator = None if not is_accelerate_available else trainer.accelerator
+        accelerator = None if not is_accelerate_available() else trainer.accelerator
 
         # ready for train may produce additional callbacks for the trainer
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
@@ -436,6 +439,7 @@ def get_parser():
             AimConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
+            InstructLabConfig,
         )
     )
     parser.add_argument(
@@ -482,6 +486,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
             Configuration for fused operations and kernels.
+        InstructLabConfig
+            Configuration for padding free and packing.
         dict[str, str]
             Extra AIM metadata.
     """
@@ -497,6 +503,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            instruct_lab_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -512,6 +519,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            instruct_lab_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -536,6 +544,7 @@ def parse_arguments(parser, json_config=None):
         aim_config,
         quantized_lora_config,
         fusedops_kernels_config,
+        instruct_lab_config,
         exp_metadata,
     )
 
@@ -556,6 +565,7 @@ def main():
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            instruct_lab_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
@@ -567,7 +577,7 @@ def main():
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            exp_metadata %s",
+            instruct_lab_config %s exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -577,6 +587,7 @@ def main():
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
+            instruct_lab_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -618,6 +629,7 @@ def main():
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
+            instruct_lab_config=instruct_lab_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())
