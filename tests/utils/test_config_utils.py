@@ -52,10 +52,9 @@ def test_get_hf_peft_config_returns_lora_config_correctly():
     assert (
         config.lora_dropout == 0.05
     )  # default value from local peft_config.LoraConfig
-    assert config.target_modules == {
-        "q_proj",
-        "v_proj",
-    }  # default value from local peft_config.LoraConfig
+    assert (
+        config.target_modules is None
+    )  # default value from local peft_config.LoraConfig
     assert config.init_lora_weights is True  # default value from HF peft.LoraConfig
     assert (
         config.megatron_core == "megatron.core"

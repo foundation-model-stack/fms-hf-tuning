@@ -11,6 +11,7 @@ from tests.data import (
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
@@ -21,6 +22,7 @@ from tuning.utils.preprocessing_utils import (
     get_data_collator,
     get_formatted_dataset_with_single_sequence,
     get_preprocessed_dataset,
+    is_pretokenized_dataset,
     load_hf_dataset_from_jsonl_file,
     validate_data_args,
 )
@@ -175,6 +177,29 @@ def test_get_data_collator(
     assert isinstance(collator, expected_collator)
 
 
+@pytest.mark.parametrize(
+    "data, result",
+    [
+        (TWITTER_COMPLAINTS_DATA, False),
+        (
+            Dataset.from_list(
+                [
+                    {
+                        "input_ids": [9437, 29, 210],
+                        "attention_mask": [1, 1, 1],
+                        "labels": [1, 20, 30],
+                    }
+                ]
+            ),
+            True,
+        ),
+    ],
+)
+def test_is_pretokenized_dat(data, result):
+    """Ensure that the correct collator type is fetched based on the data args"""
+    assert is_pretokenized_dataset(data=data) == result
+
+
 # Tests for validating data args
 # Invalid args return ValueError
 @pytest.mark.parametrize(
@@ -211,12 +236,85 @@ def test_get_data_collator(
             ),
             False,
         ),
+        # pretokenized dataset with dataset_text_field
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                dataset_text_field="output",
+            ),
+            False,
+        ),
+        # pretokenized dataset with data formatter
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                data_formatter_template="### Input: {{input}} \n\n### Response: {{output}}",
+            ),
+            False,
+        ),
+        # pretokenized dataset with response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                response_template="\n### Label:",
+            ),
+            False,
+        ),
+        # pretokenized training dataset with validation data not pretokenized
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_DATA,
+            ),
+            False,
+        ),
+        # pretokenized data with dataset_text_field and response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                response_template="\n### Label:",
+                dataset_text_field="output",
+            ),
+            False,
+        ),
+        # pretokenized data with packing to True
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            True,
+        ),
     ],
 )
 def test_validate_args(data_args, packing):
     """Ensure that respective errors are thrown for incorrect data arguments"""
     with pytest.raises(ValueError):
         validate_data_args(data_args, packing)
+
+
+@pytest.mark.parametrize(
+    "data_args, packing",
+    [
+        # pretokenized train dataset and no validation dataset passed
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            False,
+        ),
+        # pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            ),
+            False,
+        ),
+    ],
+)
+def test_validate_args_pretokenized(data_args, packing):
+    """Ensure that supported data args do not error out when passing pretokenized datasets"""
+    validate_data_args(data_args, packing)
 
 
 @pytest.mark.parametrize(
@@ -286,3 +384,33 @@ def test_format_dataset(data_args):
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
+
+
+@pytest.mark.parametrize(
+    "data_args",
+    [
+        # pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            )
+        ),
+        # pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED,
+            )
+        ),
+    ],
+)
+def test_format_dataset_pretokenized(data_args):
+    """Ensure that pretokenized datasets are loaded and returned as is"""
+    train_set, eval_set, _ = format_dataset(data_args, None, max_seq_length=1024)
+    assert isinstance(train_set, Dataset)
+    if eval_set:
+        assert isinstance(eval_set, Dataset)
+
+    assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    if eval_set:
+        assert set(["input_ids", "labels"]).issubset(set(eval_set.column_names))

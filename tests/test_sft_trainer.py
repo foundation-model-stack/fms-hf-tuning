@@ -38,6 +38,7 @@ from tests.data import (
     TWITTER_COMPLAINTS_DATA,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
@@ -164,9 +165,6 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -179,11 +177,9 @@ def test_run_causallm_pt_and_inference():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
+
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -197,9 +193,6 @@ def test_run_causallm_pt_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -220,11 +213,8 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -238,9 +228,6 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -259,11 +246,8 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -294,11 +278,8 @@ def test_run_causallm_pt_init_text():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
 
@@ -358,6 +339,20 @@ def test_run_causallm_pt_with_validation_data_formatting():
         _validate_training(tempdir, check_eval=True)
 
 
+def test_run_causallm_pt_with_custom_tokenizer():
+    """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = model_args.model_name_or_path
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        with pytest.raises(ValueError):
+            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
+
+
 ############################# Lora Tests #############################
 
 target_modules_val_map = [
@@ -415,6 +410,39 @@ def test_run_causallm_ft_and_inference():
     with tempfile.TemporaryDirectory() as tempdir:
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
         _test_run_inference(tempdir=tempdir)
+
+
+def test_run_causallm_ft_pretokenized():
+    """Check if we can bootstrap and finetune causallm models using pretokenized data"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # below args not needed for pretokenized data
+        data_formatting_args.data_formatter_template = None
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.response_template = None
+
+        # update the training data path to tokenized data
+        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
 ############################# Helper functions #############################

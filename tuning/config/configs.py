@@ -51,14 +51,14 @@ class ModelArguments:
     tokenizer_name_or_path: Optional[str] = field(
         default=None,
         metadata={
-            "help": "Path to custom tokenizer.\
-                    If not provided it defaults to model_name_or_path"
+            "help": "Path to custom tokenizer. \
+                If not provided it defaults to model_name_or_path \
+                and special tokens will be added as needed for specific tokenizer classes. \
+                For prompt tuning, if tokenizer_name_or_path provided, special tokens are not added, \
+                otherwise, it defaults to model_name_or_path with special tokens for specific \
+                tokenizer classes."
         },
     )
-
-    def __post_init__(self):
-        if not self.tokenizer_name_or_path:
-            self.tokenizer_name_or_path = self.model_name_or_path
 
 
 @dataclass
