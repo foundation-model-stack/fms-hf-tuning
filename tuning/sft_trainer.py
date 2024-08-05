@@ -515,7 +515,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"Exception raised during training. This may be a problem with your input: {e}"
         )
