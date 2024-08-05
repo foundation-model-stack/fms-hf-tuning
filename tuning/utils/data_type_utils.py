@@ -15,7 +15,6 @@
 # Standard
 from typing import Union
 import logging
-import os
 
 # Third Party
 import torch

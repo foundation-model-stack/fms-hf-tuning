@@ -18,7 +18,6 @@
 # Standard
 from typing import Any
 import logging
-import os
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler

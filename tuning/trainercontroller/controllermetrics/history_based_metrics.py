@@ -19,7 +19,6 @@
 from collections import deque
 from typing import Any
 import logging
-import os
 
 # Third Party
 from transformers import TrainerState

@@ -17,7 +17,6 @@
 
 # Standard
 import logging
-import os
 
 # Resets the patience if the rule outcome happens to be false.
 # Here, the expectation is to have unbroken "True"s for patience

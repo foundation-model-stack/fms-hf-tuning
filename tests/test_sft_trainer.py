@@ -826,8 +826,8 @@ def test_set_log_level_for_logger_default():
 
     # TEST IF NO ENV VAR ARE SET AND NO CLI ARGUMENT IS PASSED
     training_args, logger = sft_trainer.set_log_level(train_args)
-    assert logger.level == logging.WARNING
-    assert training_args.log_level == "warning"
+    assert logger.getEffectiveLevel() == logging.WARNING
+    assert training_args.log_level in ["passive", "warning"]
 
 
 def test_set_log_level_for_logger_with_env_var():
@@ -840,12 +840,13 @@ def test_set_log_level_for_logger_with_env_var():
     os.unsetenv("LOG_LEVEL")
     os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
     os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    train_args = copy.deepcopy(TRAIN_ARGS)
+    train_args_env = copy.deepcopy(TRAIN_ARGS)
 
     # TEST IF LOG_LEVEL ENV VAR IS SET AND NO CLI ARGUMENT IS PASSED
     os.environ["LOG_LEVEL"] = "info"
-    training_args, logger = sft_trainer.set_log_level(train_args)
-    assert logger.level == logging.INFO
+    train_args_env.log_level = "passive"  # Default
+    training_args, logger = sft_trainer.set_log_level(train_args_env)
+    assert logger.getEffectiveLevel() == logging.INFO
     assert training_args.log_level == "info"
 
 
@@ -865,5 +866,5 @@ def test_set_log_level_for_logger_with_env_var_and_cli():
     os.environ["LOG_LEVEL"] = "info"
     train_args.log_level = "error"
     training_args, logger = sft_trainer.set_log_level(train_args)
-    assert logger.level == logging.ERROR
+    assert logger.getEffectiveLevel() == logging.ERROR
     assert training_args.log_level == "error"

@@ -532,7 +532,6 @@ def main(**kwargs):  # pylint: disable=unused-argument
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        # training_args, logger = set_log_level(training_args, "sft_trainer_main")
         training_args, logger = set_log_level(training_args)
 
         logger.debug(

@@ -15,7 +15,6 @@
 # Standard
 import dataclasses
 import logging
-import os
 
 # Third Party
 from transformers.utils.import_utils import _is_package_available
