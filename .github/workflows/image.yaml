@@ -13,3 +13,10 @@ jobs:
       - name: Build image
         run: |
           docker build -t fms-hf-tuning:dev . -f build/Dockerfile
+      - name: Free disk space
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
