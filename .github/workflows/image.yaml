@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build image
-        run: |
-          docker build -t fms-hf-tuning:dev . -f build/Dockerfile
       - name: Free disk space
         run: |
           sudo swapoff -a
@@ -20,3 +17,7 @@ jobs:
           sudo apt clean
           docker rmi $(docker image ls -aq)
           df -h
+      - name: Build image
+        run: |
+          docker build -t fms-hf-tuning:dev . -f build/Dockerfile
+          
