@@ -113,6 +113,8 @@ def train(
             fused_lora and fast_kernels must used together (may change in future). \
     """
 
+    train_args, logger = set_log_level(train_args, "sft_trainer_train")
+
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
@@ -232,9 +234,9 @@ def train(
             )
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
-    logging.info("Max sequence length is %s", max_seq_length)
+    logger.info("Max sequence length is %s", max_seq_length)
     if train_args.max_seq_length > tokenizer.model_max_length:
-        logging.warning(
+        logger.warning(
             "max_seq_length %s exceeds tokenizer.model_max_length \
             %s, using tokenizer.model_max_length %s",
             train_args.max_seq_length,
@@ -270,11 +272,11 @@ def train(
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     if train_args.packing:
-        logging.info("Packing is set to True")
+        logger.info("Packing is set to True")
         data_collator = None
         packing = True
     else:
-        logging.info("Packing is set to False")
+        logger.info("Packing is set to False")
         packing = False
 
     # Validate if data args are set properly
@@ -339,7 +341,7 @@ def train(
                     tracker.track(metric=v, name=k, stage="additional_metrics")
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
             except ValueError as e:
-                logging.error(
+                logger.error(
                     "Exception while saving additional metrics and metadata %s",
                     repr(e),
                 )
@@ -477,7 +479,7 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def set_log_level(parsed_training_args):
+def set_log_level(parsed_training_args, logger_name=__name__):
     """Set log level of python native logger and TF logger via argument from CLI or env variable.
 
     Args:
@@ -489,28 +491,25 @@ def set_log_level(parsed_training_args):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    # Configure Python native logger log level
+    # Configure Python native logger and transformers log level
     # If CLI arg is passed, assign same log level to python native logger
+    log_level = "WARNING"
     if parsed_training_args.log_level != "passive":
-        logging.basicConfig(level=parsed_training_args.log_level.upper())
-    else:
-        # Assign value of either env var LOG_LEVEL or warning
-        LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-        logging.basicConfig(level=LOGLEVEL)
-        train_logger = logging.getLogger()
+        log_level = parsed_training_args.log_level
 
-    # Check if env var TRANSFORMERS_VERBOSITY is not set.
-    # Else if env var is already set then, log level of transformers is automatically set.
-    if os.environ.get("TRANSFORMERS_VERBOSITY") is None:
+    # If CLI arg not is passed and env var LOG_LEVEL is set,
+    # assign same log level to both logger
+    elif os.environ.get("LOG_LEVEL"):  # AND parsed_training_args.log_level == "passive"
+        log_level = os.environ.get("LOG_LEVEL")
+        parsed_training_args.log_level = (
+            log_level.lower()
+            if not os.environ.get("TRANSFORMERS_VERBOSITY")
+            else os.environ.get("TRANSFORMERS_VERBOSITY")
+        )
 
-        # Check if "--log_level" CLI argument is not used (passive/warning is the default log level)
-        if parsed_training_args.log_level == "passive":
-            LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
+    logging.basicConfig(level=log_level.upper())
 
-            # Set log_level in TrainingArguments
-            parsed_training_args.log_level = LOGLEVEL.lower()
-
-    train_logger = logging.getLogger()
+    train_logger = logging.getLogger(logger_name)
     return parsed_training_args, train_logger
 
 
@@ -533,9 +532,10 @@ def main(**kwargs):  # pylint: disable=unused-argument
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, _ = set_log_level(training_args)
+        # training_args, logger = set_log_level(training_args, "sft_trainer_main")
+        training_args, logger = set_log_level(training_args)
 
-        logging.debug(
+        logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
@@ -553,7 +553,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"Exception raised during training. This may be a problem with your input: {e}"
         )
@@ -565,12 +565,12 @@ def main(**kwargs):  # pylint: disable=unused-argument
         try:
             metadata = json.loads(exp_metadata)
             if metadata is None or not isinstance(metadata, Dict):
-                logging.warning(
+                logger.warning(
                     "metadata cannot be converted to simple k:v dict ignoring"
                 )
                 metadata = None
         except ValueError as e:
-            logging.error(
+            logger.error(
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
@@ -593,27 +593,27 @@ def main(**kwargs):  # pylint: disable=unused-argument
             fusedops_kernels_config=fusedops_kernels_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(f"OOM error during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
     except FileNotFoundError as e:
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log("Unable to load file: {}".format(e))
         sys.exit(USER_ERROR_EXIT_CODE)
     except HFValidationError as e:
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"There may be a problem with loading the model. Exception: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
     except (TypeError, ValueError, EnvironmentError) as e:
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"Exception raised during training. This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
     except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 

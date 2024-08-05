@@ -78,13 +78,20 @@ def main():
             )
 
         # Configure log_level of python native logger.
-        LOGLEVEL = None
-        if "log_level" in job_config and job_config["log_level"]:
-            LOGLEVEL = job_config["log_level"].upper()
-            logging.basicConfig(level=LOGLEVEL)
-        else:
-            LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-            logging.basicConfig(level=LOGLEVEL)
+        log_level = job_config.get(
+            "log_level"
+        )  # this will be set to either the value found or None
+        if (
+            not log_level
+        ):  # if log level not set by job_config aka by JSON, set it via env var or set default
+            log_level = os.environ.get("LOG_LEVEL", "WARNING")
+        log_level = log_level.upper()
+        logging.basicConfig(level=log_level)
+
+        # Configure for Image to get log level as the code after
+        # launch_command only takes log level from env var LOG_LEVEL and not CLI
+        os.environ["LOG_LEVEL"] = log_level
+
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)
     except FileNotFoundError as e:
@@ -114,11 +121,6 @@ def main():
             job_config["output_dir"] = tempdir
             updated_args = serialize_args(job_config)
             os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = updated_args
-
-            # Configure for Image to get log level as the code after
-            # launch_command only takes log level from env var LOG_LEVEL and not CLI
-            os.environ["LOG_LEVEL"] = LOGLEVEL
-
             launch_command(args)
         except subprocess.CalledProcessError as e:
             # If the subprocess throws an exception, the base exception is hidden in the

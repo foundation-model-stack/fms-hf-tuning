@@ -24,8 +24,6 @@ import os
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
 # Configure log level
-LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=LOGLEVEL)
 logger = logging.getLogger(__name__)
 
 

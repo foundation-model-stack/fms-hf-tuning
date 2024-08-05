@@ -98,9 +98,7 @@ class AimStackTracker(Tracker):
         """
         super().__init__(name="aim", tracker_config=tracker_config)
         # Configure log level
-        LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-        logging.basicConfig(level=LOGLEVEL)
-        self.logger = logging.getLogger("aimstack_tracker")
+        self.logger = logging.getLogger(__name__)
 
     def get_hf_callback(self):
         """Returns the aim.hugging_face.AimCallback object associated with this tracker.

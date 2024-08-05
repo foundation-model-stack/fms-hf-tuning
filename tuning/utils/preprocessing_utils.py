@@ -29,9 +29,7 @@ from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
 
 # Configure log level
-LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=LOGLEVEL)
-logger = logging.getLogger("sft_trainer_preprocessing")
+logger = logging.getLogger(__name__)
 
 # In future we may make the fields configurable
 JSON_INPUT_KEY = "input"

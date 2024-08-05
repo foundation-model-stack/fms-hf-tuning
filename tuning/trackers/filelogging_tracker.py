@@ -81,9 +81,7 @@ class FileLoggingTracker(Tracker):
         """
         super().__init__(name="file_logger", tracker_config=tracker_config)
         # Configure log level
-        LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-        logging.basicConfig(level=LOGLEVEL)
-        self.logger = logging.getLogger("file_logging_tracker")
+        self.logger = logging.getLogger(__name__)
 
     def get_hf_callback(self):
         """Returns the FileLoggingCallback object associated with this tracker.

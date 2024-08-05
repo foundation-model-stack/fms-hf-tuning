@@ -140,7 +140,9 @@ class TrainingArguments(transformers.TrainingArguments):
         default="passive",
         metadata={
             "help": "The log level to adopt during training. \
-            Possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
+            'passive' level which doesn't set anything and keeps the \
+            current log level for the Transformers library (which will be 'warning` by default) \
+            Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
         },
     )
 

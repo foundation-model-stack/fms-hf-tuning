@@ -21,9 +21,7 @@ import os
 import torch
 
 # Configure log level
-LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=LOGLEVEL)
-logger = logging.getLogger("data_utils")
+logger = logging.getLogger(__name__)
 
 
 def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
