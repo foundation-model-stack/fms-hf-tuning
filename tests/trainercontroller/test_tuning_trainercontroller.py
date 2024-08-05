@@ -137,6 +137,7 @@ def test_thresholded_training_loss():
     tc_callback.on_log(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
 
+
 def test_thresholded_training_loss_on_save():
     """Tests the thresholded training loss example in
     `examples/trainer-controller-configs/on-save.yaml`
@@ -147,6 +148,7 @@ def test_thresholded_training_loss_on_save():
     # Trigger rule and test the condition
     tc_callback.on_save(args=test_data.args, state=test_data.states[2], control=control)
     assert control.should_training_stop is True
+
 
 def test_log_controller(caplog):
     """Tests the expose metric scenario example in
@@ -163,6 +165,7 @@ def test_log_controller(caplog):
         args=test_data.args, state=test_data.states[2], control=control
     )
     assert "This is a test log format" in caplog.text
+
 
 def test_non_decreasing_training_loss():
     """Tests the non-decreasing training loss example in
