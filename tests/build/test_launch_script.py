@@ -138,31 +138,6 @@ def test_successful_lora():
         assert os.path.exists(tempdir + "/adapter_config.json") is True
 
 
-def test_successful_lora_target_modules_defaults():
-    """Check if target modules automatically set to their default values"""
-    with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
-        serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
-
-        assert main() == 0
-        # check termination log and .complete files
-        assert os.path.exists(tempdir + "/adapter_config.json") is True
-
-        # Load the adapter_config.json file and check target_modules
-        with open(tempdir + "/adapter_config.json", "r", encoding="utf-8") as f:
-            config = json.load(f)
-
-        assert (
-            "target_modules" in config
-        ), "target_modules not found in adapter_config.json."
-        assert set(config["target_modules"]) == {
-            "q_proj",
-            "v_proj",
-        }, "target_modules are not set to the default values."
-
-
 def test_bad_script_path():
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:

@@ -29,6 +29,7 @@ import torch
 import transformers
 
 # First Party
+from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.data import (
     EMPTY_DATA,
@@ -38,6 +39,10 @@ from tests.data import (
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
     TWITTER_COMPLAINTS_TOKENIZED,
+)
+from tests.build.test_launch_script import (
+    BASE_KWARGS, 
+    BASE_LORA_KWARGS
 )
 
 # Local
@@ -398,6 +403,39 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         )
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that" in output_inference
+
+
+def test_successful_lora_target_modules_default_from_main():
+    """Check that if target_modules is not set, or set to None in KWARGS sent to main, 
+    the default value by model type will be using in training. 
+    We use TRAIN_KWARGS from test_launch_script.py to run training with, which has no 
+    target_modules set. During HF training process, the correct default target modules 
+    will be used for model type Llama and "q_proj", "v_proj" will then exist in the 
+    resulting in adapter_config.json.
+    To see how HF handles target_module defaults: 
+    https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/
+    src/peft/tuners/lora/model.py#L432
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        sft_trainer.main()
+
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        assert (
+            "target_modules" in adapter_config
+        ), "target_modules not found in adapter_config.json."
+
+        assert set(adapter_config.get("target_modules")) == {
+            "q_proj",
+            "v_proj",
+        }, "target_modules are not set to the default values."
 
 
 ############################# Finetuning Tests #############################
