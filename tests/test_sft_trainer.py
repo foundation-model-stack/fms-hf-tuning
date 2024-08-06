@@ -31,7 +31,6 @@ import transformers
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.build.test_launch_script import BASE_LORA_KWARGS
 from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
@@ -46,6 +45,47 @@ from tests.data import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 
+MODEL_NAME = "Maykeye/TinyLLama-v0"
+BASE_KWARGS = {
+    "model_name_or_path": MODEL_NAME,
+    "training_data_path": TWITTER_COMPLAINTS_DATA,
+    "num_train_epochs": 5,
+    "per_device_train_batch_size": 4,
+    "per_device_eval_batch_size": 4,
+    "gradient_accumulation_steps": 4,
+    "learning_rate": 0.00001,
+    "weight_decay": 0,
+    "warmup_ratio": 0.03,
+    "lr_scheduler_type": "cosine",
+    "logging_steps": 1,
+    "include_tokens_per_second": True,
+    "packing": False,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "use_flash_attn": False,
+    "torch_dtype": "float32",
+    "max_seq_length": 4096,
+}
+BASE_PEFT_KWARGS = {
+    **BASE_KWARGS,
+    **{
+        "peft_method": "pt",
+        "prompt_tuning_init": "RANDOM",
+        "num_virtual_tokens": 8,
+        "prompt_tuning_init_text": "hello",
+        "save_strategy": "epoch",
+        "output_dir": "tmp",
+    },
+}
+BASE_LORA_KWARGS = {
+    **BASE_KWARGS,
+    **{
+        "peft_method": "lora",
+        "r": 8,
+        "lora_alpha": 32,
+        "lora_dropout": 0.05,
+    },
+}
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
 )
@@ -406,18 +446,25 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
 
 
 def test_successful_lora_target_modules_default_from_main():
-    """Check that if target_modules is not set, or set to None in KWARGS sent to main,
-    the default value by model type will be using in training.
-    We use TRAIN_KWARGS from test_launch_script.py to run training with, which has no
-    target_modules set. During HF training process, the correct default target modules
-    will be used for model type Llama and "q_proj", "v_proj" will then exist in the
-    resulting in adapter_config.json.
+    """Check that if target_modules is not set, or set to None via JSON, the
+    default value by model type will be using in LoRA tuning.
+    We use MODEL_ARGS to run tuning, which has no target_modules set. During HF
+    training process, the correct default target modules will be used for model
+    type llama and will then exist in the resulting in adapter_config.json.
     To see how HF handles target_module defaults:
     https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/
     src/peft/tuners/lora/model.py#L432
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {
+            **MODEL_ARGS.__dict__,
+            **TRAIN_ARGS.__dict__,
+            **DATA_ARGS.__dict__,
+            **PEFT_LORA_ARGS.__dict__,
+            **{"peft_method": "lora"},
+            **{"output_dir": tempdir},
+        }
+        # TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
