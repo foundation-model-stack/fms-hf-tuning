@@ -581,7 +581,7 @@ Experiment tracking in fms-hf-tuning allows users to track their experiments wit
 
 The code supports currently two trackers out of the box, 
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
-* Aimstack : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+* `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
 
 Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
 
