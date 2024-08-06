@@ -1,11 +1,11 @@
 controller_metrics:
-  - name: state
+  - name: trainer_state
     class: TrainingState
 operations:
   - name: logcontrolstep
     class: LogControl
     arguments:
-      log_format: 'This is a test log format [{event_name}] => {tc_metrics[state]}'
+      log_format: 'This is a test log format [{event_name}] => {trainer_state}'
       log_level: WARNING
 controllers:
   - name: log-controller-step
