@@ -16,6 +16,7 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import os
 import sys
 import time
 import traceback
@@ -358,6 +359,8 @@ def train(
 
     trainer.train()
 
+    return trainer
+
 
 def get_parser():
     """Get the command-line argument parser."""
@@ -542,7 +545,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        train(
+        trainer = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -578,6 +581,20 @@ def main(**kwargs):  # pylint: disable=unused-argument
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # save model
+    if training_args.save_model_dir:
+        if not os.path.exists(training_args.save_model_dir):
+            os.makedirs(training_args.save_model_dir, exist_ok=True)
+
+        try:
+            trainer.save_model(training_args.save_model_dir)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(traceback.format_exc())
+            write_termination_log(
+                f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

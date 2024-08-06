@@ -119,6 +119,14 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (save is done every `save_steps`)"
         },
     )
+    save_model_dir: str = field(
+        default=None,
+        metadata={"help": "Directory where final checkpoint will be saved to."},
+    )
+    output_dir: str = field(
+        default=None,
+        metadata={"help": "Directory where tuned checkpoints will be saved to."},
+    )
     logging_strategy: str = field(
         default="epoch",
         metadata={
@@ -136,6 +144,12 @@ class TrainingArguments(transformers.TrainingArguments):
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
+
+    def __post_init__(self):
+        if not self.output_dir and self.save_strategy != "no":
+            raise RuntimeError(
+                "If save_strategy set, must set output_dir to valid directory path where checkpoints can be saved to."
+            )
 
 
 @dataclass
