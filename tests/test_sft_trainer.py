@@ -201,6 +201,7 @@ def test_parse_arguments_peft_method(job_config):
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
+    assert "target_modules" not in job_config_lora
 
 
 ############################# Prompt Tuning Tests #############################
