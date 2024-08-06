@@ -1,6 +1,7 @@
 # Standard
-import os
 import logging
+import os
+
 
 def set_log_level(train_args, logger_name=None):
     """Set log level of python native logger and TF logger via argument from CLI or env variable.
