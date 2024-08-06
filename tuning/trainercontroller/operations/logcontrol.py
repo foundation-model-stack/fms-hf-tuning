@@ -31,9 +31,11 @@ class LogControl(Operation):
 
     def should_log(
         self,
-        event_name: str,
         tc_metrics: dict,
-        args: TrainingArguments,
+        event_name: str=None,
+        control_name: str=None,
+        log_level: str=logging.DEBUG,
+        args: TrainingArguments=None,
         **kwargs,
     ):
         """This method peeks into the stack-frame of the caller to get the action the triggered

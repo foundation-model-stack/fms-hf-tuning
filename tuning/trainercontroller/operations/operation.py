@@ -48,7 +48,7 @@ class Operation(metaclass=abc.ABCMeta):
         return action in self.valid_actions
 
     def act(
-        self, action: str, event_name: str, control_name: str, log_level: int, **kwargs
+        self, action: str, event_name: str=None, control_name: str=None, log_level: int=logging.DEBUG, **kwargs
     ):
         """Validates the action and invokes it.
 
