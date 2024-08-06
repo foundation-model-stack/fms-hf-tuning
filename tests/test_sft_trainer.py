@@ -176,11 +176,9 @@ def test_run_causallm_pt_and_inference():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
+
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -214,11 +212,8 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -250,11 +245,8 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -285,11 +277,8 @@ def test_run_causallm_pt_init_text():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
 
@@ -347,6 +336,20 @@ def test_run_causallm_pt_with_validation_data_formatting():
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
+
+
+def test_run_causallm_pt_with_custom_tokenizer():
+    """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = model_args.model_name_or_path
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        with pytest.raises(ValueError):
+            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
 
 
 ############################# Lora Tests #############################
