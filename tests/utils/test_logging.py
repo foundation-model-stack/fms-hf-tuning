@@ -17,9 +17,9 @@
 
 # Standard
 from unittest import mock
+import copy
 import logging
 import os
-import copy
 
 # Local
 from tuning.config import configs
@@ -41,6 +41,7 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
+
 
 @mock.patch.dict(os.environ, {}, clear=True)
 def test_set_log_level_for_logger_default():
