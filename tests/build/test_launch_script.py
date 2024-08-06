@@ -19,7 +19,6 @@
 import os
 import tempfile
 import glob
-import json
 
 # Third Party
 import pytest
