@@ -258,9 +258,9 @@ class TrainerControllerCallback(TrainerCallback):
                             log_level=control_action.config[
                                 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
                             ],
-                            tc_metrics=self.metrics,
                             event_name=event_name,
                             control_name=control_action.name,
+                            **self.metrics,
                             **kwargs,
                         )
 

@@ -31,7 +31,6 @@ class LogControl(Operation):
 
     def should_log(
         self,
-        tc_metrics: dict,
         event_name: str = None,
         control_name: str = None,
         args: TrainingArguments = None,
@@ -47,7 +46,6 @@ class LogControl(Operation):
         log_msg = self.log_format.format(
             event_name=event_name,
             control_name=control_name,
-            tc_metrics=tc_metrics,
             args=args,
             **kwargs,
         )
