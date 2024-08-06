@@ -20,13 +20,14 @@ from typing import Any
 
 # Third Party
 from transformers import TrainerState
+import torch
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
 
-class Loss(MetricHandler):
-    """Implements the controller metric which evaluates loss-per-step"""
+class PerProcessState(MetricHandler):
+    """Implements the controller metric which exposes the per process state"""
 
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event \
@@ -35,7 +36,22 @@ class Loss(MetricHandler):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        super().__init__(events=["on_log"], **kwargs)
+        super().__init__(
+            events=[
+                "on_init_end",
+                "on_step_end",
+                "on_epoch_begin",
+                "on_epoch_end",
+                "on_prediction_step",
+                "on_predict",
+                "on_log",
+                "on_train_end",
+                "on_train_begin",
+                "on_evaluate",
+                "on_save",
+            ],
+            **kwargs,
+        )
 
     def validate(self) -> bool:
         """Validate the training arguments (e.g logging_steps) are \
@@ -46,19 +62,16 @@ class Loss(MetricHandler):
         """
         return True
 
-    def compute(self, state: TrainerState = None, **kwargs) -> Any:
-        """Exposes  the latest step loss value in the log.
+    def compute(self, _: TrainerState = None, **kwargs) -> Any:
+        """Exposes the trainer state.
 
         Args:
             state: TrainerState object
             kwargs: Remaining event arguments
 
         Returns:
-            Any. The exposed variables are returned here.
+            dict. Trainer state as a dictionary
         """
-        size_of_log_history = len(state.log_history)
-        for i in range(size_of_log_history - 1, -1, -1):
-            log = state.log_history[i]
-            if "loss" not in log:
-                continue
-            return log
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            return {"rank": torch.distributed.get_rank()}
+        return {"rank": None}
