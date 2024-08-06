@@ -25,7 +25,6 @@ from transformers import TrainerState
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
-# Configure log level
 METRICS_KEY = "metrics"
 LOG_LOSS_KEY = "loss"
 TRAINING_LOSS_KEY = "training_loss"
