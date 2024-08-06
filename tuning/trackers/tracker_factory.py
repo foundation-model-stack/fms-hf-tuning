@@ -23,10 +23,6 @@ from transformers.utils.import_utils import _is_package_available
 from .filelogging_tracker import FileLoggingTracker
 from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
 
-# Configure log level
-logger = logging.getLogger(__name__)
-
-
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
@@ -55,9 +51,9 @@ def _register_aim_tracker():
         AimTracker = _get_tracker_class(AimStackTracker, AimConfig)
 
         REGISTERED_TRACKERS[AIMSTACK_TRACKER] = AimTracker
-        logger.info("Registered aimstack tracker")
+        logging.info("Registered aimstack tracker")
     else:
-        logger.info(
+        logging.info(
             "Not registering Aimstack tracker due to unavailablity of package.\n"
             "Please install aim if you intend to use it.\n"
             "\t pip install aim"
@@ -73,14 +69,14 @@ def _is_tracker_installed(name):
 def _register_file_logging_tracker():
     FileTracker = _get_tracker_class(FileLoggingTracker, FileLoggingTrackerConfig)
     REGISTERED_TRACKERS[FILE_LOGGING_TRACKER] = FileTracker
-    logger.info("Registered file logging tracker")
+    logging.info("Registered file logging tracker")
 
 
 # List of Available Trackers
 # file_logger - Logs loss to a file
 # aim - Aimstack Tracker
 def _register_trackers():
-    logger.info("Registering trackers")
+    logging.info("Registering trackers")
     if AIMSTACK_TRACKER not in REGISTERED_TRACKERS:
         _register_aim_tracker()
     if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
@@ -143,7 +139,7 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
             e = "Requested Tracker {} not found. List trackers available for use is - {} ".format(
                 name, available
             )
-        logger.error(e)
+        logging.error(e)
         raise ValueError(e)
 
     meta = REGISTERED_TRACKERS[name]

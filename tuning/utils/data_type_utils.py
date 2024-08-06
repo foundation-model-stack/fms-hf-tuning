@@ -19,9 +19,6 @@ import logging
 # Third Party
 import torch
 
-# Configure log level
-logger = logging.getLogger(__name__)
-
 
 def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
     """Given a string representation of a Torch data type, convert it to the actual torch dtype.
@@ -36,7 +33,7 @@ def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
     """
     dt = getattr(torch, dtype_str, None)
     if not isinstance(dt, torch.dtype):
-        logger.error(" ValueError: Unrecognized data type of a torch.Tensor")
+        logging.error(" ValueError: Unrecognized data type of a torch.Tensor")
         raise ValueError("Unrecognized data type of a torch.Tensor")
     return dt
 

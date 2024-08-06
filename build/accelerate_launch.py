@@ -88,10 +88,6 @@ def main():
         log_level = log_level.upper()
         logging.basicConfig(level=log_level)
 
-        # Configure for Image to get log level as the code after
-        # launch_command only takes log level from env var LOG_LEVEL and not CLI
-        # os.environ["LOG_LEVEL"] = log_level
-
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)
     except FileNotFoundError as e:

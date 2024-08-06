@@ -17,13 +17,9 @@
 
 # Standard
 from typing import Any
-import logging
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
-
-# Configure log level
-logger = logging.getLogger(__name__)
 
 
 class EvalMetrics(MetricHandler):

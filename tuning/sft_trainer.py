@@ -16,8 +16,6 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
-import logging
-import os
 import sys
 import time
 import traceback
@@ -62,6 +60,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -479,40 +478,6 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def set_log_level(parsed_training_args, logger_name=__name__):
-    """Set log level of python native logger and TF logger via argument from CLI or env variable.
-
-    Args:
-        parsed_training_args
-            Training arguments for training model.
-    """
-
-    # Clear any existing handlers if necessary
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-
-    # Configure Python native logger and transformers log level
-    # If CLI arg is passed, assign same log level to python native logger
-    log_level = "WARNING"
-    if parsed_training_args.log_level != "passive":
-        log_level = parsed_training_args.log_level
-
-    # If CLI arg not is passed and env var LOG_LEVEL is set,
-    # assign same log level to both logger
-    elif os.environ.get("LOG_LEVEL"):  # AND parsed_training_args.log_level == "passive"
-        log_level = os.environ.get("LOG_LEVEL")
-        parsed_training_args.log_level = (
-            log_level.lower()
-            if not os.environ.get("TRANSFORMERS_VERBOSITY")
-            else os.environ.get("TRANSFORMERS_VERBOSITY")
-        )
-
-    logging.basicConfig(level=log_level.upper())
-
-    train_logger = logging.getLogger(logger_name)
-    return parsed_training_args, train_logger
-
-
 def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
     job_config = get_json_config()
@@ -532,7 +497,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, logger = set_log_level(training_args)
+        training_args, logger = set_log_level(training_args, __name__)
 
         logger.debug(
             "Input args parsed: \

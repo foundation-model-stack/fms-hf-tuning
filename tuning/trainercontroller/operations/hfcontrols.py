@@ -10,9 +10,6 @@ from transformers import TrainerControl
 # Local
 from .operation import Operation
 
-# Configure log level
-logger = logging.getLogger(__name__)
-
 
 class HFControls(Operation):
     """Implements the control actions for the HuggingFace controls in
@@ -40,7 +37,7 @@ class HFControls(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
-        logger.debug("Arguments passed to control_action: %s", repr(kwargs))
+        logging.debug("Arguments passed to control_action: %s", repr(kwargs))
         frame_info = inspect.currentframe().f_back
         arg_values = inspect.getargvalues(frame_info)
         setattr(control, arg_values.locals["action"], True)

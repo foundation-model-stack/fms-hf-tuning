@@ -97,8 +97,8 @@ class AimStackTracker(Tracker):
             information about the repo or the server and port where aim db is present.
         """
         super().__init__(name="aim", tracker_config=tracker_config)
-        # Configure log level
-        self.logger = logging.getLogger(__name__)
+        # Get logger with root log level
+        self.logger = logging.getLogger()
 
     def get_hf_callback(self):
         """Returns the aim.hugging_face.AimCallback object associated with this tracker.

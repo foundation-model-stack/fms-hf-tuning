@@ -27,9 +27,6 @@ import datasets
 from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
 
-# Configure log level
-logger = logging.getLogger(__name__)
-
 # In future we may make the fields configurable
 JSON_INPUT_KEY = "input"
 JSON_OUTPUT_KEY = "output"
@@ -221,7 +218,7 @@ def format_dataset(
             tokenizer,
             data_args.data_formatter_template,
         )
-        logger.info("Training dataset length is %s", len(train_dataset))
+        logging.info("Training dataset length is %s", len(train_dataset))
         if data_args.validation_data_path:
             (eval_dataset) = get_formatted_dataset_with_single_sequence(
                 data_args.validation_data_path,
@@ -229,7 +226,7 @@ def format_dataset(
                 tokenizer,
                 data_args.data_formatter_template,
             )
-            logger.info("Validation dataset length is %s", len(eval_dataset))
+            logging.info("Validation dataset length is %s", len(eval_dataset))
     else:
         # This is for JSON containing input/output fields
         train_dataset = get_preprocessed_dataset(

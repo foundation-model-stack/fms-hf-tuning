@@ -16,6 +16,7 @@
 """
 
 # Standard
+from unittest import mock
 import copy
 import json
 import logging
@@ -44,6 +45,7 @@ from tests.data import (
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.utils.logging import set_log_level
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -76,6 +78,64 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_set_log_level_for_logger_default():
+    """
+    Ensure that the correct log level is being set for python native logger and
+    transformers logger when no env var or CLI flag is passed
+    """
+
+    train_args = copy.deepcopy(TRAIN_ARGS)
+    training_args, logger = set_log_level(train_args)
+    assert logger.getEffectiveLevel() == logging.WARNING
+    assert training_args.log_level == "passive"
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_set_log_level_for_logger_with_env_var():
+    """
+    Ensure that the correct log level is being set for python native logger and
+    transformers logger when env var LOG_LEVEL is used
+    """
+
+    train_args_env = copy.deepcopy(TRAIN_ARGS)
+    os.environ["LOG_LEVEL"] = "info"
+    training_args, logger = set_log_level(train_args_env)
+    assert logger.getEffectiveLevel() == logging.INFO
+    assert training_args.log_level == "info"
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_set_log_level_for_logger_with_set_verbosity_and_cli():
+    """
+    Ensure that the correct log level is being set for python native logger and
+    log_level of transformers logger is unchanged when env var TRANSFORMERS_VERBOSITY is used
+    and CLI flag is passed
+    """
+
+    train_args = copy.deepcopy(TRAIN_ARGS)
+    os.environ["TRANSFORMERS_VERBOSITY"] = "info"
+    train_args.log_level = "error"
+    training_args, logger = set_log_level(train_args)
+    assert logger.getEffectiveLevel() == logging.ERROR
+    assert training_args.log_level == "error"
+
+
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_set_log_level_for_logger_with_env_var_and_cli():
+    """
+    Ensure that the correct log level is being set for python native logger and
+    transformers logger when env var LOG_LEVEL is used and CLI flag is passed
+    """
+
+    train_args = copy.deepcopy(TRAIN_ARGS)
+    os.environ["LOG_LEVEL"] = "info"
+    train_args.log_level = "error"
+    training_args, logger = set_log_level(train_args)
+    assert logger.getEffectiveLevel() == logging.ERROR
+    assert training_args.log_level == "error"
 
 
 def test_run_train_requires_output_dir():
@@ -809,62 +869,3 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
-
-
-def test_set_log_level_for_logger_default():
-    """
-    Ensure that the correct log level is being set
-    for python native logger and transformers logger
-    """
-
-    # Set env var TRANSFORMERS_VERBOSITY as None and test
-    os.unsetenv("TRANSFORMERS_VERBOSITY")
-    os.unsetenv("LOG_LEVEL")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    train_args = copy.deepcopy(TRAIN_ARGS)
-
-    # TEST IF NO ENV VAR ARE SET AND NO CLI ARGUMENT IS PASSED
-    training_args, logger = sft_trainer.set_log_level(train_args)
-    assert logger.getEffectiveLevel() == logging.WARNING
-    assert training_args.log_level in ["passive", "warning"]
-
-
-def test_set_log_level_for_logger_with_env_var():
-    """
-    Ensure that the correct log level is being set
-    for python native logger and transformers logger
-    """
-
-    os.unsetenv("TRANSFORMERS_VERBOSITY")
-    os.unsetenv("LOG_LEVEL")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    train_args_env = copy.deepcopy(TRAIN_ARGS)
-
-    # TEST IF LOG_LEVEL ENV VAR IS SET AND NO CLI ARGUMENT IS PASSED
-    os.environ["LOG_LEVEL"] = "info"
-    train_args_env.log_level = "passive"  # Default
-    training_args, logger = sft_trainer.set_log_level(train_args_env)
-    assert logger.getEffectiveLevel() == logging.INFO
-    assert training_args.log_level == "info"
-
-
-def test_set_log_level_for_logger_with_env_var_and_cli():
-    """
-    Ensure that the correct log level is being set
-    for python native logger and transformers logger
-    """
-
-    os.unsetenv("TRANSFORMERS_VERBOSITY")
-    os.unsetenv("LOG_LEVEL")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR")
-    os.unsetenv("SFT_TRAINER_CONFIG_JSON_PATH")
-    train_args = copy.deepcopy(TRAIN_ARGS)
-
-    # TEST IF LOG_LEVEL ENV VAR IS SET AND --log_level CLI ARGUMENT IS PASSED
-    os.environ["LOG_LEVEL"] = "info"
-    train_args.log_level = "error"
-    training_args, logger = sft_trainer.set_log_level(train_args)
-    assert logger.getEffectiveLevel() == logging.ERROR
-    assert training_args.log_level == "error"

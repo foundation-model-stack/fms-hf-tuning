@@ -80,8 +80,8 @@ class FileLoggingTracker(Tracker):
                 which contains the location of file where logs are recorded.
         """
         super().__init__(name="file_logger", tracker_config=tracker_config)
-        # Configure log level
-        self.logger = logging.getLogger(__name__)
+        # Get logger with root log level
+        self.logger = logging.getLogger()
 
     def get_hf_callback(self):
         """Returns the FileLoggingCallback object associated with this tracker.

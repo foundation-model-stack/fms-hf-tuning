@@ -18,7 +18,6 @@
 # Standard
 from collections import deque
 from typing import Any
-import logging
 
 # Third Party
 from transformers import TrainerState
@@ -27,7 +26,6 @@ from transformers import TrainerState
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
 # Configure log level
-logger = logging.getLogger(__name__)
 METRICS_KEY = "metrics"
 LOG_LOSS_KEY = "loss"
 TRAINING_LOSS_KEY = "training_loss"

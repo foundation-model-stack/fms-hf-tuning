@@ -31,9 +31,6 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 # will be exceeded afer the fifth event.
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
-# Configure log level
-logger = logging.getLogger(__name__)
-
 
 class PatienceControl:
     """Implements the patience control for every rule"""
@@ -52,7 +49,7 @@ class PatienceControl:
         elif self._mode == MODE_RESET_ON_FAILURE:
             self._patience_counter = 0
         if self._patience_counter <= self._patience_threshold:
-            logger.debug(
+            logging.debug(
                 "Control {} triggered on event {}: "
                 "Enforcing patience [patience_counter = {:.2f}, "
                 "patience_threshold = {:.2f}]".format(
@@ -63,7 +60,7 @@ class PatienceControl:
                 )
             )
             return True
-        logger.debug(
+        logging.debug(
             "Control {} triggered on event {}: "
             "Exceeded patience [patience_counter = {:.2f}, "
             "patience_threshold = {:.2f}]".format(
