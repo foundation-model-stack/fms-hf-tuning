@@ -50,9 +50,9 @@ class Operation(metaclass=abc.ABCMeta):
     def act(
         self,
         action: str,
+        log_level: int,
         event_name: str = None,
         control_name: str = None,
-        log_level: int = logging.DEBUG,
         **kwargs,
     ):
         """Validates the action and invokes it.

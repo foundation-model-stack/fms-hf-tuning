@@ -34,7 +34,6 @@ class LogControl(Operation):
         tc_metrics: dict,
         event_name: str = None,
         control_name: str = None,
-        log_level: str = logging.DEBUG,
         args: TrainingArguments = None,
         **kwargs,
     ):
@@ -47,6 +46,7 @@ class LogControl(Operation):
         """
         log_msg = self.log_format.format(
             event_name=event_name,
+            control_name=control_name,
             tc_metrics=tc_metrics,
             args=args,
             **kwargs,
