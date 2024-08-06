@@ -17,7 +17,7 @@ class PaddingFree:
 
 
 @dataclass
-class InstructLabConfig:
+class AttentionAndDistributedPackingConfig:
 
     padding_free: PaddingFree = None
 

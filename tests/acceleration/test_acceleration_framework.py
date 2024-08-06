@@ -42,8 +42,8 @@ from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
 )
-from tuning.config.acceleration_configs.instruct_lab_config import (
-    InstructLabConfig,
+from tuning.config.acceleration_configs.attention_and_distributed_packing import (
+    AttentionAndDistributedPackingConfig,
     PaddingFree,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
@@ -467,8 +467,9 @@ def test_framework_intialized_properly_foak():
 
 
 @pytest.mark.skipif(
-    not is_fms_accelerate_available(plugins="ilab"),
-    reason="Only runs if fms-accelerate is installed along with instruct-lab plugin",
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
 )
 def test_framework_initialize_and_trains_with_ilab():
     """
@@ -489,7 +490,7 @@ def test_framework_initialize_and_trains_with_ilab():
         data_args.dataset_text_field = None
 
         # initialize a config
-        instruct_lab_config = InstructLabConfig(
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
             padding_free=PaddingFree(method="huggingface")
         )
 
@@ -512,7 +513,8 @@ def test_framework_initialize_and_trains_with_ilab():
                     model_args,
                     data_args,
                     train_args,
-                    instruct_lab_config=instruct_lab_config,
+                    attention_and_distributed_packing_config=\
+                        attention_and_distributed_packing_config,
                 )
 
         # spy inside the train to ensure that the ilab plugin is called
@@ -522,8 +524,9 @@ def test_framework_initialize_and_trains_with_ilab():
 
 
 @pytest.mark.skipif(
-    not is_fms_accelerate_available(plugins="ilab"),
-    reason="Only runs if fms-accelerate is installed along with instruct-lab plugin",
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
 )
 def test_padding_free_plugin_raises_error_with_untokenized_dataset():
     """
@@ -547,7 +550,7 @@ def test_padding_free_plugin_raises_error_with_untokenized_dataset():
         data_args.dataset_text_field = "output"
 
         # initialize a config
-        instruct_lab_config = InstructLabConfig(
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
             padding_free=PaddingFree(method="huggingface")
         )
 
@@ -570,5 +573,27 @@ def test_padding_free_plugin_raises_error_with_untokenized_dataset():
                         model_args,
                         data_args,
                         train_args,
-                        instruct_lab_config=instruct_lab_config,
+                        attention_and_distributed_packing_config=\
+                        attention_and_distributed_packing_config,
                     )
+
+def test_error_raised_with_paddingfree_and_flash_attn_disabled():
+    """Ensure error raised when padding-free is not used with flash attention"""
+    with pytest.raises(
+        ValueError,
+        match="`--padding_free` argument was called without enabling flash attention, \
+            ensure `use_flash_attn = True` to use padding-free flash attention",
+    ):
+        attention_and_distributed_packing_config = \
+            AttentionAndDistributedPackingConfig(
+                padding_free=PaddingFree(method="huggingface")
+            )
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.use_flash_attn = False
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            TRAIN_ARGS,
+            attention_and_distributed_packing_config=\
+                attention_and_distributed_packing_config
+        )

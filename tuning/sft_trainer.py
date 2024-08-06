@@ -45,7 +45,7 @@ from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
     FusedOpsAndKernelsConfig,
-    InstructLabConfig,
+    AttentionAndDistributedPackingConfig,
     QuantizedLoraConfig,
 )
 from tuning.config.tracker_configs import (
@@ -87,7 +87,7 @@ def train(
     exp_metadata: Optional[Dict] = None,
     quantized_lora_config: Optional[QuantizedLoraConfig] = None,
     fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
-    instruct_lab_config: Optional[InstructLabConfig] = None,
+    attention_and_distributed_packing_config: Optional[AttentionAndDistributedPackingConfig] = None,
 ):
     """Call the SFTTrainer
 
@@ -115,7 +115,7 @@ def train(
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
-        instruct_lab_config: Used for padding free and multipack.
+        attention_and_distributed_packing_config: Used for padding-free attention and multipack.
     """
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
@@ -129,6 +129,12 @@ def train(
         train_args.gradient_accumulation_steps <= 0
     ):
         raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
+
+    if (attention_and_distributed_packing_config.padding_free is not None and
+        model_args.use_flash_attn is False
+    ):
+        raise ValueError("`--padding_free` argument was called without enabling \
+            flash attention, ensure `use_flash_attn = True` to use padding-free flash attention")
 
     task_type = "CAUSAL_LM"
     additional_metrics = {}
@@ -181,7 +187,7 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
-        quantized_lora_config, fusedops_kernels_config, instruct_lab_config
+        quantized_lora_config, fusedops_kernels_config, attention_and_distributed_packing_config
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
@@ -439,7 +445,7 @@ def get_parser():
             AimConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
-            InstructLabConfig,
+            AttentionAndDistributedPackingConfig,
         )
     )
     parser.add_argument(
@@ -503,7 +509,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
-            instruct_lab_config,
+            attention_and_distributed_packing_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -519,7 +525,7 @@ def parse_arguments(parser, json_config=None):
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
-            instruct_lab_config,
+            attention_and_distributed_packing_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -544,7 +550,7 @@ def parse_arguments(parser, json_config=None):
         aim_config,
         quantized_lora_config,
         fusedops_kernels_config,
-        instruct_lab_config,
+        attention_and_distributed_packing_config,
         exp_metadata,
     )
 
@@ -565,7 +571,7 @@ def main():
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
-            instruct_lab_config,
+            attention_and_distributed_packing_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
@@ -577,7 +583,7 @@ def main():
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            instruct_lab_config %s exp_metadata %s",
+            attention_and_distributed_packing_config %s exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -587,7 +593,7 @@ def main():
             aim_config,
             quantized_lora_config,
             fusedops_kernels_config,
-            instruct_lab_config,
+            attention_and_distributed_packing_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -629,7 +635,7 @@ def main():
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
-            instruct_lab_config=instruct_lab_config,
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())
