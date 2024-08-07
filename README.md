@@ -18,6 +18,7 @@
   - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
 - [Validation](#validation)
 - [Trainer Controller Framework](#trainer-controller-framework)
+- [Experiment Tracking](#experiment-tracking)
 - [More Examples](#more-examples)
 
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
@@ -27,9 +28,13 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+### Basic Installation
+
 ```
 pip install fms-hf-tuning
 ```
+
+### Using FlashAttention
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
 ```
@@ -38,16 +43,21 @@ pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
-If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
-```
-pip install fms-hf-tuning[aim]
-```
+### Using FMS-Acceleration
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
 pip install fms-hf-tuning[fms-accel]
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
+
+### Using Experiment Trackers
+
+To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
+```
+pip install fms-hf-tuning[aim]
+```
+For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data format
 We support the following data formats:
@@ -562,6 +572,19 @@ Trainer controller is a framework for controlling the trainer loop using user-de
 This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
 
 For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
+
+
+## Experiment Tracking
+
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+[FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
+
+The code supports currently two trackers out of the box, 
+* `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
+* `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+
+Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
+
 
 ## More Examples
 
