@@ -337,6 +337,7 @@ def train(
             try:
                 for k, v in additional_metrics.items():
                     tracker.track(metric=v, name=k, stage="additional_metrics")
+                if exp_metadata:
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
             except ValueError as e:
                 logger.error(
