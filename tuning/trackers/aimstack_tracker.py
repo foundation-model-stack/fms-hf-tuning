@@ -172,7 +172,9 @@ class AimStackTracker(Tracker):
         Raises:
             ValueError: the params passed is None or not of type dict
         """
-        if params is None or (not isinstance(params, dict)):
+        if params is None:
+            return
+        if not isinstance(params, dict):
             raise ValueError(
                 "set_params passed to aimstack should be called with a dict of params"
             )
