@@ -6,7 +6,7 @@ operations:
     class: LogControl
     arguments:
       log_format: 'This is a test log format [{event_name}] => {trainer_state}'
-      log_level: WARNING
+      log_level: warning
 controllers:
   - name: log-controller-step
     triggers:
