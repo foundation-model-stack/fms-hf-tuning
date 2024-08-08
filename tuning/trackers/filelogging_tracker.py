@@ -56,7 +56,9 @@ class FileLoggingCallback(TrainerCallback):
             log_obj = {
                 "name": log_name,
                 "data": {
-                    "epoch": round(logs["epoch"], 2),
+                    "epoch": round((logs["epoch"] - 1), 2)
+                    if logs["epoch"] != 1.0
+                    else 0,
                     "step": state.global_step,
                     "value": logs[loss_key],
                     "timestamp": datetime.isoformat(datetime.now()),
