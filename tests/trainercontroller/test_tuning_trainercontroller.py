@@ -41,7 +41,7 @@ import tuning.trainercontroller as tc
 class InputData:
     """Stores the operation handler instance and corresponding action"""
 
-    args: config.TrainingArguments
+    args: config.ModelDataArguments
     states: List[TrainerState]
     metrics: dict
 
@@ -58,7 +58,7 @@ def _setup_data() -> InputData:
     # Test data to mimic the fields of trainer loop log-lines
     # trainer arguments and the initial state
     return InputData(
-        args=config.TrainingArguments(
+        args=config.ModelDataArguments(
             output_dir="",
             logging_strategy=IntervalStrategy.STEPS,
             logging_steps=1,
