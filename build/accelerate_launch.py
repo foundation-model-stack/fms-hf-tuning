@@ -195,9 +195,7 @@ def main():
 
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
-        write_termination_log(
-            f"Exception encountered removing lm_head from model: {e}"
-        )
+        write_termination_log(f"Exception encountered removing lm_head from model: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     # The .complete file will signal to users that we are finished copying
