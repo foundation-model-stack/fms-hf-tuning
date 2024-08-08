@@ -25,6 +25,7 @@ from tests.test_sft_trainer import (
     DATA_ARGS,
     MODEL_ARGS,
     TRAIN_ARGS,
+    _get_checkpoint_path,
     _test_run_causallm_ft,
     _test_run_inference,
     _validate_training,
@@ -44,7 +45,7 @@ def test_run_with_file_logging_tracker():
         train_args.trackers = ["file_logger"]
 
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
-        _test_run_inference(tempdir=tempdir)
+        _test_run_inference(_get_checkpoint_path(tempdir))
 
 
 def test_sample_run_with_file_logger_updated_filename():

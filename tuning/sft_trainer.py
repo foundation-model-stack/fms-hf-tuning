@@ -16,6 +16,7 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import os
 import sys
 import time
 import traceback
@@ -359,6 +360,23 @@ def train(
 
     trainer.train()
 
+    return trainer
+
+
+def save(path: str, trainer: SFTTrainer):
+    """Saves model and tokenizer to given path.
+
+    Args:
+        path: str
+            Path to save the model to.
+        trainer: SFTTrainer
+            Instance of SFTTrainer used for training to save the model.
+    """
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+    trainer.save_model(path)
+
 
 def get_parser():
     """Get the command-line argument parser."""
@@ -543,7 +561,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        train(
+        trainer = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -579,6 +597,17 @@ def main(**kwargs):  # pylint: disable=unused-argument
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # save model
+    if training_args.save_model_dir:
+        try:
+            save(path=training_args.save_model_dir, trainer=trainer)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(traceback.format_exc())
+            write_termination_log(
+                f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

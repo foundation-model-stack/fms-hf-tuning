@@ -30,6 +30,7 @@ from tests.test_sft_trainer import (
     DATA_ARGS,
     MODEL_ARGS,
     TRAIN_ARGS,
+    _get_checkpoint_path,
     _test_run_inference,
     _validate_training,
 )
@@ -98,7 +99,7 @@ def test_e2e_run_with_aim_tracker(aimrepo):
         _validate_training(tempdir)
 
         # validate inference
-        _test_run_inference(tempdir)
+        _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
 
 @pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
