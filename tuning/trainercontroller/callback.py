@@ -255,12 +255,12 @@ class TrainerControllerCallback(TrainerCallback):
                     for operation_action in control_action.operation_actions:
                         operation_action.instance.act(
                             action=operation_action.action,
-                            event_name=event_name,
-                            tc_metrics=self.metrics,
-                            control_name=control_action.name,
                             log_level=control_action.config[
                                 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
                             ],
+                            event_name=event_name,
+                            control_name=control_action.name,
+                            **self.metrics,
                             **kwargs,
                         )
 

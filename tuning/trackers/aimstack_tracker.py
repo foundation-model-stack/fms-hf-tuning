@@ -63,8 +63,10 @@ class RunIDExporterAimCallback(AimCallback):
         Args:
             For the arguments see reference to transformers.TrainingCallback
         """
-        # pylint: disable=unused-argument
-        self.setup()  # initialize aim's run_hash
+        super().on_init_end(args, state, control, **kwargs)
+
+        if not self._run:
+            return
 
         # Change default run hash path to output directory if not specified
         if self.run_id_export_path is None:
@@ -172,7 +174,9 @@ class AimStackTracker(Tracker):
         Raises:
             ValueError: the params passed is None or not of type dict
         """
-        if params is None or (not isinstance(params, dict)):
+        if params is None:
+            return
+        if not isinstance(params, dict):
             raise ValueError(
                 "set_params passed to aimstack should be called with a dict of params"
             )

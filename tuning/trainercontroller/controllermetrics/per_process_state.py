@@ -17,20 +17,17 @@
 
 # Standard
 from typing import Any
-import dataclasses
 
 # Third Party
 from transformers import TrainerState
-from transformers.utils import logging
+import torch
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
-logger = logging.get_logger(__name__)
 
-
-class TrainingState(MetricHandler):
-    """Implements the controller metric which exposes the trainer state"""
+class PerProcessState(MetricHandler):
+    """Implements the controller metric which exposes the per process state"""
 
     def __init__(self, **kwargs):
         """Initializes the metric handler, by registering the event \
@@ -51,6 +48,7 @@ class TrainingState(MetricHandler):
                 "on_train_end",
                 "on_train_begin",
                 "on_evaluate",
+                "on_save",
             ],
             **kwargs,
         )
@@ -64,7 +62,7 @@ class TrainingState(MetricHandler):
         """
         return True
 
-    def compute(self, state: TrainerState = None, **kwargs) -> Any:
+    def compute(self, _: TrainerState = None, **kwargs) -> Any:
         """Exposes the trainer state.
 
         Args:
@@ -74,4 +72,6 @@ class TrainingState(MetricHandler):
         Returns:
             dict. Trainer state as a dictionary
         """
-        return dataclasses.asdict(state)
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            return {"rank": torch.distributed.get_rank()}
+        return {"rank": None}
