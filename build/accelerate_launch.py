@@ -23,6 +23,7 @@ import logging
 import subprocess
 import sys
 import traceback
+from pathlib import Path
 import json
 
 # Third Party
@@ -118,6 +119,7 @@ def main():
         write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
+    # remove lm_head from granite with llama arch models
     try:
         checkpoint_dir = job_config.get("save_model_dir")
         if not checkpoint_dir:
@@ -194,9 +196,14 @@ def main():
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(
-            f"Exception encountered writing output model to storage: {e}"
+            f"Exception encountered removing lm_head from model: {e}"
         )
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # The .complete file will signal to users that we are finished copying
+    # files over
+    if os.path.exists(output_dir):
+        Path(os.path.join(output_dir, ".complete")).touch()
 
     return 0
 
