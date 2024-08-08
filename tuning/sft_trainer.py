@@ -362,7 +362,7 @@ def train(
     return trainer
 
 
-def save(path: str, trainer: SFTTrainer, tokenizer=None):
+def save(path: str, trainer: SFTTrainer):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -370,15 +370,11 @@ def save(path: str, trainer: SFTTrainer, tokenizer=None):
             Path to save the model to.
         trainer: SFTTrainer
             Instance of SFTTrainer used for training to save the model.
-        tokenizer
-            If provided, will save the loaded tokenizer to the given path.
     """
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
 
     trainer.save_model(path)
-    if tokenizer:
-        tokenizer.save_pretrained(path)
 
 
 def get_parser():
@@ -604,19 +600,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     # save model
     if training_args.save_model_dir:
         try:
-            tokenizer = AutoTokenizer.from_pretrained(
-                (
-                    model_args.tokenizer_name_or_path
-                    if model_args.tokenizer_name_or_path
-                    else model_args.model_name_or_path
-                ),
-                cache_dir=training_args.cache_dir,
-                use_fast=True,
-            )
-
-            save(
-                path=training_args.save_model_dir, trainer=trainer, tokenizer=tokenizer
-            )
+            save(path=training_args.save_model_dir, trainer=trainer)
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())
             write_termination_log(
