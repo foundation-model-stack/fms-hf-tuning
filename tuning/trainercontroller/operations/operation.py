@@ -73,8 +73,8 @@ class Operation(metaclass=abc.ABCMeta):
             control_name,
             event_name,
         )
-        kwargs['event_name'] = event_name
-        kwargs['control_name'] = control_name
+        kwargs["event_name"] = event_name
+        kwargs["control_name"] = control_name
         self.valid_actions[action](**kwargs)
 
     def get_actions(self) -> list[str]:
