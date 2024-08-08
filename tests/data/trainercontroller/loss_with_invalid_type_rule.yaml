@@ -1,5 +1,5 @@
 controller_metrics:
-  - name: loss
+  - name: training_loss
     class: Loss
 controllers:
   - name: loss_controller_wrong_os_rule
