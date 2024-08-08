@@ -20,6 +20,7 @@
 - [Validation](#validation)
 - [Trainer Controller Framework](#trainer-controller-framework)
 - [Experiment Tracking](#experiment-tracking)
+- [Data Config and example usecases](#data-config-and-example-usecases)
 - [More Examples](#more-examples)
 
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
@@ -628,7 +629,446 @@ The code supports currently two trackers out of the box,
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
 * `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
 
-Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
+Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).
+
+
+## Data Config and example usecases
+
+You can use the data config feature to support more complex data usecases and below yaml provides a sample using all possible options available.
+
+```yaml
+# provide paths to various dataset files or folders with their corresponding sampling probabilities
+# sum of all the sampling probabilities should be equal to 1
+# you can provide mix of folders, files, and files of different formats (wide range of formats are supported).
+train_datasets:
+  - path: /path/to/dir
+    prob: 0.20
+  - path: /path/to/file.json
+    prob: 0.50
+  - path: /path/to/file.parquet
+    prob: 0.50
+
+# similarly you can provide for validation datasets as well
+validation_datasets:
+  - path: /app/fms-hf-tuning/tests/data/twitter_complaints_small.json
+    prob: 1.0
+
+# if validation dataset should be sampled from train dataset then use test_split
+# test_split should be less than 1
+# if using validation_datasets already, test_split cannot be provided and vice-versa.
+test_split: 0.2
+
+# if you want to stream datasets using IterableDatasets set this to true
+# there is some limitation on using streaming for very specific usecases
+# those are mentioned below
+streaming: false
+
+
+# supports two modes
+# all_exhausted : datasets are interleaved such that the longest dataset is seen once completely
+# this will involve repeating other datasets
+# first_exhausted : datasets are interleaved such that the shorted dataset is seen only once
+# this will truncate longer ones.
+# typically all_exhausted is chosen
+# this option goes along with sampling probability mentioned above
+dataset_stopping_strategy: all_exhausted
+
+# fixing sampling seed helps reproduce the interleaved datasets
+sampling_seed: 42
+
+# name of the column which has input/prompt for finetuning.
+input_feature: input
+
+# name of the column which has output for finetuning.
+output_feature: output
+
+# name of the column which has pretokenized data
+# this also acts as a trigger for pretokenized training 
+# if the tokens column is different from input_ids
+tokens_field: input_ids
+
+# used by ConstantLengthHybridDataset for packing samples in context window
+# seq_length defines the size of the context window
+seq_length: 2048
+
+# used by ConstantLengthHybridDataset to add bos token before each sample
+# before being concatinated
+add_bos_token: true
+
+# used by ConstantLengthHybridDataset to add bos token at the end of each sample
+# before being concatinated
+add_eos_token: true
+
+# both add_bos_token and add_eos_token can be used together
+```
+
+Along with the above data config file, there can be more flags that might be necessary to be passed to fms-hf-tuning CLI below case by case examples can throw more light.
+
+### Use case 1: Pretraining (PT) / extended pretraining (EPT) over text data with packing and streaming datasets
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# setting packing to True to leverage ConstantLengthHybridDataset
+--packing True
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+# name of the column that has text data for pretraining
+--dataset_text_field contents
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+# streaming has to be set in the data config file to leverage IterableDatasets 
+streaming: true
+```
+
+### Use case 2: Pretraining (PT) / extended pretraining (EPT) over text data with packing, streaming datasets, and dataformatter template
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# packing should be set to True
+--packing True
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+# do not provide response_template
+# provide data_formatter_template on how each column of your dataset 
+# should align in a sample
+--data_formatter_template "<PAD>{{Tweet text}}<PAD>{{output}}<PAD>"
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+# streaming has to be set in the data config file to leverage IterableDatasets 
+streaming: true
+```
+
+### Use case 3: Pretraining (PT) / extended pretraining (EPT) over pretokenized data with packing and streaming datasets
+### Use case 4: Pretraining (PT) / extended pretraining (EPT) over mix of pretokenized and text data with packing and streaming datasets
+
+Above two usecases are supported by below configurations
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# setting packing to True to leverage ConstantLengthHybridDataset
+--packing True
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+
+# when you have some data in text form then you should also pass the below flag
+--dataset_text_field contents
+
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+
+# column name where tokenized data is available for pretraining
+tokens_field: "input_ids"
+
+# streaming has to be set in the data config file to leverage IterableDatasets 
+streaming: true
+```
+
+### Use case 5: Finetuning over text data with separate fields of input and output in the dataset
+
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# set packing to False to avoid crosscontamination
+--packing False
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+
+# column name where input data is available
+input_feature: "question"
+
+# column name where output data is available
+output_feature: "answer"
+
+# streaming has to be set in the data config file to leverage IterableDatasets 
+streaming: true
+```
+
+### Use case 6: Finetuning over text data with data_formatter_template
+
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# set packing to False
+--packing False
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+# set data_formatter_template
+--data_formatter_template "### Input: {{Tweet text}} \n\n##Label: {{output}}"
+
+# response_template should be provided for finetuning to differentiate
+# output tokens from input
+--response_template "\n\n##Label"
+
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+
+# streaming has to be set in the data config file to leverage IterableDatasets
+streaming: true
+```
+
+### Use case 7: Finetuning over pretokenized data (do not use packing)
+
+
+```bash
+# typical flags
+--fsdp="hybrid_shard auto_wrap"  
+--fsdp_config="/path/to/fsdp_config.json"
+--output_dir="./output" 
+--model_name_or_path="Maykeye/TinyLLama-v0"
+--data_config_path /app/fms-hf-tuning/ds.yaml 
+--max_steps 10  
+--per_device_train_batch_size 8  
+--gradient_accumulation_steps 1  
+--evaluation_strategy "no" 
+--save_strategy "steps" 
+--save_steps 10 
+--learning_rate 5e-5  
+--warmup_ratio 0.03  
+--lr_scheduler_type "cosine"  
+--logging_steps 1 
+--logging_strategy "steps" 
+--logging_first_step True 
+--use_flash_attn False 
+--torch_dtype bfloat16 
+--gradient_checkpointing True
+--save_total_limit 10
+
+# data flags
+
+# packing should be set to False
+--packing False
+
+# flag is needed when using iterable datasets
+# batches are prepared in the main process and propogated to workers
+--split_batches True
+
+# used by DataCollatorForSeq2Seq for padding
+--max_seq_length 2048
+
+# these columns are mandatory to support this usecase
+# input_ids
+# labels
+# attention_mask
+
+```
+
+```yaml
+train_datasets:
+  - path: /dataset1/
+    prob: 0.50
+  - path: /dataset2/
+    prob: 0.50
+validation_datasets:
+  - path: /evaldata/
+    prob: 1.0
+
+
+# streaming has to be set in the data config file to leverage IterableDatasets
+streaming: true
+```
+
 
 
 ## More Examples

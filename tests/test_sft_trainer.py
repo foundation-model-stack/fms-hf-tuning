@@ -24,6 +24,7 @@ import tempfile
 # Third Party
 from datasets.exceptions import DatasetGenerationError
 from transformers.trainer_callback import TrainerCallback
+from transformers.utils import logging
 import pytest
 import torch
 import transformers
@@ -46,15 +47,13 @@ from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
 
-MODEL_ARGS = configs.ModelArguments(
-    model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
-)
-DATA_ARGS = configs.DataArguments(
+MODEL_ARGS = configs.ModelDataArguments(
+    model_name_or_path=MODEL_NAME,
+    use_flash_attn=False,
+    torch_dtype="float32",
     training_data_path=TWITTER_COMPLAINTS_DATA,
     response_template="\n### Label:",
     dataset_text_field="output",
-)
-TRAIN_ARGS = configs.TrainingArguments(
     num_train_epochs=5,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
@@ -70,6 +69,8 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
+DATA_ARGS = MODEL_ARGS
+TRAIN_ARGS = MODEL_ARGS
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=8,
@@ -77,6 +78,8 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+
+logger = logging.get_logger("sft_trainer")
 
 
 def test_run_train_requires_output_dir():
@@ -116,8 +119,6 @@ def test_parse_arguments(job_config):
     job_config_copy = copy.deepcopy(job_config)
     (
         model_args,
-        data_args,
-        training_args,
         _,
         tune_config,
         _,
@@ -127,8 +128,8 @@ def test_parse_arguments(job_config):
         _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
-    assert data_args.dataset_text_field == "output"
-    assert training_args.output_dir == "bloom-twitter"
+    assert model_args.dataset_text_field == "output"
+    assert model_args.output_dir == "bloom-twitter"
     assert tune_config is None
 
 
@@ -138,19 +139,19 @@ def test_parse_arguments_defaults(job_config):
     assert "torch_dtype" not in job_config_defaults
     assert job_config_defaults["use_flash_attn"] is False
     assert "save_strategy" not in job_config_defaults
-    model_args, _, training_args, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    model_args, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_defaults
     )
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
-    assert training_args.save_strategy.value == "epoch"
+    assert model_args.save_strategy.value == "epoch"
 
 
 def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, tune_config, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
@@ -485,6 +486,9 @@ def test_run_causallm_ft_pretokenized():
 
         # update the training data path to tokenized data
         data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+
+        # call this to do some post processing over the data arguments
+        data_formatting_args.__post_init__()
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -826,9 +830,12 @@ def test_pretokenized_dataset():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
+        data_args.input_feature = "input"
+        data_args.output_feature = "output"
         data_args.dataset_text_field = None
         data_args.response_template = None
         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        data_args.__post_init__()
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir)
 

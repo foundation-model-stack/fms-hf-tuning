@@ -21,7 +21,6 @@ from datasets import Dataset, IterableDataset
 from datasets.exceptions import DatasetGenerationError
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
-import datasets
 
 # Local
 from tuning.config import configs
@@ -36,25 +35,25 @@ JSON_OUTPUT_KEY = "output"
 # the check is taken from trl
 # https://github.com/huggingface/trl/blob/ddf4c8dc3ecf6d9ee2b24f94c62182ffd682c808/trl/trainer/sft_trainer.py#L498-L509
 def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
-    if not data:
+    if data is None:
         return False
     if isinstance(data, str):
         try:
-            data = datasets.load_dataset("json", data_files=data, split="train[:1]")
+            data = configs.load_dataset(data_path=data, split="train[:1]")
         except DatasetGenerationError as e:
             raise DatasetGenerationError("failed to load the provided dataset") from e
 
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
-def validate_data_args(data_args: configs.DataArguments, packing: bool):
+def validate_data_args(data_args, packing: bool):
 
-    assert isinstance(
-        data_args.training_data_path, str
-    ), "Training data path has to be set and str"
-
-    is_train_data_pretokenized = is_pretokenized_dataset(data_args.training_data_path)
-    is_eval_data_pretokenized = is_pretokenized_dataset(data_args.validation_data_path)
+    is_train_data_pretokenized = (
+        is_pretokenized_dataset(data_args.train_dataset) or data_args.tokens_field
+    )
+    is_eval_data_pretokenized = (
+        is_pretokenized_dataset(data_args.validation_dataset) or data_args.tokens_field
+    )
 
     ### Data format 1
     # if the provided train dataset is pretokenized
@@ -63,10 +62,10 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
         if (
             data_args.response_template
             or data_args.data_formatter_template
-            or data_args.dataset_text_field
+            # or data_args.dataset_text_field dataset_text_field can be passed in hybrid cases
         ):
             raise ValueError(
-                "fields response_template, data_formatter_template, and dataset_text_field \
+                "fields response_template, and data_formatter_template \
                                 are not applicable for pretokenized datasets"
             )
 
@@ -80,8 +79,11 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
 
         # packing wont be available for pretokenized datasets in trl library
         # see: https://github.com/huggingface/trl/issues/1848
-        if packing:
-            raise ValueError("packing will not be used when datasets are pretokenized")
+        # if packing:
+        #     raise ValueError("packing will not be used when datasets are pretokenized")
+        # UPDATE packing is now supported for pretokenized datasets using
+        # constantlengthdataset written in data_loaders.py
+        # but this is suggested only for pretraining.
         return
 
     ### Data format 2
@@ -113,15 +115,14 @@ def validate_data_args(data_args: configs.DataArguments, packing: bool):
     ### Data format 3
     # If not single sequence, JSON should contain input/output fields
     if not (data_args.dataset_text_field or data_args.data_formatter_template):
-        json_dataset = datasets.load_dataset(
-            "json", data_files=data_args.training_data_path
-        )
-        if JSON_INPUT_KEY not in json_dataset["train"].column_names:
+        logging.warning(data_args.train_dataset.column_names)
+        logging.warning(data_args.input_feature)
+        if data_args.input_feature not in data_args.train_dataset.column_names:
             raise ValueError(
                 "JSON should contain input field if no dataset_text_field or \
                      data_formatter_template specified"
             )
-        if JSON_OUTPUT_KEY not in json_dataset["train"].column_names:
+        if data_args.output_feature not in data_args.train_dataset.column_names:
             raise ValueError(
                 "JSON should contain output field if no dataset_text_field or \
                     data_formatter_template specified"
@@ -134,6 +135,7 @@ def get_data_collator(
     tokenizer: AutoTokenizer,
     formatted_train_dataset: Dataset,
     max_seq_length: int,
+    tokens_field: str = True,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -149,12 +151,16 @@ def get_data_collator(
             Train Dataset formatted for tuning
         max_seq_length: int
             Max sequence length expected
+        tokens_field: str
+            feature having tokens
 
     Returns:
         Callable
             Callable collator to be leveraged by the trainer.
     """
-    is_train_data_pretokenized = is_pretokenized_dataset(formatted_train_dataset)
+    is_train_data_pretokenized = (
+        is_pretokenized_dataset(formatted_train_dataset) or tokens_field
+    )
 
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
@@ -181,12 +187,10 @@ def get_data_collator(
         )
 
 
-def format_dataset(
-    data_args: configs.DataArguments, tokenizer: AutoTokenizer, max_seq_length: int
-):
+def format_dataset(data_args, tokenizer: AutoTokenizer, max_seq_length: int):
     """
     Args:
-        data_args: tuning.config.configs.DataArguments
+        data_args: tuning.config.configs.ModelDataArguments
         tokenizer: AutoTokenizer
         max_seq_length: int
             Max sequence length expected
@@ -195,61 +199,62 @@ def format_dataset(
             tuple containing train_dataset, eval_dataset and dataset_text_field
     """
     eval_dataset = None
-    is_train_data_pretokenized = is_pretokenized_dataset(data_args.training_data_path)
 
-    if is_train_data_pretokenized:
-        train_dataset = datasets.load_dataset(
-            "json", data_files=data_args.training_data_path, split="train"
-        )
-        if data_args.validation_data_path:
-            eval_dataset = datasets.load_dataset(
-                "json", data_files=data_args.validation_data_path, split="train"
-            )
+    if is_pretokenized_dataset(data_args.train_dataset) or data_args.tokens_field:
         # dataset_text_field is irrelevant to pretokenized datasets
-        return train_dataset, eval_dataset, None
+        return data_args.train_dataset, data_args.validation_dataset, None
 
     dataset_text_field = data_args.dataset_text_field
-    if data_args.data_formatter_template or dataset_text_field:
+    train_dataset = None
+    eval_dataset = None
+    if data_args.data_formatter_template:
         if dataset_text_field is None:
             dataset_text_field = "new_formatted_field"
         train_dataset = get_formatted_dataset_with_single_sequence(
-            data_args.training_data_path,
+            data_args.train_dataset,
             dataset_text_field,
             tokenizer,
             data_args.data_formatter_template,
         )
-        logging.info("Training dataset length is %s", len(train_dataset))
+        # logger will fail on len() for iterable datasets
+        # logging.info("Training dataset length is %s", len(train_dataset))
         if data_args.validation_data_path:
             (eval_dataset) = get_formatted_dataset_with_single_sequence(
-                data_args.validation_data_path,
+                data_args.validation_dataset,
                 dataset_text_field,
                 tokenizer,
                 data_args.data_formatter_template,
             )
-            logging.info("Validation dataset length is %s", len(eval_dataset))
+            # logging.info("Validation dataset length is %s", len(eval_dataset))
     else:
-        # This is for JSON containing input/output fields
-        train_dataset = get_preprocessed_dataset(
-            data_args.training_data_path,
-            tokenizer,
-            max_seq_length,
-            input_field_name=JSON_INPUT_KEY,
-            output_field_name=JSON_OUTPUT_KEY,
-        )
-        if data_args.validation_data_path:
-            eval_dataset = get_preprocessed_dataset(
-                data_args.validation_data_path,
+        if data_args.input_feature and data_args.output_feature:
+            # This is for JSON containing input/output fields
+            train_dataset = get_preprocessed_dataset(
+                data_args.train_dataset,
                 tokenizer,
                 max_seq_length,
-                input_field_name=JSON_INPUT_KEY,
-                output_field_name=JSON_OUTPUT_KEY,
+                input_field_name=data_args.input_feature,
+                output_field_name=data_args.output_feature,
             )
-
-    return train_dataset, eval_dataset, dataset_text_field
+            if data_args.validation_data_path:
+                eval_dataset = get_preprocessed_dataset(
+                    data_args.validation_dataset,
+                    tokenizer,
+                    max_seq_length,
+                    input_field_name=data_args.input_feature,
+                    output_field_name=data_args.output_feature,
+                )
+    if train_dataset:
+        if isinstance(train_dataset, IterableDataset):
+            train_dataset = train_dataset._resolve_features()
+        if isinstance(eval_dataset, IterableDataset):
+            eval_dataset = eval_dataset._resolve_features()
+        return train_dataset, eval_dataset, dataset_text_field
+    return data_args.train_dataset, data_args.validation_dataset, None
 
 
 def get_formatted_dataset_with_single_sequence(
-    data_path: str,
+    dataset: Union[IterableDataset, Dataset],
     dataset_text_field: str,
     tokenizer: AutoTokenizer,
     data_formatter_template: Optional[str] = None,
@@ -257,8 +262,8 @@ def get_formatted_dataset_with_single_sequence(
     """Applies formatting to the loaded dataset instance; does NOT pretokenize data.
 
     Args:
-        data_path: str
-            Path to the file to be loaded.
+        dataset: Union[IterableDataset, Dataset]
+            loaded dataset
         dataset_text_field: str
             Dataset text field to be used for formatting.
             If data_formatter_template specified, \
@@ -273,7 +278,7 @@ def get_formatted_dataset_with_single_sequence(
             HF Dataset with formatted [str] data.
     """
 
-    json_dataset = datasets.load_dataset("json", data_files=data_path)
+    json_dataset = dataset
     format_dataset_EOS = (
         lambda example: {  # pylint: disable=unnecessary-lambda-assignment
             f"{dataset_text_field}": example[f"{dataset_text_field}"]
@@ -282,20 +287,19 @@ def get_formatted_dataset_with_single_sequence(
     )
     if data_formatter_template:
         formatted_train_dataset = apply_custom_formatting_template(
-            json_dataset["train"],
+            json_dataset,
             data_formatter_template,
             dataset_text_field,
             tokenizer.eos_token,
         )
     else:
-        formatted_train_dataset = json_dataset.map(format_dataset_EOS)[
-            "train"
-        ]  # HACK - for now, we just do both datasets separately; train is the default split
+        formatted_train_dataset = json_dataset.map(format_dataset_EOS)
+        # HACK - for now, we just do both datasets separately; train is the default split
     return formatted_train_dataset
 
 
 def get_preprocessed_dataset(
-    data_path: str,
+    dataset: Union[IterableDataset, Dataset],
     tokenizer: AutoTokenizer,
     max_sequence_length: int,
     input_field_name: str,
@@ -304,7 +308,7 @@ def get_preprocessed_dataset(
     """Loads the dataset and applies the tokenizer + custom masking logic.
 
     Args:
-        data_path: str
+        dataset: Union[IterableDataset, Dataset]
             Path to the file to be loaded.
         tokenizer: AutoTokenizer
             Loaded tokenizer object to be used by the collator.
@@ -319,9 +323,6 @@ def get_preprocessed_dataset(
         Dataset
             HF Dataset with the pretokenized data.
     """
-    dataset = load_hf_dataset_from_jsonl_file(
-        data_path, input_field_name, output_field_name
-    )
     return dataset.map(
         preprocess_and_tokenize,
         fn_kwargs={
