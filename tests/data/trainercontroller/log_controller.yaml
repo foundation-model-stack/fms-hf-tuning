@@ -1,0 +1,16 @@
+controller_metrics:
+  - name: trainer_state
+    class: TrainingState
+operations:
+  - name: logcontrolstep
+    class: LogControl
+    arguments:
+      log_format: 'This is a test log format [{event_name}] => {trainer_state}'
+      log_level: warning
+controllers:
+  - name: log-controller-step
+    triggers:
+      - on_step_end
+    rule: 'True'
+    operations:
+      - logcontrolstep.should_log
