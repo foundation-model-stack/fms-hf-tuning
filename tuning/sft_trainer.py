@@ -68,9 +68,9 @@ from tuning.utils.preprocessing_utils import (
 
 
 def train(
-    model_args: configs.ModelArguments,
-    data_args: configs.DataArguments,
-    train_args: configs.TrainingArguments,
+    model_args: configs.ModelDataArguments,
+    data_args: configs.ModelDataArguments,
+    train_args: configs.ModelDataArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
@@ -86,9 +86,9 @@ def train(
     """Call the SFTTrainer
 
     Args:
-        model_args: tuning.config.configs.ModelArguments
-        data_args: tuning.config.configs.DataArguments
-        train_args: tuning.config.configs.TrainingArguments
+        model_args: tuning.config.configs.ModelDataArguments
+        data_args: tuning.config.configs.ModelDataArguments
+        train_args: tuning.config.configs.ModelDataArguments
         peft_config: peft_config.LoraConfig for Lora tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
@@ -299,7 +299,7 @@ def train(
         )
 
     # HACK - The SFT Trainer has internal validation which inspects the name of the class
-    # being used for the HF training args; if it's a TrainingArguments class, which is
+    # being used for the HF training args; if it's a ModelDataArguments class, which is
     # presumably from transformers, it tries to build it into an SFT Config.
     #
     # This is unfortunately a naming collision with one of our own classes, which has extra
@@ -314,7 +314,7 @@ def train(
         if k in transformer_train_arg_fields
     }
     training_args = SFTConfig(**transformer_kwargs)
-
+    logger.warning("dataset kwargs {}".format(data_args.dataset_kwargs))
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -327,6 +327,7 @@ def train(
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
+        dataset_kwargs=data_args.dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
@@ -364,9 +365,7 @@ def get_parser():
     """Get the command-line argument parser."""
     parser = transformers.HfArgumentParser(
         dataclass_types=(
-            configs.ModelArguments,
-            configs.DataArguments,
-            configs.TrainingArguments,
+            configs.ModelDataArguments,
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
@@ -402,12 +401,8 @@ def parse_arguments(parser, json_config=None):
             Dict of arguments to use with tuning.
 
     Returns:
-        ModelArguments
+        ModelDataArguments
             Arguments pertaining to which model we are going to tune.
-        DataArguments
-            Arguments pertaining to what data we are going to use for training and evaluation.
-        TrainingArguments
-            Configuration for training model.
         TrainerControllerArguments
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
         PromptTuningConfig/LoraConfig/None
@@ -426,8 +421,6 @@ def parse_arguments(parser, json_config=None):
     if json_config:
         (
             model_args,
-            data_args,
-            training_args,
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
@@ -441,8 +434,6 @@ def parse_arguments(parser, json_config=None):
     else:
         (
             model_args,
-            data_args,
-            training_args,
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
@@ -466,8 +457,6 @@ def parse_arguments(parser, json_config=None):
 
     return (
         model_args,
-        data_args,
-        training_args,
         trainer_controller_args,
         tune_config,
         file_logger_config,
@@ -488,8 +477,6 @@ def main(**kwargs):  # pylint: disable=unused-argument
     try:
         (
             model_args,
-            data_args,
-            training_args,
             trainer_controller_args,
             tune_config,
             file_logger_config,
@@ -505,8 +492,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
             quantized_lora_config %s, fusedops_kernels_config %s, \
             exp_metadata %s",
             model_args,
-            data_args,
-            training_args,
+            model_args,
+            model_args,
             trainer_controller_args,
             tune_config,
             file_logger_config,
@@ -545,8 +532,8 @@ def main(**kwargs):  # pylint: disable=unused-argument
     try:
         train(
             model_args=model_args,
-            data_args=data_args,
-            train_args=training_args,
+            data_args=model_args,
+            train_args=model_args,
             peft_config=tune_config,
             trainer_controller_args=trainer_controller_args,
             tracker_configs=combined_tracker_configs,
