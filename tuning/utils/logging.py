@@ -23,6 +23,8 @@ def set_log_level(train_args, logger_name=None):
     Args:
         train_args
             Training arguments for training model.
+        logger_name
+            Logger name with which the logger is instantiated.
 
     Returns:
         train_args

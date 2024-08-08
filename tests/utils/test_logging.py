@@ -73,7 +73,8 @@ def test_set_log_level_for_logger_with_set_verbosity_and_cli():
 def test_set_log_level_for_logger_with_env_var_and_cli():
     """
     Ensure that the correct log level is being set for python native logger and
-    transformers logger when env var LOG_LEVEL is used and CLI flag is passed
+    transformers logger when env var LOG_LEVEL is used and CLI flag is passed.
+    In this case, CLI arg takes precedence over the set env var LOG_LEVEL.
     """
 
     train_args = copy.deepcopy(TRAIN_ARGS)

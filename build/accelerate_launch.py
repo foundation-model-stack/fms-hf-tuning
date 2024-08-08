@@ -78,6 +78,7 @@ def main():
             )
 
         # Configure log_level of python native logger.
+        # CLI arg takes precedence over env var. And if neither is set, we use default "WARNING"
         log_level = job_config.get(
             "log_level"
         )  # this will be set to either the value found or None
