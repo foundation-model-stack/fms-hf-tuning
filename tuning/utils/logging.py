@@ -53,7 +53,9 @@ def set_log_level(train_args, logger_name=None):
             else os.environ.get("TRANSFORMERS_VERBOSITY")
         )
 
-    logging.basicConfig(level=log_level.upper())
+    logging.basicConfig(
+        format="%(levelname)s:%(filename)s:%(message)s", level=log_level.upper()
+    )
 
     if logger_name:
         train_logger = logging.getLogger(logger_name)
