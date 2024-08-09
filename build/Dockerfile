@@ -33,6 +33,7 @@ RUN dnf remove -y --disableplugin=subscription-manager \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
+    && python -m pip install --upgrade setuptools \
     && dnf update -y \
     && dnf clean all
 
