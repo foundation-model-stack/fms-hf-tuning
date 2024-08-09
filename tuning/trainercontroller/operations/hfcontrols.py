@@ -1,16 +1,14 @@
 # Standard
 from dataclasses import fields
 import inspect
+import logging
 import re
 
 # Third Party
 from transformers import TrainerControl
-from transformers.utils import logging
 
 # Local
 from .operation import Operation
-
-logger = logging.get_logger(__name__)
 
 
 class HFControls(Operation):
@@ -39,7 +37,7 @@ class HFControls(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
-        logger.debug("Arguments passed to control_action: %s", repr(kwargs))
+        logging.debug("Arguments passed to control_action: %s", repr(kwargs))
         frame_info = inspect.currentframe().f_back
         arg_values = inspect.getargvalues(frame_info)
         setattr(control, arg_values.locals["action"], True)

@@ -14,11 +14,11 @@
 
 # Standard
 import json
+import logging
 import os
 
 # Third Party
 from aim.hugging_face import AimCallback  # pylint: disable=import-error
-from transformers.utils import logging
 
 # Local
 from .tracker import Tracker
@@ -99,7 +99,8 @@ class AimStackTracker(Tracker):
             information about the repo or the server and port where aim db is present.
         """
         super().__init__(name="aim", tracker_config=tracker_config)
-        self.logger = logging.get_logger("aimstack_tracker")
+        # Get logger with root log level
+        self.logger = logging.getLogger()
 
     def get_hf_callback(self):
         """Returns the aim.hugging_face.AimCallback object associated with this tracker.

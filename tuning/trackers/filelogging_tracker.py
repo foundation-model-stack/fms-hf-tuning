@@ -15,11 +15,11 @@
 # Standard
 from datetime import datetime
 import json
+import logging
 import os
 
 # Third Party
 from transformers import TrainerCallback
-from transformers.utils import logging
 
 # Local
 from .tracker import Tracker
@@ -80,7 +80,8 @@ class FileLoggingTracker(Tracker):
                 which contains the location of file where logs are recorded.
         """
         super().__init__(name="file_logger", tracker_config=tracker_config)
-        self.logger = logging.get_logger("file_logging_tracker")
+        # Get logger with root log level
+        self.logger = logging.getLogger()
 
     def get_hf_callback(self):
         """Returns the FileLoggingCallback object associated with this tracker.
