@@ -19,13 +19,13 @@ operations:
         Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
       log_level: INFO
 controllers:
-  - name: instructlab-on-log-format
+  - name: ctrl-on-log-format
     triggers:
       - on_log
     rule: 'training_loss != None'
     operations:
       - logger_on_log.should_log
-  - name: instructlab-on-save-format
+  - name: ctrl-on-save-format
     triggers:
       - on_save
     rule: 'True'
