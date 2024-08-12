@@ -35,10 +35,12 @@ from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
-    TWITTER_COMPLAINTS_DATA,
-    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
-    TWITTER_COMPLAINTS_JSON_FORMAT,
-    TWITTER_COMPLAINTS_TOKENIZED,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_JSON,
+    TWITTER_COMPLAINTS_DATA_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_JSON,
+    TWITTER_COMPLAINTS_TOKENIZED_JSONL,
 )
 
 # Local
@@ -49,7 +51,7 @@ MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
 )
 DATA_ARGS = configs.DataArguments(
-    training_data_path=TWITTER_COMPLAINTS_DATA,
+    training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
     response_template="\n### Label:",
     dataset_text_field="output",
 )
@@ -236,7 +238,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
@@ -311,27 +313,35 @@ def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
             sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
 
 
-def test_run_causallm_pt_with_validation():
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_validation(validation_data_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = validation_data_path
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
-def test_run_causallm_pt_with_validation_data_formatting():
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_validation_data_formatting(validation_data_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = validation_data_path
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
@@ -341,7 +351,11 @@ def test_run_causallm_pt_with_validation_data_formatting():
         _validate_training(tempdir, check_eval=True)
 
 
-def test_run_causallm_pt_with_custom_tokenizer():
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_custom_tokenizer(validation_data_path):
     """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -350,7 +364,7 @@ def test_run_causallm_pt_with_custom_tokenizer():
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = validation_data_path
         with pytest.raises(ValueError):
             sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
 
@@ -443,14 +457,32 @@ def test_successful_lora_target_modules_default_from_main():
 
 
 ############################# Finetuning Tests #############################
-def test_run_causallm_ft_and_inference():
-    """Check if we can bootstrap and finetune tune causallm models"""
+@pytest.mark.parametrize(
+    "training_data_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+        TWITTER_COMPLAINTS_DATA_JSON,
+    ],
+)
+def test_run_causallm_ft_and_inference(training_data_path):
+    """Check if we can bootstrap and finetune causallm models with different data formats"""
     with tempfile.TemporaryDirectory() as tempdir:
-        _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        model_args = copy.deepcopy(MODEL_ARGS)
+
+        # Update DATA_ARGS for the specific test case
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = training_data_path
+
+        _test_run_causallm_ft(train_args, model_args, data_args, tempdir)
         _test_run_inference(tempdir=tempdir)
 
 
-def test_run_causallm_ft_pretokenized():
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [TWITTER_COMPLAINTS_TOKENIZED_JSONL, TWITTER_COMPLAINTS_TOKENIZED_JSON],
+)
+def test_run_causallm_ft_pretokenized(validation_data_path):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
@@ -461,7 +493,7 @@ def test_run_causallm_ft_pretokenized():
         data_formatting_args.response_template = None
 
         # update the training data path to tokenized data
-        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+        data_formatting_args.training_data_path = validation_data_path
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -794,8 +826,15 @@ def test_run_with_good_experimental_metadata():
         )
 
 
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [
+        TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+        TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+    ],
+)
 ### Tests for pretokenized data
-def test_pretokenized_dataset():
+def test_pretokenized_dataset(validation_data_path):
     """Ensure that we can provide a pretokenized dataset with input/output format."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -803,19 +842,23 @@ def test_pretokenized_dataset():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = None
         data_args.response_template = None
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        data_args.training_data_path = validation_data_path
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir)
 
 
 @pytest.mark.parametrize(
-    "dataset_text_field,response_template",
+    "dataset_text_field,response_template,validation_data_path",
     [
-        ("foo", None),
-        (None, "bar"),
+        ("foo", None, TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON),
+        (None, "bar", TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON),
+        ("foo", None, TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL),
+        (None, "bar", TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL),
     ],
 )
-def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
+def test_pretokenized_dataset_bad_args(
+    dataset_text_field, response_template, validation_data_path
+):
     """Ensure that we can't provide only dataset text field / response template for pretok data."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -824,14 +867,18 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = dataset_text_field
         data_args.response_template = response_template
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        data_args.training_data_path = validation_data_path
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
 
-def test_pretokenized_dataset_wrong_format():
+@pytest.mark.parametrize(
+    "validation_data_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_pretokenized_dataset_wrong_format(validation_data_path):
     """Ensure that we fail to generate data if the data is in the wrong format."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -840,7 +887,7 @@ def test_pretokenized_dataset_wrong_format():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = None
         data_args.response_template = None
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.training_data_path = validation_data_path
 
         # It would be best to handle this in a way that is more understandable; we might
         # need to directly add validation prior to the dataset generation since datasets
