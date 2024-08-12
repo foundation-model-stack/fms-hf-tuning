@@ -136,6 +136,15 @@ class TrainingArguments(transformers.TrainingArguments):
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
+    log_level: str = field(
+        default="passive",
+        metadata={
+            "help": "The log level to adopt during training. \
+            By default, 'passive' level is set which keeps the \
+            current log level for the Transformers library (which will be 'warning` by default) \
+            Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
+        },
+    )
 
 
 @dataclass

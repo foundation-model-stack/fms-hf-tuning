@@ -15,8 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
-# Third Party
-from transformers.utils import logging
+# Standard
+import logging
 
 # Resets the patience if the rule outcome happens to be false.
 # Here, the expectation is to have unbroken "True"s for patience
@@ -30,8 +30,6 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 # then the patience counter is not reset at F. Instead, the patience threshold
 # will be exceeded afer the fifth event.
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
-
-logger = logging.get_logger(__name__)
 
 
 class PatienceControl:
@@ -51,7 +49,7 @@ class PatienceControl:
         elif self._mode == MODE_RESET_ON_FAILURE:
             self._patience_counter = 0
         if self._patience_counter <= self._patience_threshold:
-            logger.debug(
+            logging.debug(
                 "Control {} triggered on event {}: "
                 "Enforcing patience [patience_counter = {:.2f}, "
                 "patience_threshold = {:.2f}]".format(
@@ -62,7 +60,7 @@ class PatienceControl:
                 )
             )
             return True
-        logger.debug(
+        logging.debug(
             "Control {} triggered on event {}: "
             "Exceeded patience [patience_counter = {:.2f}, "
             "patience_threshold = {:.2f}]".format(
