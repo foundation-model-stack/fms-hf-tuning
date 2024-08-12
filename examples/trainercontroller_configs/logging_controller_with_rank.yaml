@@ -1,27 +1,33 @@
 controller_metrics:
   - name: trainer_state
     class: TrainingState
+  - name: training_loss
+    class: Loss
+  - name: per_process_state
+    class: PerProcessState
 operations:
-  - name: logcontroleval
+  - name: logger_on_log
     class: LogControl
     arguments:
-      log_format: 'This is a test log format [{event_name}] => {metrics}'
-      log_level: WARNING
-  - name: logcontrolstep
+      log_format: 'Epoch: {trainer_state[epoch]:.0f}, Step: {trainer_state[global_step]}, Rank: {per_process_state[rank]}, loss = {training_loss}'
+      log_level: INFO
+  - name: logger_on_save
     class: LogControl
     arguments:
-      log_format: 'This is a test log format [{event_name}] => {trainer_state}'
-      log_level: WARNING
+      log_format: |
+        Saving model in huggingface format at samples_seen: {trainer_state[global_step]}
+        Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
+      log_level: INFO
 controllers:
-  - name: log-controller-eval
+  - name: instructlab-on-log-format
     triggers:
-      - on_evaluate
+      - on_log
+    rule: 'training_loss != None'
+    operations:
+      - logger_on_log.should_log
+  - name: instructlab-on-save-format
+    triggers:
+      - on_save
     rule: 'True'
     operations:
-      - logcontroleval.should_log
-  - name: log-controller-step
-    triggers:
-      - on_step_end
-    rule: 'True'
-    operations:
-      - logcontrolstep.should_log
+      - logger_on_save.should_log
