@@ -33,7 +33,7 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
-from transformers.utils import is_accelerate_available, logging
+from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import fire
 import transformers
@@ -60,6 +60,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -111,7 +112,7 @@ def train(
             fused_lora and fast_kernels must used together (may change in future). \
     """
 
-    logger = logging.get_logger("sft_trainer")
+    train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
@@ -479,11 +480,8 @@ def parse_arguments(parser, json_config=None):
 
 
 def main(**kwargs):  # pylint: disable=unused-argument
-    logger = logging.get_logger("__main__")
-
     parser = get_parser()
     job_config = get_json_config()
-    logger.debug("Input args parsed: %s", job_config)
     # accept arguments via command-line or JSON
     try:
         (
@@ -498,6 +496,10 @@ def main(**kwargs):  # pylint: disable=unused-argument
             fusedops_kernels_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
+
+        # Function to set log level for python native logger and transformers training logger
+        training_args, logger = set_log_level(training_args, __name__)
+
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
