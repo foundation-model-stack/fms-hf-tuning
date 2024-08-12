@@ -18,13 +18,8 @@
 # Standard
 from typing import Any
 
-# Third Party
-from transformers.utils import logging
-
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
-
-logger = logging.get_logger(__name__)
 
 
 class EvalMetrics(MetricHandler):
