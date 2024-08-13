@@ -225,9 +225,8 @@ def train(
         ),
     )
 
-    # Add special tokens only when a custom tokenizer is not passed and
-    # the tokenizer is not used from saved checkpoint
-    if not model_args.tokenizer_name_or_path and not last_checkpoint:
+    # Add special tokens only when a custom tokenizer is not passed
+    if not model_args.tokenizer_name_or_path:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
             tokenizer.add_special_tokens(
@@ -256,10 +255,9 @@ def train(
             tokenizer.model_max_length,
         )
 
-    # Add special tokens only when a custom tokenizer is not passed and
-    # the tokenizer is not used from saved checkpoint
+    # add special tokens only when a custom tokenizer is not passed
     special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path and not last_checkpoint:
+    if not model_args.tokenizer_name_or_path:
         # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
             logger.warning("PAD token set to default, missing in tokenizer")
@@ -276,14 +274,12 @@ def train(
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    # Check if tokenizer is not used from saved checkpoint
-    if not last_checkpoint:
-        tokenizer_data_utils.tokenizer_and_embedding_resize(
-            special_tokens_dict=special_tokens_dict,
-            tokenizer=tokenizer,
-            model=model,
-            multiple_of=model_args.embedding_size_multiple_of,
-        )
+    tokenizer_data_utils.tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens_dict,
+        tokenizer=tokenizer,
+        model=model,
+        multiple_of=model_args.embedding_size_multiple_of,
+    )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     if train_args.packing:
