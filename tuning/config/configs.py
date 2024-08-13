@@ -122,7 +122,7 @@ class TrainingArguments(transformers.TrainingArguments):
     save_model_dir: str = field(
         default=None,
         metadata={
-            "help": "Directory where final checkpoint will be saved to \
+            "help": "Directory where tuned model will be saved to \
                   using SFTTrainer.save_model()."
         },
     )

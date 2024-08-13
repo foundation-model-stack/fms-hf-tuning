@@ -121,7 +121,7 @@ def main():
         return_code = e.returncode
         if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
             return_code = INTERNAL_ERROR_EXIT_CODE
-    
+
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training. {e}")
