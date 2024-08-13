@@ -53,7 +53,11 @@ from tuning.config.tracker_configs import (
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.utils.config_utils import get_hf_peft_config, get_json_config
+from tuning.utils.config_utils import (
+    get_hf_peft_config,
+    get_json_config,
+    get_last_checkpoint,
+)
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
     INTERNAL_ERROR_EXIT_CODE,
@@ -178,6 +182,14 @@ def train(
         quantized_lora_config, fusedops_kernels_config
     ).get_framework()
 
+    # Check if tuning has to be resumed from last saved checkpoint or started
+    last_checkpoint = get_last_checkpoint(train_args)
+    if last_checkpoint:
+        if model_args.model_name_or_path:
+            model_args.model_name_or_path = last_checkpoint
+        if model_args.tokenizer_name_or_path:
+            model_args.tokenizer_name_or_path = last_checkpoint
+
     model_loader = AutoModelForCausalLM.from_pretrained
     if framework is not None and framework.requires_custom_loading:
         model_loader = framework.model_loader  # drop-in new loader
@@ -213,8 +225,9 @@ def train(
         ),
     )
 
-    # add special tokens only when a custom tokenizer is not passed
-    if not model_args.tokenizer_name_or_path:
+    # Add special tokens only when a custom tokenizer is not passed and
+    # the tokenizer is not used from saved checkpoint
+    if not model_args.tokenizer_name_or_path and not last_checkpoint:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
             tokenizer.add_special_tokens(
@@ -243,9 +256,10 @@ def train(
             tokenizer.model_max_length,
         )
 
-    # add special tokens only when a custom tokenizer is not passed
+    # Add special tokens only when a custom tokenizer is not passed and
+    # the tokenizer is not used from saved checkpoint
     special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
+    if not model_args.tokenizer_name_or_path and not last_checkpoint:
         # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
             logger.warning("PAD token set to default, missing in tokenizer")
@@ -262,12 +276,14 @@ def train(
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
-        special_tokens_dict=special_tokens_dict,
-        tokenizer=tokenizer,
-        model=model,
-        multiple_of=model_args.embedding_size_multiple_of,
-    )
+    # Check if tokenizer is not used from saved checkpoint
+    if not last_checkpoint:
+        tokenizer_data_utils.tokenizer_and_embedding_resize(
+            special_tokens_dict=special_tokens_dict,
+            tokenizer=tokenizer,
+            model=model,
+            multiple_of=model_args.embedding_size_multiple_of,
+        )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     if train_args.packing:
@@ -358,7 +374,11 @@ def train(
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
 
-    trainer.train()
+    if last_checkpoint:
+        logger.info("Tuning resumes from checkpoint: %s", last_checkpoint)
+        trainer.train(resume_from_checkpoint=last_checkpoint)
+    else:
+        trainer.train()
 
 
 def get_parser():

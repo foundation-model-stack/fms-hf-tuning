@@ -17,8 +17,11 @@
 
 # Standard
 import base64
+import copy
+import json
 import os
 import pickle
+import tempfile
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
@@ -26,10 +29,73 @@ import pytest
 
 # First Party
 from tests.build.test_utils import HAPPY_PATH_DUMMY_CONFIG_PATH
+from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, TRAIN_ARGS, _validate_training
 
 # Local
+from tuning import sft_trainer
 from tuning.config import peft_config
 from tuning.utils import config_utils
+
+
+def test_resume_training_from_checkpoint():
+    """
+    Test feature of resume training from checkpoint to ensure that the tuning resumes
+    from the latest checkpoint creating new checkpoints and the checkpoints created
+    before resuming tuning is not afected. Also the tuning is resumed with increased
+    number of epoch and ensures that the loss of 1st epoch is unchanged.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        final_trainer_state = _get_latest_checkpoint_trainer_state(tempdir)
+        assert final_trainer_state is not None
+
+        assert final_trainer_state["epoch"] > init_trainer_state["epoch"]
+        assert final_trainer_state["global_step"] > init_trainer_state["global_step"]
+
+        # Check if loss of 1st epoch after first tuning is same after
+        # resuming tuning and not overwritten
+        assert len(init_trainer_state["log_history"]) > 0
+        init_loss_epoch = [
+            entry["loss"]
+            for entry in init_trainer_state["log_history"]
+            if entry["epoch"] == 1.0
+        ][0]
+        final_loss_epoch = [
+            entry["loss"]
+            for entry in final_trainer_state["log_history"]
+            if entry["epoch"] == 1.0
+        ][0]
+        assert init_loss_epoch == final_loss_epoch
+
+
+def _get_latest_checkpoint_trainer_state(dir_path):
+    trainer_state = None
+    checkpoints = [
+        os.path.join(dir_path, d)
+        for d in os.listdir(dir_path)
+        if d.startswith("checkpoint")
+    ]
+    if checkpoints:
+        last_checkpoint = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
+        trainer_state_file = os.path.join(last_checkpoint, "trainer_state.json")
+        with open(trainer_state_file, "r", encoding="utf-8") as f:
+            trainer_state = json.load(f)
+    return trainer_state
 
 
 def test_get_hf_peft_config_returns_None_for_tuning_config_None():
