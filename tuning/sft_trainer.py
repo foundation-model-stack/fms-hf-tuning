@@ -16,6 +16,7 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import logging
 import os
 import sys
 import time
@@ -364,7 +365,7 @@ def train(
     return trainer
 
 
-def save(path: str, trainer: SFTTrainer):
+def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -373,9 +374,17 @@ def save(path: str, trainer: SFTTrainer):
         trainer: SFTTrainer
             Instance of SFTTrainer used for training to save the model.
     """
+    logger = logging.getLogger("sft_trainer_save")
+    # default value from TrainingArguments
+    if log_level == "passive":
+        log_level = "WARNING"
+
+    logger.setLevel(log_level)
+
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
 
+    logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
 
 
@@ -603,7 +612,11 @@ def main(**kwargs):  # pylint: disable=unused-argument
     # save model
     if training_args.save_model_dir:
         try:
-            save(path=training_args.save_model_dir, trainer=trainer)
+            save(
+                path=training_args.save_model_dir,
+                trainer=trainer,
+                log_level=training_args.log_level,
+            )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())
             write_termination_log(

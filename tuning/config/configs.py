@@ -97,6 +97,7 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
+    # pylint: disable=too-many-instance-attributes
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     max_seq_length: int = field(
