@@ -56,9 +56,6 @@ def get_base_model_from_adapter_config(adapter_config):
 
 
 def main():
-    LOGLEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()
-    logging.basicConfig(level=LOGLEVEL)
-
     if not os.getenv("TERMINATION_LOG_FILE"):
         os.environ["TERMINATION_LOG_FILE"] = ERROR_LOG
 
@@ -74,6 +71,18 @@ def main():
                 "Must set environment variable 'SFT_TRAINER_CONFIG_JSON_PATH' \
             or 'SFT_TRAINER_CONFIG_JSON_ENV_VAR'."
             )
+
+        # Configure log_level of python native logger.
+        # CLI arg takes precedence over env var. And if neither is set, we use default "WARNING"
+        log_level = job_config.get(
+            "log_level"
+        )  # this will be set to either the value found or None
+        if (
+            not log_level
+        ):  # if log level not set by job_config aka by JSON, set it via env var or set default
+            log_level = os.environ.get("LOG_LEVEL", "WARNING")
+        log_level = log_level.upper()
+        logging.basicConfig(level=log_level)
 
         args = process_accelerate_launch_args(job_config)
         logging.debug("accelerate launch parsed args: %s", args)
@@ -112,8 +121,7 @@ def main():
         return_code = e.returncode
         if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
             return_code = INTERNAL_ERROR_EXIT_CODE
-            write_termination_log(f"Unhandled exception during training. {e}")
-        sys.exit(return_code)
+    
     except Exception as e:  # pylint: disable=broad-except
         logging.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training. {e}")
