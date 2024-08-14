@@ -10,14 +10,14 @@ operations:
     class: LogControl
     arguments:
       log_format: 'Epoch: {trainer_state[epoch]:.0f}, Step: {trainer_state[global_step]}, Rank: {per_process_state[rank]}, loss = {training_loss}'
-      log_level: INFO
+      log_level: info
   - name: logger_on_save
     class: LogControl
     arguments:
       log_format: |
-        Saving model in huggingface format at samples_seen: {trainer_state[global_step]}
+        Saving model in huggingface format at step: {trainer_state[global_step]}
         Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
-      log_level: INFO
+      log_level: info
 controllers:
   - name: ctrl-on-log-format
     triggers:
