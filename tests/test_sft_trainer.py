@@ -44,6 +44,7 @@ from tests.data import (
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.config.tracker_configs import FileLoggingTrackerConfig
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -444,10 +445,32 @@ def test_successful_lora_target_modules_default_from_main():
 
 ############################# Finetuning Tests #############################
 def test_run_causallm_ft_and_inference():
-    """Check if we can bootstrap and finetune tune causallm models"""
+    """Check if we can bootstrap and finetune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
-        _test_run_inference(tempdir=tempdir)
+        _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+
+def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
+    """Check if we can bootstrap and finetune causallm model with save_model_dir
+    and save_strategy=no. Verify no checkpoints created and can save model.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        save_model_args = copy.deepcopy(TRAIN_ARGS)
+        save_model_args.save_strategy = "no"
+        save_model_args.output_dir = tempdir
+
+        trainer = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        logs_path = os.path.join(
+            tempdir, FileLoggingTrackerConfig.training_logs_filename
+        )
+        _validate_logfile(logs_path)
+        # validate that no checkpoints created
+        assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
+
+        sft_trainer.save(tempdir, trainer)
+        assert any(x.endswith(".safetensors") for x in os.listdir(tempdir))
+        _test_run_inference(checkpoint_path=tempdir)
 
 
 def test_run_causallm_ft_pretokenized():
@@ -493,9 +516,7 @@ def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
     _validate_training(tempdir)
 
 
-def _test_run_inference(tempdir):
-    checkpoint_path = _get_checkpoint_path(tempdir)
-
+def _test_run_inference(checkpoint_path):
     # Load the model
     loaded_model = TunedCausalLM.load(checkpoint_path)
 
@@ -512,12 +533,16 @@ def _validate_training(
 ):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
+    _validate_logfile(train_logs_file_path, check_eval)
+
+
+def _validate_logfile(log_file_path, check_eval=False):
     train_log_contents = ""
-    with open(train_logs_file_path, encoding="utf-8") as f:
+    with open(log_file_path, encoding="utf-8") as f:
         train_log_contents = f.read()
 
-    assert os.path.exists(train_logs_file_path) is True
-    assert os.path.getsize(train_logs_file_path) > 0
+    assert os.path.exists(log_file_path) is True
+    assert os.path.getsize(log_file_path) > 0
     assert "training_loss" in train_log_contents
 
     if check_eval:
