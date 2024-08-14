@@ -16,6 +16,8 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import logging
+import os
 import sys
 import time
 import traceback
@@ -33,7 +35,7 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
-from transformers.utils import is_accelerate_available, logging
+from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import fire
 import transformers
@@ -60,6 +62,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -111,7 +114,7 @@ def train(
             fused_lora and fast_kernels must used together (may change in future). \
     """
 
-    logger = logging.get_logger("sft_trainer")
+    train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
@@ -160,7 +163,7 @@ def train(
         trainer_controller_args.trainer_controller_config_file is not None
     ):
         tc_callback = TrainerControllerCallback(
-            trainer_controller_args.trainer_controller_config_file
+            trainer_controller_args.trainer_controller_config_file,
         )
         trainer_callbacks.append(tc_callback)
 
@@ -190,32 +193,46 @@ def train(
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name_or_path, cache_dir=train_args.cache_dir, use_fast=True
+        (
+            model_args.tokenizer_name_or_path
+            if model_args.tokenizer_name_or_path
+            else model_args.model_name_or_path
+        ),
+        cache_dir=train_args.cache_dir,
+        use_fast=True,
     )
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
     peft_config = get_hf_peft_config(
-        task_type, peft_config, model_args.tokenizer_name_or_path
+        task_type,
+        peft_config,
+        (
+            model_args.tokenizer_name_or_path
+            if model_args.tokenizer_name_or_path
+            else model_args.model_name_or_path
+        ),
     )
 
-    # TODO: understand if we need to hardcode these here or just use defaults in model
-    if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-        tokenizer.add_special_tokens(
-            {
-                "bos_token": "<s>",
-                "eos_token": "</s>",
-                "unk_token": "<unk>",
-                "pad_token": "<pad>",
-            }
-        )
-    elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-        tokenizer.add_special_tokens(
-            {
-                "pad_token": "<pad>",
-            }
-        )
+    # add special tokens only when a custom tokenizer is not passed
+    if not model_args.tokenizer_name_or_path:
+        # TODO: understand if we need to hardcode these here or just use defaults in model
+        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
+            tokenizer.add_special_tokens(
+                {
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                }
+            )
+        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
+            tokenizer.add_special_tokens(
+                {
+                    "pad_token": "<pad>",
+                }
+            )
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
@@ -228,20 +245,22 @@ def train(
             tokenizer.model_max_length,
         )
 
-    # TODO: we need to change this, perhaps follow what open instruct does?
+    # add special tokens only when a custom tokenizer is not passed
     special_tokens_dict = {}
-    if tokenizer.pad_token is None:
-        logger.warning("PAD token set to default, missing in tokenizer")
-        special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-    if tokenizer.eos_token is None:
-        logger.warning("EOS token set to default, missing in tokenizer")
-        special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-    if tokenizer.bos_token is None:
-        logger.warning("BOS token set to default, missing in tokenizer")
-        special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
-    if tokenizer.unk_token is None:
-        logger.warning("UNK token set to default, missing in tokenizer")
-        special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
+    if not model_args.tokenizer_name_or_path:
+        # TODO: we need to change this, perhaps follow what open instruct does?
+        if tokenizer.pad_token is None:
+            logger.warning("PAD token set to default, missing in tokenizer")
+            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
+        if tokenizer.eos_token is None:
+            logger.warning("EOS token set to default, missing in tokenizer")
+            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+        if tokenizer.bos_token is None:
+            logger.warning("BOS token set to default, missing in tokenizer")
+            special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
+        if tokenizer.unk_token is None:
+            logger.warning("UNK token set to default, missing in tokenizer")
+            special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
@@ -268,8 +287,14 @@ def train(
         formatted_train_dataset,
         formatted_validation_dataset,
         dataset_text_field,
-    ) = format_dataset(data_args, tokenizer)
-    data_collator = get_data_collator(packing, data_args.response_template, tokenizer)
+    ) = format_dataset(data_args, tokenizer, max_seq_length)
+    data_collator = get_data_collator(
+        packing,
+        data_args.response_template,
+        tokenizer,
+        formatted_train_dataset,
+        max_seq_length,
+    )
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(
@@ -315,6 +340,7 @@ def train(
             try:
                 for k, v in additional_metrics.items():
                     tracker.track(metric=v, name=k, stage="additional_metrics")
+                if exp_metadata:
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
             except ValueError as e:
                 logger.error(
@@ -335,6 +361,31 @@ def train(
             trainer.add_callback(x)
 
     trainer.train()
+
+    return trainer
+
+
+def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
+    """Saves model and tokenizer to given path.
+
+    Args:
+        path: str
+            Path to save the model to.
+        trainer: SFTTrainer
+            Instance of SFTTrainer used for training to save the model.
+    """
+    logger = logging.getLogger("sft_trainer_save")
+    # default value from TrainingArguments
+    if log_level == "passive":
+        log_level = "WARNING"
+
+    logger.setLevel(log_level)
+
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+    logger.info("Saving tuned model to path: %s", path)
+    trainer.save_model(path)
 
 
 def get_parser():
@@ -456,11 +507,8 @@ def parse_arguments(parser, json_config=None):
 
 
 def main(**kwargs):  # pylint: disable=unused-argument
-    logger = logging.get_logger("__main__")
-
     parser = get_parser()
     job_config = get_json_config()
-    logger.debug("Input args parsed: %s", job_config)
     # accept arguments via command-line or JSON
     try:
         (
@@ -475,6 +523,10 @@ def main(**kwargs):  # pylint: disable=unused-argument
             fusedops_kernels_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
+
+        # Function to set log level for python native logger and transformers training logger
+        training_args, logger = set_log_level(training_args, __name__)
+
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
@@ -493,7 +545,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"Exception raised during training. This may be a problem with your input: {e}"
         )
@@ -520,7 +572,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        train(
+        trainer = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -556,6 +608,21 @@ def main(**kwargs):  # pylint: disable=unused-argument
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # save model
+    if training_args.save_model_dir:
+        try:
+            save(
+                path=training_args.save_model_dir,
+                trainer=trainer,
+                log_level=training_args.log_level,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(traceback.format_exc())
+            write_termination_log(
+                f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

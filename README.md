@@ -6,6 +6,7 @@
 - [Training](#training)
   - [Single GPU](#single-gpu)
   - [Multiple GPUs with FSDP](#multiple-gpus-with-fsdp)
+  - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
@@ -18,6 +19,7 @@
   - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
 - [Validation](#validation)
 - [Trainer Controller Framework](#trainer-controller-framework)
+- [Experiment Tracking](#experiment-tracking)
 - [More Examples](#more-examples)
 
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
@@ -27,9 +29,13 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+### Basic Installation
+
 ```
 pip install fms-hf-tuning
 ```
+
+### Using FlashAttention
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
 ```
@@ -38,21 +44,28 @@ pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
-If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
-```
-pip install fms-hf-tuning[aim]
-```
+### Using FMS-Acceleration
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
 pip install fms-hf-tuning[fms-accel]
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
+
+### Using Experiment Trackers
+
+To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
+```
+pip install fms-hf-tuning[aim]
+```
+For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data format
-We support two data formats:
+We support the following data formats:
 
-1. #### Pre-process the JSON/JSONL dataset
+### 1. JSON formats with a single sequence and a specified response_template to use for masking on completion.
+
+#### 1.1 Pre-process the JSON/JSONL dataset
  Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
@@ -87,7 +100,7 @@ The same way can be applied to any dataset, with more info can be found [here](h
 
 Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
 
-2.  #### Format JSON/JSONL on the fly
+#### 1.2 Format JSON/JSONL on the fly
    Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
    JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
 
@@ -101,8 +114,20 @@ data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`
 
 Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
+##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-##### In conclusion, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer. 
+### 2. JSONL with input and output fields (no response template)
+
+  Pass a JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+
+  The "input" and "output" field names are mandatory and cannot be changed. 
+
+Example: Train.jsonl
+
+```
+{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
+{"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
+```
 
 ## Supported Models
 
@@ -200,6 +225,50 @@ tuning/sft_trainer.py \
 ```
 
 To summarize you can pick either python for single-GPU jobs or use accelerate launch for multi-GPU jobs. The following tuning techniques can be applied:
+
+### Tips on Parameters to Set
+
+#### Saving checkpoints while training
+
+By default, [`save_strategy`](tuning/config/configs.py) is set to `"epoch"` in the TrainingArguments. This means that checkpoints will be saved on each epoch. This can also be set to `"steps"` to save on every `"save_steps"` or `"no"` to not save any checkpoints.
+
+Checkpoints are saved to the given `output_dir`, which is a required field. If `save_strategy="no"`, the `output_dir` will only contain the training logs with loss details.
+
+A useful flag to set to limit the number of checkpoints saved is [`save_total_limit`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.save_total_limit). Older checkpoints are deleted from the `output_dir` to limit the number of checkpoints, for example, if `save_total_limit=1`, this will only save the last checkpoint. However, while tuning, two checkpoints will exist in `output_dir` for a short time as the new checkpoint is created and then the older one will be deleted. If the user sets a validation dataset and [`load_best_model_at_end`](https://huggingface.co/docs/transformers/en/main_classes/trainer#transformers.TrainingArguments.load_best_model_at_end), then the best checkpoint will be saved.
+
+#### Saving model after training
+
+`save_model_dir` can optionally be set to save the tuned model using `SFTTrainer.save_model()`. This can be used in tandem with `save_strategy="no"` to only save the designated checkpoint and not any intermediate checkpoints, which can help to save space.
+
+`save_model_dir` can be set to a different directory than `output_dir`. If set to the same directory, the designated checkpoint, training logs, and any intermediate checkpoints will all be saved to the same directory as seen below.
+
+<details>
+<summary>Ways you can use `save_model_dir` and more tips:</summary>
+
+For example, if `save_model_dir` is set to a sub-directory of `output_dir`and `save_total_limit=1` with LoRA tuning, the directory would look like:
+
+```sh
+$ ls /tmp/output_dir/
+checkpoint-35  save_model_dir  training_logs.jsonl
+
+$ ls /tmp/output_dir/save_model_dir/
+README.md	     adapter_model.safetensors	special_tokens_map.json  tokenizer.model	training_args.bin
+adapter_config.json  added_tokens.json		tokenizer.json		 tokenizer_config.json
+```
+
+Here is an fine tuning example of how the directory would look if `output_dir` is set to the same value as `save_model_dir` and `save_total_limit=2`. Note the checkpoint directories as well as the `training_logs.jsonl`:
+
+```sh
+$ ls /tmp/same_dir
+
+added_tokens.json	model-00001-of-00006.safetensors  model-00006-of-00006.safetensors  tokenizer_config.json
+checkpoint-16		model-00002-of-00006.safetensors  model.safetensors.index.json	    training_args.bin
+checkpoint-20		model-00003-of-00006.safetensors  special_tokens_map.json	    training_logs.jsonl
+config.json		model-00004-of-00006.safetensors  tokenizer.json
+generation_config.json	model-00005-of-00006.safetensors  tokenizer.model
+```
+
+</details>
 
 ## Tuning Techniques:
 
@@ -548,6 +617,19 @@ Trainer controller is a framework for controlling the trainer loop using user-de
 This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
 
 For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
+
+
+## Experiment Tracking
+
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+[FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
+
+The code supports currently two trackers out of the box, 
+* `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
+* `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+
+Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
+
 
 ## More Examples
 

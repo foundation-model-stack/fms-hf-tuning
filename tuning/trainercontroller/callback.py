@@ -59,11 +59,14 @@ CONTROLLER_RULE_KEY = "rule"
 CONTROLLER_CONFIG_KEY = "config"
 CONTROLLER_PATIENCE_CONFIG_KEY = "patience"
 CONTROLLER_TRIGGERS_KEY = "triggers"
+CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL = "trigger_log_level"
 CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 
-# Default operations / metrics to register
+# Default values
 DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
 DEFAULT_METRICS = {}
+DEFAULT_CONFIG = {}
+DEFAULT_TRIGGER_LOG_LEVEL = "debug"
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -250,14 +253,14 @@ class TrainerControllerCallback(TrainerCallback):
                     continue
                 if rule_succeeded:
                     for operation_action in control_action.operation_actions:
-                        logger.info(
-                            "Taking [%s] action in controller [%s]",
-                            operation_action.action,
-                            control_action.name,
-                        )
                         operation_action.instance.act(
                             action=operation_action.action,
+                            log_level=control_action.config[
+                                CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
+                            ],
                             event_name=event_name,
+                            control_name=control_action.name,
+                            **self.metrics,
                             **kwargs,
                         )
 
@@ -302,6 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
+        log_levels = logging.get_log_levels_dict()
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
@@ -398,8 +402,24 @@ class TrainerControllerCallback(TrainerCallback):
                         ),
                         operation_actions=[],
                     )
+                    config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     if CONTROLLER_CONFIG_KEY in controller:
                         control.config = controller[CONTROLLER_CONFIG_KEY]
+                        config_log_level_str = control.config.get(
+                            CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL, config_log_level_str
+                        )
+                        if config_log_level_str not in log_levels:
+                            logger.warning(
+                                "Incorrect trigger log-level [%s] specified in the config."
+                                " Defaulting to 'debug' level",
+                                config_log_level_str,
+                            )
+                            config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
+                    else:
+                        control.config = DEFAULT_CONFIG
+                    control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[
+                        config_log_level_str
+                    ]
                     if CONTROLLER_PATIENCE_CONFIG_KEY in controller:
                         control.patience = PatienceControl(
                             **controller[CONTROLLER_PATIENCE_CONFIG_KEY]
@@ -548,3 +568,59 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
         self._actions_on_event(event_name="on_evaluate", **kwargs)
+
+    def on_save(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_save", **kwargs)
+
+    def on_step_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_step_begin", **kwargs)
+
+    def on_optimizer_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_optimizer_step", **kwargs)
+
+    def on_substep_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_substep_end", **kwargs)
