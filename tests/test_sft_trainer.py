@@ -29,18 +29,22 @@ import torch
 import transformers
 
 # First Party
+from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
     TWITTER_COMPLAINTS_JSON_FORMAT,
+    TWITTER_COMPLAINTS_TOKENIZED,
 )
 
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.config.tracker_configs import FileLoggingTrackerConfig
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -157,14 +161,13 @@ def test_parse_arguments_peft_method(job_config):
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
+    assert not tune_config.target_modules
+    assert "target_modules" not in job_config_lora
 
 
 ############################# Prompt Tuning Tests #############################
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -177,11 +180,9 @@ def test_run_causallm_pt_and_inference():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
+
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -195,9 +196,6 @@ def test_run_causallm_pt_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -218,11 +216,8 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -236,9 +231,6 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skip(
-    reason="currently inference doesn't work with transformer version 4.42.4"
-)
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -257,11 +249,8 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
         # Load the model
@@ -292,11 +281,8 @@ def test_run_causallm_pt_init_text():
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
-        # tokenizer_name_or_path from model arguments is passed
-        # while preparing the prompt tuning config which
-        # defaults to model_name_or_path if not explicitly set.
         _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.tokenizer_name_or_path
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
         )
 
 
@@ -356,6 +342,20 @@ def test_run_causallm_pt_with_validation_data_formatting():
         _validate_training(tempdir, check_eval=True)
 
 
+def test_run_causallm_pt_with_custom_tokenizer():
+    """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = model_args.model_name_or_path
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        with pytest.raises(ValueError):
+            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
+
+
 ############################# Lora Tests #############################
 
 target_modules_val_map = [
@@ -407,12 +407,103 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that" in output_inference
 
 
+def test_successful_lora_target_modules_default_from_main():
+    """Check that if target_modules is not set, or set to None via JSON, the
+    default value by model type will be using in LoRA tuning.
+    The correct default target modules will be used for model type llama
+    and will exist in the resulting adapter_config.json.
+    https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/
+    src/peft/tuners/lora/model.py#L432
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        TRAIN_KWARGS = {
+            **MODEL_ARGS.__dict__,
+            **TRAIN_ARGS.__dict__,
+            **DATA_ARGS.__dict__,
+            **PEFT_LORA_ARGS.__dict__,
+            **{"peft_method": "lora", "output_dir": tempdir},
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        sft_trainer.main()
+
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        assert (
+            "target_modules" in adapter_config
+        ), "target_modules not found in adapter_config.json."
+
+        assert set(adapter_config.get("target_modules")) == {
+            "q_proj",
+            "v_proj",
+        }, "target_modules are not set to the default values."
+
+
 ############################# Finetuning Tests #############################
 def test_run_causallm_ft_and_inference():
-    """Check if we can bootstrap and finetune tune causallm models"""
+    """Check if we can bootstrap and finetune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
-        _test_run_inference(tempdir=tempdir)
+        _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+
+def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
+    """Check if we can bootstrap and finetune causallm model with save_model_dir
+    and save_strategy=no. Verify no checkpoints created and can save model.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        save_model_args = copy.deepcopy(TRAIN_ARGS)
+        save_model_args.save_strategy = "no"
+        save_model_args.output_dir = tempdir
+
+        trainer = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        logs_path = os.path.join(
+            tempdir, FileLoggingTrackerConfig.training_logs_filename
+        )
+        _validate_logfile(logs_path)
+        # validate that no checkpoints created
+        assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
+
+        sft_trainer.save(tempdir, trainer)
+        assert any(x.endswith(".safetensors") for x in os.listdir(tempdir))
+        _test_run_inference(checkpoint_path=tempdir)
+
+
+def test_run_causallm_ft_pretokenized():
+    """Check if we can bootstrap and finetune causallm models using pretokenized data"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # below args not needed for pretokenized data
+        data_formatting_args.data_formatter_template = None
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.response_template = None
+
+        # update the training data path to tokenized data
+        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
 ############################# Helper functions #############################
@@ -425,9 +516,7 @@ def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
     _validate_training(tempdir)
 
 
-def _test_run_inference(tempdir):
-    checkpoint_path = _get_checkpoint_path(tempdir)
-
+def _test_run_inference(checkpoint_path):
     # Load the model
     loaded_model = TunedCausalLM.load(checkpoint_path)
 
@@ -444,12 +533,16 @@ def _validate_training(
 ):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
+    _validate_logfile(train_logs_file_path, check_eval)
+
+
+def _validate_logfile(log_file_path, check_eval=False):
     train_log_contents = ""
-    with open(train_logs_file_path, encoding="utf-8") as f:
+    with open(log_file_path, encoding="utf-8") as f:
         train_log_contents = f.read()
 
-    assert os.path.exists(train_logs_file_path) is True
-    assert os.path.getsize(train_logs_file_path) > 0
+    assert os.path.exists(log_file_path) is True
+    assert os.path.getsize(log_file_path) > 0
     assert "training_loss" in train_log_contents
 
     if check_eval:
@@ -724,3 +817,58 @@ def test_run_with_good_experimental_metadata():
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
+
+
+### Tests for pretokenized data
+def test_pretokenized_dataset():
+    """Ensure that we can provide a pretokenized dataset with input/output format."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        _validate_training(tempdir)
+
+
+@pytest.mark.parametrize(
+    "dataset_text_field,response_template",
+    [
+        ("foo", None),
+        (None, "bar"),
+    ],
+)
+def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
+    """Ensure that we can't provide only dataset text field / response template for pretok data."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = dataset_text_field
+        data_args.response_template = response_template
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        # We should raise an error since we should not have a dataset text
+        # field or a response template if we have pretokenized data
+        with pytest.raises(ValueError):
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+
+
+def test_pretokenized_dataset_wrong_format():
+    """Ensure that we fail to generate data if the data is in the wrong format."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.response_template = None
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA
+
+        # It would be best to handle this in a way that is more understandable; we might
+        # need to directly add validation prior to the dataset generation since datasets
+        # is essentially swallowing a KeyError here.
+        with pytest.raises(ValueError):
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)

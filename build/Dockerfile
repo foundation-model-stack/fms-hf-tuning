@@ -33,6 +33,7 @@ RUN dnf remove -y --disableplugin=subscription-manager \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
+    && python -m pip install --upgrade setuptools \
     && dnf update -y \
     && dnf clean all
 
@@ -104,6 +105,9 @@ ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
 
+## Enable Aimstack if requested via ENABLE_AIM set to "true"
+ARG ENABLE_AIM=false
+
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
     # Twistlock detects it as H severity: Private keys stored in image
@@ -129,6 +133,9 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
+    if [[ "${ENABLE_AIM}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[aim]"; \
+    fi && \
     # Clean up the wheel module. It's only needed by flash-attn install
     python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
@@ -146,6 +153,14 @@ RUN mkdir /app && \
     chown -R $USER:0 /app /tmp && \
     chmod -R g+rwX /app /tmp
 
+# Need a better way to address these hacks
+RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
+        touch /.aim_profile && \
+        chmod -R 777 /.aim_profile; \
+    fi
+RUN mkdir /.cache && \
+    chmod -R 777 /.cache
+
 # Copy scripts and default configs
 COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 COPY build/utils.py /app/build/
@@ -153,12 +168,6 @@ RUN chmod +x /app/accelerate_launch.py
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
-
-# Need a better way to address this hack
-RUN touch /.aim_profile && \
-    chmod -R 777 /.aim_profile && \
-    mkdir /.cache && \
-    chmod -R 777 /.cache
 
 WORKDIR /app
 USER ${USER}

@@ -14,12 +14,10 @@
 
 # Standard
 from typing import Union
+import logging
 
 # Third Party
-from transformers.utils import logging
 import torch
-
-logger = logging.get_logger("data_utils")
 
 
 def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
@@ -35,7 +33,7 @@ def str_to_torch_dtype(dtype_str: str) -> torch.dtype:
     """
     dt = getattr(torch, dtype_str, None)
     if not isinstance(dt, torch.dtype):
-        logger.error(" ValueError: Unrecognized data type of a torch.Tensor")
+        logging.error(" ValueError: Unrecognized data type of a torch.Tensor")
         raise ValueError("Unrecognized data type of a torch.Tensor")
     return dt
 

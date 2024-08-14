@@ -77,3 +77,5 @@ TRAINER_CONFIG_TEST_NON_DECREASING_TRAINING_LOSS_YAML = os.path.join(
 TRAINER_CONFIG_TEST_THRESHOLDED_TRAINING_LOSS_YAML = os.path.join(
     _DATA_DIR, "thresholded-training-loss.yaml"
 )
+TRAINER_CONFIG_TEST_ON_SAVE_YAML = os.path.join(_DATA_DIR, "on-save.yaml")
+TRAINER_CONFIG_LOG_CONTROLLER_YAML = os.path.join(_DATA_DIR, "log_controller.yaml")

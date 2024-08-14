@@ -25,12 +25,13 @@ import pytest
 
 # First Party
 from build.accelerate_launch import main
-from build.utils import serialize_args
+from build.utils import serialize_args, get_highest_checkpoint
 from tests.data import TWITTER_COMPLAINTS_DATA
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
+from tuning.config.tracker_configs import FileLoggingTrackerConfig
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
@@ -61,7 +62,6 @@ BASE_PEFT_KWARGS = {
         "prompt_tuning_init": "RANDOM",
         "num_virtual_tokens": 8,
         "prompt_tuning_init_text": "hello",
-        "tokenizer_name_or_path": MODEL_NAME,
         "save_strategy": "epoch",
         "output_dir": "tmp",
     },
@@ -98,11 +98,9 @@ def test_successful_ft():
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
         assert main() == 0
-        # check termination log and .complete files
-        assert os.path.exists(tempdir + "/termination-log") is False
-        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
-        assert os.path.exists(tempdir + "/adapter_config.json") is False
-        assert len(glob.glob(f"{tempdir}/model*.safetensors")) > 0
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        checkpoint = os.path.join(tempdir, get_highest_checkpoint(tempdir))
+        _validate_training_output(checkpoint, "ft")
 
 
 def test_successful_pt():
@@ -114,11 +112,9 @@ def test_successful_pt():
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
         assert main() == 0
-        # check termination log and .complete files
-        assert os.path.exists(tempdir + "/termination-log") is False
-        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
-        assert os.path.exists(tempdir + "/adapter_model.safetensors") is True
-        assert os.path.exists(tempdir + "/adapter_config.json") is True
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        checkpoint = os.path.join(tempdir, get_highest_checkpoint(tempdir))
+        _validate_training_output(checkpoint, "pt")
 
 
 def test_successful_lora():
@@ -130,11 +126,92 @@ def test_successful_lora():
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
         assert main() == 0
-        # check termination log and .complete files
-        assert os.path.exists(tempdir + "/termination-log") is False
-        assert os.path.exists(os.path.join(tempdir, ".complete")) is True
-        assert os.path.exists(tempdir + "/adapter_model.safetensors") is True
-        assert os.path.exists(tempdir + "/adapter_config.json") is True
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        checkpoint = os.path.join(tempdir, get_highest_checkpoint(tempdir))
+        _validate_training_output(checkpoint, "lora")
+
+
+def test_lora_save_model_dir_separate_dirs():
+    """Run LoRA tuning with separate save_model_dir and output_dir.
+    Verify model saved to save_model_dir and checkpoints saved to
+    output_dir.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        output_dir = os.path.join(tempdir, "output_dir")
+        save_model_dir = os.path.join(tempdir, "save_model_dir")
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": output_dir,
+                "save_model_dir": save_model_dir,
+                "save_total_limit": 1,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        _validate_termination_files_when_tuning_succeeds(output_dir)
+        _validate_training_output(save_model_dir, "lora")
+
+        assert len(os.listdir(output_dir)) == 3
+        checkpoints = glob.glob(os.path.join(output_dir, "checkpoint-*"))
+        assert len(checkpoints) == 1
+
+
+def test_lora_save_model_dir_same_dir_as_output_dir():
+    """Run LoRA tuning with same save_model_dir and output_dir.
+    Verify checkpoints, logs, and model saved to path.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": tempdir,
+                "save_model_dir": tempdir,
+                "gradient_accumulation_steps": 1,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check logs, checkpoint dir, and model exists in path
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        # check that model exists in output_dir and checkpoint dir
+        _validate_training_output(tempdir, "lora")
+        checkpoint_path = os.path.join(tempdir, get_highest_checkpoint(tempdir))
+        _validate_training_output(checkpoint_path, "lora")
+
+        # number of checkpoints should equal number of epochs
+        checkpoints = glob.glob(os.path.join(tempdir, "checkpoint-*"))
+        assert len(checkpoints) == TRAIN_KWARGS["num_train_epochs"]
+
+
+def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no():
+    """Run LoRA tuning with same save_model_dir and output_dir and
+    save_strategy=no. Verify no checkpoints created, only
+    logs and final model.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{"output_dir": tempdir, "save_model_dir": tempdir, "save_strategy": "no"},
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check that model and logs exists in output_dir
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        _validate_training_output(tempdir, "lora")
+
+        # no checkpoints should be created
+        checkpoints = glob.glob(os.path.join(tempdir, "checkpoint-*"))
+        assert len(checkpoints) == 0
 
 
 def test_bad_script_path():
@@ -211,6 +288,27 @@ def test_config_parsing_error():
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == USER_ERROR_EXIT_CODE
         assert os.stat(tempdir + "/termination-log").st_size > 0
+
+
+def _validate_termination_files_when_tuning_succeeds(base_dir):
+    # check termination log and .complete files
+    assert os.path.exists(os.path.join(base_dir, "/termination-log")) is False
+    assert os.path.exists(os.path.join(base_dir, ".complete")) is True
+    assert (
+        os.path.exists(
+            os.path.join(base_dir, FileLoggingTrackerConfig.training_logs_filename)
+        )
+        is True
+    )
+
+
+def _validate_training_output(base_dir, tuning_technique):
+    if tuning_technique == "ft":
+        assert len(glob.glob(f"{base_dir}/model*.safetensors")) > 0
+        assert os.path.exists(base_dir + "/adapter_config.json") is False
+    else:
+        assert os.path.exists(base_dir + "/adapter_config.json") is True
+        assert os.path.exists(base_dir + "/adapter_model.safetensors") is True
 
 
 def test_cleanup():
