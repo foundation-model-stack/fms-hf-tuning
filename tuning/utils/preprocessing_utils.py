@@ -354,34 +354,22 @@ def load_hf_dataset_from_file(
     if input_field_name == output_field_name:
         raise ValueError("Input field name and output field name should not match!")
 
-    file_extension = os.path.splitext(data_path)[-1].lower()
-    if file_extension == ".jsonl":
-        file_format = "jsonl"
-    elif file_extension == ".json":
-        file_format = "json"
-    else:
-        raise ValueError("Unsupported file format! Use 'json' or 'jsonl'.")
+    def get_json_object():
+        with open(data_path, "r", encoding="utf-8") as json_file:
+            file_extension = os.path.splitext(data_path)[-1].lower()
+            if file_extension == ".jsonl":
+                data_stream = (json.loads(line) for line in json_file)
+            elif file_extension == ".json":
+                data_stream = json.load(json_file)
+            else:
+                raise ValueError("Unsupported file format! Use 'json' or 'jsonl'.")
 
-    def get_jsonl_object():
-        with open(data_path, "r", encoding="utf-8") as jsonl_file:
-            data_stream = [json.loads(line) for line in jsonl_file]
             for data in data_stream:
                 yield {
                     input_field_name: data[input_field_name],
                     output_field_name: data[output_field_name],
                 }
 
-    def get_json_object():
-        with open(data_path, "r", encoding="utf-8") as json_file:
-            data = json.load(json_file)
-            for item in data:
-                yield {
-                    input_field_name: item[input_field_name],
-                    output_field_name: item[output_field_name],
-                }
-
-    if file_format == "jsonl":
-        return Dataset.from_generator(get_jsonl_object)
     return Dataset.from_generator(get_json_object)
 
 
