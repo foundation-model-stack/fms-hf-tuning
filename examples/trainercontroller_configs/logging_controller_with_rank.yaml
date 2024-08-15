@@ -1,0 +1,33 @@
+controller_metrics:
+  - name: trainer_state
+    class: TrainingState
+  - name: training_loss
+    class: Loss
+  - name: per_process_state
+    class: PerProcessState
+operations:
+  - name: logger_on_log
+    class: LogControl
+    arguments:
+      log_format: 'Epoch: {trainer_state[epoch]:.0f}, Step: {trainer_state[global_step]}, Rank: {per_process_state[rank]}, loss = {training_loss}'
+      log_level: info
+  - name: logger_on_save
+    class: LogControl
+    arguments:
+      log_format: |
+        Saving model in huggingface format at step: {trainer_state[global_step]}
+        Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
+      log_level: info
+controllers:
+  - name: ctrl-on-log-format
+    triggers:
+      - on_log
+    rule: 'training_loss != None'
+    operations:
+      - logger_on_log.should_log
+  - name: ctrl-on-save-format
+    triggers:
+      - on_save
+    rule: 'True'
+    operations:
+      - logger_on_save.should_log

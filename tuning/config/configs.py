@@ -97,6 +97,7 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
+    # pylint: disable=too-many-instance-attributes
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     max_seq_length: int = field(
@@ -117,6 +118,13 @@ class TrainingArguments(transformers.TrainingArguments):
             Possible values are 'no'(no save is done during training), \
             'epoch' (save is done at the end of each epoch), \
             'steps' (save is done every `save_steps`)"
+        },
+    )
+    save_model_dir: str = field(
+        default=None,
+        metadata={
+            "help": "Directory where tuned model will be saved to \
+                  using SFTTrainer.save_model()."
         },
     )
     logging_strategy: str = field(
