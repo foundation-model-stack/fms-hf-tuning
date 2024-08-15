@@ -497,7 +497,6 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         _test_run_inference(checkpoint_path=tempdir)
 
 
-
 @pytest.mark.parametrize(
     "dataset_path",
     [TWITTER_COMPLAINTS_TOKENIZED_JSONL, TWITTER_COMPLAINTS_TOKENIZED_JSON],
