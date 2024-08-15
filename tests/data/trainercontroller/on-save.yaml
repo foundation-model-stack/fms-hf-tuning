@@ -1,10 +1,10 @@
 controller_metrics:
-  - name: state
+  - name: trainer_state
     class: TrainingState
 controllers:
   - name: stop_on_training_loss_on_save
     triggers:
       - on_save
-    rule: state["epoch"] >= 0.5
+    rule: trainer_state["epoch"] >= 0.5
     operations:
       - hfcontrols.should_training_stop

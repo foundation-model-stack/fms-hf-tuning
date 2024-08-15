@@ -255,12 +255,12 @@ class TrainerControllerCallback(TrainerCallback):
                     for operation_action in control_action.operation_actions:
                         operation_action.instance.act(
                             action=operation_action.action,
-                            event_name=event_name,
-                            tc_metrics=self.metrics,
-                            control_name=control_action.name,
                             log_level=control_action.config[
                                 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
                             ],
+                            event_name=event_name,
+                            control_name=control_action.name,
+                            **self.metrics,
                             **kwargs,
                         )
 
@@ -582,3 +582,45 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
         self._actions_on_event(event_name="on_save", **kwargs)
+
+    def on_step_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_step_begin", **kwargs)
+
+    def on_optimizer_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_optimizer_step", **kwargs)
+
+    def on_substep_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_substep_end", **kwargs)
