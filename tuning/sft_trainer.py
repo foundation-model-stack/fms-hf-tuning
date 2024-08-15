@@ -501,7 +501,7 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def main(**kwargs):  # pylint: disable=unused-argument
+def main(*args, **kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
