@@ -67,14 +67,14 @@ def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
 
 # Tests for loading the dataset from disk
 @pytest.mark.parametrize(
-    "validation_data_path",
+    "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
 )
-def test_load_hf_dataset_from_file(validation_data_path):
+def test_load_hf_dataset_from_file(dataset_path):
     input_field_name = "Tweet text"
     output_field_name = "text_label"
     data = load_hf_dataset_from_file(
-        validation_data_path,
+        dataset_path,
         input_field_name=input_field_name,
         output_field_name=output_field_name,
     )
@@ -115,22 +115,16 @@ def test_load_hf_dataset_from_jsonl_file_duplicate_keys():
 
 # Tests for custom masking / preprocessing logic
 @pytest.mark.parametrize(
-    "validation_data_path, max_sequence_length",
-    [
-        (TWITTER_COMPLAINTS_DATA_JSONL, 1),
-        (TWITTER_COMPLAINTS_DATA_JSONL, 10),
-        (TWITTER_COMPLAINTS_DATA_JSONL, 100),
-        (TWITTER_COMPLAINTS_DATA_JSONL, 1000),
-        (TWITTER_COMPLAINTS_DATA_JSON, 1),
-        (TWITTER_COMPLAINTS_DATA_JSON, 10),
-        (TWITTER_COMPLAINTS_DATA_JSON, 100),
-        (TWITTER_COMPLAINTS_DATA_JSON, 1000),
-    ],
+    "max_sequence_length",
+    [1, 10, 100, 1000],
 )
-def test_get_preprocessed_dataset_jsonl(validation_data_path, max_sequence_length):
+def test_get_preprocessed_dataset(max_sequence_length):
+    """Ensure we can handle preprocessed datasets with different max_sequence_lengths
+    to ensure proper tokenization and truncation.
+    """
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     preprocessed_data = get_preprocessed_dataset(
-        data_path=validation_data_path,
+        data_path=TWITTER_COMPLAINTS_DATA_JSON,
         tokenizer=tokenizer,
         max_sequence_length=max_sequence_length,
         input_field_name="Tweet text",
@@ -226,15 +220,7 @@ def test_is_pretokenized_data(data, result):
 @pytest.mark.parametrize(
     "data_args, packing",
     [
-        # JSON dataset_text_field with no response_template
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
-                dataset_text_field="output",
-            ),
-            False,
-        ),
-        # JSONL dataset_text_field with no response_template
+        # dataset_text_field with no response_template
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
@@ -242,15 +228,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON data formatter with no response template
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
-                data_formatter_template="### Input: {{input}} \n\n### Response: {{output}}",
-            ),
-            False,
-        ),
-        # JSONL data formatter with no response template
+        # Data formatter with no response template
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
@@ -258,26 +236,11 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON response template with no dataset_text_field or formatter
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
-                response_template="\n### Label:",
-            ),
-            False,
-        ),
-        # JSONL response template with no dataset_text_field or formatter
+        # Response template with no dataset_text_field or formatter
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
                 response_template="\n### Label:",
-            ),
-            False,
-        ),
-        # JSON without input / output for no single sequence arguments
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
             ),
             False,
         ),
@@ -288,15 +251,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized dataset with dataset_text_field
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                dataset_text_field="output",
-            ),
-            False,
-        ),
-        # JSONL pretokenized dataset with dataset_text_field
+        # Pretokenized dataset with dataset_text_field
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -304,15 +259,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized dataset with data formatter
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                data_formatter_template="### Input: {{input}} \n\n### Response: {{output}}",
-            ),
-            False,
-        ),
-        # JSONL pretokenized dataset with data formatter
+        # Pretokenized dataset with data formatter
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -320,15 +267,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized dataset with response template
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                response_template="\n### Label:",
-            ),
-            False,
-        ),
-        # JSONL pretokenized dataset with response template
+        # Pretokenized dataset with response template
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -336,15 +275,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized training dataset with validation data not pretokenized
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                validation_data_path=TWITTER_COMPLAINTS_DATA_JSON,
-            ),
-            False,
-        ),
-        # JSONL pretokenized training dataset with validation data not pretokenized
+        # Pretokenized training dataset with validation data not pretokenized
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -352,16 +283,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized data with dataset_text_field and response template
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                response_template="\n### Label:",
-                dataset_text_field="output",
-            ),
-            False,
-        ),
-        # JSONL pretokenized data with dataset_text_field and response template
+        # Pretokenized data with dataset_text_field and response template
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -370,14 +292,7 @@ def test_is_pretokenized_data(data, result):
             ),
             False,
         ),
-        # JSON pretokenized data with packing to True
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
-            ),
-            True,
-        ),
-        # JSONL pretokenized data with packing to True
+        # Pretokenized data with packing to True
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
