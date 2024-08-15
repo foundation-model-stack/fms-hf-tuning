@@ -468,7 +468,7 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         # validate that no checkpoints created
         assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
 
-        sft_trainer.save(tempdir, trainer)
+        sft_trainer.save(tempdir, trainer, "debug")
         assert any(x.endswith(".safetensors") for x in os.listdir(tempdir))
         _test_run_inference(checkpoint_path=tempdir)
 

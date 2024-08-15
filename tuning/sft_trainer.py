@@ -379,7 +379,7 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     if log_level == "passive":
         log_level = "WARNING"
 
-    logger.setLevel(log_level)
+    logger.setLevel(log_level.upper())
 
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
