@@ -37,7 +37,6 @@ from transformers import (
 )
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
-import fire
 import transformers
 
 # Local
@@ -501,7 +500,7 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def main(**kwargs):  # pylint: disable=unused-argument
+def main():
     parser = get_parser()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
@@ -619,4 +618,4 @@ def main(**kwargs):  # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()
