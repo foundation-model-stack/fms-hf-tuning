@@ -135,32 +135,3 @@ def txt_to_obj(txt):
     except UnicodeDecodeError:
         # Otherwise the bytes are a pickled python dictionary
         return pickle.loads(message_bytes)
-
-
-def get_last_checkpoint(train_args):
-    """Get last saved checkpoint of tuned model.
-
-    Args:
-        train_args
-            Training arguments for training model.
-
-    Returns:
-        last_checkpoint
-            last saved checkpoint of tuned model.
-    """
-    last_checkpoint = None
-    output_dir = train_args.output_dir
-
-    # Check if saved checkpoint exists
-    if output_dir and os.path.exists(output_dir):
-        checkpoints = [
-            os.path.join(output_dir, d)
-            for d in os.listdir(output_dir)
-            if d.startswith("checkpoint")
-        ]
-        if checkpoints:
-            # Sort checkpoints to get the latest one
-            last_checkpoint = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[
-                -1
-            ]
-    return last_checkpoint

@@ -35,6 +35,7 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
+from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import fire
@@ -55,11 +56,7 @@ from tuning.config.tracker_configs import (
 from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.utils.config_utils import (
-    get_hf_peft_config,
-    get_json_config,
-    get_last_checkpoint,
-)
+from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
     INTERNAL_ERROR_EXIT_CODE,
@@ -183,14 +180,6 @@ def train(
     framework = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config, fusedops_kernels_config
     ).get_framework()
-
-    # Check if tuning has to be resumed from last saved checkpoint or started
-    last_checkpoint = get_last_checkpoint(train_args)
-    if last_checkpoint:
-        if model_args.model_name_or_path:
-            model_args.model_name_or_path = last_checkpoint
-        if model_args.tokenizer_name_or_path:
-            model_args.tokenizer_name_or_path = last_checkpoint
 
     model_loader = AutoModelForCausalLM.from_pretrained
     if framework is not None and framework.requires_custom_loading:
@@ -372,11 +361,11 @@ def train(
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
 
-    if last_checkpoint:
-        logger.info("Tuning resumes from checkpoint: %s", last_checkpoint)
-        trainer.train(resume_from_checkpoint=last_checkpoint)
-    else:
-        trainer.train()
+    # Check if tuning has to be resumed from last saved checkpoint
+    is_checkpoint_available = get_last_checkpoint(training_args.output_dir)
+    if is_checkpoint_available:
+        logger.info("Tuning resumes from the last checkpoint")
+    trainer.train(resume_from_checkpoint=is_checkpoint_available)
 
     return trainer
 
