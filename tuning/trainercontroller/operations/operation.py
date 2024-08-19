@@ -2,12 +2,9 @@
 import abc
 import inspect
 import re
+import logging
 
-# Third Party
-from transformers.utils import logging
-
-logger = logging.get_logger(__name__)
-
+logger = logging.getLogger()
 
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""

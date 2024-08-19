@@ -20,6 +20,7 @@ from typing import Dict, List, Union
 import inspect
 import os
 import re
+import logging
 
 # Third Party
 from simpleeval import EvalWithCompoundTypes, FeatureNotAvailable, NameNotDefined
@@ -29,7 +30,6 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
-from transformers.utils import logging
 import yaml
 
 # Local
@@ -45,7 +45,7 @@ from tuning.trainercontroller.operations import (
 from tuning.trainercontroller.patience import PatienceControl
 from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger()
 
 # Configuration keys
 CONTROLLER_METRICS_KEY = "controller_metrics"

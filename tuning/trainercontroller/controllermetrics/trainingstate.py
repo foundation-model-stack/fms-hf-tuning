@@ -21,13 +21,9 @@ import dataclasses
 
 # Third Party
 from transformers import TrainerState
-from transformers.utils import logging
 
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
-
-logger = logging.get_logger(__name__)
-
 
 class TrainingState(MetricHandler):
     """Implements the controller metric which exposes the trainer state"""
