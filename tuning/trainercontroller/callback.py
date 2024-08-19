@@ -66,7 +66,7 @@ CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
 DEFAULT_METRICS = {}
 DEFAULT_CONFIG = {}
-DEFAULT_TRIGGER_LOG_LEVEL = "debug"
+DEFAULT_TRIGGER_LOG_LEVEL = "DEBUG"
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -305,7 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
-        log_levels = logging.get_log_levels_dict()
+        log_levels = logging._levelToName
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
@@ -407,7 +407,7 @@ class TrainerControllerCallback(TrainerCallback):
                         control.config = controller[CONTROLLER_CONFIG_KEY]
                         config_log_level_str = control.config.get(
                             CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL, config_log_level_str
-                        )
+                        ).upper()
                         if config_log_level_str not in log_levels:
                             logger.warning(
                                 "Incorrect trigger log-level [%s] specified in the config."
@@ -417,6 +417,7 @@ class TrainerControllerCallback(TrainerCallback):
                             config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     else:
                         control.config = DEFAULT_CONFIG
+                    logger.warning(f"LOG LEVELS: {log_levels}")
                     control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[
                         config_log_level_str
                     ]
