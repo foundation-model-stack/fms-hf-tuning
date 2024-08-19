@@ -305,7 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
-        log_levels = logging._levelToName
+        log_levels = dict((v,k) for k,v in logging._levelToName.items())
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
