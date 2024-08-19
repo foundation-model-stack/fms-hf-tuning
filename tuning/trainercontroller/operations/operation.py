@@ -4,7 +4,7 @@ import inspect
 import logging
 import re
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Operation(metaclass=abc.ABCMeta):

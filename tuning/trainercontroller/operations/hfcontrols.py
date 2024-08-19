@@ -10,7 +10,7 @@ from transformers import TrainerControl
 # Local
 from .operation import Operation
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class HFControls(Operation):

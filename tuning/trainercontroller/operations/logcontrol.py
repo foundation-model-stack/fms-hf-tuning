@@ -7,7 +7,7 @@ from transformers import TrainingArguments
 # Local
 from .operation import Operation
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class LogControl(Operation):

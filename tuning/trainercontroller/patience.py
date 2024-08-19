@@ -31,7 +31,7 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 # will be exceeded afer the fifth event.
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class PatienceControl:
