@@ -392,7 +392,9 @@ You can specify attention or linear layers. With the CLI, you can specify layers
 #### Recommended target modules per model architecture 
 As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using the query and value projection matrices, we can achieve reasonable quality with efficient GPU utilization. Hence, while thinking about what LoRA adapters to specify, we recommend starting with query and value matrices. You could also refer to the defaults specified by PEFT library for popular model architectures in section [TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING](https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/src/peft/utils/constants.py#L70) as a good starting point.
 
-#### How to specify lm_head as a target module
+<details>
+
+<summary>How to specify lm_head as a target module</summary>
 
 Since `lm_head` is an output layer, it will _not_ be included as target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to `lm_head` layer by explicit naming it in the `target_modules` arg.
 
@@ -418,6 +420,8 @@ Example 3:
     "target_modules": ["lm_head", "all-linear"] // this produces the equivalent of all-linear only, no lm_head
 }
 ```
+
+</details>
 
 _________________________
 
