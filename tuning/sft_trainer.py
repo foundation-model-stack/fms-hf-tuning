@@ -373,13 +373,15 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
             Path to save the model to.
         trainer: SFTTrainer
             Instance of SFTTrainer used for training to save the model.
+        log_level: str
+            Optional threshold to set save save logger to, default warning.
     """
     logger = logging.getLogger("sft_trainer_save")
     # default value from TrainingArguments
     if log_level == "passive":
         log_level = "WARNING"
 
-    logger.setLevel(log_level)
+    logger.setLevel(log_level.upper())
 
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
