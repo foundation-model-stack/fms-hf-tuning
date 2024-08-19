@@ -417,7 +417,6 @@ class TrainerControllerCallback(TrainerCallback):
                             config_log_level_str = DEFAULT_TRIGGER_LOG_LEVEL
                     else:
                         control.config = DEFAULT_CONFIG
-                    logger.warning(f"LOG LEVELS: {log_levels}")
                     control.config[CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL] = log_levels[
                         config_log_level_str
                     ]
