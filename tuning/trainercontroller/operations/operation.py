@@ -1,10 +1,11 @@
 # Standard
 import abc
 import inspect
-import re
 import logging
+import re
 
 logger = logging.getLogger()
+
 
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""

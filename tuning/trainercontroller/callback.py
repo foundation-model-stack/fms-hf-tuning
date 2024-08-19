@@ -18,9 +18,9 @@
 # Standard
 from typing import Dict, List, Union
 import inspect
+import logging
 import os
 import re
-import logging
 
 # Third Party
 from simpleeval import EvalWithCompoundTypes, FeatureNotAvailable, NameNotDefined
@@ -305,7 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
-        log_levels = dict((v,k) for k,v in logging._levelToName.items())
+        log_levels = dict((v, k) for k, v in logging._levelToName.items())
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config

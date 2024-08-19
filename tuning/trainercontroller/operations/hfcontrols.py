@@ -12,6 +12,7 @@ from .operation import Operation
 
 logger = logging.getLogger()
 
+
 class HFControls(Operation):
     """Implements the control actions for the HuggingFace controls in
     transformers.TrainerControl class."""

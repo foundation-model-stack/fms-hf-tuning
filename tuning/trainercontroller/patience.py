@@ -33,6 +33,7 @@ MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
 logger = logging.getLogger()
 
+
 class PatienceControl:
     """Implements the patience control for every rule"""
 

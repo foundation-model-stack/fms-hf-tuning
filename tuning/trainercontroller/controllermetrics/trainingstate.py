@@ -25,6 +25,7 @@ from transformers import TrainerState
 # Local
 from tuning.trainercontroller.controllermetrics.metricshandler import MetricHandler
 
+
 class TrainingState(MetricHandler):
     """Implements the controller metric which exposes the trainer state"""
 

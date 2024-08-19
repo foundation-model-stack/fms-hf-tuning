@@ -1,11 +1,14 @@
+# Standard
+import logging
+
 # Third Party
 from transformers import TrainingArguments
-import logging
 
 # Local
 from .operation import Operation
 
 logger = logging.getLogger()
+
 
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""
