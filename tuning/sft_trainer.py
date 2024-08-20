@@ -510,6 +510,7 @@ def parse_arguments(parser, json_config=None):
 
 def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
+    logger = logging.getLogger()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
     try:
@@ -547,7 +548,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
-        print(traceback.format_exc())
+        logger.error(traceback.format_exc())
         write_termination_log(
             f"Exception raised during training. This may be a problem with your input: {e}"
         )
