@@ -510,6 +510,7 @@ def parse_arguments(parser, json_config=None):
 
 def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
+    logger = logging.getLogger()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
     try:
