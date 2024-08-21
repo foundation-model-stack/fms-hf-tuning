@@ -42,10 +42,12 @@ class ModelArguments:
     )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
     embedding_size_multiple_of: Optional[int] = field(
-        default=8,
+        default=1,
         metadata={
             "help": "Resize model embedding layer to the nearest multiple of \
-                the given number after tokenizer modifications."
+                the given number after tokenizer modifications. \
+                    NOTE: This involves extending \
+                    the embedding layer without any corresponding real tokens."
         },
     )
     tokenizer_name_or_path: Optional[str] = field(
