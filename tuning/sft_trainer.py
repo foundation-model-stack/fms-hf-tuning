@@ -361,11 +361,24 @@ def train(
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
 
-    # Check if tuning has to be resumed from last saved checkpoint
-    is_checkpoint_available = get_last_checkpoint(training_args.output_dir)
-    if is_checkpoint_available:
-        logger.info("Tuning resumes from the last checkpoint")
-    trainer.train(resume_from_checkpoint=is_checkpoint_available)
+    resume_from_checkpoint = None
+    # Check if resume flag is not passed (None), or if flag is true and
+    # output_dir has checkpoints then get last checkpoint from output_dir
+    if (
+        training_args.resume_from_checkpoint is None
+        or training_args.resume_from_checkpoint.lower() == "true"
+    ):
+        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
+    else:
+        # `training_args.resume_from_checkpoint` gives string values
+        # Check if flag is false OR flag has checkpoint value for resuming tuning
+        resume_from_checkpoint = (
+            training_args.resume_from_checkpoint
+            if training_args.resume_from_checkpoint.lower() != "false"
+            else False
+        )
+
+    trainer.train(resume_from_checkpoint)
 
     return trainer
 
