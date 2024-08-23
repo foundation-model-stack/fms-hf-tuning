@@ -18,10 +18,11 @@ import logging
 import os
 
 # Third Party
-from datasets import Dataset, IterableDataset
+from datasets import Dataset, IterableDataset, Value
 from datasets.exceptions import DatasetGenerationError
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
+from trl.extras.dataset_formatting import get_formatting_func_from_dataset
 
 # Local
 from tuning.config import configs
@@ -47,7 +48,22 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
-def validate_data_args(data_args, packing: bool):
+def is_chat_training(
+    data: Union[str, Dataset, IterableDataset], tokenizer: AutoTokenizer
+):
+    if data is None:
+        return False
+    if isinstance(data, str):
+        try:
+            data = configs.load_dataset(data_path=data, split="train[:1]")
+        except DatasetGenerationError as e:
+            raise DatasetGenerationError("failed to load the provided dataset") from e
+    if get_formatting_func_from_dataset(data, tokenizer):
+        return True
+    return False
+
+
+def validate_data_args(data_args, packing: bool, tokenizer):
 
     is_train_data_pretokenized = (
         is_pretokenized_dataset(data_args.train_dataset) or data_args.tokens_field
@@ -55,6 +71,9 @@ def validate_data_args(data_args, packing: bool):
     is_eval_data_pretokenized = (
         is_pretokenized_dataset(data_args.validation_dataset) or data_args.tokens_field
     )
+
+    if is_chat_training(data_args.train_dataset, tokenizer):
+        return
 
     ### Data format 1
     # if the provided train dataset is pretokenized
@@ -85,7 +104,6 @@ def validate_data_args(data_args, packing: bool):
         # UPDATE packing is now supported for pretokenized datasets using
         # constantlengthdataset written in data_loaders.py
         # but this is suggested only for pretraining.
-        return
 
     ### Data format 2
     # Dataset containing single sequence needs a response template for masking
@@ -137,6 +155,7 @@ def get_data_collator(
     formatted_train_dataset: Dataset,
     max_seq_length: int,
     tokens_field: str = True,
+    instruction_template: Optional[str] = None,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -154,6 +173,8 @@ def get_data_collator(
             Max sequence length expected
         tokens_field: str
             feature having tokens
+        instruction_template: Optional[str]
+            start of user answer.
 
     Returns:
         Callable
@@ -162,6 +183,31 @@ def get_data_collator(
     is_train_data_pretokenized = (
         is_pretokenized_dataset(formatted_train_dataset) or tokens_field
     )
+
+    if is_chat_training(formatted_train_dataset, tokenizer):
+        if not response_template:
+            raise ValueError(
+                "response_template should be provided for chat training.\
+                response_template determines the start of response"
+            )
+        if not instruction_template:
+            raise ValueError(
+                "instruction_template should be provided for chat training. \
+                instruction_template determines start of user response in chat.\
+                this has to be provided along with response_template"
+            )
+        # response_template_ids = tokenizer.encode(
+        #     response_template, add_special_tokens=False
+        # )[2:]
+        # intruction_template_ids = tokenizer.encode(
+        #     instruction_template, add_special_tokens=False
+        # )[2:]
+        return DataCollatorForCompletionOnlyLM(
+            response_template=response_template,
+            instruction_template=instruction_template,
+            tokenizer=tokenizer,
+            ignore_index=configs.IGNORE_INDEX,
+        )
 
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.
