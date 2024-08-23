@@ -40,29 +40,6 @@ def copy_checkpoint(source, destination):
             shutil.copy2(source_file, destination_file)
 
 
-def get_highest_checkpoint(dir_path):
-    """Given path to directory, returns name of highest checkpoint directory.
-    Expects checkpoint directories to be formatted 'checkpoint-<number>'
-
-    Args:
-        dir_path: str
-    Returns:
-        str
-    """
-    checkpoint_dir = ""
-    for curr_dir in os.listdir(dir_path):
-        if curr_dir.startswith("checkpoint"):
-            if checkpoint_dir:
-                curr_dir_num = int(checkpoint_dir.rsplit("-", maxsplit=1)[-1])
-                new_dir_num = int(curr_dir.split("-")[-1])
-                if new_dir_num > curr_dir_num:
-                    checkpoint_dir = curr_dir
-            else:
-                checkpoint_dir = curr_dir
-
-    return checkpoint_dir
-
-
 def serialize_args(args_json):
     """Given dict, converts to base64 byte representation.
 

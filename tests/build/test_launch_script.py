@@ -25,13 +25,14 @@ import pytest
 
 # First Party
 from build.accelerate_launch import main
-from build.utils import serialize_args, get_highest_checkpoint
+from build.utils import serialize_args
 from tests.data import TWITTER_COMPLAINTS_DATA
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.utils.postprocessting_utils import get_highest_checkpoint
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"

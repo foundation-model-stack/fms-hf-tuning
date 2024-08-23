@@ -63,6 +63,7 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
+from tuning.utils.postprocessting_utils import get_highest_checkpoint
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -367,6 +368,8 @@ def train(
 
 def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     """Saves model and tokenizer to given path.
+    If model is of type granite with llama arch and lm_head weight
+    is a duplicate of embeddings weight, remove lm_head.
 
     Args:
         path: str
@@ -383,9 +386,41 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
 
     logger.setLevel(log_level.upper())
 
-    if not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
+    model_arch = trainer.model.config.model_type
+    # check that it is a granite model with llama architecture with tied weights
+    # ie. lm_head is duplicate of embeddings
 
+    # a fine tuned model will have params_dict.get("model.embed_tokens.weight")
+    # a prompt adapter has params_dict.get("base_model.model.embed_tokens.weight")
+    # a lora adapter has params_dict.get("base_model.model.model.embed_tokens.weight")
+    if model_arch == "llama" and hasattr(trainer.model, "lm_head"):
+        if (
+            # lora tuned model has an addt model layer
+            (
+                hasattr(trainer.model.model, "model")
+                and trainer.model.lm_head.weight.untyped_storage().data_ptr()
+                == trainer.model.model.model.embed_tokens.weight.untyped_storage().data_ptr()
+            )
+            # prompt tuned model or fine tuned model
+            or (
+                hasattr(trainer.model.model, "embed_tokens")
+                and trainer.model.lm_head.weight.untyped_storage().data_ptr()
+                == trainer.model.model.embed_tokens.weight.untyped_storage().data_ptr()
+            )
+        ):
+
+            logging.info("Removing lm_head from checkpoint")
+            del trainer.model.lm_head.weight
+
+            if hasattr(trainer.model, "lm_head.weight"):
+                logging.warning("Failed to delete lm_head.weight from model")
+
+            # logging.info("Saving checkpoint to %s", path)
+            # trainer.model.save_pretrained(path)
+            # # save tokenizer with model
+            # trainer.tokenizer.save_pretrained(path)
+
+    os.makedirs(path, exist_ok=True)
     logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
 
@@ -613,19 +648,27 @@ def main(**kwargs):  # pylint: disable=unused-argument
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     # save model
-    if training_args.save_model_dir:
-        try:
+    try:
+        if training_args.save_model_dir:
             save(
                 path=training_args.save_model_dir,
                 trainer=trainer,
                 log_level=training_args.log_level,
             )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(traceback.format_exc())
-            write_termination_log(
-                f"Failed to save model to {training_args.save_model_dir}: {e}"
+        else:
+            # if granite with llama arch, remove lm_head in last checkpoint
+            save(
+                path=get_highest_checkpoint(training_args.output_dir),
+                trainer=trainer,
+                log_level=training_args.log_level,
             )
-            sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"Failed to save model to {training_args.save_model_dir}: {e}"
+        )
+        sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":
