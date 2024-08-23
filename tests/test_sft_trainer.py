@@ -94,7 +94,7 @@ def test_resume_training_from_checkpoint():
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
-        init_trainer_state = _get_latest_checkpoint_trainer_state(tempdir)
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
         assert init_trainer_state is not None
 
         # Resume training with higher epoch and same output dir
@@ -103,7 +103,7 @@ def test_resume_training_from_checkpoint():
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
-        final_trainer_state = _get_latest_checkpoint_trainer_state(tempdir)
+        final_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
         assert final_trainer_state is not None
 
         assert final_trainer_state["epoch"] > init_trainer_state["epoch"]
@@ -125,7 +125,119 @@ def test_resume_training_from_checkpoint():
         assert init_loss_epoch == final_loss_epoch
 
 
-def _get_latest_checkpoint_trainer_state(dir_path):
+def test_resume_training_from_checkpoint_with_flag_true():
+    """
+    Test feature of resume training from checkpoint using resume_from_checkpoint flag
+    to ensure that when the value of flag is True and output_dir has checkpoints, the
+    tuning resumes from the latest checkpoint creating new checkpoints and the checkpoints
+    created before resuming tuning is not affected. When the value of flag is True and
+    output_dir does not have checkpoints, then the tuning will start from scratch.
+    This test also checks if timestamp of 1st epoch after first tuning is same after
+    resuming tuning and hence confirming that earlier checkpoints are not overwritten.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.resume_from_checkpoint = "True"
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Get Training logs
+        init_training_logs = _get_training_logs(tempdir)
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        final_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert final_trainer_state is not None
+
+        assert final_trainer_state["epoch"] == init_trainer_state["epoch"] + 5
+        assert final_trainer_state["global_step"] > init_trainer_state["global_step"]
+
+        final_training_logs = _get_training_logs(tempdir)
+        assert (
+            init_training_logs[0]["data"]["timestamp"]
+            == final_training_logs[0]["data"]["timestamp"]
+        )
+
+
+def test_resume_training_from_checkpoint_with_flag_false():
+    """
+    Test feature of resume training from checkpoint using resume_from_checkpoint flag
+    to ensure that when the value of flag is False the tuning will start from scratch.
+    This test also checks multiple entry of 1st epoch in training logs after resuming
+    tuning and hence confirming that the tuning has started from scratch.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.resume_from_checkpoint = "False"
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Get Training log entry for epoch 1
+        init_training_logs = _get_training_logs(tempdir, epoch=1)
+        assert len(init_training_logs) == 1
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get Training log entry for epoch 1
+        final_training_logs = _get_training_logs(tempdir, epoch=1)
+        assert len(final_training_logs) == 2
+
+
+def test_resume_training_from_checkpoint_with_flag_checkpoint_path():
+    """
+    Test feature of resume training from checkpoint using resume_from_checkpoint flag
+    to ensure that when the value of flag is a checkpoint-x path, the tuning will resume
+    from that checkpoint. This test checks if total_flos of checkpoint-x has not changed
+    after resuming tuning, hence confirming that the tuning has started from checkpoint-x.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state and checkpoint_path of second last checkpoint
+        init_trainer_state, checkpoint_path = _get_latest_checkpoint_trainer_state(
+            tempdir, checkpoint_index=-2
+        )
+        assert init_trainer_state is not None
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        train_args.resume_from_checkpoint = checkpoint_path
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get total_flos from trainer state of checkpoint_path and check if its same
+        final_trainer_state = None
+        trainer_state_file = os.path.join(checkpoint_path, "trainer_state.json")
+        with open(trainer_state_file, "r", encoding="utf-8") as f:
+            final_trainer_state = json.load(f)
+
+        assert final_trainer_state["total_flos"] == init_trainer_state["total_flos"]
+
+
+def _get_latest_checkpoint_trainer_state(dir_path, checkpoint_index=-1):
     trainer_state = None
     checkpoints = [
         os.path.join(dir_path, d)
@@ -133,11 +245,29 @@ def _get_latest_checkpoint_trainer_state(dir_path):
         if d.startswith("checkpoint")
     ]
     if checkpoints:
-        last_checkpoint = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
+        last_checkpoint = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[
+            checkpoint_index
+        ]
         trainer_state_file = os.path.join(last_checkpoint, "trainer_state.json")
         with open(trainer_state_file, "r", encoding="utf-8") as f:
             trainer_state = json.load(f)
-    return trainer_state
+    return trainer_state, last_checkpoint
+
+
+def _get_training_logs(dir_path, epoch=None):
+    data_list = []
+    with open(f"{dir_path}/training_logs.jsonl", "r", encoding="utf-8") as file:
+        for line in file:
+            json_data = json.loads(line)
+            data_list.append(json_data)
+
+    if epoch is not None:
+        mod_data_list = []
+        for value in data_list:
+            if int(value["data"]["epoch"]) == int(epoch):
+                mod_data_list.append(value)
+        return mod_data_list
+    return data_list
 
 
 def test_run_train_requires_output_dir():
