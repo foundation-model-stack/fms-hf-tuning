@@ -15,6 +15,7 @@
 from typing import Any, Callable, Dict, Optional, Union
 import json
 import logging
+import os
 
 # Third Party
 from datasets import Dataset, IterableDataset
@@ -319,9 +320,7 @@ def get_preprocessed_dataset(
         Dataset
             HF Dataset with the pretokenized data.
     """
-    dataset = load_hf_dataset_from_jsonl_file(
-        data_path, input_field_name, output_field_name
-    )
+    dataset = load_hf_dataset_from_file(data_path, input_field_name, output_field_name)
     return dataset.map(
         preprocess_and_tokenize,
         fn_kwargs={
@@ -335,10 +334,10 @@ def get_preprocessed_dataset(
 
 
 ### Utils for loading the data from disk in supported formats [currently only jsonl]
-def load_hf_dataset_from_jsonl_file(
+def load_hf_dataset_from_file(
     data_path: str, input_field_name: str, output_field_name: str
 ) -> Dataset:
-    """Loads the huggingface datase as a generator.
+    """Loads the HuggingFace dataset from JSON or JSONL file.
 
     Args:
         data_path: str
@@ -355,16 +354,23 @@ def load_hf_dataset_from_jsonl_file(
     if input_field_name == output_field_name:
         raise ValueError("Input field name and output field name should not match!")
 
-    def get_jsonl_object():
-        with open(data_path, "r", encoding="utf-8") as jsonl_file:
-            data_stream = [json.loads(line) for line in jsonl_file]
+    def get_json_object():
+        with open(data_path, "r", encoding="utf-8") as json_file:
+            file_extension = os.path.splitext(data_path)[-1].lower()
+            if file_extension == ".jsonl":
+                data_stream = (json.loads(line) for line in json_file)
+            elif file_extension == ".json":
+                data_stream = json.load(json_file)
+            else:
+                raise ValueError("Unsupported file format! Use 'json' or 'jsonl'.")
+
             for data in data_stream:
                 yield {
                     input_field_name: data[input_field_name],
                     output_field_name: data[output_field_name],
                 }
 
-    return Dataset.from_generator(get_jsonl_object)
+    return Dataset.from_generator(get_json_object)
 
 
 ### Utils for custom masking / manipulating input / output strs, etc

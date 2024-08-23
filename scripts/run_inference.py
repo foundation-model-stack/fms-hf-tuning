@@ -30,7 +30,7 @@ import os
 # Third Party
 from peft import PeftModel
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
 import torch
 
 # Local
@@ -183,13 +183,31 @@ class TunedCausalLM:
                 try:
                     if base_model_name_or_path is None:
                         raise ValueError("base_model_name_or_path has to be passed")
-                    base_model = AutoModelForCausalLM.from_pretrained(
-                        base_model_name_or_path,
-                        attn_implementation="flash_attention_2"
-                        if use_flash_attn
-                        else None,
-                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
+
+                    # TODO: what to do when base_model_name_or_path is a model name, and not a path
+                    is_quantized = os.path.exists(
+                        os.path.join(base_model_name_or_path, "quantize_config.json")
                     )
+                    if is_quantized:
+                        gptq_config = GPTQConfig(bits=4, exllama_config={"version": 2})
+                        base_model = AutoModelForCausalLM.from_pretrained(
+                            base_model_name_or_path,
+                            attn_implementation="flash_attention_2"
+                            if use_flash_attn
+                            else None,
+                            device_map="cuda:0",
+                            torch_dtype=torch.float16 if use_flash_attn else None,
+                            quantization_config=gptq_config,
+                        )
+                    else:
+                        base_model = AutoModelForCausalLM.from_pretrained(
+                            base_model_name_or_path,
+                            attn_implementation="flash_attention_2"
+                            if use_flash_attn
+                            else None,
+                            torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                        )
+
                     # since the peft library (PEFTModelForCausalLM) does not handle cases
                     # where the model's layers are modified, in our case the embedding layer
                     # is modified, so we resize the backbone model's embedding layer with our own
