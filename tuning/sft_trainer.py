@@ -203,6 +203,15 @@ def train(
         use_fast=True,
     )
 
+    if data_args.chat_template:
+        logger.info("adding chat_template to the tokenizer")
+        if tokenizer.chat_template:
+            logger.warning(
+                f"replacing existing chat_template {tokenizer.chat_template} \
+                with the given chat_template {data_args.chat_template}"
+            )
+        tokenizer.chat_template = data_args.chat_template
+
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
@@ -288,7 +297,7 @@ def train(
         packing = False
 
     # Validate if data args are set properly
-    validate_data_args(data_args, packing)
+    validate_data_args(data_args, packing, tokenizer)
 
     (
         formatted_train_dataset,
@@ -301,6 +310,8 @@ def train(
         tokenizer,
         formatted_train_dataset,
         max_seq_length,
+        data_args.tokens_field,
+        data_args.instruction_template,
     )
 
     if framework is not None and framework.requires_agumentation:
