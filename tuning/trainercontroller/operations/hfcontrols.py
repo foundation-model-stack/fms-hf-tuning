@@ -11,6 +11,7 @@ from transformers import TrainerControl
 from .operation import Operation
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class HFControls(Operation):

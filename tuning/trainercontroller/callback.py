@@ -48,11 +48,6 @@ from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-logging.getLogger('hfcontrols').setLevel(logging.DEBUG)
-logging.getLogger('logcontrol').setLevel(logging.DEBUG)
-logging.getLogger('operation').setLevel(logging.DEBUG)
-logging.getLogger('patience').setLevel(logging.DEBUG)
-
 # Configuration keys
 CONTROLLER_METRICS_KEY = "controller_metrics"
 OPERATIONS_KEY = "operations"
