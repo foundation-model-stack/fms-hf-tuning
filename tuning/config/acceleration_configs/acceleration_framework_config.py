@@ -22,7 +22,7 @@ import yaml
 
 # Local
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
-from .attention_and_distributed_packing import PaddingFree
+from .attention_and_distributed_packing import PaddingFree, MultiPack
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
 
@@ -108,6 +108,16 @@ class AccelerationFrameworkConfig:
         ),
     ] = None
 
+    multipack: Annotated[
+        MultiPack,
+        ConfigAnnotation(
+            path="training.dataloader",
+            experimental=True,
+            required_packages=["aadp"],
+        ),
+    ] = None
+
+
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
         "Convert one or many FMS config dataclasses to a monolithic AccelerationConfig"
@@ -125,6 +135,7 @@ class AccelerationFrameworkConfig:
 
         # first unroll all the dataclases into a single level
         nested_dataclasses = []
+
         for dc in dataclasses:
             if dc is None:
                 continue
@@ -172,7 +183,6 @@ class AccelerationFrameworkConfig:
         return config
 
     def get_framework(self):
-
         if is_fms_accelerate_available():
 
             # to be eventually be made to be passed as a dict to Acceleration

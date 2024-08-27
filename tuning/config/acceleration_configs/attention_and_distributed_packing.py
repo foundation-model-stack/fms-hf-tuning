@@ -15,11 +15,18 @@ class PaddingFree:
         if self.method != "huggingface":
             raise ValueError("only 'huggingface' method currently supported.")
 
+@parsable_dataclass
+@dataclass
+class MultiPack:
+
+    num_processes: int = 16
 
 @dataclass
 class AttentionAndDistributedPackingConfig:
 
     padding_free: PaddingFree = None
+
+    multipack: MultiPack = None
 
     def __post_init__(self):
         # ensure nested dataclasses initialized

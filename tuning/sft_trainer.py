@@ -492,7 +492,7 @@ def parse_arguments(parser, json_config=None):
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
             Configuration for fused operations and kernels.
-        InstructLabConfig
+        AttentionAndDistributedPackingConfig
             Configuration for padding free and packing.
         dict[str, str]
             Extra AIM metadata.
