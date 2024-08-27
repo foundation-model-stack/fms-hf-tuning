@@ -116,9 +116,9 @@ Formatting will happen on the fly while tuning. The keys in template should matc
 
 ##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-### 2. JSONL with input and output fields (no response template)
+### 2. JSON/JSONL with input and output fields (no response template)
 
-  Pass a JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+  Pass a JSON/JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
 
   The "input" and "output" field names are mandatory and cannot be changed. 
 
