@@ -270,12 +270,12 @@ generation_config.json	model-00005-of-00006.safetensors  tokenizer.model
 
 </details>
 
-#### Optimizing training time
-Writing models to Cloud Object Storage (COS) is an expensive operation. Saving model checkpoints to a local directory causes much faster training times than writing to COS. You can use `output_dir` and `save_model_dir` to control which type of storage you write your checkpoints and final model to. Using a local directory over COS can lead to up to a 40% train time reduction.
+#### Optimizing writing checkpoints
+Writing models to Cloud Object Storage (COS) is an expensive operation. Saving model checkpoints to a local directory causes much faster training times than writing to COS. You can use `output_dir` and `save_model_dir` to control which type of storage you write your checkpoints and final model to.
 
 You can set `output_dir` to a local directory and set `save_model_dir` to COS to save time on write operations while ensuring checkpoints are saved.
 
-In order to achieve the fastest train time, set `save_strategy="no"`, as saving no checkpoints except for the final model will remove intermediate write operations all together. Using `save_strategy="no"` can lead to up to a 60% train time reduction from saving checkpoints to COS.
+In order to achieve the fastest train time, set `save_strategy="no"`, as saving no checkpoints except for the final model will remove intermediate write operations all together.
 
 ## Tuning Techniques:
 
