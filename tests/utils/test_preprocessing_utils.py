@@ -115,16 +115,25 @@ def test_load_hf_dataset_from_jsonl_file_duplicate_keys():
 
 # Tests for custom masking / preprocessing logic
 @pytest.mark.parametrize(
-    "max_sequence_length",
-    [1, 10, 100, 1000],
+    "dataset_path, max_sequence_length",
+    [
+        (TWITTER_COMPLAINTS_DATA_JSONL, 1),
+        (TWITTER_COMPLAINTS_DATA_JSONL, 10),
+        (TWITTER_COMPLAINTS_DATA_JSONL, 100),
+        (TWITTER_COMPLAINTS_DATA_JSONL, 1000),
+        (TWITTER_COMPLAINTS_DATA_JSON, 1),
+        (TWITTER_COMPLAINTS_DATA_JSON, 10),
+        (TWITTER_COMPLAINTS_DATA_JSON, 100),
+        (TWITTER_COMPLAINTS_DATA_JSON, 1000),
+    ],
 )
-def test_get_preprocessed_dataset(max_sequence_length):
+def test_get_preprocessed_dataset(dataset_path, max_sequence_length):
     """Ensure we can handle preprocessed datasets with different max_sequence_lengths
     to ensure proper tokenization and truncation.
     """
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     preprocessed_data = get_preprocessed_dataset(
-        data_path=TWITTER_COMPLAINTS_DATA_JSON,
+        data_path=dataset_path,
         tokenizer=tokenizer,
         max_sequence_length=max_sequence_length,
         input_field_name="Tweet text",
