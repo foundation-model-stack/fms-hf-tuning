@@ -145,6 +145,10 @@ class TrainingArguments(transformers.TrainingArguments):
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
         },
     )
+    warnings: bool = field(
+        default=False,
+        metadata={"help": "Enable warnings during training. Default is False."},
+    )
 
 
 @dataclass

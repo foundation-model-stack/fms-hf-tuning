@@ -19,6 +19,7 @@ import json
 import sys
 import time
 import traceback
+import warnings
 
 # Third Party
 from huggingface_hub.utils._validators import HFValidationError
@@ -111,6 +112,9 @@ def train(
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
     """
+
+    if not train_args.warnings:
+        warnings.filterwarnings("ignore", category=FutureWarning)
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
