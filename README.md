@@ -331,8 +331,8 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 }
 ```
 
-Notice the `target_modules` are the names of the modules to apply the adapter to. See below [section]() for how to specify `lm_head` as a target module.
-- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer.
+Notice the `target_modules` are the names of the modules to apply the adapter to.
+- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is specified as `lm_head` which is an output layer, the `lm_head` layer will be chosen. See the Note of this [section](#recommended-target-modules-per-model-architecture) on recommended target modules by model architecture.
 - If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
 
 #### How to get list of LoRA target_modules of a model
@@ -398,7 +398,7 @@ As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using th
 
 Since `lm_head` is an output layer, it will **not** be included as a target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to the `lm_head` layer by explicitly naming it in the `target_modules` arg.
 
-*NB*: Specifying `["lm_head", "all-linear"]` will not produce `lm_head` layer, but only the equivalent of running with `["all-linear"]`. Explicitly specify the layers needed. Using the example of Llama model above, you would need to list `"q_proj" "v_proj" "k_proj" "o_proj" "lm_head"` and these 5 layers will be produced with applied LoRA adapter.
+**NOTE**: Specifying `["lm_head", "all-linear"]` will not tune the `lm_head` layer, but will run the equivalent of `["all-linear"]`. To include `lm_head`, you must explicitly specify all of the layers to tune on. Using the example of the Llama model above, you would need to list `"q_proj" "v_proj" "k_proj" "o_proj" "lm_head"` to tune the all linear layers including `lm_head`. These 5 layers will be produced in the LoRA adapter.
 
 Example 1: 
 ```json
