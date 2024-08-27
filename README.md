@@ -396,7 +396,7 @@ As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using th
 
 <summary>How to specify lm_head as a target module</summary>
 
-Since `lm_head` is an output layer, it will _not_ be included as target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to `lm_head` layer by explicit naming it in the `target_modules` arg.
+Since `lm_head` is an output layer, it will **not** be included as a target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to the `lm_head` layer by explicitly naming it in the `target_modules` arg.
 
 *NB*: Specifying `["lm_head", "all-linear"]` will not produce `lm_head` layer, but only the equivalent of running with `["all-linear"]`. Explicitly specify the layers needed. Using the example of Llama model above, you would need to list `"q_proj" "v_proj" "k_proj" "o_proj" "lm_head"` and these 5 layers will be produced with applied LoRA adapter.
 
