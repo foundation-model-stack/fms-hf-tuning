@@ -280,15 +280,15 @@ Set `peft_method` to `"lora"`. You can additionally pass any arguments from [Lor
 r: int =8 
 lora_alpha: int = 32
 target_modules: List[str] = field(
-  default_factory=lambda: ["q_proj", "v_proj"],
-      metadata={
-            "help": "The names of the modules to apply LORA to. LORA selects modules which either \
-            completely match or "
-            'end with one of the strings. If the value is ["all-linear"], \
-            then LORA selects all linear and Conv1D '
-            "modules except for the output layer."
-        },
-    )
+  default=None,
+  metadata={
+        "help": "The names of the modules to apply LORA to. LORA selects modules which either \
+        completely match or "
+        'end with one of the strings. If the value is ["all-linear"], \
+        then LORA selects all linear and Conv1D '
+        "modules except for the output layer."
+  },
+)
 bias = "none"
 lora_dropout: float = 0.05
 ```
@@ -331,8 +331,11 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 }
 ```
 
-Notice the `target_modules` that are set are the default values. `target_modules` are the names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
+Notice the `target_modules` are the names of the modules to apply the adapter to.
+- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is specified as `lm_head` which is an output layer, the `lm_head` layer will be chosen. See the Note of this [section](#recommended-target-modules-per-model-architecture) on recommended target modules by model architecture.
+- If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
 
+#### How to get list of LoRA target_modules of a model
 For each model, the `target_modules` will depend on the type of model architecture. You can specify linear or attention layers to `target_modules`. To obtain list of `target_modules` for a model:
 
 ```py
@@ -387,7 +390,38 @@ For example for LLaMA model the modules look like:
 You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
 
 #### Recommended target modules per model architecture 
-As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using the query and value projection matrices, we can achieve reasonable quality with efficient GPU utilization. Hence, while thinking about what LoRA adapters to specify, we recommend starting with query and value matrices. You could also refer to the defaults specified by PEFT library for popular model architectures in section [TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING](https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/src/peft/utils/constants.py#L70) as a good starting point. 
+As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using the query and value projection matrices, we can achieve reasonable quality with efficient GPU utilization. Hence, while thinking about what LoRA adapters to specify, we recommend starting with query and value matrices. You could also refer to the defaults specified by PEFT library for popular model architectures in section [TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING](https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/src/peft/utils/constants.py#L70) as a good starting point.
+
+<details>
+
+<summary>How to specify lm_head as a target module</summary>
+
+Since `lm_head` is an output layer, it will **not** be included as a target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to the `lm_head` layer by explicitly naming it in the `target_modules` arg.
+
+**NOTE**: Specifying `["lm_head", "all-linear"]` will not tune the `lm_head` layer, but will run the equivalent of `["all-linear"]`. To include `lm_head`, you must explicitly specify all of the layers to tune on. Using the example of the Llama model above, you would need to list `"q_proj" "v_proj" "k_proj" "o_proj" "lm_head"` to tune the all linear layers including `lm_head`. These 5 layers will be produced in the LoRA adapter.
+
+Example 1: 
+```json
+{
+    "target_modules": ["lm_head"] // this produces lm_head layer only
+}
+```
+
+Example 2:
+```json
+{
+    "target_modules": ["lm_head", "c_proj", "c_attn", "c_fc"] // this produces lm_head, c_proj, c_attn and c_fc layers 
+}
+```
+
+Example 3:
+```json
+{
+    "target_modules": ["lm_head", "all-linear"] // this produces the equivalent of all-linear only, no lm_head
+}
+```
+
+</details>
 
 _________________________
 
