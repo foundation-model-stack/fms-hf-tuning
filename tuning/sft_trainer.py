@@ -311,13 +311,14 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
+    
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
         'hub_token' if k == 'push_to_hub_token' else k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
-    training_args = SFTConfig(**transformer_kwargs)
+    training_args = SFTConfig(**transformer_kwargs, dataset_text_field=dataset_text_field)
 
     trainer = SFTTrainer(
         model=model,
@@ -326,9 +327,7 @@ def train(
         eval_dataset=formatted_validation_dataset,
         packing=packing,
         data_collator=data_collator,
-        dataset_text_field=dataset_text_field,
         args=training_args,
-        max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
