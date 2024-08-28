@@ -311,14 +311,16 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
-    
+
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
-        'hub_token' if k == 'push_to_hub_token' else k: v
+        "hub_token" if k == "push_to_hub_token" else k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
-    training_args = SFTConfig(**transformer_kwargs, dataset_text_field=dataset_text_field)
+    training_args = SFTConfig(
+        **transformer_kwargs, dataset_text_field=dataset_text_field
+    )
 
     trainer = SFTTrainer(
         model=model,
