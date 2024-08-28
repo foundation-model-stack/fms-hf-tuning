@@ -313,7 +313,7 @@ def train(
     # not adding things that are not directly used by the trainer instance to it.
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
-        k: v
+        'hub_token' if k == 'push_to_hub_token' else k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
