@@ -44,8 +44,8 @@ import transformers
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
-    FusedOpsAndKernelsConfig,
     AttentionAndDistributedPackingConfig,
+    FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
 from tuning.config.tracker_configs import (
@@ -87,7 +87,9 @@ def train(
     exp_metadata: Optional[Dict] = None,
     quantized_lora_config: Optional[QuantizedLoraConfig] = None,
     fusedops_kernels_config: Optional[FusedOpsAndKernelsConfig] = None,
-    attention_and_distributed_packing_config: Optional[AttentionAndDistributedPackingConfig] = None,
+    attention_and_distributed_packing_config: Optional[
+        AttentionAndDistributedPackingConfig
+    ] = None,
 ):
     """Call the SFTTrainer
 
@@ -130,11 +132,14 @@ def train(
     ):
         raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
 
-    if (attention_and_distributed_packing_config.padding_free is not None and
-        model_args.use_flash_attn is False
+    if (
+        attention_and_distributed_packing_config.padding_free is not None
+        and model_args.use_flash_attn is False
     ):
-        raise ValueError("`--padding_free` argument was called without enabling \
-            flash attention, ensure `use_flash_attn = True` to use padding-free flash attention")
+        raise ValueError(
+            "`--padding_free` argument was called without enabling \
+            flash attention, ensure `use_flash_attn = True` to use padding-free flash attention"
+        )
 
     task_type = "CAUSAL_LM"
     additional_metrics = {}
@@ -187,7 +192,9 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
-        quantized_lora_config, fusedops_kernels_config, attention_and_distributed_packing_config
+        quantized_lora_config,
+        fusedops_kernels_config,
+        attention_and_distributed_packing_config,
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained

@@ -23,13 +23,13 @@ from tuning.config.acceleration_configs import (
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
-from tuning.config.acceleration_configs.fused_ops_and_kernels import (
-    FastKernelsConfig,
-    FusedLoraConfig,
-)
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
     PaddingFree,
+)
+from tuning.config.acceleration_configs.fused_ops_and_kernels import (
+    FastKernelsConfig,
+    FusedLoraConfig,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
@@ -70,7 +70,9 @@ def test_dataclass_parse_successfully():
     assert isinstance(cfg.bnb_qlora, BNBQLoraConfig)
 
     # 3. Specifing "--padding_free" will parse a PaddingFree class
-    parser = transformers.HfArgumentParser(dataclass_types=AttentionAndDistributedPackingConfig)
+    parser = transformers.HfArgumentParser(
+        dataclass_types=AttentionAndDistributedPackingConfig
+    )
     (cfg,) = parser.parse_args_into_dataclasses(
         ["--padding_free", "huggingface"],
     )

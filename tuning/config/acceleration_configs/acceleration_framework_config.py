@@ -21,8 +21,8 @@ import warnings
 import yaml
 
 # Local
+from .attention_and_distributed_packing import MultiPack, PaddingFree
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
-from .attention_and_distributed_packing import PaddingFree, MultiPack
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
 
@@ -116,7 +116,6 @@ class AccelerationFrameworkConfig:
             required_packages=["aadp"],
         ),
     ] = None
-
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):

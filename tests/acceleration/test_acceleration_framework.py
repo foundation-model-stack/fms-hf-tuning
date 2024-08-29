@@ -38,13 +38,13 @@ from tuning.config.acceleration_configs import (
 from tuning.config.acceleration_configs.acceleration_framework_config import (
     ConfigAnnotation,
 )
-from tuning.config.acceleration_configs.fused_ops_and_kernels import (
-    FastKernelsConfig,
-    FusedLoraConfig,
-)
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
     PaddingFree,
+)
+from tuning.config.acceleration_configs.fused_ops_and_kernels import (
+    FastKernelsConfig,
+    FusedLoraConfig,
 )
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
@@ -513,8 +513,7 @@ def test_framework_initialize_and_trains_with_ilab():
                     model_args,
                     data_args,
                     train_args,
-                    attention_and_distributed_packing_config=\
-                        attention_and_distributed_packing_config,
+                    attention_and_distributed_packing_config=attention_and_distributed_packing_config,
                 )
 
         # spy inside the train to ensure that the ilab plugin is called
@@ -573,9 +572,9 @@ def test_padding_free_plugin_raises_error_with_untokenized_dataset():
                         model_args,
                         data_args,
                         train_args,
-                        attention_and_distributed_packing_config=\
-                        attention_and_distributed_packing_config,
+                        attention_and_distributed_packing_config=attention_and_distributed_packing_config,
                     )
+
 
 def test_error_raised_with_paddingfree_and_flash_attn_disabled():
     """Ensure error raised when padding-free is not used with flash attention"""
@@ -584,16 +583,14 @@ def test_error_raised_with_paddingfree_and_flash_attn_disabled():
         match="`--padding_free` argument was called without enabling flash attention, \
             ensure `use_flash_attn = True` to use padding-free flash attention",
     ):
-        attention_and_distributed_packing_config = \
-            AttentionAndDistributedPackingConfig(
-                padding_free=PaddingFree(method="huggingface")
-            )
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.use_flash_attn = False
         sft_trainer.train(
             model_args,
             DATA_ARGS,
             TRAIN_ARGS,
-            attention_and_distributed_packing_config=\
-                attention_and_distributed_packing_config
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
