@@ -24,10 +24,10 @@ import pytest
 import torch
 
 # First Party
+from tests.data import TWITTER_COMPLAINTS_JSON_FORMAT, TWITTER_COMPLAINTS_TOKENIZED
 from tests.test_sft_trainer import DATA_ARGS, MODEL_ARGS, PEFT_LORA_ARGS, TRAIN_ARGS
 
 # Local
-from ..data import TWITTER_COMPLAINTS_JSON_FORMAT, TWITTER_COMPLAINTS_TOKENIZED
 from .spying_utils import create_mock_plugin_class_and_spy
 from tuning import sft_trainer
 from tuning.config.acceleration_configs import (
@@ -40,8 +40,8 @@ from tuning.config.acceleration_configs.acceleration_framework_config import (
 )
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
-    PaddingFree,
     MultiPack,
+    PaddingFree,
 )
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
@@ -595,6 +595,7 @@ def test_error_raised_with_paddingfree_and_flash_attn_disabled():
             TRAIN_ARGS,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
+
 
 def test_error_raised_with_multipack_and_paddingfree_disabled():
     """Ensure error raised when padding-free is not used with flash attention"""

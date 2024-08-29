@@ -123,7 +123,9 @@ class AccelerationFrameworkConfig:
             # this also ensures that the attention implementation for multipack
             # will be flash attention as sfttrainer will enforce flash attn to be
             # set for padding free
-            assert self.padding_free is not None, "`--multipack` is currently only supported with `--padding_free`"
+            assert (
+                self.padding_free is not None
+            ), "`--multipack` is currently only supported with `--padding_free`"
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
