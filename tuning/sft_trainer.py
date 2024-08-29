@@ -512,6 +512,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
     logger = logging.getLogger()
     job_config = get_json_config()
+
     # accept arguments via command-line or JSON
     try:
         (
@@ -528,7 +529,9 @@ def main(**kwargs):  # pylint: disable=unused-argument
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, logger = set_log_level(training_args, __name__)
+        training_args, logger = set_log_level(
+            training_args, __name__, aim_config=aim_config
+        )
 
         logger.debug(
             "Input args parsed: \
