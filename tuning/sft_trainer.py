@@ -133,7 +133,8 @@ def train(
         raise ValueError("gradient_accumulation_steps has to be an integer >= 1")
 
     if (
-        attention_and_distributed_packing_config.padding_free is not None
+        attention_and_distributed_packing_config is not None
+        and attention_and_distributed_packing_config.padding_free is not None
         and model_args.use_flash_attn is False
     ):
         raise ValueError(

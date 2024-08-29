@@ -117,6 +117,14 @@ class AccelerationFrameworkConfig:
         ),
     ] = None
 
+    def _verify_configured_dataclasses(self):
+        if self.multipack is not None:
+            # ensure if multipack is set, padding free is also turned on as well
+            # this also ensures that the attention implementation for multipack
+            # will be flash attention as sfttrainer will enforce flash attn to be
+            # set for padding free
+            assert self.padding_free is not None, "`--multipack` is currently only supported with `--padding_free`"
+
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
         "Convert one or many FMS config dataclasses to a monolithic AccelerationConfig"
@@ -179,6 +187,8 @@ class AccelerationFrameworkConfig:
             setattr(config, fi.name, dc)
             del rem_fields[fi.name]  # remove the field
 
+        # perform some checks on dataclasse
+        config._verify_configured_dataclasses()
         return config
 
     def get_framework(self):

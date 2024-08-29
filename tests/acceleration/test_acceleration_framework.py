@@ -41,6 +41,7 @@ from tuning.config.acceleration_configs.acceleration_framework_config import (
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
     PaddingFree,
+    MultiPack,
 )
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
@@ -72,9 +73,9 @@ if is_fms_accelerate_available():
         # Third Party
         from fms_acceleration_foak import FastQuantizedPeftAccelerationPlugin
 
-    if is_fms_accelerate_available(plugins="ilab"):
+    if is_fms_accelerate_available(plugins="aadp"):
         # Third Party
-        from fms_acceleration_ilab import PaddingFreeAccelerationPlugin
+        from fms_acceleration_aadp import PaddingFreeAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -471,7 +472,7 @@ def test_framework_intialized_properly_foak():
     reason="Only runs if fms-accelerate is installed along with \
         attention_and_distributed_packing plugin",
 )
-def test_framework_initialize_and_trains_with_ilab():
+def test_framework_initialize_and_trains_with_aadp():
     """
     Ensure that a properly configured ilab dataclass is
     correctly activated in train.
@@ -580,14 +581,32 @@ def test_error_raised_with_paddingfree_and_flash_attn_disabled():
     """Ensure error raised when padding-free is not used with flash attention"""
     with pytest.raises(
         ValueError,
-        match="`--padding_free` argument was called without enabling flash attention, \
-            ensure `use_flash_attn = True` to use padding-free flash attention",
+        match="`--padding_free` argument was called without enabling \
+            flash attention, ensure `use_flash_attn = True` to use padding-free flash attention",
     ):
         attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
             padding_free=PaddingFree(method="huggingface")
         )
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.use_flash_attn = False
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            TRAIN_ARGS,
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+        )
+
+def test_error_raised_with_multipack_and_paddingfree_disabled():
+    """Ensure error raised when padding-free is not used with flash attention"""
+    with pytest.raises(
+        AssertionError,
+        match="`--multipack` is currently only supported with `--padding_free`",
+    ):
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+            multipack=MultiPack(num_processes=16),
+            padding_free=None,
+        )
+        model_args = copy.deepcopy(MODEL_ARGS)
         sft_trainer.train(
             model_args,
             DATA_ARGS,

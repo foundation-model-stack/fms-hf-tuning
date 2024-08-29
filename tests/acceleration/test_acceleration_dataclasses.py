@@ -26,6 +26,7 @@ from tuning.config.acceleration_configs import (
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
     PaddingFree,
+    MultiPack,
 )
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
@@ -77,6 +78,15 @@ def test_dataclass_parse_successfully():
         ["--padding_free", "huggingface"],
     )
     assert isinstance(cfg.padding_free, PaddingFree)
+
+    # 4. Specifing "--multipack" will parse a MultiPack class
+    parser = transformers.HfArgumentParser(
+        dataclass_types=AttentionAndDistributedPackingConfig
+    )
+    (cfg,) = parser.parse_args_into_dataclasses(
+        ["--multipack", "16"],
+    )
+    assert isinstance(cfg.multipack, MultiPack)
 
 
 def test_two_dataclasses_parse_successfully_together():
