@@ -200,9 +200,12 @@ def train(
         ),
         cache_dir=train_args.cache_dir,
         use_fast=True,
-        legacy=False,
-        padding_side="right",
+        legacy=True,
     )
+
+    # Set padding side to right for all tokenizers
+    # TODO: Set padding side to base model's padding size in tokenizer_config.json
+    tokenizer.padding_side = "right"
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -319,8 +322,10 @@ def train(
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
-    training_args = SFTConfig(
-        **transformer_kwargs, dataset_text_field=dataset_text_field
+
+    training_args = SFTConfig(**transformer_kwargs)
+    training_args.dataset_text_field = (
+        dataset_text_field  # Inject the dataset text field into the training args
     )
 
     trainer = SFTTrainer(
@@ -328,7 +333,6 @@ def train(
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=packing,
         data_collator=data_collator,
         args=training_args,
         callbacks=trainer_callbacks,
