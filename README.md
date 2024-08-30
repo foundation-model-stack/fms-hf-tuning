@@ -9,6 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
+  - [qLoRA Tuning Example](#lora-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -430,6 +431,73 @@ Example 3:
 
 </details>
 
+_________________________
+
+
+### qLoRA Tuning Example
+
+This method is similar to LoRA Tuning, but the base model is a quantized model.
+Set `peft_method` to `"lora"`. You can pass any of LoraConfig, see section on [LoRA Example](#lora-tuning-example).
+In addition, you can pass [LoRA quantization config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/acceleration_configs/quantized_lora_config.py#L62).
+```py
+# to use auto_gptq 4bit lora base layers
+auto_gptq: AutoGPTQLoraConfig = None
+
+# to use auto_gptq 4bit lora base layers
+bnb_qlora: BNBQLoraConfig = None
+```
+
+```py
+class AutoGPTQLoraConfig:
+
+  # auto_gptq supports various kernels, to select the kernel to use.
+  kernel: str = "triton_v2"
+
+  # allow auto_gptq to quantize a model before training commences.
+  # NOTE: currently this is not allowed.
+  from_quantized: bool = True
+
+```
+
+Example command to run:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+---learning_rate 1e-4 \
+--response_template "\n### Label:" \
+--dataset_text_field "output" \
+--peft_method "lora" \
+--r 8 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules c_attn c_proj
+--auto_gptq triton_v2
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "lora",
+    "r": 8,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["c_attn", "c_proj"]
+    "auto_gptq": ["triton_v2"]
+}
+```
 _________________________
 
 ### Prompt Tuning:
