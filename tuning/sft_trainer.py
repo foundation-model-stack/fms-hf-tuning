@@ -37,7 +37,6 @@ from transformers import (
 )
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
-import fire
 import transformers
 
 # Local
@@ -629,4 +628,4 @@ def main(**kwargs):  # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()
