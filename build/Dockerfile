@@ -107,6 +107,7 @@ ARG USER_UID
 
 ## Enable Aimstack if requested via ENABLE_AIM set to "true"
 ARG ENABLE_AIM=false
+ARG ENABLE_GPTQ=true
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -135,6 +136,9 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
     if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
+    fi && \
+    if [[ "${ENABLE_GPTQ}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[gptq]"; \
     fi && \
     # Clean up the wheel module. It's only needed by flash-attn install
     python -m pip uninstall wheel build -y && \
