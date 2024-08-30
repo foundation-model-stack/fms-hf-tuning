@@ -327,9 +327,7 @@ def train(
     training_args.dataset_text_field = (
         dataset_text_field  # Inject the dataset text field into the training args
     )
-    training_args.packing = (
-        packing  # Inject packing into the training args
-    )
+    training_args.packing = packing  # Inject packing into the training args
 
     trainer = SFTTrainer(
         model=model,
