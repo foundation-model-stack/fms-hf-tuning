@@ -8,8 +8,6 @@ from transformers import TrainingArguments
 from .operation import Operation
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""

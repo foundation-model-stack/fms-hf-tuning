@@ -32,8 +32,6 @@ MODE_RESET_ON_FAILURE = "reset_on_failure"
 MODE_NO_RESET_ON_FAILURE = "no_reset_on_failure"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class PatienceControl:
     """Implements the patience control for every rule"""

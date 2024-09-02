@@ -46,7 +46,6 @@ from tuning.trainercontroller.patience import PatienceControl
 from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # Configuration keys
 CONTROLLER_METRICS_KEY = "controller_metrics"

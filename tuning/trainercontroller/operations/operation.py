@@ -5,8 +5,6 @@ import logging
 import re
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class Operation(metaclass=abc.ABCMeta):
     """Base class for operations"""
