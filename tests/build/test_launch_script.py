@@ -26,7 +26,7 @@ import pytest
 # First Party
 from build.accelerate_launch import main
 from build.utils import serialize_args, get_highest_checkpoint
-from tests.data import TWITTER_COMPLAINTS_DATA
+from tests.data import TWITTER_COMPLAINTS_DATA_JSONL
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
@@ -37,7 +37,7 @@ SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 BASE_KWARGS = {
     "model_name_or_path": MODEL_NAME,
-    "training_data_path": TWITTER_COMPLAINTS_DATA,
+    "training_data_path": TWITTER_COMPLAINTS_DATA_JSONL,
     "num_train_epochs": 5,
     "per_device_train_batch_size": 4,
     "per_device_eval_batch_size": 4,

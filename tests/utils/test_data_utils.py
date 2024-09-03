@@ -20,14 +20,16 @@ import datasets
 import pytest
 
 # First Party
-from tests.data import TWITTER_COMPLAINTS_DATA
+from tests.data import TWITTER_COMPLAINTS_DATA_JSONL
 
 # Local
 from tuning.utils import data_utils
 
 
 def test_apply_custom_formatting_template():
-    json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
+    )
     template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
     # First response from the data file that is read.
     expected_response = (
@@ -44,7 +46,9 @@ def test_apply_custom_formatting_template():
 
 
 def test_apply_custom_formatting_template_adds_eos_token():
-    json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
+    )
     template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
     # First response from the data file that is read.
     expected_response = (
@@ -62,7 +66,9 @@ def test_apply_custom_formatting_template_adds_eos_token():
 
 def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     """Tests that the formatting function will throw error if wrong keys are passed to template"""
-    json_dataset = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA)
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
+    )
     template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
     formatted_dataset_field = "formatted_data_field"
     with pytest.raises(KeyError):
