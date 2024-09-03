@@ -35,7 +35,6 @@ from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
-    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
     TWITTER_COMPLAINTS_DATA_JSON,
     TWITTER_COMPLAINTS_DATA_JSONL,
@@ -850,8 +849,8 @@ def test_run_with_good_experimental_metadata():
 @pytest.mark.parametrize(
     "dataset_path",
     [
-        TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-        TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+        TWITTER_COMPLAINTS_TOKENIZED_JSON,
     ],
 )
 ### Tests for pretokenized data
