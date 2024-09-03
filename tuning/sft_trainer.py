@@ -66,6 +66,7 @@ from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
+    is_pretokenized_dataset,
     validate_data_args,
 )
 
@@ -318,6 +319,11 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs)
 
+    dataset_kwargs = {}
+    if is_pretokenized_dataset(
+        data_args.training_data_path or data_args.validation_data_path
+    ):
+        dataset_kwargs["skip_prepare_dataset"] = True
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -330,6 +336,7 @@ def train(
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
+        dataset_kwargs=dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
