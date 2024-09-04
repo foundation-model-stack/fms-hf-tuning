@@ -184,7 +184,6 @@ class TunedCausalLM:
                     if base_model_name_or_path is None:
                         raise ValueError("base_model_name_or_path has to be passed")
 
-                    # TODO: what to do when base_model_name_or_path is a model name, and not a path
                     is_quantized = os.path.exists(
                         os.path.join(base_model_name_or_path, "quantize_config.json")
                     )
