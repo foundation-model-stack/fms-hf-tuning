@@ -21,7 +21,7 @@ ARG PYTHON_VERSION=3.11
 ARG WHEEL_VERSION=""
 
 ## Base Layer ##################################################################
-FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} as base
+FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
 
 ARG PYTHON_VERSION
 ARG USER
@@ -44,14 +44,14 @@ RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
     chmod g+rx /home/${USER}
 
 ## Used as base of the Release stage to removed unrelated the packages and CVEs
-FROM base as release-base
+FROM base AS release-base
 
 # Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
 RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
 
 
 ## CUDA Base ###################################################################
-FROM base as cuda-base
+FROM base AS cuda-base
 
 # Ref: https://docs.nvidia.com/cuda/archive/12.1.0/cuda-toolkit-release-notes/
 ENV CUDA_VERSION=12.1.0 \
@@ -75,7 +75,7 @@ ENV CUDA_HOME="/usr/local/cuda" \
     LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64:${LD_LIBRARY_PATH}"
 
 ## CUDA Development ############################################################
-FROM cuda-base as cuda-devel
+FROM cuda-base AS cuda-devel
 
 # Ref: https://developer.nvidia.com/nccl/nccl-legacy-downloads
 ENV NV_CUDA_CUDART_DEV_VERSION=12.1.55-1 \
@@ -99,7 +99,7 @@ RUN dnf config-manager \
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 
-FROM cuda-devel as python-installations
+FROM cuda-devel AS python-installations
 
 ARG WHEEL_VERSION
 ARG USER
@@ -142,7 +142,7 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     rm $(head bdist_name) /tmp/bdist_name
 
 ## Final image ################################################
-FROM release-base as release
+FROM release-base AS release
 ARG USER
 ARG PYTHON_VERSION
 
