@@ -156,6 +156,18 @@ RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
     rm $(head bdist_name) /tmp/bdist_name
 
+## Builder image without nvidia ###############################
+FROM python-installations AS builderwithoutnvidia
+ARG USER
+ARG PYTHON_VERSION
+RUN rm -rf /home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages/nvidia
+
+## Builder image with only nvidia ###############################
+FROM scratch AS builderwithnvidia
+ARG USER
+ARG PYTHON_VERSION
+COPY --from=python-installations /home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages/nvidia /home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages/nvidia
+
 ## Final image ################################################
 FROM release-base AS release
 ARG USER
@@ -187,7 +199,8 @@ ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
 
 WORKDIR /app
 USER ${USER}
-COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
+COPY --from=builderwithoutnvidia /home/${USER}/.local /home/${USER}/.local
+COPY --from=builderwithnvidia /home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages/nvidia /home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages/nvidia
 ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
 CMD [ "python", "/app/accelerate_launch.py" ]
