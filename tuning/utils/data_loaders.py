@@ -109,6 +109,11 @@ class ConstantLengthHybridDataset(
                             sample[self.tokens_field] = self.tokenizer.encode(
                                 sample[self.text_field]
                             )
+                            if not sample[self.tokens_field]:
+                                logger.warning(
+                                    f"skipping an empty sample : {sample[self.tokens_field]}"
+                                )
+                                continue
                         except Exception as e:  # pylint: disable=broad-exception-caught
                             logger.warning(
                                 "failed to tokenize the data {} of type {}.".format(
