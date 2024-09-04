@@ -27,13 +27,10 @@ ARG PYTHON_VERSION
 ARG USER
 ARG USER_UID
 
+# Note this works for 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
-    && dnf install -y python${PYTHON_VERSION} procps g++ \
-    && if [[ "${PYTHON_VERSION}" > "3.10" ]]; \
-    then dnf install -y python${PYTHON_VERSION}-devel; \
-    else dnf install -y python3-devel; \
-    fi \
+    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
