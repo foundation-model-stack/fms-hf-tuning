@@ -15,13 +15,12 @@
 # Standard
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
+import logging
 import os
 
 # Third Party
 from datasets import Dataset, IterableDataset, interleave_datasets
-from pyarrow.lib import ArrowInvalid
 from tqdm import tqdm
-from transformers.utils import logging
 import datasets
 import torch
 import transformers
@@ -42,7 +41,7 @@ DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 
 
-logger = logging.get_logger("sft_trainer")
+logger = logging.getLogger(__name__)
 
 
 def _load_data(data_path, split, streaming, config_kwargs):
@@ -366,6 +365,11 @@ class ModelDataArguments(
             ) = load_multi_dataset_with_sampling(
                 data_config=data_config, column_name_options=column_name_options
             )
+            if self.packing:
+                logger.warning(
+                    "packing is enabled and strictly avoid using packing for non pretraining use cases \
+                    like fine-tuning to avoid cross contamination."
+                )
             if data_config.data_sampler == "tokens_based":
                 if not self.packing:
                     raise ValueError(
@@ -395,6 +399,13 @@ class ModelDataArguments(
                         cache_dir=self.cache_dir,
                         use_fast=True,
                     )
+                    if self.max_steps > 0:
+                        logger.warning(
+                            f"dataset will be iterated infinitely until max_steps {self.max_steps} is met."
+                        )
+                        logger.warning(
+                            f"num_train_epochs {self.num_train_epochs} is ignored by the trainer"
+                        )
                     self.train_dataset = ConstantLengthHybridDataset(
                         train_datasets,
                         train_probs,
@@ -405,6 +416,7 @@ class ModelDataArguments(
                         self.dataset_text_field,
                         self.add_bos_token,
                         self.add_eos_token,
+                        True if self.max_steps > 0 else False,
                     )
                     if validation_datasets:
                         self.validation_dataset = ConstantLengthHybridDataset(
