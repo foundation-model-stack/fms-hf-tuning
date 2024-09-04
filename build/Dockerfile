@@ -29,7 +29,11 @@ ARG USER_UID
 
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
-    && dnf install -y python${PYTHON_VERSION} procps g++ python3.11-devel     \
+    && dnf install -y python${PYTHON_VERSION} procps g++ \
+    && if [[ "${PYTHON_VERSION}" > "3.10" ]]; \
+    then dnf install -y python${PYTHON_VERSION}-devel; \
+    else dnf install -y python3-devel; \
+    fi \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
