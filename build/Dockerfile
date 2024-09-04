@@ -27,9 +27,10 @@ ARG PYTHON_VERSION
 ARG USER
 ARG USER_UID
 
+# Note this works for 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
-    && dnf install -y python${PYTHON_VERSION} procps \
+    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
@@ -104,6 +105,7 @@ FROM cuda-devel AS python-installations
 ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
+ARG ENABLE_FMS_ACCELERATION=false
 
 ## Enable Aimstack if requested via ENABLE_AIM set to "true"
 ARG ENABLE_AIM=false
@@ -132,12 +134,19 @@ RUN if [[ -z "${WHEEL_VERSION}" ]]; \
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
-    if [[ "${ENABLE_AIM}" == "true" ]]; then \
+    python -m pip install --user "$(head bdist_name)[flash-attn]"
+
+RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[fms-accel]"; \
+        python -m fms_acceleration.cli install fms_acceleration_peft; \
+    fi
+
+RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
-    fi && \
+    fi
+
     # Clean up the wheel module. It's only needed by flash-attn install
-    python -m pip uninstall wheel build -y && \
+RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
     rm $(head bdist_name) /tmp/bdist_name
 
