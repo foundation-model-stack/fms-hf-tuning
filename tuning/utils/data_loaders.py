@@ -1,15 +1,15 @@
 # Standard
 from typing import List, Union
+import logging
 
 # Third Party
 from datasets import Dataset
 from datasets import IterableDataset as HFIterableDataset
 from datasets import interleave_datasets
 from torch.utils.data import IterableDataset
-from transformers.utils import logging
 import torch
 
-logger = logging.get_logger("transformers")
+logger = logging.getLogger(__name__)
 
 
 class ConstantLengthHybridDataset(
@@ -26,6 +26,7 @@ class ConstantLengthHybridDataset(
         text_field="contents",
         add_bos_token=True,
         add_eos_token=True,
+        infinite=False,
     ):
         """packing for pretokenized datasets for pretraining only
         since all tokens are attended upon packing.
@@ -47,6 +48,8 @@ class ConstantLengthHybridDataset(
             Defaults to True.
             add_eos_token (bool, optional): add eos token at the end of each sample.
             Defaults to True.
+            infinite (`bool`, *optional*, defaults to `False`):
+                If True the iterator is reset after dataset reaches end else stops.
         """
         self.datasets = datasets
         self.sampling_probs = sampling_probs
@@ -62,6 +65,12 @@ class ConstantLengthHybridDataset(
         self.add_eos_token = add_eos_token
         self.dataset = interleave_datasets(datasets=self.datasets, split="train")
         self.column_names = self.dataset.column_names
+        self.infinite = infinite
+        if self.infinite:
+            logger.warning(
+                "samples will be provided infinitely.\
+                Datasets that are exhausted will be reiterated from start."
+            )
         # self._info = self.dataset._info
         # self._epoch = 0
         logger.warning("add_bos_token: {}".format(self.add_bos_token))
@@ -125,8 +134,16 @@ class ConstantLengthHybridDataset(
                     )
                     buffer_len = len(buffer)
                 except StopIteration:
-                    more_examples = False
-                    break
+                    if self.infinite:
+                        iterators[dataset_id_which_needs_more_tokens] = iter(
+                            self.datasets[dataset_id_which_needs_more_tokens]
+                        )
+                        logger.warning(
+                            "iterator is reset for one of the datasets since it is exhausted."
+                        )
+                    else:
+                        more_examples = False
+                        break
             all_token_ids = buffer
             examples = []
             for i in range(0, len(all_token_ids), self.seq_length):
