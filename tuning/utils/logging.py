@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Standard
+from pathlib import Path
 import logging
 import os
 
@@ -53,9 +54,19 @@ def set_log_level(train_args, logger_name=None):
             else os.environ.get("TRANSFORMERS_VERBOSITY")
         )
 
-    logging.basicConfig(
-        format="%(levelname)s:%(filename)s:%(message)s", level=log_level.upper()
-    )
+    log_file = os.environ.get("LOG_FILE")
+    if log_file:
+        log_file = Path(log_file).resolve()
+        log_file.parent.mkdir(mode=0o777, parents=True, exist_ok=True)
+        logging.basicConfig(
+            filename=log_file,
+            format="%(levelname)s:%(filename)s:%(message)s",
+            level=log_level.upper(),
+        )
+    else:
+        logging.basicConfig(
+            format="%(levelname)s:%(filename)s:%(message)s", level=log_level.upper()
+        )
 
     if logger_name:
         train_logger = logging.getLogger(logger_name)
