@@ -16,6 +16,8 @@
 from typing import Dict, List, Optional, Union
 import dataclasses
 import json
+import logging
+import os
 import sys
 import time
 import traceback
@@ -64,6 +66,7 @@ from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
+    is_pretokenized_dataset,
     validate_data_args,
 )
 
@@ -316,6 +319,11 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs)
 
+    dataset_kwargs = {}
+    if is_pretokenized_dataset(
+        data_args.training_data_path or data_args.validation_data_path
+    ):
+        dataset_kwargs["skip_prepare_dataset"] = True
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -328,6 +336,7 @@ def train(
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
+        dataset_kwargs=dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
@@ -359,6 +368,33 @@ def train(
             trainer.add_callback(x)
 
     trainer.train()
+
+    return trainer
+
+
+def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
+    """Saves model and tokenizer to given path.
+
+    Args:
+        path: str
+            Path to save the model to.
+        trainer: SFTTrainer
+            Instance of SFTTrainer used for training to save the model.
+        log_level: str
+            Optional threshold to set save save logger to, default warning.
+    """
+    logger = logging.getLogger("sft_trainer_save")
+    # default value from TrainingArguments
+    if log_level == "passive":
+        log_level = "WARNING"
+
+    logger.setLevel(log_level.upper())
+
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
+    logger.info("Saving tuned model to path: %s", path)
+    trainer.save_model(path)
 
 
 def get_parser():
@@ -481,6 +517,7 @@ def parse_arguments(parser, json_config=None):
 
 def main(**kwargs):  # pylint: disable=unused-argument
     parser = get_parser()
+    logger = logging.getLogger()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
     try:
@@ -545,7 +582,7 @@ def main(**kwargs):  # pylint: disable=unused-argument
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        train(
+        trainer = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -581,6 +618,21 @@ def main(**kwargs):  # pylint: disable=unused-argument
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # save model
+    if training_args.save_model_dir:
+        try:
+            save(
+                path=training_args.save_model_dir,
+                trainer=trainer,
+                log_level=training_args.log_level,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(traceback.format_exc())
+            write_termination_log(
+                f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":
