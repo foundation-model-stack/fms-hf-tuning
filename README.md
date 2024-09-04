@@ -9,7 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
-  - [qLoRA Tuning Example](#lora-tuning-example)
+  - [qLoRA Tuning Example](#qlora-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -478,6 +478,7 @@ python tuning/sft_trainer.py \
 --lora_alpha 16 \
 --target_modules c_attn c_proj
 --auto_gptq triton_v2
+```
 
 Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
 ```json
@@ -498,6 +499,11 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
     "auto_gptq": ["triton_v2"]
 }
 ```
+
+Similarly to LoRA, the `target_modules` are the names of the modules to apply the adapter to. See the LoRA [section](#lora-tuning-example) on `target_modules` for more info.
+
+Note that with LoRA tuning technique, setting `all-linear` on `target_modules` returns linear modules. And with qLoRA tuning technique, `all-linear` returns all quant linear modules, excluding `lm_head`.
+
 _________________________
 
 ### Prompt Tuning:
