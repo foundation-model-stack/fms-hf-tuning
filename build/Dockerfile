@@ -105,7 +105,7 @@ FROM cuda-devel AS python-installations
 ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
-ARG ENABLE_FMS_ACCELERATION=false
+ARG ENABLE_FMS_ACCELERATION=true
 
 ## Enable Aimstack if requested via ENABLE_AIM set to "true"
 ARG ENABLE_AIM=false
