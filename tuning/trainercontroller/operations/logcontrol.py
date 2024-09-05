@@ -1,12 +1,13 @@
+# Standard
+import logging
+
 # Third Party
 from transformers import TrainingArguments
-from transformers.utils import logging
 
 # Local
 from .operation import Operation
 
-logger = logging.get_logger(__name__)
-logger.setLevel(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class LogControl(Operation):
@@ -20,12 +21,11 @@ class LogControl(Operation):
         Args:
             kwargs: List of arguments (key, value)-pairs
         """
-        log_levels = logging.get_log_levels_dict()
-        if log_level not in log_levels:
+        self.log_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(self.log_level, int):
             raise ValueError(
                 "Specified log_level [%s] is invalid for LogControl" % (log_level)
             )
-        self.log_level = log_levels[log_level]
         self.log_format = log_format
         super().__init__(**kwargs)
 
