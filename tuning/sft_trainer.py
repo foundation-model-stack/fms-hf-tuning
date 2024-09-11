@@ -38,7 +38,6 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
-import fire
 import transformers
 
 # Local
@@ -533,7 +532,7 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def main(**kwargs):  # pylint: disable=unused-argument
+def main():
     parser = get_parser()
     logger = logging.getLogger()
     job_config = get_json_config()
@@ -654,4 +653,4 @@ def main(**kwargs):  # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()
