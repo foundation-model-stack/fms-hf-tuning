@@ -27,7 +27,7 @@ classifiers=[
 ]
 dependencies = [
 "numpy>=1.26.4,<2.0",
-"accelerate>=0.20.3,<0.40",
+"accelerate>=0.20.3,<0.34",
 "transformers>4.41,<5.0",
 "torch>=2.2.0,<3.0",
 "sentencepiece>=0.1.99,<0.3",
@@ -35,8 +35,8 @@ dependencies = [
 "tqdm>=4.66.2,<5.0",
 "trl>=0.9.3,<1.0",
 "peft>=0.8.0,<0.13",
+"protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<3.0",
-"fire>=0.5.0,<1.0",
 "simpleeval>=0.9.13,<1.0",
 ]
 
