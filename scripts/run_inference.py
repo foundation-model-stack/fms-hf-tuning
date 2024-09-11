@@ -188,14 +188,20 @@ class TunedCausalLM:
                         os.path.join(base_model_name_or_path, "quantize_config.json")
                     )
                     if is_quantized:
+                        # Using GPTQConfig from HF, avail params are here
+                        # https://huggingface.co/docs/transformers/en/main_classes/quantization#transformers.GPTQConfig
+                        # We only support 4-bit AutoGPTQ, so setting bits to 4
+                        # setting exllama kernel to version 2 as it's a faster kernel
                         gptq_config = GPTQConfig(bits=4, exllama_config={"version": 2})
                         base_model = AutoModelForCausalLM.from_pretrained(
                             base_model_name_or_path,
                             attn_implementation="flash_attention_2"
                             if use_flash_attn
                             else None,
-                            device_map="cuda:0",
-                            torch_dtype=torch.float16 if use_flash_attn else None,
+                            device_map="auto",
+                            torch_dtype=torch.float16
+                            if use_flash_attn
+                            else None,  # since we are using exllama kernel, we have to use float16
                             quantization_config=gptq_config,
                         )
                     else:
