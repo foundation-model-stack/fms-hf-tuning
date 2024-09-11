@@ -434,7 +434,7 @@ def test_framework_intialized_properly_foak():
         fusedops_kernels_config = FusedOpsAndKernelsConfig(
             fused_lora=FusedLoraConfig(base_layer="auto_gptq", fused_lora=True),
             fast_kernels=FastKernelsConfig(
-                fast_loss=True, fast_rsm_layernorm=True, fast_rope_embeddings=True
+                fast_loss=True, fast_rms_layernorm=True, fast_rope_embeddings=True
             ),
         )
 

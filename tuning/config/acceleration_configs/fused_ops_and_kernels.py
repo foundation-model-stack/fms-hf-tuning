@@ -70,6 +70,7 @@ class FusedOpsAndKernelsConfig:
     # fast kernels
     fast_kernels: FastKernelsConfig = None
 
+    def __post_init__(self):
 
         # ensure nested dataclasses initialized
         ensure_nested_dataclasses_initialized(self)

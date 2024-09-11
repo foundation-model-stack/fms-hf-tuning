@@ -129,12 +129,10 @@ class AccelerationFrameworkConfig:
 
         # Check that fused lora must be activated with either auto_gptq or bitsandbytes
         if self.fused_lora is not None:
-            assert (
-                self.bitsandbytes is not None or self.auto_gptq is not None
-            ), "`--fused_lora` must be accompanied by a quantized base layer"\
+            assert self.bitsandbytes is not None or self.auto_gptq is not None, (
+                "`--fused_lora` must be accompanied by a quantized base layer"
                 " `--auto_gptq` or `--bitsandbytes`."
-
-
+            )
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
