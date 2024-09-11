@@ -92,7 +92,7 @@ class AccelerationFrameworkConfig:
     fast_kernels: Annotated[
         FastKernelsConfig,
         ConfigAnnotation(
-            path="peft.quantization",
+            path="training",
             key="fused_ops_and_kernels",
             experimental=True,
             required_packages=["foak"],
@@ -126,6 +126,15 @@ class AccelerationFrameworkConfig:
             assert (
                 self.padding_free is not None
             ), "`--multipack` is currently only supported with `--padding_free`"
+
+        # Check that fused lora must be activated with either auto_gptq or bitsandbytes
+        if self.fused_lora is not None:
+            assert (
+                self.bitsandbytes is not None or self.auto_gptq is not None
+            ), "`--fused_lora` must be accompanied by a quantized base layer"\
+                " `--auto_gptq` or `--bitsandbytes`."
+
+
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
