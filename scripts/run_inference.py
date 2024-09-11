@@ -198,7 +198,7 @@ class TunedCausalLM:
                             attn_implementation="flash_attention_2"
                             if use_flash_attn
                             else None,
-                            device_map="auto",
+                            device_map="cuda",
                             torch_dtype=torch.float16
                             if use_flash_attn
                             else None,  # since we are using exllama kernel, we have to use float16
