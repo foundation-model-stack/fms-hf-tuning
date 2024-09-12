@@ -19,6 +19,9 @@ ARG USER=tuning
 ARG USER_UID=1000
 ARG PYTHON_VERSION=3.11
 ARG WHEEL_VERSION=""
+## Enable Aimstack if requested via ENABLE_AIM set to "true"
+ARG ENABLE_AIM=false
+ARG ENABLE_FMS_ACCELERATION=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -105,10 +108,8 @@ FROM cuda-devel AS python-installations
 ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
-ARG ENABLE_FMS_ACCELERATION=false
-
-## Enable Aimstack if requested via ENABLE_AIM set to "true"
-ARG ENABLE_AIM=false
+ARG ENABLE_FMS_ACCELERATION
+ARG ENABLE_AIM
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -154,6 +155,7 @@ RUN python -m pip uninstall wheel build -y && \
 FROM release-base AS release
 ARG USER
 ARG PYTHON_VERSION
+ARG ENABLE_AIM
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
