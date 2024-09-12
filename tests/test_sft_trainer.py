@@ -122,6 +122,11 @@ def test_resume_training_from_checkpoint():
 
 
 def test_resume_training_from_checkpoint_with_flag_true():
+    """
+    Test tuning resumes from the latest checkpoint when flag is true,
+    creating new checkpoints and the checkpoints created before resuming
+    tuning is not affected.
+    """
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -187,10 +192,9 @@ def test_resume_training_from_checkpoint_with_flag_false():
         assert len(final_training_logs) == 2
 
 
-def test_resume_training_from_checkpoint_with_flag_checkpoint_path():
+def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
     """
-    Test when setting resume_from_checkpoint=path/to/checkpoint-x
-    that the tuning will resume from the checkpoint-x.
+    Test resume checkpoint from a specified checkpoint path for LoRA tuning.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -223,11 +227,8 @@ def test_resume_training_from_checkpoint_with_flag_checkpoint_path():
 
 def _get_latest_checkpoint_trainer_state(dir_path: str, checkpoint_index: int = -1):
     """
-    Get the trainer state from the specified checkpoint directory.
-    This function gets the latest or specific checkpoint based on the
-    provided checkpoint_index from the checkpoint directory, and loads
-    the `trainer_state.json` file from that checkpoint. The trainer
-    state is returned along with the path to the checkpoint.
+    Get the trainer state from the latest or specified checkpoint directory.
+    The trainer state is returned along with the path to the checkpoint.
 
     Args:
         dir_path (str): The directory path where checkpoint folders are located.
@@ -259,10 +260,9 @@ def _get_latest_checkpoint_trainer_state(dir_path: str, checkpoint_index: int = 
 
 def _get_training_logs_by_epoch(dir_path: str, epoch: int = None):
     """
-    Load and optionally filter training logs from a training_logs JSON Lines file.
-    This function reads a JSON Lines (`.jsonl`) file containing training logs and
-    returns the data as a list. If an epoch number is specified, the function filters
-    the logs and returns only the entries corresponding to the specified epoch.
+    Load and optionally filter training_logs.jsonl file.
+    If an epoch number is specified, the function filters the logs
+    and returns only the entries corresponding to the specified epoch.
 
     Args:
         dir_path (str): The directory path where the `training_logs.jsonl` file is located.
