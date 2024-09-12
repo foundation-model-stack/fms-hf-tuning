@@ -319,6 +319,11 @@ class ModelDataArguments(
     def __post_init__(self):
         # loading of the data is handled at the data class so that only
         # the object flows to the remaining code
+        if self.training_data_path and not os.path.isabs(self.training_data_path):
+            self.training_data_path = os.path.abspath(self.training_data_path)
+            logger.warning(
+                f"provided training_data_path is a relative path. Attempting to make it absolute. Please check : {self.training_data_path}"
+            )
         if not (self.data_config_path or self.training_data_path):
             raise FileNotFoundError(
                 "either data_config_path or training_data_path should be provided"
