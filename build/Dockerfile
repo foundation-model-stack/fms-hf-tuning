@@ -150,6 +150,8 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
 
 RUN if [[ "${ENABLE_DEV}" == "true" ]]; then \
     python -m pip install --user "$(head bdist_name)[dev] $(head bdist_name)[gptq-dev]"; \
+    cp scripts/run_evaluation.py /tmp; \
+    cp scripts/run_inference.py /tmp; \
 fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
@@ -162,7 +164,8 @@ FROM release-base AS release
 ARG USER
 ARG PYTHON_VERSION
 ARG ENABLE_AIM
-ARG ENABLE_DEV
+ARG EVAL_SCRIPT_PATH=
+ARG INF_SCRIPT_PATH=
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
@@ -184,10 +187,10 @@ COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 COPY build/utils.py /app/build/
 RUN chmod +x /app/accelerate_launch.py
 
-RUN if [[ "${ENABLE_DEV}" == "true" ]] ; then \
-        cp scripts/run_evaluation.py /app/; \
-        cp scripts/run_inference.py /app/; \
-    fi
+# Hack to get the dev scripts copied in only when they are set
+# When these vars are not set, copy doesn't happen
+COPY ${EVAL_SCRIPT_PATH} /app/
+COPY ${INF_SCRIPT_PATH} /app/
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
