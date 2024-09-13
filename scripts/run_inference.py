@@ -203,7 +203,7 @@ class TunedCausalLM:
                             if use_flash_attn
                             else None,
                             device_map=device,
-                            torch_dtype=torch.float16 if use_flash_attn else None,
+                            torch_dtype=torch.float16,
                             quantization_config=gptq_config,
                         )
                     else:
@@ -248,7 +248,7 @@ class TunedCausalLM:
                     checkpoint_path,
                     attn_implementation="flash_attention_2" if use_flash_attn else None,
                     device_map=device,
-                    torch_dtype=torch.float16 if use_flash_attn else None,
+                    torch_dtype=torch.float16,
                     quantization_config=gptq_config,
                 )
             else:
