@@ -135,12 +135,20 @@ def train(
     if (
         attention_and_distributed_packing_config is not None
         and attention_and_distributed_packing_config.padding_free is not None
-        and model_args.use_flash_attn is False
     ):
-        raise ValueError(
-            "`--padding_free` argument was called without enabling \
-            flash attention, ensure `use_flash_attn = True` to use padding-free flash attention"
-        )
+        if model_args.use_flash_attn is False:
+            raise ValueError(
+                "`--padding_free` argument was called without enabling flash attention, "
+                "ensure `use_flash_attn = True` to use padding-free flash attention"
+            )
+
+        if train_args.packing is True:
+            # We prevent Trainer from performing packing with padding_free.
+            # Since the plugin computes attention efficiently without padding.
+            raise ValueError(
+                "`--padding_free` argument was called with `packing=True`, "
+                "Trainer should not perform packing when using `--padding_free`"
+            )
 
     task_type = "CAUSAL_LM"
     additional_metrics = {}

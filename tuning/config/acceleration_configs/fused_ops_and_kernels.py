@@ -60,7 +60,6 @@ class FastKernelsConfig(List):
     fast_rope_embeddings: bool = False
 
 
-
 @dataclass
 class FusedOpsAndKernelsConfig:
 
