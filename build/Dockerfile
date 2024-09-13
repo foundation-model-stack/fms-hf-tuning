@@ -22,6 +22,7 @@ ARG WHEEL_VERSION=""
 ## Enable Aimstack if requested via ENABLE_AIM set to "true"
 ARG ENABLE_AIM=false
 ARG ENABLE_FMS_ACCELERATION=true
+ARG ENABLE_DEV=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -110,6 +111,7 @@ ARG USER
 ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
+ARG ENABLE_DEV
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -146,6 +148,10 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
     fi
 
+RUN if [[ "${ENABLE_DEV}" == "true" ]]; then \
+    python -m pip install --user "$(head bdist_name)[dev] $(head bdist_name)[gptq-dev]"; \
+fi
+
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
@@ -156,6 +162,7 @@ FROM release-base AS release
 ARG USER
 ARG PYTHON_VERSION
 ARG ENABLE_AIM
+ARG ENABLE_DEV
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
@@ -176,6 +183,10 @@ RUN mkdir /.cache && \
 COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
 COPY build/utils.py /app/build/
 RUN chmod +x /app/accelerate_launch.py
+
+RUN if [[ "${ENABLE_DEV}" == "true" ]] ; then \
+        COPY scripts/run_evaluation.py scripts/run_inference.py /app/eval_scripts/ \
+    fi
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
