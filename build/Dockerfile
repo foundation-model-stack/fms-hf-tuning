@@ -21,7 +21,7 @@ ARG PYTHON_VERSION=3.11
 ARG WHEEL_VERSION=""
 ## Enable Aimstack if requested via ENABLE_AIM set to "true"
 ARG ENABLE_AIM=false
-ARG ENABLE_FMS_ACCELERATION=false
+ARG ENABLE_FMS_ACCELERATION=true
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
