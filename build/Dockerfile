@@ -149,10 +149,9 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
     fi
 
 RUN if [[ "${ENABLE_DEV}" == "true" ]]; then \
-    python -m pip install --user "$(head bdist_name)[dev] $(head bdist_name)[gptq-dev]"; \
-    cp scripts/run_evaluation.py /tmp; \
-    cp scripts/run_inference.py /tmp; \
-fi
+    python -m pip install --user "$(head bdist_name)[dev]; \
+    # python -m pip install --user "$(head bdist_name)[dev] $(head bdist_name)[gptq-dev]"; \
+    fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
