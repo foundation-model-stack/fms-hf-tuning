@@ -185,7 +185,8 @@ COPY build/utils.py /app/build/
 RUN chmod +x /app/accelerate_launch.py
 
 RUN if [[ "${ENABLE_DEV}" == "true" ]] ; then \
-        COPY scripts/run_evaluation.py scripts/run_inference.py /app/eval_scripts/ \
+        cp scripts/run_evaluation.py /app/ && \
+        cp scripts/run_inference.py /app/ \
     fi
 
 ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
