@@ -9,6 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
+  - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -429,6 +430,70 @@ Example 3:
 ```
 
 </details>
+
+_________________________
+
+
+### GPTQ-LoRA with AutoGPTQ Tuning Example
+
+This method is similar to LoRA Tuning, but the base model is a quantized model. We currently only support GPTQ-LoRA model that has been quantized with 4-bit AutoGPTQ technique. Bits-and-Bytes (BNB) quantized LoRA is not yet enabled.
+The qLoRA tuning technique is enabled via the [fms-acceleration](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) package.
+You can see details on a sample configuration of Accelerated GPTQ-LoRA [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/sample-configurations/accelerated-peft-autogptq-sample-configuration.yaml).
+
+
+To use GPTQ-LoRA technique, you can set the `quantized_lora_config` defined [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/acceleration_configs/quantized_lora_config.py). See the Notes section of FMS Acceleration doc [below](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) for usage. The only kernel we are supporting currently is `triton_v2`.
+
+In addition, LoRA tuning technique is required to be used, set `peft_method` to `"lora"` and pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+
+Example command to run:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+--learning_rate 1e-4 \
+--response_template "\n### Label:" \
+--dataset_text_field "output" \
+--peft_method "lora" \
+--r 8 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules c_attn c_proj \
+--auto_gptq triton_v2 \ # setting quantized_lora_config 
+--torch_dtype float16 \ # need this for triton_v2
+--fp16 \ # need this for triton_v2
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "lora",
+    "r": 8,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["c_attn", "c_proj"],
+    "auto_gptq": ["triton_v2"], // setting quantized_lora_config
+    "torch_dtype": "float16", // need this for triton_v2
+    "fp16": true // need this for triton_v2
+}
+```
+
+Similarly to LoRA, the `target_modules` are the names of the modules to apply the adapter to. See the LoRA [section](#lora-tuning-example) on `target_modules` for more info.
+
+Note that with LoRA tuning technique, setting `all-linear` on `target_modules` returns linear modules. And with qLoRA tuning technique, `all-linear` returns all quant linear modules, excluding `lm_head`.
 
 _________________________
 
