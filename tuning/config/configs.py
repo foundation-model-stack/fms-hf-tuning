@@ -319,6 +319,22 @@ class ModelDataArguments(
     def __post_init__(self):
         # loading of the data is handled at the data class so that only
         # the object flows to the remaining code
+        if self.resume_from_checkpoint:
+            if self.resume_from_checkpoint.lower() == "true":
+                logger.warning("resuming training")
+                self.resume_from_checkpoint = True
+            elif self.resume_from_checkpoint.lower() == "false":
+                self.resume_from_checkpoint = None
+            # otherwise its a path to checkpoint
+            else:
+                if not os.path.isabs(self.resume_from_checkpoint):
+                    self.resume_from_checkpoint = os.path.abspath(
+                        self.resume_from_checkpoint
+                    )
+                    logger.warning(
+                        f"provided path to resume_from_checkpoint is not an absolute path. Attempting to make it absolute. Please check : {self.resume_from_checkpoint}"
+                    )
+                logger.warning("resuming training")
         if self.training_data_path and not os.path.isabs(self.training_data_path):
             self.training_data_path = os.path.abspath(self.training_data_path)
             logger.warning(
