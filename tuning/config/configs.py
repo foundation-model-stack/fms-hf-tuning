@@ -352,7 +352,11 @@ class ModelDataArguments(
         if self.data_config_path:
             data_config = None
             with open(self.data_config_path, "r", encoding="utf-8") as f:
-                data_config: AdvDataConfig = AdvDataConfig(**yaml.safe_load(f))
+                data_config_dict = yaml.safe_load(f)
+                assert isinstance(
+                    data_config_dict, dict
+                ), f"The provided data_config file is invalid: {self.data_config_path}"
+                data_config: AdvDataConfig = AdvDataConfig(**data_config_dict)
             logger.warning(
                 "using load_multi_dataset_with_sampling to load the datasets"
             )
