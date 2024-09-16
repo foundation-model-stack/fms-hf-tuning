@@ -35,9 +35,9 @@ from transformers import (
     LlamaTokenizerFast,
     TrainerCallback,
 )
+from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
-import fire
 import transformers
 
 # Local
@@ -66,6 +66,7 @@ from tuning.utils.logging import set_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
+    is_pretokenized_dataset,
     validate_data_args,
 )
 
@@ -215,7 +216,7 @@ def train(
         ),
     )
 
-    # add special tokens only when a custom tokenizer is not passed
+    # Add special tokens only when a custom tokenizer is not passed
     if not model_args.tokenizer_name_or_path:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
@@ -318,6 +319,11 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs)
 
+    dataset_kwargs = {}
+    if is_pretokenized_dataset(
+        data_args.training_data_path or data_args.validation_data_path
+    ):
+        dataset_kwargs["skip_prepare_dataset"] = True
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -330,6 +336,7 @@ def train(
         max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
+        dataset_kwargs=dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
@@ -360,7 +367,24 @@ def train(
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
 
-    trainer.train()
+    resume_from_checkpoint = None
+    # Check if resume flag is not passed (None), or if flag is true and
+    # output_dir has checkpoints then get last checkpoint from output_dir
+    if (
+        training_args.resume_from_checkpoint is None
+        or training_args.resume_from_checkpoint.lower() == "true"
+    ):
+        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
+    else:
+        # `training_args.resume_from_checkpoint` gives string values
+        # Check if flag is false OR flag has checkpoint value for resuming tuning
+        resume_from_checkpoint = (
+            training_args.resume_from_checkpoint
+            if training_args.resume_from_checkpoint.lower() != "false"
+            else False
+        )
+
+    trainer.train(resume_from_checkpoint)
 
     return trainer
 
@@ -373,13 +397,15 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
             Path to save the model to.
         trainer: SFTTrainer
             Instance of SFTTrainer used for training to save the model.
+        log_level: str
+            Optional threshold to set save save logger to, default warning.
     """
     logger = logging.getLogger("sft_trainer_save")
     # default value from TrainingArguments
     if log_level == "passive":
         log_level = "WARNING"
 
-    logger.setLevel(log_level)
+    logger.setLevel(log_level.upper())
 
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
@@ -506,8 +532,9 @@ def parse_arguments(parser, json_config=None):
     )
 
 
-def main(**kwargs):  # pylint: disable=unused-argument
+def main():
     parser = get_parser()
+    logger = logging.getLogger()
     job_config = get_json_config()
     # accept arguments via command-line or JSON
     try:
@@ -626,4 +653,4 @@ def main(**kwargs):  # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()
