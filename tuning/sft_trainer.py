@@ -262,6 +262,9 @@ def train(
         if tokenizer.unk_token is None:
             logger.warning("UNK token set to default, missing in tokenizer")
             special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
+        if tokenizer.pad_token == tokenizer.eos_token:
+            logger.warning("PAD token set to default, different from eos token")
+            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
