@@ -30,7 +30,7 @@ import os
 # Third Party
 from peft import PeftModel
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
 import torch
 
 # Local
@@ -176,6 +176,8 @@ class TunedCausalLM:
             else {}
         )
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
+        device = "cuda" if torch.cuda.is_available() else None
+        print(f"Inferred device: {device}")
         # Apply the configs to the adapter config of this model; if no overrides
         # are provided, then the context manager doesn't have any effect.
         try:
@@ -183,13 +185,36 @@ class TunedCausalLM:
                 try:
                     if base_model_name_or_path is None:
                         raise ValueError("base_model_name_or_path has to be passed")
-                    base_model = AutoModelForCausalLM.from_pretrained(
-                        base_model_name_or_path,
-                        attn_implementation="flash_attention_2"
-                        if use_flash_attn
-                        else None,
-                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
-                    )
+
+                    if (
+                        has_quantized_config(base_model_name_or_path)
+                        and device == "cuda"
+                    ):
+                        # Using GPTQConfig from HF, avail params are here
+                        # https://huggingface.co/docs/transformers/en/main_classes/quantization#transformers.GPTQConfig
+                        # We only support 4-bit AutoGPTQ, so setting bits to 4
+                        # setting exllama kernel to version 2 as it's a faster kernel
+                        gptq_config = GPTQConfig(bits=4, exllama_config={"version": 2})
+
+                        # Since we are using exllama kernel, we need torch.float16 as torch_dtype
+                        base_model = AutoModelForCausalLM.from_pretrained(
+                            base_model_name_or_path,
+                            attn_implementation="flash_attention_2"
+                            if use_flash_attn
+                            else None,
+                            device_map=device,
+                            torch_dtype=torch.float16,
+                            quantization_config=gptq_config,
+                        )
+                    else:
+                        base_model = AutoModelForCausalLM.from_pretrained(
+                            base_model_name_or_path,
+                            attn_implementation="flash_attention_2"
+                            if use_flash_attn
+                            else None,
+                            torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                        )
+
                     # since the peft library (PEFTModelForCausalLM) does not handle cases
                     # where the model's layers are modified, in our case the embedding layer
                     # is modified, so we resize the backbone model's embedding layer with our own
@@ -211,14 +236,28 @@ class TunedCausalLM:
         except FileNotFoundError:
             print("No adapter config found! Loading as a merged model...")
             # Unable to find the adapter config; fall back to loading as a merged model
-            model = AutoModelForCausalLM.from_pretrained(
-                checkpoint_path,
-                attn_implementation="flash_attention_2" if use_flash_attn else None,
-                torch_dtype=torch.bfloat16 if use_flash_attn else None,
-            )
+            if has_quantized_config(checkpoint_path) and device == "cuda":
+                # Using GPTQConfig from HF, avail params are here
+                # https://huggingface.co/docs/transformers/en/main_classes/quantization#transformers.GPTQConfig
+                # We only support 4-bit AutoGPTQ, so setting bits to 4
+                # setting exllama kernel to version 2 as it's a faster kernel
+                gptq_config = GPTQConfig(bits=4, exllama_config={"version": 2})
 
-        device = "cuda" if torch.cuda.is_available() else None
-        print(f"Inferred device: {device}")
+                # Since we are using exllama kernel, we need torch.float16 as torch_dtype
+                model = AutoModelForCausalLM.from_pretrained(
+                    checkpoint_path,
+                    attn_implementation="flash_attention_2" if use_flash_attn else None,
+                    device_map=device,
+                    torch_dtype=torch.float16,
+                    quantization_config=gptq_config,
+                )
+            else:
+                model = AutoModelForCausalLM.from_pretrained(
+                    checkpoint_path,
+                    attn_implementation="flash_attention_2" if use_flash_attn else None,
+                    torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                )
+
         model.to(device)
         return cls(model, tokenizer, device)
 
@@ -325,6 +364,10 @@ def main():
         json.dump(results, out_file, sort_keys=True, indent=4)
 
     print(f"Exported results to: {args.out_file}")
+
+
+def has_quantized_config(model_path: str):
+    return os.path.exists(os.path.join(model_path, "quantize_config.json"))
 
 
 if __name__ == "__main__":
