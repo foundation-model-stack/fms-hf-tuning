@@ -40,9 +40,6 @@ from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import transformers
 
-# First Party
-from build.utils import get_highest_checkpoint
-
 # Local
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
@@ -441,6 +438,13 @@ def get_parser():
         default="none",
     )
     parser.add_argument(
+        "--post_process_vllm",
+        type=bool,
+        default=False,
+        help="Bool to indicate if post processing of LoRA adapters for vLLM \
+              is required.",
+    )
+    parser.add_argument(
         "--exp_metadata",
         type=str,
         default=None,
@@ -496,6 +500,7 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
+        post_process_vllm = json_config.get("post_process_vllm")
     else:
         (
             model_args,
@@ -514,6 +519,7 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
+        post_process_vllm = additional.post_process_vllm
 
     if peft_method == "lora":
         tune_config = lora_config
@@ -533,6 +539,7 @@ def parse_arguments(parser, json_config=None):
         quantized_lora_config,
         fusedops_kernels_config,
         exp_metadata,
+        post_process_vllm,
     )
 
 
@@ -553,6 +560,7 @@ def main():
             quantized_lora_config,
             fusedops_kernels_config,
             exp_metadata,
+            post_process_vllm,
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
@@ -656,17 +664,12 @@ def main():
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     # post process lora
-    if isinstance(tune_config, peft_config.LoraConfig):
+    if post_process_vllm and isinstance(tune_config, peft_config.LoraConfig):
         try:
-            checkpoint_dir = job_config.get("save_model_dir")
-            if not checkpoint_dir:
-                checkpoint_dir = os.path.join(
-                    training_args.output_dir,
-                    get_highest_checkpoint(training_args.output_dir),
-                )
-            print(training_args)
-            print(f"Post processing LoRA adapters in {checkpoint_dir}")
-            post_process_vLLM_adapters_new_tokens(path_to_checkpoint=checkpoint_dir)
+            checkpoint_dir = training_args.save_model_dir
+            if checkpoint_dir:
+                print(f"Post processing LoRA adapters in {checkpoint_dir}")
+                post_process_vLLM_adapters_new_tokens(path_to_checkpoint=checkpoint_dir)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(
