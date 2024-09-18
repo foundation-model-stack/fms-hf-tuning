@@ -635,12 +635,12 @@ Notes:
     - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
     - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
  * Notes on Padding Free
-  - works for both *single* and *multi-gpu*. 
-  - works on both *pretokenized* and *untokenized* datasets
-  - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+    - works for both *single* and *multi-gpu*. 
+    - works on both *pretokenized* and *untokenized* datasets
+    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
  * Notes on Multipack
-  - works only for *multi-gpu*.
-  - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+    - works only for *multi-gpu*.
+    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
