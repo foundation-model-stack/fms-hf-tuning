@@ -142,7 +142,7 @@ def train(
                 "ensure `use_flash_attn = True` to use padding-free flash attention"
             )
 
-        if train_args.packing is True:
+        if train_args.packing:
             # We prevent Trainer from performing packing with padding_free.
             # Since the plugin computes attention efficiently without padding.
             raise ValueError(

@@ -123,16 +123,18 @@ class AccelerationFrameworkConfig:
             # this also ensures that the attention implementation for multipack
             # will be flash attention as sfttrainer will enforce flash attn to be
             # set for padding free
-            assert (
-                self.padding_free is not None
-            ), "`--multipack` is currently only supported with `--padding_free`"
+            if self.padding_free is None:
+                raise ValueError(
+                    "`--multipack` is currently only supported with `--padding_free`"
+                )
 
         # Check that fused lora must be activated with either auto_gptq or bitsandbytes
         if self.fused_lora is not None:
-            assert self.bitsandbytes is not None or self.auto_gptq is not None, (
-                "`--fused_lora` must be accompanied by a quantized base layer"
-                " `--auto_gptq` or `--bitsandbytes`."
-            )
+            if self.bitsandbytes is None and self.auto_gptq is None:
+                raise ValueError(
+                    "`--fused_lora` must be accompanied by a quantized base layer"
+                    " `--auto_gptq` or `--bitsandbytes`."
+                )
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):

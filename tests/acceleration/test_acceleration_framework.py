@@ -567,7 +567,7 @@ def test_error_raised_with_paddingfree_and_flash_attn_disabled():
 def test_error_raised_with_multipack_and_paddingfree_disabled():
     """Ensure error raised when padding-free is not used with multipack"""
     with pytest.raises(
-        AssertionError,
+        ValueError,
         match="`--multipack` is currently only supported with `--padding_free`",
     ):
         attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
@@ -621,7 +621,7 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
     `--auto_gptq` or `bitsandbytes`
     """
     with pytest.raises(
-        AssertionError,
+        ValueError,
         match="`--fused_lora` must be accompanied by a quantized base layer "
         "`--auto_gptq` or `--bitsandbytes`.",
     ):
