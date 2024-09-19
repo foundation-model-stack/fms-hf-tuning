@@ -56,7 +56,7 @@ def test_post_process_vLLM_adapters_new_tokens():
     # do the post processing
     with tempfile.TemporaryDirectory() as tempdir:
         post_process_vLLM_adapters_new_tokens(
-            DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir
+            DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir, num_added_tokens =1
         )
 
         # check that new_embeddings.safetensors exist

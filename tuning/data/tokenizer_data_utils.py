@@ -25,7 +25,7 @@ def tokenizer_and_embedding_resize(
     tokenizer: transformers.PreTrainedTokenizer,
     model: transformers.PreTrainedModel,
     multiple_of: int = 1,
-):
+): 
     """Resize tokenizer and embedding."""
     num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
@@ -44,3 +44,4 @@ def tokenizer_and_embedding_resize(
 
         input_embeddings[-num_new_tokens:] = input_embeddings_avg
         output_embeddings[-num_new_tokens:] = output_embeddings_avg
+    return num_new_tokens
