@@ -266,7 +266,7 @@ def train(
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
+    num_added_tokens = tokenizer_data_utils.tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
@@ -387,7 +387,7 @@ def train(
 
     trainer.train(resume_from_checkpoint)
 
-    return trainer
+    return trainer, num_added_tokens
 
 
 def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
@@ -611,7 +611,7 @@ def main():
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        trainer = train(
+        trainer, num_added_tokens = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,

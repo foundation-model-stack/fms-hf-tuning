@@ -120,7 +120,7 @@ def _copy_files_to_directory(src: str, dest: str, exclude_files: list[str] = Non
 
 
 def post_process_vLLM_adapters_new_tokens(
-    path_to_checkpoint: str, modified_checkpoint_path: str = None
+    path_to_checkpoint: str, modified_checkpoint_path: str = None, num_added_tokens: int=0
 ):
     # if not set, original checkpoint will be modified
     if not modified_checkpoint_path:
@@ -145,7 +145,7 @@ def post_process_vLLM_adapters_new_tokens(
         for k in f.keys():
             if "lm_head.weight" in k or "embed_tokens.weight" in k:
                 embeddings_weights_in_adapters = True
-                if len(sorted_token_indexes) < 1:
+                if num_added_tokens == 0 :
                     raise NotImplementedError(
                         "Seems like embeddings are resized without adding new tokens. \
                         Cannot be post-processed to load on vLLM. Try setting \
@@ -158,28 +158,18 @@ def post_process_vLLM_adapters_new_tokens(
                 if "lm_head.weight" in k:
                     lm_head = f.get_tensor(k)
                     # pull out tensor values of new tokens
-                    if len(sorted_token_indexes) == 1:
-                        new_output_embeddings = lm_head[
-                            sorted_token_indexes[0] : sorted_token_indexes[0] + 1
-                        ]
-                    elif len(sorted_token_indexes) > 1:
-                        new_output_embeddings = lm_head[
-                            sorted_token_indexes[0] : sorted_token_indexes[-1]
-                        ]
+                    
+                    new_output_embeddings = lm_head[
+                            -num_added_tokens : ]
                     # vLLM requires renaming to output_embeddings
                     new_embeddings["output_embeddings"] = new_output_embeddings
 
                 elif "embed_tokens.weight" in k:
                     embed_tokens = f.get_tensor(k)
                     # pull out tensor values of new tokens
-                    if len(sorted_token_indexes) == 1:
-                        new_input_embeddings = embed_tokens[
-                            sorted_token_indexes[0] : sorted_token_indexes[0] + 1
-                        ]
-                    elif len(sorted_token_indexes) > 1:
-                        new_input_embeddings = embed_tokens[
-                            sorted_token_indexes[0] : sorted_token_indexes[-1]
-                        ]
+                    new_input_embeddings = embed_tokens[
+                            -num_added_tokens :
+                    ]
                     # vLLM requires renaming to input_embeddings
                     new_embeddings["input_embeddings"] = new_input_embeddings
                 else:
