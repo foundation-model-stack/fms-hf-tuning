@@ -669,7 +669,7 @@ def main():
             checkpoint_dir = training_args.save_model_dir
             if checkpoint_dir:
                 print(f"Post processing LoRA adapters in {checkpoint_dir}")
-                post_process_vLLM_adapters_new_tokens(path_to_checkpoint=checkpoint_dir)
+                post_process_vLLM_adapters_new_tokens(path_to_checkpoint=checkpoint_dir, num_added_tokens=num_added_tokens)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
             write_termination_log(

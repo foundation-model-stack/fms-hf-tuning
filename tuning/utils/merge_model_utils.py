@@ -126,15 +126,6 @@ def post_process_vLLM_adapters_new_tokens(
     if not modified_checkpoint_path:
         modified_checkpoint_path = path_to_checkpoint
 
-    # Get all values of new token indexes
-    sorted_token_indexes = []
-    if os.path.isfile(os.path.join(path_to_checkpoint, "added_tokens.json")):
-        with open(
-            os.path.join(path_to_checkpoint, "added_tokens.json"), "r", encoding="utf-8"
-        ) as fp:
-            added_tokens = json.load(fp)
-            sorted_token_indexes = sorted(added_tokens.values())
-
     with safe_open(
         os.path.join(path_to_checkpoint, "adapter_model.safetensors"), framework="pt"
     ) as f:
