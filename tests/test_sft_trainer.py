@@ -692,7 +692,7 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.save_strategy = "no"
         save_model_args.output_dir = tempdir
 
-        trainer = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        trainer, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
         logs_path = os.path.join(
             tempdir, FileLoggingTrackerConfig.training_logs_filename
         )
