@@ -621,15 +621,26 @@ The list of configurations for various `fms_acceleration` plugins:
 - [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
+- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py) (experimental):
+  - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
+  - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
  * When setting `--auto_gptq triton_v2` plus note to also pass `--torch_dtype float16` and `--fp16`, or an exception will be raised. This is because these kernels only support this dtype.
- * Currently, the `fused_ops_and_kernels` is to be used used together QLoRA or GPTQ-LORA via the `quantized_lora_config`. In the future it may be made more flexible such that `fast_kernels` can even be used with full-finetuning.
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
  make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
- * Currently `fused_ops_and_kernels` only supports activating `fast_loss,fast_rsm_layernorm,fast_rope_embeddings` all to `True`, so pass `--fast_kernels True True True`.
-
+ * `fused_ops_and_kernels` works for full-finetuning, LoRA, QLoRA and GPTQ-LORA, 
+    - pass `--fast_kernels True True True` for full finetuning/LoRA
+    - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
+    - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+ * Notes on Padding Free
+    - works for both *single* and *multi-gpu*. 
+    - works on both *pretokenized* and *untokenized* datasets
+    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+ * Notes on Multipack
+    - works only for *multi-gpu*.
+    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
