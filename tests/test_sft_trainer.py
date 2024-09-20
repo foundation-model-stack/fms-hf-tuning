@@ -349,9 +349,20 @@ def test_parse_arguments_defaults(job_config):
     assert "torch_dtype" not in job_config_defaults
     assert job_config_defaults["use_flash_attn"] is False
     assert "save_strategy" not in job_config_defaults
-    model_args, _, training_args, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_defaults
-    )
+    (
+        model_args,
+        _,
+        training_args,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
     assert training_args.save_strategy.value == "epoch"
