@@ -84,7 +84,7 @@ class AccelerationFrameworkConfig:
         ConfigAnnotation(
             path="peft.quantization",
             key="fused_ops_and_kernels",
-            experimental=True,
+            experimental=False,
             required_packages=["foak"],
         ),
     ] = None
@@ -94,7 +94,7 @@ class AccelerationFrameworkConfig:
         ConfigAnnotation(
             path="training",
             key="fused_ops_and_kernels",
-            experimental=True,
+            experimental=False,
             required_packages=["foak"],
         ),
     ] = None
