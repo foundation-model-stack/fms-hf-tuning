@@ -124,7 +124,19 @@ def post_process_vLLM_adapters_new_tokens(
     modified_checkpoint_path: str = None,
     num_added_tokens: int = 0,
 ):
-    # if not set, original checkpoint will be modified
+    """Post process adapters to allow inferencing on vLLM.
+    vLLM needs new token embedding weights added during tuning to be moved \
+    to a new file new_embeddings.safetensors . \
+    This function copies the embeddings weights for the added tokens from \
+    adapters.safetnsors to new_embeddings.safetensors. 
+    Args: 
+        path_to_checkpoint: Path to folder containing adapters.safetensors.
+        modified_checkpoint_path: Output path where to save modified artifacts \
+            after post-processing. If not provided, artifacts will be processed \
+            in place in same folder.
+        num_added_tokens: int. Number of tokens that were added during tuning.
+    """
+    # if not set, original checkpoint will be modified in place
     if not modified_checkpoint_path:
         modified_checkpoint_path = path_to_checkpoint
 

@@ -64,7 +64,6 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -587,7 +586,6 @@ def main():
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             exp_metadata,
-            post_process_vllm,
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
@@ -696,11 +694,21 @@ def main():
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts
-                with open(os.path.join(training_args.save_model_dir,'added_tokens_info.json'), 'w') as f:
+                with open(
+                    os.path.join(
+                        training_args.save_model_dir, "added_tokens_info.json"
+                    ),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
                     json.dump(additional_train_info["added_tokens_info"], f)
-            if  training_args.output_dir:
+            if training_args.output_dir:
                 # Write number of added tokens to artifacts
-                with open(os.path.join(training_args.output_dir,'added_tokens_info.json'), 'w') as f:
+                with open(
+                    os.path.join(training_args.output_dir, "added_tokens_info.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
                     json.dump(additional_train_info["added_tokens_info"], f)
         except Exception as e:  # pylint: disable=broad-except
             logging.error(traceback.format_exc())
