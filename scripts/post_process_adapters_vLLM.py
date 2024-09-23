@@ -1,10 +1,12 @@
 """ Script to post-process tuned LoRA adapters for inference on vLLM. 
-vLLM requires that any token embeddings added while tuning be moved to a new file called new_embeddings.safetensors. \
-See the description in utility function /tuning/utils/merge_model_utils/post_process_vLLM_adapters_new_tokens for more details.
+vLLM requires that any token embeddings added while tuning be moved to a new file \
+called new_embeddings.safetensors. \
+See the description in utility function \
+/tuning/utils/merge_model_utils/post_process_vLLM_adapters_new_tokens for more details.
 
-This script takes a path to tuned model artifacts containing adapters (or checkpoints with adapters) \
-and the file 'added_tokens_info.json' produced while tuning. It will perform the post-processing as \
-needed for inferencing on vLLM.
+This script takes a path to tuned model artifacts containing adapters \
+(or checkpoints with adapters) and the file 'added_tokens_info.json' produced while tuning. \
+It will perform the post-processing as needed for inferencing on vLLM.
 """
 # Standard
 import argparse
@@ -40,7 +42,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.output_model_path == None:
+    if args.output_model_path is None:
         output_model_path = args.model_path
     if os.path.exists(os.path.join(args.model_path, "added_tokens_info.json")):
         with open(
