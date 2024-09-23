@@ -107,7 +107,7 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     return adapter_dict["base_model_name_or_path"]
 
 
-def _copy_files_to_directory(src: str, dest: str, exclude_files: list[str] = None):
+def copy_files_to_directory(src: str, dest: str, exclude_files: list[str] = None):
     src_files = os.listdir(src)
     if exclude_files is None:
         exclude_files = []
@@ -178,6 +178,9 @@ def post_process_vLLM_adapters_new_tokens(
                     # Retain all other weights in adapters.safetensors
                     adapters[k] = f.get_tensor(k)
 
+            if not os.path.exists(modified_checkpoint_path):
+                os.makedirs(modified_checkpoint_path, exist_ok=True)
+
             save_file(
                 new_embeddings,
                 os.path.join(modified_checkpoint_path, "new_embeddings.safetensors"),
@@ -189,7 +192,7 @@ def post_process_vLLM_adapters_new_tokens(
 
             # copy out remaining files to desired path
             if modified_checkpoint_path != path_to_checkpoint:
-                _copy_files_to_directory(
+                copy_files_to_directory(
                     path_to_checkpoint,
                     modified_checkpoint_path,
                     exclude_files=["adapter_model.safetensors"],

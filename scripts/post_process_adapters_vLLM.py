@@ -5,7 +5,7 @@ import os
 
 # Local
 from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens
-
+from tuning.utils.merge_model_utils import copy_files_to_directory
 
 ### Main & arg parsing
 def main():
@@ -33,8 +33,8 @@ def main():
         with open(
             os.path.join(args.model_path, "added_tokens_info.json"), encoding="utf-8"
         ) as json_data:
-            added_tokens_info = json.loads(json_data)
-            num_added_tokens = added_tokens_info["num_added_tokens"]
+            added_tokens_info = json.load(json_data)
+            num_added_tokens = added_tokens_info["num_new_tokens"]
     else:
         print("file added_tokens_info.json not in model_path. Cannot post-processes")
 
@@ -43,6 +43,7 @@ def main():
             args.model_path, args.output_model_path, num_added_tokens
         )
     # if multiple checkpoints in directory, process each checkpoint
+    found_checkpoints = 0
     for _, dirs, _ in os.walk(args.model_path, topdown=False):
         for name in dirs:
             if "checkpoint-" in name.lower():
@@ -51,3 +52,9 @@ def main():
                     os.path.join(args.output_model_path, name),
                     num_added_tokens,
                 )
+                found_checkpoints = 1
+        if found_checkpoints and args.output_model_path!=args.model_path:
+            copy_files_to_directory(args.model_path, args.output_model_path, exclude_files=["adapter_model.safetensors"])
+
+if __name__ == "__main__":
+    main()
