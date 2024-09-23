@@ -124,7 +124,7 @@ def post_process_vLLM_adapters_new_tokens(
     modified_checkpoint_path: str = None,
     num_added_tokens: int = 0,
 ):
-    """Post process adapters to allow inferencing on vLLM.
+    """Post process LoRA adapters to allow inferencing on vLLM.
     vLLM needs new token embedding weights added during tuning to be moved \
     to a new file new_embeddings.safetensors . \
     This function copies the embeddings weights for the added tokens from \
