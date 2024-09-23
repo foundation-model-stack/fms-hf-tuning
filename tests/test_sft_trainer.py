@@ -662,7 +662,7 @@ def test_successful_lora_target_modules_default_from_main():
 
         _validate_training(tempdir)
         # Calling LoRA tuning from the main results in 'added_tokens_info.json'
-        assert ('added_tokens_info.json' in os.listdir(tempdir))
+        assert "added_tokens_info.json" in os.listdir(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
         _validate_adapter_config(adapter_config, "LORA")
