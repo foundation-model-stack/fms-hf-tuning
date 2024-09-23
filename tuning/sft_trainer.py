@@ -523,7 +523,6 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
-        post_process_vllm = json_config.get("post_process_vllm")
     else:
         (
             model_args,
@@ -543,7 +542,6 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
-        post_process_vllm = additional.post_process_vllm
 
     if peft_method == "lora":
         tune_config = lora_config
@@ -564,7 +562,6 @@ def parse_arguments(parser, json_config=None):
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
         exp_metadata,
-        post_process_vllm,
     )
 
 

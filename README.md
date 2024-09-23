@@ -665,8 +665,6 @@ The `fms_acceleration.cli` can do more to search for all available configs, plug
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
 
-If you are trying to run LoRA inference on vLLM, set the `--post_process_vllm` flag to `True`.
-
 ### Running a single example
 If you want to run a single example through a model, you can pass it with the `--text` flag.
 
