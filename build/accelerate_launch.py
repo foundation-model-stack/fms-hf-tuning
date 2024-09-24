@@ -122,8 +122,8 @@ def main():
     peft_method = job_config.get("peft_method")
 
     if job_config.get("lora_post_process_for_vllm") and peft_method == "lora":
-        if job_config.get("save_model_dir"):
-            save_model_dir = job_config.get("save_model_dir")
+        save_model_dir = job_config.get("save_model_dir")
+        if save_model_dir:
             if os.path.exists(os.path.join(save_model_dir, "added_tokens_info.json")):
                 with open(
                     os.path.join(save_model_dir, "added_tokens_info.json"),
@@ -133,7 +133,8 @@ def main():
                     num_added_tokens = added_tokens_info["num_new_tokens"]
             else:
                 logging.warning(
-                    "file added_tokens_info.json not in model_path. Cannot post-processes"
+                    "Failed to post-process: file added_tokens_info.json not in path %s",
+                    save_model_dir,
                 )
 
             if os.path.exists(
@@ -163,8 +164,8 @@ def main():
                         )
         else:
             logging.warning(
-                "file added_tokens_info.json not in model_path. Cannot post-processes.\
-                            Ignore if no checkpoints were saved during tuning"
+                "Failed to post-process: file added_tokens_info.json not in path %s",
+                save_model_dir,
             )
 
     # The .complete file will signal to users that we are finished copying
