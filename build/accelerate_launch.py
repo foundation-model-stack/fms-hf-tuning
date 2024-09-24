@@ -120,32 +120,39 @@ def main():
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     peft_method = job_config.get("peft_method")
-    
-    if job_config.get("post_process_vllm").lower() == "true" and peft_method == "lora":
+
+    if job_config.get("lora_post_process_for_vllm") and peft_method == "lora":
         if job_config.get("save_model_dir"):
             save_model_dir = job_config.get("save_model_dir")
             if os.path.exists(os.path.join(save_model_dir, "added_tokens_info.json")):
                 with open(
-                    os.path.join(save_model_dir, "added_tokens_info.json"), encoding="utf-8"
+                    os.path.join(save_model_dir, "added_tokens_info.json"),
+                    encoding="utf-8",
                 ) as json_data:
                     added_tokens_info = json.load(json_data)
                     num_added_tokens = added_tokens_info["num_new_tokens"]
             else:
-                logging.warning("file added_tokens_info.json not in model_path. Cannot post-processes")
+                logging.warning(
+                    "file added_tokens_info.json not in model_path. Cannot post-processes"
+                )
 
-            if os.path.exists(os.path.join(save_model_dir, "adapter_model.safetensors")):
+            if os.path.exists(
+                os.path.join(save_model_dir, "adapter_model.safetensors")
+            ):
                 post_process_vLLM_adapters_new_tokens(
                     save_model_dir, save_model_dir, num_added_tokens
                 )
 
-        if os.path.exists(os.path.join(output_dir, "added_tokens_info.json")) and job_config.get("save_strategy") != "no":
+        if (
+            os.path.exists(os.path.join(output_dir, "added_tokens_info.json"))
+            and job_config.get("save_strategy") != "no"
+        ):
             with open(
                 os.path.join(output_dir, "added_tokens_info.json"), encoding="utf-8"
             ) as json_data:
                 added_tokens_info = json.load(json_data)
                 num_added_tokens = added_tokens_info["num_new_tokens"]
             # if multiple checkpoints in directory, process each checkpoint
-            found_checkpoints = 0
             for _, dirs, _ in os.walk(output_dir, topdown=False):
                 for name in dirs:
                     if "checkpoint-" in name.lower():
@@ -154,10 +161,11 @@ def main():
                             os.path.join(output_dir, name),
                             num_added_tokens,
                         )
-                    found_checkpoints = 1
         else:
-            logging.warning("file added_tokens_info.json not in model_path. Cannot post-processes.\
-                            Ignore if no checkpoints were saved during tuning")
+            logging.warning(
+                "file added_tokens_info.json not in model_path. Cannot post-processes.\
+                            Ignore if no checkpoints were saved during tuning"
+            )
 
     # The .complete file will signal to users that we are finished copying
     # files over
