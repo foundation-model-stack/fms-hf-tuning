@@ -463,6 +463,7 @@ post_process_vLLM_adapters_new_tokens(
 )
 # where num_added_tokens is returned by sft_trainer.train()
 ```
+</details>
 
 _________________________
 
