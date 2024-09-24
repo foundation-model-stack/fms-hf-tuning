@@ -58,6 +58,9 @@ def main():
             "file added_tokens_info.json not in model_path. \
                         Cannot post-processes"
         )
+    if num_added_tokens == 0:
+        logging.info("No new tokens added, hence post-processing not needed")
+        exit(0)
 
     found_adapters = 0
     if os.path.exists(os.path.join(args.model_path, "adapter_model.safetensors")):
