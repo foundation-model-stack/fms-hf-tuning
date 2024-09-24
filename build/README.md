@@ -39,7 +39,7 @@ For example, the below config is used for running with two GPUs and FSDP for fin
     "learning_rate": 1e-5,
     "response_template": "\n### Label:",
     "dataset_text_field": "output",
-    "lora_post_process_for_vllm": true,
+    "lora_post_process_for_vllm": true
 }
 ```
 
