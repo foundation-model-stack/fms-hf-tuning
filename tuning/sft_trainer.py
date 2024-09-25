@@ -90,7 +90,7 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
-):
+) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
     Args:
@@ -118,6 +118,10 @@ def train(
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
         attention_and_distributed_packing_config: Used for padding-free attention and multipack.
+
+    Returns:
+        Tuple: Instance of SFTTrainer , some metadata in a dict
+            Metadata contains information on number of added tokens while tuning.
     """
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")

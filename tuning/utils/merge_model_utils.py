@@ -178,8 +178,7 @@ def post_process_vLLM_adapters_new_tokens(
                     # Retain all other weights in adapters.safetensors
                     adapters[k] = f.get_tensor(k)
 
-            if not os.path.exists(modified_checkpoint_path):
-                os.makedirs(modified_checkpoint_path, exist_ok=True)
+            os.makedirs(modified_checkpoint_path, exist_ok=True)
 
             save_file(
                 new_embeddings,
