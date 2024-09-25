@@ -23,6 +23,7 @@ import torch
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
+INPUT_TEXT = "### Text: @NortonSupport Thanks much.\n\n### Label:"
 
 
 def _inference(
@@ -41,7 +42,7 @@ def _inference(
 
 
 def test_output_unaltered_across_embedding_resizes():
-    input_text = "### Text: @NortonSupport Thanks much.\n\n### Label:"
+    input_text = INPUT_TEXT
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model_not_resized = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     model_resized = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
@@ -74,3 +75,65 @@ def test_output_unaltered_across_embedding_resizes():
     )
 
     assert output_from_model_not_resized == output_from_model_resized
+
+
+def test_resize_with_special_tokens():
+    input_text = INPUT_TEXT
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+    input_tokenizer_len = len(tokenizer.get_vocab())
+
+    special_tokens = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
+    tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens,
+        tokenizer=tokenizer,
+        model=model,
+        multiple_of=1,
+    )
+
+    assert "<SEP>" in tokenizer.get_vocab()
+    assert "<PAD>" in tokenizer.get_vocab()
+
+    output_tokenizer_len = len(tokenizer.get_vocab())
+
+    assert output_tokenizer_len == input_tokenizer_len + 2
+
+    output = _inference(
+        tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
+    )
+    assert output is not None
+
+
+def test_no_resize_when_no_special_tokens():
+    input_text = INPUT_TEXT
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+    input_tokenizer_len = len(tokenizer.get_vocab())
+
+    tokenizer_and_embedding_resize(
+        special_tokens_dict={}, tokenizer=tokenizer, model=model, multiple_of=1
+    )
+
+    output_tokenizer_len = len(tokenizer.get_vocab())
+
+    assert input_tokenizer_len == output_tokenizer_len
+
+    output = _inference(
+        tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
+    )
+
+    assert output is not None
+
+
+def test_resize_with_multiple_of():
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+    tokenizer_and_embedding_resize(
+        special_tokens_dict={}, tokenizer=tokenizer, model=model, multiple_of=8
+    )
+
+    assert model.get_input_embeddings().embedding_dim % 8 == 0
+    assert model.get_output_embeddings().out_features % 8 == 0

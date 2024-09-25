@@ -55,7 +55,6 @@ from tuning.config.tracker_configs import (
 )
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
@@ -70,6 +69,7 @@ from tuning.utils.preprocessing_utils import (
     is_pretokenized_dataset,
     validate_data_args,
 )
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
 def train(
