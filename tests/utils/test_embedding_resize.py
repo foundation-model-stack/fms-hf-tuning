@@ -20,7 +20,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 # Local
-from tuning.data import tokenizer_data_utils
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 
@@ -46,11 +46,11 @@ def test_output_unaltered_across_embedding_resizes():
     model_not_resized = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     model_resized = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
+    tokenizer_and_embedding_resize(
         special_tokens_dict={}, tokenizer=tokenizer, model=model_resized, multiple_of=8
     )
 
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
+    tokenizer_and_embedding_resize(
         special_tokens_dict={},
         tokenizer=tokenizer,
         model=model_not_resized,
