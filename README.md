@@ -634,6 +634,7 @@ Notes:
     - pass `--fast_kernels True True True` for full finetuning/LoRA
     - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
     - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
  * Notes on Padding Free
     - works for both *single* and *multi-gpu*. 
     - works on both *pretokenized* and *untokenized* datasets
@@ -641,6 +642,16 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+
+Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
+```json
+{
+  "fast_kernels": [true, true, true],
+  "padding_free": ["huggingface"],
+  "multipack": [16],
+  "auto_gptq": ["triton_v2"]
+}
+```
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
