@@ -17,6 +17,7 @@
 
 # Standard
 import os
+import shutil
 import tempfile
 
 # Third Party
@@ -119,9 +120,6 @@ def test_post_process_in_place_vllm_adapters_new_tokens():
 
     # do the post processing
     with tempfile.TemporaryDirectory() as tempdir:
-        # Standard
-        import shutil
-
         shutil.copytree(DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir)
         post_process_vLLM_adapters_new_tokens(tempdir, None, num_added_tokens=1)
 
