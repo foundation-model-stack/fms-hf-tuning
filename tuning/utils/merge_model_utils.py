@@ -16,6 +16,7 @@
 from typing import Union
 import json
 import os
+import shutil
 
 # Third Party
 from peft import PeftModel
@@ -23,10 +24,6 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-# First Party
-# First party
-from build.utils import copy_checkpoint
 
 
 def create_merged_model(
@@ -110,6 +107,18 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
     return adapter_dict["base_model_name_or_path"]
 
 
+def copy_files_to_directory(src: str, dest: str, exclude_files: list[str] = None):
+    src_files = os.listdir(src)
+    if exclude_files is None:
+        exclude_files = []
+    for file_name in src_files:
+        if file_name in exclude_files:
+            continue
+        full_file_name = os.path.join(src, file_name)
+        if os.path.isfile(full_file_name):
+            shutil.copy(full_file_name, dest)
+
+
 def post_process_vLLM_adapters_new_tokens(
     path_to_checkpoint: str,
     modified_checkpoint_path: str = None,
@@ -182,7 +191,7 @@ def post_process_vLLM_adapters_new_tokens(
 
             # copy out remaining files to desired path
             if modified_checkpoint_path != path_to_checkpoint:
-                copy_checkpoint(
+                copy_files_to_directory(
                     path_to_checkpoint,
                     modified_checkpoint_path,
                     exclude_files=["adapter_model.safetensors"],

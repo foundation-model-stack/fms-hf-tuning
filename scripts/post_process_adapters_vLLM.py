@@ -15,11 +15,11 @@ import logging
 import os
 import sys
 
-# First Party
-from build.utils import copy_checkpoint
-
 # Local
-from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens
+from tuning.utils.merge_model_utils import (
+    copy_files_to_directory,
+    post_process_vLLM_adapters_new_tokens,
+)
 
 
 ### Main & arg parsing
@@ -81,7 +81,7 @@ def main():
                 )
                 found_checkpoints = 1
     if found_checkpoints and output_model_path != args.model_path:
-        copy_checkpoint(
+        copy_files_to_directory(
             args.model_path,
             output_model_path,
             exclude_files=["adapter_model.safetensors"],
