@@ -16,7 +16,6 @@
 from typing import Union
 import json
 import os
-import shutil
 
 # Third Party
 from peft import PeftModel
@@ -25,8 +24,10 @@ from safetensors.torch import save_file
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+# First Party
 # First party
 from build.utils import copy_checkpoint
+
 
 def create_merged_model(
     checkpoint_models: Union[str, list[str]],
@@ -108,6 +109,7 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
         )
     return adapter_dict["base_model_name_or_path"]
 
+
 def post_process_vLLM_adapters_new_tokens(
     path_to_checkpoint: str,
     modified_checkpoint_path: str = None,
@@ -166,7 +168,6 @@ def post_process_vLLM_adapters_new_tokens(
                 else:
                     # Retain all other weights in adapters.safetensors
                     adapters[k] = f.get_tensor(k)
-
 
             os.makedirs(modified_checkpoint_path, exist_ok=True)
 

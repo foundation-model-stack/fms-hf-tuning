@@ -15,9 +15,12 @@ import logging
 import os
 import sys
 
-# Local
+# First Party
 from build.utils import copy_checkpoint
-from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens,
+
+# Local
+from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens
+
 
 ### Main & arg parsing
 def main():
