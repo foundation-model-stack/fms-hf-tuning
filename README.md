@@ -436,6 +436,35 @@ Example 3:
 
 </details>
 
+#### Post-processing needed for inference on VLLM
+
+In order to run inference of LoRA adapters on vLLM, any new token embeddings added while tuning needs to be moved out of 'adapters.safetensors' to a new file 'new_embeddings.safetensors'. The 'adapters.safetensors' should only have LoRA weights and should not have modified embedding vectors. This is a requirement to support vLLM's paradigm that one base model can serve multiple adapters. New token embedding vectors are appended to the embedding matrix read from the base model by vLLM.
+
+To do this postprocessing, the tuning script sft_trainer.py will generate a file 'added_tokens_info.json' with model artifacts. After tuning, you can run script 'post_process_adapters_vLLM.py' :
+
+```bash
+# model_path: Path to saved model artifacts which has file 'added_tokens_info.json'
+# output_model_path: Optional. If you want to store modified \
+#    artifacts in a different directory rather than modify in-place.
+python scripts/post_process_adapters_vLLM.py \
+--model_path "/testing/tuning/output/post-process-LoRA-saved" \
+--output_model_path "/testing/tuning/output/post-process-LoRA-modified"
+```
+
+<details>
+<summary> Alternatively, if using SDK :</summary>
+
+```bash
+# function in tuning/utils/merge_model_utils.py
+post_process_vLLM_adapters_new_tokens(
+    path_to_checkpoint="/testing/tuning/output/post-process-LoRA-saved",
+    modified_checkpoint_path=None,
+    num_added_tokens=1,
+)
+# where num_added_tokens is returned by sft_trainer.train()
+```
+</details>
+
 _________________________
 
 

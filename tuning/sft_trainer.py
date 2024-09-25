@@ -90,7 +90,7 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
-):
+) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
     Args:
@@ -118,6 +118,10 @@ def train(
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
         attention_and_distributed_packing_config: Used for padding-free attention and multipack.
+
+    Returns:
+        Tuple: Instance of SFTTrainer , some metadata in a dict
+            Metadata contains information on number of added tokens while tuning.
     """
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
@@ -242,23 +246,16 @@ def train(
     )
 
     # Add special tokens only when a custom tokenizer is not passed
+    special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            tokenizer.add_special_tokens(
-                {
-                    "bos_token": "<s>",
-                    "eos_token": "</s>",
-                    "unk_token": "<unk>",
-                    "pad_token": "<pad>",
-                }
-            )
+            special_tokens_dict["bos_token"] = "<s>"
+            special_tokens_dict["eos_token"] = "</s>"
+            special_tokens_dict["unk_token"] = "<unk>"
+            special_tokens_dict["pad_token"] = "<pad>"
         elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            tokenizer.add_special_tokens(
-                {
-                    "pad_token": "<pad>",
-                }
-            )
+            special_tokens_dict["pad_token"] = "<pad>"
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
     logger.info("Max sequence length is %s", max_seq_length)
@@ -272,7 +269,6 @@ def train(
         )
 
     # add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
         # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
@@ -298,7 +294,7 @@ def train(
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
+    added_tokens_dict = tokenizer_data_utils.tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
@@ -418,8 +414,9 @@ def train(
         )
 
     trainer.train(resume_from_checkpoint)
-
-    return trainer
+    additional_metadata = {}
+    additional_metadata["added_tokens_info"] = added_tokens_dict
+    return trainer, additional_metadata
 
 
 def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
@@ -470,6 +467,7 @@ def get_parser():
         choices=["pt", "lora", None, "none"],
         default="none",
     )
+
     parser.add_argument(
         "--exp_metadata",
         type=str,
@@ -640,7 +638,7 @@ def main():
     combined_tracker_configs.aim_config = aim_config
 
     try:
-        trainer = train(
+        trainer, additional_train_info = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -690,6 +688,33 @@ def main():
             logger.error(traceback.format_exc())
             write_termination_log(
                 f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    if isinstance(tune_config, peft_config.LoraConfig):
+        try:
+            if training_args.save_model_dir:
+                # Write number of added tokens to artifacts
+                with open(
+                    os.path.join(
+                        training_args.save_model_dir, "added_tokens_info.json"
+                    ),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(additional_train_info["added_tokens_info"], f)
+            if training_args.output_dir:
+                # Write number of added tokens to artifacts
+                with open(
+                    os.path.join(training_args.output_dir, "added_tokens_info.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(additional_train_info["added_tokens_info"], f)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error(traceback.format_exc())
+            write_termination_log(
+                f"Exception encountered when saving metadata with model artifacts: {e}"
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
