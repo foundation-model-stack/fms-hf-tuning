@@ -90,7 +90,7 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
-) -> tuple(SFTTrainer, dict):
+) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
     Args:
