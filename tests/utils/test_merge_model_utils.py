@@ -23,7 +23,6 @@ import tempfile
 # Third Party
 from safetensors import safe_open
 import pytest
-import torch
 
 # Local
 from tuning.utils.merge_model_utils import post_process_vLLM_adapters_new_tokens
@@ -34,10 +33,6 @@ DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS = os.path.join(
 )
 
 
-@pytest.mark.skipif(
-    not (torch.cuda.is_available()),
-    reason="Only runs if cuda is supported",
-)
 def test_post_process_vllm_adapters_new_tokens():
     """Ensure that in post-process, we output the correct format supported by vLLM for added_tokens
     - we should output a new_embeddings.safetensors
@@ -97,10 +92,6 @@ def test_post_process_vllm_adapters_no_new_tokens():
         )
 
 
-@pytest.mark.skipif(
-    not (torch.cuda.is_available()),
-    reason="Only runs if cuda is supported",
-)
 def test_post_process_in_place_vllm_adapters_new_tokens():
     """Ensure that in post-process, we output the correct format supported by vLLM for added_tokens
     - if output dir is not specified, it should modify files in place
@@ -120,7 +111,9 @@ def test_post_process_in_place_vllm_adapters_new_tokens():
 
     # do the post processing
     with tempfile.TemporaryDirectory() as tempdir:
-        shutil.copytree(DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir)
+        shutil.copytree(
+            DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir, dirs_exist_ok=True
+        )
         post_process_vLLM_adapters_new_tokens(tempdir, None, num_added_tokens=1)
 
         # check that new_embeddings.safetensors exist
