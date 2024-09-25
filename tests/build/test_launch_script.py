@@ -214,6 +214,38 @@ def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no():
         assert len(checkpoints) == 0
 
 
+def test_lora_with_lora_post_process_for_vllm_set_to_true():
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": tempdir,
+                "save_model_dir": tempdir,
+                "lora_post_process_for_vllm": True,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check that model and logs exists in output_dir
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        _validate_training_output(tempdir, "lora")
+
+        for _, dirs, _ in os.walk(tempdir, topdown=False):
+            for name in dirs:
+                if "checkpoint-" in name.lower():
+                    new_embeddings_file_path = os.path.join(
+                        tempdir, name, "new_embeddings.safetensors"
+                    )
+                    assert os.path.exists(new_embeddings_file_path)
+
+        # check for new_embeddings.safetensors
+        new_embeddings_file_path = os.path.join(tempdir, "new_embeddings.safetensors")
+        assert os.path.exists(new_embeddings_file_path)
+
+
 def test_bad_script_path():
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:
