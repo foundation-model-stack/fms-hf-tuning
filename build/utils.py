@@ -24,12 +24,16 @@ from accelerate.commands.launch import launch_command_parser
 import shutil
 
 
-def copy_checkpoint(source, destination):
+def copy_checkpoint(source, destination, exclude_files: list[str] = None):
     if not os.path.exists(destination):
         os.makedirs(destination)
         shutil.copystat(source, destination)
     # Have a list of directory objects, now iterate over them.
+    if exclude_files is None:
+        exclude_files = []
     for item in os.listdir(source):
+        if item in exclude_files:
+            continue
         source_file = os.path.join(source, item)
         destination_file = os.path.join(destination, item)
         if os.path.isdir(source_file):

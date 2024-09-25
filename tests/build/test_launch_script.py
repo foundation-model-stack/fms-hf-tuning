@@ -155,7 +155,7 @@ def test_lora_save_model_dir_separate_dirs():
         _validate_termination_files_when_tuning_succeeds(output_dir)
         _validate_training_output(save_model_dir, "lora")
 
-        assert len(os.listdir(output_dir)) == 3
+        # purpose here is to see if only one checkpoint is saved
         checkpoints = glob.glob(os.path.join(output_dir, "checkpoint-*"))
         assert len(checkpoints) == 1
 

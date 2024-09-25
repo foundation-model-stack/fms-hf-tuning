@@ -16,9 +16,12 @@
 from typing import Union
 import json
 import os
+import shutil
 
 # Third Party
 from peft import PeftModel
+from safetensors import safe_open
+from safetensors.torch import save_file
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -102,3 +105,94 @@ def fetch_base_model_from_checkpoint(checkpoint_model: str) -> str:
             "Base model adapter config exists, but has no base_model_name_or_path!"
         )
     return adapter_dict["base_model_name_or_path"]
+
+
+def copy_files_to_directory(src: str, dest: str, exclude_files: list[str] = None):
+    src_files = os.listdir(src)
+    if exclude_files is None:
+        exclude_files = []
+    for file_name in src_files:
+        if file_name in exclude_files:
+            continue
+        full_file_name = os.path.join(src, file_name)
+        if os.path.isfile(full_file_name):
+            shutil.copy(full_file_name, dest)
+
+
+def post_process_vLLM_adapters_new_tokens(
+    path_to_checkpoint: str,
+    modified_checkpoint_path: str = None,
+    num_added_tokens: int = 0,
+):
+    """Post process LoRA adapters to allow inferencing on vLLM.
+    vLLM needs new token embedding weights added during tuning to be moved \
+    to a new file new_embeddings.safetensors . \
+    This function copies the embeddings weights for the added tokens from \
+    adapters.safetnsors to new_embeddings.safetensors. 
+    Args: 
+        path_to_checkpoint: Path to folder containing adapters.safetensors.
+        modified_checkpoint_path: Output path where to save modified artifacts \
+            after post-processing. If not provided, artifacts will be processed \
+            in place in same folder.
+        num_added_tokens: int. Number of tokens that were added during tuning.
+    """
+    # if not set, original checkpoint will be modified in place
+    if not modified_checkpoint_path:
+        modified_checkpoint_path = path_to_checkpoint
+
+    with safe_open(
+        os.path.join(path_to_checkpoint, "adapter_model.safetensors"), framework="pt"
+    ) as f:
+        new_embeddings = {}
+        adapters = {}
+        embeddings_weights_in_adapters = False
+        # Quickly check if post-processing is needed by checking adapters file for weights
+        for k in f.keys():
+            if "lm_head.weight" in k or "embed_tokens.weight" in k:
+                embeddings_weights_in_adapters = True
+                if num_added_tokens == 0:
+                    raise NotImplementedError(
+                        "Seems like embeddings are resized without adding new tokens. \
+                        Cannot be post-processed to load on vLLM. Try setting \
+                        parameter `embedding_size_multiple_of` to 1"
+                    )
+
+        # Post-processing is needed to copy out new vectors
+        if embeddings_weights_in_adapters:
+            for k in f.keys():
+                if "lm_head.weight" in k:
+                    lm_head = f.get_tensor(k)
+                    # pull out tensor values of new tokens
+
+                    new_output_embeddings = lm_head[-num_added_tokens:]
+                    # vLLM requires renaming to output_embeddings
+                    new_embeddings["output_embeddings"] = new_output_embeddings
+
+                elif "embed_tokens.weight" in k:
+                    embed_tokens = f.get_tensor(k)
+                    # pull out tensor values of new tokens
+                    new_input_embeddings = embed_tokens[-num_added_tokens:]
+                    # vLLM requires renaming to input_embeddings
+                    new_embeddings["input_embeddings"] = new_input_embeddings
+                else:
+                    # Retain all other weights in adapters.safetensors
+                    adapters[k] = f.get_tensor(k)
+
+            os.makedirs(modified_checkpoint_path, exist_ok=True)
+
+            save_file(
+                new_embeddings,
+                os.path.join(modified_checkpoint_path, "new_embeddings.safetensors"),
+            )
+            save_file(
+                adapters,
+                os.path.join(modified_checkpoint_path, "adapter_model.safetensors"),
+            )
+
+            # copy out remaining files to desired path
+            if modified_checkpoint_path != path_to_checkpoint:
+                copy_files_to_directory(
+                    path_to_checkpoint,
+                    modified_checkpoint_path,
+                    exclude_files=["adapter_model.safetensors"],
+                )
