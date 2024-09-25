@@ -76,7 +76,7 @@ def test_post_process_vllm_adapters_new_tokens():
 
 
 def test_post_process_vllm_adapters_no_new_tokens():
-    """Ensure that an error is returned if no added tokenswhile tuning, \
+    """Ensure that an error is returned if no added tokens while tuning, \
           but embeddings resized.
     """
     # first, double check dummy tuned llama has a lm_head.weight
@@ -94,3 +94,48 @@ def test_post_process_vllm_adapters_no_new_tokens():
         post_process_vLLM_adapters_new_tokens(
             DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, None, num_added_tokens=0
         )
+
+
+@pytest.mark.skipif(
+    not (torch.cuda.is_available()),
+    reason="Only runs if cuda is supported",
+)
+def test_post_process_in_place_vllm_adapters_new_tokens():
+    """Ensure that in post-process, we output the correct format supported by vLLM for added_tokens
+    - if output dir is not specified, it should modify files in place
+    - we should output a new_embeddings.safetensors
+    - we should not have lm_head.weight in adapter_model.safetensors
+    """
+    # first, double check dummy tuned llama has a lm_head.weight
+    found_lm_head = False
+    with safe_open(
+        os.path.join(DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, "adapter_model.safetensors"),
+        framework="pt",
+    ) as f:
+        for k in f.keys():
+            if "lm_head.weight" in k:
+                found_lm_head = True
+    assert found_lm_head
+
+    # do the post processing
+    with tempfile.TemporaryDirectory() as tempdir:
+        # Standard
+        import shutil
+
+        shutil.copytree(DUMMY_TUNED_LLAMA_WITH_ADDED_TOKENS, tempdir)
+        post_process_vLLM_adapters_new_tokens(tempdir, None, num_added_tokens=1)
+
+        # check that new_embeddings.safetensors exist
+        new_embeddings = os.path.join(tempdir, "new_embeddings.safetensors")
+        assert os.path.exists(new_embeddings)
+
+        # check that lm_head.weight NOT in the new outputted adapter_model.safetensors
+        adapter_model = os.path.join(tempdir, "adapter_model.safetensors")
+        assert os.path.exists(adapter_model)
+
+        found_lm_head = False
+        with safe_open(adapter_model, framework="pt") as f:
+            for k in f.keys():
+                if "lm_head.weight" in k:
+                    found_lm_head = True
+        assert not found_lm_head
