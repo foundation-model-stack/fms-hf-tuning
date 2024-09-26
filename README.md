@@ -647,10 +647,10 @@ The list of configurations for various `fms_acceleration` plugins:
 - [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
   - `--auto_gptq`: 4bit GPTQ-LoRA with AutoGPTQ
   - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
-- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
+- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
-- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py) (experimental):
+- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 
@@ -663,6 +663,7 @@ Notes:
     - pass `--fast_kernels True True True` for full finetuning/LoRA
     - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
     - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
  * Notes on Padding Free
     - works for both *single* and *multi-gpu*. 
     - works on both *pretokenized* and *untokenized* datasets
@@ -670,6 +671,16 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+
+Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
+```json
+{
+  "fast_kernels": [true, true, true],
+  "padding_free": ["huggingface"],
+  "multipack": [16],
+  "auto_gptq": ["triton_v2"]
+}
+```
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
