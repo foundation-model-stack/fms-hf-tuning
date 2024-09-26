@@ -647,10 +647,10 @@ The list of configurations for various `fms_acceleration` plugins:
 - [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
   - `--auto_gptq`: 4bit GPTQ-LoRA with AutoGPTQ
   - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
-- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
+- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
-- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py) (experimental):
+- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 
