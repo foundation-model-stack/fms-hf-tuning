@@ -168,7 +168,7 @@ def post_process_vLLM_adapters_new_tokens(
                     # vLLM requires renaming to output_embeddings
                     new_embeddings["output_embeddings"] = new_output_embeddings
 
-                elif "embed_tokens.weight" in k:
+                elif "embed_tokens.weight" in k or "wte.weight" in k:
                     embed_tokens = f.get_tensor(k)
                     # pull out tensor values of new tokens
                     new_input_embeddings = embed_tokens[-num_added_tokens:]
