@@ -23,6 +23,11 @@ from tuning.config.acceleration_configs import (
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
+from tuning.config.acceleration_configs.attention_and_distributed_packing import (
+    AttentionAndDistributedPackingConfig,
+    MultiPack,
+    PaddingFree,
+)
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -64,6 +69,24 @@ def test_dataclass_parse_successfully():
     )
     assert cfg.auto_gptq is None
     assert isinstance(cfg.bnb_qlora, BNBQLoraConfig)
+
+    # 3. Specifing "--padding_free" will parse a PaddingFree class
+    parser = transformers.HfArgumentParser(
+        dataclass_types=AttentionAndDistributedPackingConfig
+    )
+    (cfg,) = parser.parse_args_into_dataclasses(
+        ["--padding_free", "huggingface"],
+    )
+    assert isinstance(cfg.padding_free, PaddingFree)
+
+    # 4. Specifing "--multipack" will parse a MultiPack class
+    parser = transformers.HfArgumentParser(
+        dataclass_types=AttentionAndDistributedPackingConfig
+    )
+    (cfg,) = parser.parse_args_into_dataclasses(
+        ["--multipack", "16"],
+    )
+    assert isinstance(cfg.multipack, MultiPack)
 
 
 def test_two_dataclasses_parse_successfully_together():
@@ -133,3 +156,9 @@ def test_dataclass_will_fail_to_accept_illegal_args():
         ValueError, match="quant_type can only be either 'nf4' or 'fp4."
     ):
         BNBQLoraConfig(quant_type="fake-quant-type")
+
+    # 3 padding-free plugin only supports huggingface models
+    with pytest.raises(
+        ValueError, match="only 'huggingface' method currently supported."
+    ):
+        PaddingFree(method="invalid-method")

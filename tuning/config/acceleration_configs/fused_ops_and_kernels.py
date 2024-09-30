@@ -54,18 +54,10 @@ class FastKernelsConfig(List):
     fast_loss: bool = False
 
     # fast rms norm triton kernels
-    fast_rsm_layernorm: bool = False
+    fast_rms_layernorm: bool = False
 
     # fast RoPE embedding triton kernels
     fast_rope_embeddings: bool = False
-
-    def __post_init__(self):
-
-        if not self.fast_loss == self.fast_rsm_layernorm == self.fast_rope_embeddings:
-            raise ValueError(
-                "fast_loss, fast_rms_layernorm and fast_rope_embedding must be enabled "
-                "together. This restriction may be relaxed in the future."
-            )
 
 
 @dataclass
@@ -78,13 +70,6 @@ class FusedOpsAndKernelsConfig:
     fast_kernels: FastKernelsConfig = None
 
     def __post_init__(self):
-        if (self.fused_lora is not None and self.fast_kernels is None) or (
-            self.fused_lora is None and self.fast_kernels is not None
-        ):
-            raise ValueError(
-                "fused lora and fast_kernels must be used together. "
-                "This restriction may be relaxed in the future."
-            )
 
         # ensure nested dataclasses initialized
         ensure_nested_dataclasses_initialized(self)

@@ -35,10 +35,11 @@ from tests.data import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
-    TWITTER_COMPLAINTS_DATA,
-    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT,
-    TWITTER_COMPLAINTS_JSON_FORMAT,
-    TWITTER_COMPLAINTS_TOKENIZED,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_JSON,
+    TWITTER_COMPLAINTS_DATA_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_JSON,
+    TWITTER_COMPLAINTS_TOKENIZED_JSONL,
 )
 
 # Local
@@ -50,7 +51,7 @@ MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
 )
 DATA_ARGS = configs.DataArguments(
-    training_data_path=TWITTER_COMPLAINTS_DATA,
+    training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
     response_template="\n### Label:",
     dataset_text_field="output",
 )
@@ -77,6 +78,214 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+
+
+def test_resume_training_from_checkpoint():
+    """
+    Test tuning resumes from the latest checkpoint, creating new checkpoints and the
+    checkpoints created before resuming tuning is not affected.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        final_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert final_trainer_state is not None
+
+        assert final_trainer_state["epoch"] == init_trainer_state["epoch"] + 5
+        assert final_trainer_state["global_step"] > init_trainer_state["global_step"]
+
+        # Check if loss of 1st epoch after first tuning is same after
+        # resuming tuning and not overwritten
+        assert len(init_trainer_state["log_history"]) > 0
+
+        init_log_history = init_trainer_state["log_history"][0]
+        assert init_log_history["epoch"] == 1
+
+        final_log_history = final_trainer_state["log_history"][0]
+        assert final_log_history["epoch"] == 1
+
+        assert init_log_history["loss"] == final_log_history["loss"]
+
+
+def test_resume_training_from_checkpoint_with_flag_true():
+    """
+    Test tuning resumes from the latest checkpoint when flag is true,
+    creating new checkpoints and the checkpoints created before resuming
+    tuning is not affected.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.resume_from_checkpoint = "True"
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Get Training logs
+        init_training_logs = _get_training_logs_by_epoch(tempdir)
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        final_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert final_trainer_state is not None
+
+        assert final_trainer_state["epoch"] == init_trainer_state["epoch"] + 5
+        assert final_trainer_state["global_step"] > init_trainer_state["global_step"]
+
+        final_training_logs = _get_training_logs_by_epoch(tempdir)
+
+        assert (
+            init_training_logs[0]["data"]["timestamp"]
+            == final_training_logs[0]["data"]["timestamp"]
+        )
+
+
+def test_resume_training_from_checkpoint_with_flag_false():
+    """
+    Test when setting resume_from_checkpoint=False that tuning will start from scratch.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.resume_from_checkpoint = "False"
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get trainer state of latest checkpoint
+        init_trainer_state, _ = _get_latest_checkpoint_trainer_state(tempdir)
+        assert init_trainer_state is not None
+
+        # Get Training log entry for epoch 1
+        init_training_logs = _get_training_logs_by_epoch(tempdir, epoch=1)
+        assert len(init_training_logs) == 1
+
+        # Training again with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        _validate_training(tempdir)
+
+        # Get Training log entry for epoch 1
+        final_training_logs = _get_training_logs_by_epoch(tempdir, epoch=1)
+        assert len(final_training_logs) == 2
+
+
+def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
+    """
+    Test resume checkpoint from a specified checkpoint path for LoRA tuning.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        lora_config = copy.deepcopy(PEFT_LORA_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, lora_config)
+        _validate_training(tempdir)
+
+        # Get trainer state and checkpoint_path of second last checkpoint
+        init_trainer_state, checkpoint_path = _get_latest_checkpoint_trainer_state(
+            tempdir, checkpoint_index=-2
+        )
+        assert init_trainer_state is not None
+
+        # Resume training with higher epoch and same output dir
+        train_args.num_train_epochs += 5
+        train_args.resume_from_checkpoint = checkpoint_path
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, lora_config)
+        _validate_training(tempdir)
+
+        # Get total_flos from trainer state of checkpoint_path and check if its same
+        final_trainer_state = None
+        trainer_state_file = os.path.join(checkpoint_path, "trainer_state.json")
+        with open(trainer_state_file, "r", encoding="utf-8") as f:
+            final_trainer_state = json.load(f)
+
+        assert final_trainer_state["total_flos"] == init_trainer_state["total_flos"]
+
+
+def _get_latest_checkpoint_trainer_state(dir_path: str, checkpoint_index: int = -1):
+    """
+    Get the trainer state from the latest or specified checkpoint directory.
+    The trainer state is returned along with the path to the checkpoint.
+
+    Args:
+        dir_path (str): The directory path where checkpoint folders are located.
+        checkpoint_index (int, optional): The index of the checkpoint to retrieve,
+                                          based on the checkpoint number. The default
+                                          is -1, which returns the latest checkpoint.
+
+    Returns:
+        trainer_state: The trainer state loaded from `trainer_state.json` in the
+                            checkpoint directory.
+        last_checkpoint: The path to the checkpoint directory.
+    """
+    trainer_state = None
+    last_checkpoint = None
+    checkpoints = [
+        os.path.join(dir_path, d)
+        for d in os.listdir(dir_path)
+        if d.startswith("checkpoint")
+    ]
+    if checkpoints:
+        last_checkpoint = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[
+            checkpoint_index
+        ]
+        trainer_state_file = os.path.join(last_checkpoint, "trainer_state.json")
+        with open(trainer_state_file, "r", encoding="utf-8") as f:
+            trainer_state = json.load(f)
+    return trainer_state, last_checkpoint
+
+
+def _get_training_logs_by_epoch(dir_path: str, epoch: int = None):
+    """
+    Load and optionally filter training_logs.jsonl file.
+    If an epoch number is specified, the function filters the logs
+    and returns only the entries corresponding to the specified epoch.
+
+    Args:
+        dir_path (str): The directory path where the `training_logs.jsonl` file is located.
+        epoch (int, optional): The epoch number to filter logs by. If not specified,
+                               all logs are returned.
+
+    Returns:
+        list: A list containing the training logs. If `epoch` is specified,
+              only logs from the specified epoch are returned; otherwise, all logs are returned.
+    """
+    data_list = []
+    with open(f"{dir_path}/training_logs.jsonl", "r", encoding="utf-8") as file:
+        for line in file:
+            json_data = json.loads(line)
+            data_list.append(json_data)
+
+    if epoch:
+        mod_data_list = []
+        for value in data_list:
+            if value["data"]["epoch"] == epoch:
+                mod_data_list.append(value)
+        return mod_data_list
+    return data_list
 
 
 def test_run_train_requires_output_dir():
@@ -125,6 +334,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -138,9 +348,19 @@ def test_parse_arguments_defaults(job_config):
     assert "torch_dtype" not in job_config_defaults
     assert job_config_defaults["use_flash_attn"] is False
     assert "save_strategy" not in job_config_defaults
-    model_args, _, training_args, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_defaults
-    )
+    (
+        model_args,
+        _,
+        training_args,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
     assert training_args.save_strategy.value == "epoch"
@@ -150,14 +370,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -237,7 +457,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
@@ -312,27 +532,35 @@ def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
             sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
 
 
-def test_run_causallm_pt_with_validation():
+@pytest.mark.parametrize(
+    "dataset_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_validation(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = dataset_path
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
-def test_run_causallm_pt_with_validation_data_formatting():
+@pytest.mark.parametrize(
+    "dataset_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_validation_data_formatting(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = dataset_path
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
@@ -342,7 +570,11 @@ def test_run_causallm_pt_with_validation_data_formatting():
         _validate_training(tempdir, check_eval=True)
 
 
-def test_run_causallm_pt_with_custom_tokenizer():
+@pytest.mark.parametrize(
+    "dataset_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
     """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -351,7 +583,7 @@ def test_run_causallm_pt_with_custom_tokenizer():
         train_args.output_dir = tempdir
         train_args.eval_strategy = "epoch"
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.validation_data_path = dataset_path
         with pytest.raises(ValueError):
             sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
 
@@ -429,6 +661,8 @@ def test_successful_lora_target_modules_default_from_main():
         sft_trainer.main()
 
         _validate_training(tempdir)
+        # Calling LoRA tuning from the main results in 'added_tokens_info.json'
+        assert "added_tokens_info.json" in os.listdir(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
         adapter_config = _get_adapter_config(checkpoint_path)
         _validate_adapter_config(adapter_config, "LORA")
@@ -444,10 +678,20 @@ def test_successful_lora_target_modules_default_from_main():
 
 
 ############################# Finetuning Tests #############################
-def test_run_causallm_ft_and_inference():
-    """Check if we can bootstrap and finetune causallm models"""
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+        TWITTER_COMPLAINTS_DATA_JSON,
+    ],
+)
+def test_run_causallm_ft_and_inference(dataset_path):
+    """Check if we can bootstrap and finetune causallm models with different data formats"""
     with tempfile.TemporaryDirectory() as tempdir:
-        _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, DATA_ARGS, tempdir)
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+
+        _test_run_causallm_ft(TRAIN_ARGS, MODEL_ARGS, data_args, tempdir)
         _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
 
@@ -460,7 +704,7 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.save_strategy = "no"
         save_model_args.output_dir = tempdir
 
-        trainer = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        trainer, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
         logs_path = os.path.join(
             tempdir, FileLoggingTrackerConfig.training_logs_filename
         )
@@ -473,7 +717,11 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         _test_run_inference(checkpoint_path=tempdir)
 
 
-def test_run_causallm_ft_pretokenized():
+@pytest.mark.parametrize(
+    "dataset_path",
+    [TWITTER_COMPLAINTS_TOKENIZED_JSONL, TWITTER_COMPLAINTS_TOKENIZED_JSON],
+)
+def test_run_causallm_ft_pretokenized(dataset_path):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
@@ -484,7 +732,7 @@ def test_run_causallm_ft_pretokenized():
         data_formatting_args.response_template = None
 
         # update the training data path to tokenized data
-        data_formatting_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED
+        data_formatting_args.training_data_path = dataset_path
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -819,8 +1067,15 @@ def test_run_with_good_experimental_metadata():
         )
 
 
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+        TWITTER_COMPLAINTS_TOKENIZED_JSON,
+    ],
+)
 ### Tests for pretokenized data
-def test_pretokenized_dataset():
+def test_pretokenized_dataset(dataset_path):
     """Ensure that we can provide a pretokenized dataset with input/output format."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -828,7 +1083,7 @@ def test_pretokenized_dataset():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = None
         data_args.response_template = None
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        data_args.training_data_path = dataset_path
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
         _validate_training(tempdir)
 
@@ -849,7 +1104,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = dataset_text_field
         data_args.response_template = response_template
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
@@ -865,7 +1120,7 @@ def test_pretokenized_dataset_wrong_format():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = None
         data_args.response_template = None
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSONL
 
         # It would be best to handle this in a way that is more understandable; we might
         # need to directly add validation prior to the dataset generation since datasets
