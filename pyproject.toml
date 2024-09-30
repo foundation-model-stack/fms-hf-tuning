@@ -27,8 +27,8 @@ classifiers=[
 ]
 dependencies = [
 "numpy>=1.26.4,<2.0",
-"accelerate==0.33",
-"transformers>4.41,<5.0",
+"accelerate>=0.20.3,<0.34",
+"transformers>4.41,<4.45",
 "torch>=2.2.0,<3.0",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers>=0.13.3,<1.0",
@@ -37,7 +37,6 @@ dependencies = [
 "peft>=0.8.0,<0.13",
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<3.0",
-"fire>=0.5.0,<1.0",
 "simpleeval>=0.9.13,<1.0",
 ]
 
@@ -46,6 +45,7 @@ dev = ["wheel>=0.42.0,<1.0", "packaging>=23.2,<25", "ninja>=1.11.1.1,<2.0", "sci
 flash-attn = ["flash-attn>=2.5.3,<3.0"]
 aim = ["aim>=3.19.0,<4.0"]
 fms-accel = ["fms-acceleration>=0.1"]
+gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 
 
 [tool.setuptools.packages.find]

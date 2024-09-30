@@ -21,6 +21,7 @@ import warnings
 import yaml
 
 # Local
+from .attention_and_distributed_packing import MultiPack, PaddingFree
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
@@ -83,7 +84,7 @@ class AccelerationFrameworkConfig:
         ConfigAnnotation(
             path="peft.quantization",
             key="fused_ops_and_kernels",
-            experimental=True,
+            experimental=False,
             required_packages=["foak"],
         ),
     ] = None
@@ -91,12 +92,49 @@ class AccelerationFrameworkConfig:
     fast_kernels: Annotated[
         FastKernelsConfig,
         ConfigAnnotation(
-            path="peft.quantization",
+            path="training",
             key="fused_ops_and_kernels",
-            experimental=True,
+            experimental=False,
             required_packages=["foak"],
         ),
     ] = None
+
+    padding_free: Annotated[
+        PaddingFree,
+        ConfigAnnotation(
+            path="training.attention",
+            experimental=False,
+            required_packages=["aadp"],
+        ),
+    ] = None
+
+    multipack: Annotated[
+        MultiPack,
+        ConfigAnnotation(
+            path="training.dataloader",
+            experimental=False,
+            required_packages=["aadp"],
+        ),
+    ] = None
+
+    def _verify_configured_dataclasses(self):
+        if self.multipack is not None:
+            # ensure if multipack is set, padding free is also turned on as well
+            # this also ensures that the attention implementation for multipack
+            # will be flash attention as sfttrainer will enforce flash attn to be
+            # set for padding free
+            if self.padding_free is None:
+                raise ValueError(
+                    "`--multipack` is currently only supported with `--padding_free`"
+                )
+
+        # Check that fused lora must be activated with either auto_gptq or bitsandbytes
+        if self.fused_lora is not None:
+            if self.bitsandbytes is None and self.auto_gptq is None:
+                raise ValueError(
+                    "`--fused_lora` must be accompanied by a quantized base layer"
+                    " `--auto_gptq` or `--bitsandbytes`."
+                )
 
     @staticmethod
     def from_dataclasses(*dataclasses: Type):
@@ -115,6 +153,7 @@ class AccelerationFrameworkConfig:
 
         # first unroll all the dataclases into a single level
         nested_dataclasses = []
+
         for dc in dataclasses:
             if dc is None:
                 continue
@@ -159,10 +198,11 @@ class AccelerationFrameworkConfig:
             setattr(config, fi.name, dc)
             del rem_fields[fi.name]  # remove the field
 
+        # perform some checks on dataclasse
+        config._verify_configured_dataclasses()
         return config
 
     def get_framework(self):
-
         if is_fms_accelerate_available():
 
             # to be eventually be made to be passed as a dict to Acceleration
