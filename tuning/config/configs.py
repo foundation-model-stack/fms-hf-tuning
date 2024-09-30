@@ -20,6 +20,7 @@ import os
 
 # Third Party
 from datasets import Dataset, IterableDataset, interleave_datasets
+from datasets.exceptions import DatasetNotFoundError
 from tqdm import tqdm
 import datasets
 import torch
@@ -45,6 +46,11 @@ logger = logging.getLogger(__name__)
 
 
 def _load_data(data_path, split, streaming, config_kwargs):
+    logger.warning("load data args")
+    logger.warning(f"data_path: {data_path}")
+    logger.warning(f"split: {split}")
+    logger.warning(f"streaming: {streaming}")
+    logger.warning(f"config_kwargs: {config_kwargs}")
     if os.path.isdir(data_path):
         return datasets.load_dataset(
             path=data_path,
@@ -52,13 +58,22 @@ def _load_data(data_path, split, streaming, config_kwargs):
             streaming=streaming,
             **config_kwargs,
         )
-    return datasets.load_dataset(
-        path=os.path.dirname(data_path),
-        data_files=data_path,
-        split=split,
-        streaming=streaming,
-        **config_kwargs,
-    )
+    try:
+        return datasets.load_dataset(
+            path=os.path.dirname(data_path),
+            data_files=data_path,
+            split=split,
+            streaming=streaming,
+            **config_kwargs,
+        )
+    except DatasetNotFoundError:
+        # probably we have a huggingface id to load
+        return datasets.load_dataset(
+            data_path,
+            split=split,
+            streaming=streaming,
+            **config_kwargs,
+        )
 
 
 def load_dataset(
@@ -336,10 +351,17 @@ class ModelDataArguments(
                     )
                 logger.warning("resuming training")
         if self.training_data_path and not os.path.isabs(self.training_data_path):
-            self.training_data_path = os.path.abspath(self.training_data_path)
-            logger.warning(
-                f"provided training_data_path is a relative path. Attempting to make it absolute. Please check : {self.training_data_path}"
-            )
+            tdp = os.path.abspath(self.training_data_path)
+            if not os.path.exists(tdp):
+                # support for HF dataset IDs
+                logger.warning(
+                    f"given absolute path does not exist, therefore reverting the abs operation assuming it might be a HuggingFace Dataset ID"
+                )
+            else:
+                self.training_data_path = tdp
+                logger.warning(
+                    f"provided training_data_path is a relative path and exists. Attempting to make it absolute. Please check : {self.training_data_path}"
+                )
         if not (self.data_config_path or self.training_data_path):
             raise FileNotFoundError(
                 "either data_config_path or training_data_path should be provided"
