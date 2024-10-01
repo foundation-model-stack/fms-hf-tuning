@@ -32,6 +32,8 @@ from tuning.utils.data_utils import apply_custom_formatting_template
 JSON_INPUT_KEY = "input"
 JSON_OUTPUT_KEY = "output"
 
+logger = logging.getLogger(__name__)
+
 
 # check if the provided dataset is pretokenized or not
 # the check is taken from trl
@@ -73,12 +75,14 @@ def validate_data_args(data_args, packing: bool, tokenizer):
     )
 
     if is_chat_training(data_args.train_dataset, tokenizer):
+        logger.warning("validation: detected chat based training")
         return
 
     ### Data format 1
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
     if is_train_data_pretokenized:
+        logger.warning("validation: detected data is pretokenized")
         if (
             data_args.response_template
             or data_args.data_formatter_template
@@ -109,14 +113,18 @@ def validate_data_args(data_args, packing: bool, tokenizer):
     # Dataset containing single sequence needs a response template for masking
     if data_args.dataset_text_field or data_args.data_formatter_template:
         if data_args.response_template is None:
-            if packing is False:
-                raise ValueError(
-                    "Since dataset_text_field or data_formatter_template \
-                       is provided and packing is disabled, \
-                       needs a corresponding response template for masking"
-                )
+            logger.warning("validation: data provided assumed to be for pretraining")
+        else:
+            logger.warning("validation: data provided assumed to be for finetuning")
+            # if packing is False:
+            #     raise ValueError(
+            #         "Since dataset_text_field or data_formatter_template \
+            #            is provided and packing is disabled, \
+            #            needs a corresponding response template for masking"
+            #     )
 
     if data_args.response_template:
+        logger.warning("validation: data provided assumed to be for finetuning")
         # To use Response template, pass datasets with single sequence instances \
         # or a formatter template to create single sequence on the fly.
         if not (data_args.dataset_text_field or data_args.data_formatter_template):
@@ -134,8 +142,11 @@ def validate_data_args(data_args, packing: bool, tokenizer):
     ### Data format 3
     # If not single sequence, JSON should contain input/output fields
     if not (data_args.dataset_text_field or data_args.data_formatter_template):
-        logging.warning(data_args.train_dataset.column_names)
-        logging.warning(data_args.input_feature)
+        logger.warning(
+            "validation: data provided assumed to be for finetuning using input and output feature column names"
+        )
+        logger.warning(data_args.train_dataset.column_names)
+        logger.warning(data_args.input_feature)
         if data_args.input_feature not in data_args.train_dataset.column_names:
             raise ValueError(
                 "JSON should contain input field if no dataset_text_field or \
