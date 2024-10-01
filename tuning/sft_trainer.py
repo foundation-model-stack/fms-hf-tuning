@@ -691,20 +691,18 @@ def main():
 
     if isinstance(tune_config, peft_config.LoraConfig):
         try:
-            if training_args.save_model_dir:
+            if model_args.save_model_dir:
                 # Write number of added tokens to artifacts
                 with open(
-                    os.path.join(
-                        training_args.save_model_dir, "added_tokens_info.json"
-                    ),
+                    os.path.join(model_args.save_model_dir, "added_tokens_info.json"),
                     "w",
                     encoding="utf-8",
                 ) as f:
                     json.dump(additional_train_info["added_tokens_info"], f)
-            if training_args.output_dir:
+            if model_args.output_dir:
                 # Write number of added tokens to artifacts
                 with open(
-                    os.path.join(training_args.output_dir, "added_tokens_info.json"),
+                    os.path.join(model_args.output_dir, "added_tokens_info.json"),
                     "w",
                     encoding="utf-8",
                 ) as f:
