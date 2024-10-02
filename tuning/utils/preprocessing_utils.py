@@ -167,7 +167,7 @@ def get_data_collator(
     max_seq_length: int,
     tokens_field: str = True,
     instruction_template: Optional[str] = None,
-    padding_free: str = None,
+    padding_free: Any = None,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -187,7 +187,7 @@ def get_data_collator(
             feature having tokens
         instruction_template: Optional[str]
             start of user answer.
-        padding_free: str
+        padding_free: Any
             padding free method
 
     Returns:
@@ -243,7 +243,7 @@ def get_data_collator(
             return DataCollatorForSeq2Seq(
                 tokenizer=tokenizer, padding=True, max_length=max_seq_length
             )
-        if padding_free:
+        if padding_free is not None and padding_free.method:
             # when packing is false but padding_free is used and no response template is used
             # then its a pretrained scenario.
             return DataCollatorForSeq2Seq(
