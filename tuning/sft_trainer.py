@@ -341,6 +341,7 @@ def train(
         max_seq_length,
         data_args.tokens_field,
         data_args.instruction_template,
+        attention_and_distributed_packing_config.padding_free,
     )
 
     if framework is not None and framework.requires_agumentation:
