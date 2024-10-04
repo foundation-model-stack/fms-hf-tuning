@@ -23,6 +23,7 @@ import logging
 import subprocess
 import sys
 import traceback
+import json
 from pathlib import Path
 
 # Third Party
@@ -31,6 +32,9 @@ from accelerate.commands.launch import launch_command
 # Local
 from build.utils import (
     process_accelerate_launch_args,
+)
+from tuning.utils.merge_model_utils import (
+    post_process_vLLM_adapters_new_tokens,
 )
 from tuning.utils.config_utils import get_json_config
 from tuning.utils.error_logging import (
@@ -94,6 +98,8 @@ def main():
     #
     ##########
     output_dir = job_config.get("output_dir")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     try:
         # checkpoints outputted to tempdir, only final checkpoint copied to output dir
         launch_command(args)
@@ -114,6 +120,55 @@ def main():
         logging.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    peft_method = job_config.get("peft_method")
+
+    if job_config.get("lora_post_process_for_vllm") and peft_method == "lora":
+        save_model_dir = job_config.get("save_model_dir")
+        if save_model_dir:
+            if os.path.exists(os.path.join(save_model_dir, "added_tokens_info.json")):
+                with open(
+                    os.path.join(save_model_dir, "added_tokens_info.json"),
+                    encoding="utf-8",
+                ) as json_data:
+                    added_tokens_info = json.load(json_data)
+                    num_added_tokens = added_tokens_info["num_new_tokens"]
+            else:
+                logging.warning(
+                    "Failed to post-process: file added_tokens_info.json not in path %s",
+                    save_model_dir,
+                )
+
+            if os.path.exists(
+                os.path.join(save_model_dir, "adapter_model.safetensors")
+            ):
+                post_process_vLLM_adapters_new_tokens(
+                    save_model_dir, save_model_dir, num_added_tokens
+                )
+
+        if (
+            os.path.exists(os.path.join(output_dir, "added_tokens_info.json"))
+            and job_config.get("save_strategy") != "no"
+        ):
+            with open(
+                os.path.join(output_dir, "added_tokens_info.json"), encoding="utf-8"
+            ) as json_data:
+                added_tokens_info = json.load(json_data)
+                num_added_tokens = added_tokens_info["num_new_tokens"]
+            # if multiple checkpoints in directory, process each checkpoint
+            for _, dirs, _ in os.walk(output_dir, topdown=False):
+                for name in dirs:
+                    if "checkpoint-" in name.lower():
+                        post_process_vLLM_adapters_new_tokens(
+                            os.path.join(output_dir, name),
+                            os.path.join(output_dir, name),
+                            num_added_tokens,
+                        )
+        else:
+            logging.warning(
+                "Failed to post-process: file added_tokens_info.json not in path %s",
+                save_model_dir,
+            )
 
     # The .complete file will signal to users that we are finished copying
     # files over
