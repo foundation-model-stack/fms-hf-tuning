@@ -85,7 +85,7 @@ def test_resize_with_special_tokens():
     input_tokenizer_len = len(tokenizer.get_vocab())
 
     special_tokens = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
-    tokenizer_and_embedding_resize(
+    resize_result = tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens,
         tokenizer=tokenizer,
         model=model,
@@ -98,6 +98,7 @@ def test_resize_with_special_tokens():
     output_tokenizer_len = len(tokenizer.get_vocab())
 
     assert output_tokenizer_len == input_tokenizer_len + 2
+    assert resize_result["num_new_tokens"] == output_tokenizer_len - input_tokenizer_len
 
     output = _inference(
         tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
@@ -112,13 +113,14 @@ def test_no_resize_when_no_special_tokens():
 
     input_tokenizer_len = len(tokenizer.get_vocab())
 
-    tokenizer_and_embedding_resize(
+    resize_result = tokenizer_and_embedding_resize(
         special_tokens_dict={}, tokenizer=tokenizer, model=model, multiple_of=1
     )
 
     output_tokenizer_len = len(tokenizer.get_vocab())
 
     assert input_tokenizer_len == output_tokenizer_len
+    assert resize_result["num_new_tokens"] == 0
 
     output = _inference(
         tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
@@ -131,9 +133,10 @@ def test_resize_with_multiple_of():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-    tokenizer_and_embedding_resize(
+    resize_result = tokenizer_and_embedding_resize(
         special_tokens_dict={}, tokenizer=tokenizer, model=model, multiple_of=8
     )
 
+    assert resize_result["new_embedding_size"] % 8 == 0
     assert model.get_input_embeddings().embedding_dim % 8 == 0
     assert model.get_output_embeddings().out_features % 8 == 0
