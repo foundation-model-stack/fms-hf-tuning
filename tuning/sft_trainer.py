@@ -53,7 +53,6 @@ from tuning.config.tracker_configs import (
     FileLoggingTrackerConfig,
     TrackerConfigFactory,
 )
-from tuning.data import tokenizer_data_utils
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
@@ -70,6 +69,7 @@ from tuning.utils.preprocessing_utils import (
     is_pretokenized_dataset,
     validate_data_args,
 )
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
 def train(
@@ -294,7 +294,7 @@ def train(
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    added_tokens_dict = tokenizer_data_utils.tokenizer_and_embedding_resize(
+    added_tokens_dict = tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
