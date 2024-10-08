@@ -137,6 +137,6 @@ def test_resize_with_multiple_of():
         special_tokens_dict={}, tokenizer=tokenizer, model=model, multiple_of=8
     )
 
-    assert resize_result["new_embedding_size"] % 8 == 0
     assert model.get_input_embeddings().embedding_dim % 8 == 0
+    assert resize_result["new_embedding_size"] % 8 == 0
     assert model.get_output_embeddings().out_features % 8 == 0
