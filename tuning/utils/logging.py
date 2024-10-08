@@ -53,12 +53,24 @@ def set_log_level(train_args, logger_name=None):
             else os.environ.get("TRANSFORMERS_VERBOSITY")
         )
 
-    logging.basicConfig(
-        format="%(levelname)s:%(filename)s:%(message)s", level=log_level.upper()
-    )
-
+    train_logger = logging.getLogger()
     if logger_name:
         train_logger = logging.getLogger(logger_name)
-    else:
-        train_logger = logging.getLogger()
+
+    set_python_log_level(log_level, train_logger)
+    set_python_log_level(log_level)
     return train_args, train_logger
+
+
+def set_python_log_level(log_level=None, logger=None):
+    # Configure Python native logger
+    # If CLI arg is passed, assign same log level to python native logger
+    if not log_level:
+        log_level = os.environ.get("LOG_LEVEL", "WARNING")
+
+    if logger:
+        logger.setLevel(log_level.upper())
+    else:
+        logging.basicConfig(
+            format="%(levelname)s:%(filename)s:%(message)s", level=log_level.upper()
+        )

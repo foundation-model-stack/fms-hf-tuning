@@ -62,7 +62,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.logging import set_log_level
+from tuning.utils.logging import set_log_level, set_python_log_level
 from tuning.utils.preprocessing_utils import (
     format_dataset,
     get_data_collator,
@@ -431,11 +431,7 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
             Optional threshold to set save save logger to, default warning.
     """
     logger = logging.getLogger("sft_trainer_save")
-    # default value from TrainingArguments
-    if log_level == "passive":
-        log_level = "WARNING"
-
-    logger.setLevel(log_level.upper())
+    set_python_log_level(log_level, logger)
 
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
