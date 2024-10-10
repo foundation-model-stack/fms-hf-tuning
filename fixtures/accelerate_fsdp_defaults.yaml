@@ -14,7 +14,7 @@ fsdp_config:
   fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
 
   # this controls the FSDP pipelining
-  fsdp_backward_prefetch_policy: BACKWARD_PRE # set to BACKWARD_PRE for the most time-efficient pipeline
+  fsdp_backward_prefetch: BACKWARD_PRE # set to BACKWARD_PRE for the most time-efficient pipeline
                                               # but requires the most memory. BACKWARD_POST is the less
                                               # memory intensive option
 
