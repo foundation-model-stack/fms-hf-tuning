@@ -230,7 +230,12 @@ def train(
         ),
         cache_dir=train_args.cache_dir,
         use_fast=True,
+        legacy=True,
     )
+
+    # Set padding side to right for all tokenizers
+    # TODO: Set padding side to base model's padding size in tokenizer_config.json
+    tokenizer.padding_side = "right"
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -340,13 +345,19 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
+
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
-        k: v
+        "hub_token" if k == "push_to_hub_token" else k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
+
     training_args = SFTConfig(**transformer_kwargs)
+    training_args.dataset_text_field = (
+        dataset_text_field  # Inject the dataset text field into the training args
+    )
+    training_args.packing = packing  # Inject packing into the training args
 
     dataset_kwargs = {}
     if is_pretokenized_dataset(
@@ -358,11 +369,8 @@ def train(
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=packing,
         data_collator=data_collator,
-        dataset_text_field=dataset_text_field,
         args=training_args,
-        max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
         dataset_kwargs=dataset_kwargs,
