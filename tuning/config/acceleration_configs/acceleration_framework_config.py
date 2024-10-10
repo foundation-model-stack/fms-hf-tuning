@@ -103,7 +103,7 @@ class AccelerationFrameworkConfig:
         PaddingFree,
         ConfigAnnotation(
             path="training.attention",
-            experimental=True,
+            experimental=False,
             required_packages=["aadp"],
         ),
     ] = None
@@ -112,7 +112,7 @@ class AccelerationFrameworkConfig:
         MultiPack,
         ConfigAnnotation(
             path="training.dataloader",
-            experimental=True,
+            experimental=False,
             required_packages=["aadp"],
         ),
     ] = None
