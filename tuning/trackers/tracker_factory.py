@@ -21,13 +21,19 @@ from transformers.utils.import_utils import _is_package_available
 
 # Local
 from .filelogging_tracker import FileLoggingTracker
-from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
+from .timing_tracker import TimingTracker
+from tuning.config.tracker_configs import (
+    FileLoggingTrackerConfig,
+    TimingTrackerConfig,
+    TrackerConfigFactory,
+)
 
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
+TIMING_TRACKER = "timing"
 
-AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER]
+AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER, TIMING_TRACKER]
 
 
 # Trackers which can be used
@@ -72,15 +78,24 @@ def _register_file_logging_tracker():
     logging.info("Registered file logging tracker")
 
 
+def _register_timing_tracker():
+    TimeTracker = _get_tracker_class(TimingTracker, TimingTrackerConfig)
+    REGISTERED_TRACKERS[TIMING_TRACKER] = TimeTracker
+    logging.info("Registered timing tracker")
+
+
 # List of Available Trackers
 # file_logger - Logs loss to a file
 # aim - Aimstack Tracker
+# timer - Logs timing to a file
 def _register_trackers():
     logging.info("Registering trackers")
     if AIMSTACK_TRACKER not in REGISTERED_TRACKERS:
         _register_aim_tracker()
     if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
         _register_file_logging_tracker()
+    if TIMING_TRACKER not in REGISTERED_TRACKERS:
+        _register_timing_tracker()
 
 
 def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):
