@@ -18,6 +18,7 @@
 # Standard
 from typing import Dict, List, Union
 import inspect
+import logging
 import os
 import re
 
@@ -29,7 +30,6 @@ from transformers import (
     TrainerState,
     TrainingArguments,
 )
-from transformers.utils import logging
 import yaml
 
 # Local
@@ -45,7 +45,7 @@ from tuning.trainercontroller.operations import (
 from tuning.trainercontroller.patience import PatienceControl
 from tuning.utils.evaluator import MetricUnavailableError, RuleEvaluator
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Configuration keys
 CONTROLLER_METRICS_KEY = "controller_metrics"
@@ -66,7 +66,7 @@ CONTROLLER_OPERATIONS_KEY = OPERATIONS_KEY
 DEFAULT_OPERATIONS = {"operations": [{"name": "hfcontrols", "class": "HFControls"}]}
 DEFAULT_METRICS = {}
 DEFAULT_CONFIG = {}
-DEFAULT_TRIGGER_LOG_LEVEL = "debug"
+DEFAULT_TRIGGER_LOG_LEVEL = "DEBUG"
 
 # pylint: disable=too-many-instance-attributes
 class TrainerControllerCallback(TrainerCallback):
@@ -255,12 +255,12 @@ class TrainerControllerCallback(TrainerCallback):
                     for operation_action in control_action.operation_actions:
                         operation_action.instance.act(
                             action=operation_action.action,
-                            event_name=event_name,
-                            tc_metrics=self.metrics,
-                            control_name=control_action.name,
                             log_level=control_action.config[
                                 CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL
                             ],
+                            event_name=event_name,
+                            control_name=control_action.name,
+                            **self.metrics,
                             **kwargs,
                         )
 
@@ -305,7 +305,7 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
 
-        log_levels = logging.get_log_levels_dict()
+        log_levels = dict((value, key) for key, value in logging._levelToName.items())
         # Check if there any metrics listed in the configuration
         if (
             CONTROLLER_METRICS_KEY not in self.trainer_controller_config
@@ -407,7 +407,7 @@ class TrainerControllerCallback(TrainerCallback):
                         control.config = controller[CONTROLLER_CONFIG_KEY]
                         config_log_level_str = control.config.get(
                             CONTROLLER_CONFIG_TRIGGER_LOG_LEVEL, config_log_level_str
-                        )
+                        ).upper()
                         if config_log_level_str not in log_levels:
                             logger.warning(
                                 "Incorrect trigger log-level [%s] specified in the config."
@@ -582,3 +582,45 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["state"] = state
         kwargs["control"] = control
         self._actions_on_event(event_name="on_save", **kwargs)
+
+    def on_step_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_step_begin", **kwargs)
+
+    def on_optimizer_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_optimizer_step", **kwargs)
+
+    def on_substep_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["args"] = args
+        kwargs["state"] = state
+        kwargs["control"] = control
+        self._actions_on_event(event_name="on_substep_end", **kwargs)

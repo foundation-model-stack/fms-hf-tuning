@@ -1,16 +1,16 @@
 # Standard
 from dataclasses import fields
 import inspect
+import logging
 import re
 
 # Third Party
 from transformers import TrainerControl
-from transformers.utils import logging
 
 # Local
 from .operation import Operation
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class HFControls(Operation):

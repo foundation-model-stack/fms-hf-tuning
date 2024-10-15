@@ -14,11 +14,11 @@
 
 # Standard
 import json
+import logging
 import os
 
 # Third Party
 from aim.hugging_face import AimCallback  # pylint: disable=import-error
-from transformers.utils import logging
 
 # Local
 from .tracker import Tracker
@@ -63,8 +63,10 @@ class RunIDExporterAimCallback(AimCallback):
         Args:
             For the arguments see reference to transformers.TrainingCallback
         """
-        # pylint: disable=unused-argument
-        self.setup()  # initialize aim's run_hash
+        super().on_init_end(args, state, control, **kwargs)
+
+        if not self._run:
+            return
 
         # Change default run hash path to output directory if not specified
         if self.run_id_export_path is None:
@@ -97,7 +99,8 @@ class AimStackTracker(Tracker):
             information about the repo or the server and port where aim db is present.
         """
         super().__init__(name="aim", tracker_config=tracker_config)
-        self.logger = logging.get_logger("aimstack_tracker")
+        # Get logger with root log level
+        self.logger = logging.getLogger()
 
     def get_hf_callback(self):
         """Returns the aim.hugging_face.AimCallback object associated with this tracker.
@@ -172,7 +175,9 @@ class AimStackTracker(Tracker):
         Raises:
             ValueError: the params passed is None or not of type dict
         """
-        if params is None or (not isinstance(params, dict)):
+        if params is None:
+            return
+        if not isinstance(params, dict):
             raise ValueError(
                 "set_params passed to aimstack should be called with a dict of params"
             )

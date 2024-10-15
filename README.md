@@ -6,8 +6,10 @@
 - [Training](#training)
   - [Single GPU](#single-gpu)
   - [Multiple GPUs with FSDP](#multiple-gpus-with-fsdp)
+  - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
+  - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -18,6 +20,7 @@
   - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
 - [Validation](#validation)
 - [Trainer Controller Framework](#trainer-controller-framework)
+- [Experiment Tracking](#experiment-tracking)
 - [More Examples](#more-examples)
 
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
@@ -27,9 +30,13 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
+### Basic Installation
+
 ```
 pip install fms-hf-tuning
 ```
+
+### Using FlashAttention
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
 ```
@@ -38,16 +45,21 @@ pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
-If you wish to use [aim](https://github.com/aimhubio/aim), then you need to install it:
-```
-pip install fms-hf-tuning[aim]
-```
+### Using FMS-Acceleration
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
 ```
 pip install fms-hf-tuning[fms-accel]
 ```
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details on see [this section below](#fms-acceleration).
+`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this section below](#fms-acceleration).
+
+### Using Experiment Trackers
+
+To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
+```
+pip install fms-hf-tuning[aim]
+```
+For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data format
 We support the following data formats:
@@ -105,9 +117,9 @@ Formatting will happen on the fly while tuning. The keys in template should matc
 
 ##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-### 2. JSONL with input and output fields (no response template)
+### 2. JSON/JSONL with input and output fields (no response template)
 
-  Pass a JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+  Pass a JSON/JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
 
   The "input" and "output" field names are mandatory and cannot be changed. 
 
@@ -215,6 +227,62 @@ tuning/sft_trainer.py \
 
 To summarize you can pick either python for single-GPU jobs or use accelerate launch for multi-GPU jobs. The following tuning techniques can be applied:
 
+### Tips on Parameters to Set
+
+#### Saving checkpoints while training
+
+By default, [`save_strategy`](tuning/config/configs.py) is set to `"epoch"` in the TrainingArguments. This means that checkpoints will be saved on each epoch. This can also be set to `"steps"` to save on every `"save_steps"` or `"no"` to not save any checkpoints.
+
+Checkpoints are saved to the given `output_dir`, which is a required field. If `save_strategy="no"`, the `output_dir` will only contain the training logs with loss details.
+
+A useful flag to set to limit the number of checkpoints saved is [`save_total_limit`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.save_total_limit). Older checkpoints are deleted from the `output_dir` to limit the number of checkpoints, for example, if `save_total_limit=1`, this will only save the last checkpoint. However, while tuning, two checkpoints will exist in `output_dir` for a short time as the new checkpoint is created and then the older one will be deleted. If the user sets a validation dataset and [`load_best_model_at_end`](https://huggingface.co/docs/transformers/en/main_classes/trainer#transformers.TrainingArguments.load_best_model_at_end), then the best checkpoint will be saved.
+
+#### Saving model after training
+
+`save_model_dir` can optionally be set to save the tuned model using `SFTTrainer.save_model()`. This can be used in tandem with `save_strategy="no"` to only save the designated checkpoint and not any intermediate checkpoints, which can help to save space.
+
+`save_model_dir` can be set to a different directory than `output_dir`. If set to the same directory, the designated checkpoint, training logs, and any intermediate checkpoints will all be saved to the same directory as seen below.
+
+<details>
+<summary>Ways you can use `save_model_dir` and more tips:</summary>
+
+For example, if `save_model_dir` is set to a sub-directory of `output_dir`and `save_total_limit=1` with LoRA tuning, the directory would look like:
+
+```sh
+$ ls /tmp/output_dir/
+checkpoint-35  save_model_dir  training_logs.jsonl
+
+$ ls /tmp/output_dir/save_model_dir/
+README.md	     adapter_model.safetensors	special_tokens_map.json  tokenizer.model	training_args.bin
+adapter_config.json  added_tokens.json		tokenizer.json		 tokenizer_config.json
+```
+
+Here is an fine tuning example of how the directory would look if `output_dir` is set to the same value as `save_model_dir` and `save_total_limit=2`. Note the checkpoint directories as well as the `training_logs.jsonl`:
+
+```sh
+$ ls /tmp/same_dir
+
+added_tokens.json	model-00001-of-00006.safetensors  model-00006-of-00006.safetensors  tokenizer_config.json
+checkpoint-16		model-00002-of-00006.safetensors  model.safetensors.index.json	    training_args.bin
+checkpoint-20		model-00003-of-00006.safetensors  special_tokens_map.json	    training_logs.jsonl
+config.json		model-00004-of-00006.safetensors  tokenizer.json
+generation_config.json	model-00005-of-00006.safetensors  tokenizer.model
+```
+
+</details>
+
+#### Optimizing writing checkpoints
+Writing models to Cloud Object Storage (COS) is an expensive operation. Saving model checkpoints to a local directory causes much faster training times than writing to COS. You can use `output_dir` and `save_model_dir` to control which type of storage you write your checkpoints and final model to.
+
+You can set `output_dir` to a local directory and set `save_model_dir` to COS to save time on write operations while ensuring checkpoints are saved.
+
+In order to achieve the fastest train time, set `save_strategy="no"`, as saving no checkpoints except for the final model will remove intermediate write operations all together.
+
+#### Resuming tuning from checkpoints
+If the output directory already contains checkpoints, tuning will automatically resume from the latest checkpoint in the directory specified by the `output_dir` flag. To start tuning from scratch and ignore existing checkpoints, set the `resume_from_checkpoint` flag to False.
+
+You can also use the resume_from_checkpoint flag to resume tuning from a specific checkpoint by providing the full path to the desired checkpoint as a string. This flag is passed as an argument to the [trainer.train()](https://github.com/huggingface/transformers/blob/db70426854fe7850f2c5834d633aff637f14772e/src/transformers/trainer.py#L1901) function of the SFTTrainer.
+
 ## Tuning Techniques:
 
 ### LoRA Tuning Example
@@ -225,15 +293,15 @@ Set `peft_method` to `"lora"`. You can additionally pass any arguments from [Lor
 r: int =8 
 lora_alpha: int = 32
 target_modules: List[str] = field(
-  default_factory=lambda: ["q_proj", "v_proj"],
-      metadata={
-            "help": "The names of the modules to apply LORA to. LORA selects modules which either \
-            completely match or "
-            'end with one of the strings. If the value is ["all-linear"], \
-            then LORA selects all linear and Conv1D '
-            "modules except for the output layer."
-        },
-    )
+  default=None,
+  metadata={
+        "help": "The names of the modules to apply LORA to. LORA selects modules which either \
+        completely match or "
+        'end with one of the strings. If the value is ["all-linear"], \
+        then LORA selects all linear and Conv1D '
+        "modules except for the output layer."
+  },
+)
 bias = "none"
 lora_dropout: float = 0.05
 ```
@@ -276,8 +344,11 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
 }
 ```
 
-Notice the `target_modules` that are set are the default values. `target_modules` are the names of the modules to apply the adapter to. If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
+Notice the `target_modules` are the names of the modules to apply the adapter to.
+- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. If this is specified as `lm_head` which is an output layer, the `lm_head` layer will be chosen. See the Note of this [section](#recommended-target-modules-per-model-architecture) on recommended target modules by model architecture.
+- If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
 
+#### How to get list of LoRA target_modules of a model
 For each model, the `target_modules` will depend on the type of model architecture. You can specify linear or attention layers to `target_modules`. To obtain list of `target_modules` for a model:
 
 ```py
@@ -332,7 +403,131 @@ For example for LLaMA model the modules look like:
 You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
 
 #### Recommended target modules per model architecture 
-As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using the query and value projection matrices, we can achieve reasonable quality with efficient GPU utilization. Hence, while thinking about what LoRA adapters to specify, we recommend starting with query and value matrices. You could also refer to the defaults specified by PEFT library for popular model architectures in section [TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING](https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/src/peft/utils/constants.py#L70) as a good starting point. 
+As per [LoRA paper](https://arxiv.org/pdf/2106.09685), section 4.2 , by using the query and value projection matrices, we can achieve reasonable quality with efficient GPU utilization. Hence, while thinking about what LoRA adapters to specify, we recommend starting with query and value matrices. You could also refer to the defaults specified by PEFT library for popular model architectures in section [TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING](https://github.com/huggingface/peft/blob/7b1c08d2b5e13d3c99b7d6ee83eab90e1216d4ba/src/peft/utils/constants.py#L70) as a good starting point.
+
+<details>
+
+<summary>How to specify lm_head as a target module</summary>
+
+Since `lm_head` is an output layer, it will **not** be included as a target module if you specify `all-linear`. You can, however, specify to apply the LoRA adapter to the `lm_head` layer by explicitly naming it in the `target_modules` arg.
+
+**NOTE**: Specifying `["lm_head", "all-linear"]` will not tune the `lm_head` layer, but will run the equivalent of `["all-linear"]`. To include `lm_head`, you must explicitly specify all of the layers to tune on. Using the example of the Llama model above, you would need to list `"q_proj" "v_proj" "k_proj" "o_proj" "lm_head"` to tune the all linear layers including `lm_head`. These 5 layers will be produced in the LoRA adapter.
+
+Example 1: 
+```json
+{
+    "target_modules": ["lm_head"] // this produces lm_head layer only
+}
+```
+
+Example 2:
+```json
+{
+    "target_modules": ["lm_head", "c_proj", "c_attn", "c_fc"] // this produces lm_head, c_proj, c_attn and c_fc layers 
+}
+```
+
+Example 3:
+```json
+{
+    "target_modules": ["lm_head", "all-linear"] // this produces the equivalent of all-linear only, no lm_head
+}
+```
+
+</details>
+
+#### Post-processing needed for inference on VLLM
+
+In order to run inference of LoRA adapters on vLLM, any new token embeddings added while tuning needs to be moved out of 'adapters.safetensors' to a new file 'new_embeddings.safetensors'. The 'adapters.safetensors' should only have LoRA weights and should not have modified embedding vectors. This is a requirement to support vLLM's paradigm that one base model can serve multiple adapters. New token embedding vectors are appended to the embedding matrix read from the base model by vLLM.
+
+To do this postprocessing, the tuning script sft_trainer.py will generate a file 'added_tokens_info.json' with model artifacts. After tuning, you can run script 'post_process_adapters_vLLM.py' :
+
+```bash
+# model_path: Path to saved model artifacts which has file 'added_tokens_info.json'
+# output_model_path: Optional. If you want to store modified \
+#    artifacts in a different directory rather than modify in-place.
+python scripts/post_process_adapters_vLLM.py \
+--model_path "/testing/tuning/output/post-process-LoRA-saved" \
+--output_model_path "/testing/tuning/output/post-process-LoRA-modified"
+```
+
+<details>
+<summary> Alternatively, if using SDK :</summary>
+
+```bash
+# function in tuning/utils/merge_model_utils.py
+post_process_vLLM_adapters_new_tokens(
+    path_to_checkpoint="/testing/tuning/output/post-process-LoRA-saved",
+    modified_checkpoint_path=None,
+    num_added_tokens=1,
+)
+# where num_added_tokens is returned by sft_trainer.train()
+```
+</details>
+
+_________________________
+
+
+### GPTQ-LoRA with AutoGPTQ Tuning Example
+
+This method is similar to LoRA Tuning, but the base model is a quantized model. We currently only support GPTQ-LoRA model that has been quantized with 4-bit AutoGPTQ technique. Bits-and-Bytes (BNB) quantized LoRA is not yet enabled.
+The qLoRA tuning technique is enabled via the [fms-acceleration](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) package.
+You can see details on a sample configuration of Accelerated GPTQ-LoRA [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/sample-configurations/accelerated-peft-autogptq-sample-configuration.yaml).
+
+
+To use GPTQ-LoRA technique, you can set the `quantized_lora_config` defined [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/acceleration_configs/quantized_lora_config.py). See the Notes section of FMS Acceleration doc [below](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) for usage. The only kernel we are supporting currently is `triton_v2`.
+
+In addition, LoRA tuning technique is required to be used, set `peft_method` to `"lora"` and pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+
+Example command to run:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+--learning_rate 1e-4 \
+--response_template "\n### Label:" \
+--dataset_text_field "output" \
+--peft_method "lora" \
+--r 8 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules c_attn c_proj \
+--auto_gptq triton_v2 \ # setting quantized_lora_config 
+--torch_dtype float16 \ # need this for triton_v2
+--fp16 \ # need this for triton_v2
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "lora",
+    "r": 8,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["c_attn", "c_proj"],
+    "auto_gptq": ["triton_v2"], // setting quantized_lora_config
+    "torch_dtype": "float16", // need this for triton_v2
+    "fp16": true // need this for triton_v2
+}
+```
+
+Similarly to LoRA, the `target_modules` are the names of the modules to apply the adapter to. See the LoRA [section](#lora-tuning-example) on `target_modules` for more info.
+
+Note that with LoRA tuning technique, setting `all-linear` on `target_modules` returns linear modules. And with qLoRA tuning technique, `all-linear` returns all quant linear modules, excluding `lm_head`.
 
 _________________________
 
@@ -452,18 +647,40 @@ The list of configurations for various `fms_acceleration` plugins:
 - [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
   - `--auto_gptq`: 4bit GPTQ-LoRA with AutoGPTQ
   - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
-- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
+- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
+- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
+  - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
+  - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
  * When setting `--auto_gptq triton_v2` plus note to also pass `--torch_dtype float16` and `--fp16`, or an exception will be raised. This is because these kernels only support this dtype.
- * Currently, the `fused_ops_and_kernels` is to be used used together QLoRA or GPTQ-LORA via the `quantized_lora_config`. In the future it may be made more flexible such that `fast_kernels` can even be used with full-finetuning.
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
  make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
- * Currently `fused_ops_and_kernels` only supports activating `fast_loss,fast_rsm_layernorm,fast_rope_embeddings` all to `True`, so pass `--fast_kernels True True True`.
+ * `fused_ops_and_kernels` works for full-finetuning, LoRA, QLoRA and GPTQ-LORA, 
+    - pass `--fast_kernels True True True` for full finetuning/LoRA
+    - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
+    - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
+ * Notes on Padding Free
+    - works for both *single* and *multi-gpu*. 
+    - works on both *pretokenized* and *untokenized* datasets
+    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+ * Notes on Multipack
+    - works only for *multi-gpu*.
+    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
 
+Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
+```json
+{
+  "fast_kernels": [true, true, true],
+  "padding_free": ["huggingface"],
+  "multipack": [16],
+  "auto_gptq": ["triton_v2"]
+}
+```
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
@@ -562,6 +779,19 @@ Trainer controller is a framework for controlling the trainer loop using user-de
 This framework helps users define rules to capture scenarios like criteria for stopping an ongoing training (E.g validation loss reaching a certain target, validation loss increasing with epoch, training loss values for last 100 steps increasing etc).
 
 For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
+
+
+## Experiment Tracking
+
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+[FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
+
+The code supports currently two trackers out of the box, 
+* `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
+* `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+
+Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
+
 
 ## More Examples
 

@@ -36,7 +36,7 @@ def create_mock_plugin_class_and_spy(class_name, plugin_cls):
 
     def get_callbacks_and_ready_for_train(self, *args, **kwargs):
         spy["get_ready_for_train_calls"] += 1
-        return plugin_cls.get_callbacks_and_ready_for_train(self, args, **kwargs)
+        return plugin_cls.get_callbacks_and_ready_for_train(self, *args, **kwargs)
 
     attributes = {
         "model_loader": model_loader,

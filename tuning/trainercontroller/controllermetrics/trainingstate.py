@@ -49,7 +49,7 @@ class TrainingState(MetricHandler):
                 "on_train_begin",
                 "on_evaluate",
             ],
-            **kwargs
+            **kwargs,
         )
 
     def validate(self) -> bool:

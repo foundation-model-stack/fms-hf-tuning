@@ -42,23 +42,25 @@ class ModelArguments:
     )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
     embedding_size_multiple_of: Optional[int] = field(
-        default=8,
+        default=1,
         metadata={
             "help": "Resize model embedding layer to the nearest multiple of \
-                the given number after tokenizer modifications."
+                the given number after tokenizer modifications. \
+                    NOTE: This involves extending \
+                    the embedding layer without any corresponding real tokens."
         },
     )
     tokenizer_name_or_path: Optional[str] = field(
         default=None,
         metadata={
-            "help": "Path to custom tokenizer.\
-                    If not provided it defaults to model_name_or_path"
+            "help": "Path to custom tokenizer. \
+                If not provided it defaults to model_name_or_path \
+                and special tokens will be added as needed for specific tokenizer classes. \
+                For prompt tuning, if tokenizer_name_or_path provided, special tokens are not added, \
+                otherwise, it defaults to model_name_or_path with special tokens for specific \
+                tokenizer classes."
         },
     )
-
-    def __post_init__(self):
-        if not self.tokenizer_name_or_path:
-            self.tokenizer_name_or_path = self.model_name_or_path
 
 
 @dataclass
@@ -97,6 +99,7 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
+    # pylint: disable=too-many-instance-attributes
     cache_dir: Optional[str] = field(default=None)
     # optim: str = field(default=DEFAULT_OPTIMIZER)
     max_seq_length: int = field(
@@ -119,6 +122,13 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (save is done every `save_steps`)"
         },
     )
+    save_model_dir: str = field(
+        default=None,
+        metadata={
+            "help": "Directory where tuned model will be saved to \
+                  using SFTTrainer.save_model()."
+        },
+    )
     logging_strategy: str = field(
         default="epoch",
         metadata={
@@ -134,6 +144,15 @@ class TrainingArguments(transformers.TrainingArguments):
             "help": "Experiment trackers to use.\n"
             + "Available trackers are - file_logger(default), aim, none\n"
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
+        },
+    )
+    log_level: str = field(
+        default="passive",
+        metadata={
+            "help": "The log level to adopt during training. \
+            By default, 'passive' level is set which keeps the \
+            current log level for the Transformers library (which will be 'warning` by default) \
+            Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
         },
     )
 

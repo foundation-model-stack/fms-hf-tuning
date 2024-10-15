@@ -14,20 +14,19 @@
 # Standard
 from typing import Any, Callable, Dict, Optional, Union
 import json
+import logging
+import os
 
 # Third Party
 from datasets import Dataset, IterableDataset
 from datasets.exceptions import DatasetGenerationError
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
-from transformers.utils import logging
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
 
 # Local
 from tuning.config import configs
 from tuning.utils.data_utils import apply_custom_formatting_template
-
-logger = logging.get_logger("sft_trainer_preprocessing")
 
 # In future we may make the fields configurable
 JSON_INPUT_KEY = "input"
@@ -220,7 +219,7 @@ def format_dataset(
             tokenizer,
             data_args.data_formatter_template,
         )
-        logger.info("Training dataset length is %s", len(train_dataset))
+        logging.info("Training dataset length is %s", len(train_dataset))
         if data_args.validation_data_path:
             (eval_dataset) = get_formatted_dataset_with_single_sequence(
                 data_args.validation_data_path,
@@ -228,7 +227,7 @@ def format_dataset(
                 tokenizer,
                 data_args.data_formatter_template,
             )
-            logger.info("Validation dataset length is %s", len(eval_dataset))
+            logging.info("Validation dataset length is %s", len(eval_dataset))
     else:
         # This is for JSON containing input/output fields
         train_dataset = get_preprocessed_dataset(
@@ -321,9 +320,7 @@ def get_preprocessed_dataset(
         Dataset
             HF Dataset with the pretokenized data.
     """
-    dataset = load_hf_dataset_from_jsonl_file(
-        data_path, input_field_name, output_field_name
-    )
+    dataset = load_hf_dataset_from_file(data_path, input_field_name, output_field_name)
     return dataset.map(
         preprocess_and_tokenize,
         fn_kwargs={
@@ -337,10 +334,10 @@ def get_preprocessed_dataset(
 
 
 ### Utils for loading the data from disk in supported formats [currently only jsonl]
-def load_hf_dataset_from_jsonl_file(
+def load_hf_dataset_from_file(
     data_path: str, input_field_name: str, output_field_name: str
 ) -> Dataset:
-    """Loads the huggingface datase as a generator.
+    """Loads the HuggingFace dataset from JSON or JSONL file.
 
     Args:
         data_path: str
@@ -357,16 +354,23 @@ def load_hf_dataset_from_jsonl_file(
     if input_field_name == output_field_name:
         raise ValueError("Input field name and output field name should not match!")
 
-    def get_jsonl_object():
-        with open(data_path, "r", encoding="utf-8") as jsonl_file:
-            data_stream = [json.loads(line) for line in jsonl_file]
+    def get_json_object():
+        with open(data_path, "r", encoding="utf-8") as json_file:
+            file_extension = os.path.splitext(data_path)[-1].lower()
+            if file_extension == ".jsonl":
+                data_stream = (json.loads(line) for line in json_file)
+            elif file_extension == ".json":
+                data_stream = json.load(json_file)
+            else:
+                raise ValueError("Unsupported file format! Use 'json' or 'jsonl'.")
+
             for data in data_stream:
                 yield {
                     input_field_name: data[input_field_name],
                     output_field_name: data[output_field_name],
                 }
 
-    return Dataset.from_generator(get_jsonl_object)
+    return Dataset.from_generator(get_json_object)
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
