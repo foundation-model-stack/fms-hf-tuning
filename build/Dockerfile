@@ -215,7 +215,7 @@ RUN python -m pip uninstall wheel build -y && \
     rm $(head bdist_name) /tmp/bdist_name
 
 ## Final image ################################################
-FROM release-base AS release
+FROM base AS release
 ARG USER
 ARG ENABLE_AIM
 ARG PYTHON_VERSION
