@@ -44,7 +44,7 @@ def test_process_accelerate_launch_args(job_config):
     args = process_accelerate_launch_args(job_config)
     # json config values used
     assert args.use_fsdp is True
-    assert args.fsdp_backward_prefetch_policy == "TRANSFORMER_BASED_WRAP"
+    assert args.fsdp_backward_prefetch == "TRANSFORMER_BASED_WRAP"
     assert args.env == ["env1", "env2"]
     assert args.training_script == "tuning.sft_trainer"
     assert args.config_file == "fixtures/accelerate_fsdp_defaults.yaml"

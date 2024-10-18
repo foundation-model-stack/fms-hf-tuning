@@ -7,7 +7,7 @@ from tests.data import MODEL_NAME
 
 # Local
 # First party
-from tuning.data.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
 def test_tokenizer_and_embedding_resize_return_values():

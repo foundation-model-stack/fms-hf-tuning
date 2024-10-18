@@ -34,7 +34,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
 import torch
 
 # Local
-from tuning.data import tokenizer_data_utils
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
 ### Utilities
@@ -219,7 +219,7 @@ class TunedCausalLM:
                     # where the model's layers are modified, in our case the embedding layer
                     # is modified, so we resize the backbone model's embedding layer with our own
                     # utility before passing it along to load the PEFT model.
-                    tokenizer_data_utils.tokenizer_and_embedding_resize(
+                    tokenizer_and_embedding_resize(
                         {}, tokenizer=tokenizer, model=base_model
                     )
                     model = PeftModel.from_pretrained(

@@ -169,6 +169,12 @@ RUN mkdir /app && \
     chown -R $USER:0 /app /tmp && \
     chmod -R g+rwX /app /tmp
 
+# Set Triton environment variables for qLoRA
+ENV TRITON_HOME="/tmp/triton_home"
+ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
+ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
+ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
+
 # Need a better way to address these hacks
 RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
         touch /.aim_profile && \
