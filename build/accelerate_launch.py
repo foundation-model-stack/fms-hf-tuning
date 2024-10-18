@@ -25,6 +25,7 @@ import sys
 import traceback
 import json
 from pathlib import Path
+from datetime import datetime
 
 # Third Party
 from accelerate.commands.launch import launch_command
@@ -49,6 +50,8 @@ ERROR_LOG = "/dev/termination-log"
 def main():
     if not os.getenv("TERMINATION_LOG_FILE"):
         os.environ["TERMINATION_LOG_FILE"] = ERROR_LOG
+
+    start_time = datetime.now()
 
     ##########
     #
@@ -174,6 +177,23 @@ def main():
     # files over
     if os.path.exists(output_dir):
         Path(os.path.join(output_dir, ".complete")).touch()
+
+    # Record the end time and total duration
+    end_time = datetime.now()
+    total_duration = (end_time - start_time).total_seconds()
+
+    timing_log = {
+        "name": "total_runtime",
+        "data": {
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "total_duration_seconds": total_duration,
+        }
+    }
+
+    timing_log_path = os.path.join(output_dir, "timing_logs.jsonl")
+    with open(timing_log_path, "a", encoding="utf-8") as f:
+        json.dump(timing_log, f, sort_keys=True)
 
     return 0
 
