@@ -10,7 +10,7 @@ from tuning import sft_trainer
 
 training_args = TrainingArguments(
     ...,
-    trackers = ["aim", "file_logger"]
+    trackers = ["aim", "file_logger", "timer"]
 )
 
 sft_trainer.train(train_args=training_args,...)
@@ -52,7 +52,7 @@ tracker_configs = TrackerConfigFactory(
 sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs, ...)
 ```
 
-Currently File Logging tacker supports only one argument and this file will be placed inside the `train_args.output` folder.
+Currently File Logging tracker supports only one argument and this file will be placed inside the `train_args.output` folder.
 
 ## Aimstack Tracker
 
@@ -115,6 +115,37 @@ sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....
 The code expects either the `local` or `remote` repo to be specified and will result in a `ValueError` otherwise.
 See [AimConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/tracker_configs.py#L25) for more details.
 
+## Timing Tracker
+
+[Timer](../tuning/trackers/timing_tracker.py) is an inbuilt tracker which can be used to track training time of a model per process and total runtime if training is initialized in `accelerate_launch.py`.
+
+Currently the `Timer` is enabled by default and will output timing after training is complete, then total time will be appended after accelerate launch finishes running to a default file path specified [tracker configs](../tuning/config/tracker_configs.py).
+
+To override the location of file logger please pass an instance of the [TimingTrackerConfig](../tuning/config/tracker_configs.py) to `tracker_configs` argument.  
+
+```
+from tuning import sft_trainer
+from tuning.config.tracker_configs import TimingTrackerConfig, TrackerConfigFactory
+
+training_args = TrainingArguments(
+    ...,
+    trackers = ["timer"]
+)
+
+
+logs_file = "new_timing_logs.jsonl"
+
+tracker_configs = TrackerConfigFactory(
+    time_config=TimingTrackerConfig(
+        training_logs_filename=logs_file
+        )
+    )
+
+sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs, ...)
+```
+
+Currently Timer tracker supports only one argument and this file will be placed inside the `train_args.output` folder.
+
 
 ## Running the code via command line `tuning/sft_trainer::main` function
 
@@ -123,7 +154,7 @@ If running the code via main function of [sft_trainer.py](../tuning/sft_trainer.
 To enable tracking please pass
 
 ```
---tracker <aim/file_logger>
+--tracker <aim/file_logger/timer>
 ```
 
 To further customise tracking you can specify additional arguments needed by the tracker like
