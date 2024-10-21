@@ -31,7 +31,7 @@ from tuning.config.tracker_configs import (
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
-TIMING_TRACKER = "timing"
+TIMING_TRACKER = "timer"
 
 AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER, TIMING_TRACKER]
 

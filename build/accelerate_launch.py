@@ -43,6 +43,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
+from tuning.config.tracker_configs import TimingTrackerConfig
 
 ERROR_LOG = "/dev/termination-log"
 
@@ -188,10 +189,12 @@ def main():
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
             "total_duration_seconds": total_duration,
-        }
+        },
     }
 
-    timing_log_path = os.path.join(output_dir, "timing_logs.jsonl")
+    timing_log_path = os.path.join(
+        output_dir, TimingTrackerConfig().timing_logs_filename
+    )
     with open(timing_log_path, "a", encoding="utf-8") as f:
         json.dump(timing_log, f, sort_keys=True)
 
