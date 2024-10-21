@@ -43,7 +43,7 @@ class TimingCallback(TrainerCallback):
         total_duration = (end_time - self.start_time).total_seconds()
 
         log_obj = {
-            "name": "training_timing",
+            "name": "train_runtime",
             "data": {
                 "start_time": self.start_time.isoformat(),
                 "end_time": end_time.isoformat(),
@@ -53,7 +53,6 @@ class TimingCallback(TrainerCallback):
             },
         }
 
-        # Write the log to a JSONL file
         log_file_path = os.path.join(args.output_dir, self.logs_filename)
         with open(log_file_path, "a", encoding="utf-8") as f:
             f.write(f"{json.dumps(log_obj, sort_keys=True)}\n")
