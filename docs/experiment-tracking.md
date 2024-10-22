@@ -137,7 +137,7 @@ logs_file = "new_timing_logs.jsonl"
 
 tracker_configs = TrackerConfigFactory(
     time_config=TimingTrackerConfig(
-        training_logs_filename=logs_file
+        timing_logs_filename=logs_file
         )
     )
 
