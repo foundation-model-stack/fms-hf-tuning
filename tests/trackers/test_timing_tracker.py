@@ -18,8 +18,8 @@
 
 # Standard
 import copy
-import tempfile
 import os
+import tempfile
 
 # First Party
 from tests.test_sft_trainer import (
@@ -29,7 +29,6 @@ from tests.test_sft_trainer import (
     _get_checkpoint_path,
     _test_run_causallm_ft,
     _test_run_inference,
-    _validate_training,
 )
 
 # Local
