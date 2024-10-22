@@ -68,12 +68,22 @@ def _load_data(data_path, split, streaming, config_kwargs):
         )
     except DatasetNotFoundError:
         # probably we have a huggingface id to load
-        return datasets.load_dataset(
-            data_path,
-            split=split,
-            streaming=streaming,
-            **config_kwargs,
+        logger.warning(
+            f"provided {data_path} does not exist on the file system. Attempting to load it from HF datasets hub."
         )
+        try:
+            return datasets.load_dataset(
+                data_path,
+                split=split,
+                streaming=streaming,
+                **config_kwargs,
+            )
+        except DatasetNotFoundError as e:
+            raise Exception(f"provided {data_path} is not found") from e
+        except Exception as e:
+            raise Exception(f"failed loading the dataset as HF datasets hub ID") from e
+    except Exception as e:
+        raise Exception(f"failed loading the dataset as filesystem path") from e
 
 
 def load_dataset(
