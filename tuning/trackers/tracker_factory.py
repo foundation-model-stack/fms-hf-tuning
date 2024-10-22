@@ -125,7 +125,8 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
         tuning.trackers.tracker.Tracker: A subclass of tuning.trackers.tracker.Tracker
             Valid classes available are,
             tuning.trackers.tracker.aimstack_tracker.AimStackTracker,
-            tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker
+            tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker,
+            tuning.trackers.tracker.timing_tracker.TimingTracker
 
     Examples:
         file_logging_tracker = get_tracker("file_logger", TrackerConfigFactory(
@@ -139,6 +140,11 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
                                 aim_repo=tempdir + "/"
                             )
                     ))
+        timing_tracker = get_tracker("timer", TrackerConfigFactory(
+                                    timing_config=TimingTrackerConfig(
+                                        timing_logs_filename=logs_file
+                                    )
+                                ))
     """
     if not REGISTERED_TRACKERS:
         # a one time step.
