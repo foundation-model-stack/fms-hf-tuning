@@ -51,9 +51,14 @@ from tuning.config.acceleration_configs import (
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
+    TimingTrackerConfig,
     TrackerConfigFactory,
 )
-from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
+from tuning.trackers.tracker_factory import (
+    FILE_LOGGING_TRACKER,
+    TIMING_TRACKER,
+    get_tracker,
+)
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
@@ -81,7 +86,8 @@ def train(
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
-        file_logger_config=FileLoggingTrackerConfig()
+        file_logger_config=FileLoggingTrackerConfig(),
+        timer_config=TimingTrackerConfig(),
     ),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
@@ -172,6 +178,9 @@ def train(
     # Ensure file logging is present
     if FILE_LOGGING_TRACKER not in requested_trackers:
         requested_trackers.add(FILE_LOGGING_TRACKER)
+
+    if TIMING_TRACKER not in requested_trackers:
+        requested_trackers.add(TIMING_TRACKER)
 
     if not isinstance(tracker_configs, TrackerConfigFactory):
         raise ValueError(

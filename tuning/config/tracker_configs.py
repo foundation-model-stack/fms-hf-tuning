@@ -64,6 +64,12 @@ class AimConfig:
 
 
 @dataclass
+class TimingTrackerConfig:
+    timing_logs_filename: str = "timing_logs.jsonl"
+
+
+@dataclass
 class TrackerConfigFactory:
     file_logger_config: FileLoggingTrackerConfig = None
     aim_config: AimConfig = None
+    timer_config: TimingTrackerConfig = None
