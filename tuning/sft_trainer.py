@@ -204,6 +204,9 @@ def train(
                 )
             trainer_callbacks.append(cb)
 
+    from HFResourceScanner import Scanner
+    trainer_callbacks.append(Scanner())
+
     framework = AccelerationFrameworkConfig.from_dataclasses(
         quantized_lora_config,
         fusedops_kernels_config,
