@@ -53,6 +53,7 @@ from tuning.config.tracker_configs import (
     FileLoggingTrackerConfig,
     TrackerConfigFactory,
 )
+from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
@@ -63,7 +64,7 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.preprocessing_utils import (
+from tuning.utils.preprocessing_utils import (  # pylint: disable=unused-import
     format_dataset,
     get_data_collator,
     is_pretokenized_dataset,
@@ -317,7 +318,9 @@ def train(
         formatted_train_dataset,
         formatted_validation_dataset,
         dataset_text_field,
-    ) = format_dataset(data_args, tokenizer, max_seq_length)
+        #    ) = format_dataset(data_args, tokenizer, max_seq_length)
+    ) = process_dataargs(data_args, tokenizer, max_seq_length)
+
     data_collator = get_data_collator(
         packing,
         data_args.response_template,

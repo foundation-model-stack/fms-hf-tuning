@@ -2,6 +2,27 @@
 import re
 
 
+def custom_data_formatter(element, template, formatted_dataset_field):
+    def replace_text(match_obj):
+        captured_groups = match_obj.groups()
+        if len(captured_groups) != 1:
+            raise ValueError(
+                "Unexpectedly captured multiple groups in template formatting"
+            )
+
+        index_object = captured_groups[0]
+        if index_object not in element:
+            raise KeyError("Requested template string is not a valid key in dict")
+
+        return element[index_object]
+
+    return {
+        formatted_dataset_field: re.sub(
+            r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
+        )
+    }
+
+
 def apply_custom_formatting_template(
     dataset, template, formatted_dataset_field, eos_token=""
 ):
@@ -24,24 +45,8 @@ def apply_custom_formatting_template(
             "Unable to apply custom formatting because the formatted_dataset_field was not provided"
         )
 
-    def formatter(element):
-        def replace_text(match_obj):
-            captured_groups = match_obj.groups()
-            if len(captured_groups) != 1:
-                raise ValueError(
-                    "Unexpectedly captured multiple groups in template formatting"
-                )
+    fn_kwargs = {}
+    fn_kwargs["template"] = template
+    fn_kwargs["formatted_dataset_field"] = formatted_dataset_field
 
-            index_object = captured_groups[0]
-            if index_object not in element:
-                raise KeyError("Requested template string is not a valid key in dict")
-
-            return element[index_object]
-
-        return {
-            formatted_dataset_field: re.sub(
-                r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
-            )
-        }
-
-    return dataset.map(formatter)
+    return dataset.map(custom_data_formatter, fn_kwargs=fn_kwargs)
