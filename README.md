@@ -132,7 +132,7 @@ Example: Train.jsonl
 
 ## Supported Models
 
-Current supported and tested models are `Llama2` (7 and 13B configurations have been tested) and `GPTBigCode`.
+Current supported and tested models are `Llama3` (8B configuration has been tested) and `GPTBigCode`.
 
 ## Training
 
