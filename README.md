@@ -132,7 +132,42 @@ Example: Train.jsonl
 
 ## Supported Models
 
-Current supported and tested models are `Llama3` (8B configuration has been tested) and `GPTBigCode`.
+Current supported and tested models are `Granite v3`, `Llama3` (8B configuration has been tested) and `GPTBigCode`.
+
+- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
+
+- LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
+
+- Legend:
+
+✅ Ready and available 
+
+✔️ Ready and available - compatible architecture (*see first bullet point above)
+
+🚫 Not supported
+
+?  may be supported, but not tested
+
+Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
+-------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
+Granite 3B           | Granite v3       | ✅*             | ✅*                              | ✅*                   | 
+Granite 8B           | Granite v3       | ✅*             | ✅*                              | ✔️                     | 
+[Granite 3B](https://huggingface.co/ibm-granite/granite-3b-code-base) | LlamawithCausalLM          | ✅ | ✔️  | ✔️ | 
+[Granite 8B](https://huggingface.co/ibm-granite/granite-8b-code-base) | LlamawithCausalLM          | ✅ | ✅ | ✅ |
+Granite 13B                                                           | GPTBigCodeForCausalLM      | ✅ | ✅ | ✔️  | 
+[Granite 20B](Granite-20b-multilingual-base)                          | GPTBigCodeForCausalLM      | ✅ | ✔️  | ✔️  | 
+[Granite 34B](https://huggingface.co/ibm-granite/granite-34b-code-instruct/tree/main) | GPTBigCodeForCausalLM | 🚫 | ✅ | ✅ | 
+Llama3.1-8B                         | LLaMA 3.1          | ✅ - supported from platform up to 8k context length - same architecture as llama3-8b  | ✔️ | ✔️ |  
+Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | 🚫 - issue loading model on 8 GPUs | 
+Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
+Llama3-70B                                | LLaMA 3   | 🚫 | ✅ - had some issues loading the merged model, haven’t retested recently | ✅ | 
+Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
+Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
+Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
+aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
+
+(*) - Supported with `fms-hf-tuning` v2.0.1 or later
 
 ## Training
 
