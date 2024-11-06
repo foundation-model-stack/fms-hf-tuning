@@ -157,7 +157,7 @@ Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
 Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
 Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
 Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
-Llama3.1-8B          | LLaMA 3.1              | ✅ - supported from platform up to 8k context length - same architecture as llama3-8b  | ✔️ | ✔️ |  
+Llama3.1-8B          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
 Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
 Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
 Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
@@ -170,6 +170,8 @@ Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 |
 (*) - Supported with `fms-hf-tuning` v2.0.1 or later
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
+
+(***) - Supported from platform up to 8k context length - same architecture as llama3-8b
 
 ## Training
 
