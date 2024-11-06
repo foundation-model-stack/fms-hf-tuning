@@ -168,6 +168,7 @@ Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
 (*) - Supported with `fms-hf-tuning` v2.0.1 or later
+
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
 ## Training
