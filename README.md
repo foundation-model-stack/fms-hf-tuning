@@ -161,7 +161,7 @@ Llama3.1-8B          | LLaMA 3.1              | ✅ - supported from platform up
 Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
 Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
 Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
-Llama3-70B                                | LLaMA 3   | 🚫 | ✅ - had some issues loading the merged model, haven’t retested recently | ✅ |
+Llama3-70B                                | LLaMA 3   | 🚫 | ✅ | ✅ |
 aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
 Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
 Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
