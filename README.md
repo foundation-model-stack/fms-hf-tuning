@@ -148,15 +148,16 @@ Example: Train.jsonl
 
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-Granite 3.0 3B       | GraniteForCausalLM     | ✅*             | ✅*                        | ✅*                   |
-Granite 3.0 8B       | GraniteForCausalLM     | ✅*             | ✅*                        | ✔️                     |
-[GraniteMoE 3B](https://huggingface.co/ibm/PowerMoE-3b) | GraniteMoeForCausalLM | ✅ | ✅** | ? |
-[Granite 3B](https://huggingface.co/ibm-granite/granite-3b-code-base) | LlamawithCausalLM          | ✅ | ✔️  | ✔️ | 
-[Granite 8B](https://huggingface.co/ibm-granite/granite-8b-code-base) | LlamawithCausalLM          | ✅ | ✅ | ✅ |
-Granite 13B                                                           | GPTBigCodeForCausalLM      | ✅ | ✅ | ✔️  | 
-[Granite 20B](Granite-20b-multilingual-base)                          | GPTBigCodeForCausalLM      | ✅ | ✔️  | ✔️  | 
-[Granite 34B](https://huggingface.co/ibm-granite/granite-34b-code-instruct/tree/main) | GPTBigCodeForCausalLM | 🚫 | ✅ | ✅ | 
-Llama3.1-8B                         | LLaMA 3.1          | ✅ - supported from platform up to 8k context length - same architecture as llama3-8b  | ✔️ | ✔️ |  
+Granite 3.0 3B       | GraniteForCausalLM     | ✅* | ✅* | ✅* |
+Granite 3.0 8B       | GraniteForCausalLM     | ✅* | ✅* | ✔️  |
+GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
+Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
+Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
+Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
+Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+Llama3.1-8B          | LLaMA 3.1              | ✅ - supported from platform up to 8k context length - same architecture as llama3-8b  | ✔️ | ✔️ |  
 Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
 Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
 Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
