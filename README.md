@@ -151,8 +151,6 @@ Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation 
 Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
 Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
-Granite 3.0 3B       | GraniteForCausalLM     | ✅* | ✅* | ✅* |
-Granite 3.0 8B       | GraniteForCausalLM     | ✅* | ✅* | ✔️  |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
 GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
 Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
