@@ -47,13 +47,6 @@ ENV LANG=C.UTF-8 \
 RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
     chmod g+rx /home/${USER}
 
-## Used as base of the Release stage to removed unrelated the packages and CVEs
-FROM base AS release-base
-
-# Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
-RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
-
-
 ## CUDA Base ###################################################################
 FROM base AS cuda-base
 
@@ -103,7 +96,8 @@ RUN dnf config-manager \
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 
-FROM cuda-devel AS python-installations
+## Python dep management / common files for dev & release #####
+FROM cuda-devel as files-common
 
 ARG WHEEL_VERSION
 ARG USER
@@ -116,6 +110,18 @@ RUN dnf install -y git && \
     # Twistlock detects it as H severity: Private keys stored in image
     rm -f /usr/share/doc/perl-Net-SSLeay/examples/server_key.pem && \
     dnf clean all
+
+# /app scripts and permission management
+RUN mkdir /app && \
+    chown -R $USER:0 /app /tmp && \
+    chmod -R g+rwX /app /tmp
+COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY build/utils.py /app/build/
+RUN chmod +x /app/accelerate_launch.py
+
+RUN mkdir /.cache && \
+    chmod -R 777 /.cache
+
 USER ${USER}
 WORKDIR /tmp
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
@@ -131,7 +137,59 @@ RUN if [[ -z "${WHEEL_VERSION}" ]]; \
     fi && \
     ls /tmp/*.whl >/tmp/bdist_name
 
+## Stages for dev images ######################################
+FROM files-common as dev
+ARG USER
+ARG USER_UID
+ARG ENABLE_AIM
+
+# Install from the wheel / optionals deps, pytest, etc
+RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
+    python -m pip install --user wheel tox pytest && \
+    python -m pip install --user "$(head /tmp/bdist_name)" && \
+    python -m pip install --user "$(head /tmp/bdist_name)[flash-attn]" && \
+    python -m pip install --user "$(head /tmp/bdist_name)[dev]" && \
+    if [[ "${ENABLE_AIM}" == "true" ]]; then \
+        python -m pip install --user "$(head /tmpbdist_name)[aim]"; \
+    fi && \
+    python -m pip uninstall wheel build -y && \
+    rm $(head bdist_name) /tmp/bdist_name
+
+RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
+        touch /.aim_profile && \
+        chmod -R 777 /.aim_profile; \
+    fi
+
+# Create the directory for vscode-server; this directory has to be pre-created
+# such that the user can write to it, otherwise we can't attach a vscode instance
+# to it.
+RUN mkdir -p /app/.vscode-server && \
+    chown $USER:0 /app/.vscode-server
+
+WORKDIR /app
+USER ${USER}
+
+# Unit tests, build infrastructure, common scripts
+COPY --from=files-common /app/ /app/
+COPY --from=files-common /.cache/ /.cache/
+COPY tests /app/tests
+COPY tox.ini /app/
+COPY Makefile /app/
+COPY scripts /app/scripts
+
+ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
+ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
+ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages:/app"
+
+## Stages for release images ##################################
+FROM files-common as python-rel-installations
+ARG USER
+ARG USER_UID
+ARG ENABLE_AIM
+
 # Install from the wheel
+# TODO - probably a good idea to install most stuff in common and copy it out
+# in both this stage and dev.
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
@@ -157,8 +215,9 @@ RUN python -m pip uninstall wheel build -y && \
     rm $(head bdist_name) /tmp/bdist_name
 
 ## Final image ################################################
-FROM release-base AS release
+FROM base AS release
 ARG USER
+ARG ENABLE_AIM
 ARG PYTHON_VERSION
 ARG ENABLE_AIM
 
@@ -175,25 +234,26 @@ ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
 ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
 ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
+# Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
+RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
+
 # Need a better way to address these hacks
 RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
         touch /.aim_profile && \
         chmod -R 777 /.aim_profile; \
     fi
-RUN mkdir /.cache && \
-    chmod -R 777 /.cache
 
-# Copy scripts and default configs
-COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
-COPY build/utils.py /app/build/
-RUN chmod +x /app/accelerate_launch.py
-
-ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
-ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
+RUN mkdir -p /licenses
+COPY LICENSE /licenses/
 
 WORKDIR /app
 USER ${USER}
-COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
+COPY --from=python-rel-installations /home/${USER}/.local /home/${USER}/.local
+COPY --from=files-common /app/ /app/
+COPY --from=files-common /.cache/ /.cache/
+
+ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
+ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
 ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
 CMD [ "python", "/app/accelerate_launch.py" ]
