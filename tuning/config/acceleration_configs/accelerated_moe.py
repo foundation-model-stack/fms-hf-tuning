@@ -12,9 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Standard
+from dataclasses import dataclass
+
 # Local
-from .accelerated_moe import AcceleratedMoe
-from .acceleration_framework_config import AccelerationFrameworkConfig
-from .attention_and_distributed_packing import AttentionAndDistributedPackingConfig
-from .fused_ops_and_kernels import FusedOpsAndKernelsConfig
-from .quantized_lora_config import QuantizedLoraConfig
+from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
+
+@parsable_dataclass
+@dataclass
+class AcceleratedMoe:
+
+    world_size: int = 2
+    ep_degree: int = 1
+
+    def post_init(self):
+        assert self.world_size % self.ep_degree == 0, (
+            f"world size ({self.world_size}) " f"not divisible by ep_size ({self.ep_degree})."
+        )
