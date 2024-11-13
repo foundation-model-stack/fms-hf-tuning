@@ -21,7 +21,7 @@ import warnings
 import yaml
 
 # Local
-from. accelerated_moe import AcceleratedMoe
+from .accelerated_moe import AcceleratedMoe
 from .attention_and_distributed_packing import MultiPack, PaddingFree
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
@@ -69,8 +69,11 @@ class AccelerationFrameworkConfig:
     accelerated_moe: Annotated[
         AcceleratedMoe,
         ConfigAnnotation(
-            path="training", standalone=True, experimental=False
-        )
+            path="training",
+            standalone=True,
+            experimental=False,
+            required_packages=["moe"],
+        ),
     ] = None
 
     auto_gptq: Annotated[

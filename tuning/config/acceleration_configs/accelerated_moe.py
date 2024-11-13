@@ -18,14 +18,26 @@ from dataclasses import dataclass
 # Local
 from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
+
 @parsable_dataclass
 @dataclass
-class AcceleratedMoe:
+class AcceleratedMoeConfig:
 
     world_size: int = 2
     ep_degree: int = 1
 
     def post_init(self):
         assert self.world_size % self.ep_degree == 0, (
-            f"world size ({self.world_size}) " f"not divisible by ep_size ({self.ep_degree})."
+            f"world size ({self.world_size}) "
+            f"not divisible by ep_size ({self.ep_degree})."
         )
+
+
+@dataclass
+class AcceleratedMoe:
+
+    accelerated_moe_config: AcceleratedMoeConfig = None
+
+    def __post_init__(self):
+        # ensure nested dataclasses initialized
+        ensure_nested_dataclasses_initialized(self)
