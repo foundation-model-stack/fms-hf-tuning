@@ -23,7 +23,6 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 @dataclass
 class FastMoe:
 
-    world_size: int = 2
     ep_degree: int = 1
 
     def post_init(self):

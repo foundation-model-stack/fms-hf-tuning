@@ -43,6 +43,7 @@ from tuning.config.acceleration_configs.attention_and_distributed_packing import
     MultiPack,
     PaddingFree,
 )
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -86,6 +87,10 @@ if is_fms_accelerate_available():
     if is_fms_accelerate_available(plugins="aadp"):
         # Third Party
         from fms_acceleration_aadp import PaddingFreeAccelerationPlugin
+
+    if is_fms_accelerate_available(plugins="moe"):
+        # Third Party
+        from fms_acceleration_moe import ScatterMoEAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -475,6 +480,59 @@ def test_framework_intialized_properly_foak():
         assert spy2["model_loader_calls"] == 0
         assert spy2["augmentation_calls"] == 1
         assert spy2["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+def test_framework_intialized_properly_moe():
+    """Ensure that specifying a properly configured acceleration dataclass
+    properly activates the framework plugin and runs the train sucessfully.
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "ibm-granite/granite-3.0-1b-a400m-instruct"
+        model_args.use_flash_attn = True
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n\n### Label:"
+        data_args.dataset_text_field = "output"
+
+        # initialize a config
+        moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "FastMoeMock", ScatterMoEAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.moe.scattermoe"], MockedPlugin1),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    fast_moe_config=moe_config,
+                )
+
+        # spy inside the train to ensure that the ilab plugin is called
+        assert spy["model_loader_calls"] == 0
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
 
 
 @pytest.mark.skipif(

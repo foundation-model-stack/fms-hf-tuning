@@ -322,6 +322,7 @@ class AccelerationFrameworkConfig:
                 already_set.add(prefix_path)
                 _descend_and_set(path, asdict(datacls))
 
+        print(configuration_contents)
         return configuration_contents
 
     def to_yaml(self, filename: str):

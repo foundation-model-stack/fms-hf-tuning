@@ -92,7 +92,7 @@ def test_dataclass_parse_successfully():
     # 5. Specifing "--fast_moe" will parse an FastMoe class
     parser = transformers.HfArgumentParser(dataclass_types=FastMoeConfig)
     (cfg,) = parser.parse_args_into_dataclasses(
-        ["--fast_moe", "2"],
+        ["--fast_moe", "1"],
     )
     assert isinstance(cfg.fast_moe, FastMoe)
 
