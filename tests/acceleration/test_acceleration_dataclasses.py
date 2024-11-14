@@ -23,15 +23,12 @@ from tuning.config.acceleration_configs import (
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
-from tuning.config.acceleration_configs.accelerated_moe import (
-    AcceleratedMoe,
-    AcceleratedMoeConfig,
-)
 from tuning.config.acceleration_configs.attention_and_distributed_packing import (
     AttentionAndDistributedPackingConfig,
     MultiPack,
     PaddingFree,
 )
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -92,12 +89,12 @@ def test_dataclass_parse_successfully():
     )
     assert isinstance(cfg.multipack, MultiPack)
 
-    # 5. Specifing "--accelerated_moe" will parse an AcceleratedMoe class
-    parser = transformers.HfArgumentParser(dataclass_types=AcceleratedMoe)
+    # 5. Specifing "--fast_moe" will parse an FastMoe class
+    parser = transformers.HfArgumentParser(dataclass_types=FastMoeConfig)
     (cfg,) = parser.parse_args_into_dataclasses(
-        ["--accelerated_moe", "2"],
+        ["--fast_moe", "2"],
     )
-    assert isinstance(cfg.accelerated_moe_config, AcceleratedMoeConfig)
+    assert isinstance(cfg.fast_moe, FastMoe)
 
 
 def test_two_dataclasses_parse_successfully_together():

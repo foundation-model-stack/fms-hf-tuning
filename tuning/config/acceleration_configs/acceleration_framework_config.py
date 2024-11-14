@@ -21,8 +21,8 @@ import warnings
 import yaml
 
 # Local
-from .accelerated_moe import AcceleratedMoe
 from .attention_and_distributed_packing import MultiPack, PaddingFree
+from .fast_moe import FastMoe
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
@@ -66,15 +66,6 @@ class AccelerationFrameworkConfig:
     PACKAGE_PREFIX = "fms_acceleration_"
 
     # each field will a single-level use case dataclass
-    accelerated_moe: Annotated[
-        AcceleratedMoe,
-        ConfigAnnotation(
-            path="training",
-            standalone=True,
-            experimental=False,
-            required_packages=["moe"],
-        ),
-    ] = None
 
     auto_gptq: Annotated[
         AutoGPTQLoraConfig,
@@ -97,6 +88,17 @@ class AccelerationFrameworkConfig:
             key="fused_ops_and_kernels",
             experimental=False,
             required_packages=["foak"],
+        ),
+    ] = None
+
+    fast_moe: Annotated[
+        FastMoe,
+        ConfigAnnotation(
+            path="training.moe",
+            key="scattermoe",
+            standalone=True,
+            experimental=False,
+            required_packages=["moe"],
         ),
     ] = None
 

@@ -21,7 +21,7 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
 @parsable_dataclass
 @dataclass
-class AcceleratedMoeConfig:
+class FastMoe:
 
     world_size: int = 2
     ep_degree: int = 1
@@ -34,9 +34,9 @@ class AcceleratedMoeConfig:
 
 
 @dataclass
-class AcceleratedMoe:
+class FastMoeConfig:
 
-    accelerated_moe_config: AcceleratedMoeConfig = None
+    fast_moe: FastMoe = None
 
     def __post_init__(self):
         # ensure nested dataclasses initialized
