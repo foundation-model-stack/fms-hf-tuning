@@ -132,7 +132,47 @@ Example: Train.jsonl
 
 ## Supported Models
 
-Current supported and tested models are `Llama3` (8B configuration has been tested) and `GPTBigCode`.
+- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
+
+- LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
+
+- Legend:
+
+  ✅ Ready and available 
+
+  ✔️ Ready and available - compatible architecture (*see first bullet point above)
+
+  🚫 Not supported
+
+  ? May be supported, but not tested
+
+Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
+-------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
+Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
+GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
+Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
+Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
+Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
+Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+Llama3.1-8B          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
+Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
+Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
+Llama3-70B                                | LLaMA 3   | 🚫 | ✅ | ✅ |
+aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
+Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
+Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
+Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
+
+(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+
+(**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
+
+(***) - Supported from platform up to 8k context length - same architecture as llama3-8b
 
 ## Training
 
