@@ -31,6 +31,7 @@ import yaml
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER
 from tuning.utils.data_loaders import ConstantLengthHybridDataset
 from tuning.utils.preprocessing_utils import is_pretokenized_dataset
+from datasets import load_from_disk
 
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_OPTIMIZER = "adamw_torch"
@@ -52,12 +53,30 @@ def _load_data(data_path, split, streaming, config_kwargs):
     logger.warning(f"streaming: {streaming}")
     logger.warning(f"config_kwargs: {config_kwargs}")
     if os.path.isdir(data_path):
-        return datasets.load_dataset(
-            path=data_path,
-            split=split,
-            streaming=streaming,
-            **config_kwargs,
-        )
+        try:
+            return datasets.load_dataset(
+                path=data_path,
+                split=split,
+                streaming=streaming,
+                **config_kwargs,
+            )
+        except Exception as e:
+            logger.error(
+                "failed to load the dataset directory %s using load_dataset, error: %s",
+                data_path,
+                e,
+            )
+            logger.warning(
+                "try to load the dataset directory %s using load_from_disk."
+                + "This will ignore all the options split: %s streaming: %s config_kwargs: %s",
+                data_path,
+                split,
+                streaming,
+                config_kwargs,
+            )
+            return datasets.load_from_disk(
+                dataset_path=data_path,
+            )
     try:
         return datasets.load_dataset(
             path=os.path.dirname(data_path),
