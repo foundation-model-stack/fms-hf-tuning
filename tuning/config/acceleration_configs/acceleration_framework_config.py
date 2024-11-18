@@ -97,7 +97,7 @@ class AccelerationFrameworkConfig:
             path="training.moe",
             key="scattermoe",
             standalone=True,
-            experimental=False,
+            experimental=True,
             required_packages=["moe"],
         ),
     ] = None

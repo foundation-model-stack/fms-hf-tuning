@@ -25,12 +25,6 @@ class FastMoe:
 
     ep_degree: int = 1
 
-    def post_init(self):
-        assert self.world_size % self.ep_degree == 0, (
-            f"world size ({self.world_size}) "
-            f"not divisible by ep_size ({self.ep_degree})."
-        )
-
 
 @dataclass
 class FastMoeConfig:
