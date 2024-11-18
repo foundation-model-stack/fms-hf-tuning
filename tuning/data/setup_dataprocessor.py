@@ -39,6 +39,15 @@ def process_dataargs(
     data_args: DataArguments, tokenizer: AutoTokenizer, max_seq_length: int
 ):
 
+    if data_args.data_config_path:
+        data_config = load_and_validate_data_config(data_args.data_config_path)
+        processor = get_dataprocessor(
+            dataloaderconfig=data_config.dataloader, tokenizer=tokenizer
+        )
+        train_dataset = processor.process_dataset_configs(data_config.datasets)
+        ## HACK: For now just assume we take train_dataset via data config
+        return train_dataset, None, data_args.dataset_text_field
+
     validation_dataset = False
     if data_args.validation_data_path:
         validation_dataset = True
@@ -81,7 +90,8 @@ def process_dataargs(
         if data_args.data_formatter_template is None:
             fn_kwargs["dataset_text_field"] = dataset_text_field
             handler = DataHandlerConfig(
-                "apply_dataset_formatting", arguments={"fn_kwargs": fn_kwargs}
+                "apply_dataset_formatting",
+                arguments={"fn_kwargs": fn_kwargs, "batched": False},
             )
             handlers = [handler]
         else:
@@ -89,7 +99,7 @@ def process_dataargs(
             fn_kwargs["template"] = data_args.data_formatter_template
             handler = DataHandlerConfig(
                 "apply_custom_data_formatting_template",
-                arguments={"fn_kwargs": fn_kwargs},
+                arguments={"fn_kwargs": fn_kwargs, "batched": False},
             )
             handlers = [handler]
     else:
@@ -105,13 +115,14 @@ def process_dataargs(
 
         fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
-        map_kwargs = {
+        kwargs = {
             "fn_kwargs": fn_kwargs,
+            "batched": False,
             "remove_columns": [JSON_INPUT_KEY, JSON_OUTPUT_KEY],
         }
 
         handler = DataHandlerConfig(
-            "tokenize_and_apply_instruction_masking", arguments=map_kwargs
+            "tokenize_and_apply_instruction_masking", arguments=kwargs
         )
         handlers = [handler]
 

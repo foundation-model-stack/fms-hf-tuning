@@ -56,12 +56,6 @@ def tokenize_and_apply_input_masking(
 def apply_dataset_formatting(
     element: Dict[str, str], tokenizer: AutoTokenizer, dataset_text_field: str, **kwargs
 ):
-    if isinstance(element[dataset_text_field], list):  # batched = True
-        return {
-            f"{dataset_text_field}": [
-                text + tokenizer.eos_token for text in element[f"{dataset_text_field}"]
-            ]
-        }
     return {
         f"{dataset_text_field}": element[f"{dataset_text_field}"] + tokenizer.eos_token
     }
