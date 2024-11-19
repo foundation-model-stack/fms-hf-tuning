@@ -27,8 +27,8 @@ classifiers=[
 ]
 dependencies = [
 "numpy>=1.26.4,<2.0",
-"accelerate>=0.20.3,<0.34",
-"transformers>4.41,<4.45",
+"accelerate>=1.1.1",
+"transformers>=4.46.3",
 "trl>0.9.6",
 "torch>=2.2.0,<3.0",
 "sentencepiece>=0.1.99,<0.3",
