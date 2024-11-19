@@ -108,6 +108,7 @@ def validate_data_args(data_args, packing: bool, tokenizer):
         # UPDATE packing is now supported for pretokenized datasets using
         # constantlengthdataset written in data_loaders.py
         # but this is suggested only for pretraining.
+        return
 
     ### Data format 2
     # Dataset containing single sequence needs a response template for masking
