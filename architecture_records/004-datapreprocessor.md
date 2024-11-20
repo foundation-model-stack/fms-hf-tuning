@@ -32,7 +32,7 @@ This interface should cater to various user expertise levels, enabling basic use
 
 ### Motivation
 
-The main motivation for this ADR stems from the fact that fms-hf-tuning is being used by many teams for a diverse set of use cases which are not currently supported in the library. To be precise, currently in the library for data preposssing we currently take two primary arguments `training_data_path` and `validataion_data_path` which take in a single file location for a dataset.
+The main motivation for this ADR stems from the fact that fms-hf-tuning is being used by many teams for a diverse set of use cases which are not currently supported in the library. To be precise, currently in the library for data preprocessing we currently take two primary arguments `training_data_path` and `validataion_data_path` which take in a single file location for a dataset.
 A user can currently pass in
 1. a pretokenized json(l) dataset via 
    ```
@@ -55,7 +55,7 @@ The first motivation for a change is the requirements from users asking for diff
 
 Also use cases from teams require multiple datasets and even multiple data files in a dataset.
 
-Futher requirements from teams is to have a way to interleave datasets at run time by specifying static weights to mix different datasets which is also not supported by the code yet.
+Further requirements from teams is to have a way to interleave datasets at run time by specifying static weights to mix different datasets which is also not supported by the code yet.
 
 Finally other requirements are to have preprocesing support for multiple modalities of data (starting with Image first) and have support for advanced preprocesing like jinja based template rendering of the dataset before consumption.
 
@@ -133,7 +133,7 @@ Please note that most of the users of product here would fall into the simple us
 1. Ensure the single design can handle these and many more use cases without major changes.
 1. Design for Advanced users while simplify for simple users.
 
-We propose to allow advanced users to specify a full spec which exposes data preprocessing API provided by the HF library directly to them to be able to fully utilise the interface. 
+We propose to allow advanced users to specify a full spec which exposes data preprocessing API provided by the HF library directly to them to be able to fully utilize the interface. 
 
 The proposed input spec which user specifies as `data_config` on how to pass information for such preprocessing is
 
@@ -173,7 +173,7 @@ datasets:
           batched: false
 ```
 
-To iterate again, here our goal is not to reimplement the functionality provided by HuggingFace but rather have a clean interface using a config where advanced users can use things like Iterable datasets or Interleaving datasets and perform custom preprocessing like applying jinja templates etc in an easy way.
+To iterate again, here our goal is not to re-implement the functionality provided by HuggingFace but rather have a clean interface using a config where advanced users can use things like Iterable datasets or Interleaving datasets and perform custom preprocessing like applying jinja templates etc in an easy way.
 
 In this spec, at top level we have the `Dataprocessor` config which contains just one field `type` which is set to `default`. This is done to ensure any future top level `dataprocessor` configs will go into this block. Users need not touch or provide this as the `default` is automatically selected.
 
@@ -208,23 +208,23 @@ By allowing the users to specify data handlers like this we allow them to use fu
 
 Furthermore this design allows flexibility to be extended to any upcoming usecase because any operation to be executed on the dataset can be broken down into function execution implemented as data handlers.
 
-This makes our spec a complete solution for advanced users of the library allowing them to specify complete preprocessing operations to be applied to the dataset via a config file.
+This makes our spec a complete solution for advanced users of the library, who have custom preprocessing needs. Allowing them to specify complete preprocessing operations to be applied to the dataset via a config file.
 
 Finally, with this spec we do not want to break the functionality for the simple users of the library. A simple user which wants to just use the library with a single dataset like today can pass the same dataset via `--training_data_path <file> --validataion_data_path <file>` arguments.
 
-Infact we do not change the behaviour currently supported by any of the `tuning.config.configs.DataArguments` arguments hence allowing the simple users of the library to continue using the library as is.
+Infact we do not change the behavior currently supported by any of the `tuning.config.configs.DataArguments` arguments hence allowing the simple users of the library to continue using the library as is.
 
 ### Performance Considerations
 
-Since this design allows complex preprocessing of the dataset on fly, the design should incorporate perfomrance measures to ensure that the system is not performing too slow or spending too much time while preprocessing the dataset to affect tuning/training time.
+Since this design allows complex preprocessing of the dataset on fly, the design should incorporate performance measures to ensure that the system is not performing too slow or spending too much time while preprocessing the dataset to affect tuning/training time.
 
 The goal that we have here is to not be slower than the HuggingFace library which our whole design is based upon, in this sense we also imagine any performance improvements that we come across to be contributed back to HF library to keep our design simple and not reimplement stuff.
 
--> Handling Large Dataset
+#### Handling Large Dataset
 
 Our main reason for using HF [Map](https://huggingface.co/docs/datasets/en/process#map) heavily for data preprocessing is that for large datasets which are generally loaded as `IterableDatasets` the MAP API automatically performs [`lazy map operations`](https://huggingface.co/docs/datasets/en/about_mapstyle_vs_iterable#eager-data-processing-and-lazy-data-processing) and hence doesn't produce too much overhead while training.
 
--> Caching intermediate dataset
+#### Caching intermediate dataset
 
 Hugging Face caches intermediate map operations which makes replay of our data preprocessor easier if same map parameters and operations are applied. If the file system is an issue we have two considerations,
 
@@ -244,20 +244,20 @@ Leaving all users to write their own preprocessing logic can also lead to code d
 
 More importantly as stated in the motivation we are getting ever increased demand from users who want to use this library directly with their dataset and have quick roundtrip for testing. This design allows users to specify simple parameters in the config and test for complex usecases easily.
 
-### Passing all datasets we take to the Huggingface SFTTrainer api and let it handle them without preprocessing at our end.
+### Passing all datasets we take to the HuggingFace SFTTrainer API and let it handle them without preprocessing at our end.
 
-Another alternative we have is to take the `dataset` input to this library and pass it directly to the trainer `SFTrainer` in our case directly and let it handle loading and preprocessing the dataset.
+Another alternative we have is to take the `dataset` input to this library and pass it directly to the trainer `SFTTrainer` in our case directly and let it handle loading and preprocessing the dataset.
 
-[SFTrainer](https://huggingface.co/docs/trl/v0.12.1/en/sft_trainer#trl.SFTTrainer) supports specifying the `train_dataset` and `eval_dataset` for both of which it supports iterable datasets along with normal datasets allowing us to pass a large dataset supported via streaming. 
+[SFTTrainer](https://huggingface.co/docs/trl/v0.12.1/en/sft_trainer#trl.SFTTrainer) supports specifying the `train_dataset` and `eval_dataset` for both of which it supports Iterable datasets along with normal datasets allowing us to pass a large dataset supported via streaming. 
 
-Please not that even in this case users will need to tell us that the dataset is large and is to be loaded via `streaming=True` because the argument which tells HF to load the dataset in iterable mode or standard mode is passed to [`load_dataset`](https://huggingface.co/docs/datasets/v3.1.0/en/package_reference/loading_methods#datasets.load_dataset)
+Please note that even in this case users will need to tell us that the dataset is large and is to be loaded via `streaming=True` because the argument which tells HF to load the dataset in Iterable mode or standard mode is passed to [`load_dataset`](https://huggingface.co/docs/datasets/v3.1.0/en/package_reference/loading_methods#datasets.load_dataset)
 
 ```
 from datasets import load_dataset
 train_ds = load_dataset('imdb', split='train', streaming=True)
 ```
 
-Additionally, `SFTrainer` has support for [data formatting function](https://huggingface.co/docs/trl/en/sft_trainer#dataset-format-support). Users can pass a `formatting_function` directly to `SFTtrainer` which formats the dataset for them,
+Additionally, `SFTTrainer` has support for [data formatting function](https://huggingface.co/docs/trl/en/sft_trainer#dataset-format-support). Users can pass a `formatting_function` directly to `SFTtrainer` which formats the dataset for them,
 
 ```
 def formatting_prompts_func(example):
@@ -278,14 +278,15 @@ trainer.train()
 ```
 Taken from [HuggingFace docs](https://huggingface.co/docs/trl/en/sft_trainer#dataset-format-support)
 
-As our library is a wrapper on top of HF we cannot direclty allow users to pass a custom formatting function and
+As our library is a wrapper on top of HF we cannot directly allow users to pass a custom formatting function and
 our `data_handler` design can also support formatting dataset in a similar way to `formatting function` where users specify just name of the handler and we apply formatting on our end. The design for `data_handler` that we have is a superset of this feature which is more flexible and can support many more use cases.
 
 ## Consequences
 
 ### Arguments Required
 In this design, apart from the `data_config` spec users will also need to pass the `--response_template` argument. This is because the `DataCollator` functionality of this library is not being touched by our design.
-Also users need to specify `--dataset_text_field` which is infered from the `DataArguments` for now to ensure the simple interface remains same.
+
+Also users who process JSON dataset via our interface need to specify `--dataset_text_field` which is inferred from the `DataArguments` for now and not passed inside the data_config to ensure the simple interface remains same.
 
 We also plan to add a new argument to `tuning.config.configs.DataArguments` which takes in the `data_config` file as input. like,
 ```
@@ -380,7 +381,7 @@ can be implemented as data handlers.
 ### Interleaving datasets
 
 In case of multiple datasets the user can request how the datasets are to be interleaved.
-The probabilies specified by users in the config `sampling.ratio` can be collected from individual datasets and passed to
+The probabilities specified by users in the config `sampling.ratio` can be collected from individual datasets and passed to
 [`datasets.interleave_datasets`](https://huggingface.co/docs/datasets/v3.0.1/en/package_reference/main_classes#datasets.interleave_datasets).
 
 ### Streaming datasets
@@ -394,7 +395,7 @@ Further important thing to note is in case of HF, if we use hugging face the `ma
 
 Data collators specifically for TRL use cases like chat based interactions which apply chat templates and proper attention masking on the tokenized data like in the case of `DataCollatorForCompletionOnlyLM` handle a specific functionality on the data.
 
-In this design our approach is to pass data collators from hugging face api directly to SFTTrainer.
+In this design our approach is to pass data collators from hugging face API directly to SFTTrainer.
 
 In the current code path, collators are collected by `get_data_collator` functionality and passed to `SFTTrainer`. We can retain the same functionality and keep the design simpler.
 
@@ -402,7 +403,7 @@ The job of the data pre processor is to provide a single interface over multiple
 
 ## Handling Multi Modal Data.
 
-HF does provide support for handling [image datasets](https://huggingface.co/docs/datasets/en/image_process) and [audio datasets](https://huggingface.co/docs/datasets/en/audio_load) which can be utilised by us in our HF datapreprocessor.
+HF does provide support for handling [image datasets](https://huggingface.co/docs/datasets/en/image_process) and [audio datasets](https://huggingface.co/docs/datasets/en/audio_load) which can be utilized by us in our HF datapreprocessor.
 
 The functionality listed by HF in implementing the use of image and audio datasets is `map` based functions to perform resize, encoding and other such operations on the dataset (see the link above).
 
@@ -410,7 +411,7 @@ This means the image and audio multi modal datasets will be compatible with our 
 
 # Implementing stages.
 1. Stage 1: 
-    * Refactoring the code in `fms-hf-tuning` into the abstract data class and adding support for preliminery data handling routines.
+    * Refactoring the code in `fms-hf-tuning` into the abstract data class and adding support for preliminary data handling routines.
         This will automatically enable support for multi modal data which is our priority.
     Note at this stage it might be wise to have two side by side implementations, i.e. not deleting the existing implementation.
 1. State 2:
