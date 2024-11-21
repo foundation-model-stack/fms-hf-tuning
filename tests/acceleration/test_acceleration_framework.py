@@ -778,7 +778,7 @@ def test_error_raised_fast_moe_with_non_moe_model():
     """
     with pytest.raises(
         AttributeError,
-        match="AttributeError: 'LlamaConfig' object has no attribute 'num_local_experts'",
+        match="'LlamaConfig' object has no attribute 'num_local_experts'",
     ):
         with tempfile.TemporaryDirectory() as tempdir:
 
