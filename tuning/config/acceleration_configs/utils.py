@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # Standard
-from dataclasses import fields, is_dataclass
-from typing import Dict, List, Type, get_type_hints
 from collections.abc import Iterable
+from dataclasses import fields, is_dataclass
+from typing import List, Type, get_type_hints
 
 # Third Party
 from transformers.hf_argparser import DataClass, string_to_bool

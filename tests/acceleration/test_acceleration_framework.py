@@ -721,6 +721,53 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
 
 
 @pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+def test_error_raised_with_undividable_fastmoe_argument():
+    """
+    Ensure error is thrown when `--fast_moe` is passed and world_size
+    is not divisible by ep_degree
+    """
+    with pytest.raises(
+        AssertionError, match="world size \\(1\\) not divisible by ep_size \\(3\\)"
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            model_args = copy.deepcopy(MODEL_ARGS)
+            model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+            model_args.torch_dtype = torch.bfloat16
+            train_args = copy.deepcopy(TRAIN_ARGS)
+            train_args.output_dir = tempdir
+            train_args.save_strategy = "no"
+            train_args.bf16 = True
+            data_args = copy.deepcopy(DATA_ARGS)
+            data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+            data_args.response_template = "\n\n### Label:"
+            data_args.dataset_text_field = "output"
+
+            # initialize a config
+            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+
+            # 1. mock a plugin class
+            # 2. register the mocked plugins
+            # 3. call sft_trainer.train
+            with build_framework_and_maybe_instantiate(
+                [
+                    (["training.moe.scattermoe"], ScatterMoEAccelerationPlugin),
+                ],
+                instantiate=False,
+            ):
+                with instantiate_model_patcher():
+                    sft_trainer.train(
+                        model_args,
+                        data_args,
+                        train_args,
+                        fast_moe_config=moe_config,
+                    )
+
+
+@pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="foak"),
     reason="Only runs if fms-accelerate is installed along with \
         fused_ops_and_kernels plugin",
