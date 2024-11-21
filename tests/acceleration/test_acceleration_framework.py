@@ -747,7 +747,7 @@ def test_error_raised_with_undividable_fastmoe_argument():
             data_args.dataset_text_field = "output"
 
             # initialize a config
-            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=3))
 
             # 1. mock a plugin class
             # 2. register the mocked plugins
