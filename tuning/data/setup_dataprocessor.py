@@ -118,7 +118,7 @@ def process_dataargs(
         kwargs = {
             "fn_kwargs": fn_kwargs,
             "batched": False,
-            "remove_columns": [JSON_INPUT_KEY, JSON_OUTPUT_KEY],
+            "remove_columns": "all",
         }
 
         handler = DataHandlerConfig(

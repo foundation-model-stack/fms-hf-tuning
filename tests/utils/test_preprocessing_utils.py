@@ -19,6 +19,7 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
+from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.utils.preprocessing_utils import (
     combine_sequence,
     format_dataset,
@@ -444,6 +445,78 @@ def test_format_dataset(data_args):
 @pytest.mark.parametrize(
     "data_args",
     [
+        # single sequence JSON and response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_JSON,
+                dataset_text_field="output",
+                response_template="\n### Label:",
+            )
+        ),
+        # single sequence JSONL and response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
+                dataset_text_field="output",
+                response_template="\n### Label:",
+            )
+        ),
+        # data formatter template with input/output JSON
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                dataset_text_field="formatted_field",
+                data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
+            )
+        ),
+        # data formatter template with input/output JSONL
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                dataset_text_field="formatted_field",
+                data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
+            )
+        ),
+        # input/output JSON with masking on input
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            )
+        ),
+        # input/output JSONL with masking on input
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            )
+        ),
+    ],
+)
+def test_process_dataargs(data_args):
+    """Ensure that the train/eval data are properly formatted based on the data args / text field"""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    train_set, eval_set, dataset_text_field = process_dataargs(
+        data_args, tokenizer, max_seq_length=1024
+    )
+    assert isinstance(train_set, Dataset)
+    assert isinstance(eval_set, Dataset)
+    if dataset_text_field is None:
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(eval_set.column_names) == column_names
+        assert set(train_set.column_names) == column_names
+    else:
+        assert dataset_text_field in train_set.column_names
+        assert dataset_text_field in eval_set.column_names
+
+
+@pytest.mark.parametrize(
+    "data_args",
+    [
         # JSON pretokenized train and validation datasets
         (
             configs.DataArguments(
@@ -475,6 +548,49 @@ def test_format_dataset(data_args):
 def test_format_dataset_pretokenized(data_args):
     """Ensure that pretokenized datasets are loaded and returned as is"""
     train_set, eval_set, _ = format_dataset(data_args, None, max_seq_length=1024)
+    assert isinstance(train_set, Dataset)
+    if eval_set:
+        assert isinstance(eval_set, Dataset)
+
+    assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    if eval_set:
+        assert set(["input_ids", "labels"]).issubset(set(eval_set.column_names))
+
+
+@pytest.mark.parametrize(
+    "data_args",
+    [
+        # JSON pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
+            )
+        ),
+        # JSONL pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+            )
+        ),
+        # JSON pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSON,
+            )
+        ),
+        # JSONL pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+            )
+        ),
+    ],
+)
+def test_process_dataargs_pretokenized(data_args):
+    """Ensure that pretokenized datasets are loaded and returned as is"""
+    train_set, eval_set, _ = process_dataargs(data_args, None, max_seq_length=1024)
     assert isinstance(train_set, Dataset)
     if eval_set:
         assert isinstance(eval_set, Dataset)

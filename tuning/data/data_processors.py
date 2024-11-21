@@ -157,7 +157,7 @@ class HFBasedDataPreProcessor(DataPreProcessor):
 
                     kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
 
-                    logging.info("Applying Handler : {data_handler} Args : {kwargs}")
+                    logging.info(f"Applying Handler : {data_handler} Args : {kwargs}")
 
                     raw_datasets = raw_datasets.map(handler, **kwargs)
 
