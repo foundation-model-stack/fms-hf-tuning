@@ -99,6 +99,7 @@ RUN dnf config-manager \
         libcublas-devel-12-1-${NV_LIBCUBLAS_DEV_VERSION} \
         libnpp-devel-12-1-${NV_LIBNPP_DEV_VERSION} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
+        cudnn9-cuda-12 \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
@@ -135,7 +136,8 @@ RUN if [[ -z "${WHEEL_VERSION}" ]]; \
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]"
+    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
+    python -m pip install --user "$(head bdist_name)[mamba]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels

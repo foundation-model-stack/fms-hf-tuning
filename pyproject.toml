@@ -38,7 +38,6 @@ dependencies = [
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<3.0",
 "simpleeval>=0.9.13,<1.0",
-"mamba_ssm[causal-conv1d] @ git+https://github.com/state-spaces/mamba.git",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +46,7 @@ flash-attn = ["flash-attn>=2.5.3,<3.0"]
 aim = ["aim>=3.19.0,<4.0"]
 fms-accel = ["fms-acceleration>=0.1"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
+mamba = ["mamba_ssm[causal-conv1d] @ git+https://github.com/state-spaces/mamba.git"]
 
 
 [tool.setuptools.packages.find]
