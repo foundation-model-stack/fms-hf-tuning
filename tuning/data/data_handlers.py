@@ -31,17 +31,17 @@ def tokenize_and_apply_input_masking(
     output_field_name: str,
     **tokenizer_kwargs,
 ):
-    input = element[input_field_name]
-    output = element[output_field_name]
+    input_text = element[input_field_name]
+    output_text = element[output_field_name]
 
     # TODO: Eventually move the code here
-    combined = combine_sequence(input, output, eos_token=tokenizer.eos_token)
+    combined = combine_sequence(input_text, output_text, eos_token=tokenizer.eos_token)
 
     fn_kwargs = tokenizer_kwargs.get("fn_kwargs", {})
     tokenizer_inner_kwargs = fn_kwargs.get("tokenizer_kwargs", {})
 
     tokenized_comb_seqs = tokenizer(combined, **tokenizer_inner_kwargs)
-    tokenized_input = tokenizer(input, **tokenizer_inner_kwargs)
+    tokenized_input = tokenizer(input_text, **tokenizer_inner_kwargs)
 
     masked_labels = [-100] * len(
         tokenized_input.input_ids

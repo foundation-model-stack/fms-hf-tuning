@@ -61,40 +61,39 @@ def _validate_data_handler_config(data_handler) -> DataHandlerConfig:
 
 
 def _validate_dataset_config(dataset_config) -> DataSetConfig:
-    c = DataSetConfig()
     kwargs = dataset_config
     assert isinstance(kwargs, dict), "dataset_config in data_config needs to be a dict"
+
+    c = DataSetConfig(name=kwargs.get("name", ""), data_paths=[])
+
     if "name" in kwargs:
         assert isinstance(kwargs["name"], str), "dataset name should be string"
-        c.name = kwargs["name"]
     if "data_paths" not in kwargs:
         raise ValueError("data_paths should be specified for each dataset")
-    else:
-        data_paths = kwargs["data_paths"]
-        # TODO: Support that data_paths can be a directory or directories
-        assert (isinstance(data_paths, List), "data_paths should be an array of files")
-        c.data_paths = []
-        for p in data_paths:
-            assert isinstance(p, str), f"path {p} should be of the type string"
-            assert os.path.exists(p), f"data_paths {p} does not exist"
-            if not os.isabs(p):
-                _p = os.path.abspath(p)
-                logging.warning(
-                    f" Provided path {p} is not absolute changing it to {_p}"
-                )
-                p = _p
-            c.data_paths.append(p)
+    data_paths = kwargs["data_paths"]
+    # TODO: Support that data_paths can be a directory or directories
+    assert isinstance(data_paths, list), "data_paths should be an array of files"
+    c.data_paths = []
+    for p in data_paths:
+        assert isinstance(p, str), f"path {p} should be of the type string"
+        assert os.path.exists(p), f"data_paths {p} does not exist"
+        if not os.isabs(p):
+            _p = os.path.abspath(p)
+            logging.warning(
+                " Provided path %s is not absolute changing it to %s", p, _p
+            )
+            p = _p
+        c.data_paths.append(p)
     if "sampling" in kwargs:
         sampling_kwargs = kwargs["sampling"]
         assert isinstance(
-            Dict, sampling_kwargs
+            dict, sampling_kwargs
         ), "sampling arguments should be of the type dict"
         if "ratio" in sampling_kwargs:
             ratio = sampling_kwargs["ratio"]
-            assert (
-                (isinstance(ratio, float) and (0 <= ratio <= 1.0)),
-                f"sampling ratio: {ratio} should be float and in range [0.0,1.0]",
-            )
+            assert isinstance(ratio, float) and (
+                0 <= ratio <= 1.0
+            ), f"sampling ratio: {ratio} should be float and in range [0.0,1.0]"
         c.sampling = sampling_kwargs
     if "data_handlers" in kwargs:
         c.data_handlers = []
@@ -119,17 +118,17 @@ def validate_data_config(dataconfig: DataConfig):
 def load_and_validate_data_config(data_config_file: str) -> DataConfig:
     raw_data = load_yaml_or_json(data_config_file)
     assert isinstance(
-        raw_data, Dict
+        raw_data, dict
     ), f"The provided data_config file is invalid: {data_config_file}"
-    data_config = DataConfig()
     assert "datasets" in raw_data, "datasets should be provided in data config"
     assert isinstance(
-        raw_data["datasets"], List
+        raw_data["datasets"], list
     ), "datasets should be provided as a list"
-    data_config.datasets = []
+    datasets = []
     for d in raw_data["datasets"]:
-        data_config.datasets.append(_validate_dataset_config(d))
-    if "dataloader" in data_config:
+        datasets.append(_validate_dataset_config(d))
+    if "dataloader" in raw_data:
         dataloader = _validate_dataloader_config(raw_data["dataloader"])
-        data_config.dataloader = dataloader
+
+    data_config = DataConfig(dataloader=dataloader, datasets=datasets)
     return data_config

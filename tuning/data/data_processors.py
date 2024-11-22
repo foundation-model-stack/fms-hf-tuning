@@ -14,7 +14,7 @@
 
 # Standard
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Union
 import logging
 import os
 
@@ -52,16 +52,16 @@ class DataPreProcessor(ABC):
         datafile: str = None,
         **kwargs,
     ):
-        NotImplementedError("Needs to be implemented")
+        raise NotImplementedError("Needs to be implemented")
 
     def register_data_handler(self, name: str, func: callable):
         self.registered_handlers[name] = func
 
     @abstractmethod
     def process_dataset_configs(
-        self, dataset_cofigs: List[DataSetConfig], **extra_kwargs
+        self, dataset_configs: List[DataSetConfig], **extra_kwargs
     ) -> Union[Dataset, IterableDataset]:
-        NotImplementedError("Needs to be implemented")
+        raise NotImplementedError("Needs to be implemented")
 
 
 class HFBasedDataPreProcessor(DataPreProcessor):
@@ -81,9 +81,9 @@ class HFBasedDataPreProcessor(DataPreProcessor):
     ):
 
         if datafile and datasetconfig:
-            ValueError("Both datafile and datasetconfig should not be set")
+            raise ValueError("Both datafile and datasetconfig should not be set")
         if (not datafile) and (not datasetconfig):
-            ValueError("Either datafile or datasetconfig must be set")
+            raise ValueError("Either datafile or datasetconfig must be set")
 
         if datafile:
             files = [datafile]
@@ -93,14 +93,13 @@ class HFBasedDataPreProcessor(DataPreProcessor):
             name = datasetconfig.name
             # simple check to make sure all files are of same type.
             extns = [get_extension(f) for f in files]
-            assert (
-                extns.count(extns[0]) == len(extns),
-                f"all files in a dataset {name} should have same extension",
-            )
+            assert extns.count(extns[0]) == len(
+                extns
+            ), f"All files in the dataset {name} should have the same extension"
             loader = get_loader_for_filepath(file_path=files[0])
 
-        if loader == None or loader == "":
-            raise ValueError("data path is invalid [%s]", " ".join(files))
+        if loader in (None, ""):
+            raise ValueError(f"data path is invalid [{', '.join(files)}]")
 
         try:
             return datasets.load_dataset(
@@ -109,13 +108,13 @@ class HFBasedDataPreProcessor(DataPreProcessor):
                 split=splitName,
                 **kwargs,
             )
-        except FileNotFoundError:
-            raise ValueError("data path is invalid [%s]", " ".join(files))
         except DatasetNotFoundError as e:
             raise e
+        except FileNotFoundError as e:
+            raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
 
     def _process_dataset_configs(
-        self, dataset_cofigs: List[DataSetConfig], **extra_kwargs
+        self, dataset_configs: List[DataSetConfig], **extra_kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
         final_datasets = None
@@ -123,8 +122,8 @@ class HFBasedDataPreProcessor(DataPreProcessor):
 
         logging.info("Starting HFBasedDataPreProcessor...")
         # Iterate over the multiple datasets provided to us
-        for d in dataset_cofigs:
-            logging.info("Loading %s" % (d.name))
+        for d in dataset_configs:
+            logging.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
             raw_dataset = self.load_dataset(d, splitName)
@@ -173,7 +172,7 @@ class HFBasedDataPreProcessor(DataPreProcessor):
 
                     kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
 
-                    logging.info(f"Applying Handler : {data_handler} Args : {kwargs}")
+                    logging.info("Applying Handler: %s Args: %s", data_handler, kwargs)
 
                     raw_datasets = raw_datasets.map(handler, **kwargs)
 
