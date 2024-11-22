@@ -16,14 +16,15 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Third Party
+from transformers import AutoTokenizer
 import datasets
 import pytest
 
 # First Party
-from tests.artifacts.testdata import TWITTER_COMPLAINTS_DATA_JSONL
+from tests.artifacts.testdata import MODEL_NAME, TWITTER_COMPLAINTS_DATA_JSONL
 
 # Local
-from tuning.utils import data_utils
+from tuning.data.data_handlers import apply_custom_data_formatting_template
 
 
 def test_apply_custom_formatting_template():
@@ -31,34 +32,23 @@ def test_apply_custom_formatting_template():
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
     template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = json_dataset.map(
+        apply_custom_data_formatting_template,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        },
+    )
     # First response from the data file that is read.
     expected_response = (
         "### Input: @HMRCcustomers No this is my first job"
         + " \n\n ### Response: no complaint"
+        + tokenizer.eos_token
     )
-    formatted_dataset_field = "formatted_data_field"
-    formatted_dataset = data_utils.apply_custom_formatting_template(
-        json_dataset, template, formatted_dataset_field
-    )
-    # a new dataset_text_field is created in Dataset
-    assert formatted_dataset_field in formatted_dataset["train"][0]
-    assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
-
-def test_apply_custom_formatting_template_adds_eos_token():
-    json_dataset = datasets.load_dataset(
-        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
-    )
-    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
-    # First response from the data file that is read.
-    expected_response = (
-        "### Input: @HMRCcustomers No this is my first job"
-        + " \n\n ### Response: no complaintEOS"
-    )
-    formatted_dataset_field = "formatted_data_field"
-    formatted_dataset = data_utils.apply_custom_formatting_template(
-        json_dataset, template, formatted_dataset_field, "EOS"
-    )
     # a new dataset_text_field is created in Dataset
     assert formatted_dataset_field in formatted_dataset["train"][0]
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
@@ -71,7 +61,13 @@ def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     )
     template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
     formatted_dataset_field = "formatted_data_field"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     with pytest.raises(KeyError):
-        data_utils.apply_custom_formatting_template(
-            json_dataset, template, formatted_dataset_field, "EOS"
+        json_dataset.map(
+            apply_custom_data_formatting_template,
+            fn_kwargs={
+                "tokenizer": tokenizer,
+                "dataset_text_field": formatted_dataset_field,
+                "template": template,
+            },
         )

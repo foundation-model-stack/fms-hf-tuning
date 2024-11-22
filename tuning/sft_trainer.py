@@ -289,7 +289,7 @@ def train(
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)
 
-    data_preprocessor_time = time.time()
+    data_preprocessing_time = time.time()
     (
         formatted_train_dataset,
         formatted_validation_dataset,
@@ -298,7 +298,9 @@ def train(
         max_seq_length,
         dataset_kwargs,
     ) = process_dataargs(data_args, tokenizer, train_args)
-    additional_metrics["data_preprocessor_time"] = time.time() - data_preprocessor_time
+    additional_metrics["data_preprocessing_time"] = (
+        time.time() - data_preprocessing_time
+    )
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(

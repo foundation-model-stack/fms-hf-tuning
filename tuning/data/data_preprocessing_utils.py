@@ -13,6 +13,7 @@
 # limitations under the License.
 # Standard
 from typing import Callable, Optional
+import re
 
 # Third Party
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
@@ -184,3 +185,24 @@ def get_data_collator(
         raise ValueError(
             "Could not pick a data collator. Please refer to supported data formats"
         )
+
+
+def custom_data_formatter(element, template, formatted_dataset_field):
+    def replace_text(match_obj):
+        captured_groups = match_obj.groups()
+        if len(captured_groups) != 1:
+            raise ValueError(
+                "Unexpectedly captured multiple groups in template formatting"
+            )
+
+        index_object = captured_groups[0]
+        if index_object not in element:
+            raise KeyError("Requested template string is not a valid key in dict")
+
+        return element[index_object]
+
+    return {
+        formatted_dataset_field: re.sub(
+            r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
+        )
+    }

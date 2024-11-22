@@ -21,8 +21,7 @@ from typing import Dict
 from transformers import AutoTokenizer
 
 # Local
-from tuning.data.data_preprocessing_utils import combine_sequence
-from tuning.utils.data_utils import custom_data_formatter
+from tuning.data.data_preprocessing_utils import combine_sequence, custom_data_formatter
 
 
 def tokenize_and_apply_input_masking(
@@ -71,6 +70,19 @@ def apply_custom_data_formatting_template(
     template: str,
     **kwargs,
 ):
+    """Function to format datasets with Alpaca style / other templates.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        template: Template to format data with. Features of Dataset
+            should be referred to by {{key}}
+        formatted_dataset_field: Dataset_text_field
+        eos_token: string EOS token to be appended while formatting data to a single sequence.
+            Defaults to empty
+    Returns:
+        Formatted HF Dataset
+    """
+
     template += tokenizer.eos_token
 
     # TODO: Eventually move the code here.
