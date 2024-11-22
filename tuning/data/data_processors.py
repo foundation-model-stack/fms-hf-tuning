@@ -50,6 +50,15 @@ class DataPreProcessor(ABC):
         # Initialize other objects
         self.registered_handlers = {}
 
+    def load_dataset(
+        self,
+        datasetconfig: DataSetConfig,
+        splitName: str,
+        datafile: str = None,
+        **kwargs,
+    ):
+        NotImplementedError("Needs to be implemented")
+
     def register_data_handler(self, name: str, func: callable):
         self.registered_handlers[name] = func
 
@@ -73,21 +82,36 @@ class HFBasedDataPreProcessor(DataPreProcessor):
             accelerator=accelerator,
         )
 
-    def _load_dataset(self, datasetconfig, splitName, **kwargs):
-        files = datasetconfig.data_paths
-        name = datasetconfig.name
-        extns = []
-        for f in files:
-            e = get_extension(f)
-            extns.append(e)
-        # simple check to make sure all files are of same type.
-        # Do we need this assumption?
-        assert (
-            extns.count(extns[0]) == len(extns),
-            f"all files in a dataset {name} should have same extension",
-        )
+    def load_dataset(
+        self,
+        datasetconfig: DataSetConfig,
+        splitName: str,
+        datafile: str = None,
+        **kwargs,
+    ):
 
-        loader = get_loader_for_filepath(file_path=files[0])
+        if datafile and datasetconfig:
+            ValueError("Both datafile and datasetconfig should not be set")
+        if (not datafile) and (not datasetconfig):
+            ValueError("Either datafile or datasetconfig must be set")
+
+        if datafile:
+            files = [datafile]
+            loader = get_loader_for_filepath(file_path=datafile)
+        elif datasetconfig:
+            files = datasetconfig.data_paths
+            name = datasetconfig.name
+            # simple check to make sure all files are of same type.
+            extns = [get_extension(f) for f in files]
+            assert (
+                extns.count(extns[0]) == len(extns),
+                f"all files in a dataset {name} should have same extension",
+            )
+            loader = get_loader_for_filepath(file_path=files[0])
+
+        if loader == None or loader == "":
+            raise ValueError("data path is invalid [%s]", " ".join(files))
+
         try:
             return datasets.load_dataset(
                 loader,
@@ -95,6 +119,8 @@ class HFBasedDataPreProcessor(DataPreProcessor):
                 split=splitName,
                 **kwargs,
             )
+        except FileNotFoundError:
+            raise ValueError("data path is invalid [%s]", " ".join(files))
         except DatasetNotFoundError as e:
             raise e
 
@@ -111,7 +137,7 @@ class HFBasedDataPreProcessor(DataPreProcessor):
             logging.info("Loading %s" % (d.name))
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self._load_dataset(d, splitName)
+            raw_dataset = self.load_dataset(d, splitName)
 
             logging.info("Loaded raw dataset : {raw_datasets}")
 

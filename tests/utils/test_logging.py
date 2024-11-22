@@ -33,7 +33,7 @@ def test_set_log_level_for_logger_default():
     Ensure that the correct log level is being set for python native logger and
     transformers logger when no env var or CLI flag is passed
     """
-    
+
     with mock.patch.dict(os.environ, {}, clear=True):
         train_args = copy.deepcopy(TRAIN_ARGS)
         training_args, logger = set_log_level(train_args)

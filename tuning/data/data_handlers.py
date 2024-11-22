@@ -21,8 +21,8 @@ from typing import Dict
 from transformers import AutoTokenizer
 
 # Local
+from tuning.data.data_preprocessing_utils import combine_sequence
 from tuning.utils.data_utils import custom_data_formatter
-from tuning.utils.preprocessing_utils import combine_sequence
 
 
 def tokenize_and_apply_input_masking(
