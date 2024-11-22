@@ -194,17 +194,24 @@ class HFBasedDataPreProcessor(DataPreProcessor):
         return train_dataset
 
     def process_dataset_configs(
-        self, dataset_cofigs: List[DataSetConfig], **kwargs
+        self, dataset_configs: List[DataSetConfig], **kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
+
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             if torch.distributed.get_rank() == 0:
                 logging.info("Processing data on rank 0...")
-                train_dataset = self._process_dataset_configs(dataset_cofigs, **kwargs)
-            torch.distributed.barrier()  # Make everyone wait
+                train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
+            else:
+                train_dataset = None
+
+            # Use broadcast_object_list to share the dataset object across ranks
+            obj_list = [train_dataset]
+            torch.distributed.broadcast_object_list(obj_list, src=0)
+            train_dataset = obj_list[0]
         else:
             logging.info("Processing data...")
-            train_dataset = self._process_dataset_configs(dataset_cofigs, **kwargs)
+            train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
 
