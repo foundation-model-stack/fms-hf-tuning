@@ -23,6 +23,7 @@ from datasets import Dataset, DatasetDict, IterableDataset
 from datasets.exceptions import DatasetNotFoundError
 from transformers import AutoTokenizer
 import datasets
+import torch
 
 # Local
 from tuning.data.data_config import DataConfig, DataLoaderConfig, DataSetConfig
@@ -37,15 +38,9 @@ class DataPreProcessor(ABC):
     dataloaderconfig: DataLoaderConfig = None
     registered_handlers: Dict[str, callable] = None
 
-    def __init__(
-        self,
-        dataloaderconfig: DataLoaderConfig,
-        tokenizer: AutoTokenizer,
-        accelerator=None,
-    ):
+    def __init__(self, dataloaderconfig: DataLoaderConfig, tokenizer: AutoTokenizer):
         self.tokenizer = tokenizer
         self.dataloaderconfig = dataloaderconfig
-        self.accelerator = None
 
         # Initialize other objects
         self.registered_handlers = {}
@@ -74,13 +69,8 @@ class HFBasedDataPreProcessor(DataPreProcessor):
         self,
         dataloaderconfig: DataLoaderConfig,
         tokenizer: AutoTokenizer,
-        accelerator=None,
     ):
-        super().__init__(
-            dataloaderconfig=dataloaderconfig,
-            tokenizer=tokenizer,
-            accelerator=accelerator,
-        )
+        super().__init__(dataloaderconfig=dataloaderconfig, tokenizer=tokenizer)
 
     def load_dataset(
         self,
@@ -207,10 +197,13 @@ class HFBasedDataPreProcessor(DataPreProcessor):
         self, dataset_cofigs: List[DataSetConfig], **kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
-        if self.accelerator:
-            with self.accelerator.main_process_first(desc="Processing data..."):
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            if torch.distributed.get_rank() == 0:
+                logging.info("Processing data on rank 0...")
                 train_dataset = self._process_dataset_configs(dataset_cofigs, **kwargs)
+            torch.distributed.barrier()  # Make everyone wait
         else:
+            logging.info("Processing data...")
             train_dataset = self._process_dataset_configs(dataset_cofigs, **kwargs)
 
         return train_dataset
@@ -224,16 +217,13 @@ def autoregister_available_handlers(processor: DataPreProcessor):
 
 
 def get_dataprocessor(
-    dataloaderconfig: DataLoaderConfig,
-    tokenizer: AutoTokenizer,
-    accelerator: Optional[Any] = None,
+    dataloaderconfig: DataLoaderConfig, tokenizer: AutoTokenizer
 ) -> DataPreProcessor:
     loader = dataloaderconfig.type
     if loader == "default":
         processor = HFBasedDataPreProcessor(
             dataloaderconfig=dataloaderconfig,
             tokenizer=tokenizer,
-            accelerator=accelerator,
         )
     else:
         processor = None
