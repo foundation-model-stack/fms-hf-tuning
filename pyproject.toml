@@ -28,7 +28,7 @@ classifiers=[
 dependencies = [
 "numpy>=1.26.4,<2.0",
 "accelerate>=0.20.3,!=0.34,<1.1",
-"git+https://github.com/fabianlim/transformers.git@hybrid-mamba",
+"transformers @ git+https://github.com/fabianlim/transformers.git@hybrid-mamba",
 "torch>=2.2.0,<2.5",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers>=0.13.3,<1.0",
