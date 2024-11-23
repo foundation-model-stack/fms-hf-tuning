@@ -205,6 +205,7 @@ class HFBasedDataPreProcessor(DataPreProcessor):
                 train_dataset = None
 
             # Use broadcast_object_list to share the dataset object across ranks
+            # TODO: Check if torch.distributed.barrier() is called in broadcast_object_list()
             obj_list = [train_dataset]
             torch.distributed.broadcast_object_list(obj_list, src=0)
             train_dataset = obj_list[0]
