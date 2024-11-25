@@ -22,6 +22,7 @@ import glob
 
 # Third Party
 import pytest
+from transformers.trainer_callback import TrainerCallback
 
 # First Party
 from build.accelerate_launch import main
@@ -244,6 +245,28 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
         # check for new_embeddings.safetensors
         new_embeddings_file_path = os.path.join(tempdir, "new_embeddings.safetensors")
         assert os.path.exists(new_embeddings_file_path)
+
+
+def test_launch_with_add_scanner_callback():
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": tempdir,
+                "save_model_dir": tempdir,
+                "lora_post_process_for_vllm": True,
+                "gradient_accumulation_steps": 1,
+                "add_scanner_callback": True,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+
+        scanner_outfile = os.path.join(tempdir, "scanner_output.txt")
+        assert os.path.exists(scanner_outfile)
 
 
 def test_bad_script_path():

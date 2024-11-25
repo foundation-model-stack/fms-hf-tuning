@@ -38,6 +38,7 @@ dependencies = [
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<3.0",
 "simpleeval>=0.9.13,<1.0",
+"HFResourceScanner",
 ]
 
 [project.optional-dependencies]
