@@ -77,7 +77,7 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
     for p in data_paths:
         assert isinstance(p, str), f"path {p} should be of the type string"
         assert os.path.exists(p), f"data_paths {p} does not exist"
-        if not os.isabs(p):
+        if not os.path.isabs(p):
             _p = os.path.abspath(p)
             logging.warning(
                 " Provided path %s is not absolute changing it to %s", p, _p

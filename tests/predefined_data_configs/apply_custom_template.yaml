@@ -5,7 +5,7 @@ datasets:
     data_paths:
       - "FILE_PATH"
     data_handlers:
-      - name: tokenize_and_apply_instruction_masking
+      - name: apply_custom_data_formatting_template
         arguments:
           remove_columns: all
           batched: false

@@ -906,7 +906,7 @@ def test_empty_data():
 
 
 def test_data_path_is_a_directory():
-    """Ensure that we get FileNotFoundError if we point the data path at a dir, not a file."""
+    """Ensure that we get ValueError if we point the data path at a dir, not a file."""
     with tempfile.TemporaryDirectory() as tempdir:
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = tempdir
