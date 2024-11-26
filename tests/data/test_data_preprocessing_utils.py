@@ -1,3 +1,20 @@
+# Copyright The FMS HF Tuning Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Standard
+import json
+
 # Third Party
 from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
@@ -19,11 +36,13 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
+from tuning.data.data_config import DataLoaderConfig, DataSetConfig
 from tuning.data.data_preprocessing_utils import (
     combine_sequence,
     get_data_collator,
     validate_data_args,
 )
+from tuning.data.data_processors import HFBasedDataPreProcessor
 from tuning.data.setup_dataprocessor import is_pretokenized_dataset, process_dataargs
 
 
@@ -385,3 +404,52 @@ def test_process_dataargs_pretokenized(data_args):
     assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     if eval_set:
         assert set(["input_ids", "labels"]).issubset(set(eval_set.column_names))
+
+
+@pytest.mark.parametrize(
+    "datafile, column_names, datasetconfigname",
+    [
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            set(["ID", "Label", "input", "output"]),
+            "text_dataset_input_output_masking",
+        ),
+        (
+            TWITTER_COMPLAINTS_TOKENIZED_JSON,
+            set(
+                [
+                    "Tweet text",
+                    "ID",
+                    "Label",
+                    "text_label",
+                    "output",
+                    "input_ids",
+                    "labels",
+                ]
+            ),
+            "pretokenized_dataset",
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_JSON,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+            "apply_custom_data_template",
+        ),
+    ],
+)
+def test_process_dataset_configs(datafile, column_names, datasetconfigname):
+    """Test process_dataset_configs for expected output."""
+    dataloaderconfig = DataLoaderConfig()
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    processor = HFBasedDataPreProcessor(
+        dataloaderconfig=dataloaderconfig,
+        tokenizer=tokenizer,
+    )
+    datasetconfig = [DataSetConfig(name=datasetconfigname, data_paths=[datafile])]
+    train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
+
+    assert isinstance(train_dataset, Dataset)
+    assert set(train_dataset.column_names) == column_names
+
+    with open(datafile, "r") as file:
+        data = json.load(file)
+    assert len(train_dataset) == len(data)
