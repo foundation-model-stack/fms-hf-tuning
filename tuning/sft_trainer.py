@@ -358,6 +358,9 @@ def train(
         dataset_text_field  # Inject the dataset text field into the training args
     )
     training_args.packing = packing  # Inject packing into the training args
+    training_args.max_seq_length = (
+        max_seq_length  # Specify max sequence length for the dataset
+    )
 
     if is_pretokenized_dataset(
         data_args.training_data_path or data_args.validation_data_path
