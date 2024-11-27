@@ -657,13 +657,12 @@ def main():
             # Third Party
             from HFResourceScanner import Scanner
 
-            sc_callback = [
-                Scanner(
-                    output_fmt=os.path.join(
-                        training_args.output_dir, "scanner_output.txt"
-                    )
-                )
-            ]
+            output_fmt = os.path.join(training_args.output_dir, "scanner_output.json")
+            sc_callback = [Scanner(output_fmt=output_fmt)]
+            logging.info(
+                "Attaching HFResourceScanner as a callback with output_fmt: %s",
+                output_fmt,
+            )
 
     try:
         trainer, additional_train_info = train(
