@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from typing import Annotated
 from unittest.mock import patch
 import copy
+import os
 import tempfile
 
 # Third Party
@@ -37,6 +38,11 @@ from tuning.config.acceleration_configs import (
 from tuning.config.acceleration_configs.acceleration_framework_config import (
     ConfigAnnotation,
 )
+from tuning.config.acceleration_configs.attention_and_distributed_packing import (
+    AttentionAndDistributedPackingConfig,
+    MultiPack,
+    PaddingFree,
+)
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -47,11 +53,24 @@ from tuning.config.acceleration_configs.quantized_lora_config import (
 )
 from tuning.utils.import_utils import is_fms_accelerate_available
 
+# for some reason the CI will raise an import error if we try to import
+# these from tests.data
+TWITTER_COMPLAINTS_JSON_FORMAT = os.path.join(
+    os.path.dirname(__file__), "../data/twitter_complaints_json.json"
+)
+TWITTER_COMPLAINTS_TOKENIZED = os.path.join(
+    os.path.dirname(__file__),
+    "../data/twitter_complaints_tokenized_with_maykeye_tinyllama_v0.json",
+)
+
 # pylint: disable=import-error
 if is_fms_accelerate_available():
 
     # Third Party
-    from fms_acceleration.utils.test_utils import build_framework_and_maybe_instantiate
+    from fms_acceleration.utils.test_utils import (
+        build_framework_and_maybe_instantiate,
+        instantiate_model_patcher,
+    )
 
     if is_fms_accelerate_available(plugins="peft"):
         # Third Party
@@ -62,7 +81,11 @@ if is_fms_accelerate_available():
 
     if is_fms_accelerate_available(plugins="foak"):
         # Third Party
-        from fms_acceleration_foak import FastQuantizedPeftAccelerationPlugin
+        from fms_acceleration_foak import FastKernelsAccelerationPlugin
+
+    if is_fms_accelerate_available(plugins="aadp"):
+        # Third Party
+        from fms_acceleration_aadp import PaddingFreeAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -351,6 +374,8 @@ def test_framework_intialized_properly_peft(
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
         train_args.fp16 = True
+        peft_args = copy.deepcopy(PEFT_LORA_ARGS)
+        peft_args.target_modules = ["q_proj", "k_proj"]
 
         installation_path, (MockedPlugin, spy) = mock_and_spy
 
@@ -361,13 +386,14 @@ def test_framework_intialized_properly_peft(
             [([installation_path], MockedPlugin)],
             instantiate=False,
         ):
-            sft_trainer.train(
-                model_args,
-                DATA_ARGS,
-                train_args,
-                PEFT_LORA_ARGS,
-                quantized_lora_config=quantized_lora_config,
-            )
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    DATA_ARGS,
+                    train_args,
+                    peft_args,
+                    quantized_lora_config=quantized_lora_config,
+                )
 
         # spy inside the train to ensure that the acceleration plugin
         # was called. In the context of the AutoGPTQ plugin
@@ -399,6 +425,8 @@ def test_framework_intialized_properly_foak():
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
         train_args.fp16 = True
+        peft_args = copy.deepcopy(PEFT_LORA_ARGS)
+        peft_args.target_modules = ["q_proj", "k_proj"]
 
         # setup default quantized lora args dataclass
         # - with auth gptq as the quantized method
@@ -406,7 +434,7 @@ def test_framework_intialized_properly_foak():
         fusedops_kernels_config = FusedOpsAndKernelsConfig(
             fused_lora=FusedLoraConfig(base_layer="auto_gptq", fused_lora=True),
             fast_kernels=FastKernelsConfig(
-                fast_loss=True, fast_rsm_layernorm=True, fast_rope_embeddings=True
+                fast_loss=True, fast_rms_layernorm=True, fast_rope_embeddings=True
             ),
         )
 
@@ -415,7 +443,7 @@ def test_framework_intialized_properly_foak():
             "AutoGPTQMock", AutoGPTQAccelerationPlugin
         )
         MockedPlugin2, spy2 = create_mock_plugin_class_and_spy(
-            "FastPeftMock", FastQuantizedPeftAccelerationPlugin
+            "FastPeftMock", FastKernelsAccelerationPlugin
         )
 
         # 1. mock a plugin class
@@ -428,14 +456,15 @@ def test_framework_intialized_properly_foak():
             ],
             instantiate=False,
         ):
-            sft_trainer.train(
-                model_args,
-                DATA_ARGS,
-                train_args,
-                PEFT_LORA_ARGS,
-                quantized_lora_config=quantized_lora_config,
-                fusedops_kernels_config=fusedops_kernels_config,
-            )
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    DATA_ARGS,
+                    train_args,
+                    peft_args,
+                    quantized_lora_config=quantized_lora_config,
+                    fusedops_kernels_config=fusedops_kernels_config,
+                )
 
         # spy inside the train to ensure that the AutoGPTQ plugin is called
         assert spy["model_loader_calls"] == 1
@@ -446,3 +475,244 @@ def test_framework_intialized_properly_foak():
         assert spy2["model_loader_calls"] == 0
         assert spy2["augmentation_calls"] == 1
         assert spy2["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
+)
+def test_framework_initialize_and_trains_with_aadp():
+    """
+    Ensure that a properly configured aadp dataclass is
+    correctly activated in train.
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+        model_args.use_flash_attn = True
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n\n### Label:"
+        data_args.dataset_text_field = "output"
+
+        # initialize a config
+        aadp_config = AttentionAndDistributedPackingConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "PaddingFreeMock", PaddingFreeAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.attention.padding_free"], MockedPlugin1),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    attention_and_distributed_packing_config=aadp_config,
+                )
+
+        # spy inside the train to ensure that the ilab plugin is called
+        assert spy["model_loader_calls"] == 0
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
+)
+def test_error_raised_with_paddingfree_and_flash_attn_disabled():
+    """Ensure error raised when padding-free is not used with flash attention"""
+    with pytest.raises(
+        ValueError,
+        match="`--padding_free` argument was called without enabling "
+        "flash attention, ensure `use_flash_attn = True` to use padding-free flash attention",
+    ):
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.use_flash_attn = False
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            TRAIN_ARGS,
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+        )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
+)
+def test_error_raised_with_multipack_and_paddingfree_disabled():
+    """Ensure error raised when padding-free is not used with multipack"""
+    with pytest.raises(
+        ValueError,
+        match="`--multipack` is currently only supported with `--padding_free`",
+    ):
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+            multipack=MultiPack(num_processes=16),
+            padding_free=None,
+        )
+        model_args = copy.deepcopy(MODEL_ARGS)
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            TRAIN_ARGS,
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+        )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="aadp"),
+    reason="Only runs if fms-accelerate is installed along with \
+        attention_and_distributed_packing plugin",
+)
+def test_error_raised_with_packing_and_paddingfree_enabled():
+    """Ensure error raised when padding-free is used with packing"""
+    with pytest.raises(
+        ValueError,
+        match="`--padding_free` argument was called with `packing=True`, "
+        "Trainer should not perform packing when using `--padding_free`",
+    ):
+        attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+            padding_free=PaddingFree(method="huggingface")
+        )
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.use_flash_attn = True
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.packing = True
+        sft_trainer.train(
+            model_args,
+            DATA_ARGS,
+            train_args,
+            attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+        )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="foak"),
+    reason="Only runs if fms-accelerate is installed along with \
+        fused_ops_and_kernels plugin",
+)
+def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
+    """
+    Ensure error is thrown when `--fused_lora` is passed without
+    `--auto_gptq` or `bitsandbytes`
+    """
+    with pytest.raises(
+        ValueError,
+        match="`--fused_lora` must be accompanied by a quantized base layer "
+        "`--auto_gptq` or `--bitsandbytes`.",
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+            # instantiate the arguments
+            model_args = copy.deepcopy(MODEL_ARGS)
+            model_args.model_name_or_path = "TheBloke/TinyLlama-1.1B-Chat-v0.3-GPTQ"
+            model_args.torch_dtype = torch.float16
+            train_args = copy.deepcopy(TRAIN_ARGS)
+            train_args.output_dir = tempdir
+            train_args.save_strategy = "no"
+            train_args.fp16 = True
+            peft_args = copy.deepcopy(PEFT_LORA_ARGS)
+            peft_args.target_modules = ["q_proj", "k_proj"]
+
+            # setup FOAK config with fused lora
+            fusedops_kernels_config = FusedOpsAndKernelsConfig(
+                fused_lora=FusedLoraConfig(base_layer="auto_gptq", fused_lora=True),
+            )
+
+            # pass FOAK config but don't specify quantized base layer to sft_trainer
+            # expect error in framework instantiation
+            with build_framework_and_maybe_instantiate(
+                [
+                    (["training.fused_ops_and_kernels"], fusedops_kernels_config),
+                ],
+                instantiate=False,
+            ):
+                with instantiate_model_patcher():
+                    sft_trainer.train(
+                        model_args,
+                        DATA_ARGS,
+                        train_args,
+                        peft_args,
+                        quantized_lora_config=None,
+                        fusedops_kernels_config=fusedops_kernels_config,
+                    )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="foak"),
+    reason="Only runs if fms-accelerate is installed along with \
+        fused_ops_and_kernels plugin",
+)
+def test_fastkernels_with_full_finetuning_runs_successfully():
+    """
+    Ensure that a properly configured fastkernels dataclass will train with full FT.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+        model_args.torch_dtype = torch.bfloat16
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        train_args.bf16 = True
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n\n### Label:"
+        data_args.dataset_text_field = "output"
+
+        # initialize a FOAK config
+        fusedops_kernels_config = FusedOpsAndKernelsConfig(
+            fast_kernels=FastKernelsConfig(
+                fast_loss=True, fast_rms_layernorm=True, fast_rope_embeddings=True
+            ),
+        )
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "FastKernelsMock", FastKernelsAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.fused_ops_and_kernels"], MockedPlugin1),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    fusedops_kernels_config=fusedops_kernels_config,
+                )
+
+        # spy inside train to ensure that the aadp plugin is called
+        assert spy["augmentation_calls"] == 1
+        assert spy["get_ready_for_train_calls"] == 1
