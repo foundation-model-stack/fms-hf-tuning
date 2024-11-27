@@ -155,7 +155,7 @@ def test_lora_save_model_dir_separate_dirs():
         _validate_termination_files_when_tuning_succeeds(output_dir)
         _validate_training_output(save_model_dir, "lora")
 
-        assert len(os.listdir(output_dir)) == 3
+        # purpose here is to see if only one checkpoint is saved
         checkpoints = glob.glob(os.path.join(output_dir, "checkpoint-*"))
         assert len(checkpoints) == 1
 
@@ -212,6 +212,38 @@ def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no():
         # no checkpoints should be created
         checkpoints = glob.glob(os.path.join(tempdir, "checkpoint-*"))
         assert len(checkpoints) == 0
+
+
+def test_lora_with_lora_post_process_for_vllm_set_to_true():
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": tempdir,
+                "save_model_dir": tempdir,
+                "lora_post_process_for_vllm": True,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        # check that model and logs exists in output_dir
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        _validate_training_output(tempdir, "lora")
+
+        for _, dirs, _ in os.walk(tempdir, topdown=False):
+            for name in dirs:
+                if "checkpoint-" in name.lower():
+                    new_embeddings_file_path = os.path.join(
+                        tempdir, name, "new_embeddings.safetensors"
+                    )
+                    assert os.path.exists(new_embeddings_file_path)
+
+        # check for new_embeddings.safetensors
+        new_embeddings_file_path = os.path.join(tempdir, "new_embeddings.safetensors")
+        assert os.path.exists(new_embeddings_file_path)
 
 
 def test_bad_script_path():

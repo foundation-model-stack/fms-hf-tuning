@@ -38,14 +38,16 @@ For example, the below config is used for running with two GPUs and FSDP for fin
     "per_device_train_batch_size": 4,
     "learning_rate": 1e-5,
     "response_template": "\n### Label:",
-    "dataset_text_field": "output"
+    "dataset_text_field": "output",
+    "lora_post_process_for_vllm": true
 }
 ```
 
-Users should always set `num_processes` to be explicit about the number of processes to run tuning on. When `num_processes` is greater than 1, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Thus in the above example, you don't need to pass in the FSDP flags since they match the ones used in the default FSDP config. You can also set your own default values by specifying your own config file using key `config_file`. Any of these values in configs can be overwritten by passing in flags via `accelerate_launch_args` in the JSON config.
+`num_processes` defaults to the amount of GPUs allocated for tuning, unless the user sets `SET_NUM_PROCESSES_TO_NUM_GPUS` to `False`. When `num_processes` is greater than 1, the [FSDP config](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/fixtures/accelerate_fsdp_defaults.yaml) is used by default. Thus in the above example, you don't need to pass in the FSDP flags since they match the ones used in the default FSDP config. You can also set your own default values by specifying your own config file using key `config_file`. Any of these values in configs can be overwritten by passing in flags via `accelerate_launch_args` in the JSON config.
 
 Note that `num_processes` which is the total number of processes to be launched in parallel, should match the number of GPUs to run on. The number of GPUs used can also be set by setting environment variable `CUDA_VISIBLE_DEVICES`. If ``num_processes=1`, the script will assume single-GPU.
 
+If tuning for inference on vLLM, set `lora_post_process_for_vllm` to `true`. Post process LoRA adapters to allow inferencing on vLLM. vLLM needs new token embedding weights added during tuning to be moved to a new file new_embeddings.safetensors.
 
 ## Building the Image
 

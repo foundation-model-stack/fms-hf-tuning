@@ -9,6 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
+  - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -131,7 +132,47 @@ Example: Train.jsonl
 
 ## Supported Models
 
-Current supported and tested models are `Llama2` (7 and 13B configurations have been tested) and `GPTBigCode`.
+- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
+
+- LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
+
+- Legend:
+
+  ✅ Ready and available 
+
+  ✔️ Ready and available - compatible architecture (*see first bullet point above)
+
+  🚫 Not supported
+
+  ? May be supported, but not tested
+
+Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
+-------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
+Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
+GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
+Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
+Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
+Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
+Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+Llama3.1-8B          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
+Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
+Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
+Llama3-70B                                | LLaMA 3   | 🚫 | ✅ | ✅ |
+aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
+Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
+Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
+Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
+
+(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+
+(**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
+
+(***) - Supported from platform up to 8k context length - same architecture as llama3-8b
 
 ## Training
 
@@ -276,6 +317,11 @@ Writing models to Cloud Object Storage (COS) is an expensive operation. Saving m
 You can set `output_dir` to a local directory and set `save_model_dir` to COS to save time on write operations while ensuring checkpoints are saved.
 
 In order to achieve the fastest train time, set `save_strategy="no"`, as saving no checkpoints except for the final model will remove intermediate write operations all together.
+
+#### Resuming tuning from checkpoints
+If the output directory already contains checkpoints, tuning will automatically resume from the latest checkpoint in the directory specified by the `output_dir` flag. To start tuning from scratch and ignore existing checkpoints, set the `resume_from_checkpoint` flag to False.
+
+You can also use the resume_from_checkpoint flag to resume tuning from a specific checkpoint by providing the full path to the desired checkpoint as a string. This flag is passed as an argument to the [trainer.train()](https://github.com/huggingface/transformers/blob/db70426854fe7850f2c5834d633aff637f14772e/src/transformers/trainer.py#L1901) function of the SFTTrainer.
 
 ## Tuning Techniques:
 
@@ -430,6 +476,99 @@ Example 3:
 
 </details>
 
+#### Post-processing needed for inference on VLLM
+
+In order to run inference of LoRA adapters on vLLM, any new token embeddings added while tuning needs to be moved out of 'adapters.safetensors' to a new file 'new_embeddings.safetensors'. The 'adapters.safetensors' should only have LoRA weights and should not have modified embedding vectors. This is a requirement to support vLLM's paradigm that one base model can serve multiple adapters. New token embedding vectors are appended to the embedding matrix read from the base model by vLLM.
+
+To do this postprocessing, the tuning script sft_trainer.py will generate a file 'added_tokens_info.json' with model artifacts. After tuning, you can run script 'post_process_adapters_vLLM.py' :
+
+```bash
+# model_path: Path to saved model artifacts which has file 'added_tokens_info.json'
+# output_model_path: Optional. If you want to store modified \
+#    artifacts in a different directory rather than modify in-place.
+python scripts/post_process_adapters_vLLM.py \
+--model_path "/testing/tuning/output/post-process-LoRA-saved" \
+--output_model_path "/testing/tuning/output/post-process-LoRA-modified"
+```
+
+<details>
+<summary> Alternatively, if using SDK :</summary>
+
+```bash
+# function in tuning/utils/merge_model_utils.py
+post_process_vLLM_adapters_new_tokens(
+    path_to_checkpoint="/testing/tuning/output/post-process-LoRA-saved",
+    modified_checkpoint_path=None,
+    num_added_tokens=1,
+)
+# where num_added_tokens is returned by sft_trainer.train()
+```
+</details>
+
+_________________________
+
+
+### GPTQ-LoRA with AutoGPTQ Tuning Example
+
+This method is similar to LoRA Tuning, but the base model is a quantized model. We currently only support GPTQ-LoRA model that has been quantized with 4-bit AutoGPTQ technique. Bits-and-Bytes (BNB) quantized LoRA is not yet enabled.
+The qLoRA tuning technique is enabled via the [fms-acceleration](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) package.
+You can see details on a sample configuration of Accelerated GPTQ-LoRA [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/sample-configurations/accelerated-peft-autogptq-sample-configuration.yaml).
+
+
+To use GPTQ-LoRA technique, you can set the `quantized_lora_config` defined [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/acceleration_configs/quantized_lora_config.py). See the Notes section of FMS Acceleration doc [below](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) for usage. The only kernel we are supporting currently is `triton_v2`.
+
+In addition, LoRA tuning technique is required to be used, set `peft_method` to `"lora"` and pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+
+Example command to run:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+--learning_rate 1e-4 \
+--response_template "\n### Label:" \
+--dataset_text_field "output" \
+--peft_method "lora" \
+--r 8 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules c_attn c_proj \
+--auto_gptq triton_v2 \ # setting quantized_lora_config 
+--torch_dtype float16 \ # need this for triton_v2
+--fp16 \ # need this for triton_v2
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "\n### Label:",
+    "dataset_text_field": "output",
+    "peft_method": "lora",
+    "r": 8,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["c_attn", "c_proj"],
+    "auto_gptq": ["triton_v2"], // setting quantized_lora_config
+    "torch_dtype": "float16", // need this for triton_v2
+    "fp16": true // need this for triton_v2
+}
+```
+
+Similarly to LoRA, the `target_modules` are the names of the modules to apply the adapter to. See the LoRA [section](#lora-tuning-example) on `target_modules` for more info.
+
+Note that with LoRA tuning technique, setting `all-linear` on `target_modules` returns linear modules. And with qLoRA tuning technique, `all-linear` returns all quant linear modules, excluding `lm_head`.
+
 _________________________
 
 ### Prompt Tuning:
@@ -548,18 +687,40 @@ The list of configurations for various `fms_acceleration` plugins:
 - [quantized_lora_config](./tuning/config/acceleration_configs/quantized_lora_config.py): For quantized 4bit LoRA training
   - `--auto_gptq`: 4bit GPTQ-LoRA with AutoGPTQ
   - `--bnb_qlora`: 4bit QLoRA with bitsandbytes
-- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py) (experimental):
+- [fused_ops_and_kernels](./tuning/config/acceleration_configs/fused_ops_and_kernels.py):
   - `--fused_lora`: fused lora for more efficient LoRA training.
   - `--fast_kernels`: fast cross-entropy, rope, rms loss kernels.
+- [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
+  - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
+  - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
  * When setting `--auto_gptq triton_v2` plus note to also pass `--torch_dtype float16` and `--fp16`, or an exception will be raised. This is because these kernels only support this dtype.
- * Currently, the `fused_ops_and_kernels` is to be used used together QLoRA or GPTQ-LORA via the `quantized_lora_config`. In the future it may be made more flexible such that `fast_kernels` can even be used with full-finetuning.
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
  make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
- * Currently `fused_ops_and_kernels` only supports activating `fast_loss,fast_rsm_layernorm,fast_rope_embeddings` all to `True`, so pass `--fast_kernels True True True`.
+ * `fused_ops_and_kernels` works for full-finetuning, LoRA, QLoRA and GPTQ-LORA, 
+    - pass `--fast_kernels True True True` for full finetuning/LoRA
+    - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
+    - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
+ * Notes on Padding Free
+    - works for both *single* and *multi-gpu*. 
+    - works on both *pretokenized* and *untokenized* datasets
+    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+ * Notes on Multipack
+    - works only for *multi-gpu*.
+    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
 
+Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
+```json
+{
+  "fast_kernels": [true, true, true],
+  "padding_free": ["huggingface"],
+  "multipack": [16],
+  "auto_gptq": ["triton_v2"]
+}
+```
 
 Activate `TRANSFORMERS_VERBOSITY=info` to see the huggingface trainer printouts and verify that `AccelerationFramework` is activated!
 
