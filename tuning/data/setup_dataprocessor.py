@@ -36,7 +36,7 @@ from tuning.data.data_preprocessing_utils import (
     get_data_collator,
     validate_data_args,
 )
-from tuning.data.data_processors import get_dataprocessor
+from tuning.data.data_processors import get_datapreprocessor
 
 
 # check if the provided dataset is pretokenized or not
@@ -47,7 +47,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         return False
     if isinstance(data, str):
         # Create a data processor with default loader config
-        processor = get_dataprocessor(
+        processor = get_datapreprocessor(
             dataloaderconfig=DataLoaderConfig(), tokenizer=None
         )
         data = processor.load_dataset(None, splitName="train[:1]", datafile=data)
@@ -61,7 +61,7 @@ def _process_dataconfig_file(
     data_args: DataArguments, tokenizer: AutoTokenizer, packing: bool, max_seq_len: int
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
-    processor = get_dataprocessor(
+    processor = get_datapreprocessor(
         dataloaderconfig=data_config.dataloader, tokenizer=tokenizer
     )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
@@ -126,7 +126,7 @@ def process_dataargs(
 
     # Create a data processor with default loader config
     default_loader_config = DataLoaderConfig()
-    data_processor = get_dataprocessor(
+    data_processor = get_datapreprocessor(
         dataloaderconfig=default_loader_config, tokenizer=tokenizer
     )
 

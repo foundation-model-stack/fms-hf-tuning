@@ -223,7 +223,7 @@ def autoregister_available_handlers(processor: DataPreProcessor):
         processor.register_data_handler(name=name, func=func)
 
 
-def get_dataprocessor(
+def get_datapreprocessor(
     dataloaderconfig: DataLoaderConfig, tokenizer: AutoTokenizer
 ) -> DataPreProcessor:
     loader = dataloaderconfig.type

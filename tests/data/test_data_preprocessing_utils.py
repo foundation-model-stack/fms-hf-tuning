@@ -48,7 +48,7 @@ from tuning.data.data_preprocessing_utils import (
     get_data_collator,
     validate_data_args,
 )
-from tuning.data.data_processors import HFBasedDataPreProcessor, get_dataprocessor
+from tuning.data.data_processors import HFBasedDataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
     _process_dataconfig_file,
     is_pretokenized_dataset,
@@ -119,7 +119,9 @@ def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
 )
 def test_load_dataset_with_datafile(datafile, column_names):
     """Ensure that both dataset is loaded with datafile."""
-    processor = get_dataprocessor(dataloaderconfig=DataLoaderConfig(), tokenizer=None)
+    processor = get_datapreprocessor(
+        dataloaderconfig=DataLoaderConfig(), tokenizer=None
+    )
     load_dataset = processor.load_dataset(
         datasetconfig=None, splitName="train", datafile=datafile
     )
@@ -159,7 +161,9 @@ def test_load_dataset_with_datafile(datafile, column_names):
 def test_load_dataset_with_datasetconfig(datafile, column_names, datasetconfigname):
     """Ensure that both dataset is loaded with datafile."""
     datasetconfig = DataSetConfig(name=datasetconfigname, data_paths=[datafile])
-    processor = get_dataprocessor(dataloaderconfig=DataLoaderConfig(), tokenizer=None)
+    processor = get_datapreprocessor(
+        dataloaderconfig=DataLoaderConfig(), tokenizer=None
+    )
     load_dataset = processor.load_dataset(
         datasetconfig=datasetconfig, splitName="train", datafile=None
     )
@@ -180,7 +184,9 @@ def test_load_dataset_with_datasetconfig(datafile, column_names, datasetconfigna
 def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
     """Ensure that both datasetconfig and datafile cannot be passed."""
     datasetconfig = DataSetConfig(name=datasetconfigname, data_paths=[datafile])
-    processor = get_dataprocessor(dataloaderconfig=DataLoaderConfig(), tokenizer=None)
+    processor = get_datapreprocessor(
+        dataloaderconfig=DataLoaderConfig(), tokenizer=None
+    )
     with pytest.raises(ValueError):
         processor.load_dataset(
             datasetconfig=datasetconfig, splitName="train", datafile=datafile
@@ -189,7 +195,9 @@ def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
 
 def test_load_dataset_without_dataconfig_and_datafile():
     """Ensure that both datasetconfig and datafile cannot be None."""
-    processor = get_dataprocessor(dataloaderconfig=DataLoaderConfig(), tokenizer=None)
+    processor = get_datapreprocessor(
+        dataloaderconfig=DataLoaderConfig(), tokenizer=None
+    )
     with pytest.raises(ValueError):
         processor.load_dataset(datasetconfig=None, splitName="train", datafile=None)
 
