@@ -22,7 +22,6 @@ import glob
 
 # Third Party
 import pytest
-from transformers.trainer_callback import TrainerCallback
 
 # First Party
 from build.accelerate_launch import main
