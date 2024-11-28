@@ -264,7 +264,7 @@ def test_launch_with_add_scanner_callback():
 
         assert main() == 0
 
-        scanner_outfile = os.path.join(tempdir, "scanner_output.txt")
+        scanner_outfile = os.path.join(tempdir, "scanner_output.json")
         assert os.path.exists(scanner_outfile)
 
 

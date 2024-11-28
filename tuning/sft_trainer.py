@@ -655,6 +655,7 @@ def main():
         logger.info("using the output directory at %s", training_args.output_dir)
         if add_scanner_callback:
             # Third Party
+            # pylint: disable=import-outside-toplevel
             from HFResourceScanner import Scanner
 
             output_fmt = os.path.join(training_args.output_dir, "scanner_output.json")
