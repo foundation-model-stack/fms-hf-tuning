@@ -37,13 +37,13 @@ class DataSetConfig:
 
 
 @dataclass
-class DataLoaderConfig:
+class DataPreProcessorConfig:
     type: Optional[str] = "default"
 
 
 @dataclass
 class DataConfig:
-    dataloader: DataLoaderConfig
+    dataprocessor: DataPreProcessorConfig
     datasets: List[DataSetConfig]
 
 
@@ -102,15 +102,15 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
     return c
 
 
-def _validate_dataloader_config(dataloader_config) -> DataLoaderConfig:
-    kwargs = dataloader_config
-    c = DataLoaderConfig()
-    assert isinstance(kwargs, dict), "dataloader in data_config needs to be a dict"
+def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConfig:
+    kwargs = dataprocessor_config
+    c = DataPreProcessorConfig()
+    assert isinstance(kwargs, dict), "dataprocessor in data_config needs to be a dict"
     return c
 
 
 def validate_data_config(dataconfig: DataConfig):
-    _validate_dataloader_config(dataconfig.dataloader)
+    _validate_dataprocessor_config(dataconfig.dataprocessor)
     for d in dataconfig.datasets:
         _validate_dataset_config(d)
 
@@ -127,8 +127,8 @@ def load_and_validate_data_config(data_config_file: str) -> DataConfig:
     datasets = []
     for d in raw_data["datasets"]:
         datasets.append(_validate_dataset_config(d))
-    if "dataloader" in raw_data:
-        dataloader = _validate_dataloader_config(raw_data["dataloader"])
+    if "dataprocessor" in raw_data:
+        dataprocessor = _validate_dataprocessor_config(raw_data["dataprocessor"])
 
-    data_config = DataConfig(dataloader=dataloader, datasets=datasets)
+    data_config = DataConfig(dataprocessor=dataprocessor, datasets=datasets)
     return data_config

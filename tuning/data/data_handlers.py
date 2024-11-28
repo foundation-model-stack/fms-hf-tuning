@@ -90,7 +90,7 @@ def apply_custom_data_formatting_template(
 
 
 AVAILABLE_DATA_HANDLERS = {
-    "tokenize_and_apply_instruction_masking": tokenize_and_apply_input_masking,
+    "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
     "apply_dataset_formatting": apply_dataset_formatting,
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
 }

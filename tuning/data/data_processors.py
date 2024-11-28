@@ -26,7 +26,7 @@ import datasets
 import torch
 
 # Local
-from tuning.data.data_config import DataConfig, DataLoaderConfig, DataSetConfig
+from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
 from tuning.utils.utils import get_extension, get_loader_for_filepath
 
@@ -35,12 +35,14 @@ class DataPreProcessor(ABC):
 
     tokenizer = None
     data_config: DataConfig = None
-    dataloaderconfig: DataLoaderConfig = None
+    processor_config: DataPreProcessorConfig = None
     registered_handlers: Dict[str, callable] = None
 
-    def __init__(self, dataloaderconfig: DataLoaderConfig, tokenizer: AutoTokenizer):
+    def __init__(
+        self, processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
+    ):
         self.tokenizer = tokenizer
-        self.dataloaderconfig = dataloaderconfig
+        self.processor_config = processor_config
 
         # Initialize other objects
         self.registered_handlers = {}
@@ -67,10 +69,10 @@ class DataPreProcessor(ABC):
 class HFBasedDataPreProcessor(DataPreProcessor):
     def __init__(
         self,
-        dataloaderconfig: DataLoaderConfig,
+        processor_config: DataPreProcessorConfig,
         tokenizer: AutoTokenizer,
     ):
-        super().__init__(dataloaderconfig=dataloaderconfig, tokenizer=tokenizer)
+        super().__init__(processor_config=processor_config, tokenizer=tokenizer)
 
     def load_dataset(
         self,
@@ -224,12 +226,12 @@ def autoregister_available_handlers(processor: DataPreProcessor):
 
 
 def get_datapreprocessor(
-    dataloaderconfig: DataLoaderConfig, tokenizer: AutoTokenizer
+    processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
 ) -> DataPreProcessor:
-    loader = dataloaderconfig.type
-    if loader == "default":
+    processor = processor_config.type
+    if processor == "default":
         processor = HFBasedDataPreProcessor(
-            dataloaderconfig=dataloaderconfig,
+            processor_config=processor_config,
             tokenizer=tokenizer,
         )
     else:

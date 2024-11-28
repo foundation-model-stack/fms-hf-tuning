@@ -26,7 +26,7 @@ from transformers import AutoTokenizer
 from tuning.config.configs import DataArguments, TrainingArguments
 from tuning.data.data_config import (
     DataHandlerConfig,
-    DataLoaderConfig,
+    DataPreProcessorConfig,
     DataSetConfig,
     load_and_validate_data_config,
 )
@@ -46,9 +46,9 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     if not data:
         return False
     if isinstance(data, str):
-        # Create a data processor with default loader config
+        # Create a data processor with default processor config
         processor = get_datapreprocessor(
-            dataloaderconfig=DataLoaderConfig(), tokenizer=None
+            processor_config=DataPreProcessorConfig(), tokenizer=None
         )
         data = processor.load_dataset(None, splitName="train[:1]", datafile=data)
 
@@ -62,7 +62,7 @@ def _process_dataconfig_file(
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
-        dataloaderconfig=data_config.dataloader, tokenizer=tokenizer
+        processor_config=data_config.dataprocessor, tokenizer=tokenizer
     )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
@@ -124,10 +124,10 @@ def process_dataargs(
             data_args, tokenizer, train_args.packing, max_seq_length
         )
 
-    # Create a data processor with default loader config
-    default_loader_config = DataLoaderConfig()
+    # Create a data processor with default processor config
+    default_processor_config = DataPreProcessorConfig()
     data_processor = get_datapreprocessor(
-        dataloaderconfig=default_loader_config, tokenizer=tokenizer
+        processor_config=default_processor_config, tokenizer=tokenizer
     )
 
     # TODO: This check loads first slice of the dataset to view its columns
@@ -205,7 +205,7 @@ def process_dataargs(
         }
 
         handler = DataHandlerConfig(
-            "tokenize_and_apply_instruction_masking", arguments=kwargs
+            "tokenize_and_apply_input_masking", arguments=kwargs
         )
         handlers = [handler]
 

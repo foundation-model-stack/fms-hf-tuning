@@ -1,11 +1,11 @@
-dataloader:
+dataprocessor:
     type: default
 datasets:
   - name: text_dataset_input_output_masking
     data_paths:
       - "FILE_PATH"
     data_handlers:
-      - name: tokenize_and_apply_instruction_masking
+      - name: tokenize_and_apply_input_masking
         arguments:
           remove_columns: all
           batched: false
