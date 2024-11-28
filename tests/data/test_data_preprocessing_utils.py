@@ -25,10 +25,10 @@ import pytest
 import yaml
 
 # First Party
-from tests.predefined_data_configs import (
+from tests.artifacts.predefined_data_configs import (
     APPLY_CUSTOM_TEMPLATE_YAML,
     PRETOKENIZE_JSON_DATA_YAML,
-    TOKENIZE_AND_INSTRUCTION_MASKING_YAML,
+    TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
 from tests.artifacts.testdata import (
     MODEL_NAME,
@@ -408,11 +408,11 @@ def test_validate_args_pretokenized(data_args, packing):
         (PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSON),
         (PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSONL),
         (
-            TOKENIZE_AND_INSTRUCTION_MASKING_YAML,
+            TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
         ),
         (
-            TOKENIZE_AND_INSTRUCTION_MASKING_YAML,
+            TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
         ),
     ],

@@ -25,6 +25,6 @@ APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
 PRETOKENIZE_JSON_DATA_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "pretokenized_json_data.yaml"
 )
-TOKENIZE_AND_INSTRUCTION_MASKING_YAML = os.path.join(
-    PREDEFINED_DATA_CONFIGS, "tokenize_and_instruction_masking.yaml"
+TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking.yaml"
 )

@@ -99,8 +99,7 @@ class DataArguments:
         default=None,
         metadata={
             "help": "data config file which specifies the data preprocessing logic to apply.\
-                     Supports both JSON and YAML based config files.\
-                     for examples see examples/predefined_data_configs"
+                     Supports both JSON and YAML based config files."
         },
     )
 
