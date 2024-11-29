@@ -20,7 +20,7 @@ import datasets
 import pytest
 
 # First Party
-from tests.data import TWITTER_COMPLAINTS_DATA_JSONL
+from tests.artifacts.testdata import TWITTER_COMPLAINTS_DATA_JSONL
 
 # Local
 from tuning.utils import data_utils
