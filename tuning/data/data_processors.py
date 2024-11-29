@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Standard
-from abc import ABC, abstractmethod
 from typing import Dict, List, Union
 import logging
 import os
@@ -31,7 +30,7 @@ from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
 from tuning.utils.utils import get_extension, get_loader_for_filepath
 
 
-class DataPreProcessor(ABC):
+class DataPreProcessor:
 
     tokenizer = None
     data_config: DataConfig = None
@@ -47,32 +46,8 @@ class DataPreProcessor(ABC):
         # Initialize other objects
         self.registered_handlers = {}
 
-    def load_dataset(
-        self,
-        datasetconfig: DataSetConfig,
-        splitName: str,
-        datafile: str = None,
-        **kwargs,
-    ):
-        raise NotImplementedError("Needs to be implemented")
-
     def register_data_handler(self, name: str, func: callable):
         self.registered_handlers[name] = func
-
-    @abstractmethod
-    def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], **extra_kwargs
-    ) -> Union[Dataset, IterableDataset]:
-        raise NotImplementedError("Needs to be implemented")
-
-
-class HFBasedDataPreProcessor(DataPreProcessor):
-    def __init__(
-        self,
-        processor_config: DataPreProcessorConfig,
-        tokenizer: AutoTokenizer,
-    ):
-        super().__init__(processor_config=processor_config, tokenizer=tokenizer)
 
     def load_dataset(
         self,
@@ -122,7 +97,7 @@ class HFBasedDataPreProcessor(DataPreProcessor):
         final_datasets = None
         splitName = "train"  # default
 
-        logging.info("Starting HFBasedDataPreProcessor...")
+        logging.info("Starting DataPreProcessor...")
         # Iterate over the multiple datasets provided to us
         for d in dataset_configs:
             logging.info("Loading %s", d.name)
@@ -208,9 +183,11 @@ class HFBasedDataPreProcessor(DataPreProcessor):
 
             # Use broadcast_object_list to share the dataset object across ranks
             # TODO: Check if torch.distributed.barrier() is called in broadcast_object_list()
-            obj_list = [train_dataset]
-            torch.distributed.broadcast_object_list(obj_list, src=0)
-            train_dataset = obj_list[0]
+            # See https://github.com/pytorch/pytorch/issues/56142
+            # for why the list is shared like this
+            to_share = [train_dataset]
+            torch.distributed.broadcast_object_list(to_share, src=0)
+            train_dataset = to_share[0]
         else:
             logging.info("Processing data...")
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
@@ -228,13 +205,9 @@ def autoregister_available_handlers(processor: DataPreProcessor):
 def get_datapreprocessor(
     processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
 ) -> DataPreProcessor:
-    processor = processor_config.type
-    if processor == "default":
-        processor = HFBasedDataPreProcessor(
-            processor_config=processor_config,
-            tokenizer=tokenizer,
-        )
-    else:
-        processor = None
+    processor = DataPreProcessor(
+        processor_config=processor_config,
+        tokenizer=tokenizer,
+    )
     autoregister_available_handlers(processor)
     return processor

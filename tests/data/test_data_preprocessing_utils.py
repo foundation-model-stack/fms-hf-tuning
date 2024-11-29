@@ -43,51 +43,13 @@ from tests.artifacts.testdata import (
 # Local
 from tuning.config import configs
 from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
-from tuning.data.data_preprocessing_utils import (
-    combine_sequence,
-    get_data_collator,
-    validate_data_args,
-)
-from tuning.data.data_processors import HFBasedDataPreProcessor, get_datapreprocessor
+from tuning.data.data_preprocessing_utils import get_data_collator
+from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
     _process_dataconfig_file,
     is_pretokenized_dataset,
     process_dataargs,
 )
-
-
-@pytest.mark.parametrize(
-    "input_element,output_element,expected_res",
-    [
-        ("foo ", "bar", "foo bar"),
-        ("foo\n", "bar", "foo\nbar"),
-        ("foo\t", "bar", "foo\tbar"),
-        ("foo", "bar", "foo bar"),
-    ],
-)
-def test_combine_sequence(input_element, output_element, expected_res):
-    """Ensure that input / output elements are combined with correct whitespace handling."""
-    comb_seq = combine_sequence(input_element, output_element)
-    assert isinstance(comb_seq, str)
-    assert comb_seq == expected_res
-
-
-@pytest.mark.parametrize(
-    "input_element,output_element,expected_res",
-    [
-        ("foo ", "bar", "foo bar"),
-        ("foo\n", "bar", "foo\nbar"),
-        ("foo\t", "bar", "foo\tbar"),
-        ("foo", "bar", "foo bar"),
-    ],
-)
-def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
-    """Ensure that input / output elements are combined with correct whitespace handling."""
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    comb_seq = combine_sequence(input_element, output_element, tokenizer.eos_token)
-    expected_res += tokenizer.eos_token
-    assert isinstance(comb_seq, str)
-    assert comb_seq == expected_res
 
 
 @pytest.mark.parametrize(
@@ -222,7 +184,6 @@ def test_load_dataset_without_dataconfig_and_datafile():
 )
 def test_is_pretokenized_data(data, result):
     """Ensure that the correct collator type is fetched based on the data args"""
-
     assert is_pretokenized_dataset(data=data) == result
 
 
@@ -361,43 +322,16 @@ def test_get_data_collator(
         ),
     ],
 )
-def test_validate_args(data_args, packing):
+def test_process_data_args_throws_error_where_needed(data_args, packing):
     """Ensure that respective errors are thrown for incorrect data arguments"""
     with pytest.raises(ValueError):
-        is_traindata_tokenized = is_pretokenized_dataset(data_args.training_data_path)
-        is_evaldata_tokenized = is_pretokenized_dataset(data_args.validation_data_path)
-        validate_data_args(
-            data_args, packing, is_traindata_tokenized, is_evaldata_tokenized
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        TRAIN_ARGS = configs.TrainingArguments(
+            packing=packing,
+            max_seq_length=1024,
+            output_dir="tmp",  # Not needed but positional
         )
-
-
-@pytest.mark.parametrize(
-    "data_args, packing",
-    [
-        # pretokenized train dataset and no validation dataset passed
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            ),
-            False,
-        ),
-        # pretokenized train and validation datasets
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            ),
-            False,
-        ),
-    ],
-)
-def test_validate_args_pretokenized(data_args, packing):
-    """Ensure that supported data args do not error out when passing pretokenized datasets"""
-    is_traindata_tokenized = is_pretokenized_dataset(data_args.training_data_path)
-    is_evaldata_tokenized = is_pretokenized_dataset(data_args.validation_data_path)
-    validate_data_args(
-        data_args, packing, is_traindata_tokenized, is_evaldata_tokenized
-    )
+        (_, _, _, _, _, _) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
 
 
 @pytest.mark.parametrize(
@@ -448,11 +382,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    packing = (False,)
-    max_seq_length = 1024
-    (train_set, _, _, _, _, _) = _process_dataconfig_file(
-        data_args, tokenizer, packing, max_seq_length
-    )
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -625,7 +555,7 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
     """Test process_dataset_configs for expected output."""
     dataprocessor_config = DataPreProcessorConfig()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    processor = HFBasedDataPreProcessor(
+    processor = DataPreProcessor(
         processor_config=dataprocessor_config,
         tokenizer=tokenizer,
     )

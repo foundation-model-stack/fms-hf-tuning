@@ -24,7 +24,10 @@ import pytest
 from tests.artifacts.testdata import MODEL_NAME, TWITTER_COMPLAINTS_DATA_JSONL
 
 # Local
-from tuning.data.data_handlers import apply_custom_data_formatting_template
+from tuning.data.data_handlers import (
+    apply_custom_data_formatting_template,
+    combine_sequence,
+)
 
 
 def test_apply_custom_formatting_template():
@@ -71,3 +74,37 @@ def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
                 "template": template,
             },
         )
+
+
+@pytest.mark.parametrize(
+    "input_element,output_element,expected_res",
+    [
+        ("foo ", "bar", "foo bar"),
+        ("foo\n", "bar", "foo\nbar"),
+        ("foo\t", "bar", "foo\tbar"),
+        ("foo", "bar", "foo bar"),
+    ],
+)
+def test_combine_sequence(input_element, output_element, expected_res):
+    """Ensure that input / output elements are combined with correct whitespace handling."""
+    comb_seq = combine_sequence(input_element, output_element)
+    assert isinstance(comb_seq, str)
+    assert comb_seq == expected_res
+
+
+@pytest.mark.parametrize(
+    "input_element,output_element,expected_res",
+    [
+        ("foo ", "bar", "foo bar"),
+        ("foo\n", "bar", "foo\nbar"),
+        ("foo\t", "bar", "foo\tbar"),
+        ("foo", "bar", "foo bar"),
+    ],
+)
+def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
+    """Ensure that input / output elements are combined with correct whitespace handling."""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    comb_seq = combine_sequence(input_element, output_element, tokenizer.eos_token)
+    expected_res += tokenizer.eos_token
+    assert isinstance(comb_seq, str)
+    assert comb_seq == expected_res

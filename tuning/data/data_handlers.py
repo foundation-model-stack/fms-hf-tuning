@@ -15,26 +15,55 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
-from typing import Dict
+from typing import Dict, List
+import re
 
 # Third Party
 from transformers import AutoTokenizer
 
-# Local
-from tuning.data.data_preprocessing_utils import combine_sequence, custom_data_formatter
+
+### Utils for custom masking / manipulating input / output strs, etc
+def combine_sequence(input_element: str, output_element: str, eos_token: str = ""):
+    """Combines / concatenates input & output element.
+
+    Args:
+        input_element: str
+            Input component of the combined sequence.
+        output_element: str
+            Output component of the combined sequence.
+        eos_token: str
+            EOS token associated with the tokenizer. \
+            If passed, it will be concatenated at end
+
+    Returns:
+        str
+            Sequence combined with whitespace.
+    """
+    if not input_element.endswith((" ", "\n", "\t")) and not output_element.startswith(
+        (" ", "\n", "\t")
+    ):
+        return input_element + " " + output_element + eos_token
+    return input_element + output_element + eos_token
 
 
 def tokenize_and_apply_input_masking(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
+    column_names: List[str],
     input_field_name: str,
     output_field_name: str,
     **tokenizer_kwargs,
 ):
+    if (input_field_name or output_field_name) not in column_names:
+        raise ValueError(
+            f"Dataset should contain {input_field_name} \
+                and {output_field_name} field if \
+                no dataset_text_field or data_formatter_template specified"
+        )
+
     input_text = element[input_field_name]
     output_text = element[output_field_name]
 
-    # TODO: Eventually move the code here
     combined = combine_sequence(input_text, output_text, eos_token=tokenizer.eos_token)
 
     fn_kwargs = tokenizer_kwargs.get("fn_kwargs", {})
@@ -56,7 +85,10 @@ def tokenize_and_apply_input_masking(
 
 
 def apply_dataset_formatting(
-    element: Dict[str, str], tokenizer: AutoTokenizer, dataset_text_field: str, **kwargs
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    **kwargs,
 ):
     return {
         f"{dataset_text_field}": element[f"{dataset_text_field}"] + tokenizer.eos_token
@@ -85,8 +117,22 @@ def apply_custom_data_formatting_template(
 
     template += tokenizer.eos_token
 
-    # TODO: Eventually move the code here.
-    return custom_data_formatter(element, template, dataset_text_field)
+    def replace_text(match_obj):
+        captured_groups = match_obj.groups()
+        if len(captured_groups) != 1:
+            raise ValueError(
+                "Unexpectedly captured multiple groups in template formatting"
+            )
+
+        index_object = captured_groups[0]
+        if index_object not in element:
+            raise KeyError("Requested template string is not a valid key in dict")
+
+        return element[index_object]
+
+    return {
+        dataset_text_field: re.sub(r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template)
+    }
 
 
 AVAILABLE_DATA_HANDLERS = {
