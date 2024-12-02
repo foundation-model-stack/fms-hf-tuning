@@ -22,6 +22,7 @@ import glob
 
 # Third Party
 import pytest
+from transformers.utils.import_utils import _is_package_available
 
 # First Party
 from build.accelerate_launch import main
@@ -246,6 +247,10 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
         assert os.path.exists(new_embeddings_file_path)
 
 
+@pytest.mark.skipif(
+    not _is_package_available("HFResourceScanner"),
+    reason="Only runs if HFResourceScanner is installed",
+)
 def test_launch_with_add_scanner_callback():
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)

@@ -37,6 +37,7 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
+from transformers.utils.import_utils import _is_package_available
 from trl import SFTConfig, SFTTrainer
 import transformers
 
@@ -70,6 +71,10 @@ from tuning.utils.preprocessing_utils import (
     validate_data_args,
 )
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+
+if _is_package_available("HFResourceScanner"):
+    # Third Party
+    from HFResourceScanner import Scanner  # pylint: disable=import-error
 
 
 def train(
@@ -654,10 +659,6 @@ def main():
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
         if add_scanner_callback:
-            # Third Party
-            # pylint: disable=import-outside-toplevel
-            from HFResourceScanner import Scanner
-
             output_fmt = os.path.join(training_args.output_dir, "scanner_output.json")
             sc_callback = [Scanner(output_fmt=output_fmt)]
             logging.info(
