@@ -230,12 +230,7 @@ def train(
         ),
         cache_dir=train_args.cache_dir,
         use_fast=True,
-        legacy=True,
     )
-
-    # Set padding side to right for all tokenizers
-    # TODO: Set padding side to base model's padding size in tokenizer_config.json
-    tokenizer.padding_side = "right"
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -348,7 +343,7 @@ def train(
 
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
-        "hub_token" if k == "push_to_hub_token" else k: v
+        k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
