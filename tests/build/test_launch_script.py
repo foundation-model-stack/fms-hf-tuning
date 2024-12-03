@@ -27,7 +27,7 @@ from transformers.utils.import_utils import _is_package_available
 # First Party
 from build.accelerate_launch import main
 from build.utils import serialize_args, get_highest_checkpoint
-from tests.data import TWITTER_COMPLAINTS_DATA_JSONL
+from tests.artifacts.testdata import TWITTER_COMPLAINTS_DATA_JSONL
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,

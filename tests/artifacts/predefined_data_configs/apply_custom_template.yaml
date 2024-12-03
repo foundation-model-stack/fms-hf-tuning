@@ -1,0 +1,14 @@
+dataprocessor:
+    type: default
+datasets:
+  - name: apply_custom_data_template
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_data_formatting_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            dataset_text_field: "dataset_text_field"
+            dataset_template: "dataset_template"
