@@ -6,7 +6,7 @@ from trl import DataCollatorForCompletionOnlyLM
 import pytest
 
 # First Party
-from tests.data import (
+from tests.artifacts.testdata import (
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,

@@ -31,7 +31,7 @@ import transformers
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.data import (
+from tests.artifacts.testdata import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
