@@ -95,6 +95,13 @@ class DataArguments:
                          or data_formatter_template needs to be supplied."
         },
     )
+    data_config_path: str = field(
+        default=None,
+        metadata={
+            "help": "data config file which specifies the data preprocessing logic to apply.\
+                     Supports both JSON and YAML based config files."
+        },
+    )
 
 
 @dataclass
