@@ -34,6 +34,7 @@ from tests.artifacts.testdata import (
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
     TWITTER_COMPLAINTS_DATA_JSON,
     TWITTER_COMPLAINTS_DATA_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
@@ -57,6 +58,10 @@ from tuning.data.setup_dataprocessor import (
     [
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            set(["ID", "Label", "input", "output"]),
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
             set(["ID", "Label", "input", "output"]),
         ),
         (

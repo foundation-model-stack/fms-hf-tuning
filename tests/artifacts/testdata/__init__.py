@@ -27,6 +27,9 @@ TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON = os.path.join(
 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL = os.path.join(
     DATA_DIR, "twitter_complaints_input_output.jsonl"
 )
+TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET = os.path.join(
+    DATA_DIR, "twitter_complaints_input_output.parquet"
+)
 TWITTER_COMPLAINTS_TOKENIZED_JSON = os.path.join(
     DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.json"
 )
