@@ -340,32 +340,36 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
+
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
         k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
-    training_args = SFTConfig(**transformer_kwargs)
 
-    dataset_kwargs = {}
+    training_args = SFTConfig(**transformer_kwargs)
+    training_args.dataset_text_field = (
+        dataset_text_field  # Inject the dataset text field into the training args
+    )
+    training_args.packing = packing  # Inject packing into the training args
+    training_args.max_seq_length = (
+        max_seq_length  # Specify max sequence length for the dataset
+    )
+
     if is_pretokenized_dataset(
         data_args.training_data_path or data_args.validation_data_path
     ):
-        dataset_kwargs["skip_prepare_dataset"] = True
+        training_args.dataset_kwargs = {"skip_prepare_dataset": True}
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=packing,
         data_collator=data_collator,
-        dataset_text_field=dataset_text_field,
         args=training_args,
-        max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
-        dataset_kwargs=dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
