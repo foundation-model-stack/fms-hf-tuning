@@ -32,6 +32,8 @@ from tests.artifacts.predefined_data_configs import (
 )
 from tests.artifacts.testdata import (
     MODEL_NAME,
+    TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
     TWITTER_COMPLAINTS_DATA_JSON,
@@ -60,6 +62,10 @@ from tuning.data.setup_dataprocessor import (
             set(["ID", "Label", "input", "output"]),
         ),
         (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            set(["ID", "Label", "input", "output", "sequence"]),
+        ),
+        (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
             set(
                 [
@@ -75,6 +81,10 @@ from tuning.data.setup_dataprocessor import (
         ),
         (
             TWITTER_COMPLAINTS_DATA_JSONL,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_ARROW,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
         ),
     ],
@@ -99,6 +109,11 @@ def test_load_dataset_with_datafile(datafile, column_names):
             "text_dataset_input_output_masking",
         ),
         (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            set(["ID", "Label", "input", "output", "sequence"]),
+            "text_dataset_input_output_masking",
+        ),
+        (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
             set(
                 [
@@ -115,6 +130,11 @@ def test_load_dataset_with_datafile(datafile, column_names):
         ),
         (
             TWITTER_COMPLAINTS_DATA_JSONL,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+            "apply_custom_data_template",
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_ARROW,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
             "apply_custom_data_template",
         ),
