@@ -46,7 +46,13 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
             data = configs.load_dataset(data_path=data, split="train[:1]")
         except DatasetGenerationError as e:
             raise DatasetGenerationError("failed to load the provided dataset") from e
-
+    if "column_names" not in data or data.column_names is None:
+        if isinstance(data, IterableDataset):
+            data = data._resolve_features()
+        else:
+            raise ValueError(
+                f"not possible to fetch column names for the loaded dataset of type {type(data)}"
+            )
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
