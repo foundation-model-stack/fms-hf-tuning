@@ -37,6 +37,9 @@ TWITTER_COMPLAINTS_TOKENIZED_JSON = os.path.join(
 TWITTER_COMPLAINTS_TOKENIZED_JSONL = os.path.join(
     DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.jsonl"
 )
+TWITTER_COMPLAINTS_TOKENIZED_ARROW = os.path.join(
+    DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow"
+)
 EMPTY_DATA = os.path.join(DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(DATA_DIR, "malformatted_data.json")
 MODEL_NAME = "Maykeye/TinyLLama-v0"

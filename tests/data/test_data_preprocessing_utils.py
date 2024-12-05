@@ -40,6 +40,7 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_DATA_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_ARROW,
 )
 
 # Local
@@ -67,6 +68,20 @@ from tuning.data.setup_dataprocessor import (
         ),
         (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+            set(
+                [
+                    "Tweet text",
+                    "ID",
+                    "Label",
+                    "text_label",
+                    "output",
+                    "input_ids",
+                    "labels",
+                ]
+            ),
+        ),
+        (
+            TWITTER_COMPLAINTS_TOKENIZED_ARROW,
             set(
                 [
                     "Tweet text",
@@ -517,6 +532,12 @@ def test_process_dataargs(data_args):
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+            )
+        ),
+        # JSONL pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_ARROW,
             )
         ),
     ],
