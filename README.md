@@ -23,6 +23,8 @@
 - [Experiment Tracking](#experiment-tracking)
 - [More Examples](#more-examples)
 
+Dummy change to test github actions. Expect to fail.
+
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
 1. Models are loaded from Hugging Face `transformers` or the [foundation-model-stack](https://github.com/foundation-model-stack/foundation-model-stack) -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
 2. Hugging Face `SFTTrainer` for the training loop
