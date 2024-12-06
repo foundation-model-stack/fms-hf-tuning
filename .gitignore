@@ -42,3 +42,6 @@ venv/
 
 # Auto-generated file
 /tuning/_version.py
+
+# Outputs folder
+/outputs
