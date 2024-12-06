@@ -53,6 +53,7 @@ from tuning.config.tracker_configs import (
     FileLoggingTrackerConfig,
     TrackerConfigFactory,
 )
+from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
@@ -63,12 +64,6 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.preprocessing_utils import (
-    format_dataset,
-    get_data_collator,
-    is_pretokenized_dataset,
-    validate_data_args,
-)
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
@@ -257,17 +252,6 @@ def train(
         elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
             special_tokens_dict["pad_token"] = "<pad>"
 
-    max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
-    logger.info("Max sequence length is %s", max_seq_length)
-    if train_args.max_seq_length > tokenizer.model_max_length:
-        logger.warning(
-            "max_seq_length %s exceeds tokenizer.model_max_length \
-            %s, using tokenizer.model_max_length %s",
-            train_args.max_seq_length,
-            tokenizer.model_max_length,
-            tokenizer.model_max_length,
-        )
-
     # add special tokens only when a custom tokenizer is not passed
     if not model_args.tokenizer_name_or_path:
         # TODO: we need to change this, perhaps follow what open instruct does?
@@ -302,28 +286,20 @@ def train(
     )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
-    if train_args.packing:
-        logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
-        logger.info("Packing is set to False")
-        packing = False
+    data_collator = None
+    logger.info("Packing is set to %s ", train_args.packing)
 
-    # Validate if data args are set properly
-    validate_data_args(data_args, packing)
-
+    data_preprocessing_time = time.time()
     (
         formatted_train_dataset,
         formatted_validation_dataset,
         dataset_text_field,
-    ) = format_dataset(data_args, tokenizer, max_seq_length)
-    data_collator = get_data_collator(
-        packing,
-        data_args.response_template,
-        tokenizer,
-        formatted_train_dataset,
+        data_collator,
         max_seq_length,
+        dataset_kwargs,
+    ) = process_dataargs(data_args, tokenizer, train_args)
+    additional_metrics["data_preprocessing_time"] = (
+        time.time() - data_preprocessing_time
     )
 
     if framework is not None and framework.requires_agumentation:
@@ -348,17 +324,12 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs)
 
-    dataset_kwargs = {}
-    if is_pretokenized_dataset(
-        data_args.training_data_path or data_args.validation_data_path
-    ):
-        dataset_kwargs["skip_prepare_dataset"] = True
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=packing,
+        packing=train_args.packing,
         data_collator=data_collator,
         dataset_text_field=dataset_text_field,
         args=training_args,
