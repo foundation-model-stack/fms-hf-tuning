@@ -10,5 +10,5 @@ datasets:
           remove_columns: all
           batched: false
           fn_kwargs:
-            input_field: "INPUT"
-            output_field: "OUTPUT"
+            input_field_name: "INPUT"
+            output_field_name: "OUTPUT"
