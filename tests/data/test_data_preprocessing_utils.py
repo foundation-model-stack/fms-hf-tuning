@@ -632,6 +632,7 @@ def test_process_dataargs(data_args):
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+            )
         ),
         # PARQUET pretokenized train datasets
         (
