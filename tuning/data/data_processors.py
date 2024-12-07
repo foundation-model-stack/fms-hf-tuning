@@ -105,7 +105,7 @@ class DataPreProcessor:
             # In future the streaming etc go as kwargs of this function
             raw_dataset = self.load_dataset(d, splitName)
 
-            logging.info("Loaded raw dataset : {raw_datasets}")
+            logging.info("Loaded raw dataset : %s", str(raw_dataset))
 
             raw_datasets = DatasetDict()
 
