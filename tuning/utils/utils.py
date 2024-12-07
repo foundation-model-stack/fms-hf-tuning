@@ -33,6 +33,8 @@ def get_loader_for_filepath(file_path: str) -> str:
         return "json"
     if ext in (".arrow"):
         return "arrow"
+    if ext in (".parquet"):
+        return "parquet"
     return ext
 
 

@@ -36,11 +36,14 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
     TWITTER_COMPLAINTS_DATA_JSON,
     TWITTER_COMPLAINTS_DATA_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+    TWITTER_COMPLAINTS_DATA_PARQUET,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
 
 # Local
@@ -65,6 +68,10 @@ from tuning.data.setup_dataprocessor import (
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
             set(["ID", "Label", "input", "output", "sequence"]),
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            set(["ID", "Label", "input", "output"]),
         ),
         (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -95,11 +102,29 @@ from tuning.data.setup_dataprocessor import (
             ),
         ),
         (
+            TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+            set(
+                [
+                    "Tweet text",
+                    "ID",
+                    "Label",
+                    "text_label",
+                    "output",
+                    "input_ids",
+                    "labels",
+                ]
+            ),
+        ),
+        (
             TWITTER_COMPLAINTS_DATA_JSONL,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
         ),
         (
             TWITTER_COMPLAINTS_DATA_ARROW,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_PARQUET,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
         ),
     ],
@@ -129,7 +154,27 @@ def test_load_dataset_with_datafile(datafile, column_names):
             "text_dataset_input_output_masking",
         ),
         (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            set(["ID", "Label", "input", "output"]),
+            "text_dataset_input_output_masking",
+        ),
+        (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+            set(
+                [
+                    "Tweet text",
+                    "ID",
+                    "Label",
+                    "text_label",
+                    "output",
+                    "input_ids",
+                    "labels",
+                ]
+            ),
+            "pretokenized_dataset",
+        ),
+        (
+            TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
             set(
                 [
                     "Tweet text",
@@ -150,6 +195,11 @@ def test_load_dataset_with_datafile(datafile, column_names):
         ),
         (
             TWITTER_COMPLAINTS_DATA_ARROW,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+            "apply_custom_data_template",
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_PARQUET,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
             "apply_custom_data_template",
         ),
@@ -174,8 +224,14 @@ def test_load_dataset_with_datasetconfig(datafile, column_names, datasetconfigna
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             "text_dataset_input_output_masking",
         ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            "text_dataset_input_output_masking",
+        ),
         (TWITTER_COMPLAINTS_TOKENIZED_JSONL, "pretokenized_dataset"),
+        (TWITTER_COMPLAINTS_TOKENIZED_PARQUET, "pretokenized_dataset"),
         (TWITTER_COMPLAINTS_DATA_JSONL, "apply_custom_data_template"),
+        (TWITTER_COMPLAINTS_DATA_PARQUET, "apply_custom_data_template"),
     ],
 )
 def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
@@ -374,8 +430,10 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
     [
         (APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON),
         (APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
+        (APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
         (PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSON),
         (PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSONL),
+        (PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_PARQUET),
         (
             TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
@@ -383,6 +441,10 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         (
             TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+        ),
+        (
+            TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
         ),
     ],
 )
@@ -449,6 +511,15 @@ def test_process_dataconfig_file(data_config_path, data_path):
                 response_template="\n### Label:",
             )
         ),
+        # single sequence PARQUET and response template
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_PARQUET,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_PARQUET,
+                dataset_text_field="output",
+                response_template="\n### Label:",
+            )
+        ),
         # data formatter template with input/output JSON
         (
             configs.DataArguments(
@@ -467,6 +538,15 @@ def test_process_dataconfig_file(data_config_path, data_path):
                 response_template="\n### Label:",
             )
         ),
+        # data formatter template with input/output PARQUET
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
+                response_template="\n### Label:",
+            )
+        ),
         # input/output JSON with masking on input
         (
             configs.DataArguments(
@@ -479,6 +559,13 @@ def test_process_dataconfig_file(data_config_path, data_path):
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            )
+        ),
+        # input/output PARQUET with masking on input
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
             )
         ),
     ],
@@ -522,6 +609,13 @@ def test_process_dataargs(data_args):
                 validation_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
             )
         ),
+        # PARQUET pretokenized train and validation datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+                validation_data_path=TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+            )
+        ),
         # JSON pretokenized train datasets
         (
             configs.DataArguments(
@@ -534,10 +628,15 @@ def test_process_dataargs(data_args):
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
             )
         ),
-        # JSONL pretokenized train datasets
+        # ARROW pretokenized train datasets
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+        ),
+        # PARQUET pretokenized train datasets
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
             )
         ),
     ],
