@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 import logging
 import os
 
@@ -35,7 +35,7 @@ class DataPreProcessor:
     tokenizer = None
     data_config: DataConfig = None
     processor_config: DataPreProcessorConfig = None
-    registered_handlers: Dict[str, callable] = None
+    registered_handlers: Dict[str, Callable] = None
 
     def __init__(
         self, processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
@@ -46,8 +46,19 @@ class DataPreProcessor:
         # Initialize other objects
         self.registered_handlers = {}
 
-    def register_data_handler(self, name: str, func: callable):
+    def register_data_handler(self, name: str, func: Callable):
+        assert isinstance(name, str), "Handler name should be of str type"
+        assert callable(func), "Handler should be a callable routine"
         self.registered_handlers[name] = func
+
+    def register_data_handlers(self, handlers: Dict[str, Callable]):
+        if handlers is None:
+            return
+        assert isinstance(
+            handlers, Dict
+        ), "Handlers should be of type Dict[str:Callable]"
+        for k, v in handlers.items():
+            self.register_data_handler(name=k, func=v)
 
     def load_dataset(
         self,
@@ -238,13 +249,6 @@ class DataPreProcessor:
         return train_dataset
 
 
-def autoregister_available_handlers(processor: DataPreProcessor):
-    if processor is None:
-        return
-    for name, func in AVAILABLE_DATA_HANDLERS.items():
-        processor.register_data_handler(name=name, func=func)
-
-
 def get_datapreprocessor(
     processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
 ) -> DataPreProcessor:
@@ -252,5 +256,5 @@ def get_datapreprocessor(
         processor_config=processor_config,
         tokenizer=tokenizer,
     )
-    autoregister_available_handlers(processor)
+    processor.register_data_handlers(AVAILABLE_DATA_HANDLERS)
     return processor
