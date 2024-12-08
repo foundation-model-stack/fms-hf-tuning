@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Union
+from typing import Callable, Dict, Union
 import logging
 
 # Third Party
@@ -55,11 +55,16 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 
 # TODO: For now assume only training dataset is passed via data config file.
 # This is very limited but is done to keep first implementation minimal
-def _process_dataconfig_file(data_args: DataArguments, tokenizer: AutoTokenizer):
+def _process_dataconfig_file(
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    extra_handlers: Dict[str, Callable] = None,
+):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
         processor_config=data_config.dataprocessor, tokenizer=tokenizer
     )
+    processor.register_data_handlers(extra_handlers)
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
@@ -179,6 +184,7 @@ def _process_raw_data_args(
     tokenizer: AutoTokenizer,
     packing: bool,
     max_seq_length: int,
+    extra_handlers: Dict[str, Callable] = None,
 ):
 
     # Create a data processor with default processor config
@@ -186,7 +192,7 @@ def _process_raw_data_args(
     data_processor = get_datapreprocessor(
         processor_config=default_processor_config, tokenizer=tokenizer
     )
-
+    data_processor.register_data_handlers(extra_handlers)
     assert isinstance(
         data_args.training_data_path, str
     ), "Training data path has to be set and str"
@@ -259,7 +265,10 @@ def _process_raw_data_args(
 # If no data config file is specified, process the remaining data arguments
 # to determine the use case based on their presence, as explained in _process_raw_data_args.
 def process_dataargs(
-    data_args: DataArguments, tokenizer: AutoTokenizer, train_args: TrainingArguments
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    train_args: TrainingArguments,
+    extra_handlers: Dict[str, Callable] = None,
 ):
     """
     Args:
@@ -290,26 +299,28 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, tokenizer
+            data_args, tokenizer, extra_handlers
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
-            data_args, tokenizer, train_args.packing, max_seq_length
+            data_args, tokenizer, train_args.packing, max_seq_length, extra_handlers
         )
+
+    # Note: This check should not be removed.
+    #       Its important to recompute this post handling to
+    #       check if we already tokenized the dataset or not.
+    is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
     data_collator = get_data_collator(
         train_args.packing,
         data_args.response_template,
         tokenizer,
-        # Note: This check should not be removed.
-        #       Its important to recompute this post handling to
-        #       check if we already tokenized the dataset or not.
-        is_pretokenized_dataset(train_dataset),
+        is_tokenized_dataset,
         max_seq_length,
     )
 
     dataset_kwargs = {}
-    if is_pretokenized_dataset(train_dataset or eval_dataset):
+    if is_tokenized_dataset:
         dataset_kwargs["skip_prepare_dataset"] = True
 
     return (
