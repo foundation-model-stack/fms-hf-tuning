@@ -28,7 +28,7 @@ classifiers=[
 dependencies = [
 "numpy>=1.26.4,<2.0",
 "accelerate>=0.20.3,!=0.34,<1.1",
-"transformers>=4.45,<4.46",
+"transformers @ git+https://github.com/fabianlim/transformers.git@hybrid-mamba-4.46",
 "torch>=2.2.0,<2.5",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers>=0.13.3,<1.0",
@@ -46,6 +46,7 @@ flash-attn = ["flash-attn>=2.5.3,<3.0"]
 aim = ["aim>=3.19.0,<4.0"]
 fms-accel = ["fms-acceleration>=0.1"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
+mamba = ["mamba_ssm[causal-conv1d] @ git+https://github.com/state-spaces/mamba.git"]
 
 
 [tool.setuptools.packages.find]
