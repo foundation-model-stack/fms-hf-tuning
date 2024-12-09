@@ -348,19 +348,17 @@ def train(
         if k in transformer_train_arg_fields
     }
 
-    training_args = SFTConfig(**transformer_kwargs)
-    training_args.dataset_text_field = (
-        dataset_text_field  # Inject the dataset text field into the training args
-    )
-    training_args.packing = packing  # Inject packing into the training args
-    training_args.max_seq_length = (
-        max_seq_length  # Specify max sequence length for the dataset
-    )
-
+    additional_args = {
+        "dataset_text_field": dataset_text_field,
+        "packing": packing,
+        "max_seq_length": max_seq_length,
+    }
     if is_pretokenized_dataset(
         data_args.training_data_path or data_args.validation_data_path
     ):
-        training_args.dataset_kwargs = {"skip_prepare_dataset": True}
+        additional_args["dataset_kwargs"] = {"skip_prepare_dataset": True}
+    training_args = SFTConfig(**transformer_kwargs, **additional_args)
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
