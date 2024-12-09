@@ -1,4 +1,4 @@
-# Resource Scanner
+# Generic Tracker Framework
 
 **Deciders(s)**: Sukriti Sharma (sukriti.sharma4@ibm.com), Alexander Brooks (alex.brooks@ibm.com), Raghu Ganti (rganti@us.ibm.com), Dushyant Behl (dushyantbehl@in.ibm.com), Ashok Pon Kumar (ashokponkumar@in.ibm.com)
 
