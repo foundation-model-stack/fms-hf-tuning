@@ -28,6 +28,7 @@ from tuning.config.acceleration_configs.attention_and_distributed_packing import
     MultiPack,
     PaddingFree,
 )
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -87,6 +88,13 @@ def test_dataclass_parse_successfully():
         ["--multipack", "16"],
     )
     assert isinstance(cfg.multipack, MultiPack)
+
+    # 5. Specifing "--fast_moe" will parse an FastMoe class
+    parser = transformers.HfArgumentParser(dataclass_types=FastMoeConfig)
+    (cfg,) = parser.parse_args_into_dataclasses(
+        ["--fast_moe", "1"],
+    )
+    assert isinstance(cfg.fast_moe, FastMoe)
 
 
 def test_two_dataclasses_parse_successfully_together():
