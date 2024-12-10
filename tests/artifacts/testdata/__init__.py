@@ -19,19 +19,36 @@ import os
 
 ### Constants used for data
 DATA_DIR = os.path.join(os.path.dirname(__file__))
+PARQUET_DATA_DIR = os.path.join(os.path.dirname(__file__), "parquet")
 TWITTER_COMPLAINTS_DATA_JSON = os.path.join(DATA_DIR, "twitter_complaints_small.json")
 TWITTER_COMPLAINTS_DATA_JSONL = os.path.join(DATA_DIR, "twitter_complaints_small.jsonl")
+TWITTER_COMPLAINTS_DATA_ARROW = os.path.join(DATA_DIR, "twitter_complaints_small.arrow")
+TWITTER_COMPLAINTS_DATA_PARQUET = os.path.join(
+    PARQUET_DATA_DIR, "twitter_complaints_small.parquet"
+)
 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON = os.path.join(
     DATA_DIR, "twitter_complaints_input_output.json"
 )
 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL = os.path.join(
     DATA_DIR, "twitter_complaints_input_output.jsonl"
 )
+TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW = os.path.join(
+    DATA_DIR, "twitter_complaints_input_output.arrow"
+)
+TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET = os.path.join(
+    PARQUET_DATA_DIR, "twitter_complaints_input_output.parquet"
+)
 TWITTER_COMPLAINTS_TOKENIZED_JSON = os.path.join(
     DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.json"
 )
 TWITTER_COMPLAINTS_TOKENIZED_JSONL = os.path.join(
     DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.jsonl"
+)
+TWITTER_COMPLAINTS_TOKENIZED_ARROW = os.path.join(
+    DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow"
+)
+TWITTER_COMPLAINTS_TOKENIZED_PARQUET = os.path.join(
+    PARQUET_DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.parquet"
 )
 EMPTY_DATA = os.path.join(DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(DATA_DIR, "malformatted_data.json")
