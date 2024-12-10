@@ -630,12 +630,20 @@ def main():
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
         if add_scanner_callback:
-            output_fmt = os.path.join(training_args.output_dir, "scanner_output.json")
-            sc_callback = [Scanner(output_fmt=output_fmt)]
-            logging.info(
-                "Attaching HFResourceScanner as a callback with output_fmt: %s",
-                output_fmt,
-            )
+            if _is_package_available("HFResourceScanner"):
+                output_fmt = os.path.join(
+                    training_args.output_dir, "scanner_output.json"
+                )
+                sc_callback = [Scanner(output_fmt=output_fmt)]
+                logging.info(
+                    "Attaching HFResourceScanner as a callback with output_fmt: %s",
+                    output_fmt,
+                )
+            else:
+                raise ValueError(
+                    "add_scanner_callback was set to true, but HFResourceScanner is not installed. \
+                    Install the package HFResourceScanner, or set add_scanner_callback to False."
+                )
 
     try:
         trainer, additional_train_info = train(
