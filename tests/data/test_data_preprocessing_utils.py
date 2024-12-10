@@ -432,9 +432,11 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON),
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSON),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSONL),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_PARQUET),
+        (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_ARROW),
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
@@ -446,6 +448,10 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
         ),
     ],
 )
@@ -489,6 +495,234 @@ def test_process_dataconfig_file(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, list_data_path",
+    [
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_JSON],
+        ),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSONL],
+        ),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_PARQUET, TWITTER_COMPLAINTS_DATA_PARQUET],
+        ),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_ARROW, TWITTER_COMPLAINTS_DATA_ARROW],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [TWITTER_COMPLAINTS_TOKENIZED_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [TWITTER_COMPLAINTS_TOKENIZED_JSONL, TWITTER_COMPLAINTS_TOKENIZED_JSONL],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [
+                TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+                TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+            ],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [TWITTER_COMPLAINTS_TOKENIZED_ARROW, TWITTER_COMPLAINTS_TOKENIZED_ARROW],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            ],
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files(data_config_path, list_data_path):
+    """Ensure that datasets with multiple files are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = list_data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    assert isinstance(train_set, Dataset)
+    if datasets_name == "text_dataset_input_output_masking":
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(train_set.column_names) == column_names
+    elif datasets_name == "pretokenized_dataset":
+        assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    elif datasets_name == "apply_custom_data_template":
+        assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, list_data_path",
+    [
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [
+                TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+                TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files_varied_data_formats(
+    data_config_path, list_data_path
+):
+    """Ensure that datasets with multiple files with different formats raise assertion error when passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = list_data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    with pytest.raises(AssertionError):
+        (_, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, list_data_path",
+    [
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
+        ),
+        (
+            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+            [
+                TWITTER_COMPLAINTS_TOKENIZED_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON, TWITTER_COMPLAINTS_DATA_JSON],
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files_varied_types(
+    data_config_path, list_data_path
+):
+    """Ensure that datasets with multiple files with different formats raise assertion error when passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = list_data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    with pytest.raises(datasets.exceptions.DatasetGenerationCastError):
+        (_, _, _) = _process_dataconfig_file(data_args, tokenizer)
 
 
 @pytest.mark.parametrize(
