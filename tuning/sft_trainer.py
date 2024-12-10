@@ -350,8 +350,6 @@ def train(
 
     additional_args = {
         "dataset_text_field": dataset_text_field,
-        "packing": packing,
-        "max_seq_length": max_seq_length,
     }
     if is_pretokenized_dataset(
         data_args.training_data_path or data_args.validation_data_path
