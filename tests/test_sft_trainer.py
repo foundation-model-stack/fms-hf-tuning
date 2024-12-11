@@ -31,7 +31,7 @@ import transformers
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.data import (
+from tests.artifacts.testdata import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
@@ -300,7 +300,7 @@ def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError):
         sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
@@ -906,15 +906,12 @@ def test_empty_data():
 
 
 def test_data_path_is_a_directory():
-    """Ensure that we get FileNotFoundError if we point the data path at a dir, not a file."""
+    """Ensure that we get ValueError if we point the data path at a dir, not a file."""
     with tempfile.TemporaryDirectory() as tempdir:
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = tempdir
 
-        # Confusingly, if we pass a directory for our data path, it will throw a
-        # FileNotFoundError saying "unable to find '<data_path>'", since it can't
-        # find a matchable file in the path.
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 

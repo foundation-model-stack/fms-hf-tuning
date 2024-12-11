@@ -1,0 +1,41 @@
+dataprocessor:
+    type: default
+    sampling_stopping_strategy: first_exhausted
+    seed: 66
+datasets:
+  - name: dataset_1
+    sampling: 0.3
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_field_name: input
+            output_field_name: output
+  - name: dataset_2
+    sampling: 0.4
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_field_name: input
+            output_field_name: output
+  - name: dataset_3
+    sampling: 0.3
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_field_name: input
+            output_field_name: output
