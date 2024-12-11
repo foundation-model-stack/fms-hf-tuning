@@ -635,7 +635,7 @@ def main():
                     training_args.output_dir, "scanner_output.json"
                 )
                 sc_callback = [Scanner(output_fmt=output_fmt)]
-                logging.info(
+                logger.info(
                     "Attaching HFResourceScanner as a callback with output_fmt: %s",
                     output_fmt,
                 )
