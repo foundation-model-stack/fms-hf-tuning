@@ -90,6 +90,8 @@ def apply_dataset_formatting(
     dataset_text_field: str,
     **kwargs,
 ):
+    if dataset_text_field not in element:
+        raise KeyError(f"Dataset should contain {dataset_text_field} field.")
     return {
         f"{dataset_text_field}": element[f"{dataset_text_field}"] + tokenizer.eos_token
     }
