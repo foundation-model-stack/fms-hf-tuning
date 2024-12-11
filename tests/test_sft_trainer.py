@@ -40,7 +40,10 @@ from tests.artifacts.testdata import (
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
     TWITTER_COMPLAINTS_DATA_JSON,
     TWITTER_COMPLAINTS_DATA_JSONL,
     TWITTER_COMPLAINTS_DATA_PARQUET,
@@ -774,11 +777,32 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     [
         (
             [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             ],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
-        )
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
     ],
 )
 def test_run_causallm_ft_and_inference_with_multiple_dataset(

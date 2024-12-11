@@ -506,7 +506,11 @@ def test_process_dataconfig_file(data_config_path, data_path):
         ),
         (
             DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
-            [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSONL],
+            [
+                TWITTER_COMPLAINTS_DATA_JSONL,
+                TWITTER_COMPLAINTS_DATA_JSONL,
+                TWITTER_COMPLAINTS_DATA_JSONL,
+            ],
         ),
         (
             DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
@@ -527,6 +531,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         (
             DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
             [
+                TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
                 TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
                 TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
             ],
@@ -559,6 +564,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
             ],
