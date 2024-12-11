@@ -66,6 +66,18 @@ class DataPreProcessor:
             files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
         elif datasetconfig:
+            files = []
+            for path in datasetconfig.data_paths:
+                if os.path.isdir(path):
+                    # If the path is a folder, collect all files within it
+                    folder_files = [
+                        os.path.join(path, file)
+                        for file in os.listdir(path)
+                        if os.path.isfile(os.path.join(path, file))
+                    ]
+                    files.extend(folder_files)
+                else:
+                    files.append(path)
             files = datasetconfig.data_paths
             name = datasetconfig.name
             # simple check to make sure all files are of same type.

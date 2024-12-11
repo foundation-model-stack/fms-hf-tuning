@@ -19,6 +19,9 @@ import os
 
 ### Constants used for data
 PREDEFINED_DATA_CONFIGS = os.path.join(os.path.dirname(__file__))
+DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_FOLDER_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "apply_custom_template_folder.yaml"
+)
 DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "apply_custom_template.yaml"
 )
