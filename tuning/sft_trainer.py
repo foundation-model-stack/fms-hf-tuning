@@ -37,6 +37,7 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
+from transformers.utils.import_utils import _is_package_available
 from trl import SFTConfig, SFTTrainer
 import transformers
 
@@ -65,6 +66,10 @@ from tuning.utils.error_logging import (
 )
 from tuning.utils.logging import set_log_level
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+
+if _is_package_available("HFResourceScanner"):
+    # Third Party
+    from HFResourceScanner import Scanner  # pylint: disable=import-error
 
 
 def train(
@@ -446,6 +451,13 @@ def get_parser():
         help='Pass a json string representing K:V pairs to be associated\
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
+    parser.add_argument(
+        "--add_scanner_callback",
+        type=bool,
+        required=False,
+        default=False,
+        help="whether to attach the scanner callback to measure memory and time of the training",
+    )
     return parser
 
 
@@ -498,6 +510,7 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
+        add_scanner_callback = json_config.get("add_scanner_callback")
     else:
         (
             model_args,
@@ -517,6 +530,7 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
+        add_scanner_callback = additional.add_scanner_callback
 
     if peft_method == "lora":
         tune_config = lora_config
@@ -537,6 +551,7 @@ def parse_arguments(parser, json_config=None):
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
         exp_metadata,
+        add_scanner_callback,
     )
 
 
@@ -558,6 +573,7 @@ def main():
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             exp_metadata,
+            add_scanner_callback,
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
@@ -568,7 +584,7 @@ def main():
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config %s exp_metadata %s",
+            attention_and_distributed_packing_config %s, exp_metadata %s, add_scanner_callback %s",
             model_args,
             data_args,
             training_args,
@@ -580,6 +596,7 @@ def main():
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             exp_metadata,
+            add_scanner_callback,
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
@@ -607,10 +624,27 @@ def main():
 
     combined_tracker_configs.file_logger_config = file_logger_config
     combined_tracker_configs.aim_config = aim_config
+    sc_callback = None
 
     if training_args.output_dir:
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
+        if add_scanner_callback:
+            if _is_package_available("HFResourceScanner"):
+                output_fmt = os.path.join(
+                    training_args.output_dir, "scanner_output.json"
+                )
+                sc_callback = [Scanner(output_fmt=output_fmt)]
+                logger.info(
+                    "Attaching HFResourceScanner as a callback with output_fmt: %s",
+                    output_fmt,
+                )
+            else:
+                raise ValueError(
+                    "add_scanner_callback was set to true, but HFResourceScanner is not installed. \
+                    Install the package HFResourceScanner, or set add_scanner_callback to False."
+                )
+
     try:
         trainer, additional_train_info = train(
             model_args=model_args,
@@ -619,7 +653,7 @@ def main():
             peft_config=tune_config,
             trainer_controller_args=trainer_controller_args,
             tracker_configs=combined_tracker_configs,
-            additional_callbacks=None,
+            additional_callbacks=sc_callback,
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
