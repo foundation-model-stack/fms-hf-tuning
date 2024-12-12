@@ -78,7 +78,6 @@ class DataPreProcessor:
                     files.extend(folder_files)
                 else:
                     files.append(path)
-            files = datasetconfig.data_paths
             name = datasetconfig.name
             # simple check to make sure all files are of same type.
             extns = [get_extension(f) for f in files]
