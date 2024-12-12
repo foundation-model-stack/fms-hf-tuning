@@ -46,17 +46,23 @@ class DataPreProcessor:
         # Initialize other objects
         self.registered_handlers = {}
 
+        # Auto register available data handlers
+        for k, v in AVAILABLE_DATA_HANDLERS.items():
+            self.registered_handlers[k] = v
+
     def register_data_handler(self, name: str, func: Callable):
-        assert isinstance(name, str), "Handler name should be of str type"
-        assert callable(func), "Handler should be a callable routine"
+        if not isinstance(name, str) or not callable(func):
+            raise ValueError("Handlers should be of type Dict, str to callable")
+        if name in self.registered_handlers:
+            logging.warning("Handler name %s existed is being overwritten", name)
         self.registered_handlers[name] = func
+        logging.info("Registered new handler %s", name)
 
     def register_data_handlers(self, handlers: Dict[str, Callable]):
         if handlers is None:
             return
-        assert isinstance(
-            handlers, Dict
-        ), "Handlers should be of type Dict[str:Callable]"
+        if not isinstance(handlers, Dict):
+            raise ValueError("Handlers should be of type Dict, str to callable")
         for k, v in handlers.items():
             self.register_data_handler(name=k, func=v)
 
@@ -250,11 +256,13 @@ class DataPreProcessor:
 
 
 def get_datapreprocessor(
-    processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
+    processor_config: DataPreProcessorConfig,
+    tokenizer: AutoTokenizer,
+    additional_data_handlers: Dict[str, Callable] = None,
 ) -> DataPreProcessor:
     processor = DataPreProcessor(
         processor_config=processor_config,
         tokenizer=tokenizer,
     )
-    processor.register_data_handlers(AVAILABLE_DATA_HANDLERS)
+    processor.register_data_handlers(additional_data_handlers)
     return processor

@@ -15,7 +15,10 @@
 """Unit Tests for SFT Trainer.
 """
 
+# pylint: disable=too-many-lines
+
 # Standard
+from dataclasses import asdict
 import copy
 import json
 import os
@@ -46,6 +49,13 @@ from tests.artifacts.testdata import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.data.data_config import (
+    DataConfig,
+    DataHandlerConfig,
+    DataPreProcessorConfig,
+    DataSetConfig,
+)
+from tuning.data.data_handlers import apply_dataset_formatting
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -1124,3 +1134,98 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+
+
+###########################################################################
+### Tests for checking different cases for the argument additional_handlers
+### The argument `additional_handlers` in train::sft_trainer.py is used to pass
+### extra data handlers which should be a Dict[str,callable]
+
+### Test for checking if bad additional_handlers argument
+### (which is not Dict[str,callable]) throws an error
+@pytest.mark.parametrize(
+    "additional_handlers",
+    [
+        "thisisnotokay",
+        [],
+        {lambda x: {"x": x}: "notokayeither"},
+        {"thisisfine": "thisisnot"},
+    ],
+)
+def test_run_with_bad_additional_data_handlers(additional_handlers):
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with pytest.raises(
+            ValueError, match="Handlers should be of type Dict, str to callable"
+        ):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+                additional_data_handlers=additional_handlers,
+            )
+
+
+### Test for checking if additional_handlers=None should work
+def test_run_with_additional_data_handlers_as_none():
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(
+            MODEL_ARGS,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_data_handlers=None,
+        )
+
+
+### Test for checking if a good additional_handlers argument
+### can take a data handler and can successfully run a e2e training.
+def test_run_by_passing_additional_data_handlers():
+
+    # This is my test handler
+    TEST_HANDLER = "my_test_handler"
+
+    def test_handler(element, tokenizer, **kwargs):
+        return apply_dataset_formatting(element, tokenizer, "custom_formatted_field")
+
+    # This data config calls for data handler to be applied to dataset
+    preprocessor_config = DataPreProcessorConfig()
+    handler_config = DataHandlerConfig(name="my_test_handler", arguments=None)
+    dataaset_config = DataSetConfig(
+        name="test_dataset",
+        data_paths=TWITTER_COMPLAINTS_DATA_JSON,
+        data_handlers=[handler_config],
+    )
+    data_config = DataConfig(
+        dataprocessor=preprocessor_config, datasets=[dataaset_config]
+    )
+
+    # dump the data config to a file, also test if json data config works
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".json"
+    ) as temp_data_file:
+        data_config_raw = json.dumps(asdict(data_config))
+        temp_data_file.write(data_config_raw)
+        data_config_path = temp_data_file.name
+
+    # now launch sft trainer after registering data handler
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.data_config_path = data_config_path
+        data_args.dataset_text_field = "custom_formatted_field"
+
+        sft_trainer.train(
+            MODEL_ARGS,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_data_handlers={TEST_HANDLER: test_handler},
+        )

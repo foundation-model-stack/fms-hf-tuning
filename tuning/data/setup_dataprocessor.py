@@ -62,9 +62,10 @@ def _process_dataconfig_file(
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
-        processor_config=data_config.dataprocessor, tokenizer=tokenizer
+        processor_config=data_config.dataprocessor,
+        tokenizer=tokenizer,
+        additional_data_handlers=additional_data_handlers,
     )
-    processor.register_data_handlers(additional_data_handlers)
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
@@ -190,9 +191,10 @@ def _process_raw_data_args(
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
     data_processor = get_datapreprocessor(
-        processor_config=default_processor_config, tokenizer=tokenizer
+        processor_config=default_processor_config,
+        tokenizer=tokenizer,
+        additional_data_handlers=additional_data_handlers,
     )
-    data_processor.register_data_handlers(additional_data_handlers)
     assert isinstance(
         data_args.training_data_path, str
     ), "Training data path has to be set and str"
