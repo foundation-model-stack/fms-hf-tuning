@@ -327,7 +327,6 @@ def train(
     additional_args = {
         "dataset_text_field": dataset_text_field,
         "dataset_kwargs": dataset_kwargs,
-        "max_seq_length": max_seq_length
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
