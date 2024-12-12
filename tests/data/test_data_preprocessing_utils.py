@@ -23,9 +23,7 @@ from trl import DataCollatorForCompletionOnlyLM
 import datasets
 import pytest
 import yaml
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 # First Party
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
@@ -637,7 +635,9 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         ),
     ],
 )
-def test_process_dataconfig_multiple_datasets_datafiles_sampling(datafiles, datasetconfigname):
+def test_process_dataconfig_multiple_datasets_datafiles_sampling(
+    datafiles, datasetconfigname
+):
     """Ensure that multiple datasets with multiple files are formatted and validated correctly."""
     with open(datasetconfigname, "r") as f:
         yaml_content = yaml.safe_load(f)
@@ -666,9 +666,13 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(datafiles, data
     if eval_set:
         assert isinstance(eval_set, Dataset)
 
-    assert set(["input_ids", "attention_mask", "labels"]).issubset(set(train_set.column_names))
+    assert set(["input_ids", "attention_mask", "labels"]).issubset(
+        set(train_set.column_names)
+    )
     if eval_set:
-        assert set(["input_ids", "attention_mask", "labels"]).issubset(set(eval_set.column_names))
+        assert set(["input_ids", "attention_mask", "labels"]).issubset(
+            set(eval_set.column_names)
+        )
 
 
 @pytest.mark.parametrize(
