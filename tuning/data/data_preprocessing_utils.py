@@ -28,6 +28,7 @@ def get_data_collator(
     tokenizer: AutoTokenizer,
     is_traindata_tokenized: bool,
     max_seq_length: int,
+    instruction_template: Optional[str],
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -43,11 +44,27 @@ def get_data_collator(
             Whether train Dataset is tokenized or not
         max_seq_length: int
             Max sequence length expected
+        instruction_template: str
+            str representing the human response in a chat template
 
     Returns:
         Callable
             Callable collator to be leveraged by the trainer.
     """
+
+    if response_template and instruction_template:
+        # response_template_ids = tokenizer.encode(
+        #     response_template, add_special_tokens=False
+        # )[2:]
+        # intruction_template_ids = tokenizer.encode(
+        #     instruction_template, add_special_tokens=False
+        # )[2:]
+        return DataCollatorForCompletionOnlyLM(
+            response_template=response_template,
+            instruction_template=instruction_template,
+            tokenizer=tokenizer,
+            ignore_index=configs.IGNORE_INDEX,
+        )
 
     if not packing:
         # TODO: near term - how response template ids are parsed out needs to be cleaned.

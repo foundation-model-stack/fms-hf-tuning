@@ -34,8 +34,8 @@ from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
 
 # In future we may make the fields configurable
-DEFAULT_JSON_INPUT_KEY = "input"
-DEFAULT_JSON_OUTPUT_KEY = "output"
+DEFAULT_INPUT_COLUMN = "input"
+DEFAULT_OUTPUT_COLUMN = "output"
 
 # check if the provided dataset is pretokenized or not
 # the check is taken from trl
@@ -151,12 +151,12 @@ def _get_dataset_formatting_handlers(data_args, packing):
     return [handler], dataset_text_field
 
 
-### Data format 3
-def _get_default_json_dataset_handlers(data_args, tokenizer_kwargs):
+### Default Data format
+def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
     fn_kwargs = {}
-    fn_kwargs["input_field_name"] = DEFAULT_JSON_INPUT_KEY
-    fn_kwargs["output_field_name"] = DEFAULT_JSON_OUTPUT_KEY
+    fn_kwargs["input_field_name"] = DEFAULT_INPUT_COLUMN
+    fn_kwargs["output_field_name"] = DEFAULT_OUTPUT_COLUMN
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
     kwargs = {
@@ -177,7 +177,9 @@ def _get_default_json_dataset_handlers(data_args, tokenizer_kwargs):
 #   If a text field is specified, append the tokenizer's EOS token to it.
 #   If a formatter template is provided, apply it and save the result.
 #   Data remains un-tokenized.
-# Data Format 3: JSON Dataset with Input/Output Fields
+# Data Format 3: Chat datasets
+#   User provides response_template and instruction_template.
+# Default Data Format: Dataset with Input/Output Fields
 #   Combine input and output fields, tokenize the data, and apply input attention masking.
 #   Requires both input and output fields; throws an error if missing.
 def _process_raw_data_args(
@@ -239,9 +241,13 @@ def _process_raw_data_args(
         handlers, dataset_text_field = _get_dataset_formatting_handlers(
             data_args, packing
         )
+    elif data_args.instruction_template and data_args.response_template:
+        # Data Format 3: Chat dataset with instruction and response template
+        # We don't do processing for chat dataset
+        handlers, dataset_text_field = [], None
     else:
-        # Data Format 3: JSON Dataset with Input/Output Fields
-        handlers, dataset_text_field = _get_default_json_dataset_handlers(
+        # Default Data Format: Dataset with Input/Output Fields
+        handlers, dataset_text_field = _get_default_dataset_handlers(
             data_args, tokenizer_kwargs
         )
 
@@ -329,6 +335,7 @@ def process_dataargs(
         tokenizer,
         is_tokenized_dataset,
         max_seq_length,
+        data_args.instruction_template,
     )
 
     dataset_kwargs = {}

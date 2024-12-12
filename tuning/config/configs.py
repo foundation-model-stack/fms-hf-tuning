@@ -102,6 +102,21 @@ class DataArguments:
                      Supports both JSON and YAML based config files."
         },
     )
+    chat_template: str = field(
+        default=None,
+        metadata={
+            "help": "chat template to use for tokenization. \
+            No need to pass this if the tokenizer already has a chat_template \
+            if passed, it will overwrite tokenizer.chat_template if it exists"
+        },
+    )
+    instruction_template: str = field(
+        default=None,
+        metadata={
+            "help": "Should be provided for chat training. \
+            Piece of text that determines the start of human response"
+        },
+    )
 
 
 @dataclass

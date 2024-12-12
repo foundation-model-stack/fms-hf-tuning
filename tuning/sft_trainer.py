@@ -287,6 +287,16 @@ def train(
         multiple_of=model_args.embedding_size_multiple_of,
     )
 
+    if data_args.chat_template:
+        logger.info("adding chat_template to the tokenizer")
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with the given chat_template %s",
+                tokenizer.chat_template,
+                data_args.chat_template,
+            )
+        tokenizer.chat_template = data_args.chat_template
+
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)

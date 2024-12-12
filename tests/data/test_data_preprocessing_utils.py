@@ -280,7 +280,8 @@ def test_is_pretokenized_data(data, result):
 
 
 @pytest.mark.parametrize(
-    "packing, response_template, formatted_train_dataset, max_seq_length, expected_collator",
+    "packing, response_template, formatted_train_dataset,\
+     max_seq_length, instruction_template, expected_collator",
     [
         (
             False,
@@ -291,6 +292,7 @@ def test_is_pretokenized_data(data, result):
                 split="train",
             ),
             1024,
+            None,
             DataCollatorForCompletionOnlyLM,
         ),
         (
@@ -306,6 +308,35 @@ def test_is_pretokenized_data(data, result):
                 ]
             ),
             1024,
+            None,
+            DataCollatorForSeq2Seq,
+        ),
+        (
+            False,
+            "\n### Label:",
+            datasets.load_dataset(
+                "json",
+                data_files=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                split="train",
+            ),
+            1024,
+            "\n### Text:",
+            DataCollatorForCompletionOnlyLM,
+        ),
+        (
+            False,
+            None,
+            Dataset.from_list(
+                [
+                    {
+                        "input_ids": [9437, 29, 210],
+                        "attention_mask": [1, 1, 1],
+                        "labels": [1, 20, 30],
+                    }
+                ]
+            ),
+            1024,
+            "\n### Text:",
             DataCollatorForSeq2Seq,
         ),
     ],
@@ -315,6 +346,7 @@ def test_get_data_collator(
     response_template,
     formatted_train_dataset,
     max_seq_length,
+    instruction_template,
     expected_collator,
 ):
     """Ensure that the correct collator type is fetched based on the data args"""
@@ -324,6 +356,7 @@ def test_get_data_collator(
         AutoTokenizer.from_pretrained(MODEL_NAME),
         is_pretokenized_dataset(formatted_train_dataset),
         max_seq_length,
+        instruction_template,
     )
     assert isinstance(collator, expected_collator)
 
