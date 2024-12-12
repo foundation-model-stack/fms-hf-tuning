@@ -320,10 +320,11 @@ def test_get_data_collator(
     """Ensure that the correct collator type is fetched based on the data args"""
     collator = get_data_collator(
         packing,
-        response_template,
         AutoTokenizer.from_pretrained(MODEL_NAME),
-        is_pretokenized_dataset(formatted_train_dataset),
         max_seq_length,
+        response_template,
+        None,
+        is_pretokenized_dataset(formatted_train_dataset),
     )
     assert isinstance(collator, expected_collator)
 
