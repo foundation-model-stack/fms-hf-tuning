@@ -326,11 +326,9 @@ def train(
 
     additional_args = {
         "dataset_text_field": dataset_text_field,
+        "dataset_kwargs": dataset_kwargs,
+        "max_seq_length": max_seq_length
     }
-    if is_pretokenized_dataset(
-        data_args.training_data_path or data_args.validation_data_path
-    ):
-        additional_args["dataset_kwargs"] = {"skip_prepare_dataset": True}
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
     trainer = SFTTrainer(
