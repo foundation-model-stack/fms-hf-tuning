@@ -1231,6 +1231,24 @@ validation_datasets:
 streaming: true
 ```
 
+## Chat Training
+
+You can make use of three flags `chat_template`, `instruction_template`, `response_template` to enable multi-turn chat based training.
+
+`chat_template` - Chat template to use for tokenization. No need to pass this if the data signals chat training and tokenizer already has a chat_template. 
+
+Sample chat template is below
+
+```
+  "chat_template": "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}",
+```
+
+Chat templates are closely tied with your training data.
+
+`instruction_template` - Should be provided for chat training. Piece of text that determines the start of human response.
+
+`response_template` - response_template should be provided for chat training. response_template determines the start of lm response
+
 
 
 ## More Examples
