@@ -47,16 +47,16 @@ class DataPreProcessor:
         self.registered_handlers = {}
 
     def register_data_handler(self, name: str, func: Callable):
-        assert isinstance(name, str), "Handler name should be of str type"
-        assert callable(func), "Handler should be a callable routine"
+        if not isinstance(name, str) or not callable(func):
+            raise ValueError("Handlers should be of type Dict, str to callable")
+        logging.info("Registering handler %s passed by the user", name)
         self.registered_handlers[name] = func
 
     def register_data_handlers(self, handlers: Dict[str, Callable]):
         if handlers is None:
             return
-        assert isinstance(
-            handlers, Dict
-        ), "Handlers should be of type Dict[str:Callable]"
+        if not isinstance(handlers, Dict):
+            raise ValueError("Handlers should be of type Dict, str to callable")
         for k, v in handlers.items():
             self.register_data_handler(name=k, func=v)
 
