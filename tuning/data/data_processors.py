@@ -54,7 +54,9 @@ class DataPreProcessor:
         if not isinstance(name, str) or not callable(func):
             raise ValueError("Handlers should be of type Dict, str to callable")
         if name in self.registered_handlers:
-            logging.warning("Handler name %s existed is being overwritten", name)
+            logging.warning(
+                "Handler name '%s' already exists and will be overwritten", name
+            )
         self.registered_handlers[name] = func
         logging.info("Registered new handler %s", name)
 

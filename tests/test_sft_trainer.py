@@ -1141,8 +1141,7 @@ def test_pretokenized_dataset_wrong_format():
 ### The argument `additional_handlers` in train::sft_trainer.py is used to pass
 ### extra data handlers which should be a Dict[str,callable]
 
-### Test for checking if bad additional_handlers argument
-### (which is not Dict[str,callable]) throws an error
+
 @pytest.mark.parametrize(
     "additional_handlers",
     [
@@ -1153,6 +1152,8 @@ def test_pretokenized_dataset_wrong_format():
     ],
 )
 def test_run_with_bad_additional_data_handlers(additional_handlers):
+    """Ensure that bad additional_handlers argument (which is not Dict[str,callable])
+    throws an error"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -1169,8 +1170,8 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
             )
 
 
-### Test for checking if additional_handlers=None should work
 def test_run_with_additional_data_handlers_as_none():
+    """Ensure that additional_handlers as None should work."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -1182,12 +1183,12 @@ def test_run_with_additional_data_handlers_as_none():
             PEFT_PT_ARGS,
             additional_data_handlers=None,
         )
+        _validate_training(tempdir)
 
 
-### Test for checking if a good additional_handlers argument
-### can take a data handler and can successfully run a e2e training.
 def test_run_by_passing_additional_data_handlers():
-
+    """Ensure that good additional_handlers argument can take a
+    data handler and can successfully run a e2e training."""
     # This is my test handler
     TEST_HANDLER = "my_test_handler"
 
@@ -1229,3 +1230,4 @@ def test_run_by_passing_additional_data_handlers():
             PEFT_PT_ARGS,
             additional_data_handlers={TEST_HANDLER: test_handler},
         )
+        _validate_training(tempdir)
