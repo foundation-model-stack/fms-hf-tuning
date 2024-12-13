@@ -20,6 +20,7 @@ import os
 ### Constants used for data
 DATA_DIR = os.path.join(os.path.dirname(__file__))
 PARQUET_DATA_DIR = os.path.join(os.path.dirname(__file__), "parquet")
+TWITTER_COMPLAINTS_DATA_DIR_JSON = os.path.join(DATA_DIR, "datafolder")
 TWITTER_COMPLAINTS_DATA_JSON = os.path.join(DATA_DIR, "twitter_complaints_small.json")
 TWITTER_COMPLAINTS_DATA_JSONL = os.path.join(DATA_DIR, "twitter_complaints_small.jsonl")
 TWITTER_COMPLAINTS_DATA_ARROW = os.path.join(DATA_DIR, "twitter_complaints_small.arrow")

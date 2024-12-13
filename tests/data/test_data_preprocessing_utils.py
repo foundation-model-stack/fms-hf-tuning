@@ -26,7 +26,6 @@ import yaml
 
 # First Party
 from tests.artifacts.predefined_data_configs import (
-    DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_FOLDER_YAML,
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
@@ -35,6 +34,7 @@ from tests.artifacts.predefined_data_configs import (
 from tests.artifacts.testdata import (
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
@@ -246,6 +246,30 @@ def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
         processor.load_dataset(
             datasetconfig=datasetconfig, splitName="train", datafile=datafile
         )
+
+
+@pytest.mark.parametrize(
+    "datafolder, column_names, datasetconfigname",
+    [
+        (
+            TWITTER_COMPLAINTS_DATA_DIR_JSON,
+            set(["ID", "Label", "input", "output"]),
+            "text_dataset_input_output_masking",
+        ),
+    ],
+)
+def test_load_dataset_with_dataconfig_and_datafile(
+    datafolder, column_names, datasetconfigname
+):
+    """Ensure that both datasetconfig and datafile cannot be passed."""
+    datasetconfig = DataSetConfig(name=datasetconfigname, data_paths=[datafolder])
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig, splitName="train", datafile=None
+    )
+    assert set(load_dataset.column_names) == column_names
 
 
 def test_load_dataset_without_dataconfig_and_datafile():
