@@ -15,7 +15,10 @@
 """Unit Tests for SFT Trainer.
 """
 
+# pylint: disable=too-many-lines
+
 # Standard
+from dataclasses import asdict
 import copy
 import json
 import os
@@ -34,23 +37,38 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
 )
 from tests.artifacts.testdata import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
+    TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
     TWITTER_COMPLAINTS_DATA_JSON,
     TWITTER_COMPLAINTS_DATA_JSONL,
+    TWITTER_COMPLAINTS_DATA_PARQUET,
+    TWITTER_COMPLAINTS_TOKENIZED_ARROW,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
 
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.data.data_config import (
+    DataConfig,
+    DataHandlerConfig,
+    DataPreProcessorConfig,
+    DataSetConfig,
+)
+from tuning.data.data_handlers import apply_dataset_formatting
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -688,6 +706,8 @@ def test_successful_lora_target_modules_default_from_main():
     [
         TWITTER_COMPLAINTS_DATA_JSONL,
         TWITTER_COMPLAINTS_DATA_JSON,
+        TWITTER_COMPLAINTS_DATA_PARQUET,
+        TWITTER_COMPLAINTS_DATA_ARROW,
     ],
 )
 def test_run_causallm_ft_and_inference(dataset_path):
@@ -724,7 +744,12 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 
 @pytest.mark.parametrize(
     "dataset_path",
-    [TWITTER_COMPLAINTS_TOKENIZED_JSONL, TWITTER_COMPLAINTS_TOKENIZED_JSON],
+    [
+        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+        TWITTER_COMPLAINTS_TOKENIZED_JSON,
+        TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
+        TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+    ],
 )
 def test_run_causallm_ft_pretokenized(dataset_path):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
@@ -763,12 +788,42 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     "datafiles, datasetconfigname",
     [
         (
-            TWITTER_COMPLAINTS_DATA_DIR_JSON,
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
         ),
     ],
 )
-def test_run_causallm_ft_and_inference_with_datafolder(datasetconfigname, datafiles):
+def test_run_causallm_ft_and_inference_with_multiple_dataset(
+    datasetconfigname, datafiles
+):
     """Check if we can finetune causallm models using multiple datasets with multiple files"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
@@ -785,7 +840,7 @@ def test_run_causallm_ft_and_inference_with_datafolder(datasetconfigname, datafi
                 data = yaml.safe_load(f)
                 datasets = data["datasets"]
                 for _, d in enumerate(datasets):
-                    d["data_paths"] = [datafiles]
+                    d["data_paths"] = datafiles
                 yaml.dump(data, temp_yaml_file)
                 data_formatting_args.data_config_path = temp_yaml_file.name
 
@@ -1179,3 +1234,100 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+
+
+###########################################################################
+### Tests for checking different cases for the argument additional_handlers
+### The argument `additional_handlers` in train::sft_trainer.py is used to pass
+### extra data handlers which should be a Dict[str,callable]
+
+
+@pytest.mark.parametrize(
+    "additional_handlers",
+    [
+        "thisisnotokay",
+        [],
+        {lambda x: {"x": x}: "notokayeither"},
+        {"thisisfine": "thisisnot"},
+    ],
+)
+def test_run_with_bad_additional_data_handlers(additional_handlers):
+    """Ensure that bad additional_handlers argument (which is not Dict[str,callable])
+    throws an error"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with pytest.raises(
+            ValueError, match="Handlers should be of type Dict, str to callable"
+        ):
+            sft_trainer.train(
+                MODEL_ARGS,
+                DATA_ARGS,
+                train_args,
+                PEFT_PT_ARGS,
+                additional_data_handlers=additional_handlers,
+            )
+
+
+def test_run_with_additional_data_handlers_as_none():
+    """Ensure that additional_handlers as None should work."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(
+            MODEL_ARGS,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_data_handlers=None,
+        )
+        _validate_training(tempdir)
+
+
+def test_run_by_passing_additional_data_handlers():
+    """Ensure that good additional_handlers argument can take a
+    data handler and can successfully run a e2e training."""
+    # This is my test handler
+    TEST_HANDLER = "my_test_handler"
+
+    def test_handler(element, tokenizer, **kwargs):
+        return apply_dataset_formatting(element, tokenizer, "custom_formatted_field")
+
+    # This data config calls for data handler to be applied to dataset
+    preprocessor_config = DataPreProcessorConfig()
+    handler_config = DataHandlerConfig(name="my_test_handler", arguments=None)
+    dataaset_config = DataSetConfig(
+        name="test_dataset",
+        data_paths=TWITTER_COMPLAINTS_DATA_JSON,
+        data_handlers=[handler_config],
+    )
+    data_config = DataConfig(
+        dataprocessor=preprocessor_config, datasets=[dataaset_config]
+    )
+
+    # dump the data config to a file, also test if json data config works
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".json"
+    ) as temp_data_file:
+        data_config_raw = json.dumps(asdict(data_config))
+        temp_data_file.write(data_config_raw)
+        data_config_path = temp_data_file.name
+
+    # now launch sft trainer after registering data handler
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.data_config_path = data_config_path
+        data_args.dataset_text_field = "custom_formatted_field"
+
+        sft_trainer.train(
+            MODEL_ARGS,
+            DATA_ARGS,
+            train_args,
+            PEFT_PT_ARGS,
+            additional_data_handlers={TEST_HANDLER: test_handler},
+        )
+        _validate_training(tempdir)
