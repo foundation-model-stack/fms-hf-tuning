@@ -85,25 +85,27 @@ class DataPreProcessor:
             files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
         elif datasetconfig:
-            files = []
-            for path in datasetconfig.data_paths:
-                if os.path.isdir(path):
-                    # If the path is a folder, collect all files within it
-                    folder_files = [
-                        os.path.join(path, file)
-                        for file in os.listdir(path)
-                        if os.path.isfile(os.path.join(path, file))
-                    ]
-                    files.extend(folder_files)
-                else:
-                    files.append(path)
+            files = datasetconfig.data_paths
             name = datasetconfig.name
-            # simple check to make sure all files are of same type.
+
+            # Check if the first path is a directory or a file with an extension
+            first_path = files[0]
+            if os.path.isdir(first_path):
+                try:
+                    return datasets.load_dataset(first_path, split=splitName, **kwargs)
+                except DatasetNotFoundError as e:
+                    raise e
+                except FileNotFoundError as e:
+                    raise ValueError(
+                        f"data path is invalid [{', '.join(files)}]"
+                    ) from e
+
+            # If the paths are files, ensure all have the same extension
             extns = [get_extension(f) for f in files]
             assert extns.count(extns[0]) == len(
                 extns
             ), f"All files in the dataset {name} should have the same extension"
-            loader = get_loader_for_filepath(file_path=files[0])
+            loader = get_loader_for_filepath(file_path=first_path)
 
         if loader in (None, ""):
             raise ValueError(f"data path is invalid [{', '.join(files)}]")
