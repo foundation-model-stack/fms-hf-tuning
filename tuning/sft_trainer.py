@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 import dataclasses
 import json
 import logging
@@ -85,6 +85,7 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
+    additional_data_handlers: Optional[Dict[str, Callable]] = None,
 ) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
@@ -113,7 +114,8 @@ def train(
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
         attention_and_distributed_packing_config: Used for padding-free attention and multipack.
-
+        additional_data_handlers: Dict [str:Callable] of any extra data handlers \
+                                   to be registered with the data preprocessor
     Returns:
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
@@ -297,7 +299,7 @@ def train(
         data_collator,
         max_seq_length,
         dataset_kwargs,
-    ) = process_dataargs(data_args, tokenizer, train_args)
+    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers)
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
