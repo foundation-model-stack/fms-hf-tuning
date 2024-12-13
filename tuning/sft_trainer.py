@@ -326,6 +326,9 @@ def train(
         if k in transformer_train_arg_fields
     }
 
+    # Remove deprecated push_to_hub_token
+    transformer_kwargs.pop("push_to_hub_token", None)
+
     additional_args = {
         "dataset_text_field": data_args.dataset_text_field,
         "dataset_kwargs": dataset_kwargs,
