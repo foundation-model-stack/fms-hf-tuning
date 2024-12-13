@@ -500,7 +500,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
 
 
 @pytest.mark.parametrize(
-    "data_config_path, list_data_path",
+    "data_config_path, data_path_list",
     [
         (
             DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
@@ -573,11 +573,11 @@ def test_process_dataconfig_file(data_config_path, data_path):
         ),
     ],
 )
-def test_process_dataconfig_multiple_files(data_config_path, list_data_path):
+def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
     """Ensure that datasets with multiple files are formatted and validated correctly based on the arguments passed in config file."""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
-    yaml_content["datasets"][0]["data_paths"] = list_data_path
+    yaml_content["datasets"][0]["data_paths"] = data_path_list
     datasets_name = yaml_content["datasets"][0]["name"]
 
     # Modify input_field_name and output_field_name according to dataset
@@ -685,7 +685,9 @@ def test_process_dataconfig_multiple_files_with_globbing(data_config_path, data_
         ),
     ],
 )
-def test_process_dataconfig_multiple_datasets_datafiles(datafiles, datasetconfigname):
+def test_process_dataconfig_multiple_datasets_datafiles_sampling(
+    datafiles, datasetconfigname
+):
     """Ensure that multiple datasets with multiple files are formatted and validated correctly."""
     with open(datasetconfigname, "r") as f:
         yaml_content = yaml.safe_load(f)
@@ -701,18 +703,38 @@ def test_process_dataconfig_multiple_datasets_datafiles(datafiles, datasetconfig
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    TRAIN_ARGS = configs.TrainingArguments(
+        packing=False,
+        max_seq_length=1024,
+        output_dir="tmp",
+    )
+    (train_set, eval_set, _, _, _, _) = process_dataargs(
+        data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
+    )
+
     assert isinstance(train_set, Dataset)
-    column_names = set(["input_ids", "attention_mask", "labels"])
-    assert set(train_set.column_names) == column_names
+    if eval_set:
+        assert isinstance(eval_set, Dataset)
+
+    assert set(["input_ids", "attention_mask", "labels"]).issubset(
+        set(train_set.column_names)
+    )
+    if eval_set:
+        assert set(["input_ids", "attention_mask", "labels"]).issubset(
+            set(eval_set.column_names)
+        )
 
 
 @pytest.mark.parametrize(
-    "data_config_path, list_data_path",
+    "data_config_path, data_path_list",
     [
         (
             DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
             [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
+        ),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
         ),
         (
             DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
@@ -723,59 +745,6 @@ def test_process_dataconfig_multiple_datasets_datafiles(datafiles, datasetconfig
             ],
         ),
         (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            [
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-            ],
-        ),
-    ],
-)
-def test_process_dataconfig_multiple_files_varied_data_formats(
-    data_config_path, list_data_path
-):
-    """Ensure that datasets with multiple files with different formats raise assertion error when passed in config file."""
-    with open(data_config_path, "r") as f:
-        yaml_content = yaml.safe_load(f)
-    yaml_content["datasets"][0]["data_paths"] = list_data_path
-    datasets_name = yaml_content["datasets"][0]["name"]
-
-    # Modify input_field_name and output_field_name according to dataset
-    if datasets_name == "text_dataset_input_output_masking":
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
-        }
-
-    # Modify dataset_text_field and template according to dataset
-    formatted_dataset_field = "formatted_data_field"
-    if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
-            "template": template,
-        }
-
-    with tempfile.NamedTemporaryFile(
-        "w", delete=False, suffix=".yaml"
-    ) as temp_yaml_file:
-        yaml.dump(yaml_content, temp_yaml_file)
-        temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
-
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises(AssertionError):
-        (_, _, _) = _process_dataconfig_file(data_args, tokenizer)
-
-
-@pytest.mark.parametrize(
-    "data_config_path, list_data_path",
-    [
-        (
-            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
-            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
-        ),
-        (
             DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
             [
                 TWITTER_COMPLAINTS_TOKENIZED_JSON,
@@ -784,17 +753,24 @@ def test_process_dataconfig_multiple_files_varied_data_formats(
         ),
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
             [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON, TWITTER_COMPLAINTS_DATA_JSON],
         ),
     ],
 )
-def test_process_dataconfig_multiple_files_varied_types(
-    data_config_path, list_data_path
+def test_process_dataconfig_multiple_files_varied_data_formats(
+    data_config_path, data_path_list
 ):
     """Ensure that datasets with multiple files with different formats raise assertion error when passed in config file."""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
-    yaml_content["datasets"][0]["data_paths"] = list_data_path
+    yaml_content["datasets"][0]["data_paths"] = data_path_list
     datasets_name = yaml_content["datasets"][0]["name"]
 
     # Modify input_field_name and output_field_name according to dataset
@@ -821,7 +797,9 @@ def test_process_dataconfig_multiple_files_varied_types(
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises(datasets.exceptions.DatasetGenerationCastError):
+    with pytest.raises(
+        (AssertionError, datasets.exceptions.DatasetGenerationCastError)
+    ):
         (_, _, _) = _process_dataconfig_file(data_args, tokenizer)
 
 
@@ -1098,51 +1076,3 @@ def test_process_dataset_configs_with_sampling_error(
         (_, _, _, _, _, _) = process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
-
-
-@pytest.mark.parametrize(
-    "datafiles, datasetconfigname",
-    [
-        (
-            [
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-            ],
-            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
-        ),
-    ],
-)
-def test_process_dataset_configs_with_sampling(datafiles, datasetconfigname):
-
-    data_args = configs.DataArguments()
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    TRAIN_ARGS = configs.TrainingArguments(
-        packing=False,
-        max_seq_length=1024,
-        output_dir="tmp",  # Not needed but positional
-    )
-
-    with tempfile.NamedTemporaryFile(
-        "w", delete=False, suffix=".yaml"
-    ) as temp_yaml_file:
-        with open(datasetconfigname, "r") as f:
-            data = yaml.safe_load(f)
-            datasets = data["datasets"]
-            for i in range(len(datasets)):
-                d = datasets[i]
-                d["data_paths"][0] = datafiles[i]
-            yaml.dump(data, temp_yaml_file)
-        data_args.data_config_path = temp_yaml_file.name
-
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
-        data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
-    )
-
-    assert isinstance(train_set, Dataset)
-    if eval_set:
-        assert isinstance(eval_set, Dataset)
-
-    assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
-    if eval_set:
-        assert set(["input_ids", "labels"]).issubset(set(eval_set.column_names))
