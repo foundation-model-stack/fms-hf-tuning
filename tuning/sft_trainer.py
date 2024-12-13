@@ -337,7 +337,6 @@ def train(
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=train_args.packing,
         data_collator=data_collator,
         args=training_args,
         callbacks=trainer_callbacks,
