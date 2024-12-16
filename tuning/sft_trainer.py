@@ -516,11 +516,14 @@ def parse_arguments(parser, json_config=None):
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             additional,
-            _,
+            leftover,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
+        if leftover:
+            logging.error("Extra un-recognized arguments found: %s", leftover)
+            sys.exit(USER_ERROR_EXIT_CODE)
 
     if peft_method == "lora":
         tune_config = lora_config
