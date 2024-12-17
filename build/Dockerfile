@@ -156,8 +156,9 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
 
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
     python -m pip install --user "$(head bdist_name)[mlflow]"; \
-fi
-RUN if [[ "${ENABLE_SCANNER}}" == "true" ]]; then \
+    fi
+
+RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
 
