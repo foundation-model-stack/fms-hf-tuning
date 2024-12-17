@@ -153,7 +153,7 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
     fi
 
-RUN if [[ "${ENABLE_SCANNER}}" == "true" ]]; then \
+RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
 
