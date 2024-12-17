@@ -1053,11 +1053,17 @@ def _test_run_inference(checkpoint_path):
 
 
 def _validate_training(
-    tempdir, check_eval=False, train_logs_file="training_logs.jsonl"
+    tempdir,
+    check_eval=False,
+    train_logs_file="training_logs.jsonl",
+    check_scanner_file=False,
 ):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
     _validate_logfile(train_logs_file_path, check_eval)
+
+    if check_scanner_file:
+        _validate_hf_resource_scanner_file(tempdir)
 
 
 def _validate_logfile(log_file_path, check_eval=False):
@@ -1071,6 +1077,18 @@ def _validate_logfile(log_file_path, check_eval=False):
 
     if check_eval:
         assert "validation_loss" in train_log_contents
+
+
+def _validate_hf_resource_scanner_file(tempdir):
+    scanner_file_path = os.path.join(tempdir, "scanner_output.json")
+    assert os.path.exists(scanner_file_path)
+    assert os.path.getsize(scanner_file_path) > 0
+
+    scanner_contents = ""
+    with open(scanner_file_path, encoding="utf-8") as f:
+        scanner_contents = f.read()
+
+    assert "ResourceScanner Memory Data:" in scanner_contents
 
 
 def _get_checkpoint_path(dir_path):
