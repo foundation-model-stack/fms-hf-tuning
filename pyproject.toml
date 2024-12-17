@@ -46,6 +46,7 @@ flash-attn = ["flash-attn>=2.5.3,<3.0"]
 aim = ["aim>=3.19.0,<4.0"]
 fms-accel = ["fms-acceleration>=0.1"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
+scanner-dev = ["HFResourceScanner>=0.1.0"]
 
 
 [tool.setuptools.packages.find]
