@@ -53,12 +53,6 @@ def get_data_collator(
     """
 
     if response_template and instruction_template:
-        # response_template_ids = tokenizer.encode(
-        #     response_template, add_special_tokens=False
-        # )[2:]
-        # intruction_template_ids = tokenizer.encode(
-        #     instruction_template, add_special_tokens=False
-        # )[2:]
         return DataCollatorForCompletionOnlyLM(
             response_template=response_template,
             instruction_template=instruction_template,

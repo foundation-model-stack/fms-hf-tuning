@@ -39,6 +39,9 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
 )
 from tests.artifacts.testdata import (
+    CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_SINGLE_TURN,
+    CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
@@ -856,6 +859,89 @@ def test_run_causallm_ft_and_inference_with_multiple_dataset(
         )
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+@pytest.mark.parametrize(
+    "dataset_path",
+    [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
+)
+def test_run_chat_style_ft(dataset_path):
+    """Check if we can perform an e2e run with chat template and multi turn chat training."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        data_args.chat_template = "{% for message in messages['messages'] %}\
+            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {% endif %}\
+            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+            {% endif %}\
+            {% endfor %}"
+        data_args.response_template = "<|assistant|>"
+        data_args.instruction_template = "<|user|>"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+
+
+@pytest.mark.parametrize(
+    "datafiles, dataconfigfile",
+    [
+        (
+            [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        )
+    ],
+)
+def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
+    """Check if we can perform an e2e run with chat template
+    and multi turn chat training using data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.chat_template = "{% for message in messages['messages'] %}\
+            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {% endif %}\
+            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+            {% endif %}\
+            {% endfor %}"
+        data_args.instruction_template = "<|user|>"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            datasets = data["datasets"]
+            for i, d in enumerate(datasets):
+                d["data_paths"][0] = datafiles[i]
+                # Basic chat datasets don't need data handling
+                del d["data_handlers"]
+            yaml.dump(data, temp_yaml_file)
+            data_args.data_config_path = temp_yaml_file.name
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
 
 
 ############################# Helper functions #############################

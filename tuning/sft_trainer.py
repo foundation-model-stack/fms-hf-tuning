@@ -242,6 +242,16 @@ def train(
         ),
     )
 
+    if data_args.chat_template:
+        logger.info("adding chat_template to the tokenizer")
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with the given chat_template %s",
+                tokenizer.chat_template,
+                data_args.chat_template,
+            )
+        tokenizer.chat_template = data_args.chat_template
+
     # Add special tokens only when a custom tokenizer is not passed
     special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
@@ -286,16 +296,6 @@ def train(
         model=model,
         multiple_of=model_args.embedding_size_multiple_of,
     )
-
-    if data_args.chat_template:
-        logger.info("adding chat_template to the tokenizer")
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with the given chat_template %s",
-                tokenizer.chat_template,
-                data_args.chat_template,
-            )
-        tokenizer.chat_template = data_args.chat_template
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
