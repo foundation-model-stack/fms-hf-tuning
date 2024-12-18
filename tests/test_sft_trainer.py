@@ -1081,14 +1081,14 @@ def _validate_logfile(log_file_path, check_eval=False):
 
 def _validate_hf_resource_scanner_file(tempdir):
     scanner_file_path = os.path.join(tempdir, "scanner_output.json")
-    assert os.path.exists(scanner_file_path)
+    assert os.path.exists(scanner_file_path) is True
     assert os.path.getsize(scanner_file_path) > 0
 
-    scanner_contents = ""
-    with open(scanner_file_path, encoding="utf-8") as f:
-        scanner_contents = f.read()
+    with open(scanner_file_path, "r", encoding="utf-8") as f:
+        scanner_contents = json.load(f)
 
-    assert "ResourceScanner Memory Data:" in scanner_contents
+    assert scanner_contents["time_data"] is not None
+    assert scanner_contents["mem_data"] is not None
 
 
 def _get_checkpoint_path(dir_path):
