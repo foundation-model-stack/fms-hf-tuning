@@ -18,6 +18,7 @@
 
 # Standard
 import copy
+import os
 import tempfile
 
 # Third Party
@@ -65,15 +66,17 @@ def test_sample_run_with_hf_resource_scanner_updated_filename():
 
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.gradient_accumulation_steps = 1
         train_args.output_dir = tempdir
 
+        # add hf_resource_scanner to the list of requested tracker
         train_args.trackers = ["hf_resource_scanner"]
 
         scanner_output_file = "scanner_output.json"
 
         tracker_configs = TrackerConfigFactory(
             hf_resource_scanner_config=HFResourceScannerConfig(
-                scanner_output_filename=scanner_output_file
+                scanner_output_filename=os.path.join(tempdir, scanner_output_file)
             )
         )
 

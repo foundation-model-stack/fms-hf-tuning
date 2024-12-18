@@ -16,6 +16,7 @@
 """
 
 # Standard
+import json
 import os
 import tempfile
 import glob
@@ -257,6 +258,9 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
 def test_launch_with_HFResourceScanner_enabled():
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
+        scanner_outfile = os.path.join(
+            tempdir, HFResourceScannerConfig.scanner_output_filename
+        )
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{
@@ -265,17 +269,18 @@ def test_launch_with_HFResourceScanner_enabled():
                 "lora_post_process_for_vllm": True,
                 "gradient_accumulation_steps": 1,
                 "trackers": ["hf_resource_scanner"],
+                "scanner_output_filename": scanner_outfile,
             },
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
         assert main() == 0
-
-        scanner_outfile = os.path.join(
-            tempdir, HFResourceScannerConfig.scanner_output_filename
-        )
-        assert os.path.exists(scanner_outfile)
+        assert os.path.exists(scanner_outfile) is True
+        with open(scanner_outfile, "r", encoding="utf-8") as f:
+            scanner_res = json.load(f)
+        assert scanner_res["time_data"] is not None
+        assert scanner_res["mem_data"] is not None
 
 
 def test_bad_script_path():
