@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # Standard
+import glob
 import json
+import os
 import tempfile
 
 # Third Party
@@ -644,6 +646,54 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            os.path.join(
+                os.path.dirname(TWITTER_COMPLAINTS_DATA_JSONL), "*small*.jsonl"
+            ),
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files_with_globbing(data_config_path, data_path):
+    """Ensure that datasets files matching globbing pattern are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+
+    PATTERN_TWITTER_COMPLAINTS_DATA_JSONL = data_path.replace(
+        "twitter_complaints_small.jsonl", "*small*.jsonl"
+    )
+    yaml_content["datasets"][0]["data_paths"][0] = PATTERN_TWITTER_COMPLAINTS_DATA_JSONL
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+        "dataset_text_field": formatted_dataset_field,
+        "template": template,
+    }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    assert isinstance(train_set, Dataset)
+    assert formatted_dataset_field in set(train_set.column_names)
+
+    data_len = sum(
+        sum(1 for _ in open(file, "r"))  # Count lines in each JSONL file
+        for file in glob.glob(PATTERN_TWITTER_COMPLAINTS_DATA_JSONL)
+    )
+    assert len(train_set) == data_len
 
 
 @pytest.mark.parametrize(
