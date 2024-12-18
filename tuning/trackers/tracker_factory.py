@@ -25,9 +25,10 @@ from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfi
 
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
+WANDB_TRACKER = "wandb"
 FILE_LOGGING_TRACKER = "file_logger"
 
-AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER]
+AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER, WANDB_TRACKER]
 
 
 # Trackers which can be used
@@ -35,7 +36,7 @@ REGISTERED_TRACKERS = {}
 
 # One time package check for list of external trackers.
 _is_aim_available = _is_package_available("aim")
-
+_is_wandb_available = _is_package_available("wandb")
 
 def _get_tracker_class(T, C):
     return {"tracker": T, "config": C}
@@ -59,10 +60,30 @@ def _register_aim_tracker():
             "\t pip install aim"
         )
 
+def _register_wandb_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_wandb_available:
+        # Local
+        from .wandb_tracker import WandBTracker
+        from tuning.config.tracker_configs import WandBConfig
+
+        WandbTracker = _get_tracker_class(WandBTracker, WandBConfig)
+
+        REGISTERED_TRACKERS[WANDB_TRACKER] = WandbTracker
+        logger.info("Registered wandb tracker")
+    else:
+        logger.info(
+            "Not registering WANDB due to unavailablity of package.\n"
+            "Please install wandb if you intend to use it.\n"
+            "\t pip install wandb"
+        )
+
 
 def _is_tracker_installed(name):
     if name == "aim":
         return _is_aim_available
+    if name == "wandb":
+        return _is_wandb_available
     return False
 
 
@@ -79,6 +100,8 @@ def _register_trackers():
     logging.info("Registering trackers")
     if AIMSTACK_TRACKER not in REGISTERED_TRACKERS:
         _register_aim_tracker()
+    if WANDB_TRACKER not in REGISTERED_TRACKERS:
+        _register_wandb_tracker()
     if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
         _register_file_logging_tracker()
 

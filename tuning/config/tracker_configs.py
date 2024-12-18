@@ -14,6 +14,7 @@
 
 # Standard
 from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass
@@ -61,6 +62,11 @@ class AimConfig:
                 + self.aim_remote_server_port
                 + "/"
             )
+
+@dataclass
+class WandBConfig:
+    project: str = 'fms-hf-tuning' # experiment / project name
+    entity: Optional[str] = None
 
 
 @dataclass
