@@ -149,15 +149,22 @@ Example: For a JSON dataset like, `Train.jsonl`
   Pass a dataset containing single/multi turn chat dataset. Your dataset could be supplied like 
 
 ```
+$ head -n 1 train.jsonl
 {"messages": [{"content": "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.", "role": "system"}, {"content": "Look up a word that rhymes with exist", "role": "user"}, {"content": "I found a word that rhymes with \"exist\":\n1\\. Mist", "role": "assistant"}], "group": "lab_extension", "dataset": "base/full-extension", "metadata": "{\"num_turns\": 1}"}
 ```
 
 containing single/multi turn chat.
 
 The chat template used to render this data will be `tokenizer.chat_template` from model's default tokenizer config or can be overridden using `--chat_template <chat-template-string>` argument.
+As an example, for models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct) which contain a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) as part of their `tokenizer_config.json` the users need not pass a chat template to process the data. 
 
-Users also need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
+Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
 `assistant` and `human` response inside the formatted chat template.
+For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) for example, the values shall be.
+```
+--instruction_template `<|start_of_role|>user<|end_of_role|>`
+--response_template <|start_of_role|>assistant<|end_of_role|>`
+```
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
 
@@ -169,7 +176,9 @@ Users can also pass a pretokenized dataset (containing `input_ids` and `labels` 
 python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow
 ```
 
-For advanced data preprocessing support please see [this document](./docs/advanced-data-preprocessing.md).
+### 4. Advanced data preprocessing.
+
+For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
 
 ## Supported Models
 
