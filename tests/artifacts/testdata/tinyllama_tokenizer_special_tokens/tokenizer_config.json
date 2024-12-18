@@ -50,6 +50,14 @@
       "rstrip": false,
       "single_word": false,
       "special": true
+    },
+    "32003": {
+      "content": "<pad>",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
     }
   },
   "additional_special_tokens": [
@@ -62,7 +70,7 @@
   "eos_token": "</s>",
   "legacy": true,
   "model_max_length": 2048,
-  "pad_token": null,
+  "pad_token": "<pad>",
   "sp_model_kwargs": {},
   "tokenizer_class": "LlamaTokenizer",
   "unk_token": "<unk>",

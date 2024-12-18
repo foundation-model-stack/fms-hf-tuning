@@ -69,10 +69,6 @@ class DataArguments:
         default=None,
         metadata={"help": "Path to the training data in JSON/JSONL format."},
     )
-    response_template: str = field(
-        default=None,
-        metadata={"help": "Response template, separator to train on completions only"},
-    )
     dataset_text_field: str = field(
         default=None,
         metadata={
@@ -105,16 +101,25 @@ class DataArguments:
     chat_template: str = field(
         default=None,
         metadata={
-            "help": "chat template to use for tokenization. \
-            No need to pass this if the tokenizer already has a chat_template \
-            if passed, it will overwrite tokenizer.chat_template if it exists"
+            "help": "Chat template to use for tokenization. \
+                No need to pass this if the tokenizer already has a chat_template. \
+                If passed, it will overwrite tokenizer.chat_template if it exists."
+        },
+    )
+    response_template: str = field(
+        default=None,
+        metadata={
+            "help": "For completions only style training represents separator to train on; \
+                For chat style training this needs to be passed with instruction_template\
+                as piece of text which determines the start of assistant response"
         },
     )
     instruction_template: str = field(
         default=None,
         metadata={
             "help": "Should be provided for chat training. \
-            Piece of text that determines the start of human response"
+            Piece of text that determines the start of human response\
+            Passed in conjunction with response_template"
         },
     )
 

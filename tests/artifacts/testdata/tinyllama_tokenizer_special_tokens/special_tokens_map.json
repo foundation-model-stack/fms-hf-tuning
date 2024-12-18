@@ -1,26 +1,8 @@
 {
   "additional_special_tokens": [
-    {
-      "content": "<|user|>",
-      "lstrip": false,
-      "normalized": false,
-      "rstrip": false,
-      "single_word": false
-    },
-    {
-      "content": "<|assistant|>",
-      "lstrip": false,
-      "normalized": false,
-      "rstrip": false,
-      "single_word": false
-    },
-    {
-      "content": "<|system|>",
-      "lstrip": false,
-      "normalized": false,
-      "rstrip": false,
-      "single_word": false
-    }
+    "<|user|>",
+    "<|assistant|>",
+    "<|system|>"
   ],
   "bos_token": {
     "content": "<s>",
@@ -33,6 +15,13 @@
     "content": "</s>",
     "lstrip": false,
     "normalized": true,
+    "rstrip": false,
+    "single_word": false
+  },
+  "pad_token": {
+    "content": "<pad>",
+    "lstrip": false,
+    "normalized": false,
     "rstrip": false,
     "single_word": false
   },

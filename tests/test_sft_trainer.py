@@ -888,10 +888,23 @@ def test_run_chat_style_ft(dataset_path):
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+        sft_trainer.train(model_args, data_args, train_args)
 
-        # validate full ft configs
+        # validate the configs
         _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 @pytest.mark.parametrize(
@@ -917,7 +930,20 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
             {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
             {% endif %}\
             {% endfor %}"
+        data_args.response_template = "<|assistant|>"
         data_args.instruction_template = "<|user|>"
+        data_args.dataset_text_field = "new_formatted_field"
+
+        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        kwargs = {
+            "fn_kwargs": handler_kwargs,
+            "batched": False,
+            "remove_columns": "all",
+        }
+
+        handler_config = DataHandlerConfig(
+            name="apply_tokenizer_chat_template", arguments=kwargs
+        )
 
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
@@ -932,16 +958,29 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
                 data = yaml.safe_load(f)
             datasets = data["datasets"]
             for i, d in enumerate(datasets):
-                d["data_paths"][0] = datafiles[i]
+                d["data_paths"] = [datafiles[i]]
                 # Basic chat datasets don't need data handling
-                del d["data_handlers"]
+                d["data_handlers"] = [asdict(handler_config)]
             yaml.dump(data, temp_yaml_file)
             data_args.data_config_path = temp_yaml_file.name
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+        sft_trainer.train(model_args, data_args, train_args)
 
-        # validate full ft configs
+        # validate the configs
         _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 ############################# Helper functions #############################

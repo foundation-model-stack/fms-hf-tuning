@@ -151,6 +151,25 @@ def _get_dataset_formatting_handlers(data_args, packing):
     return [handler], dataset_text_field
 
 
+### Default Format 3
+def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
+
+    if data_args.dataset_text_field is None:
+        data_args.dataset_text_field = "new_formatted_field"
+
+    fn_kwargs = {}
+    fn_kwargs["dataset_text_field"] = data_args.dataset_text_field
+    fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
+
+    kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
+
+    handlers = [
+        DataHandlerConfig("apply_tokenizer_chat_template", arguments=kwargs),
+    ]
+
+    return handlers, data_args.dataset_text_field
+
+
 ### Default Data format
 def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
@@ -236,15 +255,17 @@ def _process_raw_data_args(
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, packing, (is_eval_dataset_present and not is_evaldata_tokenized)
         )
+    elif data_args.instruction_template and data_args.response_template:
+        # Data Format 2: Chat dataset with instruction and response template
+        # We don't do processing for chat dataset
+        handlers, dataset_text_field = _get_chat_dataset_handlers(
+            data_args, tokenizer_kwargs
+        )
     elif data_args.data_formatter_template or data_args.dataset_text_field:
-        # Data Format 2: Single Sequence Dataset
+        # Data Format 3: Single Sequence Dataset
         handlers, dataset_text_field = _get_dataset_formatting_handlers(
             data_args, packing
         )
-    elif data_args.instruction_template and data_args.response_template:
-        # Data Format 3: Chat dataset with instruction and response template
-        # We don't do processing for chat dataset
-        handlers, dataset_text_field = [], None
     else:
         # Default Data Format: Dataset with Input/Output Fields
         handlers, dataset_text_field = _get_default_dataset_handlers(
