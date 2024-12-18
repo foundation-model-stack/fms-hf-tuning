@@ -60,6 +60,13 @@ TWITTER_COMPLAINTS_TOKENIZED_ARROW = os.path.join(
 TWITTER_COMPLAINTS_TOKENIZED_PARQUET = os.path.join(
     PARQUET_DATA_DIR, "twitter_complaints_tokenized_with_maykeye_tinyllama_v0.parquet"
 )
+CHAT_DATA_SINGLE_TURN = os.path.join(JSONL_DATA_DIR, "single_turn_chat.jsonl")
+CHAT_DATA_MULTI_TURN = os.path.join(JSONL_DATA_DIR, "multi_turn_chat.jsonl")
 EMPTY_DATA = os.path.join(JSON_DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(JSON_DATA_DIR, "malformatted_data.json")
+
+# Other constants
+CUSTOM_TOKENIZER_TINYLLAMA = os.path.join(
+    DATA_DIR, "tinyllama_tokenizer_special_tokens"
+)
 MODEL_NAME = "Maykeye/TinyLLama-v0"
