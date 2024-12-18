@@ -84,30 +84,64 @@ class DataPreProcessor:
         if datafile:
             files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
+            try:
+                return datasets.load_dataset(
+                    loader,
+                    data_files=files,
+                    split=splitName, 
+                    **kwargs
+                )
+            except DatasetNotFoundError as e:
+                raise e
+            except FileNotFoundError as e:
+                raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
         elif datasetconfig:
-            files = datasetconfig.data_paths
-            name = datasetconfig.name
-            # simple check to make sure all files are of same type.
-            extns = [get_extension(f) for f in files]
-            assert extns.count(extns[0]) == len(
-                extns
-            ), f"All files in the dataset {name} should have the same extension"
-            loader = get_loader_for_filepath(file_path=files[0])
+            data_paths = datasetconfig.data_paths
+            all_datasets = []
+            for _, data_path in enumerate(data_paths):
+                # CASE 1: User passes directory 
+                if os.path.isdir(data_path): # Checks if path exists and isdir
+                    if builder:
+                        # From given directory takes datafiles with builder
+                        dataset = datasets.load_dataset(path=builder, data_dir=data_path, split=splitName, **kwargs)
+                    else:
+                        # Pass directory to HF directly
+                        dataset = datasets.load_dataset(path=data_path, split=splitName, **kwargs)
+                # If user did not pass builder
+                if builder is None:
+                    builder = get_loader_for_filepath(data_path)
+                if builder:
+                    # Path is a file with builder
+                    dataset = datasets.load_dataset(path=builder, data_files=[data_path], split=splitName, **kwargs)
+                else:
+                    # Path is HF dataset ID
+                    dataset = datasets.load_dataset(path=data_path, split=splitName, **kwargs)
+                all_datasets.append(dataset)
+            
+            # Concatenate all datasets
+            return datasets.concatenate_datasets(all_datasets) if len(all_datasets) > 1 else all_datasets[0]
 
-        if loader in (None, ""):
-            raise ValueError(f"data path is invalid [{', '.join(files)}]")
+        #     name = datasetconfig.name
+        #     # simple check to make sure all files are of same type.
+        #     extns = [get_extension(f) for f in files]
+        #     assert extns.count(extns[0]) == len(
+        #         extns
+        #     ), f"All files in the dataset {name} should have the same extension"
+        #     loader = get_loader_for_filepath(file_path=files[0])
 
-        try:
-            return datasets.load_dataset(
-                loader,
-                data_files=files,
-                split=splitName,
-                **kwargs,
-            )
-        except DatasetNotFoundError as e:
-            raise e
-        except FileNotFoundError as e:
-            raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
+        # if loader in (None, ""):
+        #     raise ValueError(f"data path is invalid [{', '.join(files)}]")
+
+        # try:
+        #     return datasets.load_dataset(
+        #         loader,
+        #         data_files=files,
+        #         ,
+        #     )
+        # except DatasetNotFoundError as e:
+        #     raise e
+        # except FileNotFoundError as e:
+        #     raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs

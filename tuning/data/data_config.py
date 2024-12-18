@@ -32,6 +32,7 @@ class DataHandlerConfig:
 class DataSetConfig:
     name: str
     data_paths: List[str]
+    builder: Optional[str] = None
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
@@ -87,6 +88,9 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
             )
             p = _p
         c.data_paths.append(p)
+    if "builder" in kwargs and kwargs["builder"] is not None:
+        builder = kwargs["builder"]
+        assert isinstance(builder, str), f"builder: {ratio} should be str with values in (json, text, parquet, arrow)" 
     if "sampling" in kwargs and kwargs["sampling"] is not None:
         ratio = kwargs["sampling"]
         assert isinstance(ratio, float) and (
