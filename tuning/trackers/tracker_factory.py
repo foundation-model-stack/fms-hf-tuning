@@ -26,8 +26,13 @@ from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfi
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
+HF_RESOURCE_SCANNER_TRACKER = "hf_resource_scanner"
 
-AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER]
+AVAILABLE_TRACKERS = [
+    AIMSTACK_TRACKER,
+    FILE_LOGGING_TRACKER,
+    HF_RESOURCE_SCANNER_TRACKER,
+]
 
 
 # Trackers which can be used
@@ -35,6 +40,7 @@ REGISTERED_TRACKERS = {}
 
 # One time package check for list of external trackers.
 _is_aim_available = _is_package_available("aim")
+_is_hf_resource_scanner_available = _is_package_available("HFResourceScanner")
 
 
 def _get_tracker_class(T, C):
@@ -60,9 +66,32 @@ def _register_aim_tracker():
         )
 
 
+def _register_hf_resource_scanner_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_hf_resource_scanner_available:
+        # Local
+        from .hf_resource_scanner_tracker import HFResourceScannerTracker
+        from tuning.config.tracker_configs import HFResourceScannerConfig
+
+        HFResourceScannerTracker = _get_tracker_class(
+            HFResourceScannerTracker, HFResourceScannerConfig
+        )
+
+        REGISTERED_TRACKERS[HF_RESOURCE_SCANNER_TRACKER] = HFResourceScannerTracker
+        logging.info("Registered HFResourceScanner tracker")
+    else:
+        logging.info(
+            "Not registering HFResourceScanner tracker due to unavailablity of package.\n"
+            "Please install HFResourceScanner if you intend to use it.\n"
+            "\t pip install HFResourceScanner"
+        )
+
+
 def _is_tracker_installed(name):
-    if name == "aim":
+    if name == AIMSTACK_TRACKER:
         return _is_aim_available
+    if name == HF_RESOURCE_SCANNER_TRACKER:
+        return _is_hf_resource_scanner_available
     return False
 
 
@@ -81,6 +110,8 @@ def _register_trackers():
         _register_aim_tracker()
     if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
         _register_file_logging_tracker()
+    if HF_RESOURCE_SCANNER_TRACKER not in REGISTERED_TRACKERS:
+        _register_hf_resource_scanner_tracker()
 
 
 def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):

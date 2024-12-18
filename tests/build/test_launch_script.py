@@ -16,12 +16,14 @@
 """
 
 # Standard
+import json
 import os
 import tempfile
 import glob
 
 # Third Party
 import pytest
+from transformers.utils.import_utils import _is_package_available
 
 # First Party
 from build.accelerate_launch import main
@@ -31,7 +33,10 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.config.tracker_configs import (
+    FileLoggingTrackerConfig,
+    HFResourceScannerConfig,
+)
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = "Maykeye/TinyLLama-v0"
@@ -244,6 +249,38 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
         # check for new_embeddings.safetensors
         new_embeddings_file_path = os.path.join(tempdir, "new_embeddings.safetensors")
         assert os.path.exists(new_embeddings_file_path)
+
+
+@pytest.mark.skipif(
+    not _is_package_available("HFResourceScanner"),
+    reason="Only runs if HFResourceScanner is installed",
+)
+def test_launch_with_HFResourceScanner_enabled():
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        scanner_outfile = os.path.join(
+            tempdir, HFResourceScannerConfig.scanner_output_filename
+        )
+        TRAIN_KWARGS = {
+            **BASE_LORA_KWARGS,
+            **{
+                "output_dir": tempdir,
+                "save_model_dir": tempdir,
+                "lora_post_process_for_vllm": True,
+                "gradient_accumulation_steps": 1,
+                "trackers": ["hf_resource_scanner"],
+                "scanner_output_filename": scanner_outfile,
+            },
+        }
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+
+        assert main() == 0
+        assert os.path.exists(scanner_outfile) is True
+        with open(scanner_outfile, "r", encoding="utf-8") as f:
+            scanner_res = json.load(f)
+        assert scanner_res["time_data"] is not None
+        assert scanner_res["mem_data"] is not None
 
 
 def test_bad_script_path():
