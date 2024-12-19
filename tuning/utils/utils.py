@@ -14,6 +14,7 @@
 
 # Standard
 import json
+import logging
 import os
 
 # Third Party
@@ -48,7 +49,7 @@ def load_yaml_or_json(file_path: str) -> dict:
     return None
 
 
-def validate_datasets(datasets):
+def validate_mergeable_datasets(datasets):
     """Given list of datasets, validate if all datasets have same type and number of columns."""
     if len(datasets) > 1:
         ref_columns = datasets[0].features
@@ -62,15 +63,22 @@ def validate_datasets(datasets):
 
             # Check same set of columns
             if set(ds_column_names) != set(ref_column_names):
-                raise ValueError(
-                    f"Dataset {i} has different columns: {ds_column_names}. "
-                    f"Expected columns: {ref_column_names}"
+                logging.warning(
+                    "Dataset %d has different columns: %s. Columns in Dataset 1: %s",
+                    i,
+                    ds_column_names,
+                    ref_column_names,
                 )
 
             # Check column data types
             for col in ref_column_names:
-                if ds_column_types[col] != ref_column_types[col]:
-                    raise ValueError(
-                        f"Column '{col}' in dataset {i} has type {ds_column_types[col]}, "
-                        f"expected {ref_column_types[col]}"
+                if (col in ds_column_types) and (
+                    ds_column_types[col] != ref_column_types[col]
+                ):
+                    logging.warning(
+                        "Column '%s' in dataset %d has type %s, expected %s",
+                        col,
+                        i,
+                        ds_column_types[col],
+                        ref_column_types[col],
                     )

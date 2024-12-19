@@ -32,7 +32,7 @@ class DataHandlerConfig:
 class DataSetConfig:
     name: str
     data_paths: List[str]
-    builder: Optional[str] = None
+    builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
@@ -91,7 +91,8 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         builder = kwargs["builder"]
         assert isinstance(
             builder, str
-        ), f"builder: {builder} should be str with values in (json, text, parquet, arrow)"
+        ), f"builder should be a string representing a supported \
+        Hugging Face dataset builder, but got: {builder}"
         c.builder = builder
     if "sampling" in kwargs and kwargs["sampling"] is not None:
         ratio = kwargs["sampling"]

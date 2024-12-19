@@ -27,7 +27,7 @@ import torch
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
-from tuning.utils.utils import get_loader_for_filepath, validate_datasets
+from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
 
 
 class DataPreProcessor:
@@ -81,13 +81,13 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
-        def _load_dataset(path=None, builder=None, data_files=None, data_dir=None):
+        def _load_dataset(data_path=None, builder=None, data_files=None, data_dir=None):
             """
             Helper function to load a dataset using datasets.load_dataset
             with standardized exception handling.
 
             Args:
-                path: The path argument for load_dataset (could be a directory, file, builder, etc.)
+                data_path: The path argument for load_dataset (directory, file, pattern, dataset_id)
                 builder: Optional builder to use if provided.
                 data_files: Optional data_files list if loading from files.
                 data_dir: Optional data_dir if loading from a directory with a builder.
@@ -101,7 +101,7 @@ class DataPreProcessor:
                 load_kwargs["data_files"] = data_files
 
             # Determine the `path` parameter for load_dataset
-            load_path = builder if builder else path
+            load_path = builder if builder else data_path
 
             try:
                 return datasets.load_dataset(path=load_path, **load_kwargs)
@@ -110,7 +110,11 @@ class DataPreProcessor:
                 raise e
             except FileNotFoundError as e:
                 # Handle file/directory not found
-                context = f"builder {builder}" if builder else f"path {path}"
+                context = (
+                    f"path {data_path} with builder {builder}"
+                    if builder
+                    else f"path {data_path}"
+                )
                 raise ValueError(f"Data loading failed: invalid {context}.") from e
             except datasets.exceptions.DatasetGenerationError as e:
                 context = (
@@ -118,7 +122,7 @@ class DataPreProcessor:
                     if builder and data_dir
                     else f"builder {builder}"
                     if builder
-                    else f"path {path}"
+                    else f"path {data_path}"
                 )
                 raise ValueError(
                     f"Failed to generate the dataset from the provided {context}."
@@ -143,7 +147,7 @@ class DataPreProcessor:
                     dataset = _load_dataset(builder=builder, data_dir=data_path)
                 else:
                     # Load directly from the directory
-                    dataset = _load_dataset(path=data_path)
+                    dataset = _load_dataset(data_path=data_path)
             else:
                 # Non-directory (file, pattern, HF dataset name)
                 # If no builder provided, attempt to infer one
@@ -158,25 +162,30 @@ class DataPreProcessor:
                     )
                 else:
                     # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
-                    dataset = _load_dataset(path=data_path)
+                    dataset = _load_dataset(data_path=data_path)
 
             all_datasets.append(dataset)
 
-        # Validate all datasets to have same columns
-        validate_datasets(all_datasets)
+        # Logs warning if datasets have different columns
+        validate_mergeable_datasets(all_datasets)
 
         # Concatenate all datasets
         try:
-            raw_datasets = (
-                datasets.concatenate_datasets(all_datasets)
-                if len(all_datasets) > 1
-                else all_datasets[0]
+            if len(all_datasets) == 1:
+                return all_datasets[0]
+
+            raw_datasets = datasets.concatenate_datasets(all_datasets)
+            logging.info(
+                "Datasets concatenated from %s .Concatenated dataset columns: %s",
+                datasetconfig.name,
+                list(raw_datasets.features.keys()),
             )
+            return raw_datasets
+
         except Exception as e:
             raise ValueError(
-                f"An error occurred while concatenating datasets: {e}"
+                f"An error occurred while concatenating datasets from {datasetconfig.name}: {e}"
             ) from e
-        return raw_datasets
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs
