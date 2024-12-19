@@ -137,8 +137,25 @@ def apply_custom_data_formatting_template(
     }
 
 
+def apply_tokenizer_chat_template(
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    **kwargs,
+):
+    if tokenizer.chat_template is None:
+        raise ValueError(
+            "Tokenizer does not contain tokenizer.chat_template\
+                          please pass data_args.chat_template"
+        )
+    return {
+        f"{dataset_text_field}": tokenizer.apply_chat_template(element, tokenize=False)
+    }
+
+
 AVAILABLE_DATA_HANDLERS = {
     "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
     "apply_dataset_formatting": apply_dataset_formatting,
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
+    "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
 }
