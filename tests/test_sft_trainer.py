@@ -1134,7 +1134,7 @@ def test_malformatted_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = MALFORMATTED_DATA
 
-    with pytest.raises(DatasetGenerationError):
+    with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
@@ -1143,7 +1143,7 @@ def test_empty_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = EMPTY_DATA
 
-    with pytest.raises(DatasetGenerationError):
+    with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
