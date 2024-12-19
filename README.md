@@ -823,12 +823,13 @@ For details about how you can use set a custom stopping criteria and perform cus
 
 ## Experiment Tracking
 
-Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/), [MLflow Tracking](https://mlflow.org/docs/latest/tracking.html) or custom trackers built into the code like
 [FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
 The code supports currently two trackers out of the box, 
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
 * `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+* `MLflow Tracking` : Another popular opensource tracker which stores metrics, metadata or even artifacts from experiments.
 
 Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
 

@@ -100,7 +100,7 @@ class AimStackTracker(Tracker):
         """
         super().__init__(name="aim", tracker_config=tracker_config)
         # Get logger with root log level
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(__name__)
 
     def get_hf_callback(self):
         """Returns the aim.hugging_face.AimCallback object associated with this tracker.
