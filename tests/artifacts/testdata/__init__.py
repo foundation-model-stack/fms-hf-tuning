@@ -24,6 +24,8 @@ JSONL_DATA_DIR = os.path.join(os.path.dirname(__file__), "jsonl")
 ARROW_DATA_DIR = os.path.join(os.path.dirname(__file__), "arrow")
 PARQUET_DATA_DIR = os.path.join(os.path.dirname(__file__), "parquet")
 
+TWITTER_COMPLAINTS_DATA_DIR_JSON = os.path.join(DATA_DIR, "datafolder")
+
 TWITTER_COMPLAINTS_DATA_JSON = os.path.join(
     JSON_DATA_DIR, "twitter_complaints_small.json"
 )

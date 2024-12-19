@@ -27,7 +27,7 @@ import torch
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
-from tuning.utils.utils import get_extension, get_loader_for_filepath
+from tuning.utils.utils import get_loader_for_filepath, validate_datasets
 
 
 class DataPreProcessor:
@@ -81,33 +81,102 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
+        def _load_dataset(path=None, builder=None, data_files=None, data_dir=None):
+            """
+            Helper function to load a dataset using datasets.load_dataset
+            with standardized exception handling.
+
+            Args:
+                path: The path argument for load_dataset (could be a directory, file, builder, etc.)
+                builder: Optional builder to use if provided.
+                data_files: Optional data_files list if loading from files.
+                data_dir: Optional data_dir if loading from a directory with a builder.
+            Returns: dataset
+            """
+
+            load_kwargs = {**kwargs, "split": splitName}
+            if data_dir is not None:
+                load_kwargs["data_dir"] = data_dir
+            if data_files is not None:
+                load_kwargs["data_files"] = data_files
+
+            # Determine the `path` parameter for load_dataset
+            load_path = builder if builder else path
+
+            try:
+                return datasets.load_dataset(path=load_path, **load_kwargs)
+            except DatasetNotFoundError as e:
+                # Reraise with a more context-specific message if needed
+                raise e
+            except FileNotFoundError as e:
+                # Handle file/directory not found
+                context = f"builder {builder}" if builder else f"path {path}"
+                raise ValueError(f"Data loading failed: invalid {context}.") from e
+            except datasets.exceptions.DatasetGenerationError as e:
+                context = (
+                    f"builder {builder} and data_dir {data_dir}"
+                    if builder and data_dir
+                    else f"builder {builder}"
+                    if builder
+                    else f"path {path}"
+                )
+                raise ValueError(
+                    f"Failed to generate the dataset from the provided {context}."
+                ) from e
+
         if datafile:
-            files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
-        elif datasetconfig:
-            files = datasetconfig.data_paths
-            name = datasetconfig.name
-            # simple check to make sure all files are of same type.
-            extns = [get_extension(f) for f in files]
-            assert extns.count(extns[0]) == len(
-                extns
-            ), f"All files in the dataset {name} should have the same extension"
-            loader = get_loader_for_filepath(file_path=files[0])
+            if loader in (None, ""):
+                raise ValueError(f"data path is invalid [{datafile}]")
+            return _load_dataset(builder=loader, data_files=[datafile])
 
-        if loader in (None, ""):
-            raise ValueError(f"data path is invalid [{', '.join(files)}]")
+        data_paths = datasetconfig.data_paths
+        builder = datasetconfig.builder
+        all_datasets = []
 
+        for data_path in data_paths:
+            # CASE 1: User passes directory
+            if os.path.isdir(data_path):  # Checks if path exists and isdirectory
+                # Directory case
+                if builder:
+                    # Load using a builder with a data_dir
+                    dataset = _load_dataset(builder=builder, data_dir=data_path)
+                else:
+                    # Load directly from the directory
+                    dataset = _load_dataset(path=data_path)
+            else:
+                # Non-directory (file, pattern, HF dataset name)
+                # If no builder provided, attempt to infer one
+                effective_builder = (
+                    builder if builder else get_loader_for_filepath(data_path)
+                )
+
+                if effective_builder:
+                    # CASE 2: Files passed with builder. Load using the builder and specific files
+                    dataset = _load_dataset(
+                        builder=effective_builder, data_files=[data_path]
+                    )
+                else:
+                    # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
+                    dataset = _load_dataset(path=data_path)
+
+            all_datasets.append(dataset)
+
+        # Validate all datasets to have same columns
+        validate_datasets(all_datasets)
+
+        # Concatenate all datasets
         try:
-            return datasets.load_dataset(
-                loader,
-                data_files=files,
-                split=splitName,
-                **kwargs,
+            raw_datasets = (
+                datasets.concatenate_datasets(all_datasets)
+                if len(all_datasets) > 1
+                else all_datasets[0]
             )
-        except DatasetNotFoundError as e:
-            raise e
-        except FileNotFoundError as e:
-            raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
+        except Exception as e:
+            raise ValueError(
+                f"An error occurred while concatenating datasets: {e}"
+            ) from e
+        return raw_datasets
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs
