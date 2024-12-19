@@ -58,7 +58,7 @@ def fixture_aimrepo():
 
 
 @pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
-def test_run_with_good_tracker_name_but_no_args():
+def test_run_with_aim_tracker_name_but_no_args():
     """Ensure that train() raises error with aim tracker name but no args"""
 
     with tempfile.TemporaryDirectory() as tempdir:

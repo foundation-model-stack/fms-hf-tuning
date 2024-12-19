@@ -6,7 +6,7 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
+# Unless required by applicable law or agreed to in writing, aim_reposoftware
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
@@ -26,8 +26,9 @@ from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfi
 # Information about all registered trackers
 AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
+MLFLOW_TRACKER = "mlflow"
 
-AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER]
+AVAILABLE_TRACKERS = [AIMSTACK_TRACKER, FILE_LOGGING_TRACKER, MLFLOW_TRACKER]
 
 
 # Trackers which can be used
@@ -35,10 +36,19 @@ REGISTERED_TRACKERS = {}
 
 # One time package check for list of external trackers.
 _is_aim_available = _is_package_available("aim")
+_is_mlflow_available = _is_package_available("mlflow")
 
 
 def _get_tracker_class(T, C):
     return {"tracker": T, "config": C}
+
+
+def _is_tracker_installed(name):
+    if name == "aim":
+        return _is_aim_available
+    if name == "mlflow":
+        return _is_mlflow_available
+    return False
 
 
 def _register_aim_tracker():
@@ -60,10 +70,23 @@ def _register_aim_tracker():
         )
 
 
-def _is_tracker_installed(name):
-    if name == "aim":
-        return _is_aim_available
-    return False
+def _register_mlflow_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_mlflow_available:
+        # Local
+        from .mlflow_tracker import MLflowTracker
+        from tuning.config.tracker_configs import MLflowConfig
+
+        mlflow_tracker = _get_tracker_class(MLflowTracker, MLflowConfig)
+
+        REGISTERED_TRACKERS[MLFLOW_TRACKER] = mlflow_tracker
+        logging.info("Registered mlflow tracker")
+    else:
+        logging.info(
+            "Not registering mlflow tracker due to unavailablity of package.\n"
+            "Please install mlflow if you intend to use it.\n"
+            "\t pip install mlflow"
+        )
 
 
 def _register_file_logging_tracker():
@@ -81,6 +104,8 @@ def _register_trackers():
         _register_aim_tracker()
     if FILE_LOGGING_TRACKER not in REGISTERED_TRACKERS:
         _register_file_logging_tracker()
+    if MLFLOW_TRACKER not in REGISTERED_TRACKERS:
+        _register_mlflow_tracker()
 
 
 def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):
@@ -111,6 +136,7 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
             Valid classes available are,
             tuning.trackers.tracker.aimstack_tracker.AimStackTracker,
             tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker
+            tuning.trackers.tracker.mlflow_tracker.MLflowTracker
 
     Examples:
         file_logging_tracker = get_tracker("file_logger", TrackerConfigFactory(
@@ -120,8 +146,14 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
                                 ))
         aim_tracker = get_tracker("aim", TrackerConfigFactory(
                             aim_config=AimConfig(
-                                experiment="unit_test",
+                                experiment="test",
                                 aim_repo=tempdir + "/"
+                            )
+                    ))
+        mlflow_tracker = get_tracker("mlflow", TrackerConfigFactory(
+                            mlflow_config=MLflowConfig(
+                                experiment="test",
+                                mlflow_tracking_uri="./mlflow.sqlite"
                             )
                     ))
     """
@@ -131,14 +163,12 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
 
     if name not in REGISTERED_TRACKERS:
         if name in AVAILABLE_TRACKERS and (not _is_tracker_installed(name)):
-            e = "Requested tracker {} is not installed. Please install before proceeding".format(
-                name
-            )
+            e = f"Requested tracker {name} is not installed.\
+                  Please install before proceeding"
         else:
             available = ", ".join(str(t) for t in AVAILABLE_TRACKERS)
-            e = "Requested Tracker {} not found. List trackers available for use is - {} ".format(
-                name, available
-            )
+            e = f"Requested Tracker {name} not found.\
+                  List trackers available for use is - {available} "
         logging.error(e)
         raise ValueError(e)
 
