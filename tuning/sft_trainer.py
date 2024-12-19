@@ -51,6 +51,7 @@ from tuning.config.acceleration_configs import (
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
+    MLflowConfig,
     TrackerConfigFactory,
 )
 from tuning.data.setup_dataprocessor import process_dataargs
@@ -444,6 +445,7 @@ def get_parser():
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
+            MLflowConfig,
         )
     )
     parser.add_argument(
@@ -493,8 +495,10 @@ def parse_arguments(parser, json_config=None):
             Configuration for fused operations and kernels.
         AttentionAndDistributedPackingConfig
             Configuration for padding free and packing.
+        MLflowConfig
+            Configuration for mlflow tracker.
         dict[str, str]
-            Extra AIM metadata.
+            Extra tracker metadata.
     """
     if json_config:
         (
@@ -509,6 +513,7 @@ def parse_arguments(parser, json_config=None):
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            mlflow_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -525,6 +530,7 @@ def parse_arguments(parser, json_config=None):
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            mlflow_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -550,6 +556,7 @@ def parse_arguments(parser, json_config=None):
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
+        mlflow_config,
         exp_metadata,
     )
 
@@ -571,6 +578,7 @@ def main():
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            mlflow_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
@@ -582,7 +590,8 @@ def main():
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config %s exp_metadata %s",
+            attention_and_distributed_packing_config %s,\
+            mlflow_config %s, exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -593,6 +602,7 @@ def main():
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            mlflow_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -617,10 +627,11 @@ def main():
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
-    combined_tracker_configs = TrackerConfigFactory()
-
-    combined_tracker_configs.file_logger_config = file_logger_config
-    combined_tracker_configs.aim_config = aim_config
+    tracker_configs = TrackerConfigFactory(
+        file_logger_config=file_logger_config,
+        aim_config=aim_config,
+        mlflow_config=mlflow_config,
+    )
 
     if training_args.output_dir:
         os.makedirs(training_args.output_dir, exist_ok=True)
@@ -632,7 +643,7 @@ def main():
             train_args=training_args,
             peft_config=tune_config,
             trainer_controller_args=trainer_controller_args,
-            tracker_configs=combined_tracker_configs,
+            tracker_configs=tracker_configs,
             additional_callbacks=None,
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
