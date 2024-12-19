@@ -37,12 +37,14 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
 from tests.artifacts.testdata import (
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
@@ -786,9 +788,20 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     "datafiles, datasetconfigname",
     [
         (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+        ),
+        (
             [
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_DIR_JSON,
             ],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
         ),
@@ -1007,16 +1020,6 @@ def test_empty_data():
 
     with pytest.raises(DatasetGenerationError):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
-
-
-def test_data_path_is_a_directory():
-    """Ensure that we get ValueError if we point the data path at a dir, not a file."""
-    with tempfile.TemporaryDirectory() as tempdir:
-        data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = tempdir
-
-        with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
 ### Tests for bad tuning module configurations

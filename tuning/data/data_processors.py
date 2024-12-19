@@ -27,7 +27,7 @@ import torch
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
-from tuning.utils.utils import get_extension, get_loader_for_filepath
+from tuning.utils.utils import get_loader_for_filepath, validate_datasets
 
 
 class DataPreProcessor:
@@ -84,12 +84,11 @@ class DataPreProcessor:
         if datafile:
             files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
+            if loader in (None, ""):
+                raise ValueError(f"data path is invalid [{', '.join(files)}]")
             try:
                 return datasets.load_dataset(
-                    loader,
-                    data_files=files,
-                    split=splitName, 
-                    **kwargs
+                    loader, data_files=files, split=splitName, **kwargs
                 )
             except DatasetNotFoundError as e:
                 raise e
@@ -98,50 +97,106 @@ class DataPreProcessor:
         elif datasetconfig:
             data_paths = datasetconfig.data_paths
             all_datasets = []
+            builder = datasetconfig.builder
             for _, data_path in enumerate(data_paths):
-                # CASE 1: User passes directory 
-                if os.path.isdir(data_path): # Checks if path exists and isdir
+                # CASE 1: User passes directory
+                if os.path.isdir(data_path):  # Checks if path exists and isdir
                     if builder:
                         # From given directory takes datafiles with builder
-                        dataset = datasets.load_dataset(path=builder, data_dir=data_path, split=splitName, **kwargs)
+                        try:
+                            dataset = datasets.load_dataset(
+                                path=builder,
+                                data_dir=data_path,
+                                split=splitName,
+                                **kwargs,
+                            )
+                        except DatasetNotFoundError as e:
+                            raise e
+                        except FileNotFoundError as e:
+                            raise ValueError(
+                                f"data path of directory {data_path} \
+                                    with builder {builder} is invalid."
+                            ) from e
+                        except datasets.exceptions.DatasetGenerationError as e:
+                            raise ValueError(
+                                f"failed to generate the dataset from \
+                                the provided builder {builder} and directory {data_path}."
+                            ) from e
                     else:
                         # Pass directory to HF directly
-                        dataset = datasets.load_dataset(path=data_path, split=splitName, **kwargs)
-                # If user did not pass builder
-                if builder is None:
-                    builder = get_loader_for_filepath(data_path)
-                if builder:
-                    # Path is a file with builder
-                    dataset = datasets.load_dataset(path=builder, data_files=[data_path], split=splitName, **kwargs)
+                        try:
+                            dataset = datasets.load_dataset(
+                                path=data_path, split=splitName, **kwargs
+                            )
+                        except DatasetNotFoundError as e:
+                            raise e
+                        except FileNotFoundError as e:
+                            raise ValueError(
+                                f"data path of directory {data_path} is invalid."
+                            ) from e
+                        except datasets.exceptions.DatasetGenerationError as e:
+                            raise ValueError(
+                                f"failed to generate the dataset \
+                                from the provided directory {data_path}."
+                            ) from e
                 else:
-                    # Path is HF dataset ID
-                    dataset = datasets.load_dataset(path=data_path, split=splitName, **kwargs)
+                    # CASE OF NON-DIRECTORY
+                    # If user did not pass builder
+                    if builder is None:
+                        builder = get_loader_for_filepath(data_path)
+
+                    # CASE 2: Files passed with builder
+                    if builder:
+                        try:
+                            dataset = datasets.load_dataset(
+                                path=builder,
+                                data_files=[data_path],
+                                split=splitName,
+                                **kwargs,
+                            )
+                        except DatasetNotFoundError as e:
+                            raise e
+                        except FileNotFoundError as e:
+                            raise ValueError(
+                                f"data path {data_path} of files with builder {builder} is invalid"
+                            ) from e
+                        except datasets.exceptions.DatasetGenerationError as e:
+                            raise ValueError(
+                                f"failed to generate the dataset \
+                                    from the builder {builder} and data files {data_path}."
+                            ) from e
+                    else:
+                        # CASE 3: User passes files/folder/pattern/HF_dataset without builder
+                        try:
+                            dataset = datasets.load_dataset(
+                                path=data_path, split=splitName, **kwargs
+                            )
+                        except DatasetNotFoundError as e:
+                            raise e
+                        except FileNotFoundError as e:
+                            raise ValueError(f"data path {data_path} is invalid") from e
+                        except datasets.exceptions.DatasetGenerationError as e:
+                            raise ValueError(
+                                f"failed to generate the dataset \
+                                    from the provided data path {data_path}."
+                            ) from e
                 all_datasets.append(dataset)
-            
+
+            # Validate all datasets to have same columns
+            validate_datasets(all_datasets)
+
             # Concatenate all datasets
-            return datasets.concatenate_datasets(all_datasets) if len(all_datasets) > 1 else all_datasets[0]
-
-        #     name = datasetconfig.name
-        #     # simple check to make sure all files are of same type.
-        #     extns = [get_extension(f) for f in files]
-        #     assert extns.count(extns[0]) == len(
-        #         extns
-        #     ), f"All files in the dataset {name} should have the same extension"
-        #     loader = get_loader_for_filepath(file_path=files[0])
-
-        # if loader in (None, ""):
-        #     raise ValueError(f"data path is invalid [{', '.join(files)}]")
-
-        # try:
-        #     return datasets.load_dataset(
-        #         loader,
-        #         data_files=files,
-        #         ,
-        #     )
-        # except DatasetNotFoundError as e:
-        #     raise e
-        # except FileNotFoundError as e:
-        #     raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
+            try:
+                raw_datasets = (
+                    datasets.concatenate_datasets(all_datasets)
+                    if len(all_datasets) > 1
+                    else all_datasets[0]
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"An error occurred while concatenating datasets: {e}"
+                ) from e
+            return raw_datasets
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs

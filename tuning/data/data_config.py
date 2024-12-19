@@ -80,7 +80,6 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
     c.data_paths = []
     for p in data_paths:
         assert isinstance(p, str), f"path {p} should be of the type string"
-        assert os.path.exists(p), f"data_paths {p} does not exist"
         if not os.path.isabs(p):
             _p = os.path.abspath(p)
             logging.warning(
@@ -90,7 +89,10 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.data_paths.append(p)
     if "builder" in kwargs and kwargs["builder"] is not None:
         builder = kwargs["builder"]
-        assert isinstance(builder, str), f"builder: {ratio} should be str with values in (json, text, parquet, arrow)" 
+        assert isinstance(
+            builder, str
+        ), f"builder: {builder} should be str with values in (json, text, parquet, arrow)"
+        c.builder = builder
     if "sampling" in kwargs and kwargs["sampling"] is not None:
         ratio = kwargs["sampling"]
         assert isinstance(ratio, float) and (
