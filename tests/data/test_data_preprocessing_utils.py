@@ -145,7 +145,7 @@ def test_load_dataset_with_datafile(datafile, column_names):
     assert set(load_dataset.column_names) == column_names
 
 
-@pytest.mark.parametrize("hf_dataset, splitName", [("ibm/AttaQ-JA", "test")])
+@pytest.mark.parametrize("hf_dataset, splitName", [("squad", "validation")])
 def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
     """Ensure that hf dataset could be loaded."""
     datasetconfig = DataSetConfig(
