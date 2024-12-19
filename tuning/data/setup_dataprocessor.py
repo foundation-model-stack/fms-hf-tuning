@@ -33,6 +33,8 @@ from tuning.data.data_config import (
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
 
+logger = logging.getLogger(__name__)
+
 # In future we may make the fields configurable
 DEFAULT_INPUT_COLUMN = "input"
 DEFAULT_OUTPUT_COLUMN = "output"
@@ -320,9 +322,9 @@ def process_dataargs(
     """
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
-    logging.info("Max sequence length is %s", max_seq_length)
+    logger.info("Max sequence length is %s", max_seq_length)
     if train_args.max_seq_length > tokenizer.model_max_length:
-        logging.warning(
+        logger.warning(
             "max_seq_length %s exceeds tokenizer.model_max_length \
             %s, using tokenizer.model_max_length %s",
             train_args.max_seq_length,

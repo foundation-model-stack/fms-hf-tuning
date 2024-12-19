@@ -21,6 +21,8 @@ import os
 # Local
 from tuning.utils.utils import load_yaml_or_json
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DataHandlerConfig:
@@ -82,9 +84,7 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         assert isinstance(p, str), f"path {p} should be of the type string"
         if not os.path.isabs(p):
             _p = os.path.abspath(p)
-            logging.warning(
-                " Provided path %s is not absolute changing it to %s", p, _p
-            )
+            logger.warning(" Provided path %s is not absolute changing it to %s", p, _p)
             p = _p
         c.data_paths.append(p)
     if "builder" in kwargs and kwargs["builder"] is not None:

@@ -29,6 +29,8 @@ from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetC
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
 from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
 
+logger = logging.getLogger(__name__)
+
 
 class DataPreProcessor:
 
@@ -54,11 +56,11 @@ class DataPreProcessor:
         if not isinstance(name, str) or not callable(func):
             raise ValueError("Handlers should be of type Dict, str to callable")
         if name in self.registered_handlers:
-            logging.warning(
+            logger.warning(
                 "Handler name '%s' already exists and will be overwritten", name
             )
         self.registered_handlers[name] = func
-        logging.info("Registered new handler %s", name)
+        logger.info("Registered new handler %s", name)
 
     def register_data_handlers(self, handlers: Dict[str, Callable]):
         if handlers is None:
@@ -175,7 +177,7 @@ class DataPreProcessor:
                 return all_datasets[0]
 
             raw_datasets = datasets.concatenate_datasets(all_datasets)
-            logging.info(
+            logger.info(
                 "Datasets concatenated from %s .Concatenated dataset columns: %s",
                 datasetconfig.name,
                 list(raw_datasets.features.keys()),
@@ -207,25 +209,25 @@ class DataPreProcessor:
             if sum(p for p in sampling_probabilities) != 1:
                 raise ValueError("Sampling probabilities don't sum to 1")
             sample_datasets = True
-            logging.info(
+            logger.info(
                 "Sampling ratios are specified; given datasets will be interleaved."
             )
         else:
-            logging.info(
+            logger.info(
                 "Sampling is not specified; if multiple datasets are provided,"
                 " the given datasets will be concatenated."
             )
             sample_datasets = False
 
-        logging.info("Starting DataPreProcessor...")
+        logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
         for d in dataset_configs:
-            logging.info("Loading %s", d.name)
+            logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
             raw_dataset = self.load_dataset(d, splitName)
 
-            logging.info("Loaded raw dataset : %s", str(raw_dataset))
+            logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
             raw_datasets = DatasetDict()
 
@@ -266,7 +268,7 @@ class DataPreProcessor:
 
                     kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
 
-                    logging.info("Applying Handler: %s Args: %s", data_handler, kwargs)
+                    logger.info("Applying Handler: %s Args: %s", data_handler, kwargs)
 
                     raw_datasets = raw_datasets.map(handler, **kwargs)
 
@@ -285,7 +287,7 @@ class DataPreProcessor:
         if sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
             seed = self.processor_config.sampling_seed
-            logging.info(
+            logger.info(
                 "Interleaving datasets: strategy[%s] seed[%d] probabilities[%s]",
                 strategy,
                 seed,
@@ -316,7 +318,7 @@ class DataPreProcessor:
 
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             if torch.distributed.get_rank() == 0:
-                logging.info("Processing data on rank 0...")
+                logger.info("Processing data on rank 0...")
                 train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
             else:
                 train_dataset = None
@@ -329,7 +331,7 @@ class DataPreProcessor:
             torch.distributed.broadcast_object_list(to_share, src=0)
             train_dataset = to_share[0]
         else:
-            logging.info("Processing data...")
+            logger.info("Processing data...")
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
