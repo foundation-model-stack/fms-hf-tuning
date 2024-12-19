@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 import logging
 import os
 
@@ -35,7 +35,7 @@ class DataPreProcessor:
     tokenizer = None
     data_config: DataConfig = None
     processor_config: DataPreProcessorConfig = None
-    registered_handlers: Dict[str, callable] = None
+    registered_handlers: Dict[str, Callable] = None
 
     def __init__(
         self, processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
@@ -46,8 +46,27 @@ class DataPreProcessor:
         # Initialize other objects
         self.registered_handlers = {}
 
-    def register_data_handler(self, name: str, func: callable):
+        # Auto register available data handlers
+        for k, v in AVAILABLE_DATA_HANDLERS.items():
+            self.registered_handlers[k] = v
+
+    def register_data_handler(self, name: str, func: Callable):
+        if not isinstance(name, str) or not callable(func):
+            raise ValueError("Handlers should be of type Dict, str to callable")
+        if name in self.registered_handlers:
+            logging.warning(
+                "Handler name '%s' already exists and will be overwritten", name
+            )
         self.registered_handlers[name] = func
+        logging.info("Registered new handler %s", name)
+
+    def register_data_handlers(self, handlers: Dict[str, Callable]):
+        if handlers is None:
+            return
+        if not isinstance(handlers, Dict):
+            raise ValueError("Handlers should be of type Dict, str to callable")
+        for k, v in handlers.items():
+            self.register_data_handler(name=k, func=v)
 
     def load_dataset(
         self,
@@ -93,12 +112,35 @@ class DataPreProcessor:
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs
     ) -> Union[Dataset, IterableDataset]:
-        train_dataset = None
-        final_datasets = None
+
         splitName = "train"  # default
 
+        all_datasetdicts = []
+        sampling_probabilities = []
+
+        # quick check to see if we are sampling and if we need to throw error.
+        sampling_probabilities = [d.sampling for d in dataset_configs if d.sampling]
+
+        if len(sampling_probabilities) > 0:
+            if len(sampling_probabilities) != len(dataset_configs):
+                raise ValueError(
+                    "Sampling probabilities should be provided for all datasets"
+                )
+            if sum(p for p in sampling_probabilities) != 1:
+                raise ValueError("Sampling probabilities don't sum to 1")
+            sample_datasets = True
+            logging.info(
+                "Sampling ratios are specified; given datasets will be interleaved."
+            )
+        else:
+            logging.info(
+                "Sampling is not specified; if multiple datasets are provided,"
+                " the given datasets will be concatenated."
+            )
+            sample_datasets = False
+
         logging.info("Starting DataPreProcessor...")
-        # Iterate over the multiple datasets provided to us
+        # Now Iterate over the multiple datasets provided to us to process
         for d in dataset_configs:
             logging.info("Loading %s", d.name)
 
@@ -114,9 +156,6 @@ class DataPreProcessor:
                 raw_datasets[splitName] = raw_dataset
             else:
                 raw_datasets = raw_dataset
-
-            if d.sampling:
-                logging.warning("Sampling multiple datasets is not supported yet")
 
             if d.data_handlers:  # Execute the datahandlers
                 for data_handler in d.data_handlers:
@@ -153,19 +192,42 @@ class DataPreProcessor:
 
                     raw_datasets = raw_datasets.map(handler, **kwargs)
 
-            if final_datasets is None:
-                final_datasets = raw_datasets
-            else:
-                for k in raw_datasets.keys():
-                    if k in final_datasets:
-                        final_datasets[k] = datasets.concatenate_datasets(
-                            [final_datasets[k], raw_datasets[k]]
-                        )
-                    else:
-                        final_datasets[k] = raw_datasets[k]
+            # Append the processed datasets to the final dict
+            all_datasetdicts.append(raw_datasets)
 
-        if "train" in final_datasets:
-            train_dataset = final_datasets["train"]
+        # This is a dict of { split: list[datasets] }
+        final_datasets = {}
+        for d in all_datasetdicts:
+            for k, v in d.items():
+                if k not in final_datasets:
+                    final_datasets[k] = [v]
+                else:
+                    final_datasets[k].append(v)
+
+        if sample_datasets:
+            strategy = self.processor_config.sampling_stopping_strategy
+            seed = self.processor_config.sampling_seed
+            logging.info(
+                "Interleaving datasets: strategy[%s] seed[%d] probabilities[%s]",
+                strategy,
+                seed,
+                str(sampling_probabilities),
+            )
+            for k, v in final_datasets.items():
+                interleaved = datasets.interleave_datasets(
+                    datasets=v,
+                    probabilities=sampling_probabilities,
+                    stopping_strategy=strategy,
+                    seed=seed,
+                )
+                final_datasets[k] = interleaved
+        else:
+            for k, v in final_datasets.items():
+                final_datasets[k] = (
+                    v[0] if len(v) == 1 else datasets.concatenate_datasets(v)
+                )
+
+        train_dataset = final_datasets.get("train", None)
 
         return train_dataset
 
@@ -195,19 +257,14 @@ class DataPreProcessor:
         return train_dataset
 
 
-def autoregister_available_handlers(processor: DataPreProcessor):
-    if processor is None:
-        return
-    for name, func in AVAILABLE_DATA_HANDLERS.items():
-        processor.register_data_handler(name=name, func=func)
-
-
 def get_datapreprocessor(
-    processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
+    processor_config: DataPreProcessorConfig,
+    tokenizer: AutoTokenizer,
+    additional_data_handlers: Dict[str, Callable] = None,
 ) -> DataPreProcessor:
     processor = DataPreProcessor(
         processor_config=processor_config,
         tokenizer=tokenizer,
     )
-    autoregister_available_handlers(processor)
+    processor.register_data_handlers(additional_data_handlers)
     return processor

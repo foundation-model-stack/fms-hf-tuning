@@ -19,12 +19,15 @@ import os
 
 ### Constants used for data
 PREDEFINED_DATA_CONFIGS = os.path.join(os.path.dirname(__file__))
-APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
+DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "apply_custom_template.yaml"
 )
-PRETOKENIZE_JSON_DATA_YAML = os.path.join(
+DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "pretokenized_json_data.yaml"
 )
-TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
+DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking.yaml"
+)
+DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
