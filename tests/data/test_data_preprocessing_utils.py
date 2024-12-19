@@ -767,6 +767,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
             [TWITTER_COMPLAINTS_DATA_ARROW, TWITTER_COMPLAINTS_DATA_ARROW],
         ),
         (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
+        ),
+        (
             DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
             [TWITTER_COMPLAINTS_TOKENIZED_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
         ),
@@ -813,6 +817,13 @@ def test_process_dataconfig_file(data_config_path, data_path):
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            ],
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             ],
         ),
     ],
@@ -1042,10 +1053,6 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
     [
         (
             DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
-            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
-        ),
-        (
-            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
             [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
         ),
         (
@@ -1061,13 +1068,6 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
             [
                 TWITTER_COMPLAINTS_TOKENIZED_JSON,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
-            ],
-        ),
-        (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            [
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             ],
         ),
         (

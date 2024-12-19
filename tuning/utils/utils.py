@@ -50,26 +50,27 @@ def load_yaml_or_json(file_path: str) -> dict:
 
 def validate_datasets(datasets):
     """Given list of datasets, validate if all datasets have same type and number of columns."""
-    ref_columns = datasets[0].features
-    ref_column_names = list(ref_columns.keys())
-    ref_column_types = {col: feat.dtype for col, feat in ref_columns.items()}
+    if len(datasets) > 1:
+        ref_columns = datasets[0].features
+        ref_column_names = list(ref_columns.keys())
+        ref_column_types = {col: feat.dtype for col, feat in ref_columns.items()}
 
-    # Check all other datasets
-    for i, ds in enumerate(datasets[1:], start=2):
-        ds_column_names = list(ds.features.keys())
-        ds_column_types = {col: feat.dtype for col, feat in ds.features.items()}
+        # Check all other datasets
+        for i, ds in enumerate(datasets[1:], start=2):
+            ds_column_names = list(ds.features.keys())
+            ds_column_types = {col: feat.dtype for col, feat in ds.features.items()}
 
-        # Check same set of columns
-        if set(ds_column_names) != set(ref_column_names):
-            raise ValueError(
-                f"Dataset {i} has different columns: {ds_column_names}. "
-                f"Expected columns: {ref_column_names}"
-            )
-
-        # Check column data types
-        for col in ref_column_names:
-            if ds_column_types[col] != ref_column_types[col]:
+            # Check same set of columns
+            if set(ds_column_names) != set(ref_column_names):
                 raise ValueError(
-                    f"Column '{col}' in dataset {i} has type {ds_column_types[col]}, "
-                    f"expected {ref_column_types[col]}"
+                    f"Dataset {i} has different columns: {ds_column_names}. "
+                    f"Expected columns: {ref_column_names}"
                 )
+
+            # Check column data types
+            for col in ref_column_names:
+                if ds_column_types[col] != ref_column_types[col]:
+                    raise ValueError(
+                        f"Column '{col}' in dataset {i} has type {ds_column_types[col]}, "
+                        f"expected {ref_column_types[col]}"
+                    )

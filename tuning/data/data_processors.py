@@ -97,8 +97,8 @@ class DataPreProcessor:
         elif datasetconfig:
             data_paths = datasetconfig.data_paths
             all_datasets = []
-            builder = datasetconfig.builder
             for _, data_path in enumerate(data_paths):
+                builder = datasetconfig.builder
                 # CASE 1: User passes directory
                 if os.path.isdir(data_path):  # Checks if path exists and isdir
                     if builder:
