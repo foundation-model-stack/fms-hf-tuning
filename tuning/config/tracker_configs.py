@@ -64,6 +64,26 @@ class AimConfig:
 
 
 @dataclass
+class MLflowConfig:
+    # Name of the experiment
+    mlflow_experiment: str = None
+    mlflow_tracking_uri: str = None
+    # Location of where mlflow's run uri is to be exported.
+    # If mlflow_run_uri_export_path is set the run uri will be output in a json format
+    # to the location pointed to by `mlflow_run_uri_export_path/mlflow_tracker.json`
+    # If this is not set then the default location where run uri will be exported
+    # is training_args.output_dir/mlflow_tracker.json
+    # Run uri is not exported if mlflow_run_uri_export_path variable is not set
+    # and output_dir is not specified.
+    mlflow_run_uri_export_path: str = None
+
+    def __post_init__(self):
+        if self.mlflow_experiment is None:
+            self.mlflow_experiment = "fms-hf-tuning"
+
+
+@dataclass
 class TrackerConfigFactory:
     file_logger_config: FileLoggingTrackerConfig = None
     aim_config: AimConfig = None
+    mlflow_config: MLflowConfig = None
