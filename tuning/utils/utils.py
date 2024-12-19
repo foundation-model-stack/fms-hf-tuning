@@ -20,6 +20,8 @@ import os
 # Third Party
 import yaml
 
+logger = logging.getLogger(__name__)
+
 
 def get_extension(file_path: str) -> str:
     _, ext = os.path.splitext(file_path)
@@ -63,7 +65,7 @@ def validate_mergeable_datasets(datasets):
 
             # Check same set of columns
             if set(ds_column_names) != set(ref_column_names):
-                logging.warning(
+                logger.warning(
                     "Dataset %d has different columns: %s. Columns in Dataset 1: %s",
                     i,
                     ds_column_names,
@@ -75,7 +77,7 @@ def validate_mergeable_datasets(datasets):
                 if (col in ds_column_types) and (
                     ds_column_types[col] != ref_column_types[col]
                 ):
-                    logging.warning(
+                    logger.warning(
                         "Column '%s' in dataset %d has type %s, expected %s",
                         col,
                         i,
