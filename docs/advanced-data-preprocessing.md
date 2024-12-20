@@ -15,6 +15,7 @@ Data config is a YAML configuration file which users can provide to `sft_trainer
 The data config schema is designed to define datasets and their processing strategies in a structured way. It consists of the following top-level keys:
  - `datapreprocessor`: Defines global data processing parameters, such as the type (`default`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
  - `datasets`: A list of dataset configurations, each describing the dataset name, paths, optional builders, sampling ratios, and data handlers.
+
 At the top level, the data config looks like this:
 ```yaml
 datapreprocessor:
