@@ -107,15 +107,21 @@ def _get_pretokenized_dataset_handlers(data_args, packing, is_eval_tokenized):
 
 
 ### Data format 2
-def _get_dataset_formatting_handlers(data_args, packing):
+def _get_dataset_formatting_handlers(data_args, packing, padding_free=None):
 
     if data_args.response_template is None:
         if packing is False:
-            raise ValueError(
-                "Since dataset_text_field or data_formatter_template \
-                is provided and packing is disabled, \
-                needs a corresponding response template for masking"
-            )
+            if padding_free:
+                logger.debug(
+                    "Assuming extended pretraining scenario because, packing is false"
+                    + ", padding_free is used and no response template was provided."
+                )
+            else:
+                raise ValueError(
+                    "Since dataset_text_field or data_formatter_template \
+                    is provided and packing is disabled, \
+                    needs a corresponding response template for masking"
+                )
 
     if data_args.response_template:
         # To use Response template, pass datasets with single sequence instances \
@@ -209,6 +215,7 @@ def _process_raw_data_args(
     packing: bool,
     max_seq_length: int,
     additional_data_handlers: Dict[str, Callable] = None,
+    **kwargs,
 ):
 
     # Create a data processor with default processor config
@@ -266,7 +273,7 @@ def _process_raw_data_args(
     elif data_args.data_formatter_template or data_args.dataset_text_field:
         # Data Format 3: Single Sequence Dataset
         handlers, dataset_text_field = _get_dataset_formatting_handlers(
-            data_args, packing
+            data_args, packing, **kwargs
         )
     else:
         # Default Data Format: Dataset with Input/Output Fields
@@ -300,6 +307,7 @@ def process_dataargs(
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, Callable] = None,
+    **kwargs,
 ):
     """
     Args:
@@ -345,6 +353,7 @@ def process_dataargs(
             train_args.packing,
             max_seq_length,
             additional_data_handlers,
+            **kwargs,
         )
 
     # Note: This check should not be removed.
