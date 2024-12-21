@@ -310,7 +310,13 @@ def train(
         data_collator,
         train_args.max_seq_length,
         dataset_kwargs,
-    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers)
+    ) = process_dataargs(
+        data_args,
+        tokenizer,
+        train_args,
+        additional_data_handlers,
+        padding_free=attention_and_distributed_packing_config.is_padding_free,
+    )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
