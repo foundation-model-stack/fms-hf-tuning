@@ -148,7 +148,7 @@ All the data handler routines are registered with our data preprocessor as a `k:
 `k` is the name (`str`) of the data handler and `func` (`callable`) is the function which is called.
 
 In the data config users can request which data handler to apply by requesting the corresponding `name`
-with which the data handler was requested and specifying the appropriate `argumnets`. Each data handler  two types of arguments via `DataHandlerArguments` definition above in the [schema](#what-is-data-config-schema), as shown below.
+with which the data handler was registered and specifying the appropriate `arguments`. Each data handler takes two types of arguments via `DataHandlerArguments` definition above in the [schema](#what-is-data-config-schema), as shown below.
 
 ```yaml
   DataHandler:
@@ -212,7 +212,7 @@ Users are also allowed to pass custom data handlers using [`sft_trainer.py::trai
 The argument expects users to pass a map similar to the existing data handlers `k(str):func(callbale)` which will be registered with the data preprocessor via its [`register_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/data/data_processors.py#L65) api
 
 ### Data Mixing
-Dataset mixing allows users to mix multiple datasets often with differnet `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
+Dataset mixing allows users to mix multiple datasets often with different `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
 
 If users want to train a model on just a straight forward [`concatenation`](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) of the datasets then they need not enable data mixing. Users can specify just different datasets via `data_paths` as shown [above](#how-the-user-can-pass-the-datasets) and all the datasets will be concatenated via [`concatenate_datasets`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.concatenate_datasets).
 
@@ -223,7 +223,7 @@ Needless to say the sampling ratio of a datasets is a float and all the sampling
 We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to randomize the interleaving of datasets and a [`stopping_strategy`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy) to describe when to stop sampling, both should be kept same for reproducability of the experiment. Both these values are common for all datasets and should be supplied at top level in the `datapreprocessor` as shown [above](#how-the-user-can-write-data-configs). For a list of the supported values of these arguments see the corresponding HF API.
 
 
-`Note: If a user specifies data sampling she can expect the datasets to be mixed but individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
+`Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
 
 ### Example data configs.
 
