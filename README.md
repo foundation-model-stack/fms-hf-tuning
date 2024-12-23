@@ -1,7 +1,7 @@
 # FMS HF Tuning
 
 - [Installation](#installation)
-- [Data format](#data-format)
+- [Data format support](#data-support)
 - [Supported Models](#supported-models)
 - [Training](#training)
   - [Single GPU](#single-gpu)
