@@ -140,11 +140,15 @@ The `builder` argument can also be optionally included to provide additional inf
 User can pass `builder` in `DataSetConfig` to mention the specific loader for the passed `file/folder/pattern`.
 We support the following,
 - Passing file paths that include a file extension in filename, or specifying a `builder` if file extension is not provided in filename.
-- Passing of folder paths, with our without `builder`. 
+- Passing of folder paths, with or without `builder`. 
 
 Not Supported:
 - Passing file paths that do not include a file extension in filename and do not specify a `builder`.
 - Passing a folder as a wildcard globbing pattern.
+
+Currently there's no support for sampling under multiple data paths which are defined inside a dataset definition.
+All dataset paths that will be specified inside one dataset will be [concatenated](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) after loading them, while across datasets users can specify [mixing via sampling datasets](#data-mixing)
+
 
 ### How can users specify data handlers.
 
