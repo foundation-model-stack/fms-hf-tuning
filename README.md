@@ -144,7 +144,7 @@ Example: For a JSON dataset like, `Train.jsonl`
 {"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
 ```
 
-### 3. Chat Sytle Single/Multi turn datasets
+### 3. Chat Style Single/Multi turn datasets
 
   Pass a dataset containing single/multi turn chat dataset. Your dataset could follow this format:
 
@@ -155,14 +155,14 @@ $ head -n 1 train.jsonl
 
 This format supports both single and multi-turn chat scenarios.
 
-The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
+The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/e0a466fb25b9e07e9c2dc93380a360189700d1f8/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
 
 Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
 `assistant` and `human` response inside the formatted chat template.
 For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) for example, the values shall be.
 ```
---instruction_template `<|start_of_role|>user<|end_of_role|>`
---response_template <|start_of_role|>assistant<|end_of_role|>`
+--instruction_template "<|start_of_role|>user<|end_of_role|>"
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
 ```
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.

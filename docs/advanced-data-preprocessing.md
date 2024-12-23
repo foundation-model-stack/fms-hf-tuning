@@ -1,9 +1,9 @@
 # Advanced Data Processing
 Our library also supports a powerful data processing backed which can be used by the users to perform custom data preprocessing including
-1. Support for multiple datasets
-1. Creating custom data processing pipeline for the datasets.
-1. Combining multiple datasets into one, even if they have different formats.
-1. Mixing datasets as requried and sampling if needed each with different weights.
+1. Support for multiple datasets  
+1. Creating custom data processing pipeline for the datasets.  
+1. Combining multiple datasets into one, even if they have different formats.  
+1. Mixing datasets as required and sampling each dataset with different weights.
 
 These things are supported via what we call a [`data_config`](#data-config) which can be passed an an argument to sft trainer.
 
@@ -209,7 +209,7 @@ These handlers could be requested by their same name and users can lookup the fu
 #### Extra data handlers
 Users are also allowed to pass custom data handlers using [`sft_trainer.py::train()`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L71) API call via the [`additional_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L89) argument.
 
-The argument expects users to pass a map similar to the existing data handlers `k(str):func(callbale)` which will be registered with the data preprocessor via its [`register_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/data/data_processors.py#L65) api
+The argument expects users to pass a map similar to the existing data handlers `k(str):func(callable)` which will be registered with the data preprocessor via its [`register_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/data/data_processors.py#L65) api
 
 ### Data Mixing
 Dataset mixing allows users to mix multiple datasets often with different `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
