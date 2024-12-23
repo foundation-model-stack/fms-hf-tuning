@@ -62,8 +62,8 @@ pip install fms-hf-tuning[aim]
 For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data Support
+Users can pass training data in a single file using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below) and the file can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
-Users can pass in a single file via `--training_data_path` argument which contains data in any of the [supported formats](#supported-data-formats) along side other arguments required for various [use cases](#use-cases-supported-with-training_data_path-data-argument) (see details below) or can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
 Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
@@ -146,17 +146,16 @@ Example: For a JSON dataset like, `Train.jsonl`
 
 ### 3. Chat Sytle Single/Multi turn datasets
 
-  Pass a dataset containing single/multi turn chat dataset. Your dataset could be supplied like 
+  Pass a dataset containing single/multi turn chat dataset. Your dataset could follow this format:
 
 ```
 $ head -n 1 train.jsonl
 {"messages": [{"content": "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.", "role": "system"}, {"content": "Look up a word that rhymes with exist", "role": "user"}, {"content": "I found a word that rhymes with \"exist\":\n1\\. Mist", "role": "assistant"}], "group": "lab_extension", "dataset": "base/full-extension", "metadata": "{\"num_turns\": 1}"}
 ```
 
-containing single/multi turn chat.
+This format supports both single and multi-turn chat scenarios.
 
-The chat template used to render this data will be `tokenizer.chat_template` from model's default tokenizer config or can be overridden using `--chat_template <chat-template-string>` argument.
-As an example, for models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct) which contain a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) as part of their `tokenizer_config.json` the users need not pass a chat template to process the data. 
+The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
 
 Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
 `assistant` and `human` response inside the formatted chat template.

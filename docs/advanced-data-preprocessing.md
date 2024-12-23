@@ -9,66 +9,222 @@ These things are supported via what we call a [`data_config`](#data-config) whic
 
 ## Data Config
 
-Data config is a YAML configuration file which users can provide to `sft_trainer.py`, in this file they can include a variety of datasets and configurations. This data config is passed to `sft_trainer` through the `--data_config` flag.
+Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config` flag. In this 
+confuration users can describe multiple datasets, configurations on how to load the datasets and configuration on how to 
+process the datasets. Users can currently pass both YAML or JSON based configuration files as data_configs.
 
 ### What is data config schema 
-The data config schema is designed to define datasets and their processing strategies in a structured way. It consists of the following top-level keys:
+The data config schema is designed to define datasets and their processing strategies in a structured way.
+
+It consists of the following top-level keys:
  - `datapreprocessor`: Defines global data processing parameters, such as the type (`default`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
  - `datasets`: A list of dataset configurations, each describing the dataset name, paths, optional builders, sampling ratios, and data handlers.
 
-At the top level, the data config looks like this:
+At the top level, the data config schema looks like this:
 ```yaml
-datapreprocessor:
-    ...
-datasets:
-    ...
+definitions:
+  data_config:
+    type: object
+    additionalProperties: false
+    properties:
+      dataprocessor:
+        $ref: '#/definitions/Dataprocessor'
+      datasets:
+        type: array
+        items:
+          $ref: '#/definitions/Dataset'
+    required:
+      - dataprocessor
+      - datasets
+    title: data_config
+  Dataprocessor:
+    type: object
+    additionalProperties: false
+    properties:
+      type:
+        type: string
+      sampling_stopping_strategy:
+        type: string
+      seed:
+        type: integer
+    required:
+      - type
+    title: Dataprocessor
+  Dataset:
+    type: object
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+      sampling:
+        type: float
+      builder:
+        type: string
+      data_paths:
+        type: array
+        items:
+          type: string
+      data_handlers:
+        type: array
+        items:
+          $ref: '#/definitions/DataHandler'
+    required:
+      - data_paths
+      - name
+    title: Dataset
+  DataHandler:
+    type: object
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+      arguments:
+        $ref: '#/definitions/DataHandlerArguments'
+    required:
+      - arguments
+      - name
+    title: DataHandler
+  DataHandlerArguments:
+    type: object
+    additionalProperties: false
+    properties:
+      remove_columns:
+        type: string
+      batched:
+        type: boolean
+      fn_kwargs:
+        $ref: '#/definitions/DataHandlerFnKwargs'
+    required:
+      - fn_kwargs
+      - remove_columns
+    title: DataHandlerArguments
+  DataHandlerFnKwargs:
+    type: object
+    properties:
+      str:
+        type: str
+    title: DataHandlerFnKwargs
 ```
 
 ### How the user can write data configs
-Users can create a data config file in YAML format. The file should follow the schema outlined above with the following parameters:
+Users can create a data config file in any of YAML or JSON format they choose (we provide examples of YAML for ease of use). The file should follow the schema outlined above with the following parameters:
 
 `datapreprocessor`:
- - `type` (optional): Type of data preprocessor, `default` is currently the only supported type.
- - `sampling_stopping_strategy` (optional): Stopping strategy, either `all_exhausted` or `first_exhausted`, defaults to `all_exhausted`.
- - `sampling_seed` (optional): An int for reproducibility, defaults to 42.
+ - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
+ - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
+ - `sampling_seed` (optional, int): [Sampling seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
 
-`datasets`:
- - `name`: A unique identifier for the dataset.
- - `data_paths`: A list of file paths or directories containing the dataset.
- - `builder` (optional): Specifies a Hugging Face dataset builder, if applicable.
- - `sampling` (optional): A float representing the sampling ratio (0.0 to 1.0).
- - `data_handlers` (optional): A list of data handler configurations.
+`datasets` (list):
+  - `name` (optional, str): A unique identifier for the dataset.
+    - `data_paths` (optional, list): A `list` of file paths or directories containing the dataset.
+    - `builder` (optional, str): Specifies a [Hugging Face dataset builder](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/loading_methods#datasets.load_dataset.path), if applicable.
+    - `sampling` (optional, float): The sampling ratio (0.0 to 1.0) with which to sample a dataset in case of interleaving.
+    - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
-For examples, see [predefined_data_configs](../tests/artifacts/predefined_data_configs/).
-
-### What are data handlers
-Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. Each data handler has:
+Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
+These functions can process the dataset in any way users require and the `list` of data handlers specified for each dataset are applied in order.
+Each data handler has:
 - `name`: The handler's unique identifier.
 - `arguments`: A dictionary of parameters specific to the handler.
 
-#### Preexisting data handlers
-This library currently supports four preexisting data handlers:
- - `tokenize_and_apply_input_masking`: Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
- - `apply_dataset_formatting`: Formats a dataset by appending an EOS token to a specified field.
- - `apply_custom_data_formatting_template`: Applies a custom template (e.g., Alpaca style) to format dataset elements.
- - `apply_tokenizer_chat_template`: Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
-
-#### Extra data handlers
-Users can define custom data handlers by implementing their logic and specifying their names and arguments in the data config.
+We do provide some sample `data_configs` here, [predefined_data_configs](../tests/artifacts/predefined_data_configs/).
 
 ### How the user can pass the datasets 
-`data_paths` can be either file and/or folder paths and can combine datasets with different formats as long as they have the same columns. Users can also use globbing patterns to pass in datasets following a specific regex pattern.
+Users can provide single or multiple file paths, folder paths, or [Hugging Face dataset IDs](https://huggingface.co/datasets) through the `data_paths` argument. These datasets can be in various supported formats like, JSON, JSONL, Parquet, and Arrow. For a more up to date supported format list see [README.md](../README.md#supported-data-formats). Additionally, users can pass globbing patterns to specify files or folder paths matching specific regex patterns.
 
-### What kind of datasets can be passed
-The library supports datasets of type JSON, JSONL, Parquet, and Arrow. To see an up to date version of supported dataset types, see the `get_loader_for_filepath` function in [utils.py](../tuning/utils/utils.py).
-Of these datatypes, the library supports pretokenized datasets and other datasets supported by data handlers, either preexisting or custom.
+When passing multiple datasets with differing column structures, users should ensure appropriate handlers are specified to process the datasets correctly.
 
-### How the user can perform sampling
- - What does sampling means?
-    - Sampling allows users to specify a subset of the data to be processed. For example, a sampling ratio of 0.5 means 50% of the dataset will be used during training.
- - How will it affect the datasets
-    - Sampling reduces the size of the dataset processed during training, which can speed up processing or focus on specific portions of the data.
+The `builder` argument can also be optionally included to provide additional information for dataset loading, this argument is directly passed to [HF `load_dataset` API](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/loading_methods#datasets.load_dataset) as the first argument.
 
-### How the user can create a data config for the existing use cases.
 
-### Corner cases which needs attention.
+User can pass builder in `DataSetConfig` to mention the specific loader for the passed `file/folder/pattern`.
+We support the following,
+- Requested @Abhishek-TAMU to add the supported configuration here.
+
+### How can users specify data handlers.
+
+Data handlers as explained above are routines which process the dataset using [HF map framework](https://huggingface.co/docs/datasets/en/process#map). 
+All the data handler routines are registered with our data preprocessor as a `k:func` object where
+`k` is the name (`str`) of the data handler and `func` (`callable`) is the function which is called.
+
+In the data config users can request which data handler to apply by requesting the corresponding `name`
+with which the data handler was requested and specifying the appropriate `argumnets`. Each data handler  two types of arguments via `DataHandlerArguments` definition above in the [schema](#what-is-data-config-schema), as shown below.
+
+```yaml
+  DataHandler:
+    type: object
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+      arguments:
+        $ref: '#/definitions/DataHandlerArguments'
+    required:
+      - arguments
+      - name
+    title: DataHandler
+  DataHandlerArguments:
+    type: object
+    additionalProperties: false
+    properties:
+      remove_columns:
+        type: string
+      batched:
+        type: boolean
+      fn_kwargs:
+        $ref: '#/definitions/DataHandlerFnKwargs'
+    required:
+      - fn_kwargs
+      - remove_columns
+    title: DataHandlerArguments
+  DataHandlerFnKwargs:
+    type: object
+    properties:
+      str:
+        type: str
+    title: DataHandlerFnKwargs
+```
+
+Arguments to the data handlers are of two types,
+
+Each data handler is a routine passed to the underlying [HF Map API]((https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.map)) so the `kwargs` supported by the underlying API can be passed via the `arguments` section of the data handler config.
+
+As an example, users can pass `remove_columns` to remove any columns from the dataset when executing the particular handler or they can use `batched` to ensure [batched processing](https://huggingface.co/docs/datasets/en/about_map_batch) of the data handler.
+
+Users can also pass any number of `kwargs` arguments required for each data handling `routine` function as [`fn_kwargs`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.map.fn_kwargs) inside the arguments.
+
+#### Preexisting data handlers
+This library currently supports following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
+ - `tokenize_and_apply_input_masking`:
+    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
+ - `apply_dataset_formatting`:
+    Formats a dataset by appending an EOS token to a specified field.
+ - `apply_custom_data_formatting_template`:
+    Applies a custom template (e.g., Alpaca style) to format dataset elements.
+ - `apply_tokenizer_chat_template`:
+    Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
+
+These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
+
+#### Extra data handlers
+Users are also allowed to pass custom data handlers using [`sft_trainer.py::train()`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L71) API call via the [`additional_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L89) argument.
+
+The argument expects users to pass a map similar to the existing data handlers `k(str):func(callbale)` which will be registered with the data preprocessor via its [`register_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/data/data_processors.py#L65) api
+
+### Data Mixing
+Dataset mixing allows users to mix multiple datasets often with differnet `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
+
+If users want to train a model on just a straight forward [`concatenation`](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) of the datasets then they need not enable data mixing. Users can specify just different datasets via `data_paths` as shown [above](#how-the-user-can-pass-the-datasets) and all the datasets will be concatenated via [`concatenate_datasets`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.concatenate_datasets).
+
+If users want to enable data mixing they need to enable `sampling` of the datasets by specifying `sampling` ratio for each dataset as described [above](#how-the-user-can-write-data-configs). The library will then collect sampling ratios from each dataset definition in the `data_config` and create a new [interleaved](https://huggingface.co/docs/datasets/v3.2.0/en/process#interleave) dataset which is a combination of all the sampled datasets via [`interleave_datasets()`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets) api.
+
+Needless to say the sampling ratio of a datasets is a float and all the sampling ratios should sum up to 1.
+
+We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to randomize the interleaving of datasets and a [`stopping_strategy`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy) to describe when to stop sampling, both should be kept same for reproducability of the experiment. Both these values are common for all datasets and should be supplied at top level in the `datapreprocessor` as shown [above](#how-the-user-can-write-data-configs). For a list of the supported values of these arguments see the corresponding HF API.
+
+
+`Note: If a user specifies data sampling she can expect the datasets to be mixed but individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
+
+### Example data configs.
+
+We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
