@@ -61,13 +61,28 @@ pip install fms-hf-tuning[aim]
 ```
 For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
-## Data format
-We support the following data formats:
+## Data Support
+Users can pass training data in a single file using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below) and the file can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
-### 1. JSON formats with a single sequence and a specified response_template to use for masking on completion.
 
-#### 1.1 Pre-process the JSON/JSONL dataset
- Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
+Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
+
+## Supported Data Formats
+We support the following data formats via `--training_data_path` argument
+
+Data Format | Tested Support
+------------|---------------
+JSON        |   ✅
+JSONL       |   ✅
+PARQUET     |   ✅
+ARROW       |   ✅
+
+## Use cases supported with `training_data_path` argument
+
+### 1. Data formats with a single sequence and a specified response_template to use for masking on completion.
+
+#### 1.1 Pre-process the dataset
+ Pre-process the dataset to contain a single sequence of each data instance containing input + response. The trainer is configured to expect a `response template` as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
 PROMPT_DICT = {
@@ -99,11 +114,10 @@ The `response template` corresponding to the above dataset and the `Llama` token
 
 The same way can be applied to any dataset, with more info can be found [here](https://huggingface.co/docs/trl/main/en/sft_trainer#format-your-input-prompts).
 
-Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
+Once the data is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
 
-#### 1.2 Format JSON/JSONL on the fly
-   Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
-   JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
+#### 1.2 Format the dataset on the fly
+   Pass a dataset and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of the dataset with `{{field}}`. While tuning, the data will be converted to a single sequence using the template. Data fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
 
 Example: Train.json
 `[{ "input" : <text>,
@@ -113,22 +127,57 @@ Example: Train.json
 ]`  
 data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
 
-Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
+Formatting will happen on the fly while tuning. The keys in template should match fields in the dataset file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
 ##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-### 2. JSON/JSONL with input and output fields (no response template)
+### 2. Dataset with input and output fields (no response template)
 
-  Pass a JSON/JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+  Pass a [supported dataset](#supported-data-formats) containing fields `"input"` with source text and `"output"` with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
 
-  The "input" and "output" field names are mandatory and cannot be changed. 
+  The `"input"` and `"output"` field names are mandatory and cannot be changed. 
 
-Example: Train.jsonl
+Example: For a JSON dataset like, `Train.jsonl`
 
 ```
 {"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
 {"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
 ```
+
+### 3. Chat Style Single/Multi turn datasets
+
+  Pass a dataset containing single/multi turn chat dataset. Your dataset could follow this format:
+
+```
+$ head -n 1 train.jsonl
+{"messages": [{"content": "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.", "role": "system"}, {"content": "Look up a word that rhymes with exist", "role": "user"}, {"content": "I found a word that rhymes with \"exist\":\n1\\. Mist", "role": "assistant"}], "group": "lab_extension", "dataset": "base/full-extension", "metadata": "{\"num_turns\": 1}"}
+```
+
+This format supports both single and multi-turn chat scenarios.
+
+The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/e0a466fb25b9e07e9c2dc93380a360189700d1f8/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
+
+Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
+`assistant` and `human` response inside the formatted chat template.
+For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) for example, the values shall be.
+```
+--instruction_template "<|start_of_role|>user<|end_of_role|>"
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
+```
+
+The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
+
+### 3. Pre tokenized datasets.
+
+Users can also pass a pretokenized dataset (containing `input_ids` and `labels` columns) as `--training_data_path` argument e.g.
+
+```
+python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow
+```
+
+### 4. Advanced data preprocessing.
+
+For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
 
 ## Supported Models
 
@@ -823,12 +872,13 @@ For details about how you can use set a custom stopping criteria and perform cus
 
 ## Experiment Tracking
 
-Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/), [MLflow Tracking](https://mlflow.org/docs/latest/tracking.html) or custom trackers built into the code like
 [FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
 The code supports currently two trackers out of the box, 
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
 * `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+* `MLflow Tracking` : Another popular opensource tracker which stores metrics, metadata or even artifacts from experiments.
 
 Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
 

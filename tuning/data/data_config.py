@@ -21,6 +21,8 @@ import os
 # Local
 from tuning.utils.utils import load_yaml_or_json
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DataHandlerConfig:
@@ -32,13 +34,17 @@ class DataHandlerConfig:
 class DataSetConfig:
     name: str
     data_paths: List[str]
-    sampling: Optional[Dict] = None
+    builder: Optional[str] = None  # Referring to Hugging Face dataset builder
+    sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
 
 @dataclass
 class DataPreProcessorConfig:
     type: Optional[str] = "default"
+    sampling_stopping_strategy: Optional[str] = "all_exhausted"
+    # Default seed is not none to ensure reproducability
+    sampling_seed: Optional[float] = 42
 
 
 @dataclass
@@ -76,25 +82,24 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
     c.data_paths = []
     for p in data_paths:
         assert isinstance(p, str), f"path {p} should be of the type string"
-        assert os.path.exists(p), f"data_paths {p} does not exist"
         if not os.path.isabs(p):
             _p = os.path.abspath(p)
-            logging.warning(
-                " Provided path %s is not absolute changing it to %s", p, _p
-            )
+            logger.warning(" Provided path %s is not absolute changing it to %s", p, _p)
             p = _p
         c.data_paths.append(p)
-    if "sampling" in kwargs:
-        sampling_kwargs = kwargs["sampling"]
+    if "builder" in kwargs and kwargs["builder"] is not None:
+        builder = kwargs["builder"]
         assert isinstance(
-            dict, sampling_kwargs
-        ), "sampling arguments should be of the type dict"
-        if "ratio" in sampling_kwargs:
-            ratio = sampling_kwargs["ratio"]
-            assert isinstance(ratio, float) and (
-                0 <= ratio <= 1.0
-            ), f"sampling ratio: {ratio} should be float and in range [0.0,1.0]"
-        c.sampling = sampling_kwargs
+            builder, str
+        ), f"builder should be a string representing a supported \
+        Hugging Face dataset builder, but got: {builder}"
+        c.builder = builder
+    if "sampling" in kwargs and kwargs["sampling"] is not None:
+        ratio = kwargs["sampling"]
+        assert isinstance(ratio, float) and (
+            0 <= ratio <= 1.0
+        ), f"sampling ratio: {ratio} should be float and in range [0.0,1.0]"
+        c.sampling = ratio
     if "data_handlers" in kwargs:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
@@ -106,6 +111,23 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
     kwargs = dataprocessor_config
     c = DataPreProcessorConfig()
     assert isinstance(kwargs, dict), "dataprocessor in data_config needs to be a dict"
+    if "type" in kwargs:
+        assert isinstance(kwargs["type"], str), "dataprocessor type must be a string"
+        c.type = kwargs["type"]
+    if "sampling_stopping_strategy" in kwargs:
+        strategy = kwargs["sampling_stopping_strategy"]
+        assert isinstance(
+            strategy, str
+        ), "dataset sampling stopping strategy must be a string"
+        assert strategy in [
+            "first_exhausted",
+            "all_exhausted",
+        ], "allowed sampling stopping strategies are all_exhausted(default) or first_exhausted"
+        c.sampling_stopping_strategy = strategy
+    if "sampling_seed" in kwargs:
+        seed = kwargs["sampling_seed"]
+        assert isinstance(seed, int), "sampling seed should be int"
+        c.sampling_seed = seed
     return c
 
 

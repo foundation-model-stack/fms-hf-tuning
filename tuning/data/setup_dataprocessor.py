@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Union
+from typing import Callable, Dict, Union
 import logging
 
 # Third Party
@@ -33,9 +33,11 @@ from tuning.data.data_config import (
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
 
+logger = logging.getLogger(__name__)
+
 # In future we may make the fields configurable
-DEFAULT_JSON_INPUT_KEY = "input"
-DEFAULT_JSON_OUTPUT_KEY = "output"
+DEFAULT_INPUT_COLUMN = "input"
+DEFAULT_OUTPUT_COLUMN = "output"
 
 # check if the provided dataset is pretokenized or not
 # the check is taken from trl
@@ -55,10 +57,16 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 
 # TODO: For now assume only training dataset is passed via data config file.
 # This is very limited but is done to keep first implementation minimal
-def _process_dataconfig_file(data_args: DataArguments, tokenizer: AutoTokenizer):
+def _process_dataconfig_file(
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    additional_data_handlers: Dict[str, Callable] = None,
+):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
-        processor_config=data_config.dataprocessor, tokenizer=tokenizer
+        processor_config=data_config.dataprocessor,
+        tokenizer=tokenizer,
+        additional_data_handlers=additional_data_handlers,
     )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
@@ -145,12 +153,31 @@ def _get_dataset_formatting_handlers(data_args, packing):
     return [handler], dataset_text_field
 
 
-### Data format 3
-def _get_default_json_dataset_handlers(data_args, tokenizer_kwargs):
+### Default Format 3
+def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
+
+    if data_args.dataset_text_field is None:
+        data_args.dataset_text_field = "new_formatted_field"
 
     fn_kwargs = {}
-    fn_kwargs["input_field_name"] = DEFAULT_JSON_INPUT_KEY
-    fn_kwargs["output_field_name"] = DEFAULT_JSON_OUTPUT_KEY
+    fn_kwargs["dataset_text_field"] = data_args.dataset_text_field
+    fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
+
+    kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
+
+    handlers = [
+        DataHandlerConfig("apply_tokenizer_chat_template", arguments=kwargs),
+    ]
+
+    return handlers, data_args.dataset_text_field
+
+
+### Default Data format
+def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
+
+    fn_kwargs = {}
+    fn_kwargs["input_field_name"] = DEFAULT_INPUT_COLUMN
+    fn_kwargs["output_field_name"] = DEFAULT_OUTPUT_COLUMN
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
     kwargs = {
@@ -171,7 +198,9 @@ def _get_default_json_dataset_handlers(data_args, tokenizer_kwargs):
 #   If a text field is specified, append the tokenizer's EOS token to it.
 #   If a formatter template is provided, apply it and save the result.
 #   Data remains un-tokenized.
-# Data Format 3: JSON Dataset with Input/Output Fields
+# Data Format 3: Chat datasets
+#   User provides response_template and instruction_template.
+# Default Data Format: Dataset with Input/Output Fields
 #   Combine input and output fields, tokenize the data, and apply input attention masking.
 #   Requires both input and output fields; throws an error if missing.
 def _process_raw_data_args(
@@ -179,14 +208,16 @@ def _process_raw_data_args(
     tokenizer: AutoTokenizer,
     packing: bool,
     max_seq_length: int,
+    additional_data_handlers: Dict[str, Callable] = None,
 ):
 
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
     data_processor = get_datapreprocessor(
-        processor_config=default_processor_config, tokenizer=tokenizer
+        processor_config=default_processor_config,
+        tokenizer=tokenizer,
+        additional_data_handlers=additional_data_handlers,
     )
-
     assert isinstance(
         data_args.training_data_path, str
     ), "Training data path has to be set and str"
@@ -226,14 +257,20 @@ def _process_raw_data_args(
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, packing, (is_eval_dataset_present and not is_evaldata_tokenized)
         )
+    elif data_args.instruction_template and data_args.response_template:
+        # Data Format 2: Chat dataset with instruction and response template
+        # We don't do processing for chat dataset
+        handlers, dataset_text_field = _get_chat_dataset_handlers(
+            data_args, tokenizer_kwargs
+        )
     elif data_args.data_formatter_template or data_args.dataset_text_field:
-        # Data Format 2: Single Sequence Dataset
+        # Data Format 3: Single Sequence Dataset
         handlers, dataset_text_field = _get_dataset_formatting_handlers(
             data_args, packing
         )
     else:
-        # Data Format 3: JSON Dataset with Input/Output Fields
-        handlers, dataset_text_field = _get_default_json_dataset_handlers(
+        # Default Data Format: Dataset with Input/Output Fields
+        handlers, dataset_text_field = _get_default_dataset_handlers(
             data_args, tokenizer_kwargs
         )
 
@@ -259,7 +296,10 @@ def _process_raw_data_args(
 # If no data config file is specified, process the remaining data arguments
 # to determine the use case based on their presence, as explained in _process_raw_data_args.
 def process_dataargs(
-    data_args: DataArguments, tokenizer: AutoTokenizer, train_args: TrainingArguments
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    train_args: TrainingArguments,
+    additional_data_handlers: Dict[str, Callable] = None,
 ):
     """
     Args:
@@ -268,17 +308,23 @@ def process_dataargs(
         train_args: TrainingArguments
             Training arguments passed to the library
             Used for packing and max_seq_length
+        additional_data_handlers: A Dict of [str, callable] data handlers
+            which need to be registered with the data preprocessor
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
-            tuple containing train_dataset, eval_dataset, dataset_text_field,
-                data_collator, max_seq_length and dataset_kwargs
-
+            tuple containing
+            train_dataset (Dataset/IterableDataset),
+            eval_dataset (Dataset/IterableDataset),
+            dataset_text_field (str),
+            data_collator (DataCollator)
+            max_seq_length(int) and
+            dataset_kwargs (Dict)
     """
 
     max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
-    logging.info("Max sequence length is %s", max_seq_length)
+    logger.info("Max sequence length is %s", max_seq_length)
     if train_args.max_seq_length > tokenizer.model_max_length:
-        logging.warning(
+        logger.warning(
             "max_seq_length %s exceeds tokenizer.model_max_length \
             %s, using tokenizer.model_max_length %s",
             train_args.max_seq_length,
@@ -290,26 +336,33 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, tokenizer
+            data_args, tokenizer, additional_data_handlers
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
-            data_args, tokenizer, train_args.packing, max_seq_length
+            data_args,
+            tokenizer,
+            train_args.packing,
+            max_seq_length,
+            additional_data_handlers,
         )
+
+    # Note: This check should not be removed.
+    #       Its important to recompute this post handling to
+    #       check if we already tokenized the dataset or not.
+    is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
     data_collator = get_data_collator(
         train_args.packing,
         data_args.response_template,
         tokenizer,
-        # Note: This check should not be removed.
-        #       Its important to recompute this post handling to
-        #       check if we already tokenized the dataset or not.
-        is_pretokenized_dataset(train_dataset),
+        is_tokenized_dataset,
         max_seq_length,
+        data_args.instruction_template,
     )
 
     dataset_kwargs = {}
-    if is_pretokenized_dataset(train_dataset or eval_dataset):
+    if is_tokenized_dataset:
         dataset_kwargs["skip_prepare_dataset"] = True
 
     return (
