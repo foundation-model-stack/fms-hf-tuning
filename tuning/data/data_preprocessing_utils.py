@@ -29,6 +29,7 @@ def get_data_collator(
     is_traindata_tokenized: bool,
     max_seq_length: int,
     instruction_template: Optional[str],
+    processor = None,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -46,11 +47,18 @@ def get_data_collator(
             Max sequence length expected
         instruction_template: str
             str representing the human response in a chat template
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model.
 
     Returns:
         Callable
             Callable collator to be leveraged by the trainer.
     """
+
+    if processor:
+        return MultiModalDataCollator(processor)
+
 
     if response_template and instruction_template:
         return DataCollatorForCompletionOnlyLM(
@@ -83,3 +91,33 @@ def get_data_collator(
         raise ValueError(
             "Could not pick a data collator. Please refer to supported data formats"
         )
+
+class MultiModalDataCollator:
+    def __init__(self, processor):
+        self.processor = processor
+    def __call__(self, examples):
+        '''
+        processes both the text and images. 
+        This collator must take a list of examples as input (see the previous section for an example of the data format) and return a batch of processed data
+        '''
+        # Get the texts and images, and apply the chat template
+        texts = [self.processor.apply_chat_template(example["messages"], tokenize=False) for example in examples]
+        images = [example["images"] for example in examples]
+
+        # if isinstance(model, LlavaForConditionalGeneration):
+            # LLava1.5 does not support multiple images
+            # images = [image[0] for image in images]
+
+        # Tokenize the texts and process the images
+        batch = self.processor(text=texts, images=images, return_tensors="pt", padding=True)
+
+        # The labels are the input_ids, and we mask the padding tokens in the loss computation
+        labels = batch["input_ids"].clone()
+        if self.processor.tokenizer.pad_token_id is not None:
+            labels[labels == self.processor.tokenizer.pad_token_id] = -100
+        # Ignore the image token index in the loss computation (model specific)
+        image_token_id = self.processor.tokenizer.convert_tokens_to_ids(self.processor.image_token)
+        labels[labels == image_token_id] = -100
+        batch["labels"] = labels
+
+        return batch

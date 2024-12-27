@@ -28,7 +28,9 @@ from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
+    AutoModelForVision2Seq,
     AutoTokenizer,
+    AutoProcessor,
     GPT2Tokenizer,
     GPTNeoXTokenizerFast,
     LlamaTokenizer,
@@ -209,6 +211,11 @@ def train(
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
+    processor = None
+    if model_args.multimodal:
+        model_loader = AutoModelForVision2Seq.from_pretrained
+        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+
     if framework is not None and framework.requires_custom_loading:
         model_loader = framework.model_loader  # drop-in new loader
     model_load_time = time.time()
@@ -345,13 +352,13 @@ def train(
 
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
+        processor_class=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
         args=training_args,
         callbacks=trainer_callbacks,
-        peft_config=peft_config,
+        peft_config=peft_config
     )
 
     # We track additional metrics and experiment metadata after trainer object creation

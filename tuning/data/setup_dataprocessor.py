@@ -300,6 +300,7 @@ def process_dataargs(
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, Callable] = None,
+    processor = None,
 ):
     """
     Args:
@@ -310,6 +311,9 @@ def process_dataargs(
             Used for packing and max_seq_length
         additional_data_handlers: A Dict of [str, callable] data handlers
             which need to be registered with the data preprocessor
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing
@@ -359,6 +363,7 @@ def process_dataargs(
         is_tokenized_dataset,
         max_seq_length,
         data_args.instruction_template,
+        processor,
     )
 
     dataset_kwargs = {}
