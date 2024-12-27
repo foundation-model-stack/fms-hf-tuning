@@ -317,12 +317,12 @@ def train(
         data_collator,
         train_args.max_seq_length,
         dataset_kwargs,
-    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers)
+    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers, processor)
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
 
-    if framework is not None and framework.requires_agumentation:
+    if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
@@ -352,7 +352,7 @@ def train(
 
     trainer = SFTTrainer(
         model=model,
-        processor_class=tokenizer,
+        processing_class=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,

@@ -131,10 +131,10 @@ class DataPreProcessor:
                 ) from e
 
         if datafile:
-            loader = get_loader_for_filepath(file_path=datafile)
-            if loader in (None, ""):
-                raise ValueError(f"data path is invalid [{datafile}]")
-            return _load_dataset(builder=loader, data_files=[datafile])
+            # loader = get_loader_for_filepath(file_path=datafile)
+            # if loader in (None, ""):
+            #     raise ValueError(f"data path is invalid [{datafile}]")
+            return _load_dataset(data_path=datafile)
 
         data_paths = datasetconfig.data_paths
         builder = datasetconfig.builder
