@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # Standard
+import glob
 import json
+import os
 import tempfile
 
 # Third Party
@@ -21,6 +23,7 @@ from datasets import Dataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
+import pyarrow
 import pytest
 import yaml
 
@@ -34,6 +37,7 @@ from tests.artifacts.predefined_data_configs import (
 from tests.artifacts.testdata import (
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
@@ -141,23 +145,41 @@ def test_load_dataset_with_datafile(datafile, column_names):
     assert set(load_dataset.column_names) == column_names
 
 
+@pytest.mark.parametrize("hf_dataset, splitName", [("squad", "validation")])
+def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
+    """Ensure that hf dataset could be loaded."""
+    datasetconfig = DataSetConfig(
+        name="text_dataset_input_output_masking", data_paths=[hf_dataset]
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig, splitName=splitName, datafile=None
+    )
+    assert isinstance(load_dataset, Dataset)
+
+
 @pytest.mark.parametrize(
-    "datafile, column_names, datasetconfigname",
+    "datafile, column_names, datasetconfigname, builder",
     [
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             set(["ID", "Label", "input", "output"]),
             "text_dataset_input_output_masking",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
             set(["ID", "Label", "input", "output", "sequence"]),
             "text_dataset_input_output_masking",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
             set(["ID", "Label", "input", "output"]),
             "text_dataset_input_output_masking",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_TOKENIZED_JSONL,
@@ -173,6 +195,7 @@ def test_load_dataset_with_datafile(datafile, column_names):
                 ]
             ),
             "pretokenized_dataset",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
@@ -188,27 +211,41 @@ def test_load_dataset_with_datafile(datafile, column_names):
                 ]
             ),
             "pretokenized_dataset",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_DATA_JSONL,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
             "apply_custom_data_template",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_DATA_ARROW,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
             "apply_custom_data_template",
+            None,
         ),
         (
             TWITTER_COMPLAINTS_DATA_PARQUET,
             set(["Tweet text", "ID", "Label", "text_label", "output"]),
             "apply_custom_data_template",
+            None,
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_PARQUET,
+            set(["Tweet text", "ID", "Label", "text_label", "output"]),
+            "apply_custom_data_template",
+            "parquet",
         ),
     ],
 )
-def test_load_dataset_with_datasetconfig(datafile, column_names, datasetconfigname):
+def test_load_dataset_with_datasetconfig(
+    datafile, column_names, datasetconfigname, builder
+):
     """Ensure that both dataset is loaded with datafile."""
-    datasetconfig = DataSetConfig(name=datasetconfigname, data_paths=[datafile])
+    datasetconfig = DataSetConfig(
+        name=datasetconfigname, data_paths=[datafile], builder=builder
+    )
     processor = get_datapreprocessor(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
@@ -216,6 +253,57 @@ def test_load_dataset_with_datasetconfig(datafile, column_names, datasetconfigna
         datasetconfig=datasetconfig, splitName="train", datafile=None
     )
     assert set(load_dataset.column_names) == column_names
+
+
+@pytest.mark.parametrize(
+    "data_paths, datasetconfigname",
+    [
+        (
+            ["fake/path"],
+            "apply_custom_data_template",
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_PARQUET.replace(
+                    "twitter_complaints_small.parquet", "not_exist.parquet"
+                )
+            ],
+            "apply_custom_data_template",
+        ),
+    ],
+)
+def test_load_dataset_with_non_exist_path(data_paths, datasetconfigname):
+    """Ensure that load_dataset raises error for non-exist paths."""
+    datasetconfig = DataSetConfig(name=datasetconfigname, data_paths=data_paths)
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    with pytest.raises((datasets.exceptions.DatasetNotFoundError, ValueError)):
+        processor.load_dataset(
+            datasetconfig=datasetconfig, splitName="train", datafile=None
+        )
+
+
+@pytest.mark.parametrize(
+    "datafile, datasetconfigname, builder",
+    [
+        (TWITTER_COMPLAINTS_DATA_PARQUET, "apply_custom_data_template", "arrow"),
+    ],
+)
+def test_load_dataset_with_datasetconfig_incorrect_builder(
+    datafile, datasetconfigname, builder
+):
+    """Ensure that directory with incorrect builder cannot be passed in datasetconfig."""
+    datasetconfig = DataSetConfig(
+        name=datasetconfigname, data_paths=[datafile], builder=builder
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    with pytest.raises(pyarrow.lib.ArrowInvalid):
+        processor.load_dataset(
+            datasetconfig=datasetconfig, splitName="train", datafile=None
+        )
 
 
 @pytest.mark.parametrize(
@@ -247,6 +335,58 @@ def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
         )
 
 
+@pytest.mark.parametrize(
+    "datasetconfig, column_names",
+    [
+        (
+            DataSetConfig(
+                name="text_dataset_input_output_masking",
+                data_paths=[TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            ),
+            set(["ID", "Label", "input", "output"]),
+        ),
+        (
+            DataSetConfig(
+                name="text_dataset_input_output_masking",
+                data_paths=[TWITTER_COMPLAINTS_DATA_DIR_JSON],
+                builder="json",
+            ),
+            set(["ID", "Label", "input", "output"]),
+        ),
+    ],
+)
+def test_load_dataset_with_dataconfig_and_datafolder(datasetconfig, column_names):
+    """Ensure that directory can be passed in datasetconfig with/without builder."""
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig, splitName="train", datafile=None
+    )
+    assert set(load_dataset.column_names) == column_names
+
+
+@pytest.mark.parametrize(
+    "datasetconfig",
+    [
+        DataSetConfig(
+            name="text_dataset_input_output_masking",
+            data_paths=[TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            builder="arrow",
+        ),
+    ],
+)
+def test_load_dataset_with_dataconfig_and_datafolder_incorrect_builder(datasetconfig):
+    """Ensure that directory with incorrect builder cannot be passed in datasetconfig."""
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    with pytest.raises(pyarrow.lib.ArrowInvalid):
+        processor.load_dataset(
+            datasetconfig=datasetconfig, splitName="train", datafile=None
+        )
+
+
 def test_load_dataset_without_dataconfig_and_datafile():
     """Ensure that both datasetconfig and datafile cannot be None."""
     processor = get_datapreprocessor(
@@ -254,6 +394,74 @@ def test_load_dataset_without_dataconfig_and_datafile():
     )
     with pytest.raises(ValueError):
         processor.load_dataset(datasetconfig=None, splitName="train", datafile=None)
+
+
+@pytest.mark.parametrize(
+    "data_paths, column_names, datasetconfigname, builder",
+    [
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_DIR_JSON,
+            ],
+            set(["ID", "Label", "input", "output"]),
+            "text_dataset_input_output_masking",
+            None,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_DIR_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+            ],
+            set(["ID", "Label", "input", "output"]),
+            "text_dataset_input_output_masking",
+            None,
+        ),
+    ],
+)
+def test_load_dataset_with_datasetconfig_files_folders(
+    data_paths, column_names, datasetconfigname, builder
+):
+    """Ensure that load_dataset works with passing combination of files and folders."""
+    datasetconfig = DataSetConfig(
+        name=datasetconfigname, data_paths=data_paths, builder=builder
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig, splitName="train", datafile=None
+    )
+    assert set(load_dataset.column_names) == column_names
+
+
+@pytest.mark.parametrize(
+    "data_paths, datasetconfigname, builder",
+    [
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_DIR_JSON,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+            "text_dataset_input_output_masking",
+            "arrow",
+        ),
+    ],
+)
+def test_load_dataset_with_datasetconfig_files_folders_incorrect_builder(
+    data_paths, datasetconfigname, builder
+):
+    """Ensure that load_dataset with passing combination of files and folders does support mismatch in format"""
+    datasetconfig = DataSetConfig(
+        name=datasetconfigname, data_paths=data_paths, builder=builder
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    with pytest.raises(ValueError):
+        processor.load_dataset(
+            datasetconfig=datasetconfig, splitName="train", datafile=None
+        )
 
 
 @pytest.mark.parametrize(
@@ -554,6 +762,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
             [TWITTER_COMPLAINTS_DATA_ARROW, TWITTER_COMPLAINTS_DATA_ARROW],
         ),
         (
+            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
+        ),
+        (
             DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
             [TWITTER_COMPLAINTS_TOKENIZED_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
         ),
@@ -602,6 +814,13 @@ def test_process_dataconfig_file(data_config_path, data_path):
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
             ],
         ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+        ),
     ],
 )
 def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
@@ -644,6 +863,122 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_paths, builder",
+    [
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*.json")],
+            None,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*.json")],
+            "json",
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*")],
+            "json",
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*complaints*")],
+            "json",
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            None,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            "json",
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files_folders_with_globbing(
+    data_config_path, data_paths, builder
+):
+    """Ensure that datasets files matching globbing pattern are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+
+    yaml_content["datasets"][0]["data_paths"] = data_paths
+    yaml_content["datasets"][0]["builder"] = builder
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    assert isinstance(train_set, Dataset)
+    assert set(["input_ids", "attention_mask", "labels"]).issubset(
+        set(train_set.column_names)
+    )
+
+    path_or_pattern = data_paths[0]
+    if os.path.isdir(path_or_pattern):
+        # Construct a pattern for JSON files in this directory
+        pattern = os.path.join(path_or_pattern, "*.json")
+    else:
+        # Assume path_or_pattern is already a pattern
+        pattern = path_or_pattern
+
+    data_len = sum(len(json.load(open(file, "r"))) for file in glob.glob(pattern))
+    assert len(train_set) == data_len
+
+
+@pytest.mark.parametrize(
+    "data_paths, datasetconfigname, builder",
+    [
+        (
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*")],
+            "tokenize_and_apply_input_masking",
+            None,
+        ),
+        (
+            [os.path.join(TWITTER_COMPLAINTS_DATA_DIR_JSON, "*complaints*")],
+            "tokenize_and_apply_input_masking",
+            None,
+        ),
+        (["*squad"], "tokenize_and_apply_input_masking", None),
+        (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON.replace("datafolder", "dataf*")],
+            "tokenize_and_apply_input_masking",
+            None,
+        ),
+        (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            "parquet",
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_files_folders_without_builder(
+    data_paths, datasetconfigname, builder
+):
+    """Ensure that datasets folders / files without ext and builder
+    OR HF datasets passed via globbing pattern raises error."""
+    datasetconfig = DataSetConfig(
+        name=datasetconfigname, data_paths=data_paths, builder=builder
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    with pytest.raises(
+        (datasets.exceptions.DatasetNotFoundError, ValueError, pyarrow.lib.ArrowInvalid)
+    ):
+        processor.load_dataset(
+            datasetconfig=datasetconfig, splitName="train", datafile=None
+        )
 
 
 @pytest.mark.parametrize(
@@ -706,84 +1041,6 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
         assert set(["input_ids", "attention_mask", "labels"]).issubset(
             set(eval_set.column_names)
         )
-
-
-@pytest.mark.parametrize(
-    "data_config_path, data_path_list",
-    [
-        (
-            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
-            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_DATA_PARQUET],
-        ),
-        (
-            DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
-            [TWITTER_COMPLAINTS_DATA_JSON, TWITTER_COMPLAINTS_TOKENIZED_JSON],
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            [
-                TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-                TWITTER_COMPLAINTS_TOKENIZED_ARROW,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-            ],
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            [
-                TWITTER_COMPLAINTS_TOKENIZED_JSON,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
-            ],
-        ),
-        (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            [
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-            ],
-        ),
-        (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON, TWITTER_COMPLAINTS_DATA_JSON],
-        ),
-    ],
-)
-def test_process_dataconfig_multiple_files_varied_data_formats(
-    data_config_path, data_path_list
-):
-    """Ensure that datasets with multiple files with different formats raise assertion error when passed in config file."""
-    with open(data_config_path, "r") as f:
-        yaml_content = yaml.safe_load(f)
-    yaml_content["datasets"][0]["data_paths"] = data_path_list
-    datasets_name = yaml_content["datasets"][0]["name"]
-
-    # Modify input_field_name and output_field_name according to dataset
-    if datasets_name == "text_dataset_input_output_masking":
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
-        }
-
-    # Modify dataset_text_field and template according to dataset
-    formatted_dataset_field = "formatted_data_field"
-    if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
-            "template": template,
-        }
-
-    with tempfile.NamedTemporaryFile(
-        "w", delete=False, suffix=".yaml"
-    ) as temp_yaml_file:
-        yaml.dump(yaml_content, temp_yaml_file)
-        temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
-
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises(
-        (AssertionError, datasets.exceptions.DatasetGenerationCastError)
-    ):
-        (_, _, _) = _process_dataconfig_file(data_args, tokenizer)
 
 
 @pytest.mark.parametrize(

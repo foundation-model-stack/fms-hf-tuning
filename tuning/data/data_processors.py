@@ -27,7 +27,9 @@ import torch
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
-from tuning.utils.utils import get_extension, get_loader_for_filepath
+from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
+
+logger = logging.getLogger(__name__)
 
 
 class DataPreProcessor:
@@ -54,11 +56,11 @@ class DataPreProcessor:
         if not isinstance(name, str) or not callable(func):
             raise ValueError("Handlers should be of type Dict, str to callable")
         if name in self.registered_handlers:
-            logging.warning(
+            logger.warning(
                 "Handler name '%s' already exists and will be overwritten", name
             )
         self.registered_handlers[name] = func
-        logging.info("Registered new handler %s", name)
+        logger.info("Registered new handler %s", name)
 
     def register_data_handlers(self, handlers: Dict[str, Callable]):
         if handlers is None:
@@ -81,33 +83,111 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
+        def _load_dataset(data_path=None, builder=None, data_files=None, data_dir=None):
+            """
+            Helper function to load a dataset using datasets.load_dataset
+            with standardized exception handling.
+
+            Args:
+                data_path: The path argument for load_dataset (directory, file, pattern, dataset_id)
+                builder: Optional builder to use if provided.
+                data_files: Optional data_files list if loading from files.
+                data_dir: Optional data_dir if loading from a directory with a builder.
+            Returns: dataset
+            """
+
+            load_kwargs = {**kwargs, "split": splitName}
+            if data_dir is not None:
+                load_kwargs["data_dir"] = data_dir
+            if data_files is not None:
+                load_kwargs["data_files"] = data_files
+
+            # Determine the `path` parameter for load_dataset
+            load_path = builder if builder else data_path
+
+            try:
+                return datasets.load_dataset(path=load_path, **load_kwargs)
+            except DatasetNotFoundError as e:
+                # Reraise with a more context-specific message if needed
+                raise e
+            except FileNotFoundError as e:
+                # Handle file/directory not found
+                context = (
+                    f"path {data_path} with builder {builder}"
+                    if builder
+                    else f"path {data_path}"
+                )
+                raise ValueError(f"Data loading failed: invalid {context}.") from e
+            except datasets.exceptions.DatasetGenerationError as e:
+                context = (
+                    f"builder {builder} and data_dir {data_dir}"
+                    if builder and data_dir
+                    else f"builder {builder}"
+                    if builder
+                    else f"path {data_path}"
+                )
+                raise ValueError(
+                    f"Failed to generate the dataset from the provided {context}."
+                ) from e
+
         if datafile:
-            files = [datafile]
             loader = get_loader_for_filepath(file_path=datafile)
-        elif datasetconfig:
-            files = datasetconfig.data_paths
-            name = datasetconfig.name
-            # simple check to make sure all files are of same type.
-            extns = [get_extension(f) for f in files]
-            assert extns.count(extns[0]) == len(
-                extns
-            ), f"All files in the dataset {name} should have the same extension"
-            loader = get_loader_for_filepath(file_path=files[0])
+            if loader in (None, ""):
+                raise ValueError(f"data path is invalid [{datafile}]")
+            return _load_dataset(builder=loader, data_files=[datafile])
 
-        if loader in (None, ""):
-            raise ValueError(f"data path is invalid [{', '.join(files)}]")
+        data_paths = datasetconfig.data_paths
+        builder = datasetconfig.builder
+        all_datasets = []
 
+        for data_path in data_paths:
+            # CASE 1: User passes directory
+            if os.path.isdir(data_path):  # Checks if path exists and isdirectory
+                # Directory case
+                if builder:
+                    # Load using a builder with a data_dir
+                    dataset = _load_dataset(builder=builder, data_dir=data_path)
+                else:
+                    # Load directly from the directory
+                    dataset = _load_dataset(data_path=data_path)
+            else:
+                # Non-directory (file, pattern, HF dataset name)
+                # If no builder provided, attempt to infer one
+                effective_builder = (
+                    builder if builder else get_loader_for_filepath(data_path)
+                )
+
+                if effective_builder:
+                    # CASE 2: Files passed with builder. Load using the builder and specific files
+                    dataset = _load_dataset(
+                        builder=effective_builder, data_files=[data_path]
+                    )
+                else:
+                    # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
+                    dataset = _load_dataset(data_path=data_path)
+
+            all_datasets.append(dataset)
+
+        # Logs warning if datasets have different columns
+        validate_mergeable_datasets(all_datasets)
+
+        # Concatenate all datasets
         try:
-            return datasets.load_dataset(
-                loader,
-                data_files=files,
-                split=splitName,
-                **kwargs,
+            if len(all_datasets) == 1:
+                return all_datasets[0]
+
+            raw_datasets = datasets.concatenate_datasets(all_datasets)
+            logger.info(
+                "Datasets concatenated from %s .Concatenated dataset columns: %s",
+                datasetconfig.name,
+                list(raw_datasets.features.keys()),
             )
-        except DatasetNotFoundError as e:
-            raise e
-        except FileNotFoundError as e:
-            raise ValueError(f"data path is invalid [{', '.join(files)}]") from e
+            return raw_datasets
+
+        except Exception as e:
+            raise ValueError(
+                f"An error occurred while concatenating datasets from {datasetconfig.name}: {e}"
+            ) from e
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], **extra_kwargs
@@ -129,25 +209,25 @@ class DataPreProcessor:
             if sum(p for p in sampling_probabilities) != 1:
                 raise ValueError("Sampling probabilities don't sum to 1")
             sample_datasets = True
-            logging.info(
+            logger.info(
                 "Sampling ratios are specified; given datasets will be interleaved."
             )
         else:
-            logging.info(
+            logger.info(
                 "Sampling is not specified; if multiple datasets are provided,"
                 " the given datasets will be concatenated."
             )
             sample_datasets = False
 
-        logging.info("Starting DataPreProcessor...")
+        logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
         for d in dataset_configs:
-            logging.info("Loading %s", d.name)
+            logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
             raw_dataset = self.load_dataset(d, splitName)
 
-            logging.info("Loaded raw dataset : %s", str(raw_dataset))
+            logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
             raw_datasets = DatasetDict()
 
@@ -188,7 +268,7 @@ class DataPreProcessor:
 
                     kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
 
-                    logging.info("Applying Handler: %s Args: %s", data_handler, kwargs)
+                    logger.info("Applying Handler: %s Args: %s", data_handler, kwargs)
 
                     raw_datasets = raw_datasets.map(handler, **kwargs)
 
@@ -207,7 +287,7 @@ class DataPreProcessor:
         if sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
             seed = self.processor_config.sampling_seed
-            logging.info(
+            logger.info(
                 "Interleaving datasets: strategy[%s] seed[%d] probabilities[%s]",
                 strategy,
                 seed,
@@ -238,7 +318,7 @@ class DataPreProcessor:
 
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             if torch.distributed.get_rank() == 0:
-                logging.info("Processing data on rank 0...")
+                logger.info("Processing data on rank 0...")
                 train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
             else:
                 train_dataset = None
@@ -251,7 +331,7 @@ class DataPreProcessor:
             torch.distributed.broadcast_object_list(to_share, src=0)
             train_dataset = to_share[0]
         else:
-            logging.info("Processing data...")
+            logger.info("Processing data...")
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset

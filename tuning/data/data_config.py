@@ -21,6 +21,8 @@ import os
 # Local
 from tuning.utils.utils import load_yaml_or_json
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DataHandlerConfig:
@@ -32,6 +34,7 @@ class DataHandlerConfig:
 class DataSetConfig:
     name: str
     data_paths: List[str]
+    builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
@@ -79,14 +82,18 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
     c.data_paths = []
     for p in data_paths:
         assert isinstance(p, str), f"path {p} should be of the type string"
-        assert os.path.exists(p), f"data_paths {p} does not exist"
         if not os.path.isabs(p):
             _p = os.path.abspath(p)
-            logging.warning(
-                " Provided path %s is not absolute changing it to %s", p, _p
-            )
+            logger.warning(" Provided path %s is not absolute changing it to %s", p, _p)
             p = _p
         c.data_paths.append(p)
+    if "builder" in kwargs and kwargs["builder"] is not None:
+        builder = kwargs["builder"]
+        assert isinstance(
+            builder, str
+        ), f"builder should be a string representing a supported \
+        Hugging Face dataset builder, but got: {builder}"
+        c.builder = builder
     if "sampling" in kwargs and kwargs["sampling"] is not None:
         ratio = kwargs["sampling"]
         assert isinstance(ratio, float) and (
