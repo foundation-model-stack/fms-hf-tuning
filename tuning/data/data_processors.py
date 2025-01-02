@@ -132,14 +132,17 @@ class DataPreProcessor:
 
         def _try_load_dataset(dataset_path, dataset_builder):
             """
-             Helper funciton to call load dataset on case by case basis to ensure we handle
-             directories and files (with or without builders) and hf datasets.
+            Helper function to call load dataset on case by case basis to ensure we handle
+            directories and files (with or without builders) and hf datasets.
 
             Args:
-                data_path: The path argument for load_dataset (directory, file, pattern, dataset_id)
-                builder: Optional builder to use if provided.
+                dataset_path: Path of directory/file, pattern, or hf dataset id.
+                dataset_builder: Optional builder to use if provided.
             Returns: dataset
             """
+            if not dataset_path:
+                raise ValueError("Invalid dataset path")
+
             # CASE 1: User passes directory
             if os.path.isdir(dataset_path):  # Checks if path exists and it is a dir
                 # Directory case
