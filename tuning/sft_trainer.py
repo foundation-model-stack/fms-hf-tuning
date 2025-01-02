@@ -306,9 +306,10 @@ def train(
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)
 
-    padding_free = None
+    is_padding_free = False
     if attention_and_distributed_packing_config is not None:
-        padding_free = attention_and_distributed_packing_config.padding_free
+        is_padding_free = attention_and_distributed_packing_config.is_padding_free
+
     data_preprocessing_time = time.time()
     (
         formatted_train_dataset,
@@ -322,7 +323,7 @@ def train(
         tokenizer,
         train_args,
         additional_data_handlers,
-        padding_free=padding_free,
+        is_padding_free=is_padding_free,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time

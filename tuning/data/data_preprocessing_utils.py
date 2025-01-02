@@ -29,6 +29,7 @@ def get_data_collator(
     is_traindata_tokenized: bool,
     max_seq_length: int,
     instruction_template: Optional[str],
+    is_padding_free: bool = False,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -46,6 +47,8 @@ def get_data_collator(
             Max sequence length expected
         instruction_template: str
             str representing the human response in a chat template
+        is_padding_free: bool
+            if padding free plugin is used or not
 
     Returns:
         Callable
@@ -74,6 +77,16 @@ def get_data_collator(
                 tokenizer=tokenizer,
                 ignore_index=configs.IGNORE_INDEX,
             )
+
+        if is_padding_free:
+            # when packing is false but padding_free is used and
+            # no response template is used then its a pretrained scenario.
+            # Current plugin in fms-acceleration is compatible with
+            # `DataCollatorForSeq2Seq` collator hence we use this.
+            return DataCollatorForSeq2Seq(
+                tokenizer=tokenizer, padding=False, max_length=max_seq_length
+            )
+
         # Note that this automatically pads labels with -100
         # TODO check if this is sufficient for preprocessed
         if is_traindata_tokenized:
