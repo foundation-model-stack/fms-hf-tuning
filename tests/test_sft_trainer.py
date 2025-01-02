@@ -37,12 +37,17 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
 from tests.artifacts.testdata import (
+    CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_SINGLE_TURN,
+    CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
     MALFORMATTED_DATA,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
+    TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
@@ -356,6 +361,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -381,6 +387,7 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -391,14 +398,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -786,9 +793,20 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     "datafiles, datasetconfigname",
     [
         (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+        ),
+        (
             [
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
                 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                TWITTER_COMPLAINTS_DATA_DIR_JSON,
             ],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
         ),
@@ -856,6 +874,128 @@ def test_run_causallm_ft_and_inference_with_multiple_dataset(
         )
         assert len(output_inference) > 0
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+@pytest.mark.parametrize(
+    "dataset_path",
+    [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
+)
+def test_run_chat_style_ft(dataset_path):
+    """Check if we can perform an e2e run with chat template and multi turn chat training."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        data_args.chat_template = "{% for message in messages['messages'] %}\
+            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {% endif %}\
+            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+            {% endif %}\
+            {% endfor %}"
+        data_args.response_template = "<|assistant|>"
+        data_args.instruction_template = "<|user|>"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+@pytest.mark.parametrize(
+    "datafiles, dataconfigfile",
+    [
+        (
+            [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        )
+    ],
+)
+def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
+    """Check if we can perform an e2e run with chat template
+    and multi turn chat training using data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.chat_template = "{% for message in messages['messages'] %}\
+            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {% endif %}\
+            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+            {% endif %}\
+            {% endfor %}"
+        data_args.response_template = "<|assistant|>"
+        data_args.instruction_template = "<|user|>"
+        data_args.dataset_text_field = "new_formatted_field"
+
+        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        kwargs = {
+            "fn_kwargs": handler_kwargs,
+            "batched": False,
+            "remove_columns": "all",
+        }
+
+        handler_config = DataHandlerConfig(
+            name="apply_tokenizer_chat_template", arguments=kwargs
+        )
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            datasets = data["datasets"]
+            for i, d in enumerate(datasets):
+                d["data_paths"] = [datafiles[i]]
+                # Basic chat datasets don't need data handling
+                d["data_handlers"] = [asdict(handler_config)]
+            yaml.dump(data, temp_yaml_file)
+            data_args.data_config_path = temp_yaml_file.name
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 ############################# Helper functions #############################
@@ -996,7 +1136,7 @@ def test_malformatted_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = MALFORMATTED_DATA
 
-    with pytest.raises(DatasetGenerationError):
+    with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
@@ -1005,18 +1145,8 @@ def test_empty_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = EMPTY_DATA
 
-    with pytest.raises(DatasetGenerationError):
+    with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
-
-
-def test_data_path_is_a_directory():
-    """Ensure that we get ValueError if we point the data path at a dir, not a file."""
-    with tempfile.TemporaryDirectory() as tempdir:
-        data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = tempdir
-
-        with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
 
 
 ### Tests for bad tuning module configurations

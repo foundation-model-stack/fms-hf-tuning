@@ -14,10 +14,13 @@
 
 # Standard
 import json
+import logging
 import os
 
 # Third Party
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def get_extension(file_path: str) -> str:
@@ -31,9 +34,9 @@ def get_loader_for_filepath(file_path: str) -> str:
         return "text"
     if ext in (".json", ".jsonl"):
         return "json"
-    if ext in (".arrow"):
+    if ext in (".arrow",):
         return "arrow"
-    if ext in (".parquet"):
+    if ext in (".parquet",):
         return "parquet"
     return ext
 
@@ -46,3 +49,38 @@ def load_yaml_or_json(file_path: str) -> dict:
         if ext == ".json":
             return json.load(f)
     return None
+
+
+def validate_mergeable_datasets(datasets):
+    """Given list of datasets, validate if all datasets have same type and number of columns."""
+    if len(datasets) > 1:
+        ref_columns = datasets[0].features
+        ref_column_names = list(ref_columns.keys())
+        ref_column_types = {col: feat.dtype for col, feat in ref_columns.items()}
+
+        # Check all other datasets
+        for i, ds in enumerate(datasets[1:], start=2):
+            ds_column_names = list(ds.features.keys())
+            ds_column_types = {col: feat.dtype for col, feat in ds.features.items()}
+
+            # Check same set of columns
+            if set(ds_column_names) != set(ref_column_names):
+                logger.warning(
+                    "Dataset %d has different columns: %s. Columns in Dataset 1: %s",
+                    i,
+                    ds_column_names,
+                    ref_column_names,
+                )
+
+            # Check column data types
+            for col in ref_column_names:
+                if (col in ds_column_types) and (
+                    ds_column_types[col] != ref_column_types[col]
+                ):
+                    logger.warning(
+                        "Column '%s' in dataset %d has type %s, expected %s",
+                        col,
+                        i,
+                        ds_column_types[col],
+                        ref_column_types[col],
+                    )
