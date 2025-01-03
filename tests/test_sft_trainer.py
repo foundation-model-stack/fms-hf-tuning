@@ -362,6 +362,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -388,6 +389,7 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -398,14 +400,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
