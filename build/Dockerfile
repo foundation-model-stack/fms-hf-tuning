@@ -144,7 +144,7 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[fms-accel]"; \
         python -m fms_acceleration.cli install fms_acceleration_peft; \
-        python -m fms_acceleration.cli install fms_acceleration_foak; \
+        pip install git+https://github.com/foundation-model-stack/fms-acceleration.git@fix/foak#subdirectory=plugins/fused-ops-and-kernels; \
         python -m fms_acceleration.cli install fms_acceleration_aadp; \
     fi
 
