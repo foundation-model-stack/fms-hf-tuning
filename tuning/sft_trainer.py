@@ -315,7 +315,7 @@ def train(
         time.time() - data_preprocessing_time
     )
 
-    if framework is not None and framework.requires_agumentation:
+    if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
