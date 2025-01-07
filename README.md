@@ -62,13 +62,13 @@ pip install fms-hf-tuning[aim]
 For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data Support
-Users can pass training data in a single file using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below) and the file can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
+Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
 
 Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
 ## Supported Data Formats
-We support the following data formats via `--training_data_path` argument
+We support the following file formats via `--training_data_path` argument
 
 Data Format | Tested Support
 ------------|---------------
@@ -76,6 +76,8 @@ JSON        |   ✅
 JSONL       |   ✅
 PARQUET     |   ✅
 ARROW       |   ✅
+
+As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
 
 ## Use cases supported with `training_data_path` argument
 
