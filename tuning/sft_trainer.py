@@ -14,7 +14,6 @@
 
 # Standard
 from typing import Callable, Dict, List, Optional, Union
-import dataclasses
 import json
 import logging
 import os
