@@ -762,9 +762,17 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
- * Notes of Fast MOE
+ * Notes on Fast MoE
     - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
-    - Running fast moe modifies the state dict of the model, and must be post-processed using [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) to run inference.
+    - `world_size` must be divisible by the `ep_degree`
+    - Running fast moe modifies the state dict of the model, and must be post-processed using [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) to run inference (HF, vLLM, etc.).
+      - The typical uscase for this script is to run:
+        ```
+        python -m fms_acceleration_moe.utils.checkpoint_utils \
+        <checkpoint file> \
+        <output file> \
+        <original model>
+        ```
 
 Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
 ```json

@@ -773,8 +773,7 @@ def test_error_raised_with_undividable_fastmoe_argument():
 )
 def test_error_raised_fast_moe_with_non_moe_model():
     """
-    Ensure error is thrown when `--fast_moe` is passed and world_size
-    is not divisible by ep_degree
+    Ensure error is thrown when `--fast_moe` is passed and model is not MoE
     """
     with pytest.raises(
         AttributeError,

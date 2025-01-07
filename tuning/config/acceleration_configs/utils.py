@@ -32,11 +32,11 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
         nested_type = type_hints[f.name]
         values = getattr(dataclass, f.name)
         if values is not None and not is_dataclass(values):
-            # Ensure values are iterable before unpacking
-            if isinstance(values, Iterable) and not isinstance(values, (str, bytes)):
-                values = nested_type(*values)
-            else:
+            # Handle primitive data directly, unpack iterable data
+            if isinstance(values, (int, float, bool)):
                 values = nested_type(values)
+            else:
+                values = nested_type(*values)
         setattr(dataclass, f.name, values)
 
 
