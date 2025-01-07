@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Standard
-from collections.abc import Iterable
 from dataclasses import fields, is_dataclass
 from typing import List, Type, get_type_hints
 
