@@ -744,6 +744,8 @@ The list of configurations for various `fms_acceleration` plugins:
 - [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
+- [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
+  - `--fast_moe`: trains MoE models in parallel, increasing throughput and decreasing memory usage.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
@@ -762,6 +764,17 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+ * Notes on Fast MoE
+    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `world_size` must be divisible by the `ep_degree`
+    - Running fast moe modifies the state dict of the model, and must be post-processed using [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) to run inference (HF, vLLM, etc.).
+      - The typical usecase for this script is to run:
+        ```
+        python -m fms_acceleration_moe.utils.checkpoint_utils \
+        <checkpoint file> \
+        <output file> \
+        <original model>
+        ```
 
 Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
 ```json

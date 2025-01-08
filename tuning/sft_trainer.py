@@ -44,6 +44,7 @@ from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
     AttentionAndDistributedPackingConfig,
+    FastMoeConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
@@ -85,6 +86,7 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
+    fast_moe_config: Optional[FastMoeConfig] = None,
     additional_data_handlers: Optional[Dict[str, Callable]] = None,
 ) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
@@ -113,7 +115,8 @@ def train(
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
-        attention_and_distributed_packing_config: Used for padding-free attention and multipack.
+        attention_and_distributed_packing_config: Used for padding-free attention and multipack. \
+        fast_moe_config: Used for ScatterMoE to run MoE models in parallel.
         additional_data_handlers: Dict [str:Callable] of any extra data handlers \
                                    to be registered with the data preprocessor
     Returns:
@@ -202,9 +205,10 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
+        fast_moe_config,
+        attention_and_distributed_packing_config,
         quantized_lora_config,
         fusedops_kernels_config,
-        attention_and_distributed_packing_config,
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
@@ -444,6 +448,7 @@ def get_parser():
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
+            FastMoeConfig,
             MLflowConfig,
         )
     )
@@ -494,6 +499,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for fused operations and kernels.
         AttentionAndDistributedPackingConfig
             Configuration for padding free and packing.
+        FastMoeConfig
+            Configuration for accelerated MoE.
         MLflowConfig
             Configuration for mlflow tracker.
         dict[str, str]
@@ -512,6 +519,7 @@ def parse_arguments(parser, json_config=None):
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
             mlflow_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
@@ -529,6 +537,7 @@ def parse_arguments(parser, json_config=None):
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
             mlflow_config,
             additional,
             _,
@@ -555,6 +564,7 @@ def parse_arguments(parser, json_config=None):
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
+        fast_moe_config,
         mlflow_config,
         exp_metadata,
     )
@@ -577,6 +587,7 @@ def main():
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
             mlflow_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
@@ -589,8 +600,9 @@ def main():
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
             tune_config %s, file_logger_config, %s aim_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config %s,\
-            mlflow_config %s, exp_metadata %s",
+            attention_and_distributed_packing_config, %s,\
+            mlflow_config %s, fast_moe_config %s, \
+            exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -601,6 +613,7 @@ def main():
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
             mlflow_config,
             exp_metadata,
         )
@@ -648,6 +661,7 @@ def main():
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+            fast_moe_config=fast_moe_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())
