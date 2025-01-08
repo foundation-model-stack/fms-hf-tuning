@@ -36,6 +36,7 @@ class DataSetConfig:
     data_paths: List[str]
     builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
+    streaming: Optional[bool] = False
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
 

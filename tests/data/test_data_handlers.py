@@ -56,6 +56,34 @@ def test_apply_custom_formatting_template():
     assert formatted_dataset_field in formatted_dataset["train"][0]
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
+def test_apply_custom_formatting_template_iterable():
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
+    )
+    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = json_dataset.map(
+        apply_custom_data_formatting_template,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        },
+    )
+    # First response from the data file that is read.
+    expected_response = (
+        "### Input: @HMRCcustomers No this is my first job"
+        + " \n\n ### Response: no complaint"
+        + tokenizer.eos_token
+    )
+
+    first_sample = next(iter(formatted_dataset["train"]))
+
+    # a new dataset_text_field is created in Dataset
+    assert formatted_dataset_field in first_sample
+    assert first_sample[formatted_dataset_field] == expected_response
+
 
 def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     """Tests that the formatting function will throw error if wrong keys are passed to template"""
