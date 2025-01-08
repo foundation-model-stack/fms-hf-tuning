@@ -21,28 +21,15 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
 @parsable_dataclass
 @dataclass
-class PaddingFree:
+class FastMoe:
 
-    method: str = "huggingface"
-
-    def __post_init__(self):
-        if self.method != "huggingface":
-            raise ValueError("only 'huggingface' method currently supported.")
-
-
-@parsable_dataclass
-@dataclass
-class MultiPack:
-
-    num_processes: int = 16
+    ep_degree: int = 1
 
 
 @dataclass
-class AttentionAndDistributedPackingConfig:
+class FastMoeConfig:
 
-    padding_free: PaddingFree = None
-
-    multipack: MultiPack = None
+    fast_moe: FastMoe = None
 
     def __post_init__(self):
         # ensure nested dataclasses initialized
