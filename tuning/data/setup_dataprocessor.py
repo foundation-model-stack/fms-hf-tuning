@@ -113,14 +113,15 @@ def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
         if packing is False:
             if is_padding_free:
                 logger.debug(
-                    "Assuming extended pretraining scenario because, packing is false,"
+                    "Assuming pretraining scenario (loss over all tokens) "
+                    + "because, packing is false,"
                     + " padding_free plugin is used and no response template was provided."
                 )
             else:
                 raise ValueError(
-                    "Since dataset_text_field or data_formatter_template \
-                    is provided and packing is disabled, \
-                    needs a corresponding response template for masking"
+                    "Since response_template is not provided for masking, \
+                    either use packing or padding_free to enable \
+                    pretraining scenario (loss over all tokens)."
                 )
 
     if data_args.response_template:
