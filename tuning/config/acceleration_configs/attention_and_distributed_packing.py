@@ -47,3 +47,7 @@ class AttentionAndDistributedPackingConfig:
     def __post_init__(self):
         # ensure nested dataclasses initialized
         ensure_nested_dataclasses_initialized(self)
+
+    @property
+    def is_padding_free(self):
+        return self.padding_free is not None
