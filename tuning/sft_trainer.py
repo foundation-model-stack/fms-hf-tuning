@@ -290,8 +290,10 @@ def train(
             )
             if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
                 tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
+                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
             else:
                 tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
+                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
