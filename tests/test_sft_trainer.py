@@ -38,6 +38,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_YAML_STREAMING,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
@@ -797,6 +798,10 @@ def test_run_causallm_ft_pretokenized(dataset_path):
         (
             [TWITTER_COMPLAINTS_DATA_DIR_JSON],
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+        ),
+        (
+            [TWITTER_COMPLAINTS_DATA_JSON],
+            DATA_CONFIG_YAML_STREAMING,
         ),
         (
             [

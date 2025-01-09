@@ -105,6 +105,10 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
             c.data_handlers.append(_validate_data_handler_config(handler))
+    if "streaming" in kwargs:
+        streaming = kwargs["streaming"]
+        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
+        c.streaming = streaming
     return c
 
 

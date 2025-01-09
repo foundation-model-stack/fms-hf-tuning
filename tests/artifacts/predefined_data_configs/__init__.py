@@ -31,3 +31,6 @@ DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
+DATA_CONFIG_YAML_STREAMING = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "apply_custom_template_streaming.yaml"
+)
