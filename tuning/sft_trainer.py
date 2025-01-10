@@ -23,6 +23,7 @@ import time
 import traceback
 
 # Third Party
+from datasets import IterableDataset
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
@@ -346,6 +347,11 @@ def train(
         "dataset_kwargs": dataset_kwargs,
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
+
+    if isinstance(formatted_train_dataset, IterableDataset):
+        # Which one? Should it be for user to decide or set?
+        # training_args.max_steps = training_args.num_train_epochs
+        training_args.max_steps = 1
 
     trainer = SFTTrainer(
         model=model,

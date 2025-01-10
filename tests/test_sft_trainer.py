@@ -800,7 +800,7 @@ def test_run_causallm_ft_pretokenized(dataset_path):
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
         ),
         (
-            [TWITTER_COMPLAINTS_DATA_JSON],
+            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
             DATA_CONFIG_YAML_STREAMING,
         ),
         (

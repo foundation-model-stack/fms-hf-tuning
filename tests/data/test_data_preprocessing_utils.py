@@ -19,7 +19,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
@@ -33,6 +33,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_YAML_STREAMING,
 )
 from tests.artifacts.testdata import (
     MODEL_NAME,
@@ -665,6 +666,62 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
             output_dir="tmp",  # Not needed but positional
         )
         (_, _, _, _, _, _) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+    ],
+)
+def test_process_streaming_dataconfig_file(data_config_path, data_path):
+    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    assert isinstance(train_set, IterableDataset)
+
+    # Grab the keys since IterableDataset has no column names
+    first_example = next(iter(train_set))
+    set_column_names = list(first_example.keys())
+
+    if datasets_name == "text_dataset_input_output_masking":
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(set_column_names) == column_names
+    elif datasets_name == "pretokenized_dataset":
+        assert set(["input_ids", "labels"]).issubset(set(set_column_names))
+    elif datasets_name == "apply_custom_data_template":
+        assert formatted_dataset_field in set(set_column_names)
 
 
 @pytest.mark.parametrize(

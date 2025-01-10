@@ -56,6 +56,7 @@ def test_apply_custom_formatting_template():
     assert formatted_dataset_field in formatted_dataset["train"][0]
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
+
 def test_apply_custom_formatting_template_iterable():
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True

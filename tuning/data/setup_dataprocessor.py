@@ -43,8 +43,6 @@ DEFAULT_OUTPUT_COLUMN = "output"
 # the check is taken from trl
 # https://github.com/huggingface/trl/blob/ddf4c8dc3ecf6d9ee2b24f94c62182ffd682c808/trl/trainer/sft_trainer.py#L498-L509
 def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
-    if not data:
-        return False
     if isinstance(data, str):
         # Create a data processor with default processor config
         processor = get_datapreprocessor(
@@ -52,7 +50,23 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         )
         data = processor.load_dataset(None, splitName="train[:1]", datafile=data)
 
-    return ("input_ids" in data.column_names) and ("labels" in data.column_names)
+    if isinstance(data, Dataset):
+        # For a standard Dataset, check column names directly
+        return ("input_ids" in data.column_names) and ("labels" in data.column_names)
+
+    if isinstance(data, IterableDataset):
+        # For an IterableDataset, inspect the first element if possible
+        try:
+            first_example = next(iter(data))
+            return (
+                isinstance(first_example, dict)
+                and "input_ids" in first_example
+                and "labels" in first_example
+            )
+        except StopIteration:
+            return False
+
+    return False
 
 
 # TODO: For now assume only training dataset is passed via data config file.
