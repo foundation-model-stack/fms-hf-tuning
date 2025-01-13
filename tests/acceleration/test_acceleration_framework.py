@@ -57,7 +57,8 @@ from tuning.utils.import_utils import is_fms_accelerate_available
 # for some reason the CI will raise an import error if we try to import
 # these from tests.artifacts.testdata
 TWITTER_COMPLAINTS_JSON_FORMAT = os.path.join(
-    os.path.dirname(__file__), "../artifacts/testdata/json/twitter_complaints_json.json"
+    os.path.dirname(__file__),
+    "../artifacts/testdata/json/twitter_complaints_small.json",
 )
 TWITTER_COMPLAINTS_TOKENIZED = os.path.join(
     os.path.dirname(__file__),
