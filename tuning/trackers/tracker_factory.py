@@ -35,7 +35,7 @@ AVAILABLE_TRACKERS = [
     AIMSTACK_TRACKER,
     FILE_LOGGING_TRACKER,
     HF_RESOURCE_SCANNER_TRACKER,
-    MLFLOW_TRACKER
+    MLFLOW_TRACKER,
 ]
 
 
@@ -96,6 +96,7 @@ def _register_mlflow_tracker():
             "Please install mlflow if you intend to use it.\n"
             "\t pip install mlflow"
         )
+
 
 def _register_hf_resource_scanner_tracker():
     # pylint: disable=import-outside-toplevel
