@@ -43,6 +43,9 @@ DEFAULT_OUTPUT_COLUMN = "output"
 # the check is taken from trl
 # https://github.com/huggingface/trl/blob/ddf4c8dc3ecf6d9ee2b24f94c62182ffd682c808/trl/trainer/sft_trainer.py#L498-L509
 def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
+    if not data:
+        return False
+
     if isinstance(data, str):
         # Create a data processor with default processor config
         processor = get_datapreprocessor(
