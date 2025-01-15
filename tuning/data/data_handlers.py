@@ -19,6 +19,7 @@ from typing import Dict, List
 import re
 
 # Third Party
+from jinja2 import Environment, StrictUndefined
 from transformers import AutoTokenizer
 
 
@@ -137,6 +138,65 @@ def apply_custom_data_formatting_template(
     }
 
 
+def apply_custom_data_formatting_jinja_template(
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    template: str,
+    **kwargs,
+):
+    """Function to format datasets with jinja templates.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        dataset_text_field: formatted_dataset_field.
+        template: Template to format data with. Features of Dataset
+            should be referred to by {{key}}.
+    Returns:
+        Formatted HF Dataset
+    """
+
+    template = transform_placeholders(template)
+    env = Environment(undefined=StrictUndefined)
+    jinja_template = env.from_string(template)
+
+    try:
+        rendered_text = jinja_template.render(element=element, **element)
+    except Exception as e:
+        raise KeyError(f"Dataset does not contain field in template. {e}") from e
+
+    rendered_text += tokenizer.eos_token
+
+    return {dataset_text_field: rendered_text}
+
+
+def transform_placeholders(template: str) -> str:
+    """
+    Function to detect all placeholders of the form {{...}}.
+    - If the inside has a space (e.g. {{Tweet text}}),
+      rewrite to {{ element['Tweet text'] }}.
+    - If it doesn't have a space (e.g. {{text_label}}), leave it as is.
+    - If it is already using dictionary-style access ({{ element['xyz'] }}), do nothing.
+    """
+
+    pattern = r"\{\{([^}]+)\}\}"
+    matches = re.findall(pattern, template)
+
+    for match in matches:
+        original_placeholder = f"{{{{{match}}}}}"
+        trimmed = match.strip()
+
+        if trimmed.startswith("element["):
+            continue
+
+        # If there's a space in the placeholder name, rewrite it to dictionary-style
+        if " " in trimmed:
+            new_placeholder = f"{{{{ element['{trimmed}'] }}}}"
+            template = template.replace(original_placeholder, new_placeholder)
+
+    return template
+
+
 def apply_tokenizer_chat_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
@@ -157,5 +217,6 @@ AVAILABLE_DATA_HANDLERS = {
     "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
     "apply_dataset_formatting": apply_dataset_formatting,
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
+    "apply_custom_data_formatting_jinja_template": apply_custom_data_formatting_jinja_template,
     "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
 }
