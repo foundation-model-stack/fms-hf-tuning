@@ -22,6 +22,9 @@ PREDEFINED_DATA_CONFIGS = os.path.join(os.path.dirname(__file__))
 DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "apply_custom_template.yaml"
 )
+DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "apply_custom_jinja_template.yaml"
+)
 DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "pretokenized_json_data.yaml"
 )
