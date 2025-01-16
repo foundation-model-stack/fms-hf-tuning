@@ -489,7 +489,7 @@ def test_is_pretokenized_data(data, result):
 
 @pytest.mark.parametrize(
     "packing, response_template, formatted_train_dataset,\
-     max_seq_length, instruction_template, expected_collator",
+     max_seq_length, instruction_template, is_padding_free, expected_collator",
     [
         (
             False,
@@ -501,6 +501,7 @@ def test_is_pretokenized_data(data, result):
             ),
             1024,
             None,
+            False,
             DataCollatorForCompletionOnlyLM,
         ),
         (
@@ -517,6 +518,7 @@ def test_is_pretokenized_data(data, result):
             ),
             1024,
             None,
+            False,
             DataCollatorForSeq2Seq,
         ),
         (
@@ -529,6 +531,7 @@ def test_is_pretokenized_data(data, result):
             ),
             1024,
             "\n### Text:",
+            False,
             DataCollatorForCompletionOnlyLM,
         ),
         (
@@ -545,6 +548,20 @@ def test_is_pretokenized_data(data, result):
             ),
             1024,
             "\n### Text:",
+            False,
+            DataCollatorForSeq2Seq,
+        ),
+        (
+            False,
+            None,
+            datasets.load_dataset(
+                "json",
+                data_files=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                split="train",
+            ),
+            1024,
+            None,
+            True,
             DataCollatorForSeq2Seq,
         ),
     ],
@@ -555,6 +572,7 @@ def test_get_data_collator(
     formatted_train_dataset,
     max_seq_length,
     instruction_template,
+    is_padding_free,
     expected_collator,
 ):
     """Ensure that the correct collator type is fetched based on the data args"""
@@ -565,6 +583,7 @@ def test_get_data_collator(
         is_pretokenized_dataset(formatted_train_dataset),
         max_seq_length,
         instruction_template,
+        is_padding_free,
     )
     assert isinstance(collator, expected_collator)
 
@@ -1044,7 +1063,7 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 
 
 @pytest.mark.parametrize(
-    "data_args",
+    "data_args, is_padding_free",
     [
         # single sequence JSON and response template
         (
@@ -1053,7 +1072,8 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_JSON,
                 dataset_text_field="output",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # single sequence JSONL and response template
         (
@@ -1062,7 +1082,8 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
                 dataset_text_field="output",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # single sequence PARQUET and response template
         (
@@ -1071,7 +1092,8 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_PARQUET,
                 dataset_text_field="output",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # data formatter template with input/output JSON
         (
@@ -1080,7 +1102,8 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
                 data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # data formatter template with input/output JSONL
         (
@@ -1089,7 +1112,8 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # data formatter template with input/output PARQUET
         (
@@ -1098,32 +1122,44 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
                 data_formatter_template="### Text:{{input}} \n\n### Label: {{output}}",
                 response_template="\n### Label:",
-            )
+            ),
+            False,
         ),
         # input/output JSON with masking on input
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
-            )
+            ),
+            False,
         ),
         # input/output JSONL with masking on input
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-            )
+            ),
+            False,
         ),
         # input/output PARQUET with masking on input
         (
             configs.DataArguments(
                 training_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
                 validation_data_path=TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-            )
+            ),
+            False,
+        ),
+        (
+            configs.DataArguments(
+                training_data_path=TWITTER_COMPLAINTS_DATA_JSON,
+                validation_data_path=TWITTER_COMPLAINTS_DATA_JSON,
+                dataset_text_field="output",
+            ),
+            True,
         ),
     ],
 )
-def test_process_dataargs(data_args):
+def test_process_dataargs(data_args, is_padding_free):
     """Ensure that the train/eval data are properly formatted based on the data args / text field"""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     TRAIN_ARGS = configs.TrainingArguments(
@@ -1132,7 +1168,7 @@ def test_process_dataargs(data_args):
         output_dir="tmp",  # Not needed but positional
     )
     (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
-        data_args, tokenizer, TRAIN_ARGS
+        data_args, tokenizer, TRAIN_ARGS, is_padding_free=is_padding_free
     )
     assert isinstance(train_set, Dataset)
     assert isinstance(eval_set, Dataset)

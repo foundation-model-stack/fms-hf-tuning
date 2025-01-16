@@ -14,7 +14,7 @@
 
 # Standard
 from dataclasses import fields, is_dataclass
-from typing import Dict, List, Type, get_type_hints
+from typing import List, Type, get_type_hints
 
 # Third Party
 from transformers.hf_argparser import DataClass, string_to_bool
@@ -26,12 +26,16 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
     this is to be called at the top-level class to init all the
     nested dataclasses.
     """
-    type_hints: Dict[str, type] = get_type_hints(dataclass)
+    type_hints = get_type_hints(dataclass)
     for f in fields(dataclass):
         nested_type = type_hints[f.name]
         values = getattr(dataclass, f.name)
         if values is not None and not is_dataclass(values):
-            values = nested_type(*values)
+            # Handle primitive data directly, unpack iterable data
+            if isinstance(values, (int, float, bool)):
+                values = nested_type(values)
+            else:
+                values = nested_type(*values)
         setattr(dataclass, f.name, values)
 
 

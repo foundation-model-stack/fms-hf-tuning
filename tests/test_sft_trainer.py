@@ -25,7 +25,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets.exceptions import DatasetGenerationError
+from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -326,7 +326,7 @@ def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
-    with pytest.raises(ValueError):
+    with pytest.raises(DatasetNotFoundError):
         sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
@@ -362,6 +362,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -388,6 +389,7 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -398,14 +400,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -996,6 +998,36 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         )
         assert len(output_inference) > 0
         assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+@pytest.mark.parametrize(
+    "data_args",
+    [
+        (
+            # sample hugging face dataset id
+            configs.DataArguments(
+                training_data_path="lhoestq/demo1",
+                data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
+                response_template="\n### Stars:",
+            )
+        )
+    ],
+)
+def test_run_e2e_with_hf_dataset_id(data_args):
+    """
+    Check if we can run an e2e test with a hf dataset id as training_data_path.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate ft tuning configs
+        _validate_training(tempdir)
+
+        # validate inference
+        _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
 
 ############################# Helper functions #############################
