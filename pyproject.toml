@@ -45,7 +45,7 @@ dev = ["wheel>=0.42.0,<1.0", "packaging>=23.2,<25", "ninja>=1.11.1.1,<2.0", "sci
 flash-attn = ["flash-attn>=2.5.3,<3.0"]
 aim = ["aim>=3.19.0,<4.0"]
 mlflow = ["mlflow"]
-fms-accel = ["fms-acceleration>=0.1"]
+fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 
 
