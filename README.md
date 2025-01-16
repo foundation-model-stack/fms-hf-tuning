@@ -200,6 +200,10 @@ For advanced data preprocessing support including mixing and custom preprocessin
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
 Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
@@ -219,7 +223,7 @@ Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
 Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
-(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
