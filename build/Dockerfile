@@ -83,11 +83,11 @@ ENV CUDA_HOME="/usr/local/cuda" \
 FROM cuda-base AS cuda-devel
 
 # Ref: https://developer.nvidia.com/nccl/nccl-legacy-downloads
-ENV NV_CUDA_CUDART_DEV_VERSION=12.0.0-1 \
-    NV_NVML_DEV_VERSION=12.0.0-1 \
-    NV_LIBCUBLAS_DEV_VERSION=12.0.0-1 \
-    NV_LIBNPP_DEV_VERSION=12.0.0-1 \
-    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.15.3-1+cuda12.0
+ENV NV_CUDA_CUDART_DEV_VERSION=12.0.146-1 \
+    NV_NVML_DEV_VERSION=12.0.140-1 \
+    NV_LIBCUBLAS_DEV_VERSION=12.0.2.224-1 \
+    NV_LIBNPP_DEV_VERSION=12.0.1.104-1 \
+    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.16.5-1+cuda12.0
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
