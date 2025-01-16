@@ -130,7 +130,7 @@ def apply_custom_data_formatting_template(
         if index_object not in element:
             raise KeyError("Requested template string is not a valid key in dict")
 
-        return element[index_object]
+        return str(element[index_object])
 
     return {
         dataset_text_field: re.sub(r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template)

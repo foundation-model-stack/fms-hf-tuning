@@ -1,7 +1,7 @@
 # FMS HF Tuning
 
 - [Installation](#installation)
-- [Data format](#data-format)
+- [Data format support](#data-support)
 - [Supported Models](#supported-models)
 - [Training](#training)
   - [Single GPU](#single-gpu)
@@ -62,13 +62,13 @@ pip install fms-hf-tuning[aim]
 For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
 ## Data Support
-Users can pass training data in a single file using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below) and the file can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
+Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
 
 Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
 ## Supported Data Formats
-We support the following data formats via `--training_data_path` argument
+We support the following file formats via `--training_data_path` argument
 
 Data Format | Tested Support
 ------------|---------------
@@ -76,6 +76,8 @@ JSON        |   ✅
 JSONL       |   ✅
 PARQUET     |   ✅
 ARROW       |   ✅
+
+As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
 
 ## Use cases supported with `training_data_path` argument
 
@@ -198,6 +200,10 @@ For advanced data preprocessing support including mixing and custom preprocessin
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
 Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
@@ -217,7 +223,7 @@ Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
 Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
-(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
@@ -742,6 +748,8 @@ The list of configurations for various `fms_acceleration` plugins:
 - [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
+- [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
+  - `--fast_moe`: trains MoE models in parallel, increasing throughput and decreasing memory usage.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
@@ -760,6 +768,17 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+ * Notes on Fast MoE
+    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `world_size` must be divisible by the `ep_degree`
+    - Running fast moe modifies the state dict of the model, and must be post-processed using [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) to run inference (HF, vLLM, etc.).
+      - The typical usecase for this script is to run:
+        ```
+        python -m fms_acceleration_moe.utils.checkpoint_utils \
+        <checkpoint file> \
+        <output file> \
+        <original model>
+        ```
 
 Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
 ```json
