@@ -34,7 +34,7 @@ ARG USER_UID
 # Note this works for 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
-    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
+    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel git \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
@@ -52,19 +52,19 @@ RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
 FROM base AS release-base
 
 # Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
-RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
+# RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
 
 
 ## CUDA Base ###################################################################
 FROM base AS cuda-base
 
 # Ref: https://docs.nvidia.com/cuda/archive/12.1.0/cuda-toolkit-release-notes/
-ENV CUDA_VERSION=12.1.0 \
-    NV_CUDA_LIB_VERSION=12.1.0-1 \
+ENV CUDA_VERSION=12.0 \
+    NV_CUDA_LIB_VERSION=12.0 \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    NV_CUDA_CUDART_VERSION=12.1.55-1 \
-    NV_CUDA_COMPAT_VERSION=530.30.02-1
+    NV_CUDA_CUDART_VERSION=12.0 \
+    NV_CUDA_COMPAT_VERSION=525.105.17
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
