@@ -36,7 +36,6 @@ class DataSetConfig:
     data_paths: List[str]
     builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
-    streaming: Optional[bool] = False
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
 
@@ -46,6 +45,7 @@ class DataPreProcessorConfig:
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
     # Default seed is not none to ensure reproducability
     sampling_seed: Optional[float] = 42
+    streaming: Optional[bool] = False
 
 
 @dataclass
@@ -105,10 +105,6 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
             c.data_handlers.append(_validate_data_handler_config(handler))
-    if "streaming" in kwargs:
-        streaming = kwargs["streaming"]
-        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
-        c.streaming = streaming
     return c
 
 
@@ -133,6 +129,10 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         seed = kwargs["sampling_seed"]
         assert isinstance(seed, int), "sampling seed should be int"
         c.sampling_seed = seed
+    if "streaming" in kwargs:
+        streaming = kwargs["streaming"]
+        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
+        c.streaming = streaming
     return c
 
 

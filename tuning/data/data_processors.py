@@ -25,6 +25,7 @@ import datasets
 import torch
 
 # Local
+from tuning.config.configs import TrainingArguments
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
 from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
@@ -73,6 +74,7 @@ class DataPreProcessor:
     def load_dataset(
         self,
         datasetconfig: DataSetConfig,
+        streaming: bool,
         splitName: str,
         datafile: str = None,
         **kwargs,
@@ -190,7 +192,6 @@ class DataPreProcessor:
 
         data_paths = datasetconfig.data_paths
         builder = datasetconfig.builder
-        streaming = datasetconfig.streaming
         all_datasets = []
 
         for data_path in data_paths:
@@ -247,13 +248,10 @@ class DataPreProcessor:
                 " the given datasets will be concatenated."
             )
             sample_datasets = False
-
-        # similar quick check for streaming
-        streaming = [d.streaming for d in dataset_configs]
-        if len(set(streaming)) > 1:
-            raise ValueError(
-                "Streaming configurations are inconsistent across datasets"
-            )
+        
+        streaming = False
+        if self.processor_config.streaming:
+            streaming = True
 
         logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
@@ -261,19 +259,17 @@ class DataPreProcessor:
             logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(d, splitName)
+            raw_dataset = self.load_dataset(d, streaming, splitName)
 
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
-            if d.streaming:
+            if streaming:
                 raw_datasets = IterableDatasetDict()
             else:
                 raw_datasets = DatasetDict()
 
             # Assume all is train split
-            if isinstance(raw_dataset, Dataset):
-                raw_datasets[splitName] = raw_dataset
-            elif isinstance(raw_dataset, IterableDataset):
+            if isinstance(raw_dataset, (Dataset, IterableDataset)):
                 raw_datasets[splitName] = raw_dataset
             else:
                 raw_datasets = raw_dataset
@@ -298,7 +294,7 @@ class DataPreProcessor:
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if not d.streaming:
+                    if not streaming:
                         if "num_proc" not in kwargs:
                             kwargs["num_proc"] = os.cpu_count()
 

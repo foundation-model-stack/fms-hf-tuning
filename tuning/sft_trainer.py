@@ -349,8 +349,6 @@ def train(
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
     if isinstance(formatted_train_dataset, IterableDataset):
-        # Which one? Should it be for user to decide or set?
-        # training_args.max_steps = training_args.num_train_epochs
         training_args.max_steps = 1
 
     trainer = SFTTrainer(

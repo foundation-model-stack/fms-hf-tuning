@@ -1,10 +1,10 @@
 dataprocessor:
     type: default
+    streaming: true
 datasets:
   - name: apply_custom_data_template
     data_paths:
       - "FILE_PATH"
-    streaming: true
     data_handlers:
       - name: apply_custom_data_formatting_template
         arguments:

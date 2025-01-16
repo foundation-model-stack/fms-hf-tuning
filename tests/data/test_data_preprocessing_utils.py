@@ -141,7 +141,7 @@ def test_load_dataset_with_datafile(datafile, column_names):
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=None, splitName="train", datafile=datafile
+        datasetconfig=None, streaming=processor.processor_config.streaming, splitName="train", datafile=datafile
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -156,7 +156,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName=splitName, datafile=None
+        datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName=splitName, datafile=None
     )
     assert isinstance(load_dataset, Dataset)
 
@@ -251,7 +251,7 @@ def test_load_dataset_with_datasetconfig(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -281,7 +281,7 @@ def test_load_dataset_with_non_exist_path(data_paths, datasetconfigname):
     )
     with pytest.raises((datasets.exceptions.DatasetNotFoundError, ValueError)):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
         )
 
 
@@ -303,7 +303,7 @@ def test_load_dataset_with_datasetconfig_incorrect_builder(
     )
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
         )
 
 
@@ -332,7 +332,7 @@ def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
     )
     with pytest.raises(ValueError):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=datafile
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=datafile
         )
 
 
@@ -362,7 +362,7 @@ def test_load_dataset_with_dataconfig_and_datafolder(datasetconfig, column_names
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -384,7 +384,7 @@ def test_load_dataset_with_dataconfig_and_datafolder_incorrect_builder(datasetco
     )
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
         )
 
 
@@ -394,7 +394,7 @@ def test_load_dataset_without_dataconfig_and_datafile():
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     with pytest.raises(ValueError):
-        processor.load_dataset(datasetconfig=None, splitName="train", datafile=None)
+        processor.load_dataset(datasetconfig=None, streaming=processor.processor_config.streaming, splitName="train", datafile=None)
 
 
 @pytest.mark.parametrize(
@@ -431,7 +431,7 @@ def test_load_dataset_with_datasetconfig_files_folders(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -461,7 +461,7 @@ def test_load_dataset_with_datasetconfig_files_folders_incorrect_builder(
     )
     with pytest.raises(ValueError):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
         )
 
 
@@ -708,7 +708,7 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
     assert isinstance(train_set, IterableDataset)
 
     # Grab the keys since IterableDataset has no column names
@@ -784,7 +784,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -911,7 +911,7 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -975,7 +975,8 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)
@@ -1034,7 +1035,7 @@ def test_process_dataconfig_multiple_files_folders_without_builder(
         (datasets.exceptions.DatasetNotFoundError, ValueError, pyarrow.lib.ArrowInvalid)
     ):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig, streaming=processor.processor_config.streaming, splitName="train", datafile=None
         )
 
 

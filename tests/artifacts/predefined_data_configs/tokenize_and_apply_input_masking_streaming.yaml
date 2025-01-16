@@ -1,10 +1,10 @@
 dataprocessor:
     type: default
+    streaming: true
 datasets:
   - name: text_dataset_input_output_masking
     data_paths:
       - "FILE_PATH"
-    streaming: true
     data_handlers:
       - name: tokenize_and_apply_input_masking
         arguments:
