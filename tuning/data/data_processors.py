@@ -130,42 +130,56 @@ class DataPreProcessor:
                     f"Failed to generate the dataset from the provided {context}."
                 ) from e
 
+        def _try_load_dataset(dataset_path, dataset_builder):
+            """
+            Helper function to call load dataset on case by case basis to ensure we handle
+            directories and files (with or without builders) and hf datasets.
+
+            Args:
+                dataset_path: Path of directory/file, pattern, or hf dataset id.
+                dataset_builder: Optional builder to use if provided.
+            Returns: dataset
+            """
+            if not dataset_path:
+                raise ValueError("Invalid dataset path")
+
+            # CASE 1: User passes directory
+            if os.path.isdir(dataset_path):  # Checks if path exists and it is a dir
+                # Directory case
+                if dataset_builder:
+                    # Load using a builder with a data_dir
+                    return _load_dataset(builder=dataset_builder, data_dir=dataset_path)
+
+                # If no builder then load directly from the directory
+                return _load_dataset(data_path=dataset_path)
+
+            # Non-directory (file, pattern, HF dataset name)
+            # If no builder provided, attempt to infer one
+            effective_builder = (
+                dataset_builder
+                if dataset_builder
+                else get_loader_for_filepath(dataset_path)
+            )
+
+            if effective_builder:
+                # CASE 2: Files passed with builder. Load using the builder and specific files
+                return _load_dataset(
+                    builder=effective_builder, data_files=[dataset_path]
+                )
+
+            # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
+            # Still no builder, try if this is a dataset id
+            return _load_dataset(data_path=dataset_path)
+
         if datafile:
-            loader = get_loader_for_filepath(file_path=datafile)
-            if loader in (None, ""):
-                raise ValueError(f"data path is invalid [{datafile}]")
-            return _load_dataset(builder=loader, data_files=[datafile])
+            return _try_load_dataset(datafile, None)
 
         data_paths = datasetconfig.data_paths
         builder = datasetconfig.builder
         all_datasets = []
 
         for data_path in data_paths:
-            # CASE 1: User passes directory
-            if os.path.isdir(data_path):  # Checks if path exists and isdirectory
-                # Directory case
-                if builder:
-                    # Load using a builder with a data_dir
-                    dataset = _load_dataset(builder=builder, data_dir=data_path)
-                else:
-                    # Load directly from the directory
-                    dataset = _load_dataset(data_path=data_path)
-            else:
-                # Non-directory (file, pattern, HF dataset name)
-                # If no builder provided, attempt to infer one
-                effective_builder = (
-                    builder if builder else get_loader_for_filepath(data_path)
-                )
-
-                if effective_builder:
-                    # CASE 2: Files passed with builder. Load using the builder and specific files
-                    dataset = _load_dataset(
-                        builder=effective_builder, data_files=[data_path]
-                    )
-                else:
-                    # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
-                    dataset = _load_dataset(data_path=data_path)
-
+            dataset = _try_load_dataset(data_path, builder)
             all_datasets.append(dataset)
 
         # Logs warning if datasets have different columns
