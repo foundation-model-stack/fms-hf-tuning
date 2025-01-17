@@ -708,7 +708,13 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        max_steps=1,
+        output_dir="tmp", # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, IterableDataset)
 
     # Grab the keys since IterableDataset has no column names
@@ -722,6 +728,55 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(set_column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(set_column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+    ],
+)
+def test_process_streaming_dataconfig_file_no_max_steps(data_config_path, data_path):
+    """Ensure that if max steps aren't passed with streaming, error is raised"""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp", # Not needed but positional
+    )
+
+    with pytest.raises(ValueError):
+        (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
 
 @pytest.mark.parametrize(
@@ -782,9 +837,14 @@ def test_process_dataconfig_file(data_config_path, data_path):
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
-
+    
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp", # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -911,7 +971,12 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp", # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -976,7 +1041,11 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, train_args, tokenizer)
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp", # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)

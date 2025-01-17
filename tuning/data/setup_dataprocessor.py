@@ -86,16 +86,16 @@ def _process_dataconfig_file(
         tokenizer=tokenizer,
         additional_data_handlers=additional_data_handlers,
     )
-    # if processor.processor_config.streaming:
-    #     if not train_args.max_steps:
-    #         logging.error(
-    #                 "ValueError: `--max_steps` must be set when streaming is set in data preprocessor config"
-    #             )
-    #         raise ValueError("`--max_steps` must be set when streaming is set in data preprocessor config")
-    #     if train_args.num_train_epochs:
-    #         logging.warning(
-    #                 "`--num_train_epochs` will be overwritten by `--max_steps`"
-    #             )
+    if processor.processor_config.streaming:
+        if train_args.max_steps < 1:
+            logging.error(
+                    "ValueError: `--max_steps` must be set when streaming is set in data preprocessor config"
+                )
+            raise ValueError("`--max_steps` must be set when streaming is set in data preprocessor config")
+        if train_args.num_train_epochs:
+            logging.warning(
+                    "`--num_train_epochs` will be overwritten by `--max_steps`"
+                )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
@@ -364,7 +364,7 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, tokenizer, train_args, additional_data_handlers
+            data_args, train_args, tokenizer, additional_data_handlers
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(

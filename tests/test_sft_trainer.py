@@ -826,6 +826,7 @@ def test_run_causallm_ft_and_inference_streaming(
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
+        train_args.max_steps = 1
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
 
@@ -850,10 +851,6 @@ def test_run_causallm_ft_and_inference_streaming(
         (
             [TWITTER_COMPLAINTS_DATA_DIR_JSON],
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-        ),
-        (
-            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
-            DATA_CONFIG_YAML_STREAMING,
         ),
         (
             [
@@ -1038,7 +1035,6 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
             yaml.dump(data, temp_yaml_file)
             data_args.data_config_path = temp_yaml_file.name
         
-        print(train_args)
         sft_trainer.train(model_args, data_args, train_args)
 
         # validate the configs

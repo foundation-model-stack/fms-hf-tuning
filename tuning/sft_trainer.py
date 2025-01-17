@@ -348,9 +348,6 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    if isinstance(formatted_train_dataset, IterableDataset):
-        training_args.max_steps = 1
-
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
