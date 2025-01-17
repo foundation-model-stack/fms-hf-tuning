@@ -66,7 +66,7 @@ Users can pass training data as either a single file or a Hugging Face dataset I
 
 Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
-EOS tokens are added to all data formats listed below except for pretokenized at this time. For more info, see [pretokenized](#4-pre-tokenized-datasets).
+EOS tokens are added to all data formats listed below (EOS token is appended to the end of each data point, like a sentence or paragraph within the dataset), except for pretokenized data format at this time. For more info, see [pretokenized](#4-pre-tokenized-datasets).
 
 ## Supported Data File Formats
 We support the following file formats via `--training_data_path` argument
