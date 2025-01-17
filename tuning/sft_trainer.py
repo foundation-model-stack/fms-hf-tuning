@@ -23,6 +23,7 @@ import time
 import traceback
 
 # Third Party
+from datasets import IterableDataset
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError

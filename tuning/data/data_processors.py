@@ -18,13 +18,14 @@ import logging
 import os
 
 # Third Party
-from datasets import Dataset, DatasetDict, IterableDataset
+from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from datasets.exceptions import DatasetNotFoundError
 from transformers import AutoTokenizer
 import datasets
 import torch
 
 # Local
+from tuning.config.configs import TrainingArguments
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
 from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
@@ -73,6 +74,7 @@ class DataPreProcessor:
     def load_dataset(
         self,
         datasetconfig: DataSetConfig,
+        streaming: bool,
         splitName: str,
         datafile: str = None,
         **kwargs,
@@ -83,7 +85,13 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
-        def _load_dataset(data_path=None, builder=None, data_files=None, data_dir=None):
+        def _load_dataset(
+            data_path=None,
+            builder=None,
+            data_files=None,
+            data_dir=None,
+            streaming=False,
+        ):
             """
             Helper function to load a dataset using datasets.load_dataset
             with standardized exception handling.
@@ -106,7 +114,9 @@ class DataPreProcessor:
             load_path = builder if builder else data_path
 
             try:
-                return datasets.load_dataset(path=load_path, **load_kwargs)
+                return datasets.load_dataset(
+                    path=load_path, **load_kwargs, streaming=streaming
+                )
             except DatasetNotFoundError as e:
                 # Reraise with a more context-specific message if needed
                 raise e
@@ -130,7 +140,7 @@ class DataPreProcessor:
                     f"Failed to generate the dataset from the provided {context}."
                 ) from e
 
-        def _try_load_dataset(dataset_path, dataset_builder):
+        def _try_load_dataset(dataset_path, dataset_builder, streaming):
             """
             Helper function to call load dataset on case by case basis to ensure we handle
             directories and files (with or without builders) and hf datasets.
@@ -148,10 +158,14 @@ class DataPreProcessor:
                 # Directory case
                 if dataset_builder:
                     # Load using a builder with a data_dir
-                    return _load_dataset(builder=dataset_builder, data_dir=dataset_path)
+                    return _load_dataset(
+                        builder=dataset_builder,
+                        data_dir=dataset_path,
+                        streaming=streaming,
+                    )
 
                 # If no builder then load directly from the directory
-                return _load_dataset(data_path=dataset_path)
+                return _load_dataset(data_path=dataset_path, streaming=streaming)
 
             # Non-directory (file, pattern, HF dataset name)
             # If no builder provided, attempt to infer one
@@ -164,22 +178,24 @@ class DataPreProcessor:
             if effective_builder:
                 # CASE 2: Files passed with builder. Load using the builder and specific files
                 return _load_dataset(
-                    builder=effective_builder, data_files=[dataset_path]
+                    builder=effective_builder,
+                    data_files=[dataset_path],
+                    streaming=streaming,
                 )
 
             # CASE 3: User passes files/folder/pattern/HF_dataset which has no builder
             # Still no builder, try if this is a dataset id
-            return _load_dataset(data_path=dataset_path)
+            return _load_dataset(data_path=dataset_path, streaming=streaming)
 
         if datafile:
-            return _try_load_dataset(datafile, None)
+            return _try_load_dataset(datafile, None, streaming=False)
 
         data_paths = datasetconfig.data_paths
         builder = datasetconfig.builder
         all_datasets = []
 
         for data_path in data_paths:
-            dataset = _try_load_dataset(data_path, builder)
+            dataset = _try_load_dataset(data_path, builder, streaming)
             all_datasets.append(dataset)
 
         # Logs warning if datasets have different columns
@@ -232,6 +248,10 @@ class DataPreProcessor:
                 " the given datasets will be concatenated."
             )
             sample_datasets = False
+        
+        streaming = False
+        if self.processor_config.streaming:
+            streaming = True
 
         logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
@@ -239,14 +259,17 @@ class DataPreProcessor:
             logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(d, splitName)
+            raw_dataset = self.load_dataset(d, streaming, splitName)
 
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
-            raw_datasets = DatasetDict()
+            if streaming:
+                raw_datasets = IterableDatasetDict()
+            else:
+                raw_datasets = DatasetDict()
 
             # Assume all is train split
-            if isinstance(raw_dataset, Dataset):
+            if isinstance(raw_dataset, (Dataset, IterableDataset)):
                 raw_datasets[splitName] = raw_dataset
             else:
                 raw_datasets = raw_dataset
@@ -271,8 +294,9 @@ class DataPreProcessor:
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if "num_proc" not in kwargs:
-                        kwargs["num_proc"] = os.cpu_count()
+                    if not streaming:
+                        if "num_proc" not in kwargs:
+                            kwargs["num_proc"] = os.cpu_count()
 
                     if "fn_kwargs" not in kwargs:
                         kwargs["fn_kwargs"] = {}
