@@ -167,6 +167,8 @@ ARG USER
 ARG PYTHON_VERSION
 ARG ENABLE_AIM
 
+USER root
+
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
 
@@ -197,7 +199,7 @@ ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
 ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
 
 WORKDIR /app
-# USER ${USER}
+USER ${USER}
 # COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
 # ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
