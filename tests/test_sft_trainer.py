@@ -363,6 +363,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -390,6 +391,7 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -400,14 +402,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -1053,11 +1055,17 @@ def _test_run_inference(checkpoint_path):
 
 
 def _validate_training(
-    tempdir, check_eval=False, train_logs_file="training_logs.jsonl"
+    tempdir,
+    check_eval=False,
+    train_logs_file="training_logs.jsonl",
+    check_scanner_file=False,
 ):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
     _validate_logfile(train_logs_file_path, check_eval)
+
+    if check_scanner_file:
+        _validate_hf_resource_scanner_file(tempdir)
 
 
 def _validate_logfile(log_file_path, check_eval=False):
@@ -1071,6 +1079,18 @@ def _validate_logfile(log_file_path, check_eval=False):
 
     if check_eval:
         assert "validation_loss" in train_log_contents
+
+
+def _validate_hf_resource_scanner_file(tempdir):
+    scanner_file_path = os.path.join(tempdir, "scanner_output.json")
+    assert os.path.exists(scanner_file_path) is True
+    assert os.path.getsize(scanner_file_path) > 0
+
+    with open(scanner_file_path, "r", encoding="utf-8") as f:
+        scanner_contents = json.load(f)
+
+    assert scanner_contents["time_data"] is not None
+    assert scanner_contents["mem_data"] is not None
 
 
 def _get_checkpoint_path(dir_path):

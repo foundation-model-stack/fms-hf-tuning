@@ -23,6 +23,7 @@ ARG WHEEL_VERSION=""
 ARG ENABLE_AIM=false
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
+ARG ENABLE_SCANNER=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -111,6 +112,7 @@ ARG USER
 ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
+ARG ENABLE_SCANNER
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -154,7 +156,11 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
 
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
     python -m pip install --user "$(head bdist_name)[mlflow]"; \
-fi
+    fi
+
+RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
+    fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
