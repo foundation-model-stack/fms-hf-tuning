@@ -175,6 +175,18 @@ For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
 
+Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
+
+Following are the Guidelines from us in a flow chart :  
+![guidelines for chat template](docs/images/chat_template_guide.jpg)  
+
+Here are some scenarios addressed in the flow chart:  
+1. Depending on the model the tokenizer for the model may or may not have a chat template  
+2. If the template is available then the `json object schema` of the dataset might not match the chat template's `string format`
+3. There might be special tokens used in chat template which the tokenizer might be unaware of, for example `<|start_of_role|>` which can cause issues during tokenization as it might not be treated as a single token  
+
+
+
 ### 4. Pre tokenized datasets.
 
 Users can also pass a pretokenized dataset (containing `input_ids` and `labels` columns) as `--training_data_path` argument e.g.
