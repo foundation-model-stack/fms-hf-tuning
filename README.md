@@ -64,10 +64,11 @@ For more details on how to enable and use the trackers, Please see, [the experim
 ## Data Support
 Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
-
 Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
-## Supported Data Formats
+EOS tokens are added to all data formats listed below (EOS token is appended to the end of each data point, like a sentence or paragraph within the dataset), except for pretokenized data format at this time. For more info, see [pretokenized](#4-pre-tokenized-datasets).
+
+## Supported Data File Formats
 We support the following file formats via `--training_data_path` argument
 
 Data Format | Tested Support
@@ -169,15 +170,17 @@ For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
 
-### 3. Pre tokenized datasets.
+### 4. Pre tokenized datasets.
 
 Users can also pass a pretokenized dataset (containing `input_ids` and `labels` columns) as `--training_data_path` argument e.g.
+
+At this time, the data preprocessor does not add EOS tokens to pretokenized datasets, users must ensure EOS tokens are included in their pretokenized data if needed.
 
 ```
 python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow
 ```
 
-### 4. Advanced data preprocessing.
+### Advanced data preprocessing.
 
 For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
 
@@ -200,6 +203,10 @@ For advanced data preprocessing support including mixing and custom preprocessin
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
 Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
@@ -219,7 +226,7 @@ Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
 Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
-(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
