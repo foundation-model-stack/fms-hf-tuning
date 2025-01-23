@@ -17,6 +17,11 @@ from dataclasses import dataclass
 
 
 @dataclass
+class HFResourceScannerConfig:
+    scanner_output_filename: str = "scanner_output.json"
+
+
+@dataclass
 class FileLoggingTrackerConfig:
     training_logs_filename: str = "training_logs.jsonl"
 
@@ -80,3 +85,4 @@ class TrackerConfigFactory:
     file_logger_config: FileLoggingTrackerConfig = None
     aim_config: AimConfig = None
     mlflow_config: MLflowConfig = None
+    hf_resource_scanner_config: HFResourceScannerConfig = None
