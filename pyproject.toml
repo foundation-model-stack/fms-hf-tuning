@@ -47,6 +47,7 @@ aim = ["aim>=3.19.0,<4.0"]
 mlflow = ["mlflow"]
 fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
+scanner-dev = ["HFResourceScanner>=0.1.0"]
 
 
 [tool.setuptools.packages.find]
