@@ -80,7 +80,7 @@ ARROW       |   ✅
 
 As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
 
-Because of the variety of data formats and file types supported, if `--training_data_path` is a file, it requires a file extension in the path name. If the input file does not have a file extension, the data preprocessor will check if it is a valid folder. If it is not a folder and does not have a file extension, it is considered an HF dataset ID.
+Because of the variety of data formats and file types supported, if `--training_data_path` is a file, it requires a file extension in the path name. If `--training_data_path` does not have a file extension, the data preprocessor will check if it is a valid folder. If `--training_data_path` is not a folder and does not have a file extension, it is considered an HF dataset ID.
 
 ## Use cases supported with `training_data_path` argument
 
