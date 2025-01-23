@@ -80,7 +80,10 @@ ARROW       |   ✅
 
 As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
 
-**NOTE**: Due to the variety of supported data formats and file types, when --training_data_path points to a file, it must include a file extension (e.g., .json, .csv). If the path does not include a file extension, it will be treated either as a folder or as an HF dataset ID.
+**NOTE**: Due to the variety of supported data formats and file types, `--training_data_path` is handled as follows:
+- If `--training_data_path` ends in a valid file extension (e.g., .json, .csv), it is treated as a file.
+- If `--training_data_path` points to a valid folder, it is treated as a folder.
+- If neither of these are true, the data preprocessor tries to load `--training_data_path` as a Hugging Face (HF) dataset ID.
 
 ## Use cases supported with `training_data_path` argument
 
