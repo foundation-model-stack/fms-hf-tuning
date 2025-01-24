@@ -15,15 +15,12 @@ authors = [
 ]
 license = {text = "Apache-2.0"}
 readme = "README.md"
-requires-python = "~=3.9"
+requires-python = ">=3.12"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
 classifiers=[
     "License :: OSI Approved :: Apache Software License",
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
 "numpy>=1.26.4,<2.0",

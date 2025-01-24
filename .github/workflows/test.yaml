@@ -11,12 +11,8 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - setup: "3.9"
-            tox: "py39"
-          - setup: "3.10"
-            tox: "py310"
-          - setup: "3.11"
-            tox: "py311"
+          - setup: "3.12"
+            tox: "py312"
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
