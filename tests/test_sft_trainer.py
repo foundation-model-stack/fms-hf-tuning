@@ -25,7 +25,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets.exceptions import DatasetGenerationError
+from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -326,7 +326,7 @@ def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
-    with pytest.raises(ValueError):
+    with pytest.raises(DatasetNotFoundError):
         sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
 
 
@@ -362,6 +362,8 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -388,6 +390,8 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
+        _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -398,14 +402,14 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_pt
     )
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
+    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
         parser, job_config_lora
     )
     assert isinstance(tune_config, peft_config.LoraConfig)
@@ -998,6 +1002,36 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
+@pytest.mark.parametrize(
+    "data_args",
+    [
+        (
+            # sample hugging face dataset id
+            configs.DataArguments(
+                training_data_path="lhoestq/demo1",
+                data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
+                response_template="\n### Stars:",
+            )
+        )
+    ],
+)
+def test_run_e2e_with_hf_dataset_id(data_args):
+    """
+    Check if we can run an e2e test with a hf dataset id as training_data_path.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate ft tuning configs
+        _validate_training(tempdir)
+
+        # validate inference
+        _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+
 ############################# Helper functions #############################
 def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
     train_args = copy.deepcopy(training_args)
@@ -1021,11 +1055,17 @@ def _test_run_inference(checkpoint_path):
 
 
 def _validate_training(
-    tempdir, check_eval=False, train_logs_file="training_logs.jsonl"
+    tempdir,
+    check_eval=False,
+    train_logs_file="training_logs.jsonl",
+    check_scanner_file=False,
 ):
     assert any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
     train_logs_file_path = "{}/{}".format(tempdir, train_logs_file)
     _validate_logfile(train_logs_file_path, check_eval)
+
+    if check_scanner_file:
+        _validate_hf_resource_scanner_file(tempdir)
 
 
 def _validate_logfile(log_file_path, check_eval=False):
@@ -1039,6 +1079,18 @@ def _validate_logfile(log_file_path, check_eval=False):
 
     if check_eval:
         assert "validation_loss" in train_log_contents
+
+
+def _validate_hf_resource_scanner_file(tempdir):
+    scanner_file_path = os.path.join(tempdir, "scanner_output.json")
+    assert os.path.exists(scanner_file_path) is True
+    assert os.path.getsize(scanner_file_path) > 0
+
+    with open(scanner_file_path, "r", encoding="utf-8") as f:
+        scanner_contents = json.load(f)
+
+    assert scanner_contents["time_data"] is not None
+    assert scanner_contents["mem_data"] is not None
 
 
 def _get_checkpoint_path(dir_path):

@@ -43,6 +43,7 @@ from tuning.config.acceleration_configs.attention_and_distributed_packing import
     MultiPack,
     PaddingFree,
 )
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
@@ -56,7 +57,8 @@ from tuning.utils.import_utils import is_fms_accelerate_available
 # for some reason the CI will raise an import error if we try to import
 # these from tests.artifacts.testdata
 TWITTER_COMPLAINTS_JSON_FORMAT = os.path.join(
-    os.path.dirname(__file__), "../artifacts/testdata/twitter_complaints_json.json"
+    os.path.dirname(__file__),
+    "../artifacts/testdata/json/twitter_complaints_small.json",
 )
 TWITTER_COMPLAINTS_TOKENIZED = os.path.join(
     os.path.dirname(__file__),
@@ -86,6 +88,10 @@ if is_fms_accelerate_available():
     if is_fms_accelerate_available(plugins="aadp"):
         # Third Party
         from fms_acceleration_aadp import PaddingFreeAccelerationPlugin
+
+    if is_fms_accelerate_available(plugins="moe"):
+        # Third Party
+        from fms_acceleration_moe import ScatterMoEAccelerationPlugin
 
 
 # There are more extensive unit tests in the
@@ -360,7 +366,7 @@ acceleration_configs_map = [
     acceleration_configs_map,
     ids=["bitsandbytes", "auto_gptq"],
 )
-def test_framework_intialized_properly_peft(
+def test_framework_initialized_properly_peft(
     quantized_lora_config, model_name_or_path, mock_and_spy
 ):
     """Ensure that specifying a properly configured acceleration dataclass
@@ -412,7 +418,7 @@ def test_framework_intialized_properly_peft(
         "and foak plugins"
     ),
 )
-def test_framework_intialized_properly_foak():
+def test_framework_initialized_properly_foak():
     """Ensure that specifying a properly configured acceleration dataclass
     properly activates the framework plugin and runs the train sucessfully.
     """
@@ -475,6 +481,60 @@ def test_framework_intialized_properly_foak():
         assert spy2["model_loader_calls"] == 0
         assert spy2["augmentation_calls"] == 1
         assert spy2["get_ready_for_train_calls"] == 1
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+def test_framework_initialized_properly_moe():
+    """Ensure that specifying a properly configured acceleration dataclass
+    properly activates the framework plugin and runs the train sucessfully.
+    """
+
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        model_args.torch_dtype = torch.bfloat16
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        train_args.bf16 = True
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n\n### Label:"
+        data_args.dataset_text_field = "output"
+
+        # initialize a config
+        moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+
+        # create mocked plugin class for spying
+        MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+            "FastMoeMock", ScatterMoEAccelerationPlugin
+        )
+
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.moe.scattermoe"], MockedPlugin1),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    fast_moe_config=moe_config,
+                )
+
+        # spy inside the train to ensure that the ilab plugin is called
+        assert spy["model_loader_calls"] == 1
+        assert spy["augmentation_calls"] == 0
+        assert spy["get_ready_for_train_calls"] == 1
 
 
 @pytest.mark.skipif(
@@ -658,6 +718,100 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
                         peft_args,
                         quantized_lora_config=None,
                         fusedops_kernels_config=fusedops_kernels_config,
+                    )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+def test_error_raised_with_undividable_fastmoe_argument():
+    """
+    Ensure error is thrown when `--fast_moe` is passed and world_size
+    is not divisible by ep_degree
+    """
+    with pytest.raises(
+        AssertionError, match="world size \\(1\\) not divisible by ep_size \\(3\\)"
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            model_args = copy.deepcopy(MODEL_ARGS)
+            model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+            model_args.torch_dtype = torch.bfloat16
+            train_args = copy.deepcopy(TRAIN_ARGS)
+            train_args.output_dir = tempdir
+            train_args.save_strategy = "no"
+            train_args.bf16 = True
+            data_args = copy.deepcopy(DATA_ARGS)
+            data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+            data_args.response_template = "\n\n### Label:"
+            data_args.dataset_text_field = "output"
+
+            # initialize a config
+            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=3))
+
+            # 1. mock a plugin class
+            # 2. register the mocked plugins
+            # 3. call sft_trainer.train
+            with build_framework_and_maybe_instantiate(
+                [
+                    (["training.moe.scattermoe"], ScatterMoEAccelerationPlugin),
+                ],
+                instantiate=False,
+            ):
+                with instantiate_model_patcher():
+                    sft_trainer.train(
+                        model_args,
+                        data_args,
+                        train_args,
+                        fast_moe_config=moe_config,
+                    )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+def test_error_raised_fast_moe_with_non_moe_model():
+    """
+    Ensure error is thrown when `--fast_moe` is passed and model is not MoE
+    """
+    with pytest.raises(
+        AttributeError,
+        match="'LlamaConfig' object has no attribute 'num_local_experts'",
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            model_args = copy.deepcopy(MODEL_ARGS)
+            model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+            model_args.torch_dtype = torch.bfloat16
+            train_args = copy.deepcopy(TRAIN_ARGS)
+            train_args.output_dir = tempdir
+            train_args.save_strategy = "no"
+            train_args.bf16 = True
+            data_args = copy.deepcopy(DATA_ARGS)
+            data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+            data_args.response_template = "\n\n### Label:"
+            data_args.dataset_text_field = "output"
+
+            # initialize a config
+            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+
+            # 1. mock a plugin class
+            # 2. register the mocked plugins
+            # 3. call sft_trainer.train
+            with build_framework_and_maybe_instantiate(
+                [
+                    (["training.moe.scattermoe"], ScatterMoEAccelerationPlugin),
+                ],
+                instantiate=False,
+            ):
+                with instantiate_model_patcher():
+                    sft_trainer.train(
+                        model_args,
+                        data_args,
+                        train_args,
+                        fast_moe_config=moe_config,
                     )
 
 

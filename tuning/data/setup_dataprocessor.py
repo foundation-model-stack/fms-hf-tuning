@@ -107,15 +107,22 @@ def _get_pretokenized_dataset_handlers(data_args, packing, is_eval_tokenized):
 
 
 ### Data format 2
-def _get_dataset_formatting_handlers(data_args, packing):
+def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
 
     if data_args.response_template is None:
         if packing is False:
-            raise ValueError(
-                "Since dataset_text_field or data_formatter_template \
-                is provided and packing is disabled, \
-                needs a corresponding response template for masking"
-            )
+            if is_padding_free:
+                logger.debug(
+                    "Assuming pretraining scenario (loss over all tokens) "
+                    + "because, packing is false,"
+                    + " padding_free plugin is used and no response template was provided."
+                )
+            else:
+                raise ValueError(
+                    "Since response_template is not provided for masking, \
+                    either use packing or padding_free to enable \
+                    pretraining scenario (loss over all tokens)."
+                )
 
     if data_args.response_template:
         # To use Response template, pass datasets with single sequence instances \
@@ -209,6 +216,7 @@ def _process_raw_data_args(
     packing: bool,
     max_seq_length: int,
     additional_data_handlers: Dict[str, Callable] = None,
+    is_padding_free: bool = False,
     processor=None,
 ):
 
@@ -249,6 +257,7 @@ def _process_raw_data_args(
     tokenizer_kwargs = {}
     tokenizer_kwargs["max_length"] = max_seq_length
     tokenizer_kwargs["truncation"] = True
+    # Lets not pad in tokenizer...we can handle that in the collator
     tokenizer_kwargs["padding"] = False
 
     handlers = None
@@ -267,7 +276,7 @@ def _process_raw_data_args(
     elif data_args.data_formatter_template or data_args.dataset_text_field:
         # Data Format 3: Single Sequence Dataset
         handlers, dataset_text_field = _get_dataset_formatting_handlers(
-            data_args, packing
+            data_args, packing, is_padding_free
         )
     else:
         # Default Data Format: Dataset with Input/Output Fields
@@ -308,6 +317,7 @@ def process_dataargs(
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, Callable] = None,
+    is_padding_free: bool = False,
     processor=None,
 ):
     """
@@ -319,6 +329,8 @@ def process_dataargs(
             Used for packing and max_seq_length
         additional_data_handlers: A Dict of [str, callable] data handlers
             which need to be registered with the data preprocessor
+        is_padding_free: A bool representing if Padding free plugin is enabled.
+                         Defaults to False.
         processor:
             Model processor to combine text and image data if using
             multi-modal model.
@@ -357,6 +369,7 @@ def process_dataargs(
             train_args.packing,
             max_seq_length,
             additional_data_handlers,
+            is_padding_free,
             processor,
         )
 
@@ -380,9 +393,10 @@ def process_dataargs(
         is_tokenized_dataset,
         max_seq_length,
         data_args.instruction_template,
-        data_args.text_field_name,
-        data_args.image_field_name,
-        processor,
+        is_padding_free=is_padding_free,
+        text_field_name=data_args.text_field_name,
+        image_field_name=data_args.image_field_name,
+        processor=processor,
     )
 
     dataset_kwargs = {}
