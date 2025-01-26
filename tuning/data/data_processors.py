@@ -172,10 +172,6 @@ class DataPreProcessor:
             return _load_dataset(data_path=dataset_path)
 
         if datafile:
-            # loader = get_loader_for_filepath(file_path=datafile)
-            # if loader in (None, ""):
-            #     raise ValueError(f"data path is invalid [{datafile}]")
-            # return _load_dataset(data_path=datafile)
             return _try_load_dataset(datafile, None)
 
         data_paths = datasetconfig.data_paths
