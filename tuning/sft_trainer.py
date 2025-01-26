@@ -29,8 +29,8 @@ from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForVision2Seq,
-    AutoTokenizer,
     AutoProcessor,
+    AutoTokenizer,
     GPT2Tokenizer,
     GPTNeoXTokenizerFast,
     LlamaTokenizer,
@@ -317,7 +317,9 @@ def train(
         data_collator,
         train_args.max_seq_length,
         dataset_kwargs,
-    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers, processor)
+    ) = process_dataargs(
+        data_args, tokenizer, train_args, additional_data_handlers, processor
+    )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
@@ -358,7 +360,7 @@ def train(
         data_collator=data_collator,
         args=training_args,
         callbacks=trainer_callbacks,
-        peft_config=peft_config
+        peft_config=peft_config,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
