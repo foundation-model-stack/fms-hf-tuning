@@ -271,8 +271,14 @@ class DataPreProcessor:
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if "num_proc" not in kwargs:
-                        kwargs["num_proc"] = os.cpu_count()
+                    # The multiprocessing library in Python versions < 3.12 uses MD5,
+                    # which is prohibited on FIPS-enabled clusters due to strict
+                    # security policies. This issue is resolved in Python 3.12,
+                    # but until an upgrade is implemented, we disable multi processinng
+                    # as a temporary workaround.
+
+                    # if "num_proc" not in kwargs:
+                    #    kwargs["num_proc"] = os.cpu_count()
 
                     if "fn_kwargs" not in kwargs:
                         kwargs["fn_kwargs"] = {}
