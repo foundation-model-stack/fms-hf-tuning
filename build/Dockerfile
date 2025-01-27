@@ -32,7 +32,7 @@ ARG PYTHON_VERSION
 ARG USER
 ARG USER_UID
 
-# Note this is tested to be working for version 3.12
+# Note this is tested to be working for version 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
     && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \

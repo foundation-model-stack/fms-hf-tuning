@@ -20,6 +20,10 @@ keywords = ['fms-hf-tuning', 'python', 'tuning']
 classifiers=[
     "License :: OSI Approved :: Apache Software License",
     "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
