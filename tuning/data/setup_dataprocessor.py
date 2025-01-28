@@ -51,7 +51,12 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         processor = get_datapreprocessor(
             processor_config=DataPreProcessorConfig(), tokenizer=None
         )
-        data = processor.load_dataset(None, streaming = processor.processor_config.streaming, splitName="train[:1]", datafile=data)
+        data = processor.load_dataset(
+            None,
+            streaming=processor.processor_config.streaming,
+            splitName="train[:1]",
+            datafile=data,
+        )
 
     if isinstance(data, Dataset):
         # For a standard Dataset, check column names directly
@@ -89,13 +94,14 @@ def _process_dataconfig_file(
     if processor.processor_config.streaming:
         if train_args.max_steps < 1:
             logging.error(
-                    "ValueError: `--max_steps` must be set when streaming is set in data preprocessor config"
-                )
-            raise ValueError("`--max_steps` must be set when streaming is set in data preprocessor config")
+                "ValueError: `--max_steps` must be set when streaming is set in data \
+                            preprocessor config"
+            )
+            raise ValueError(
+                "`--max_steps` must be set when streaming is set in data preprocessor config"
+            )
         if train_args.num_train_epochs:
-            logging.warning(
-                    "`--num_train_epochs` will be overwritten by `--max_steps`"
-                )
+            logging.warning("`--num_train_epochs` will be overwritten by `--max_steps`")
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)

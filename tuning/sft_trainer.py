@@ -321,7 +321,7 @@ def train(
     )
 
     if isinstance(formatted_train_dataset, IterableDataset):
-        train_args.split_batches=True
+        train_args.split_batches = True
 
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(

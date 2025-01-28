@@ -38,7 +38,6 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-    DATA_CONFIG_YAML_STREAMING,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
@@ -801,9 +800,7 @@ def test_run_causallm_ft_pretokenized(dataset_path):
         ),
     ],
 )
-def test_run_causallm_ft_and_inference_streaming(
-    datasetconfigname, datafiles
-):
+def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
     """Check if we can finetune causallm models using multiple datasets with multiple files"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
@@ -1034,7 +1031,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
                 d["data_handlers"] = [asdict(handler_config)]
             yaml.dump(data, temp_yaml_file)
             data_args.data_config_path = temp_yaml_file.name
-        
+
         sft_trainer.train(model_args, data_args, train_args)
 
         # validate the configs
