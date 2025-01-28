@@ -53,6 +53,7 @@ from tuning.config.acceleration_configs import (
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
+    HFResourceScannerConfig,
     MLflowConfig,
     TrackerConfigFactory,
 )
@@ -291,8 +292,10 @@ def train(
             )
             if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
                 tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
+                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
             else:
                 tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
+                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
@@ -307,6 +310,10 @@ def train(
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)
 
+    is_padding_free = False
+    if attention_and_distributed_packing_config is not None:
+        is_padding_free = attention_and_distributed_packing_config.is_padding_free
+
     data_preprocessing_time = time.time()
     (
         formatted_train_dataset,
@@ -315,7 +322,13 @@ def train(
         data_collator,
         train_args.max_seq_length,
         dataset_kwargs,
-    ) = process_dataargs(data_args, tokenizer, train_args, additional_data_handlers)
+    ) = process_dataargs(
+        data_args,
+        tokenizer,
+        train_args,
+        additional_data_handlers,
+        is_padding_free=is_padding_free,
+    )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
@@ -323,7 +336,7 @@ def train(
     if isinstance(formatted_train_dataset, IterableDataset):
         train_args.split_batches = True
 
-    if framework is not None and framework.requires_agumentation:
+    if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
@@ -450,6 +463,7 @@ def get_parser():
             peft_config.PromptTuningConfig,
             FileLoggingTrackerConfig,
             AimConfig,
+            HFResourceScannerConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
@@ -498,6 +512,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for training log file.
         AimConfig
             Configuration for AIM stack.
+        HFResourceScannerConfig
+            Configuration for HFResourceScanner.
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
@@ -521,6 +537,7 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -539,6 +556,7 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -566,6 +584,7 @@ def parse_arguments(parser, json_config=None):
         tune_config,
         file_logger_config,
         aim_config,
+        hf_resource_scanner_config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
@@ -589,6 +608,7 @@ def main():
             tune_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -603,7 +623,7 @@ def main():
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, file_logger_config, %s aim_config %s, \
+            tune_config %s, file_logger_config %s, aim_config %s, hf_resource_scanner_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
             attention_and_distributed_packing_config, %s,\
             mlflow_config %s, fast_moe_config %s, \
@@ -615,6 +635,7 @@ def main():
             tune_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -648,6 +669,7 @@ def main():
         file_logger_config=file_logger_config,
         aim_config=aim_config,
         mlflow_config=mlflow_config,
+        hf_resource_scanner_config=hf_resource_scanner_config,
     )
 
     if training_args.output_dir:
