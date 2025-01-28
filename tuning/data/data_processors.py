@@ -285,8 +285,9 @@ class DataPreProcessor:
                     column_names = raw_datasets[splitName].column_names
 
                     # remove __content__ from all processing
-                    if "__content__" in column_names:
-                        column_names.remove("__content__")
+                    if column_names:
+                        if "__content__" in column_names:
+                            column_names.remove("__content__")
 
                     if "remove_columns" not in kwargs:
                         kwargs["remove_columns"] = None
