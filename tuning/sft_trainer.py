@@ -320,6 +320,10 @@ def train(
         time.time() - data_preprocessing_time
     )
 
+    split_batches=None
+    if isinstance(formatted_train_dataset, IterableDataset):
+        split_batches=True
+
     if framework is not None and framework.requires_agumentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
@@ -344,6 +348,7 @@ def train(
 
     additional_args = {
         "dataset_text_field": data_args.dataset_text_field,
+        "split_batches": split_batches,
         "dataset_kwargs": dataset_kwargs,
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
