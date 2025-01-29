@@ -100,8 +100,6 @@ def _process_dataconfig_file(
             raise ValueError(
                 "`--max_steps` must be set when streaming is set in data preprocessor config"
             )
-        if train_args.num_train_epochs:
-            logging.warning("`--num_train_epochs` will be overwritten by `--max_steps`")
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
