@@ -33,7 +33,8 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-    DATA_CONFIG_YAML_STREAMING,
+    DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+    DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
     MODEL_NAME,
@@ -726,8 +727,12 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
     "data_config_path, data_path",
     [
         (
-            DATA_CONFIG_YAML_STREAMING,
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+        (
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+            TWITTER_COMPLAINTS_TOKENIZED_JSON
         ),
     ],
 )
@@ -788,12 +793,12 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
     "data_config_path, data_path",
     [
         (
-            DATA_CONFIG_YAML_STREAMING,
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
         ),
     ],
 )
-def test_process_streaming_dataconfig_file_no_max_steps(data_config_path, data_path):
+def test_process_streaming_dataconfig_file_no_max_steps_raise_error(data_config_path, data_path):
     """Ensure that if max steps aren't passed with streaming, error is raised"""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
