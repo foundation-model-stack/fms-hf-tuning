@@ -335,9 +335,7 @@ def train(
 
     if isinstance(formatted_train_dataset, IterableDataset):
         train_args.accelerator_config = {"split_batches": True}
-        logger.info(
-            "Setting split_batches to true - splitting batches among devices"
-        )
+        logger.info("Setting split_batches to true - splitting batches among devices")
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
