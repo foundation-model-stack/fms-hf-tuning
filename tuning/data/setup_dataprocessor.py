@@ -58,9 +58,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
             datafile=data,
         )
 
-        return ("input_ids" in data.column_names) and ("labels" in data.column_names)
-
-    return False
+    return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
 # TODO: For now assume only training dataset is passed via data config file.
