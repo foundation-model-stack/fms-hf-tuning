@@ -32,7 +32,6 @@ from tuning.data.data_config import (
 )
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
-from tuning.utils.utils import get_iterable_dataset_schema
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +58,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
             datafile=data,
         )
 
-    if isinstance(data, Dataset):
-        # For a standard Dataset, check column names directly
         return ("input_ids" in data.column_names) and ("labels" in data.column_names)
-
-    if isinstance(data, IterableDataset):
-        # For an IterableDataset, inspect the first element if possible
-        try:
-            column_names, _ = get_iterable_dataset_schema(data)
-            return "input_ids" in column_names and "labels" in column_names
-        except StopIteration:
-            return False
 
     return False
 

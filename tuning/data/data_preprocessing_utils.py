@@ -96,3 +96,14 @@ def get_data_collator(
         raise ValueError(
             "Could not pick a data collator. Please refer to supported data formats"
         )
+
+    # Note that this automatically pads labels with -100
+    # TODO check if this is sufficient for preprocessed
+    # For EPT case where they need packing
+    if is_traindata_tokenized:
+        return DataCollatorForSeq2Seq(
+            tokenizer=tokenizer, padding=True, max_length=max_seq_length
+        )
+    raise ValueError(
+        "Could not pick a data collator. Please refer to supported data formats"
+    )

@@ -808,7 +808,7 @@ def test_run_causallm_ft_pretokenized(dataset_path):
         ),
         (
             [TWITTER_COMPLAINTS_TOKENIZED_JSON],
-            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,    
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
         ),
     ],
 )
@@ -859,7 +859,7 @@ def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
     [
         (
             [TWITTER_COMPLAINTS_TOKENIZED_JSON],
-            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,    
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
         ),
     ],
 )
@@ -888,7 +888,6 @@ def test_run_causallm_ft_and_inference_streaming_ept(datasetconfigname, datafile
         train_args.output_dir = tempdir
         train_args.max_steps = 1
         train_args.packing = True
-        train_args.padding = True
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
 

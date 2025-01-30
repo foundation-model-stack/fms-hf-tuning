@@ -730,10 +730,7 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
             DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
         ),
-        (
-            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
-            TWITTER_COMPLAINTS_TOKENIZED_JSON
-        ),
+        (DATA_CONFIG_YAML_STREAMING_PRETOKENIZED, TWITTER_COMPLAINTS_TOKENIZED_JSON),
     ],
 )
 def test_process_streaming_dataconfig_file(data_config_path, data_path):
@@ -775,18 +772,13 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
 
     (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, IterableDataset)
-
-    # Grab the keys since IterableDataset has no column names
-    first_example = next(iter(train_set))
-    set_column_names = list(first_example.keys())
-
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
-        assert set(set_column_names) == column_names
+        assert set(train_set.column_names) == column_names
     elif datasets_name == "pretokenized_dataset":
-        assert set(["input_ids", "labels"]).issubset(set(set_column_names))
+        assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
-        assert formatted_dataset_field in set(set_column_names)
+        assert formatted_dataset_field in set(train_set.column_names)
 
 
 @pytest.mark.parametrize(
@@ -798,7 +790,9 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
         ),
     ],
 )
-def test_process_streaming_dataconfig_file_no_max_steps_raise_error(data_config_path, data_path):
+def test_process_streaming_dataconfig_file_no_max_steps_raise_error(
+    data_config_path, data_path
+):
     """Ensure that if max steps aren't passed with streaming, error is raised"""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)

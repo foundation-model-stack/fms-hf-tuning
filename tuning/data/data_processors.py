@@ -27,7 +27,11 @@ import torch
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
-from tuning.utils.utils import get_loader_for_filepath, validate_mergeable_datasets
+from tuning.utils.utils import (
+    get_loader_for_filepath,
+    resolve_iterable_dataset_features,
+    validate_mergeable_datasets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +199,8 @@ class DataPreProcessor:
 
         for data_path in data_paths:
             dataset = _try_load_dataset(data_path, builder, streaming)
+            if streaming:
+                resolve_iterable_dataset_features(dataset)
             all_datasets.append(dataset)
 
         # Logs warning if datasets have different columns
@@ -259,6 +265,8 @@ class DataPreProcessor:
 
             # In future the streaming etc go as kwargs of this function
             raw_dataset = self.load_dataset(d, streaming, splitName)
+            if streaming:
+                raw_dataset = resolve_iterable_dataset_features(raw_dataset)
 
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
@@ -346,6 +354,8 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
+        if streaming:
+            train_dataset = resolve_iterable_dataset_features(train_dataset)
 
         return train_dataset
 
