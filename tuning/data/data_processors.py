@@ -104,6 +104,7 @@ class DataPreProcessor:
                 builder: Optional builder to use if provided.
                 data_files: Optional data_files list if loading from files.
                 data_dir: Optional data_dir if loading from a directory with a builder.
+                streaming: Optional bool if using IterableDataset.
             Returns: dataset
             """
 
