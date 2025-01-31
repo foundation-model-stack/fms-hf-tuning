@@ -201,7 +201,7 @@ class DataPreProcessor:
         for data_path in data_paths:
             dataset = _try_load_dataset(data_path, builder, streaming)
             if streaming:
-                resolve_iterable_dataset_features(dataset)
+                dataset = resolve_iterable_dataset_features(dataset)
             all_datasets.append(dataset)
 
         # Logs warning if datasets have different columns
