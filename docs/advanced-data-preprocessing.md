@@ -210,6 +210,8 @@ This library currently supports the following [preexisting data handlers](https:
     Formats a dataset by appending an EOS token to a specified field.
  - `apply_custom_data_formatting_template`:
     Applies a custom template (e.g., Alpaca style) to format dataset elements.
+ - `apply_custom_data_formatting_jinja_template`:
+    Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
  - `apply_tokenizer_chat_template`:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
 

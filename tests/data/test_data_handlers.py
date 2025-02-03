@@ -112,7 +112,7 @@ def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys():
     template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
     formatted_dataset_field = "formatted_data_field"
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises((KeyError, TemplateSyntaxError)):
+    with pytest.raises(KeyError):
         json_dataset.map(
             apply_custom_data_formatting_jinja_template,
             fn_kwargs={

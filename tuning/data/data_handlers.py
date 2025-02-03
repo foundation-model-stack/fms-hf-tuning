@@ -22,6 +22,9 @@ import re
 from jinja2 import Environment, StrictUndefined
 from transformers import AutoTokenizer
 
+# Local
+from tuning.utils.config_utils import transform_placeholders
+
 
 ### Utils for custom masking / manipulating input / output strs, etc
 def combine_sequence(input_element: str, output_element: str, eos_token: str = ""):
@@ -156,6 +159,7 @@ def apply_custom_data_formatting_jinja_template(
         Formatted HF Dataset
     """
 
+    template += tokenizer.eos_token
     template = transform_placeholders(template)
     env = Environment(undefined=StrictUndefined)
     jinja_template = env.from_string(template)
@@ -165,36 +169,7 @@ def apply_custom_data_formatting_jinja_template(
     except Exception as e:
         raise KeyError(f"Dataset does not contain field in template. {e}") from e
 
-    rendered_text += tokenizer.eos_token
-
     return {dataset_text_field: rendered_text}
-
-
-def transform_placeholders(template: str) -> str:
-    """
-    Function to detect all placeholders of the form {{...}}.
-    - If the inside has a space (e.g. {{Tweet text}}),
-      rewrite to {{ element['Tweet text'] }}.
-    - If it doesn't have a space (e.g. {{text_label}}), leave it as is.
-    - If it is already using dictionary-style access ({{ element['xyz'] }}), do nothing.
-    """
-
-    pattern = r"\{\{([^}]+)\}\}"
-    matches = re.findall(pattern, template)
-
-    for match in matches:
-        original_placeholder = f"{{{{{match}}}}}"
-        trimmed = match.strip()
-
-        if trimmed.startswith("element["):
-            continue
-
-        # If there's a space in the placeholder name, rewrite it to dictionary-style
-        if " " in trimmed:
-            new_placeholder = f"{{{{ element['{trimmed}'] }}}}"
-            template = template.replace(original_placeholder, new_placeholder)
-
-    return template
 
 
 def apply_tokenizer_chat_template(
