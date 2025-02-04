@@ -23,7 +23,7 @@ from jinja2 import Environment, StrictUndefined
 from transformers import AutoTokenizer
 
 # Local
-from tuning.utils.config_utils import transform_placeholders
+from tuning.utils.config_utils import process_jinja_placeholders
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
@@ -112,6 +112,8 @@ def apply_custom_data_formatting_template(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        tokenizer: Tokenizer to be used for the EOS token, which will be appended
+            when formatting the data into a single sequence. Defaults to empty.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}
         formatted_dataset_field: Dataset_text_field
@@ -152,6 +154,8 @@ def apply_custom_data_formatting_jinja_template(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        tokenizer: Tokenizer to be used for the EOS token, which will be appended
+            when formatting the data into a single sequence. Defaults to empty.
         dataset_text_field: formatted_dataset_field.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}.
@@ -160,7 +164,7 @@ def apply_custom_data_formatting_jinja_template(
     """
 
     template += tokenizer.eos_token
-    template = transform_placeholders(template)
+    template = process_jinja_placeholders(template)
     env = Environment(undefined=StrictUndefined)
     jinja_template = env.from_string(template)
 

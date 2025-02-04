@@ -138,7 +138,7 @@ def txt_to_obj(txt):
         return pickle.loads(message_bytes)
 
 
-def transform_placeholders(template: str) -> str:
+def process_jinja_placeholders(template: str) -> str:
     """
     Function to detect all placeholders of the form {{...}}.
     - If the inside has a space (e.g. {{Tweet text}}),

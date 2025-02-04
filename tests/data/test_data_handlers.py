@@ -16,7 +16,6 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Third Party
-from jinja2.exceptions import TemplateSyntaxError
 from transformers import AutoTokenizer
 import datasets
 import pytest
