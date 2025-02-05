@@ -103,15 +103,23 @@ def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
         )
 
 
-def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys():
+@pytest.mark.parametrize(
+    "template",
+    [
+        "### Input: {{ not found }} \n\n ### Response: {{ text_label }}",
+        "### Input: }} Tweet text {{ \n\n ### Response: {{ text_label }}",
+        "### Input: {{ Tweet text }} \n\n ### Response: {{ ''.__class__ }}",
+        "### Input: {{ Tweet text }} \n\n ### Response: {{ undefined_variable.split() }}",
+    ],
+)
+def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys(template):
     """Tests that the jinja formatting function will throw error if wrong keys are passed to template"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
-    template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
     formatted_dataset_field = "formatted_data_field"
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises(KeyError):
+    with pytest.raises((KeyError, ValueError)):
         json_dataset.map(
             apply_custom_data_formatting_jinja_template,
             fn_kwargs={
