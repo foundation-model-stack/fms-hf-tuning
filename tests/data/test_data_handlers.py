@@ -25,6 +25,7 @@ from tests.artifacts.testdata import MODEL_NAME, TWITTER_COMPLAINTS_DATA_JSONL
 
 # Local
 from tuning.data.data_handlers import (
+    apply_custom_data_formatting_jinja_template,
     apply_custom_data_formatting_template,
     combine_sequence,
 )
@@ -57,6 +58,32 @@ def test_apply_custom_formatting_template():
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
 
+def test_apply_custom_formatting_jinja_template():
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
+    )
+    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = json_dataset.map(
+        apply_custom_data_formatting_jinja_template,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        },
+    )
+    # First response from the data file that is read.
+    expected_response = (
+        "### Input: @HMRCcustomers No this is my first job"
+        + " \n\n ### Response: no complaint"
+        + tokenizer.eos_token
+    )
+
+    assert formatted_dataset_field in formatted_dataset["train"][0]
+    assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
+
+
 def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     """Tests that the formatting function will throw error if wrong keys are passed to template"""
     json_dataset = datasets.load_dataset(
@@ -68,6 +95,25 @@ def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
     with pytest.raises(KeyError):
         json_dataset.map(
             apply_custom_data_formatting_template,
+            fn_kwargs={
+                "tokenizer": tokenizer,
+                "dataset_text_field": formatted_dataset_field,
+                "template": template,
+            },
+        )
+
+
+def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys():
+    """Tests that the jinja formatting function will throw error if wrong keys are passed to template"""
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
+    )
+    template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
+    formatted_dataset_field = "formatted_data_field"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    with pytest.raises(KeyError):
+        json_dataset.map(
+            apply_custom_data_formatting_jinja_template,
             fn_kwargs={
                 "tokenizer": tokenizer,
                 "dataset_text_field": formatted_dataset_field,
