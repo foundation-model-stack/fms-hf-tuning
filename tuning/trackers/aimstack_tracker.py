@@ -121,7 +121,7 @@ class AimStackTracker(Tracker):
 
         if url is not None:
             aim_callback = RunIDExporterAimCallback(repo=url, experiment=exp)
-        if repo:
+        elif repo:
             aim_callback = RunIDExporterAimCallback(repo=repo, experiment=exp)
         else:
             self.logger.error(
