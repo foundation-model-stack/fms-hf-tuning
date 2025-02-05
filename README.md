@@ -322,7 +322,6 @@ Below example runs multi-GPU fine tuning on 8 GPUs with FSDP:
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 accelerate launch \
---main_process_port $MASTER_PORT \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 --num_processes=8 \ 
 --main_process_port=$MASTER_PORT \

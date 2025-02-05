@@ -234,6 +234,7 @@ def train(
         ),
         cache_dir=train_args.cache_dir,
         use_fast=True,
+        legacy=True,
     )
 
     # Calculate and save additional metrics to track later.
