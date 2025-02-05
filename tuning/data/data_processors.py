@@ -18,11 +18,11 @@ import logging
 import os
 
 # Third Party
+from accelerate import Accelerator
 from datasets import Dataset, DatasetDict, IterableDataset
 from datasets.exceptions import DatasetNotFoundError
 from transformers import AutoTokenizer
 import datasets
-import torch
 
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
@@ -329,23 +329,10 @@ class DataPreProcessor:
         self, dataset_configs: List[DataSetConfig], **kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
+        accelerator = Accelerator()
 
-        if torch.distributed.is_available() and torch.distributed.is_initialized():
-            if torch.distributed.get_rank() == 0:
-                logger.info("Processing data on rank 0...")
-                train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
-            else:
-                train_dataset = None
-
-            # Use broadcast_object_list to share the dataset object across ranks
-            # TODO: Check if torch.distributed.barrier() is called in broadcast_object_list()
-            # See https://github.com/pytorch/pytorch/issues/56142
-            # for why the list is shared like this
-            to_share = [train_dataset]
-            torch.distributed.broadcast_object_list(to_share, src=0)
-            train_dataset = to_share[0]
-        else:
-            logger.info("Processing data...")
+        # The main_process_first context ensures that the main process runs first
+        with accelerator.main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
