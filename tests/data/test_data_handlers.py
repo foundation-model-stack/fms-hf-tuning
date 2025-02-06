@@ -16,6 +16,7 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Third Party
+from datasets import IterableDatasetDict
 from transformers import AutoTokenizer
 import datasets
 import pytest
@@ -99,6 +100,8 @@ def test_apply_custom_formatting_template_iterable():
             "template": template,
         },
     )
+    assert isinstance(formatted_dataset, IterableDatasetDict)
+
     # First response from the data file that is read.
     expected_response = (
         "### Input: @HMRCcustomers No this is my first job"

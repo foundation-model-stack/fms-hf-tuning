@@ -166,6 +166,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
         splitName=splitName,
         datafile=None,
     )
+    assert processor.processor_config.streaming is False
     assert isinstance(load_dataset, Dataset)
 
 
@@ -734,7 +735,7 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         (DATA_CONFIG_YAML_STREAMING_PRETOKENIZED, TWITTER_COMPLAINTS_TOKENIZED_JSON),
     ],
 )
-def test_process_streaming_dataconfig_file(data_config_path, data_path):
+def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
     """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
@@ -791,7 +792,7 @@ def test_process_streaming_dataconfig_file(data_config_path, data_path):
         ),
     ],
 )
-def test_process_streaming_dataconfig_file_no_max_steps_raise_error(
+def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     data_config_path, data_path
 ):
     """Ensure that if max steps aren't passed with streaming, error is raised"""
