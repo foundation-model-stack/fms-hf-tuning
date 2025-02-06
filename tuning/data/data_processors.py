@@ -120,9 +120,7 @@ class DataPreProcessor:
             load_path = builder if builder else data_path
 
             try:
-                return datasets.load_dataset(
-                    path=load_path, **load_kwargs
-                )
+                return datasets.load_dataset(path=load_path, **load_kwargs)
             except DatasetNotFoundError as e:
                 # Reraise with a more context-specific message if needed
                 raise e
@@ -202,7 +200,7 @@ class DataPreProcessor:
 
         for data_path in data_paths:
             dataset = _try_load_dataset(data_path, builder, streaming)
-            if streaming:
+            if isinstance(dataset, IterableDataset):
                 dataset = resolve_iterable_dataset_features(dataset)
             all_datasets.append(dataset)
 
@@ -266,12 +264,12 @@ class DataPreProcessor:
             raw_dataset = self.load_dataset(
                 d, self.processor_config.streaming, splitName
             )
-            if self.processor_config.streaming:
+            if isinstance(raw_dataset, IterableDataset):
                 raw_dataset = resolve_iterable_dataset_features(raw_dataset)
 
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
-            if self.processor_config.streaming:
+            if isinstance(raw_dataset, IterableDataset):
                 raw_datasets = IterableDatasetDict()
             else:
                 raw_datasets = DatasetDict()
@@ -294,18 +292,24 @@ class DataPreProcessor:
                     column_names = raw_datasets[splitName].column_names
 
                     # remove __content__ from all processing
-                    if column_names:
-                        if "__content__" in column_names:
-                            column_names.remove("__content__")
+                    if column_names and "__content__" in column_names:
+                        column_names.remove("__content__")
 
                     if "remove_columns" not in kwargs:
                         kwargs["remove_columns"] = None
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if not self.processor_config.streaming:
+                    if not isinstance(raw_datasets, IterableDatasetDict):
                         if "num_proc" not in kwargs:
                             kwargs["num_proc"] = os.cpu_count()
+                    else:
+                        if "num_proc" in kwargs:
+                            del kwargs["num_proc"]
+                            logger.warning(
+                                "num_proc is not applicable for \
+                                            IterableDatasets and has been removed."
+                            )
 
                     if "fn_kwargs" not in kwargs:
                         kwargs["fn_kwargs"] = {}
@@ -355,7 +359,7 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
-        if self.processor_config.streaming:
+        if isinstance(train_dataset, IterableDataset):
             train_dataset = resolve_iterable_dataset_features(train_dataset)
 
         return train_dataset
