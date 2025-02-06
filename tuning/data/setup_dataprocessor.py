@@ -400,7 +400,8 @@ def process_dataargs(
         logger.info(
             "Setting `split_batches` to true - splitting batches among devices \
                     `per_device_train_batch_size` is now the global batch size, and \
-                    should be treated as such."
+                    should be treated as such. The main process will fetch a full \
+                    batch and slice it into `num_processes` batches for each process."
         )
 
     return (
