@@ -255,23 +255,19 @@ class DataPreProcessor:
             )
             sample_datasets = False
 
-        streaming = False
-        if self.processor_config.streaming:
-            streaming = True
-
         logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
         for d in dataset_configs:
             logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(d, streaming, splitName)
-            if streaming:
+            raw_dataset = self.load_dataset(d, self.processor_config.streaming, splitName)
+            if self.processor_config.streaming:
                 raw_dataset = resolve_iterable_dataset_features(raw_dataset)
 
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
-            if streaming:
+            if self.processor_config.streaming:
                 raw_datasets = IterableDatasetDict()
             else:
                 raw_datasets = DatasetDict()
@@ -303,7 +299,7 @@ class DataPreProcessor:
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if not streaming:
+                    if not self.processor_config.streaming:
                         if "num_proc" not in kwargs:
                             kwargs["num_proc"] = os.cpu_count()
 
@@ -355,7 +351,7 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
-        if streaming:
+        if self.processor_config.streaming:
             train_dataset = resolve_iterable_dataset_features(train_dataset)
 
         return train_dataset
