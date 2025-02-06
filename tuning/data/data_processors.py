@@ -113,13 +113,15 @@ class DataPreProcessor:
                 load_kwargs["data_dir"] = data_dir
             if data_files is not None:
                 load_kwargs["data_files"] = data_files
+            if streaming is not None:
+                load_kwargs["streaming"] = streaming
 
             # Determine the `path` parameter for load_dataset
             load_path = builder if builder else data_path
 
             try:
                 return datasets.load_dataset(
-                    path=load_path, **load_kwargs, streaming=streaming
+                    path=load_path, **load_kwargs
                 )
             except DatasetNotFoundError as e:
                 # Reraise with a more context-specific message if needed
