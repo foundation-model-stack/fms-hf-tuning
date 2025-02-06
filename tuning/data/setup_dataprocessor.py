@@ -395,6 +395,14 @@ def process_dataargs(
     if is_tokenized_dataset:
         dataset_kwargs["skip_prepare_dataset"] = True
 
+    if isinstance(train_dataset, IterableDataset):
+        train_args.accelerator_config = {"split_batches": True}
+        logger.info(
+            "Setting `split_batches` to true - splitting batches among devices \
+                    `per_device_train_batch_size` is now the global batch size, and \
+                    should be treated as such."
+        )
+
     return (
         train_dataset,
         eval_dataset,

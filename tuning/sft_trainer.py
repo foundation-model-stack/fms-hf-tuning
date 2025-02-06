@@ -23,7 +23,6 @@ import time
 import traceback
 
 # Third Party
-from datasets import IterableDataset
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
@@ -333,14 +332,6 @@ def train(
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
-
-    if isinstance(formatted_train_dataset, IterableDataset):
-        train_args.accelerator_config = {"split_batches": True}
-        logger.info(
-            "Setting `split_batches` to true - splitting batches among devices \
-                    `per_device_train_batch_size` is now the global batch size, and \
-                    should be treated as such."
-        )
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
