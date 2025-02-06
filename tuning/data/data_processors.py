@@ -261,7 +261,9 @@ class DataPreProcessor:
             logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(d, self.processor_config.streaming, splitName)
+            raw_dataset = self.load_dataset(
+                d, self.processor_config.streaming, splitName
+            )
             if self.processor_config.streaming:
                 raw_dataset = resolve_iterable_dataset_features(raw_dataset)
 
