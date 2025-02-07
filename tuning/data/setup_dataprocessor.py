@@ -53,7 +53,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
         )
         data = processor.load_dataset(
             None,
-            streaming=processor.processor_config.streaming,
+            streaming=False,
             splitName="train[:1]",
             datafile=data,
         )
