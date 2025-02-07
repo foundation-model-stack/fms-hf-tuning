@@ -19,7 +19,8 @@ from typing import Dict, List
 import re
 
 # Third Party
-from jinja2 import Environment, StrictUndefined
+from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
+from jinja2.sandbox import SandboxedEnvironment, SecurityError
 from transformers import AutoTokenizer
 
 # Local
@@ -165,13 +166,29 @@ def apply_custom_data_formatting_jinja_template(
 
     template += tokenizer.eos_token
     template = process_jinja_placeholders(template)
-    env = Environment(undefined=StrictUndefined)
-    jinja_template = env.from_string(template)
+    env = SandboxedEnvironment(undefined=StrictUndefined)
+
+    try:
+        jinja_template = env.from_string(template)
+    except TemplateSyntaxError as e:
+        raise ValueError(
+            f"Invalid template syntax in provided Jinja template. {e.message}"
+        ) from e
 
     try:
         rendered_text = jinja_template.render(element=element, **element)
+    except UndefinedError as e:
+        raise KeyError(
+            f"The dataset does not contain the key used in the provided Jinja template. {e.message}"
+        ) from e
+    except SecurityError as e:
+        raise ValueError(
+            f"Unsafe operation detected in the provided Jinja template. {e.message}"
+        ) from e
     except Exception as e:
-        raise KeyError(f"Dataset does not contain field in template. {e}") from e
+        raise ValueError(
+            f"Error occurred while rendering the provided Jinja template. {e.message}"
+        ) from e
 
     return {dataset_text_field: rendered_text}
 
