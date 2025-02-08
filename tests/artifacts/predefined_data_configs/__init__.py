@@ -34,3 +34,6 @@ DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
+DATA_CONFIG_DUPLICATE_COLUMNS = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "duplicate_columns.yaml"
+)
