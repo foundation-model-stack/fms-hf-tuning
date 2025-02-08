@@ -1,21 +1,18 @@
-import sys
-import logging
-import traceback
+# Standard
 from typing import Callable, Dict, Optional
+import logging
+import sys
+import traceback
 
-from transformers import (
-    AutoTokenizer,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
-)
+# Third Party
+from transformers import AutoTokenizer, LlamaTokenizer, LlamaTokenizerFast
+
+# Local
 from tuning.config import configs
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.sft_trainer import get_parser
+from tuning.utils.error_logging import USER_ERROR_EXIT_CODE, write_termination_log
 from tuning.utils.logging import set_log_level
-from tuning.utils.error_logging import (
-    USER_ERROR_EXIT_CODE,
-    write_termination_log,
-)
 
 
 def get_processed_dataset(
@@ -33,7 +30,7 @@ def get_processed_dataset(
     """
     # Set log level for this function
     train_args, logger = set_log_level(train_args, "get_processed_dataset")
-    
+
     logger.info(
         "Starting dataset processing with model_args: %s, data_args: %s, training_args: %s",
         model_args,
@@ -71,15 +68,21 @@ def get_processed_dataset(
     special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            logger.debug("Using a Llama tokenizer—setting eos_token to </s> by default.")
+            logger.debug(
+                "Using a Llama tokenizer—setting eos_token to </s> by default."
+            )
             special_tokens_dict["eos_token"] = "</s>"
 
     if not model_args.tokenizer_name_or_path:
         if tokenizer.pad_token is None:
-            logger.warning("PAD token not found in tokenizer; setting PAD token to default.")
+            logger.warning(
+                "PAD token not found in tokenizer; setting PAD token to default."
+            )
             special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
         if tokenizer.eos_token is None:
-            logger.warning("EOS token not found in tokenizer; setting EOS token to default.")
+            logger.warning(
+                "EOS token not found in tokenizer; setting EOS token to default."
+            )
             special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
         if tokenizer.pad_token == tokenizer.eos_token:
             logger.warning(
@@ -126,13 +129,13 @@ def main():
         "--save_train_dataset",
         type=str,
         default=None,
-        help="Path to JSON file for saving the processed train dataset."
+        help="Path to JSON file for saving the processed train dataset.",
     )
     parser.add_argument(
         "--save_validation_dataset",
         type=str,
         default=None,
-        help="Path to JSON file for saving the processed validation dataset."
+        help="Path to JSON file for saving the processed validation dataset.",
     )
 
     # Parse arguments and set log level
@@ -177,7 +180,8 @@ def main():
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error processing dataset: %s", traceback.format_exc())
         write_termination_log(
-            f"Exception raised during dataset processing. This may be a problem with your input: {e}"
+            f"Exception raised during dataset processing.\
+            This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
 
@@ -188,7 +192,9 @@ def main():
 
     # Save validation dataset
     if save_validation_dataset:
-        logger.info("Saving processed validation dataset to %s", save_validation_dataset)
+        logger.info(
+            "Saving processed validation dataset to %s", save_validation_dataset
+        )
         formatted_validation_dataset.to_json(save_validation_dataset)
 
     logger.info("Data Processing script execution completed.")
