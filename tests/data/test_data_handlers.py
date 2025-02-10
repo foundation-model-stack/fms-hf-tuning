@@ -180,7 +180,7 @@ def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
     ],
 )
 def test_duplicate_columns_throws_error_on_wrong_args(dataset, old, new):
-
+    """Ensure that duplicate_columns data handler throws error if column names are wrong."""
     d = datasets.load_dataset("json", data_files=dataset)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     with pytest.raises(ValueError):
@@ -195,6 +195,7 @@ def test_duplicate_columns_throws_error_on_wrong_args(dataset, old, new):
 
 
 def test_duplicate_columns_copies_columns():
+    """Ensure that duplicate_columns data handler copies and maintains both columns."""
     old = "input_ids"
     new = "labels"
     d = datasets.load_dataset(

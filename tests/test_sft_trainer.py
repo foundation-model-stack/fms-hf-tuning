@@ -883,6 +883,8 @@ def test_run_causallm_ft_and_inference_with_multiple_dataset(
 
 
 def test_run_training_with_pretokenised_dataset_containing_input_ids():
+    """Ensure that we can train on pretokenised dataset containing just input_ids by
+    choosing duplicate_columns data handler via data config."""
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
