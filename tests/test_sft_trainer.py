@@ -761,17 +761,18 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 
 
 @pytest.mark.parametrize(
-    "dataset_path",
+    "dataset_path, packing",
     [
-        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-        TWITTER_COMPLAINTS_TOKENIZED_JSON,
-        TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
-        TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+        (TWITTER_COMPLAINTS_TOKENIZED_JSONL, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_PARQUET, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_JSON, False),
+        (TWITTER_COMPLAINTS_TOKENIZED_ARROW, False),
     ],
 )
-def test_run_causallm_ft_pretokenized(dataset_path):
+def test_run_causallm_ft_pretokenized(dataset_path, packing):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
+
         data_formatting_args = copy.deepcopy(DATA_ARGS)
 
         # below args not needed for pretokenized data
@@ -784,6 +785,8 @@ def test_run_causallm_ft_pretokenized(dataset_path):
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
+        train_args.packing = packing
+        train_args.max_seq_length = 256
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
 
