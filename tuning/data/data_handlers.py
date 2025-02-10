@@ -164,7 +164,9 @@ def apply_custom_data_formatting_template(
         return str(element[index_object])
 
     return {
-        dataset_text_field: re.sub(r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template)
+        f"{dataset_text_field}": re.sub(
+            r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
+        )
     }
 
 
@@ -215,7 +217,7 @@ def apply_custom_jinja_template(
             f"Error occurred while rendering the provided Jinja template. {e.message}"
         ) from e
 
-    return {dataset_text_field: rendered_text}
+    return {f"{dataset_text_field}": rendered_text}
 
 
 def apply_tokenizer_chat_template(
@@ -272,8 +274,10 @@ def duplicate_columns(
             f"Cannot duplicate {old_column} to f{new_column} as column {new_column} already exists"
         )
 
-    element[new_column] = copy.deepcopy(element[old_column])
-    return element
+    return {
+        f"{old_column}": element[old_column],
+        f"{new_column}": copy.deepcopy(element[old_column]),
+    }
 
 
 AVAILABLE_DATA_HANDLERS = {

@@ -212,4 +212,5 @@ def test_duplicate_columns_copies_columns():
 
     first_element = updated_dataaset["train"][0]
     assert new in first_element
+    assert old in first_element
     assert first_element[new] == first_element[old]
