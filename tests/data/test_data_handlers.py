@@ -33,6 +33,7 @@ from tuning.data.data_handlers import (
 
 
 def test_apply_custom_formatting_template():
+    """Tests custom formatting data handler returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
@@ -60,6 +61,7 @@ def test_apply_custom_formatting_template():
 
 
 def test_apply_custom_formatting_jinja_template():
+    """Tests custom formatting data handler with jinja template dataset returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
@@ -86,6 +88,7 @@ def test_apply_custom_formatting_jinja_template():
 
 
 def test_apply_custom_formatting_template_iterable():
+    """Tests custom formatting data handler with iterable dataset returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
     )

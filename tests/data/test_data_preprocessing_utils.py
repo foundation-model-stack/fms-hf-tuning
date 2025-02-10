@@ -1502,7 +1502,7 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
 def test_process_dataset_configs_with_sampling_error(
     datafiles, sampling, datasetconfigname
 ):
-
+    """Ensure that if sampling ratios aren't correctly passed (don't add up to 1.0), error is raised"""
     data_args = configs.DataArguments()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     TRAIN_ARGS = configs.TrainingArguments(
