@@ -1,5 +1,5 @@
 # Extended Pre Training Support
-Our library also supports Extended Pre-Training or (EPT) which is generally useful when users might want to to train a pretrained model on large number of samples. The training behaviour of EPT is similar to that of pretraining where users might wanna make sure the models runs through entire corpus of data available and be trained on whole set of tokens without any specific masking.
+Our library also supports Extended Pre-Training (EPT), which is generally useful when users want to train a pretrained model on a large number of samples. The training behaviour of EPT is similar to that of pretraining where users might wanna make sure the models runs through entire corpus of data available and be trained on whole set of tokens without any specific masking.
 
 See [below](#additional-information) for information on when this document was last updated and the release which supports this feature.
 
