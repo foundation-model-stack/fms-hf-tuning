@@ -1,6 +1,8 @@
 # Extended Pre Training Support
 Our library also supports Extended Pre-Training or (EPT) which is generally useful when users might want to to train a pretrained model on large number of samples. The training behaviour of EPT is similar to that of pretraining where users might wanna make sure the models runs through entire corpus of data available and be trained on whole set of tokens without any specific masking.
 
+See [below](#additional-information) for information on when this document was last updated and the release which supports this feature.
+
 ## Packing support
 
 We support training via `packing` dataset samples by specifing `--packing=True` in the command line parameters. Users can choose to specify `--max_seq_len=<value like 4k/8k>` to provide the maxium sequence length of each chunk post packing.
@@ -104,3 +106,7 @@ Here also the command line arguments would be
 ```
 
 The code again would add `EOS_TOKEN` to the non tokenized data before using it and also note that the `dataset_text_field` is assumed to be same across all datasets for now.
+
+### Additional Information
+This feature is supported post [v2.3.1](https://github.com/foundation-model-stack/fms-hf-tuning/releases/tag/v2.3.1) of this library.
+Post Last Updated On: 10-02-2025
