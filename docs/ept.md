@@ -11,7 +11,7 @@ We provide below details on how to use different style of datasets with the libr
 
 ### Single Non-Tokenized Dataset
 Users can pass a single dataset to the library by using a [data_config](./advanced-data-preprocessing.md#data-config). 
-Lets say you have a `JSONL` data file which contains text to be trained on in each line and you want to perform EPT on the same, you can create a `data_config` for the same in this manner,
+Lets say you have a `JSONL` data file which contains text to be trained on in each line that you want to perform EPT on, you can create a `data_config` for the dataset in this manner,
 
 Example dataset,
 
