@@ -29,19 +29,26 @@ datasets:
   - name: non_tokenized_text_dataset
     data_paths:
       - "<path-to-the-jsonl-dataset>"
+        data_handlers:
+        - name: apply_custom_data_formatting
+            arguments:
+            remove_columns: all
+            batched: false
+            fn_kwargs:
+                dataset_text_field: "dataset_text_field"
 ```
 
 And the commandline passed to the library should include following.
 
 ```
---data_config <path to the data config> --dataset_text_field "Tweet" --packing=True --max_seq_len 8192
+--data_config <path to the data config> --packing=True --max_seq_len 8192
 ```
 
 Please note that for non tokenized dataset our code adds `EOS_TOKEN` to the lines, for e.g. `Tweet` column before passing that as a dataset.
 
 ### Multiple Non Tokenized Datasets
 
-If a user wants to utilise multiple datasets and want to [`sample`](./advanced-data-preprocessing.md#how-the-user-can-write-data-configs) the datasets. This can be acheived by specifying in the data config multiple datasets with differnt sampling ratios.
+If a user wants to utilize multiple datasets and want to [`sample`](./advanced-data-preprocessing.md#how-the-user-can-write-data-configs) the datasets. This can be achieved by specifying multiple datasets in the data config with different sampling ratios.
 
 Sample data config for sampling among multiple datasets
 ```
@@ -54,22 +61,46 @@ datasets:
     sampling: 0.3
     data_paths:
       - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_data_formatting_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            dataset_text_field: "dataset_text_field"
+            template: "dataset_template"
   - name: non_tokenized_text_dataset_2
     sampling: 0.4
     data_paths:
       - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_data_formatting_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            dataset_text_field: "dataset_text_field"
+            template: "dataset_template"
   - name: non_tokenized_text_dataset_3
     sampling: 0.3
     data_paths:
       - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_data_formatting_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            dataset_text_field: "dataset_text_field"
+            template: "dataset_template"
 ```
 
-Please note we cover what different `sampling_strategies` mean and how to specify them in `data_config` as part of our document on [data mixing in advanced data preprocessing](./advanced-data-preprocessing.md#data-mixing)
+NOTE: More in-depth documentation of `sampling_stopping_strategy` and how to specify data mixing parameters in the `data_config` is covered in the [data mixing](./advanced-data-preprocessing.md#data-mixing) section of the advanced data preprocessing documentation
 
 Here also the command line arguments would be 
 
 ```
---data_config <path to the data config> --dataset_text_field "Tweet" --packing=True --max_seq_len 8192
+--data_config <path to the data config> --packing=True --max_seq_len 8192
 ```
 
 The code again would add `EOS_TOKEN` to the non tokenized data before using it and also note that the `dataset_text_field` is assumed to be same across all datasets for now.
