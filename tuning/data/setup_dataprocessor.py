@@ -96,12 +96,6 @@ def _get_pretokenized_dataset_handlers(data_args, packing, is_eval_tokenized):
             along with pretokenized train data"
         )
 
-    # Support for packing pretokenized datasets has been merged in trl library
-    # see: https://github.com/huggingface/trl/pull/2011
-    # but we wait till a new transformers version is released to remove this check.
-    if packing:
-        raise ValueError("packing will not be used when datasets are pretokenized")
-
     # We do not need a handler here as this is tokenized dataset
     return [], None
 
