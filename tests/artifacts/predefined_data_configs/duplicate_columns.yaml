@@ -1,7 +1,7 @@
 dataprocessor:
     type: default
 datasets:
-  - name: pre-tokenized-with-input-ids
+  - name: pre_tokenized_with_only_input_ids
     data_paths:
       - "FILE_PATH"
     data_handlers:
