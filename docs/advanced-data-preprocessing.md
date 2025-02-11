@@ -206,14 +206,16 @@ Users can also pass any number of `kwargs` arguments required for each data hand
 This library currently supports the following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
  - `tokenize_and_apply_input_masking`:
     Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
- - `apply_dataset_formatting`:
-    Formats a dataset by appending an EOS token to a specified field.
+ - `add_tokenizer_eos_token`:
+    Appends the tokenizer's EOS token to a specified dataset field.
  - `apply_custom_data_formatting_template`:
     Applies a custom template (e.g., Alpaca style) to format dataset elements.
- - `apply_custom_data_formatting_jinja_template`:
+ - `apply_custom_jinja_template`:
     Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
  - `apply_tokenizer_chat_template`:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
+ - `duplicate_columns`:
+    Duplicates one column of the dataset to another column.
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 
