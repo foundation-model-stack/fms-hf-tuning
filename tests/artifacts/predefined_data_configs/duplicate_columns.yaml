@@ -1,14 +1,14 @@
 dataprocessor:
     type: default
 datasets:
-  - name: apply_custom_data_jinja_template
+  - name: pre_tokenized_with_only_input_ids
     data_paths:
       - "FILE_PATH"
     data_handlers:
-      - name: apply_custom_jinja_template
+      - name: duplicate_columns
         arguments:
           remove_columns: all
           batched: false
           fn_kwargs:
-            dataset_text_field: "dataset_text_field"
-            template: "dataset_template"
+            old_column: "input_ids"
+            new_column: "labels"

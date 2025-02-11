@@ -16,6 +16,7 @@
 
 # Standard
 from typing import Dict, List
+import copy
 import re
 
 # Third Party
@@ -59,6 +60,19 @@ def tokenize_and_apply_input_masking(
     output_field_name: str,
     **tokenizer_kwargs,
 ):
+    """Function (data handler) to tokenize and apply instruction masking on dataset
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        tokenizer: Tokenizer to be used for tokenization.
+        column_names: Name of all the columns in the dataset.
+        input_field_name: Name of the input (instruction) field in dataset
+        output_field_name: Name of the output field in dataset
+        **tokenizer_kwargs: Any additional kwargs to be passed to tokenizer
+    Returns:
+        Formatted Dataset element with input_ids, labels and attention_mask columns
+    """
+
     if (input_field_name or output_field_name) not in column_names:
         raise ValueError(
             f"Dataset should contain {input_field_name} \
@@ -89,12 +103,23 @@ def tokenize_and_apply_input_masking(
     }
 
 
-def apply_dataset_formatting(
+def add_tokenizer_eos_token(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
     dataset_text_field: str,
     **kwargs,
 ):
+    """Function (data handler) to add tokenizer's EOS token to text field of an element
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        tokenizer: Tokenizer to be used for the EOS token, which will be appended
+            when formatting the data into a single sequence. Defaults to empty.
+        dataset_text_field: Text column name of the dataset where EOS is to be added.
+    Returns:
+        Formatted Dataset element with EOS added to dataset_text_field of the element.
+    """
+
     if dataset_text_field not in element:
         raise KeyError(f"Dataset should contain {dataset_text_field} field.")
     return {
@@ -109,19 +134,18 @@ def apply_custom_data_formatting_template(
     template: str,
     **kwargs,
 ):
-    """Function to format datasets with Alpaca style / other templates.
+    """Function (data handler) to format datasets with Alpaca style / other templates.
        Expects to be run as a HF Map API function.
     Args:
-        element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        element: the HF Dataset element.
         tokenizer: Tokenizer to be used for the EOS token, which will be appended
             when formatting the data into a single sequence. Defaults to empty.
+        dataset_text_field: Text column name of the dataset where formatted text is saved.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}
-        formatted_dataset_field: Dataset_text_field
-        eos_token: string EOS token to be appended while formatting data to a single sequence.
-            Defaults to empty
     Returns:
-        Formatted HF Dataset
+        Formatted Dataset element by formatting dataset with template+tokenizer.EOS_TOKEN
+        Saves the result to dataset_text_field argument.
     """
 
     template += tokenizer.eos_token
@@ -140,28 +164,31 @@ def apply_custom_data_formatting_template(
         return str(element[index_object])
 
     return {
-        dataset_text_field: re.sub(r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template)
+        f"{dataset_text_field}": re.sub(
+            r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
+        )
     }
 
 
-def apply_custom_data_formatting_jinja_template(
+def apply_custom_jinja_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
     dataset_text_field: str,
     template: str,
     **kwargs,
 ):
-    """Function to format datasets with jinja templates.
+    """Function (data handler) to format datasets with jinja templates.
        Expects to be run as a HF Map API function.
     Args:
-        element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        element: the HF Dataset element
         tokenizer: Tokenizer to be used for the EOS token, which will be appended
             when formatting the data into a single sequence. Defaults to empty.
         dataset_text_field: formatted_dataset_field.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}.
     Returns:
-        Formatted HF Dataset
+        Formatted HF Dataset element by formatting dataset with provided jinja template
+        Saves the result to dataset_text_field argument.
     """
 
     template += tokenizer.eos_token
@@ -190,7 +217,7 @@ def apply_custom_data_formatting_jinja_template(
             f"Error occurred while rendering the provided Jinja template. {e.message}"
         ) from e
 
-    return {dataset_text_field: rendered_text}
+    return {f"{dataset_text_field}": rendered_text}
 
 
 def apply_tokenizer_chat_template(
@@ -199,6 +226,16 @@ def apply_tokenizer_chat_template(
     dataset_text_field: str,
     **kwargs,
 ):
+    """Function (data handler) to apply tokenizers chat template to dataset elements.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        tokenizer: Tokenizer to be used.
+        dataset_text_field: formatted_dataset_field.
+    Returns:
+        Formatted HF Dataset element by formatting dataset with tokenizer's chat template
+        Saves the result to dataset_text_field argument.
+    """
     if tokenizer.chat_template is None:
         raise ValueError(
             "Tokenizer does not contain tokenizer.chat_template\
@@ -209,10 +246,45 @@ def apply_tokenizer_chat_template(
     }
 
 
+def duplicate_columns(
+    element: Dict[str, str],
+    old_column: str,
+    new_column: str,
+    **kwargs,
+):
+    """Function (data handler) to duplicate one columne of a dataset to another.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element
+        old_column: Name of the column which is to be duplicated
+        new_column: Name of the new column where duplicated column is to be saved
+    Returns:
+        Formatted HF Dataset element with new_column where existing_columns content is deep copied.
+    """
+    if not old_column or not new_column:
+        raise ValueError(
+            "for duplicating columns both old and new column name must be specified"
+        )
+    if old_column not in element:
+        raise ValueError(
+            f"Cannot duplicate {old_column} to {new_column} as column {old_column} doesn't exist"
+        )
+    if new_column in element:
+        raise ValueError(
+            f"Cannot duplicate {old_column} to f{new_column} as column {new_column} already exists"
+        )
+
+    return {
+        f"{old_column}": element[old_column],
+        f"{new_column}": copy.deepcopy(element[old_column]),
+    }
+
+
 AVAILABLE_DATA_HANDLERS = {
     "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
-    "apply_dataset_formatting": apply_dataset_formatting,
+    "add_tokenizer_eos_token": add_tokenizer_eos_token,
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
-    "apply_custom_data_formatting_jinja_template": apply_custom_data_formatting_jinja_template,
+    "apply_custom_jinja_template": apply_custom_jinja_template,
     "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
+    "duplicate_columns": duplicate_columns,
 }
