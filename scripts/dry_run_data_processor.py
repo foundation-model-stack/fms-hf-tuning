@@ -1,6 +1,7 @@
 # Standard
 from typing import Callable, Dict, Optional
 import logging
+import os
 import sys
 import traceback
 
@@ -126,16 +127,10 @@ def main():
 
     parser = get_parser()
     parser.add_argument(
-        "--save_train_dataset",
-        type=str,
-        default=None,
-        help="Path to JSON file for saving the processed train dataset.",
-    )
-    parser.add_argument(
-        "--save_validation_dataset",
-        type=str,
-        default=None,
-        help="Path to JSON file for saving the processed validation dataset.",
+        "--num_datasets_shard",
+        type=int,
+        default=1,
+        help="Number of shards to be used for saving the dataset.",
     )
 
     # Parse arguments and set log level
@@ -144,8 +139,7 @@ def main():
             model_args,
             data_args,
             training_args,
-            save_train_dataset,
-            save_validation_dataset,
+            num_datasets_shard,
         ) = parser.parse_args_into_dataclasses()
 
         training_args, logger = set_log_level(training_args, __name__)
@@ -153,14 +147,10 @@ def main():
             "Input args parsed:\n"
             "  model_args: %s\n"
             "  data_args: %s\n"
-            "  training_args: %s\n"
-            "  save_train_dataset: %s\n"
-            "  save_validation_dataset: %s",
+            "  training_args: %s\n",
             model_args,
             data_args,
             training_args,
-            save_train_dataset,
-            save_validation_dataset,
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error parsing arguments: %s", traceback.format_exc())
@@ -186,16 +176,41 @@ def main():
         sys.exit(USER_ERROR_EXIT_CODE)
 
     # Save train dataset
-    if save_train_dataset:
-        logger.info("Saving processed train dataset to %s", save_train_dataset)
-        formatted_train_dataset.to_json(save_train_dataset)
+    train_dataset_dir = os.path.join(training_args.output_dir, "train_dataset")
+    validation_dataset_dir = os.path.join(
+        training_args.output_dir, "validation_dataset"
+    )
+
+    logging.info(
+        "Trying to dump %d shards of train dataset at %s",
+        num_datasets_shard,
+        train_dataset_dir,
+    )
+    for shard_idx in num_datasets_shard:
+        shard = formatted_train_dataset.shard(
+            index=shard_idx, num_shards=num_datasets_shard
+        )
+        shard.to_parquet(f"{train_dataset_dir}/ds_{shard_idx:05d}.parquet")
+    logging.info(
+        "Dumped %d shards of train_dataset at %s", num_datasets_shard, train_dataset_dir
+    )
 
     # Save validation dataset
-    if save_validation_dataset:
-        logger.info(
-            "Saving processed validation dataset to %s", save_validation_dataset
+    logging.info(
+        "Trying to dump %d shards of validation dataset at %s",
+        num_datasets_shard,
+        validation_dataset_dir,
+    )
+    for shard_idx in num_datasets_shard:
+        shard = formatted_validation_dataset.shard(
+            index=shard_idx, num_shards=num_datasets_shard
         )
-        formatted_validation_dataset.to_json(save_validation_dataset)
+        shard.to_parquet(f"{validation_dataset_dir}/ds_{shard_idx:05d}.parquet")
+    logging.info(
+        "Dumped %d shards of validation_dataset at %s",
+        num_datasets_shard,
+        validation_dataset_dir,
+    )
 
     logger.info("Data Processing script execution completed.")
 
