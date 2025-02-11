@@ -40,3 +40,6 @@ DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
 DATA_CONFIG_YAML_STREAMING_PRETOKENIZED = os.path.join(
     PREDEFINED_DATA_CONFIGS, "pretokenized_json_data_streaming.yaml"
 )
+DATA_CONFIG_DUPLICATE_COLUMNS = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "duplicate_columns.yaml"
+)
