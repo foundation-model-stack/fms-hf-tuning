@@ -19,7 +19,12 @@ from typing import Dict, List
 import re
 
 # Third Party
+from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
+from jinja2.sandbox import SandboxedEnvironment, SecurityError
 from transformers import AutoTokenizer
+
+# Local
+from tuning.utils.config_utils import process_jinja_placeholders
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
@@ -108,6 +113,8 @@ def apply_custom_data_formatting_template(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        tokenizer: Tokenizer to be used for the EOS token, which will be appended
+            when formatting the data into a single sequence. Defaults to empty.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}
         formatted_dataset_field: Dataset_text_field
@@ -137,6 +144,55 @@ def apply_custom_data_formatting_template(
     }
 
 
+def apply_custom_data_formatting_jinja_template(
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    template: str,
+    **kwargs,
+):
+    """Function to format datasets with jinja templates.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element loaded from a JSON or DatasetDict object.
+        tokenizer: Tokenizer to be used for the EOS token, which will be appended
+            when formatting the data into a single sequence. Defaults to empty.
+        dataset_text_field: formatted_dataset_field.
+        template: Template to format data with. Features of Dataset
+            should be referred to by {{key}}.
+    Returns:
+        Formatted HF Dataset
+    """
+
+    template += tokenizer.eos_token
+    template = process_jinja_placeholders(template)
+    env = SandboxedEnvironment(undefined=StrictUndefined)
+
+    try:
+        jinja_template = env.from_string(template)
+    except TemplateSyntaxError as e:
+        raise ValueError(
+            f"Invalid template syntax in provided Jinja template. {e.message}"
+        ) from e
+
+    try:
+        rendered_text = jinja_template.render(element=element, **element)
+    except UndefinedError as e:
+        raise KeyError(
+            f"The dataset does not contain the key used in the provided Jinja template. {e.message}"
+        ) from e
+    except SecurityError as e:
+        raise ValueError(
+            f"Unsafe operation detected in the provided Jinja template. {e.message}"
+        ) from e
+    except Exception as e:
+        raise ValueError(
+            f"Error occurred while rendering the provided Jinja template. {e.message}"
+        ) from e
+
+    return {dataset_text_field: rendered_text}
+
+
 def apply_tokenizer_chat_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
@@ -157,5 +213,6 @@ AVAILABLE_DATA_HANDLERS = {
     "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
     "apply_dataset_formatting": apply_dataset_formatting,
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
+    "apply_custom_data_formatting_jinja_template": apply_custom_data_formatting_jinja_template,
     "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
 }

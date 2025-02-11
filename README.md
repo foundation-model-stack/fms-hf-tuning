@@ -13,6 +13,7 @@
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
+- [Extended Pre-Training](#extended-pre-training)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -80,6 +81,11 @@ ARROW       |   ✅
 
 As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
 
+**NOTE**: Due to the variety of supported data formats and file types, `--training_data_path` is handled as follows:
+- If `--training_data_path` ends in a valid file extension (e.g., .json, .csv), it is treated as a file.
+- If `--training_data_path` points to a valid folder, it is treated as a folder.
+- If neither of these are true, the data preprocessor tries to load `--training_data_path` as a Hugging Face (HF) dataset ID.
+
 ## Use cases supported with `training_data_path` argument
 
 ### 1. Data formats with a single sequence and a specified response_template to use for masking on completion.
@@ -128,7 +134,7 @@ Example: Train.json
   },
  ...
 ]`  
-data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
+data_formatter_template: `### Input: {{input}} \n\n## Label: {{output}}`  
 
 Formatting will happen on the fly while tuning. The keys in template should match fields in the dataset file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
@@ -169,6 +175,18 @@ For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-
 ```
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
+
+Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
+
+Following are the Guidelines from us in a flow chart :  
+![guidelines for chat template](docs/images/chat_template_guide.jpg)  
+
+Here are some scenarios addressed in the flow chart:  
+1. Depending on the model the tokenizer for the model may or may not have a chat template  
+2. If the template is available then the `json object schema` of the dataset might not match the chat template's `string format`
+3. There might be special tokens used in chat template which the tokenizer might be unaware of, for example `<|start_of_role|>` which can cause issues during tokenization as it might not be treated as a single token  
+
+
 
 ### 4. Pre tokenized datasets.
 
@@ -282,7 +300,7 @@ python tuning/sft_trainer.py  \
 --gradient_accumulation_steps 4  \
 --learning_rate 1e-5  \
 --response_template "\n## Label:"  \
---data_formatter_template: "### Input: {{input}} \n\n##Label: {{output}}"
+--data_formatter_template: "### Input: {{input}} \n\n## Label: {{output}}"
 
 ```
 
@@ -305,7 +323,6 @@ Below example runs multi-GPU fine tuning on 8 GPUs with FSDP:
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 accelerate launch \
---main_process_port $MASTER_PORT \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 --num_processes=8 \ 
 --main_process_port=$MASTER_PORT \
@@ -812,6 +829,9 @@ Number of trainable parameters = 13,631,488
 The `fms_acceleration.cli` can do more to search for all available configs, plugins and arguments, [see the advanced flow](https://github.com/foundation-model-stack/fms-acceleration#advanced-flow).
 
 
+## Extended Pre-Training
+
+We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
