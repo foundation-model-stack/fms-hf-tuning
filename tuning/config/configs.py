@@ -61,6 +61,10 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
+    multimodal: bool = field(
+        default=False,
+        metadata={"help": "Load multimodal model and processor"},
+    )
 
 
 @dataclass
@@ -120,6 +124,20 @@ class DataArguments:
             "help": "Should be provided for chat training. \
             Piece of text that determines the start of human response\
             Passed in conjunction with response_template"
+        },
+    )
+    text_field_name: str = field(
+        default=None,
+        metadata={
+            "help": "Required for running with vision models. \
+            The column name of the text data in the multi-modal dataset."
+        },
+    )
+    image_field_name: str = field(
+        default=None,
+        metadata={
+            "help": "Required for running with vision models. \
+            The column name of the vision data in the multi-modal dataset."
         },
     )
 
