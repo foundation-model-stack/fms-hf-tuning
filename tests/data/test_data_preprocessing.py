@@ -1173,9 +1173,10 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 def test_process_dataargs(data_args, is_padding_free):
     """Ensure that the train/eval data are properly formatted based on the data args / text field"""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    max_seq_length = 5
     TRAIN_ARGS = configs.TrainingArguments(
         packing=False,
-        max_seq_length=1024,
+        max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
     (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
@@ -1187,6 +1188,7 @@ def test_process_dataargs(data_args, is_padding_free):
         column_names = set(["input_ids", "attention_mask", "labels"])
         assert set(eval_set.column_names) == column_names
         assert set(train_set.column_names) == column_names
+        assert len(train_set[0]["input_ids"]) == max_seq_length
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
