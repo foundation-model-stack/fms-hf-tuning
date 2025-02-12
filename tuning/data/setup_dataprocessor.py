@@ -148,7 +148,7 @@ def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
     fn_kwargs["dataset_text_field"] = dataset_text_field
     if data_args.data_formatter_template is None:
         handler = DataHandlerConfig(
-            "apply_dataset_formatting",
+            "add_tokenizer_eos_token",
             arguments={"fn_kwargs": fn_kwargs, "batched": False},
         )
     else:

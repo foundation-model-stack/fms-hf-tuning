@@ -36,6 +36,7 @@ import yaml
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
+    DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
@@ -58,6 +59,7 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_TOKENIZED_ARROW,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
+    TWITTER_COMPLAINTS_TOKENIZED_ONLY_INPUT_IDS_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
 
@@ -71,7 +73,7 @@ from tuning.data.data_config import (
     DataPreProcessorConfig,
     DataSetConfig,
 )
-from tuning.data.data_handlers import apply_dataset_formatting
+from tuning.data.data_handlers import add_tokenizer_eos_token
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -880,6 +882,52 @@ def test_run_causallm_ft_and_inference_with_multiple_dataset(
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+def test_run_training_with_pretokenised_dataset_containing_input_ids():
+    """Ensure that we can train on pretokenised dataset containing just input_ids by
+    choosing duplicate_columns data handler via data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_args.response_template = None
+        data_args.training_data_path = None
+
+        dataconfigfile = DATA_CONFIG_DUPLICATE_COLUMNS
+        datapath = TWITTER_COMPLAINTS_TOKENIZED_ONLY_INPUT_IDS_JSON
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = [datapath]
+                yaml.dump(data, temp_yaml_file)
+                data_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
 @pytest.mark.parametrize(
     "dataset_path",
     [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
@@ -1469,7 +1517,7 @@ def test_run_by_passing_additional_data_handlers():
     TEST_HANDLER = "my_test_handler"
 
     def test_handler(element, tokenizer, **kwargs):
-        return apply_dataset_formatting(element, tokenizer, "custom_formatted_field")
+        return add_tokenizer_eos_token(element, tokenizer, "custom_formatted_field")
 
     # This data config calls for data handler to be applied to dataset
     preprocessor_config = DataPreProcessorConfig()

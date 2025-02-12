@@ -17,7 +17,7 @@
 ARG BASE_UBI_IMAGE_TAG=latest
 ARG USER=tuning
 ARG USER_UID=1000
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
@@ -32,7 +32,7 @@ ARG PYTHON_VERSION
 ARG USER
 ARG USER_UID
 
-# Note this works for 3.9, 3.11, 3.12
+# Note this is tested to be working for version 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
     && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
@@ -52,7 +52,7 @@ RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
 ## Used as base of the Release stage to removed unrelated the packages and CVEs
 FROM base AS release-base
 
-# Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
+# Removes the python code to eliminate possible CVEs.  Also removes dnf
 RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
 
 

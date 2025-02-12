@@ -29,6 +29,7 @@ import yaml
 
 # First Party
 from tests.artifacts.predefined_data_configs import (
+    DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
@@ -693,6 +694,10 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSON),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSONL),
         (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_PARQUET),
@@ -731,7 +736,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
 
     # Modify dataset_text_field and template according to dataset
     formatted_dataset_field = "formatted_data_field"
-    if datasets_name == "apply_custom_data_template":
+    if datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "dataset_text_field": formatted_dataset_field,
@@ -753,7 +761,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
         assert set(train_set.column_names) == column_names
     elif datasets_name == "pretokenized_dataset":
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
-    elif datasets_name == "apply_custom_data_template":
+    elif datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
         assert formatted_dataset_field in set(train_set.column_names)
 
 
@@ -1162,9 +1173,10 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 def test_process_dataargs(data_args, is_padding_free):
     """Ensure that the train/eval data are properly formatted based on the data args / text field"""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    max_seq_length = 5
     TRAIN_ARGS = configs.TrainingArguments(
         packing=False,
-        max_seq_length=1024,
+        max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
     (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
@@ -1176,6 +1188,7 @@ def test_process_dataargs(data_args, is_padding_free):
         column_names = set(["input_ids", "attention_mask", "labels"])
         assert set(eval_set.column_names) == column_names
         assert set(train_set.column_names) == column_names
+        assert len(train_set[0]["input_ids"]) == max_seq_length
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
