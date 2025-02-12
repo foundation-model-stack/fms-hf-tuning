@@ -254,7 +254,9 @@ class DataPreProcessor:
 
             if d.rename_columns:
                 logger.info("Renaming %s columns", str(d.rename_columns))
-                raw_dataset = raw_dataset.rename_columns(column_mapping=d.rename_columns)
+                raw_dataset = raw_dataset.rename_columns(
+                    column_mapping=d.rename_columns
+                )
                 logger.info("Done")
             if d.retain_columns:
                 logger.info("Retaining %s columns", str(d.retain_columns))
