@@ -58,7 +58,7 @@ def tokenize_and_apply_input_masking(
     column_names: List[str],
     input_field_name: str,
     output_field_name: str,
-    **tokenizer_kwargs,
+    **kwargs,
 ):
     """Function (data handler) to tokenize and apply instruction masking on dataset
        Expects to be run as a HF Map API function.
@@ -68,7 +68,7 @@ def tokenize_and_apply_input_masking(
         column_names: Name of all the columns in the dataset.
         input_field_name: Name of the input (instruction) field in dataset
         output_field_name: Name of the output field in dataset
-        **tokenizer_kwargs: Any additional kwargs to be passed to tokenizer
+        **kwargs: Any additional args passed to the handler
     Returns:
         Formatted Dataset element with input_ids, labels and attention_mask columns
     """
@@ -85,11 +85,10 @@ def tokenize_and_apply_input_masking(
 
     combined = combine_sequence(input_text, output_text, eos_token=tokenizer.eos_token)
 
-    fn_kwargs = tokenizer_kwargs.get("fn_kwargs", {})
-    tokenizer_inner_kwargs = fn_kwargs.get("tokenizer_kwargs", {})
+    tokenizer_kwargs = kwargs.get("tokenizer_kwargs", {})
 
-    tokenized_comb_seqs = tokenizer(combined, **tokenizer_inner_kwargs)
-    tokenized_input = tokenizer(input_text, **tokenizer_inner_kwargs)
+    tokenized_comb_seqs = tokenizer(combined, **tokenizer_kwargs)
+    tokenized_input = tokenizer(input_text, **tokenizer_kwargs)
 
     masked_labels = [-100] * len(
         tokenized_input.input_ids
