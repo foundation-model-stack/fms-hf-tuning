@@ -18,7 +18,6 @@ import logging
 import os
 
 # Third Party
-from accelerate import Accelerator
 from accelerate.state import PartialState
 from datasets import Dataset, DatasetDict, IterableDataset
 from datasets.exceptions import DatasetNotFoundError
