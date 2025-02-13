@@ -155,8 +155,10 @@ Not Supported:
 Currently there's no support for sampling under multiple data paths which are defined inside a dataset definition.
 All dataset paths that will be specified inside one dataset will be [concatenated](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) after loading them, while across datasets users can specify [mixing via sampling datasets](#data-mixing)
 
-Additionally while loading, users can specify which columns to rename via `rename_columns` and which to retain via `retain_columns` arguments above.
-The order of application of these operations is *strictly rename followed by retain* so users should note that a column name which is renamed will not be available in retain and should be careful while applying these operations.
+Probably something like this:
+
+Additionally while loading the dataset, users can specify which columns to rename via `rename_columns` and which to retain via `retain_columns` arguments above.
+The order of application of these operations is *strictly rename followed by retain* so users should note that an old column name which is renamed will not be available in retain and hence should be careful while applying these operations. The code will throw a `ValueError` in case user specified a column requested to be renamed via rename argument in retain argument as well. 
 
 ### How can users specify data handlers.
 
