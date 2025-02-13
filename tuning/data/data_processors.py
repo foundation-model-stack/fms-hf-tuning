@@ -19,6 +19,7 @@ import os
 
 # Third Party
 from accelerate import Accelerator
+from accelerate.state import PartialState
 from datasets import Dataset, DatasetDict, IterableDataset
 from datasets.exceptions import DatasetNotFoundError
 from transformers import AutoTokenizer
@@ -329,10 +330,10 @@ class DataPreProcessor:
         self, dataset_configs: List[DataSetConfig], **kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
-        accelerator = Accelerator()
+        state = PartialState()
 
         # The main_process_first context ensures that the main process runs first
-        with accelerator.main_process_first():
+        with state.main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
