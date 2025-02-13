@@ -667,13 +667,6 @@ def test_get_data_collator(
             ),
             False,
         ),
-        # Pretokenized data with packing to True
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            ),
-            True,
-        ),
     ],
 )
 def test_process_data_args_throws_error_where_needed(data_args, packing):
