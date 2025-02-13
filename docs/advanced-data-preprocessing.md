@@ -232,8 +232,6 @@ This library currently supports the following [preexisting data handlers](https:
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 
-Note: Handlers `tokenize_and_apply_input_masking`, `apply_custom_jinja_template`, `apply_tokenizer_chat_template` automatically append `tokenizer.eos_token` at the end of input data by default. However, this behavior can be disabled by setting the `add_eos_token` flag to `False` in the `fn_kwargs` section of the `data_config.yaml` file.
-
 #### Extra data handlers
 Users are also allowed to pass custom data handlers using [`sft_trainer.py::train()`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L71) API call via the [`additional_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L89) argument.
 
