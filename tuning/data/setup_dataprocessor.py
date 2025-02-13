@@ -74,7 +74,7 @@ def _process_dataconfig_file(
 
 
 # Data Format 1: Pretokenized Data
-def _get_pretokenized_dataset_handlers(data_args, packing, is_eval_tokenized):
+def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
@@ -95,12 +95,6 @@ def _get_pretokenized_dataset_handlers(data_args, packing, is_eval_tokenized):
             "validation data should be pretokenized to be used \
             along with pretokenized train data"
         )
-
-    # Support for packing pretokenized datasets has been merged in trl library
-    # see: https://github.com/huggingface/trl/pull/2011
-    # but we wait till a new transformers version is released to remove this check.
-    if packing:
-        raise ValueError("packing will not be used when datasets are pretokenized")
 
     # We do not need a handler here as this is tokenized dataset
     return [], None
@@ -264,7 +258,7 @@ def _process_raw_data_args(
     if is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
-            data_args, packing, (is_eval_dataset_present and not is_evaldata_tokenized)
+            data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
         )
     elif data_args.instruction_template and data_args.response_template:
         # Data Format 2: Chat dataset with instruction and response template
