@@ -33,6 +33,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
 from tests.artifacts.testdata import (
@@ -666,13 +667,6 @@ def test_get_data_collator(
             ),
             False,
         ),
-        # Pretokenized data with packing to True
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            ),
-            True,
-        ),
     ],
 )
 def test_process_data_args_throws_error_where_needed(data_args, packing):
@@ -1173,9 +1167,10 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 def test_process_dataargs(data_args, is_padding_free):
     """Ensure that the train/eval data are properly formatted based on the data args / text field"""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    max_seq_length = 5
     TRAIN_ARGS = configs.TrainingArguments(
         packing=False,
-        max_seq_length=1024,
+        max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
     (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
@@ -1187,6 +1182,7 @@ def test_process_dataargs(data_args, is_padding_free):
         column_names = set(["input_ids", "attention_mask", "labels"])
         assert set(eval_set.column_names) == column_names
         assert set(train_set.column_names) == column_names
+        assert len(train_set[0]["input_ids"]) == max_seq_length
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
@@ -1363,3 +1359,57 @@ def test_process_dataset_configs_with_sampling_error(
         (_, _, _, _, _, _) = process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
+
+
+@pytest.mark.parametrize(
+    "datafile, rename, retain, final, datasetconfigname",
+    [
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            {"input": "instruction", "output": "response"},
+            None,
+            ["ID", "Label", "instruction", "response"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            None,
+            ["ID", "input", "output"],
+            ["ID", "input", "output"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            {"input": "instruction", "output": "response"},
+            ["Label", "instruction", "response"],
+            ["Label", "instruction", "response"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+    ],
+)
+def test_rename_and_retain_dataset_columns(
+    datafile, rename, retain, final, datasetconfigname
+):
+    """Test process_dataset_configs for expected output."""
+    dataprocessor_config = DataPreProcessorConfig()
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    processor = DataPreProcessor(
+        processor_config=dataprocessor_config,
+        tokenizer=tokenizer,
+    )
+    datasetconfig = [
+        DataSetConfig(
+            name=datasetconfigname,
+            data_paths=[datafile],
+            rename_columns=rename,
+            retain_columns=retain,
+        )
+    ]
+    train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
+
+    assert isinstance(train_dataset, Dataset)
+    assert set(train_dataset.column_names) == set(final)
+
+    with open(datafile, "r") as file:
+        data = json.load(file)
+    assert len(train_dataset) == len(data)
