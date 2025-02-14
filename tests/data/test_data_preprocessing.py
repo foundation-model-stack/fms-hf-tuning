@@ -682,12 +682,91 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
 
 
 @pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET),
+        (DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW),
+        (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSON),
+        (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_JSONL),
+        (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_PARQUET),
+        (DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML, TWITTER_COMPLAINTS_TOKENIZED_ARROW),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+        ),
+    ],
+)
+def test_process_dataconfig_file(data_config_path, data_path):
+    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+    assert isinstance(train_set, Dataset)
+    if datasets_name == "text_dataset_input_output_masking":
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(train_set.column_names) == column_names
+    elif datasets_name == "pretokenized_dataset":
+        assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    elif datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
+        assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
     "data_config_path, data_path, add_eos_token",
     [
         (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON, True),
-        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL, False),
-        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_PARQUET, True),
-        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_ARROW, False),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON, False),
         (
             DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
             TWITTER_COMPLAINTS_DATA_JSON,
@@ -695,38 +774,8 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         ),
         (
             DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
-            TWITTER_COMPLAINTS_DATA_JSONL,
+            TWITTER_COMPLAINTS_DATA_JSON,
             False,
-        ),
-        (
-            DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
-            TWITTER_COMPLAINTS_DATA_PARQUET,
-            True,
-        ),
-        (
-            DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
-            TWITTER_COMPLAINTS_DATA_ARROW,
-            False,
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            TWITTER_COMPLAINTS_TOKENIZED_JSON,
-            True,
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            True,
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
-            True,
-        ),
-        (
-            DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-            TWITTER_COMPLAINTS_TOKENIZED_ARROW,
-            True,
         ),
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
@@ -735,23 +784,13 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
         ),
         (
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
-            False,
-        ),
-        (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
-            True,
-        ),
-        (
-            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
-            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             False,
         ),
     ],
 )
-def test_process_dataconfig_file(data_config_path, data_path, add_eos_token):
-    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_token):
+    """Ensure that the data handlers correctly apply add_eos_token flag to append/remove eos_token."""
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
     yaml_content["datasets"][0]["data_paths"][0] = data_path
@@ -800,7 +839,6 @@ def test_process_dataconfig_file(data_config_path, data_path, add_eos_token):
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
         assert set(train_set.column_names) == column_names
-        print("INFO", train_set[8]["input_ids"], tokenizer.eos_token_id)
         assert (
             train_set[0]["input_ids"][-1] == tokenizer.eos_token_id
             if add_eos_token
