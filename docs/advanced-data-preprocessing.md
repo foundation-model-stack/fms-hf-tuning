@@ -214,14 +214,17 @@ Users can also pass any number of `kwargs` arguments required for each data hand
 
 #### Preexisting data handlers
 This library currently supports the following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
- - `tokenize_and_apply_input_masking`:
-    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
  - `add_tokenizer_eos_token`:
     Appends the tokenizer's EOS token to a specified dataset field.
  - `apply_custom_data_formatting_template`:
     Applies a custom template (e.g., Alpaca style) to format dataset elements.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_template.yaml)
+ - `tokenize_and_apply_input_masking`:
+    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/tokenize_and_apply_input_masking.yaml) 
  - `apply_custom_jinja_template`:
     Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_jinja_template.yaml)
  - `apply_tokenizer_chat_template`:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
  - `duplicate_columns`:
