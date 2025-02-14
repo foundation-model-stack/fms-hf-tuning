@@ -12,3 +12,4 @@ datasets:
           fn_kwargs:
             input_field_name: input
             output_field_name: output
+            add_eos_token: true
