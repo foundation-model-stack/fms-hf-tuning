@@ -18,6 +18,7 @@ import base64
 import json
 import os
 import pickle
+import re
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
@@ -135,3 +136,34 @@ def txt_to_obj(txt):
     except UnicodeDecodeError:
         # Otherwise the bytes are a pickled python dictionary
         return pickle.loads(message_bytes)
+
+
+def process_jinja_placeholders(template: str) -> str:
+    """
+    Function to detect all placeholders of the form {{...}}.
+    - If the inside has a space (e.g. {{Tweet text}}),
+      rewrite to {{ element['Tweet text'] }}.
+    - If it doesn't have a space (e.g. {{text_label}}), leave it as is.
+    - If it is already using dictionary-style access ({{ element['xyz'] }}), do nothing.
+
+    Args:
+        template: str
+    Return: template: str
+    """
+
+    pattern = r"\{\{([^}]+)\}\}"
+    matches = re.findall(pattern, template)
+
+    for match in matches:
+        original_placeholder = f"{{{{{match}}}}}"
+        trimmed = match.strip()
+
+        if trimmed.startswith("element["):
+            continue
+
+        # If there's a space in the placeholder name, rewrite it to dictionary-style
+        if " " in trimmed:
+            new_placeholder = f"{{{{ element['{trimmed}'] }}}}"
+            template = template.replace(original_placeholder, new_placeholder)
+
+    return template

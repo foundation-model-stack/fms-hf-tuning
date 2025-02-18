@@ -13,6 +13,7 @@
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
+- [Extended Pre-Training](#extended-pre-training)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -133,7 +134,7 @@ Example: Train.json
   },
  ...
 ]`  
-data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
+data_formatter_template: `### Input: {{input}} \n\n## Label: {{output}}`  
 
 Formatting will happen on the fly while tuning. The keys in template should match fields in the dataset file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
@@ -299,7 +300,7 @@ python tuning/sft_trainer.py  \
 --gradient_accumulation_steps 4  \
 --learning_rate 1e-5  \
 --response_template "\n## Label:"  \
---data_formatter_template: "### Input: {{input}} \n\n##Label: {{output}}"
+--data_formatter_template: "### Input: {{input}} \n\n## Label: {{output}}"
 
 ```
 
@@ -322,7 +323,6 @@ Below example runs multi-GPU fine tuning on 8 GPUs with FSDP:
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 accelerate launch \
---main_process_port $MASTER_PORT \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 --num_processes=8 \ 
 --main_process_port=$MASTER_PORT \
@@ -829,6 +829,9 @@ Number of trainable parameters = 13,631,488
 The `fms_acceleration.cli` can do more to search for all available configs, plugins and arguments, [see the advanced flow](https://github.com/foundation-model-stack/fms-acceleration#advanced-flow).
 
 
+## Extended Pre-Training
+
+We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
