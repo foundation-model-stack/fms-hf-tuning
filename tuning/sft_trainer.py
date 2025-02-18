@@ -249,16 +249,6 @@ def train(
         ),
     )
 
-    if data_args.chat_template:
-        logger.info("adding chat_template to the tokenizer")
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with the given chat_template %s",
-                tokenizer.chat_template,
-                data_args.chat_template,
-            )
-        tokenizer.chat_template = data_args.chat_template
-
     # Add special tokens only when a custom tokenizer is not passed
     special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
@@ -329,6 +319,7 @@ def train(
         data_collator,
         train_args.max_seq_length,
         dataset_kwargs,
+        tokenizer,
     ) = process_dataargs(
         data_args,
         tokenizer,
