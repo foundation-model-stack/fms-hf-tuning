@@ -17,6 +17,8 @@ jobs:
             tox: "py310"
           - setup: "3.11"
             tox: "py311"
+          - setup: "3.12"
+            tox: "py312"
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies

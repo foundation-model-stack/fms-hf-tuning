@@ -17,10 +17,12 @@
 
 # Standard
 import base64
+import logging
 import os
 import pickle
 
 # Third Party
+from datasets import Dataset, Features, Value
 from peft import LoraConfig, PromptTuningConfig
 import pytest
 
@@ -29,7 +31,7 @@ from tests.build.test_utils import HAPPY_PATH_DUMMY_CONFIG_PATH
 
 # Local
 from tuning.config import peft_config
-from tuning.utils import config_utils
+from tuning.utils import config_utils, utils
 
 
 def test_get_hf_peft_config_returns_None_for_tuning_config_None():
@@ -232,3 +234,29 @@ def test_get_json_config_can_load_from_envvar():
     job_config = config_utils.get_json_config()
     assert job_config is not None
     assert job_config["model_name_or_path"] == "foobar"
+
+
+def test_validate_datasets_logs_warnings_on_mismatch(caplog):
+    """Test that `validate_mergeable_datasets` logs warnings when
+    datasets have different columns or dtypes."""
+    # Create a reference dataset with columns col1:int64 and col2:string
+    ds1 = Dataset.from_dict(
+        {"col1": [1, 2], "col2": ["hello", "world"]},
+        features=Features({"col1": Value("int64"), "col2": Value("string")}),
+    )
+
+    # Create a second dataset with a different column set and a different dtype for col1
+    ds2 = Dataset.from_dict(
+        {"col1": [0.1, 0.2], "col3": ["hi", "there"]},
+        features=Features({"col1": Value("float64"), "col3": Value("string")}),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        utils.validate_mergeable_datasets([ds1, ds2])
+
+    assert (
+        "different columns" in caplog.text
+    ), "Expected a warning about differing columns."
+    assert (
+        "expected int64" in caplog.text
+    ), "Expected a warning about mismatching column dtypes."

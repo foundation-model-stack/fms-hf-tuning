@@ -32,6 +32,9 @@ venv/
 # Aim
 .aim
 
+# Mlflow
+mlruns/
+
 # Backup files and folders
 *.bkp
 *.bkp.*

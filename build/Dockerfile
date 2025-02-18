@@ -17,11 +17,13 @@
 ARG BASE_UBI_IMAGE_TAG=latest
 ARG USER=tuning
 ARG USER_UID=1000
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
-## Enable Aimstack if requested via ENABLE_AIM set to "true"
+## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
+ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
+ARG ENABLE_SCANNER=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -30,7 +32,7 @@ ARG PYTHON_VERSION
 ARG USER
 ARG USER_UID
 
-# Note this works for 3.9, 3.11, 3.12
+# Note this is tested to be working for version 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
     && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
@@ -50,7 +52,7 @@ RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
 ## Used as base of the Release stage to removed unrelated the packages and CVEs
 FROM base AS release-base
 
-# Removes the python3.9 code to eliminate possible CVEs.  Also removes dnf
+# Removes the python code to eliminate possible CVEs.  Also removes dnf
 RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-policies-scripts
 
 
@@ -76,7 +78,7 @@ RUN dnf config-manager \
 
 ENV CUDA_HOME="/usr/local/cuda" \
     PATH="/usr/local/nvidia/bin:${CUDA_HOME}/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64:/usr/local/lib/python${PYTHON_VERSION}/site-packages/nvidia/cudnn/lib:/usr/local/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
+    LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:$CUDA_HOME/lib64:$CUDA_HOME/extras/CUPTI/lib64:/usr/local/lib/python${PYTHON_VERSION}/site-packages/nvidia/cudnn/lib:/usr/local/nvidia/cudnn/lib:/usr/local/lib/python${PYTHON_VERSION}/site-packages/nvidia/cudnn/lib:/usr/local/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
 
 ## CUDA Development ############################################################
 FROM cuda-base AS cuda-devel
@@ -99,6 +101,7 @@ RUN dnf config-manager \
         libcublas-devel-12-1-${NV_LIBCUBLAS_DEV_VERSION} \
         libnpp-devel-12-1-${NV_LIBNPP_DEV_VERSION} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
+        cudnn9-cuda-12 \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
@@ -110,6 +113,7 @@ ARG USER
 ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
+ARG ENABLE_SCANNER
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -151,6 +155,14 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
     fi
 
+RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
+    python -m pip install --user "$(head bdist_name)[mlflow]"; \
+    fi
+
+RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
+    fi
+
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
@@ -162,38 +174,38 @@ ARG USER
 ARG PYTHON_VERSION
 ARG ENABLE_AIM
 
-# RUN mkdir -p /licenses
-# COPY LICENSE /licenses/
+RUN mkdir -p /licenses
+COPY LICENSE /licenses/
 
-# RUN mkdir /app && \
-#     chown -R $USER:0 /app /tmp && \
-#     chmod -R g+rwX /app /tmp
+RUN mkdir /app && \
+    chown -R $USER:0 /app /tmp && \
+    chmod -R g+rwX /app /tmp
 
-# # Set Triton environment variables for qLoRA
-# ENV TRITON_HOME="/tmp/triton_home"
-# ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
-# ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
-# ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
+# Set Triton environment variables for qLoRA
+ENV TRITON_HOME="/tmp/triton_home"
+ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
+ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
+ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
-# # Need a better way to address these hacks
-# RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
-#         touch /.aim_profile && \
-#         chmod -R 777 /.aim_profile; \
-#     fi
-# RUN mkdir /.cache && \
-#     chmod -R 777 /.cache
+# Need a better way to address these hacks
+RUN if [[ "${ENABLE_AIM}" == "true" ]] ; then \
+        touch /.aim_profile && \
+        chmod -R 777 /.aim_profile; \
+    fi
+RUN mkdir /.cache && \
+    chmod -R 777 /.cache
 
-# # Copy scripts and default configs
-# COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
-# COPY build/utils.py /app/build/
-# RUN chmod +x /app/accelerate_launch.py
+# Copy scripts and default configs
+COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY build/utils.py /app/build/
+RUN chmod +x /app/accelerate_launch.py
 
-# ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
-# ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
+ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
+ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
 
-# WORKDIR /app
-# USER ${USER}
-# #COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
-# ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
+WORKDIR /app
+USER ${USER}
+#COPY --from=python-installations /home/${USER}/.local /home/${USER}/.local
+ENV PYTHONPATH="/home/${USER}/.local/lib/python${PYTHON_VERSION}/site-packages"
 
-# CMD [ "python", "/app/accelerate_launch.py" ]
+CMD [ "python", "/app/accelerate_launch.py" ]

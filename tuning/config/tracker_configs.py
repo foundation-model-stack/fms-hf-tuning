@@ -17,6 +17,11 @@ from dataclasses import dataclass
 
 
 @dataclass
+class HFResourceScannerConfig:
+    scanner_output_filename: str = "scanner_output.json"
+
+
+@dataclass
 class FileLoggingTrackerConfig:
     training_logs_filename: str = "training_logs.jsonl"
 
@@ -24,7 +29,7 @@ class FileLoggingTrackerConfig:
 @dataclass
 class AimConfig:
     # Name of the experiment
-    experiment: str = None
+    experiment: str = "fms-hf-tuning"
     # aim_repo can point to a locally accessible directory
     #    or a remote repository hosted on a server.
     # When 'aim_remote_server_ip' or 'aim_remote_server_port' is set,
@@ -47,9 +52,6 @@ class AimConfig:
     aim_run_id_export_path: str = None
 
     def __post_init__(self):
-        if self.experiment is None:
-            self.experiment = "fms-hf-tuning"
-
         if (
             self.aim_remote_server_ip is not None
             and self.aim_remote_server_port is not None
@@ -64,6 +66,23 @@ class AimConfig:
 
 
 @dataclass
+class MLflowConfig:
+    # Name of the experiment
+    mlflow_experiment: str = "fms-hf-tuning"
+    mlflow_tracking_uri: str = None
+    # Location of where mlflow's run uri is to be exported.
+    # If mlflow_run_uri_export_path is set the run uri will be output in a json format
+    # to the location pointed to by `mlflow_run_uri_export_path/mlflow_tracker.json`
+    # If this is not set then the default location where run uri will be exported
+    # is training_args.output_dir/mlflow_tracker.json
+    # Run uri is not exported if mlflow_run_uri_export_path variable is not set
+    # and output_dir is not specified.
+    mlflow_run_uri_export_path: str = None
+
+
+@dataclass
 class TrackerConfigFactory:
     file_logger_config: FileLoggingTrackerConfig = None
     aim_config: AimConfig = None
+    mlflow_config: MLflowConfig = None
+    hf_resource_scanner_config: HFResourceScannerConfig = None

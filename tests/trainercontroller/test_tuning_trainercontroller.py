@@ -30,7 +30,7 @@ from tests.trainercontroller.custom_operation import CustomOperation
 from tests.trainercontroller.custom_operation_invalid_action import (
     CustomOperationInvalidAction,
 )
-import tests.data.trainercontroller as td
+import tests.artifacts.testdata.trainercontroller as td
 
 # Local
 import tuning.config.configs as config

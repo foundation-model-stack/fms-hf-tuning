@@ -1,7 +1,7 @@
 # FMS HF Tuning
 
 - [Installation](#installation)
-- [Data format](#data-format)
+- [Data format support](#data-support)
 - [Supported Models](#supported-models)
 - [Training](#training)
   - [Single GPU](#single-gpu)
@@ -13,6 +13,7 @@
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
+- [Extended Pre-Training](#extended-pre-training)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -61,13 +62,36 @@ pip install fms-hf-tuning[aim]
 ```
 For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
 
-## Data format
-We support the following data formats:
+## Data Support
+Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
 
-### 1. JSON formats with a single sequence and a specified response_template to use for masking on completion.
+Below, we mention the list of supported data usecases via `--training_data_path` argument. For details of our advanced data preprocessing see more details in [Advanced Data Preprocessing](./docs/advanced-data-preprocessing.md).
 
-#### 1.1 Pre-process the JSON/JSONL dataset
- Pre-process the JSON/JSONL dataset to contain a single sequence of each data instance containing input + Response. The trainer is configured to expect a response template as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
+EOS tokens are added to all data formats listed below (EOS token is appended to the end of each data point, like a sentence or paragraph within the dataset), except for pretokenized data format at this time. For more info, see [pretokenized](#4-pre-tokenized-datasets).
+
+## Supported Data File Formats
+We support the following file formats via `--training_data_path` argument
+
+Data Format | Tested Support
+------------|---------------
+JSON        |   ✅
+JSONL       |   ✅
+PARQUET     |   ✅
+ARROW       |   ✅
+
+As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
+
+**NOTE**: Due to the variety of supported data formats and file types, `--training_data_path` is handled as follows:
+- If `--training_data_path` ends in a valid file extension (e.g., .json, .csv), it is treated as a file.
+- If `--training_data_path` points to a valid folder, it is treated as a folder.
+- If neither of these are true, the data preprocessor tries to load `--training_data_path` as a Hugging Face (HF) dataset ID.
+
+## Use cases supported with `training_data_path` argument
+
+### 1. Data formats with a single sequence and a specified response_template to use for masking on completion.
+
+#### 1.1 Pre-process the dataset
+ Pre-process the dataset to contain a single sequence of each data instance containing input + response. The trainer is configured to expect a `response template` as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
 
 ```python
 PROMPT_DICT = {
@@ -99,11 +123,10 @@ The `response template` corresponding to the above dataset and the `Llama` token
 
 The same way can be applied to any dataset, with more info can be found [here](https://huggingface.co/docs/trl/main/en/sft_trainer#format-your-input-prompts).
 
-Once the JSON is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
+Once the data is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
 
-#### 1.2 Format JSON/JSONL on the fly
-   Pass a JSON/JSONL and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of JSON with `{{field}}`. While tuning, the data will be converted to a single sequence using the template.  
-   JSON fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
+#### 1.2 Format the dataset on the fly
+   Pass a dataset and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of the dataset with `{{field}}`. While tuning, the data will be converted to a single sequence using the template. Data fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
 
 Example: Train.json
 `[{ "input" : <text>,
@@ -111,24 +134,73 @@ Example: Train.json
   },
  ...
 ]`  
-data_formatter_template: `### Input: {{input}} \n\n##Label: {{output}}`  
+data_formatter_template: `### Input: {{input}} \n\n## Label: {{output}}`  
 
-Formatting will happen on the fly while tuning. The keys in template should match fields in JSON file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
+Formatting will happen on the fly while tuning. The keys in template should match fields in the dataset file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
 
 ##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
 
-### 2. JSON/JSONL with input and output fields (no response template)
+### 2. Dataset with input and output fields (no response template)
 
-  Pass a JSON/JSONL containing fields "input" with source text and "output" with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+  Pass a [supported dataset](#supported-data-formats) containing fields `"input"` with source text and `"output"` with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
 
-  The "input" and "output" field names are mandatory and cannot be changed. 
+  The `"input"` and `"output"` field names are mandatory and cannot be changed. 
 
-Example: Train.jsonl
+Example: For a JSON dataset like, `Train.jsonl`
 
 ```
 {"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
 {"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
 ```
+
+### 3. Chat Style Single/Multi turn datasets
+
+  Pass a dataset containing single/multi turn chat dataset. Your dataset could follow this format:
+
+```
+$ head -n 1 train.jsonl
+{"messages": [{"content": "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.", "role": "system"}, {"content": "Look up a word that rhymes with exist", "role": "user"}, {"content": "I found a word that rhymes with \"exist\":\n1\\. Mist", "role": "assistant"}], "group": "lab_extension", "dataset": "base/full-extension", "metadata": "{\"num_turns\": 1}"}
+```
+
+This format supports both single and multi-turn chat scenarios.
+
+The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/e0a466fb25b9e07e9c2dc93380a360189700d1f8/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
+
+Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
+`assistant` and `human` response inside the formatted chat template.
+For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) for example, the values shall be.
+```
+--instruction_template "<|start_of_role|>user<|end_of_role|>"
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
+```
+
+The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
+
+Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
+
+Following are the Guidelines from us in a flow chart :  
+![guidelines for chat template](docs/images/chat_template_guide.jpg)  
+
+Here are some scenarios addressed in the flow chart:  
+1. Depending on the model the tokenizer for the model may or may not have a chat template  
+2. If the template is available then the `json object schema` of the dataset might not match the chat template's `string format`
+3. There might be special tokens used in chat template which the tokenizer might be unaware of, for example `<|start_of_role|>` which can cause issues during tokenization as it might not be treated as a single token  
+
+
+
+### 4. Pre tokenized datasets.
+
+Users can also pass a pretokenized dataset (containing `input_ids` and `labels` columns) as `--training_data_path` argument e.g.
+
+At this time, the data preprocessor does not add EOS tokens to pretokenized datasets, users must ensure EOS tokens are included in their pretokenized data if needed.
+
+```
+python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow
+```
+
+### Advanced data preprocessing.
+
+For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
 
 ## Supported Models
 
@@ -149,6 +221,10 @@ Example: Train.jsonl
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
 Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
+Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
@@ -168,7 +244,7 @@ Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
 Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
-(*) - Supported with `fms-hf-tuning` v2.0.1 or later
+(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
@@ -224,7 +300,7 @@ python tuning/sft_trainer.py  \
 --gradient_accumulation_steps 4  \
 --learning_rate 1e-5  \
 --response_template "\n## Label:"  \
---data_formatter_template: "### Input: {{input}} \n\n##Label: {{output}}"
+--data_formatter_template: "### Input: {{input}} \n\n## Label: {{output}}"
 
 ```
 
@@ -247,7 +323,6 @@ Below example runs multi-GPU fine tuning on 8 GPUs with FSDP:
 # OUTPUT_PATH=out # Path to the output folder where the checkpoints are saved
 
 accelerate launch \
---main_process_port $MASTER_PORT \
 --config_file fixtures/accelerate_fsdp_defaults.yaml \
 --num_processes=8 \ 
 --main_process_port=$MASTER_PORT \
@@ -693,6 +768,8 @@ The list of configurations for various `fms_acceleration` plugins:
 - [attention_and_distributed_packing](./tuning/config/acceleration_configs/attention_and_distributed_packing.py):
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
+- [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
+  - `--fast_moe`: trains MoE models in parallel, increasing throughput and decreasing memory usage.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
@@ -711,6 +788,17 @@ Notes:
  * Notes on Multipack
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+ * Notes on Fast MoE
+    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `world_size` must be divisible by the `ep_degree`
+    - Running fast moe modifies the state dict of the model, and must be post-processed using [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) to run inference (HF, vLLM, etc.).
+      - The typical usecase for this script is to run:
+        ```
+        python -m fms_acceleration_moe.utils.checkpoint_utils \
+        <checkpoint file> \
+        <output file> \
+        <original model>
+        ```
 
 Note: To pass the above flags via a JSON config, each of the flags expects the value to be a mixed type list, so the values must be a list. For example:
 ```json
@@ -741,6 +829,9 @@ Number of trainable parameters = 13,631,488
 The `fms_acceleration.cli` can do more to search for all available configs, plugins and arguments, [see the advanced flow](https://github.com/foundation-model-stack/fms-acceleration#advanced-flow).
 
 
+## Extended Pre-Training
+
+We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
@@ -823,12 +914,13 @@ For details about how you can use set a custom stopping criteria and perform cus
 
 ## Experiment Tracking
 
-Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/) or custom trackers built into the code like
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/), [MLflow Tracking](https://mlflow.org/docs/latest/tracking.html) or custom trackers built into the code like
 [FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
 The code supports currently two trackers out of the box, 
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
 * `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+* `MLflow Tracking` : Another popular opensource tracker which stores metrics, metadata or even artifacts from experiments.
 
 Further details on enabling and using the trackers mentioned above can be found [here](docs/experiment-tracking.md).  
 
