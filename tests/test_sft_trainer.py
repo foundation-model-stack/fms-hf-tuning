@@ -39,6 +39,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML_WITH_CHAT_TEMPLATE,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
 )
@@ -986,6 +987,10 @@ def test_run_chat_style_ft(dataset_path):
         (
             [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+        ),
+        (
+            [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML_WITH_CHAT_TEMPLATE,
         )
     ],
 )
@@ -995,14 +1000,6 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.chat_template = "{% for message in messages['messages'] %}\
-            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
-            {% endif %}\
-            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
-            {% endif %}\
-            {% endfor %}"
         data_args.response_template = "<|assistant|>"
         data_args.instruction_template = "<|user|>"
         data_args.dataset_text_field = "new_formatted_field"

@@ -69,8 +69,11 @@ def _process_dataconfig_file(
         additional_data_handlers=additional_data_handlers,
     )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
+    logger.info("Replaces default chat template with user's custom chat template")
+    if(data_config.chat_template is not None):
+        tokenizer.chat_template=data_config.chat_template
 
-    return (train_dataset, None, data_args.dataset_text_field)
+    return (train_dataset, None, data_args.dataset_text_field, tokenizer)
 
 
 # Data Format 1: Pretokenized Data
@@ -340,8 +343,13 @@ def process_dataargs(
 
     train_dataset = eval_dataset = dataset_text_field = None
 
+    if(data_args.chat_template is not None):
+        raise ValueError(
+            "Use of chat_template though cli is not supported, please use data config for passing chat template"
+        )
+
     if data_args.data_config_path:
-        train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
+        train_dataset, eval_dataset, dataset_text_field, tokenizer = _process_dataconfig_file(
             data_args, tokenizer, additional_data_handlers
         )
     else:
@@ -380,4 +388,5 @@ def process_dataargs(
         data_collator,
         max_seq_length,
         dataset_kwargs,
+        tokenizer,
     )

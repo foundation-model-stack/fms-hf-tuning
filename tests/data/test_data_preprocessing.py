@@ -678,7 +678,7 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
             max_seq_length=1024,
             output_dir="tmp",  # Not needed but positional
         )
-        (_, _, _, _, _, _) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
+        (_, _, _, _, _, _,_) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
 
 
 @pytest.mark.parametrize(
@@ -1146,7 +1146,7 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
         max_seq_length=1024,
         output_dir="tmp",
     )
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
+    (train_set, eval_set, _, _, _, _,_) = process_dataargs(
         data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
     )
 
@@ -1269,7 +1269,7 @@ def test_process_dataargs(data_args, is_padding_free):
         max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
-    (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
+    (train_set, eval_set, dataset_text_field, _, _, _,_) = process_dataargs(
         data_args, tokenizer, TRAIN_ARGS, is_padding_free=is_padding_free
     )
     assert isinstance(train_set, Dataset)
@@ -1342,7 +1342,7 @@ def test_process_dataargs_pretokenized(data_args):
         output_dir="tmp",  # Not needed but positional
     )
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
+    (train_set, eval_set, _, _, _, _,_) = process_dataargs(
         data_args, tokenizer, TRAIN_ARGS
     )
     assert isinstance(train_set, Dataset)
@@ -1452,7 +1452,7 @@ def test_process_dataset_configs_with_sampling_error(
         data_args.data_config_path = temp_yaml_file.name
 
     with pytest.raises(ValueError):
-        (_, _, _, _, _, _) = process_dataargs(
+        (_, _, _, _, _, _,_) = process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
 
