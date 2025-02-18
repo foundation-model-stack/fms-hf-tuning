@@ -60,6 +60,10 @@ definitions:
         type: float
       builder:
         type: string
+      rename_columns:
+        type: object
+      retain_columns:
+        type: object
       data_paths:
         type: array
         items:
@@ -118,6 +122,8 @@ Users can create a data config file in any of YAML or JSON format they choose (w
   - `name` (optional, str): A unique identifier for the dataset.
     - `data_paths` (optional, list): A `list` of file paths or directories containing the dataset.
     - `builder` (optional, str): Specifies a [Hugging Face dataset builder](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/loading_methods#datasets.load_dataset.path), if applicable.
+    - `rename_columns` (optional, dict[str:str]): Specifies a dictionary of columns to rename like `{"old_name": "new_name"}` at dataset load time. *Applied before `retain_columns` if both are specified*.
+    - `retain_columns` (optional, list[str]): Specifies a list of columns to retain `["input_ids", "labels"]` every other column will be dropped at dataset load time. *Applied strictly after `rename_columns` if both are specified*.
     - `sampling` (optional, float): The sampling ratio (0.0 to 1.0) with which to sample a dataset in case of interleaving.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
@@ -149,6 +155,10 @@ Not Supported:
 Currently there's no support for sampling under multiple data paths which are defined inside a dataset definition.
 All dataset paths that will be specified inside one dataset will be [concatenated](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) after loading them, while across datasets users can specify [mixing via sampling datasets](#data-mixing)
 
+Probably something like this:
+
+Additionally while loading the dataset, users can specify which columns to rename via `rename_columns` and which to retain via `retain_columns` arguments above.
+The order of application of these operations is *strictly rename followed by retain* so users should note that an old column name which is renamed will not be available in retain and hence should be careful while applying these operations. The code will throw a `ValueError` in case user specified a column requested to be renamed via rename argument in retain argument as well. 
 
 ### How can users specify data handlers.
 
@@ -204,14 +214,21 @@ Users can also pass any number of `kwargs` arguments required for each data hand
 
 #### Preexisting data handlers
 This library currently supports the following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
- - `tokenize_and_apply_input_masking`:
-    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
- - `apply_dataset_formatting`:
-    Formats a dataset by appending an EOS token to a specified field.
+ - `add_tokenizer_eos_token`:
+    Appends the tokenizer's EOS token to a specified dataset field.
  - `apply_custom_data_formatting_template`:
     Applies a custom template (e.g., Alpaca style) to format dataset elements.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_template.yaml)
+ - `tokenize_and_apply_input_masking`:
+    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/tokenize_and_apply_input_masking.yaml) 
+ - `apply_custom_jinja_template`:
+    Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_jinja_template.yaml)
  - `apply_tokenizer_chat_template`:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
+ - `duplicate_columns`:
+    Duplicates one column of the dataset to another column.
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 

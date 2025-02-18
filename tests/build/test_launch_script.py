@@ -46,7 +46,7 @@ BASE_KWARGS = {
     "num_train_epochs": 5,
     "per_device_train_batch_size": 4,
     "per_device_eval_batch_size": 4,
-    "gradient_accumulation_steps": 4,
+    "gradient_accumulation_steps": 1,
     "learning_rate": 0.00001,
     "weight_decay": 0,
     "warmup_ratio": 0.03,

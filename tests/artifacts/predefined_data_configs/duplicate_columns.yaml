@@ -1,0 +1,14 @@
+dataprocessor:
+    type: default
+datasets:
+  - name: pre_tokenized_with_only_input_ids
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: duplicate_columns
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            old_column: "input_ids"
+            new_column: "labels"
