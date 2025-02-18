@@ -68,7 +68,10 @@ def set_special_tokens_dict(
         if tokenizer.unk_token is None:
             logger.warning("UNK token set to default, missing in tokenizer")
             special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
-        if tokenizer.pad_token == tokenizer.eos_token:
+        if (
+            tokenizer.pad_token is not None
+            and tokenizer.pad_token == tokenizer.eos_token
+        ):
             logger.warning(
                 "PAD token set to default, to make it different from eos token"
             )

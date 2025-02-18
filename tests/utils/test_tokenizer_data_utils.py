@@ -46,6 +46,26 @@ def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
     }
 
 
+def test_setting_special_tokens_when_missing_all_special_tokens():
+    # Missing all special tokens
+    tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
+
+    # Set all special tokens to None
+    tokenizer.bos_token = None
+    tokenizer.eos_token = None
+    tokenizer.unk_token = None
+    tokenizer.pad_token = None
+
+    model_args = configs.ModelArguments()
+    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    assert special_tokens_dict == {
+        "pad_token": "<PAD>",
+        "eos_token": "</s>",
+        "bos_token": "<s>",
+        "unk_token": "<unk>",
+    }
+
+
 def test_tokenizer_and_embedding_resize_return_values():
     """Test to ensure number of added tokens are returned correctly"""
     special_tokens_dict = {"pad_token": "<pad>"}
