@@ -18,9 +18,7 @@ def test_setting_special_tokens_with_LlamaTokenizerFast():
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
-    print(tokenizer)
-    print("Special Tokens", special_tokens_dict)
-    assert special_tokens_dict != {
+    assert special_tokens_dict == {
         "bos_token": "<s>",
         "eos_token": "</s>",
         "unk_token": "<unk>",
@@ -33,8 +31,6 @@ def test_setting_special_tokens_with_GPT2TokenizerFast():
     tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
-    print(tokenizer)
-    print("Special Tokens", special_tokens_dict)
     assert special_tokens_dict == {
         "pad_token": "<PAD>",
     }
@@ -45,8 +41,6 @@ def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
-    print(tokenizer)
-    print("Special Tokens", special_tokens_dict)
     assert special_tokens_dict == {
         "pad_token": "<PAD>",
     }
