@@ -1,13 +1,69 @@
 # Third party
-# Third Party
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # First Party
 from tests.artifacts.testdata import MODEL_NAME
+from tuning.config import configs
 
 # Local
 # First party
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.utils.tokenizer_data_utils import (
+    tokenizer_and_embedding_resize,
+    set_special_tokens_dict,
+)
+
+
+def test_setting_special_tokens_with_LlamaTokenizerFast():
+    # For LlamaTokenizerFast, Missing PAD Token
+    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    model_args = configs.ModelArguments()
+    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    assert special_tokens_dict == {
+        "bos_token": "<s>",
+        "eos_token": "</s>",
+        "unk_token": "<unk>",
+        "pad_token": "<PAD>",
+    }
+
+
+def test_setting_special_tokens_with_GPT2TokenizerFast():
+    # For GPT2TokenizerFast, PAD token = EOS Token
+    tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
+    model_args = configs.ModelArguments()
+    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    assert special_tokens_dict == {
+        "pad_token": "<PAD>",
+    }
+
+
+def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
+    # For GPTNeoXTokenizerFast, Missing PAD Token
+    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    model_args = configs.ModelArguments()
+    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    assert special_tokens_dict == {
+        "pad_token": "<PAD>",
+    }
+
+
+def test_setting_special_tokens_when_missing_all_special_tokens():
+    # Missing all special tokens
+    tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
+
+    # Set all special tokens to None
+    tokenizer.bos_token = None
+    tokenizer.eos_token = None
+    tokenizer.unk_token = None
+    tokenizer.pad_token = None
+
+    model_args = configs.ModelArguments()
+    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    assert special_tokens_dict == {
+        "pad_token": "<PAD>",
+        "eos_token": "</s>",
+        "bos_token": "<s>",
+        "unk_token": "<unk>",
+    }
 
 
 def test_tokenizer_and_embedding_resize_return_values():
