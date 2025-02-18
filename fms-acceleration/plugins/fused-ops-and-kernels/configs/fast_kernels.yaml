@@ -1,0 +1,25 @@
+training:
+
+  fused_ops_and_kernels: 
+
+    # if under training stanza, then putting
+    # base_layer and fused_lora will be a misnomer
+    # - this should be in peft.quantized
+    # However, if it is specified, it will still 
+    # be read. This is useful in use cases where
+    # the yaml is system generated and not shown
+    # to a user.
+
+    # activate various unsloth optimizations
+    # there are two versions of the plugin
+    # - the FastKernel version supports individual kernels
+    # - the FastQuantized version is all-or-nothing
+
+    # fast loss triton kernels
+    fast_loss: True
+
+    # fast rms norm triton kernels
+    fast_rms_layernorm: True
+
+    # fast RoPE embedding triton kernels
+    fast_rope_embeddings: True

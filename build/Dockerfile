@@ -124,6 +124,7 @@ WORKDIR /tmp
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user build
 COPY --chown=${USER}:root tuning tuning
+COPY --chown=${USER}:root fms-acceleration fms-acceleration
 COPY .git .git
 COPY pyproject.toml pyproject.toml
 
@@ -144,10 +145,11 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
 # fms_acceleration_foak = Fused LoRA and triton kernels
 # fms_acceleration_aadp = Padding-Free Flash Attention Computation
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
-        python -m pip install --user "$(head bdist_name)[fms-accel]"; \
-        python -m fms_acceleration.cli install fms_acceleration_peft; \
-        python -m fms_acceleration.cli install fms_acceleration_foak; \
-        python -m fms_acceleration.cli install fms_acceleration_aadp; \
+        python -m pip install --user ./fms-acceleration/plugins/framework; \
+        python -m pip install --user ./fms-acceleration/plugins/accelerated-moe; \
+        python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
+        python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
+        python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
