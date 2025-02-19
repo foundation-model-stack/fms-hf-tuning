@@ -150,6 +150,7 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
         python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
         python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
+        python -m pip install --user -r ./fms-acceleration/plugins/accelerated-moe/requirements-khd.txt; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
