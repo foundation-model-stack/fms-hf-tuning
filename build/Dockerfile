@@ -165,6 +165,8 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
 
+RUN python -m pip install --force-reinstall -v "triton==3.1.0"
+
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
     # Cleanup the bdist whl file
