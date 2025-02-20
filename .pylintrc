@@ -280,8 +280,8 @@ ignored-parents=
 # Maximum number of arguments for function / method.
 max-args=5
 
-# Maximum number of attributes for a class (see R0902).
-max-attributes=7
+# Maximum number of attributes for a class (custom).
+max-attributes=10
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5
@@ -638,7 +638,7 @@ callbacks=cb_,
 dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_
 
 # Argument names that match this expression will be ignored.
-ignored-argument-names=_.*|^ignored_|^unused_
+ignored-argument-names=_.*|^ignored_|^unused_|kwargs
 
 # Tells whether we should check for unused import in __init__ files.
 init-import=no

@@ -1,0 +1,20 @@
+dataprocessor:
+    type: default
+datasets:
+  - name: text_dataset_input_output_masking
+    rename_columns:
+      "input"  : "instruction"
+      "output" : "response"
+    retain_columns:
+      - "instruction"
+      - "response"
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_field_name: instruction
+            output_field_name: response

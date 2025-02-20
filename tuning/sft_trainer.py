@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 import dataclasses
 import json
 import logging
@@ -45,15 +45,18 @@ from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
     AccelerationFrameworkConfig,
     AttentionAndDistributedPackingConfig,
+    FastMoeConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
 )
 from tuning.config.tracker_configs import (
     AimConfig,
     FileLoggingTrackerConfig,
+    HFResourceScannerConfig,
+    MLflowConfig,
     TrackerConfigFactory,
 )
-from tuning.data import tokenizer_data_utils
+from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
@@ -64,12 +67,7 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.preprocessing_utils import (
-    format_dataset,
-    get_data_collator,
-    is_pretokenized_dataset,
-    validate_data_args,
-)
+from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 
 def train(
@@ -90,7 +88,9 @@ def train(
     attention_and_distributed_packing_config: Optional[
         AttentionAndDistributedPackingConfig
     ] = None,
-):
+    fast_moe_config: Optional[FastMoeConfig] = None,
+    additional_data_handlers: Optional[Dict[str, Callable]] = None,
+) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
     Args:
@@ -117,7 +117,13 @@ def train(
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
-        attention_and_distributed_packing_config: Used for padding-free attention and multipack.
+        attention_and_distributed_packing_config: Used for padding-free attention and multipack. \
+        fast_moe_config: Used for ScatterMoE to run MoE models in parallel.
+        additional_data_handlers: Dict [str:Callable] of any extra data handlers \
+                                   to be registered with the data preprocessor
+    Returns:
+        Tuple: Instance of SFTTrainer , some metadata in a dict
+            Metadata contains information on number of added tokens while tuning.
     """
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
@@ -201,9 +207,10 @@ def train(
             trainer_callbacks.append(cb)
 
     framework = AccelerationFrameworkConfig.from_dataclasses(
+        fast_moe_config,
+        attention_and_distributed_packing_config,
         quantized_lora_config,
         fusedops_kernels_config,
-        attention_and_distributed_packing_config,
     ).get_framework()
 
     model_loader = AutoModelForCausalLM.from_pretrained
@@ -226,6 +233,7 @@ def train(
         ),
         cache_dir=train_args.cache_dir,
         use_fast=True,
+        legacy=True,
     )
 
     # Calculate and save additional metrics to track later.
@@ -241,38 +249,29 @@ def train(
         ),
     )
 
+    if data_args.chat_template:
+        logger.info("adding chat_template to the tokenizer")
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with the given chat_template %s",
+                tokenizer.chat_template,
+                data_args.chat_template,
+            )
+        tokenizer.chat_template = data_args.chat_template
+
     # Add special tokens only when a custom tokenizer is not passed
+    special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            tokenizer.add_special_tokens(
-                {
-                    "bos_token": "<s>",
-                    "eos_token": "</s>",
-                    "unk_token": "<unk>",
-                    "pad_token": "<pad>",
-                }
-            )
+            special_tokens_dict["bos_token"] = "<s>"
+            special_tokens_dict["eos_token"] = "</s>"
+            special_tokens_dict["unk_token"] = "<unk>"
+            special_tokens_dict["pad_token"] = "<pad>"
         elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            tokenizer.add_special_tokens(
-                {
-                    "pad_token": "<pad>",
-                }
-            )
-
-    max_seq_length = min(train_args.max_seq_length, tokenizer.model_max_length)
-    logger.info("Max sequence length is %s", max_seq_length)
-    if train_args.max_seq_length > tokenizer.model_max_length:
-        logger.warning(
-            "max_seq_length %s exceeds tokenizer.model_max_length \
-            %s, using tokenizer.model_max_length %s",
-            train_args.max_seq_length,
-            tokenizer.model_max_length,
-            tokenizer.model_max_length,
-        )
+            special_tokens_dict["pad_token"] = "<pad>"
 
     # add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = {}
     if not model_args.tokenizer_name_or_path:
         # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
@@ -293,12 +292,14 @@ def train(
             )
             if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
                 tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
+                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
             else:
                 tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
+                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    tokenizer_data_utils.tokenizer_and_embedding_resize(
+    added_tokens_dict = tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
@@ -306,31 +307,33 @@ def train(
     )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
-    if train_args.packing:
-        logger.info("Packing is set to True")
-        data_collator = None
-        packing = True
-    else:
-        logger.info("Packing is set to False")
-        packing = False
+    data_collator = None
+    logger.info("Packing is set to %s ", train_args.packing)
 
-    # Validate if data args are set properly
-    validate_data_args(data_args, packing)
+    is_padding_free = False
+    if attention_and_distributed_packing_config is not None:
+        is_padding_free = attention_and_distributed_packing_config.is_padding_free
 
+    data_preprocessing_time = time.time()
     (
         formatted_train_dataset,
         formatted_validation_dataset,
-        dataset_text_field,
-    ) = format_dataset(data_args, tokenizer, max_seq_length)
-    data_collator = get_data_collator(
-        packing,
-        data_args.response_template,
+        data_args.dataset_text_field,
+        data_collator,
+        train_args.max_seq_length,
+        dataset_kwargs,
+    ) = process_dataargs(
+        data_args,
         tokenizer,
-        formatted_train_dataset,
-        max_seq_length,
+        train_args,
+        additional_data_handlers,
+        is_padding_free=is_padding_free,
+    )
+    additional_metrics["data_preprocessing_time"] = (
+        time.time() - data_preprocessing_time
     )
 
-    if framework is not None and framework.requires_agumentation:
+    if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
@@ -344,32 +347,29 @@ def train(
     # this validation, we just drop the things that aren't part of the SFT Config and build one
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
+
     transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
     transformer_kwargs = {
         k: v
         for k, v in train_args.to_dict().items()
         if k in transformer_train_arg_fields
     }
-    training_args = SFTConfig(**transformer_kwargs)
 
-    dataset_kwargs = {}
-    if is_pretokenized_dataset(
-        data_args.training_data_path or data_args.validation_data_path
-    ):
-        dataset_kwargs["skip_prepare_dataset"] = True
+    additional_args = {
+        "dataset_text_field": data_args.dataset_text_field,
+        "dataset_kwargs": dataset_kwargs,
+    }
+    training_args = SFTConfig(**transformer_kwargs, **additional_args)
+
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
-        packing=packing,
         data_collator=data_collator,
-        dataset_text_field=dataset_text_field,
         args=training_args,
-        max_seq_length=max_seq_length,
         callbacks=trainer_callbacks,
         peft_config=peft_config,
-        dataset_kwargs=dataset_kwargs,
     )
 
     # We track additional metrics and experiment metadata after trainer object creation
@@ -418,8 +418,9 @@ def train(
         )
 
     trainer.train(resume_from_checkpoint)
-
-    return trainer
+    additional_metadata = {}
+    additional_metadata["added_tokens_info"] = added_tokens_dict
+    return trainer, additional_metadata
 
 
 def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
@@ -459,9 +460,12 @@ def get_parser():
             peft_config.PromptTuningConfig,
             FileLoggingTrackerConfig,
             AimConfig,
+            HFResourceScannerConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
+            FastMoeConfig,
+            MLflowConfig,
         )
     )
     parser.add_argument(
@@ -470,6 +474,7 @@ def get_parser():
         choices=["pt", "lora", None, "none"],
         default="none",
     )
+
     parser.add_argument(
         "--exp_metadata",
         type=str,
@@ -504,14 +509,20 @@ def parse_arguments(parser, json_config=None):
             Configuration for training log file.
         AimConfig
             Configuration for AIM stack.
+        HFResourceScannerConfig
+            Configuration for HFResourceScanner.
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
             Configuration for fused operations and kernels.
         AttentionAndDistributedPackingConfig
             Configuration for padding free and packing.
+        FastMoeConfig
+            Configuration for accelerated MoE.
+        MLflowConfig
+            Configuration for mlflow tracker.
         dict[str, str]
-            Extra AIM metadata.
+            Extra tracker metadata.
     """
     if json_config:
         (
@@ -523,9 +534,12 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
+            mlflow_config,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
@@ -539,9 +553,12 @@ def parse_arguments(parser, json_config=None):
             prompt_tuning_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
+            mlflow_config,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
@@ -564,9 +581,12 @@ def parse_arguments(parser, json_config=None):
         tune_config,
         file_logger_config,
         aim_config,
+        hf_resource_scanner_config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
+        fast_moe_config,
+        mlflow_config,
         exp_metadata,
     )
 
@@ -585,9 +605,12 @@ def main():
             tune_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
+            mlflow_config,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
@@ -597,9 +620,11 @@ def main():
         logger.debug(
             "Input args parsed: \
             model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, file_logger_config, %s aim_config %s, \
+            tune_config %s, file_logger_config %s, aim_config %s, hf_resource_scanner_config %s, \
             quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config %s exp_metadata %s",
+            attention_and_distributed_packing_config, %s,\
+            mlflow_config %s, fast_moe_config %s, \
+            exp_metadata %s",
             model_args,
             data_args,
             training_args,
@@ -607,9 +632,12 @@ def main():
             tune_config,
             file_logger_config,
             aim_config,
+            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
+            fast_moe_config,
+            mlflow_config,
             exp_metadata,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -634,24 +662,30 @@ def main():
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
-    combined_tracker_configs = TrackerConfigFactory()
+    tracker_configs = TrackerConfigFactory(
+        file_logger_config=file_logger_config,
+        aim_config=aim_config,
+        mlflow_config=mlflow_config,
+        hf_resource_scanner_config=hf_resource_scanner_config,
+    )
 
-    combined_tracker_configs.file_logger_config = file_logger_config
-    combined_tracker_configs.aim_config = aim_config
-
+    if training_args.output_dir:
+        os.makedirs(training_args.output_dir, exist_ok=True)
+        logger.info("using the output directory at %s", training_args.output_dir)
     try:
-        trainer = train(
+        trainer, additional_train_info = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
             peft_config=tune_config,
             trainer_controller_args=trainer_controller_args,
-            tracker_configs=combined_tracker_configs,
+            tracker_configs=tracker_configs,
             additional_callbacks=None,
             exp_metadata=metadata,
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+            fast_moe_config=fast_moe_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())
@@ -690,6 +724,33 @@ def main():
             logger.error(traceback.format_exc())
             write_termination_log(
                 f"Failed to save model to {training_args.save_model_dir}: {e}"
+            )
+            sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    if isinstance(tune_config, peft_config.LoraConfig):
+        try:
+            if training_args.save_model_dir:
+                # Write number of added tokens to artifacts
+                with open(
+                    os.path.join(
+                        training_args.save_model_dir, "added_tokens_info.json"
+                    ),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(additional_train_info["added_tokens_info"], f)
+            if training_args.output_dir:
+                # Write number of added tokens to artifacts
+                with open(
+                    os.path.join(training_args.output_dir, "added_tokens_info.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(additional_train_info["added_tokens_info"], f)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error(traceback.format_exc())
+            write_termination_log(
+                f"Exception encountered when saving metadata with model artifacts: {e}"
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
