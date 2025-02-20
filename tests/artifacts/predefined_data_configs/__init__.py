@@ -43,3 +43,6 @@ DATA_CONFIG_YAML_STREAMING_PRETOKENIZED = os.path.join(
 DATA_CONFIG_DUPLICATE_COLUMNS = os.path.join(
     PREDEFINED_DATA_CONFIGS, "duplicate_columns.yaml"
 )
+DATA_CONFIG_RENAME_RETAIN_COLUMNS = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "rename_retain_columns.yaml"
+)

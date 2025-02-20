@@ -274,6 +274,27 @@ class DataPreProcessor:
             else:
                 raw_datasets = DatasetDict()
 
+                # Check if both are conflicting options before proceeding.
+            if d.rename_columns and d.retain_columns:
+                commmon = set(d.rename_columns.keys()) & set(d.retain_columns)
+                if commmon:
+                    raise ValueError(
+                        f"You are trying to retain {str(commmon)} columns"
+                        " which will be renamed via rename operation."
+                    )
+
+            if d.rename_columns:
+                logger.info("Renaming %s columns", str(d.rename_columns))
+                raw_dataset = raw_dataset.rename_columns(
+                    column_mapping=d.rename_columns
+                )
+                logger.info("Done")
+            if d.retain_columns:
+                logger.info("Retaining %s columns", str(d.retain_columns))
+                raw_dataset = raw_dataset.select_columns(column_names=d.retain_columns)
+                logger.info("Done")
+
+
             # Assume all is train split
             if isinstance(raw_dataset, (Dataset, IterableDataset)):
                 raw_datasets[splitName] = raw_dataset
