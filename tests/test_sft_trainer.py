@@ -41,6 +41,8 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+    DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
@@ -785,6 +787,65 @@ def test_run_causallm_ft_pretokenized(dataset_path):
         # validate full ft configs
         _validate_training(tempdir)
         checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname",
+    [
+        (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_TOKENIZED_JSON],
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+        ),
+    ],
+)
+def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
+    """Check if we can finetune causallm models using multiple datasets with multiple files"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = datafiles
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.max_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)

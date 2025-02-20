@@ -47,6 +47,7 @@ class DataPreProcessorConfig:
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
     # Default seed is not none to ensure reproducability
     sampling_seed: Optional[float] = 42
+    streaming: Optional[bool] = False
 
 
 @dataclass
@@ -142,6 +143,10 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         seed = kwargs["sampling_seed"]
         assert isinstance(seed, int), "sampling seed should be int"
         c.sampling_seed = seed
+    if "streaming" in kwargs:
+        streaming = kwargs["streaming"]
+        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
+        c.streaming = streaming
     return c
 
 
