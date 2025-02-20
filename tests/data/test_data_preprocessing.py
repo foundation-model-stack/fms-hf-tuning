@@ -986,7 +986,12 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     tokenizer.add_special_tokens({"eos_token": "</s>"})
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
