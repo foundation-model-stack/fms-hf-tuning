@@ -348,11 +348,11 @@ def train(
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
 
-    transformer_train_arg_fields = [x.name for x in dataclasses.fields(SFTConfig)]
+    transformer_train_arg_fields = [
+        x.name for x in dataclasses.fields(SFTConfig) if not x.name.startswith("_")
+    ]
     transformer_kwargs = {
-        k: v
-        for k, v in train_args.to_dict().items()
-        if k in transformer_train_arg_fields
+        k: v for k, v in vars(train_args).items() if k in transformer_train_arg_fields
     }
 
     additional_args = {
