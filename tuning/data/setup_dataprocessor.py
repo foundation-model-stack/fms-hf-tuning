@@ -17,7 +17,7 @@ from typing import Callable, Dict, Union
 import logging
 
 # Third Party
-from datasets import Dataset, IterableDataset
+from datasets import Dataset, IterableDataset, load_dataset
 
 # Third
 from transformers import AutoTokenizer
@@ -211,6 +211,7 @@ def _process_raw_data_args(
     max_seq_length: int,
     additional_data_handlers: Dict[str, Callable] = None,
     is_padding_free: bool = False,
+    processor=None,
 ):
 
     # Create a data processor with default processor config
@@ -283,11 +284,18 @@ def _process_raw_data_args(
         eval_dataset_config.data_handlers = handlers
 
     # And let processor handle the logic
-    train_dataset = data_processor.process_dataset_configs([train_dataset_config])
+    train_dataset = None
+    if processor:
+        train_dataset = load_dataset(data_args.training_data_path, split="train")
+    else:
+        train_dataset = data_processor.process_dataset_configs([train_dataset_config])
 
     eval_dataset = None
     if is_eval_dataset_present:
-        eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
+        if processor:
+            eval_dataset = load_dataset(data_args.training_data_path)
+        else:
+            eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
 
     return (train_dataset, eval_dataset, dataset_text_field)
 
@@ -304,6 +312,7 @@ def process_dataargs(
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, Callable] = None,
     is_padding_free: bool = False,
+    processor=None,
 ):
     """
     Args:
@@ -316,6 +325,9 @@ def process_dataargs(
             which need to be registered with the data preprocessor
         is_padding_free: A bool representing if Padding free plugin is enabled.
                          Defaults to False.
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing
@@ -352,12 +364,21 @@ def process_dataargs(
             max_seq_length,
             additional_data_handlers,
             is_padding_free,
+            processor,
         )
 
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to
     #       check if we already tokenized the dataset or not.
     is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
+
+    if processor and not (data_args.text_field_name or data_args.image_field_name):
+        logger.error(
+            "When running a vision model you must provide the text_field_name and \
+            image_field_name for the columns in the dataset. Values should be from \
+            column names: %s",
+            train_dataset.column_names,
+        )
 
     data_collator = get_data_collator(
         train_args.packing,
@@ -367,10 +388,13 @@ def process_dataargs(
         max_seq_length,
         data_args.instruction_template,
         is_padding_free=is_padding_free,
+        text_field_name=data_args.text_field_name,
+        image_field_name=data_args.image_field_name,
+        processor=processor,
     )
 
     dataset_kwargs = {}
-    if is_tokenized_dataset:
+    if is_tokenized_dataset or processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True
 
     return (
