@@ -66,11 +66,43 @@ def test_setting_special_tokens_when_missing_all_special_tokens():
     }
 
 
-def test_tokenizer_and_embedding_resize_return_values():
+def test_tokenizer_and_embedding_resize_return_values_missing_one_token():
     """Test to ensure number of added tokens are returned correctly"""
     special_tokens_dict = {"pad_token": "<pad>"}
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     metadata = tokenizer_and_embedding_resize(special_tokens_dict, tokenizer, model)
     assert metadata["num_new_tokens"] == 1
-    assert "new_embedding_size" in metadata
+    assert metadata["new_embedding_size"] == len(tokenizer)
+
+
+def test_tokenizer_and_embedding_resize_return_values_missing_four_tokens():
+    """Test to ensure number of added tokens are returned correctly"""
+    special_tokens_dict = {
+        "pad_token": "<PAD>",
+        "eos_token": "</s>",
+        "bos_token": "<s>",
+        "unk_token": "<unk>",
+    }
+    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    model = AutoModelForCausalLM.from_pretrained("Maykeye/TinyLLama-v0")
+    metadata = tokenizer_and_embedding_resize(special_tokens_dict, tokenizer, model)
+    assert metadata["num_new_tokens"] == 4
+    assert metadata["new_embedding_size"] == len(tokenizer)
+
+
+def test_tokenizer_and_embedding_resize_return_values_mutliple_of_two():
+    """Test to ensure number of added tokens are returned correctly"""
+    special_tokens_dict = {
+        "pad_token": "<PAD>",
+        "eos_token": "</s>",
+        "bos_token": "<s>",
+        "unk_token": "<unk>",
+    }
+    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    model = AutoModelForCausalLM.from_pretrained("Maykeye/TinyLLama-v0")
+    metadata = tokenizer_and_embedding_resize(
+        special_tokens_dict, tokenizer, model, multiple_of=2
+    )
+    assert metadata["num_new_tokens"] == 5
+    assert metadata["new_embedding_size"] == len(tokenizer) + 1
