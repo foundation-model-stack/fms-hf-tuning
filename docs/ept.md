@@ -32,7 +32,7 @@ datasets:
     data_paths:
       - "<path-to-the-jsonl-dataset>"
         data_handlers:
-        - name: apply_custom_data_formatting
+        - name: add_tokenizer_eos_token
             arguments:
             remove_columns: all
             batched: false
@@ -109,4 +109,4 @@ The code again would add `EOS_TOKEN` to the non tokenized data before using it a
 
 ### Additional Information
 This feature is supported post [v2.3.1](https://github.com/foundation-model-stack/fms-hf-tuning/releases/tag/v2.3.1) of this library.
-Post Last Updated On: 10-02-2025
+Post Last Updated On: 12-02-2025
