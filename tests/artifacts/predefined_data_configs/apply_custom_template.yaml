@@ -12,3 +12,4 @@ datasets:
           fn_kwargs:
             dataset_text_field: "dataset_text_field"
             template: "dataset_template"
+            add_eos_token: true
