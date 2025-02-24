@@ -135,14 +135,39 @@ def main():
 
     # Parse arguments and set log level
     try:
-        (
-            model_args,
-            data_args,
-            training_args,
-            num_datasets_shard,
-        ) = parser.parse_args_into_dataclasses()
+        parsed_output = parser.parse_args_into_dataclasses()
+        model_args = next(
+            (
+                item
+                for item in parsed_output
+                if isinstance(item, configs.ModelArguments)
+            ),
+            None,
+        )
+        data_args = next(
+            (item for item in parsed_output if isinstance(item, configs.DataArguments)),
+            None,
+        )
+        training_args = next(
+            (
+                item
+                for item in parsed_output
+                if isinstance(item, configs.TrainingArguments)
+            ),
+            None,
+        )
+        namespace_args = next(
+            (item for item in parsed_output if hasattr(item, "num_datasets_shard")),
+            None,
+        )
+        num_datasets_shard = namespace_args.num_datasets_shard if namespace_args else 1
 
-        training_args, logger = set_log_level(training_args, __name__)
+        # If any of the arguments are None, raise an error
+        if None in [model_args, data_args, training_args]:
+            raise ValueError(
+                "One of the arguments is None. Please check the arguments passed."
+            )
+
         logger.debug(
             "Input args parsed:\n"
             "  model_args: %s\n"
@@ -151,7 +176,9 @@ def main():
             model_args,
             data_args,
             training_args,
+            num_datasets_shard,
         )
+        training_args, logger = set_log_level(training_args, __name__)
     except Exception as e:  # pylint: disable=broad-except
         logger.error("Error parsing arguments: %s", traceback.format_exc())
         write_termination_log(
@@ -177,40 +204,51 @@ def main():
 
     # Save train dataset
     train_dataset_dir = os.path.join(training_args.output_dir, "train_dataset")
-    validation_dataset_dir = os.path.join(
-        training_args.output_dir, "validation_dataset"
-    )
 
     logging.info(
         "Trying to dump %d shards of train dataset at %s",
         num_datasets_shard,
         train_dataset_dir,
     )
-    for shard_idx in num_datasets_shard:
-        shard = formatted_train_dataset.shard(
-            index=shard_idx, num_shards=num_datasets_shard
+    if formatted_train_dataset is not None:
+        os.makedirs(train_dataset_dir, exist_ok=True)
+        for shard_idx in range(num_datasets_shard):
+            shard = formatted_train_dataset.shard(
+                index=shard_idx, num_shards=num_datasets_shard
+            )
+            shard.to_parquet(f"{train_dataset_dir}/ds_{shard_idx:05d}.parquet")
+        logging.info(
+            "Dumped %d shards of train_dataset at %s",
+            num_datasets_shard,
+            train_dataset_dir,
         )
-        shard.to_parquet(f"{train_dataset_dir}/ds_{shard_idx:05d}.parquet")
-    logging.info(
-        "Dumped %d shards of train_dataset at %s", num_datasets_shard, train_dataset_dir
-    )
+    else:
+        logging.warning("Train dataset is None. Not saving train dataset.")
 
     # Save validation dataset
+    validation_dataset_dir = os.path.join(
+        training_args.output_dir, "validation_dataset"
+    )
     logging.info(
         "Trying to dump %d shards of validation dataset at %s",
         num_datasets_shard,
         validation_dataset_dir,
     )
-    for shard_idx in num_datasets_shard:
-        shard = formatted_validation_dataset.shard(
-            index=shard_idx, num_shards=num_datasets_shard
+    if formatted_validation_dataset is not None:
+        os.makedirs(validation_dataset_dir, exist_ok=True)
+        for shard_idx in range(num_datasets_shard):
+            shard = formatted_validation_dataset.shard(
+                index=shard_idx, num_shards=num_datasets_shard
+            )
+            shard.to_parquet(f"{validation_dataset_dir}/ds_{shard_idx:05d}.parquet")
+
+        logging.info(
+            "Dumped %d shards of validation_dataset at %s",
+            num_datasets_shard,
+            validation_dataset_dir,
         )
-        shard.to_parquet(f"{validation_dataset_dir}/ds_{shard_idx:05d}.parquet")
-    logging.info(
-        "Dumped %d shards of validation_dataset at %s",
-        num_datasets_shard,
-        validation_dataset_dir,
-    )
+    else:
+        logging.warning("Validation dataset is None. Not saving validation dataset.")
 
     logger.info("Data Processing script execution completed.")
 
