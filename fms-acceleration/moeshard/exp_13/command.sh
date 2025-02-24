@@ -1,0 +1,6 @@
+#!/bin/bash
+
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+export ACCELERATION_FRAMEWORK_CONFIG_FILE=/workspace/fms-acceleration/scripts/benchmarks/../../sample-configurations/moe-scattermoe-granite-ep2-padding-free-sample-configuration.yaml
+accelerate launch --config_file scripts/benchmarks/accelerate.yaml --num_processes=4 --main_process_port=29511 -m tuning.sft_trainer --model_name_or_path ibm-granite/granite-3.0-3b-a800m-instruct --packing False --max_seq_len 4096 --training_data_path ./moeshard/data/cache_all.json --use_flash_attn True --response_template '
+### Response:' --dataset_text_field output --include_tokens_per_second True --num_train_epochs 1 --gradient_checkpointing True --evaluation_strategy no --save_strategy no --weight_decay 0.01 --warmup_steps 10 --lr_scheduler_type linear --logging_strategy steps --max_steps 100 --learning_rate 5e-5 --torch_dtype bfloat16 --per_device_train_batch_size 8 --logging_steps 1 --adam_epsilon 1e-8 --gradient_accumulation_steps 1 --output_dir ./moeshard/exp_13/hf --skip_memory_metrics False

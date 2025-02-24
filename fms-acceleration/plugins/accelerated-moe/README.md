@@ -51,12 +51,12 @@ tox -e run-benches \
     -x testenv:run-benches.deps+="-r plugins/accelerated-moe/requirements-khd.txt" \
     -x testenv:run-benches.setenv+="MEMORY_LOGGING=nvidia" \
     -- \
-    "1 2 4" 128 benchmark_outputs scenarios-moe.yaml accelerated-moe-scatter
+    "1 2 4" 128 benchmark_outputs scenarios-moe.yaml accelerated-moe-full
 ```
 or run the larger `Mixtral-8x7B` bench:
 ```
 tox ... \
-    8 128 benchmark_outputs scenarios-moe.yaml accelerated-moe-scatter-mixtral
+    8 128 benchmark_outputs scenarios-moe.yaml accelerated-moe-full-mixtral
 ```
 
 NOTE: if `FileNotFoundError` is observed on the *triton cache*, similar to issues like these:

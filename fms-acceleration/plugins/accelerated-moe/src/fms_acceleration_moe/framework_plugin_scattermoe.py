@@ -14,6 +14,7 @@
 
 # Standard
 from typing import Dict, Tuple
+import os
 
 # Third Party
 from fms_acceleration import AccelerationPlugin
@@ -69,7 +70,8 @@ class ScatterMoEAccelerationPlugin(AccelerationPlugin):
         rank, world_size = 0, 1
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
-            rank = torch.distributed.get_rank()
+            # we do not need to use the fallback as this is wrapped in an `is_initialized` block
+            rank = torch.distributed.get_node_local_rank()
 
         if not hasattr(model.config, "name_or_path") or not model.config.name_or_path:
             raise ValueError(

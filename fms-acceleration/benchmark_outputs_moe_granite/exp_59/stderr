@@ -1,0 +1,77 @@
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                        | 0/6 [00:00<?, ?it/s]You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                        | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                        | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                        | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:  17%|█████▎                          | 1/6 [00:33<02:49, 33.84s/it]Loading checkpoint shards:  17%|█████▎                          | 1/6 [00:28<02:21, 28.30s/it]Loading checkpoint shards:  17%|█████▎                          | 1/6 [00:28<02:21, 28.35s/it]Loading checkpoint shards:  17%|█████▎                          | 1/6 [00:28<02:21, 28.35s/it]Loading checkpoint shards:  33%|██████████▋                     | 2/6 [00:32<00:57, 14.38s/it]Loading checkpoint shards:  33%|██████████▋                     | 2/6 [00:32<00:57, 14.38s/it]Loading checkpoint shards:  33%|██████████▋                     | 2/6 [00:32<00:57, 14.38s/it]Loading checkpoint shards:  50%|████████████████                | 3/6 [00:44<00:39, 13.23s/it]Loading checkpoint shards:  50%|████████████████                | 3/6 [00:44<00:39, 13.22s/it]Loading checkpoint shards:  50%|████████████████                | 3/6 [00:44<00:39, 13.23s/it]Loading checkpoint shards:  67%|█████████████████████▎          | 4/6 [00:52<00:22, 11.16s/it]Loading checkpoint shards:  67%|█████████████████████▎          | 4/6 [00:52<00:22, 11.16s/it]Loading checkpoint shards:  67%|█████████████████████▎          | 4/6 [00:52<00:22, 11.16s/it]Loading checkpoint shards:  83%|██████████████████████████▋     | 5/6 [01:00<00:10, 10.06s/it]Loading checkpoint shards:  83%|██████████████████████████▋     | 5/6 [01:00<00:10, 10.06s/it]Loading checkpoint shards:  83%|██████████████████████████▋     | 5/6 [01:00<00:10, 10.06s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00,  8.14s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00, 10.89s/it]
+Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00,  8.14s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00, 10.89s/it]
+Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00,  8.14s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [01:05<00:00, 10.88s/it]
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+Loading checkpoint shards:  33%|██████████▋                     | 2/6 [01:26<02:58, 44.70s/it]Loading checkpoint shards:  50%|████████████████                | 3/6 [02:02<02:02, 40.75s/it]Loading checkpoint shards:  67%|█████████████████████▎          | 4/6 [02:37<01:17, 38.57s/it]Loading checkpoint shards:  83%|██████████████████████████▋     | 5/6 [03:14<00:38, 38.09s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [03:25<00:00, 28.77s/it]Loading checkpoint shards: 100%|████████████████████████████████| 6/6 [03:25<00:00, 34.22s/it]
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+/workspace/fms-acceleration/plugins/attention-and-distributed-packing/src/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 683, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 344, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/framework/src/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 127, in prepare_scattermoe
+    assert (
+AssertionError: moe num experts (62) not divisible by ep_shard_factor (4).
+
+[rank0]:[W220 04:35:36.030044355 ProcessGroupNCCL.cpp:1168] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+W0220 04:35:37.586000 140377879757184 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 18316 closing signal SIGTERM
+W0220 04:35:37.587000 140377879757184 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 18317 closing signal SIGTERM
+W0220 04:35:37.587000 140377879757184 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 18318 closing signal SIGTERM
+E0220 04:35:38.317000 140377879757184 torch/distributed/elastic/multiprocessing/api.py:833] failed (exitcode: 203) local_rank: 0 (pid: 18315) of binary: /workspace/fms-acceleration/.tox/run-benches/bin/python
+Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/accelerate_cli.py", line 48, in main
+    args.func(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 1155, in launch_command
+    multi_gpu_launcher(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 793, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 133, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 264, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+tuning.sft_trainer FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-02-20_04:35:37
+  host      : mk-testing-grad-master-0
+  rank      : 0 (local_rank: 0)
+  exitcode  : 203 (pid: 18315)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
