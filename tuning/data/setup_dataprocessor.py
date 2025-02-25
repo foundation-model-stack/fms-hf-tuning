@@ -191,6 +191,52 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
     return [handler], data_args.dataset_text_field
 
 
+### Vsion Data Format
+def _get_vision_dataset_handlers(data_args, processor):
+
+    handlers = []
+
+    # First data handler configuration
+    fn_kwargs1 = {
+        "tokenizer": processor,
+        "dataset_text_field": data_args.text_field_name,
+        "chat_template_key": data_args.text_field_name,
+    }
+    kwargs1 = {
+        "fn_kwargs": fn_kwargs1,
+        "batched": False,
+        "remove_columns": None,
+    }
+    handlers.append(
+        DataHandlerConfig("apply_tokenizer_chat_template", arguments=kwargs1)
+    )
+
+    # Second data handler configuration
+    processor_kwargs = {
+        "return_tensors": "pt",
+        "padding": True,
+    }
+    fn_kwargs2 = {
+        "processor": processor,
+        "fields_name": {
+            "text_field_name": data_args.text_field_name,
+            "image_field_name": data_args.image_field_name,
+        },
+        "processor_kwargs": processor_kwargs,
+    }
+    kwargs2 = {
+        "fn_kwargs": fn_kwargs2,
+        "batched": True,
+        "remove_columns": [data_args.text_field_name, data_args.image_field_name],
+        "num_proc": None,
+    }
+    handlers.append(
+        DataHandlerConfig("apply_processor_multimodal_data", arguments=kwargs2)
+    )
+
+    return handlers, data_args.dataset_text_field
+
+
 # Process raw dataargs for various usecases.
 # Data Format 1: Pretokenized Data
 #   Use pretokenized data as-is without preprocessing.
@@ -256,7 +302,15 @@ def _process_raw_data_args(
 
     handlers = None
     dataset_text_field = None
-    if is_traindata_tokenized:
+
+    # ToDo: Think about a better way to handle this if condition
+    # (Could use multimodal boolean in model_args)
+    if data_args.text_field_name and data_args.image_field_name:
+
+        handlers, dataset_text_field = _get_vision_dataset_handlers(
+            data_args, processor
+        )
+    elif is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
@@ -327,7 +381,7 @@ def process_dataargs(
                          Defaults to False.
         processor:
             Model processor to combine text and image data if using
-            multi-modal model.
+            multi-modal model. Defaults to None.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing

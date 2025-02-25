@@ -335,7 +335,7 @@ def train(
         train_args,
         additional_data_handlers,
         is_padding_free=is_padding_free,
-        processor=processor
+        processor=processor,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
