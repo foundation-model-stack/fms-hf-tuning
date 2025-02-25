@@ -15,14 +15,14 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
-from typing import Dict, List
+from typing import Dict, List, Union
 import copy
 import re
 
 # Third Party
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
-from transformers import AutoTokenizer
+from transformers import AutoProcessor, AutoTokenizer, LlavaProcessor
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
@@ -233,7 +233,7 @@ def apply_custom_jinja_template(
 
 def apply_tokenizer_chat_template(
     element: Dict[str, str],
-    tokenizer: AutoTokenizer,
+    tokenizer: Union[AutoTokenizer, AutoProcessor],
     dataset_text_field: str,
     **kwargs,
 ):
@@ -247,14 +247,59 @@ def apply_tokenizer_chat_template(
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to dataset_text_field argument.
     """
+    chat_template_key = kwargs.get("chat_template_key", None)
     if tokenizer.chat_template is None:
         raise ValueError(
             "Tokenizer does not contain tokenizer.chat_template\
                           please pass data_args.chat_template"
         )
+    if chat_template_key and chat_template_key in element:
+        element = element[chat_template_key]
+
     return {
         f"{dataset_text_field}": tokenizer.apply_chat_template(element, tokenize=False)
     }
+
+
+def apply_processor_multimodal_data(
+    element: Dict[str, str],
+    processor: Union[AutoProcessor, LlavaProcessor],
+    **kwargs,
+):
+    """Function (data handler) to apply processor to multimodal dataset elements.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        processor: The processor instance of AutoProcessor or LlavaProcessor.
+    Returns:
+        Formatted HF Dataset element by formatting dataset with processor
+    """
+
+    processor_kwargs = kwargs.get("processor_kwargs", {})
+    fields_name = kwargs.get("fields_name", {})
+    try:
+        text_field = fields_name["text_field_name"]
+        image_field = fields_name["image_field_name"]
+    except KeyError as e:
+        raise ValueError(f"Missing required field in fields_name: {e}") from e
+
+    text = element.get(text_field)
+    image = element.get(image_field)
+
+    if text is None or image is None:
+        raise ValueError("Missing text or image data in element.") from e
+
+    if isinstance(processor, LlavaProcessor):
+        if isinstance(image, list) and image:
+            image = image[0]
+        else:
+            raise ValueError(
+                "Expected image to be a non-empty list for LlavaProcessor."
+            ) from e
+
+    element = processor(text=text, images=image, **processor_kwargs)
+
+    return element
 
 
 def duplicate_columns(
@@ -297,5 +342,6 @@ AVAILABLE_DATA_HANDLERS = {
     "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
     "apply_custom_jinja_template": apply_custom_jinja_template,
     "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
+    "apply_processor_multimodal_data": apply_processor_multimodal_data,
     "duplicate_columns": duplicate_columns,
 }

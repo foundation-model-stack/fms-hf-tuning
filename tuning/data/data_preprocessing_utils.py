@@ -12,14 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Standard
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
+import logging
 
 # Third Party
-from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    DataCollatorForSeq2Seq,
+    LlavaProcessor,
+)
 from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
+from tuning.utils.collators import VisionDataCollator
+
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 def get_data_collator(
@@ -30,6 +41,9 @@ def get_data_collator(
     max_seq_length: int,
     instruction_template: Optional[str],
     is_padding_free: bool = False,
+    text_field_name: Optional[str] = None,
+    image_field_name: Optional[str] = None,
+    processor: Optional[Union[AutoProcessor, LlavaProcessor]] = None,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -49,11 +63,26 @@ def get_data_collator(
             str representing the human response in a chat template
         is_padding_free: bool
             if padding free plugin is used or not
+        text_field_name: str
+            Field name for the text used in multi-modal dataset.
+        image_field_name: str
+            Field name for the images used in multi-modal dataset.
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal vision model.
 
     Returns:
         Callable
             Callable collator to be leveraged by the trainer.
     """
+
+    if processor:
+        if not (text_field_name or image_field_name):
+            logger.error(
+                "When training a vision model, you must pass in the \
+                text_field_name and image_field_name of the dataset being used."
+            )
+        return VisionDataCollator(processor, text_field_name, image_field_name)
 
     if response_template and instruction_template:
         return DataCollatorForCompletionOnlyLM(
