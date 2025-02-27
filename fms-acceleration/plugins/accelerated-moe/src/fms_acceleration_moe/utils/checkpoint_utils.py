@@ -235,7 +235,7 @@ def get_state_dict_from_dcp_checkpoint(
         planner=_EmptyStateDictLoadPlanner(),
         no_dist=True,
     )
-    return [KEY_MODEL]
+    return sd[KEY_MODEL]
 
 
 # function to get state dict from regular checkoint
