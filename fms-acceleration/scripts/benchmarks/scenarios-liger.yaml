@@ -1,0 +1,101 @@
+# This file holds a list of scenarios to may be run.
+# - to limit to a number of scenarios, use the --run-only-scenarios flag.
+# - Each scenario will be run against a particular acceleration framework
+#   config, if the framework_config: key is specified.
+#   * a particular framework configuration
+# - the arguments tag will hold arguments to be passed to sft_trainer
+#   * the arguments are singular except for model_name_or_path which can handle
+#     multiple arguments.
+# - So anything that is critical for the scenario MUST be specified here 
+#   and not in the defaults, e.g. fp16
+
+# This stanza will be used in future to replace the custom processing functions in data_processing.py 
+# data_processing:
+#   dataset_name: yahma/alpaca-cleaned
+#   chat_template: |
+#     {%- for message in messages %}
+#         {% if message['input'] != '' %}
+#     Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+#         {% else %}
+#     Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+#         {% endif %}
+#     ### Instruction:
+#     {{ message['instruction'] }}
+
+#         {% if message['input'] != '' %}
+#     ### Input:
+#     {{ message['input'] }}
+
+#         {% endif %}
+#     ### Response:
+#     {{ message['output'] + eos_token }}
+#     {% endfor %}
+#   tokenize: True
+
+
+scenarios:
+    -   name: full-finetuning
+        framework_config: 
+            - foak-fast-kernels
+            - foak-fast-kernels-liger
+        arguments:
+            learning_rate: 2e-5
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+                - 'meta-llama/Meta-Llama-3-8B'
+            torch_dtype: bfloat16
+            bf16: True
+
+    -   name: standard-peft
+        framework_config: 
+            - foak-fast-kernels
+            - foak-fast-kernels-liger
+        arguments:
+            bf16: True
+            learning_rate: 2e-4
+            torch_dtype: bfloat16
+            peft_method: lora
+            r: 16
+            lora_alpha: 16
+            lora_dropout: 0.1
+            target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+                - 'meta-llama/Meta-Llama-3-8B'
+
+    -   name: accelerated-peft-bnb
+        framework_config: 
+            - accelerated-peft-bnb-foak
+            - accelerated-peft-bnb-foak-liger
+        arguments:
+            bf16: True
+            learning_rate: 2e-4
+            torch_dtype: bfloat16
+            peft_method: lora
+            r: 16
+            lora_alpha: 16
+            lora_dropout: 0.1
+            per_device_train_batch_size: 
+            target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+                - 'meta-llama/Meta-Llama-3-8B'
+
+    -   name: accelerated-peft-gptq
+        framework_config: 
+            - accelerated-peft-autogptq-foak
+            - accelerated-peft-autogptq-foak-liger
+        arguments:
+            learning_rate: 2e-4
+            fp16: True # running gptq-lora in float16 is more performant, see issue
+            torch_dtype: float16 # https://github.com/foundation-model-stack/fms-acceleration/issues/84
+            peft_method: lora
+            r: 16
+            lora_alpha: 16
+            lora_dropout: 0.1
+            target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+            model_name_or_path: 
+                - 'TheBloke/Mistral-7B-v0.1-GPTQ'
+                - 'TechxGenus/Meta-Llama-3-8B-GPTQ'

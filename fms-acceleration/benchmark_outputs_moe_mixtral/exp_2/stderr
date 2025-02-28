@@ -1,0 +1,24 @@
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:11<03:34, 11.89s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:25<03:40, 12.94s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:38<03:29, 13.09s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:51<03:13, 12.88s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [01:07<03:16, 14.02s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:20<02:56, 13.56s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:35<02:51, 14.26s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:53<02:50, 15.49s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:13<02:46, 16.66s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:29<02:28, 16.50s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:45<02:12, 16.54s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [02:59<01:49, 15.68s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:11<01:27, 14.63s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:25<01:11, 14.30s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [03:40<00:58, 14.58s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [03:56<00:45, 15.03s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:08<00:27, 13.92s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:19<00:13, 13.11s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [04:29<00:00, 12.17s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [04:29<00:00, 14.17s/it]
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 335, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/framework/src/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 121, in prepare_scattermoe
+    assert world_size % ep_degree == 0, (
+AssertionError: world size (1) not divisible by ep_size (8).
+

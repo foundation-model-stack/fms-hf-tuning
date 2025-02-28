@@ -1,0 +1,134 @@
+/opt/conda/envs/tp/lib/python3.11/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|          | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:  17%|█▋        | 1/6 [00:00<00:01,  4.59it/s]Loading checkpoint shards:  33%|███▎      | 2/6 [00:00<00:01,  2.98it/s]Loading checkpoint shards:  50%|█████     | 3/6 [00:01<00:01,  2.73it/s]Loading checkpoint shards:  67%|██████▋   | 4/6 [00:01<00:00,  2.65it/s]You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|          | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:  83%|████████▎ | 5/6 [00:01<00:00,  2.63it/s]Loading checkpoint shards:   0%|          | 0/6 [00:00<?, ?it/s]You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|          | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:  17%|█▋        | 1/6 [00:00<00:00,  6.16it/s]Loading checkpoint shards:  17%|█▋        | 1/6 [00:00<00:00,  6.78it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:02<00:00,  2.84it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:02<00:00,  2.83it/s]
+Loading checkpoint shards:  33%|███▎      | 2/6 [00:00<00:00,  7.73it/s]Loading checkpoint shards:  17%|█▋        | 1/6 [00:00<00:00,  5.58it/s]Loading checkpoint shards:  33%|███▎      | 2/6 [00:00<00:00,  5.97it/s]Loading checkpoint shards:  33%|███▎      | 2/6 [00:00<00:00,  6.62it/s]Loading checkpoint shards:  50%|█████     | 3/6 [00:00<00:00,  6.08it/s]WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+Loading checkpoint shards:  67%|██████▋   | 4/6 [00:00<00:00,  9.28it/s]Loading checkpoint shards:  50%|█████     | 3/6 [00:00<00:00,  7.63it/s]Loading checkpoint shards:  67%|██████▋   | 4/6 [00:00<00:00,  6.66it/s]Loading checkpoint shards:  67%|██████▋   | 4/6 [00:00<00:00,  8.30it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:00<00:00, 10.06it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:00<00:00,  9.46it/s]
+Loading checkpoint shards:  83%|████████▎ | 5/6 [00:00<00:00,  7.29it/s]Loading checkpoint shards:  83%|████████▎ | 5/6 [00:00<00:00,  8.80it/s]WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+Loading checkpoint shards: 100%|██████████| 6/6 [00:00<00:00,  7.83it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:00<00:00,  7.09it/s]
+Loading checkpoint shards: 100%|██████████| 6/6 [00:00<00:00,  8.31it/s]
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 676, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 337, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 127, in prepare_scattermoe
+    assert (
+AssertionError: moe num experts (62) not divisible by ep_shard_factor (4).
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 676, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 337, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 127, in prepare_scattermoe
+    assert (
+AssertionError: moe num experts (62) not divisible by ep_shard_factor (4).
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 676, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 337, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 127, in prepare_scattermoe
+    assert (
+AssertionError: moe num experts (62) not divisible by ep_shard_factor (4).
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 676, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-hf-tuning/tuning/sft_trainer.py", line 337, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 127, in prepare_scattermoe
+    assert (
+AssertionError: moe num experts (62) not divisible by ep_shard_factor (4).
+
+[rank0]:[W218 20:17:12.718169762 ProcessGroupNCCL.cpp:1250] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+W0218 20:17:14.396000 69248 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 69266 closing signal SIGTERM
+W0218 20:17:14.397000 69248 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 69268 closing signal SIGTERM
+W0218 20:17:14.397000 69248 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 69269 closing signal SIGTERM
+E0218 20:17:14.662000 69248 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 203) local_rank: 1 (pid: 69267) of binary: /opt/conda/envs/tp/bin/python
+Traceback (most recent call last):
+  File "/opt/conda/envs/tp/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/accelerate/commands/accelerate_cli.py", line 48, in main
+    args.func(args)
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/accelerate/commands/launch.py", line 1155, in launch_command
+    multi_gpu_launcher(args)
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/accelerate/commands/launch.py", line 793, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/envs/tp/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+tuning.sft_trainer FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-02-18_20:17:14
+  host      : mk-testing-grad-master-0
+  rank      : 1 (local_rank: 1)
+  exitcode  : 203 (pid: 69267)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

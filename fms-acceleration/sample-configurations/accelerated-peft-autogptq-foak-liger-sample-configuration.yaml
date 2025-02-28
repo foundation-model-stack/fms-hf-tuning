@@ -1,0 +1,52 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+  # PEFT-related acceleration
+  peft:
+
+    # quantization-releated acceleration
+    # e.g., kernels for quantized base weights
+    quantization:
+
+      # AutoGPTQ quantized base weights.
+      auto_gptq:
+
+        # Kernel to be used for GPTQ linear laeyer
+        # NOTE: Not all kernels are suitable for PEFT training; need to use 
+        # kernels that support autograd forward / backward. The best 
+        # recommendation at the moment is "triton_v2".
+        kernel: triton_v2
+
+        # If true, then will already expect quantized checkpoint 
+        # passed into TrainingArguments.model_name_or_path
+        from_quantized: true
+
+        # Setting to false, will create GPTQ-LORA using the local autogptq package.
+        # if true, will create legacy implementation of GPTQ-LORA using external 
+        # `auto_gptq`. Refer to README for installation instructions
+        use_external_lib: false
+      fused_ops_and_kernels:
+
+        # load unsloth optimizations for these 4bit base layer weights.
+        # currently only support "auto_gptq" and "bitsandbytes"
+        base_layer: auto_gptq
+
+        # activate various unsloth optimizations
+        # there are two versions of the plugin
+        # - the FastKernel version supports individual kernels
+        # - the FastQuantized version is all-or-nothing
+
+
+        # fused kernels for lora linear layers
+        fused_lora: true
+
+        # fast loss triton kernels
+        fast_loss: fused_ce_liger
+
+        # fast rms norm triton kernels
+        fast_rsm_layernorm: true
+
+        # fast RoPE embedding triton kernels
+        fast_rope_embeddings: true

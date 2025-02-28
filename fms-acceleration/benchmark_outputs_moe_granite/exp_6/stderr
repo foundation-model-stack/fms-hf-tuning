@@ -1,0 +1,23 @@
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                        | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|████████████████                | 1/2 [00:10<00:10, 10.89s/it]Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:15<00:00,  7.27s/it]Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:15<00:00,  7.81s/it]
+WARNING:sft_trainer.py:PAD token set to default, to make it different from eos token
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 683, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 344, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/framework/src/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 121, in prepare_scattermoe
+    assert world_size % ep_degree == 0, (
+AssertionError: world size (1) not divisible by ep_size (2).
+

@@ -1,0 +1,33 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+  # Configurations to accelerate data packing/padding in training
+  training:
+
+    # attention module configurations
+    # e.g. padding-free modifications to attention layer
+    attention:
+
+      # this controls the confgurations for padding free computation of flash attention
+      padding_free:
+        method: huggingface
+  peft:
+
+    # quantization-releated acceleration
+    # e.g., kernels for quantized base weights
+    quantization:
+
+      # For loading BitsAndBytes quantized layers
+      # to serve as 4bit base-weights for LoRA PEFT-tuning.
+      # NOTE: currently AutoGPTQ is not properly integrated into huggingface /
+      # bitsandbytes, thus recommended quant_type to be either "nf4"
+      # or "fp4".
+      # bitsandbytes:
+      bitsandbytes:
+        quant_type: nf4
+
+        # If True, then no get_peft_model and prepare_model_for_kbit_training
+        # will be called. 
+        no_peft_model: false

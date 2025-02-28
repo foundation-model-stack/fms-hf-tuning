@@ -1,0 +1,494 @@
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:11<03:35, 11.96s/it]You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:   0%|                                       | 0/19 [00:00<?, ?it/s]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:21<03:03, 10.81s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:58,  6.57s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:58,  6.59s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:57,  6.55s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:58,  6.57s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:58,  6.60s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:58,  6.59s/it]Loading checkpoint shards:   5%|█▋                             | 1/19 [00:06<01:59,  6.62s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.84s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.83s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.85s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.85s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.84s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.85s/it]Loading checkpoint shards:  11%|███▎                           | 2/19 [00:06<00:48,  2.86s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:11,  8.24s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:36<03:23, 12.72s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:11,  8.24s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:12,  8.25s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:12,  8.26s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:12,  8.26s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:12,  8.26s/it]Loading checkpoint shards:  16%|████▉                          | 3/19 [00:21<02:12,  8.26s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.45s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:53<03:32, 14.17s/it]Loading checkpoint shards:  21%|██████▌                        | 4/19 [00:37<02:51, 11.46s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.67s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [00:55<03:11, 13.68s/it]Loading checkpoint shards:  26%|████████▏                      | 5/19 [01:10<03:35, 15.42s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.53s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.53s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.53s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.53s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.53s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:21, 15.54s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:30<03:36, 16.68s/it]Loading checkpoint shards:  32%|█████████▊                     | 6/19 [01:14<03:22, 15.57s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.71s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.71s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.71s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.71s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.70s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.71s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:49<03:29, 17.49s/it]Loading checkpoint shards:  37%|███████████▍                   | 7/19 [01:33<03:20, 16.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.75s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [02:12<03:32, 19.28s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:56<03:26, 18.77s/it]Loading checkpoint shards:  42%|█████████████                  | 8/19 [01:57<03:26, 18.79s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.57s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.55s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.57s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.57s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.57s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:33<03:19, 19.93s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.57s/it]Loading checkpoint shards:  47%|██████████████▋                | 9/19 [02:18<03:15, 19.59s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.75s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.75s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.74s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.75s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:53<02:59, 19.99s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.75s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:57, 19.74s/it]Loading checkpoint shards:  53%|███████████████▊              | 10/19 [02:38<02:58, 19.78s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.90s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.91s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.89s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.90s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.89s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.90s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [02:58<02:39, 19.91s/it]Loading checkpoint shards:  58%|█████████████████▎            | 11/19 [03:14<02:40, 20.08s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:37<02:28, 21.19s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.08s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.07s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.08s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.08s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.07s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.08s/it]Loading checkpoint shards:  63%|██████████████████▉           | 12/19 [03:22<02:27, 21.11s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.83s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:52, 18.83s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.83s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:51<01:53, 18.91s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.84s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.84s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.85s/it]Loading checkpoint shards:  68%|████████████████████▌         | 13/19 [03:36<01:53, 18.87s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.51s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.51s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.52s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.52s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [04:09<01:32, 18.58s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.53s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.54s/it]Loading checkpoint shards:  74%|██████████████████████        | 14/19 [03:53<01:32, 18.53s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:28<01:14, 18.66s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.62s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.62s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.63s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.61s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.62s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.63s/it]Loading checkpoint shards:  79%|███████████████████████▋      | 15/19 [04:12<01:14, 18.64s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.37s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.38s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.39s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.39s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.38s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:42<00:52, 17.42s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.39s/it]Loading checkpoint shards:  84%|█████████████████████████▎    | 16/19 [04:27<00:52, 17.42s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.30s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.30s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.28s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.29s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.30s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:56<00:32, 16.32s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.31s/it]Loading checkpoint shards:  89%|██████████████████████████▊   | 17/19 [04:41<00:32, 16.32s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.74s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [05:07<00:14, 14.77s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards:  95%|████████████████████████████▍ | 18/19 [04:52<00:14, 14.76s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 12.97s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:00<00:00, 12.96s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:00<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 12.97s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:00<00:00, 12.96s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:00<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:16<00:00, 12.98s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:16<00:00, 16.66s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 12.97s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 12.97s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 15.84s/it]
+Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 12.98s/it]Loading checkpoint shards: 100%|██████████████████████████████| 19/19 [05:01<00:00, 15.85s/it]
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+WARNING:sft_trainer.py:PAD token set to default, missing in tokenizer
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new lm_head weights will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:2077: FutureWarning: `--push_to_hub_token` is deprecated and will be removed in version 5 of 🤗 Transformers. Use `--hub_token` instead.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py:362: FutureWarning: `tokenizer` is deprecated and removed starting from version 0.16.0 for `SFTTrainer.__init__`. Use `processing_class` instead.
+  trainer = SFTTrainer(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/trl/trainer/sft_trainer.py:300: UserWarning: You passed a processing_class with `padding_side` not equal to `right` to the SFTTrainer. This might lead to some unexpected behaviour due to overflow issues when training a model in half-precision. You might consider adding `processing_class.padding_side = 'right'` to your code.
+  warnings.warn(
+  0%|                                                                 | 0/100 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 1 has a total capacity of 79.32 GiB of which 2.33 GiB is free. Process 4126361 has 76.99 GiB memory in use. Of the allocated memory 73.82 GiB is allocated by PyTorch, and 206.38 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 0 has a total capacity of 79.32 GiB of which 2.35 GiB is free. Process 4126360 has 76.97 GiB memory in use. Of the allocated memory 73.82 GiB is allocated by PyTorch, and 426.80 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 4 has a total capacity of 79.32 GiB of which 2.42 GiB is free. Process 4126364 has 76.90 GiB memory in use. Of the allocated memory 73.81 GiB is allocated by PyTorch, and 125.59 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 7 has a total capacity of 79.32 GiB of which 2.47 GiB is free. Process 4126368 has 76.85 GiB memory in use. Of the allocated memory 73.82 GiB is allocated by PyTorch, and 207.68 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 5 has a total capacity of 79.32 GiB of which 2.44 GiB is free. Process 4126365 has 76.88 GiB memory in use. Of the allocated memory 73.82 GiB is allocated by PyTorch, and 93.38 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 6 has a total capacity of 79.32 GiB of which 2.33 GiB is free. Process 4126366 has 76.99 GiB memory in use. Of the allocated memory 73.83 GiB is allocated by PyTorch, and 202.52 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 2 has a total capacity of 79.32 GiB of which 2.42 GiB is free. Process 4126362 has 76.90 GiB memory in use. Of the allocated memory 73.81 GiB is allocated by PyTorch, and 128.23 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 674, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 418, in train
+    trainer.train(resume_from_checkpoint)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/trainer.py", line 3740, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/accelerator.py", line 2246, in backward
+    loss.backward(**kwargs)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/function.py", line 306, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 313, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/autograd/graph.py", line 769, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.71 GiB. GPU 3 has a total capacity of 79.32 GiB of which 2.33 GiB is free. Process 4126363 has 76.99 GiB memory in use. Of the allocated memory 73.82 GiB is allocated by PyTorch, and 206.65 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+  0%|                                                                 | 0/100 [00:07<?, ?it/s]
+W0220 17:09:05.319000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35247 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35248 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35249 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35250 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35251 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35252 closing signal SIGTERM
+W0220 17:09:05.320000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 35253 closing signal SIGTERM
+E0220 17:09:07.052000 140229929124224 torch/distributed/elastic/multiprocessing/api.py:833] failed (exitcode: 203) local_rank: 0 (pid: 35246) of binary: /workspace/fms-acceleration/.tox/run-benches/bin/python
+Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/accelerate_cli.py", line 48, in main
+    args.func(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 1155, in launch_command
+    multi_gpu_launcher(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 793, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 133, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 264, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+tuning.sft_trainer FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-02-20_17:09:05
+  host      : mk-testing-grad-master-0
+  rank      : 0 (local_rank: 0)
+  exitcode  : 203 (pid: 35246)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

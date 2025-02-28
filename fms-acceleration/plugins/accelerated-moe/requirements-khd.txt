@@ -1,0 +1,2 @@
+# fork of https://github.com/mayank31398/kernel-hyperdrive/
+kernel-hyperdrive @ git+https://github.com/fabianlim/kernel-hyperdrive.git

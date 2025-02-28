@@ -1,0 +1,18 @@
+# decide not to have this as an requirement for now
+# fms_acceleration @ git+https://github.com/foundation-model-stack/fms-acceleration.git#subdirectory=plugins/framework
+
+# Needs a lower bound due to`accelerate.load_checkpoint_in_model` function used in gptqmodel
+accelerate >= 0.29
+
+# bitsandbytes for the BNB plugin
+# - lower bound is because bnb is missing quant_state
+# - upper bound is because of segmentation faults
+# see https://github.com/foundation-model-stack/fms-acceleration/issues/17
+bitsandbytes >=0.41,<=0.43.3
+
+# Used to manage the thread limit in functions for converting old 
+# GPTQ models to new GPTQ model format that support symmetrical=False
+# https://github.com/AutoGPTQ/AutoGPTQ/pull/640
+threadpoolctl >= 3.5.0
+
+datasets >= 2.20.0
