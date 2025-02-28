@@ -34,6 +34,12 @@ DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
+DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
+)
+DATA_CONFIG_YAML_STREAMING_PRETOKENIZED = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "pretokenized_json_data_streaming.yaml"
+)
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML_WITH_CHAT_TEMPLATE = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling_with_chat_template.yaml"
 )
