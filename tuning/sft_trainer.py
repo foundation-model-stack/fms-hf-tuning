@@ -215,21 +215,39 @@ def train(
         fusedops_kernels_config,
     ).get_framework()
 
-    model_loader = AutoModelForCausalLM.from_pretrained
-    processor = None
-    if model_args.multimodal:
-        model_loader = AutoModelForVision2Seq.from_pretrained
-        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+    # processor = None
+    # if model_args.multimodal:
+    #     model_loader = AutoModelForVision2Seq.from_pretrained
+    #     processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
 
-    if framework is not None and framework.requires_custom_loading:
-        model_loader = framework.model_loader  # drop-in new loader
     model_load_time = time.time()
-    model = model_loader(
-        model_args.model_name_or_path,
-        cache_dir=train_args.cache_dir,
-        torch_dtype=get_torch_dtype(model_args.torch_dtype),
-        attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
-    )
+    multimodal = False
+    processor = None
+    try:
+        # try to load vision model
+        model_loader = AutoModelForVision2Seq.from_pretrained
+        model = model_loader(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+        )
+
+        multimodal = True
+        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+    except ValueError:
+        # fallback on loading language model
+        model_loader = AutoModelForCausalLM.from_pretrained
+
+        if framework is not None and framework.requires_custom_loading:
+            model_loader = framework.model_loader  # drop-in new loader
+
+        model = model_loader(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+        )
 
     # TODO: Move these to a config as well
     tokenizer = AutoTokenizer.from_pretrained(

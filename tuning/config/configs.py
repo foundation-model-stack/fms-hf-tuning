@@ -61,10 +61,6 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
-    multimodal: bool = field(
-        default=False,
-        metadata={"help": "Load multimodal model and processor"},
-    )
 
 
 @dataclass
