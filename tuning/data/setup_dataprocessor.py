@@ -339,17 +339,11 @@ def _process_raw_data_args(
 
     # And let processor handle the logic
     train_dataset = None
-    if processor:
-        train_dataset = load_dataset(data_args.training_data_path, split="train")
-    else:
-        train_dataset = data_processor.process_dataset_configs([train_dataset_config])
+    train_dataset = data_processor.process_dataset_configs([train_dataset_config])
 
     eval_dataset = None
     if is_eval_dataset_present:
-        if processor:
-            eval_dataset = load_dataset(data_args.training_data_path)
-        else:
-            eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
+        eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
 
     return (train_dataset, eval_dataset, dataset_text_field)
 
