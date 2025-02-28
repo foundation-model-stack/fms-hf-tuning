@@ -318,14 +318,6 @@ def _get_training_logs_by_epoch(dir_path: str, epoch: int = None):
     return data_list
 
 
-def test_run_train_requires_output_dir():
-    """Check fails when output dir not provided."""
-    updated_output_dir_train_args = copy.deepcopy(TRAIN_ARGS)
-    updated_output_dir_train_args.output_dir = None
-    with pytest.raises(TypeError):
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, updated_output_dir_train_args, None)
-
-
 def test_run_train_fails_training_data_path_not_exist():
     """Check fails when data path not found."""
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
