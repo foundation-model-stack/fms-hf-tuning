@@ -199,8 +199,8 @@ def _get_vision_dataset_handlers(data_args, processor):
     # First data handler configuration
     fn_kwargs1 = {
         "tokenizer": processor,
-        "dataset_text_field": data_args.text_field_name,
-        "chat_template_key": data_args.text_field_name,
+        "dataset_text_field": data_args.dataset_text_field,
+        "chat_template_key": data_args.dataset_text_field,
     }
     kwargs1 = {
         "fn_kwargs": fn_kwargs1,
@@ -219,15 +219,15 @@ def _get_vision_dataset_handlers(data_args, processor):
     fn_kwargs2 = {
         "processor": processor,
         "fields_name": {
-            "text_field_name": data_args.text_field_name,
-            "image_field_name": data_args.image_field_name,
+            "dataset_text_field": data_args.dataset_text_field,
+            "dataset_image_field": data_args.dataset_image_field,
         },
         "processor_kwargs": processor_kwargs,
     }
     kwargs2 = {
         "fn_kwargs": fn_kwargs2,
         "batched": True,
-        "remove_columns": [data_args.text_field_name, data_args.image_field_name],
+        "remove_columns": [data_args.dataset_text_field, data_args.dataset_image_field],
         "num_proc": None,
     }
     handlers.append(
@@ -305,7 +305,7 @@ def _process_raw_data_args(
 
     # ToDo: Think about a better way to handle this if condition
     # (Could use multimodal boolean in model_args)
-    if data_args.text_field_name and data_args.image_field_name:
+    if data_args.dataset_text_field and data_args.dataset_image_field:
 
         handlers, dataset_text_field = _get_vision_dataset_handlers(
             data_args, processor
@@ -426,10 +426,10 @@ def process_dataargs(
     #       check if we already tokenized the dataset or not.
     is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
-    if processor and not (data_args.text_field_name or data_args.image_field_name):
+    if processor and not (data_args.dataset_text_field or data_args.dataset_image_field):
         logger.error(
-            "When running a vision model you must provide the text_field_name and \
-            image_field_name for the columns in the dataset. Values should be from \
+            "When running a vision model you must provide the dataset_text_field and \
+            dataset_image_field for the columns in the dataset. Values should be from \
             column names: %s",
             train_dataset.column_names,
         )
@@ -442,8 +442,8 @@ def process_dataargs(
         max_seq_length,
         data_args.instruction_template,
         is_padding_free=is_padding_free,
-        text_field_name=data_args.text_field_name,
-        image_field_name=data_args.image_field_name,
+        dataset_text_field=dataset_text_field,
+        dataset_image_field=data_args.dataset_image_field,
         processor=processor,
     )
 

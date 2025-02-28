@@ -16,10 +16,8 @@ import torch
 
 
 class VisionDataCollator:
-    def __init__(self, processor, text_field_name, image_field_name):
+    def __init__(self, processor):
         self.processor = processor
-        self.text_field_name = text_field_name
-        self.image_field_name = image_field_name
 
     def __call__(self, features):
         """

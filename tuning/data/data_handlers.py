@@ -278,8 +278,8 @@ def apply_processor_multimodal_data(
     processor_kwargs = kwargs.get("processor_kwargs", {})
     fields_name = kwargs.get("fields_name", {})
     try:
-        text_field = fields_name["text_field_name"]
-        image_field = fields_name["image_field_name"]
+        text_field = fields_name["dataset_text_field"]
+        image_field = fields_name["dataset_image_field"]
     except KeyError as e:
         raise ValueError(f"Missing required field in fields_name: {e}") from e
 
