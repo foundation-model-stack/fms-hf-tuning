@@ -426,7 +426,9 @@ def process_dataargs(
     #       check if we already tokenized the dataset or not.
     is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
-    if processor and not (data_args.dataset_text_field or data_args.dataset_image_field):
+    if processor and not (
+        data_args.dataset_text_field or data_args.dataset_image_field
+    ):
         logger.error(
             "When running a vision model you must provide the dataset_text_field and \
             dataset_image_field for the columns in the dataset. Values should be from \
@@ -442,8 +444,6 @@ def process_dataargs(
         max_seq_length,
         data_args.instruction_template,
         is_padding_free=is_padding_free,
-        dataset_text_field=dataset_text_field,
-        dataset_image_field=data_args.dataset_image_field,
         processor=processor,
     )
 

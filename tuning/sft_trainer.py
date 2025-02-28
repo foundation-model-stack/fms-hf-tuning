@@ -220,8 +220,8 @@ def train(
     #     model_loader = AutoModelForVision2Seq.from_pretrained
     #     processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
 
+    # option to set multimodal var here
     model_load_time = time.time()
-    multimodal = False
     processor = None
     try:
         # try to load vision model
@@ -230,10 +230,11 @@ def train(
             model_args.model_name_or_path,
             cache_dir=train_args.cache_dir,
             torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
         )
 
-        multimodal = True
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
     except ValueError:
         # fallback on loading language model
@@ -246,7 +247,9 @@ def train(
             model_args.model_name_or_path,
             cache_dir=train_args.cache_dir,
             torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
         )
 
     # TODO: Move these to a config as well

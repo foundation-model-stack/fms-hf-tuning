@@ -40,7 +40,6 @@ def get_data_collator(
     is_traindata_tokenized: bool,
     max_seq_length: int,
     instruction_template: Optional[str],
-    processor=None,
     is_padding_free: bool = False,
     processor: Optional[Union[AutoProcessor, LlavaProcessor]] = None,
 ) -> Callable:
