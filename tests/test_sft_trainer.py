@@ -39,8 +39,11 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML_WITH_CHAT_TEMPLATE,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+    DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
@@ -802,6 +805,65 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     [
         (
             [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_TOKENIZED_JSON],
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+        ),
+    ],
+)
+def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
+    """Check if we can finetune causallm models using multiple datasets with multiple files"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = datafiles
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.max_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname",
+    [
+        (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
         ),
         (
@@ -934,50 +996,54 @@ def test_run_training_with_pretokenised_dataset_containing_input_ids():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.parametrize(
-    "dataset_path",
-    [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
-)
-def test_run_chat_style_ft(dataset_path):
-    """Check if we can perform an e2e run with chat template and multi turn chat training."""
-    with tempfile.TemporaryDirectory() as tempdir:
+# Testcase for chat_template through data_args
+# @pytest.mark.parametrize(
+#     "dataset_path",
+#     [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
+# )
+# def test_run_chat_style_ft(dataset_path):
+#     """Check if we can perform an e2e run with chat template and multi turn chat training."""
+#     with tempfile.TemporaryDirectory() as tempdir:
 
-        data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = dataset_path
-        data_args.chat_template = "{% for message in messages['messages'] %}\
-            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
-            {% endif %}\
-            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
-            {% endif %}\
-            {% endfor %}"
-        data_args.response_template = "<|assistant|>"
-        data_args.instruction_template = "<|user|>"
+#         data_args = copy.deepcopy(DATA_ARGS)
+#         data_args.training_data_path = dataset_path
+#         data_args.chat_template = "{% for message in messages['messages'] %}\
+#             {% if message['role'] == 'user' %}
+#                 {{ '<|user|>\n' + message['content'] + eos_token }}\
+#             {% elif message['role'] == 'system' %}
+#                 {{ '<|system|>\n' + message['content'] + eos_token }}\
+#             {% elif message['role'] == 'assistant' %}
+#                 {{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+#             {% endif %}\
+#             {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+#             {% endif %}\
+#             {% endfor %}"
+#         data_args.response_template = "<|assistant|>"
+#         data_args.instruction_template = "<|user|>"
 
-        model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+#         model_args = copy.deepcopy(MODEL_ARGS)
+#         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
 
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
 
-        sft_trainer.train(model_args, data_args, train_args)
+#         sft_trainer.train(model_args, data_args, train_args)
 
-        # validate the configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
+#         # validate the configs
+#         _validate_training(tempdir)
+#         checkpoint_path = _get_checkpoint_path(tempdir)
 
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+#         # Load the model
+#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            '<|user|>\nProvide two rhyming words for the word "love"\n\
-            <nopace></s><|assistant|>',
-            max_new_tokens=50,
-        )
-        assert len(output_inference) > 0
-        assert 'Provide two rhyming words for the word "love"' in output_inference
+#         # Run inference on the text
+#         output_inference = loaded_model.run(
+#             '<|user|>\nProvide two rhyming words for the word "love"\n\
+#             <nopace></s><|assistant|>',
+#             max_new_tokens=50,
+#         )
+#         assert len(output_inference) > 0
+#         assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 @pytest.mark.parametrize(
@@ -985,7 +1051,7 @@ def test_run_chat_style_ft(dataset_path):
     [
         (
             [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
-            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML_WITH_CHAT_TEMPLATE,
         )
     ],
 )
@@ -995,14 +1061,6 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.chat_template = "{% for message in messages['messages'] %}\
-            {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
-            {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
-            {% endif %}\
-            {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
-            {% endif %}\
-            {% endfor %}"
         data_args.response_template = "<|assistant|>"
         data_args.instruction_template = "<|user|>"
         data_args.dataset_text_field = "new_formatted_field"

@@ -101,9 +101,8 @@ class DataArguments:
     chat_template: str = field(
         default=None,
         metadata={
-            "help": "Chat template to use for tokenization. \
-                No need to pass this if the tokenizer already has a chat_template. \
-                If passed, it will overwrite tokenizer.chat_template if it exists."
+            "help": "This is not supported, use chat_template/chat_template_b64 \
+             in data config instead."
         },
     )
     response_template: str = field(
@@ -120,6 +119,14 @@ class DataArguments:
             "help": "Should be provided for chat training. \
             Piece of text that determines the start of human response\
             Passed in conjunction with response_template"
+        },
+    )
+    add_special_tokens: List[str] = field(
+        default=None,
+        metadata={
+            "help": "List of special tokens to be added to the tokenizer's vocabulary. \
+            Used to add Special Tokens to Tokenizer's Vocabulary,\
+            Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
 

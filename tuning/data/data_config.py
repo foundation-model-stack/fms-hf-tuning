@@ -15,6 +15,7 @@
 # Standard
 from dataclasses import dataclass
 from typing import Dict, List, Optional
+import base64
 import logging
 import os
 
@@ -47,12 +48,15 @@ class DataPreProcessorConfig:
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
     # Default seed is not none to ensure reproducability
     sampling_seed: Optional[float] = 42
+    streaming: Optional[bool] = False
 
 
 @dataclass
 class DataConfig:
     dataprocessor: DataPreProcessorConfig
     datasets: List[DataSetConfig]
+    chat_template: Optional[str] = None
+    chat_template_b64: Optional[str] = None
 
 
 def _validate_data_handler_config(data_handler) -> DataHandlerConfig:
@@ -142,6 +146,10 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         seed = kwargs["sampling_seed"]
         assert isinstance(seed, int), "sampling seed should be int"
         c.sampling_seed = seed
+    if "streaming" in kwargs:
+        streaming = kwargs["streaming"]
+        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
+        c.streaming = streaming
     return c
 
 
@@ -149,6 +157,14 @@ def validate_data_config(dataconfig: DataConfig):
     _validate_dataprocessor_config(dataconfig.dataprocessor)
     for d in dataconfig.datasets:
         _validate_dataset_config(d)
+    if dataconfig.chat_template is not None:
+        assert isinstance(
+            dataconfig.chat_template, str
+        ), "chat_template should be a string"
+    if dataconfig.chat_template_b64 is not None:
+        assert isinstance(
+            dataconfig.chat_template_b64, str
+        ), "chat_template_b64 should be a string"
 
 
 def load_and_validate_data_config(data_config_file: str) -> DataConfig:
@@ -166,5 +182,14 @@ def load_and_validate_data_config(data_config_file: str) -> DataConfig:
     if "dataprocessor" in raw_data:
         dataprocessor = _validate_dataprocessor_config(raw_data["dataprocessor"])
 
-    data_config = DataConfig(dataprocessor=dataprocessor, datasets=datasets)
+    chat_template = raw_data.get("chat_template", None)
+    chat_template_b64_raw = raw_data.get("chat_template_b64", None)
+
+    # base64 takes precidence over chat_template
+    if chat_template_b64_raw is not None:
+        chat_template = base64.b64decode(chat_template_b64_raw).decode("utf-8")
+
+    data_config = DataConfig(
+        dataprocessor=dataprocessor, datasets=datasets, chat_template=chat_template
+    )
     return data_config

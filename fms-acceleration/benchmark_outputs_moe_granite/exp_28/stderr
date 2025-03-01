@@ -1,0 +1,67 @@
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/transformers/training_args.py:1594: FutureWarning: `evaluation_strategy` is deprecated and will be removed in version 4.46 of 🤗 Transformers. Use `eval_strategy` instead
+  warnings.warn(
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                        | 0/2 [00:00<?, ?it/s]You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+Loading checkpoint shards:   0%|                                        | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|████████████████                | 1/2 [00:04<00:04,  4.41s/it]Loading checkpoint shards:  50%|████████████████                | 1/2 [00:08<00:08,  8.72s/it]Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:07<00:00,  3.66s/it]Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:07<00:00,  3.78s/it]
+Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:11<00:00,  5.43s/it]Loading checkpoint shards: 100%|████████████████████████████████| 2/2 [00:11<00:00,  5.92s/it]
+WARNING:sft_trainer.py:PAD token set to default, to make it different from eos token
+WARNING:sft_trainer.py:PAD token set to default, to make it different from eos token
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+/workspace/fms-acceleration/plugins/attention-and-distributed-packing/src/fms_acceleration_aadp/framework_plugin_padding_free.py:132: UserWarning: transformers version supports padding free natively in various models.
+  warnings.warn(
+ERROR:sft_trainer.py:Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 683, in main
+    trainer, additional_train_info = train(
+                                     ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/tuning/sft_trainer.py", line 344, in train
+    model, (peft_config,) = framework.augmentation(
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/framework/src/fms_acceleration/framework.py", line 206, in augmentation
+    model, modifiable_args = plugin.augmentation(
+                             ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/framework_plugin_scattermoe.py", line 81, in augmentation
+    self._moe_component_module_names = prepare_scattermoe(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/plugins/accelerated-moe/src/fms_acceleration_moe/utils/scattermoe_prepare.py", line 121, in prepare_scattermoe
+    assert world_size % ep_degree == 0, (
+AssertionError: world size (2) not divisible by ep_size (4).
+
+[rank0]:[W219 21:20:05.897012720 ProcessGroupNCCL.cpp:1168] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+W0219 21:20:06.366000 140459473891712 torch/distributed/elastic/multiprocessing/api.py:858] Sending process 12181 closing signal SIGTERM
+E0219 21:20:06.881000 140459473891712 torch/distributed/elastic/multiprocessing/api.py:833] failed (exitcode: 203) local_rank: 0 (pid: 12180) of binary: /workspace/fms-acceleration/.tox/run-benches/bin/python
+Traceback (most recent call last):
+  File "/workspace/fms-acceleration/.tox/run-benches/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/accelerate_cli.py", line 48, in main
+    args.func(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 1155, in launch_command
+    multi_gpu_launcher(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/accelerate/commands/launch.py", line 793, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 133, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/fms-acceleration/.tox/run-benches/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 264, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+tuning.sft_trainer FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-02-19_21:20:06
+  host      : mk-testing-grad-master-0
+  rank      : 0 (local_rank: 0)
+  exitcode  : 203 (pid: 12180)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
