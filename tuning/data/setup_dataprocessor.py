@@ -17,7 +17,7 @@ from typing import Callable, Dict, Union
 import logging
 
 # Third Party
-from datasets import Dataset, IterableDataset, load_dataset
+from datasets import Dataset, IterableDataset
 
 # Third
 from transformers import AutoTokenizer
@@ -198,7 +198,7 @@ def _get_vision_dataset_handlers(data_args, processor):
 
     # First data handler configuration
     fn_kwargs1 = {
-        "tokenizer": processor,
+        "processor": processor,
         "dataset_text_field": data_args.dataset_text_field,
         "chat_template_key": data_args.dataset_text_field,
     }
@@ -338,7 +338,6 @@ def _process_raw_data_args(
         eval_dataset_config.data_handlers = handlers
 
     # And let processor handle the logic
-    train_dataset = None
     train_dataset = data_processor.process_dataset_configs([train_dataset_config])
 
     eval_dataset = None

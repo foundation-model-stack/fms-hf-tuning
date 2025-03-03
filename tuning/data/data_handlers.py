@@ -22,7 +22,12 @@ import re
 # Third Party
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
-from transformers import AutoProcessor, AutoTokenizer, LlavaProcessor
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    LlavaNextProcessor,
+    LlavaProcessor,
+)
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
@@ -233,7 +238,7 @@ def apply_custom_jinja_template(
 
 def apply_tokenizer_chat_template(
     element: Dict[str, str],
-    tokenizer: Union[AutoTokenizer, AutoProcessor],
+    tokenizer: AutoTokenizer,
     dataset_text_field: str,
     **kwargs,
 ):
@@ -248,6 +253,9 @@ def apply_tokenizer_chat_template(
         Saves the result to dataset_text_field argument.
     """
     chat_template_key = kwargs.get("chat_template_key", None)
+    processor = kwargs.get("processor", None)
+    if processor is not None:
+        tokenizer = processor
     if tokenizer.chat_template is None:
         raise ValueError(
             "Tokenizer does not contain tokenizer.chat_template\
@@ -289,12 +297,30 @@ def apply_processor_multimodal_data(
     if text is None or image is None:
         raise ValueError("Missing text or image data in element.") from e
 
+    # Handler is used with batch=True where image is `List[List[PIL.Image], List[PIL.Image]]`
+    # We need to convert it to `List[PIL.Image]` for LlavaProcessor
     if isinstance(processor, LlavaProcessor):
-        if isinstance(image, list) and image:
-            image = image[0]
+        if isinstance(image, list) and image and isinstance(image[0], list):
+            image = [img[0] for img in image]
         else:
             raise ValueError(
-                "Expected image to be a non-empty list for LlavaProcessor."
+                "Expected image to be a non-empty list of lists \
+                with a single image for LlavaProcessor."
+            ) from e
+
+    # If LlavaNextProcessor then convert mode of image to RGB. Process of Granite-3.2-Vision Model
+    elif isinstance(
+        processor, LlavaNextProcessor
+    ):
+        if isinstance(image, list) and image and isinstance(image[0], list):
+            image = [
+                img[0].convert("RGB") if img[0].mode != "RGB" else img[0]
+                for img in image
+            ]
+        else:
+            raise ValueError(
+                "Expected image to be a non-empty list of lists \
+                with a single image for LlavaNextProcessor."
             ) from e
 
     element = processor(text=text, images=image, **processor_kwargs)
