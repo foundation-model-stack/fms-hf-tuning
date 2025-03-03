@@ -236,6 +236,7 @@ def train(
         )
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+        tokenizer = processor.tokenizer
     except ValueError:
         # fallback on loading language model
         model_loader = AutoModelForCausalLM.from_pretrained
@@ -252,17 +253,23 @@ def train(
             else None,
         )
 
-    # TODO: Move these to a config as well
-    tokenizer = AutoTokenizer.from_pretrained(
-        (
-            model_args.tokenizer_name_or_path
-            if model_args.tokenizer_name_or_path
-            else model_args.model_name_or_path
-        ),
-        cache_dir=train_args.cache_dir,
-        use_fast=True,
-        legacy=True,
-    )
+        # TODO: Move these to a config as well
+        tokenizer = AutoTokenizer.from_pretrained(
+            (
+                model_args.tokenizer_name_or_path
+                if model_args.tokenizer_name_or_path
+                else model_args.model_name_or_path
+            ),
+            cache_dir=train_args.cache_dir,
+            use_fast=True,
+            legacy=True,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(
+            f"Exception raised during loading model: {e}"
+        )
+        sys.exit(USER_ERROR_EXIT_CODE)
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time

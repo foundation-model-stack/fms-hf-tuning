@@ -295,7 +295,7 @@ def apply_processor_multimodal_data(
     image = element.get(image_field)
 
     if text is None or image is None:
-        raise ValueError("Missing text or image data in element.") from e
+        raise ValueError("Missing text or image data in element.")
 
     # Handler is used with batch=True where image is `List[List[PIL.Image], List[PIL.Image]]`
     # We need to convert it to `List[PIL.Image]` for LlavaProcessor
