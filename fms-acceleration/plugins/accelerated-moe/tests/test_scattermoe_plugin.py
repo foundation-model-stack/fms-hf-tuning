@@ -17,8 +17,6 @@ import os
 
 # Third Party
 from fms_acceleration.utils import instantiate_framework, read_configuration
-
-# First Party
 from fms_acceleration_moe import ScatterMoEAccelerationPlugin
 
 # configuration

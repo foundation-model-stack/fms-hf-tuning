@@ -16,10 +16,6 @@
 from typing import List
 
 # Third Party
-# pylint: disable=import-error
-import pytest
-
-# First Party
 from fms_acceleration_moe.utils.scattermoe_constants import (
     PARAM_NAME_ROUTER_SCATTERMOE,
     PARAM_NAME_WEIGHT_SCATTERMOE,
@@ -27,6 +23,9 @@ from fms_acceleration_moe.utils.scattermoe_constants import (
 from fms_acceleration_moe.utils.scattermoe_state_dict import (
     get_checkpoint_meta_from_sharded_safetensor,
 )
+
+# pylint: disable=import-error
+import pytest
 
 # just a dummy sample value
 ST_SHARD = "model-00001-of-00001.safetensors"

@@ -290,7 +290,7 @@ def train(
     # adds user specified special tokens to vocab
     if data_args.add_special_tokens:
         logger.info(
-            f"Adding user-defined special tokens: {data_args.add_special_tokens}"
+            "Adding user-defined special tokens: %s", data_args.add_special_tokens
         )
         special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
 
