@@ -30,8 +30,6 @@ from tuning.utils.collators import VisionDataCollator
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 
 def get_data_collator(
     packing: bool,
