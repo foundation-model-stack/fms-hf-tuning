@@ -981,7 +981,7 @@ def test_run_chat_style_ft(dataset_path):
 
 
 def test_run_chat_style_add_special_tokens_ft():
-    """Check if we can perform an e2e run with chat template and multi turn chat training."""
+    """Test to check an e2e multi turn chat training by adding special tokens via command line."""
     with tempfile.TemporaryDirectory() as tempdir:
 
         # sample hugging face dataset id
