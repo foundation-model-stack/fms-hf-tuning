@@ -351,8 +351,8 @@ class DataPreProcessor:
         train_dataset = None
         state = PartialState()
 
-        # The main_process_first context ensures that the main process runs first
-        with state.main_process_first():
+        # The local_main_process_first context ensures that the main process runs first per node
+        with state.local_main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
