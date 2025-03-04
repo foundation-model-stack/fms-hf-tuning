@@ -312,7 +312,7 @@ class DataPreProcessor:
                     column_names = raw_datasets[splitName].column_names
 
                     # remove __content__ from all processing
-                    if not column_names:
+                    if not column_names and isinstance(raw_datasets, IterableDatasetDict):
                         logger.warning(
                             "Could not remove columns from IterableDataset"
                         )
