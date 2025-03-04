@@ -334,7 +334,7 @@ class DataPreProcessor:
                     else:
                         if "num_proc" not in kwargs:
                             kwargs["num_proc"] = os.cpu_count()
-                            logger.info(f"setting num_proc to {os.cpu_count()}")
+                            logger.info("setting num_proc to %s", os.cpu_count())
 
                     if "fn_kwargs" not in kwargs:
                         kwargs["fn_kwargs"] = {}
