@@ -215,11 +215,6 @@ def train(
         fusedops_kernels_config,
     ).get_framework()
 
-    # processor = None
-    # if model_args.multimodal:
-    #     model_loader = AutoModelForVision2Seq.from_pretrained
-    #     processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
-
     # option to set multimodal var here
     model_load_time = time.time()
     processor = None
@@ -266,9 +261,7 @@ def train(
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
-        write_termination_log(
-            f"Exception raised during loading model: {e}"
-        )
+        write_termination_log(f"Exception raised during loading model: {e}")
         sys.exit(USER_ERROR_EXIT_CODE)
 
     # Calculate and save additional metrics to track later.

@@ -75,7 +75,7 @@ class DataArguments:
             "help": "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
                     or data_formatter_template need to be supplied. \
-                    Required for running with vision models, column name for text data."
+                    For running vision language model tuning pass the column name for text data."
         },
     )
     validation_data_path: str = field(
@@ -126,8 +126,8 @@ class DataArguments:
     dataset_image_field: str = field(
         default=None,
         metadata={
-            "help": "Required for running with vision models. \
-            The column name of the vision data in the multi-modal dataset."
+            "help": "For running vision language model tuning pass \
+            the column name of the image data in the dataset."
         },
     )
 

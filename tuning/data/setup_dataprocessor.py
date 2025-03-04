@@ -200,7 +200,7 @@ def _get_vision_dataset_handlers(data_args, processor):
     fn_kwargs1 = {
         "processor": processor,
         "dataset_text_field": data_args.dataset_text_field,
-        "chat_template_key": data_args.dataset_text_field,
+        "chat_data_key": data_args.dataset_text_field,
     }
     kwargs1 = {
         "fn_kwargs": fn_kwargs1,
@@ -231,7 +231,7 @@ def _get_vision_dataset_handlers(data_args, processor):
         "num_proc": None,
     }
     handlers.append(
-        DataHandlerConfig("apply_processor_multimodal_data", arguments=kwargs2)
+        DataHandlerConfig("apply_multimodal_data_processor", arguments=kwargs2)
     )
 
     return handlers, data_args.dataset_text_field
@@ -303,8 +303,7 @@ def _process_raw_data_args(
     handlers = None
     dataset_text_field = None
 
-    # ToDo: Think about a better way to handle this if condition
-    # (Could use multimodal boolean in model_args)
+    # TODO: Better way to handle vision if condition
     if data_args.dataset_text_field and data_args.dataset_image_field:
 
         handlers, dataset_text_field = _get_vision_dataset_handlers(
@@ -422,11 +421,10 @@ def process_dataargs(
     if processor and not (
         data_args.dataset_text_field or data_args.dataset_image_field
     ):
-        logger.error(
-            "When running a vision model you must provide the dataset_text_field and \
+        raise ValueError(
+            f"When running a vision model you must provide the dataset_text_field and \
             dataset_image_field for the columns in the dataset. Values should be from \
-            column names: %s",
-            train_dataset.column_names,
+            column names: {train_dataset.column_names}",
         )
 
     data_collator = get_data_collator(

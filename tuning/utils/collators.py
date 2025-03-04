@@ -35,7 +35,6 @@ class VisionDataCollator:
         """
 
         # The labels are the input_ids, and we mask the padding tokens in the loss computation
-        # TOOD: should we be ensuring EOS tokens is set?
         # As chat template is applied so it should be set.
         batch = {}
         for key in features[0].keys():

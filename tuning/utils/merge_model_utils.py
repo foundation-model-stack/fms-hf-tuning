@@ -15,9 +15,9 @@
 # Standard
 from typing import Union
 import json
+import logging
 import os
 import shutil
-import logging
 
 # Third Party
 from peft import PeftModel
@@ -180,7 +180,9 @@ def post_process_vLLM_adapters_new_tokens(
                     adapters[k] = f.get_tensor(k)
 
             os.makedirs(modified_checkpoint_path, exist_ok=True)
-            logging.info("Saving new_embeddings.safetensors to path %s", modified_checkpoint_path)
+            logging.info(
+                "Saving new_embeddings.safetensors to path %s", modified_checkpoint_path
+            )
 
             save_file(
                 new_embeddings,
