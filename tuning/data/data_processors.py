@@ -324,16 +324,17 @@ class DataPreProcessor:
                     if kwargs["remove_columns"] == "all":
                         kwargs["remove_columns"] = column_names
 
-                    if not isinstance(raw_datasets, IterableDatasetDict):
-                        if "num_proc" not in kwargs:
-                            kwargs["num_proc"] = os.cpu_count()
-                    else:
+                    if isinstance(raw_datasets, IterableDatasetDict):
                         if "num_proc" in kwargs:
                             del kwargs["num_proc"]
                             logger.warning(
                                 "num_proc is not applicable for \
                                             IterableDatasets and has been removed."
                             )
+                    else:
+                        if "num_proc" not in kwargs:
+                            kwargs["num_proc"] = os.cpu_count()
+                            logger.info(f"setting num_proc to {os.cpu_count()}")
 
                     if "fn_kwargs" not in kwargs:
                         kwargs["fn_kwargs"] = {}

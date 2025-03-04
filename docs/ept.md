@@ -108,7 +108,7 @@ Here also the command line arguments would be
 The code again would add `EOS_TOKEN` to the non tokenized data before using it and also note that the `dataset_text_field` is assumed to be same across all datasets for now.
 
 ### Large Non-Tokenized Dataset
-Lets say you have a large `JSONL` data file which cannot all fit into memory at once that you want to perform EPT on, you can create a `data_config` for the dataset in this manner,
+Let's say you have a large JSONL data file that cannot all fit into memory at once and you want to perform EPT on it, you can use the streaming feature to efficiently load and process data in chunks. To enable streaming, you can define a data_config as follows:
 
 Sample data config for the above use case.
 ```
@@ -128,7 +128,7 @@ datasets:
                 dataset_text_field: "dataset_text_field"
 ```
 
-And the commandline passed to the library should include following.
+The command-line arguments passed to the library should include the following:
 
 ```
 --data_config <path to the data config> --packing=True --max_seq_len 8192 --max_steps <num training steps>
