@@ -257,11 +257,18 @@ Dataset streaming allows users to utilize the functionality of iterable datasets
 
 Users can use streaming by setting `streaming` to `true` in the `datapreprocessor` config. This top-level variable must be set for all datasets in the config, and cannot differ from dataset to dataset. When `streaming` is `true`, the dataset is loaded as an `IterableDataset` ([docs](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset)) instead of a regular `Dataset`, this means the dataset is loaded chunk-by-chunk rather than all at once and is processed lazily. For more details on the differences, see the [HF Blog](https://huggingface.co/docs/datasets/en/about_mapstyle_vs_iterable).
 
+In a data config this looks like (see [ept document](./ept.md#large-non-tokenized-dataset) for a more in-depth example):
+```
+dataprocessor:
+    type: default
+    streaming: true
+```
+
 When using streaming, `split_batches` in the `TrainingArguments` will automatically be set to `True`, by doing so, the main process will fetch a full batch and slice it into `num_processes` batches for each process. This means that `num_processes` must be divisible by `batch_size`. This will replace the global batch size.
 
-When using streaming, the user must set `max_steps` in the `TrainingArguments` instead of `num_train_epochs`. Since iterable datasets are loaded chunk-by-chunk, data cannot run through epochs in a typical fashion as the preprocessor can not know length of the dataset as it is being passed through. If both `max_steps` and `num_train_epochs` are given in a training config, `max_steps` will overwrite `num_train_epochs`.
+**When using streaming, the user must set `max_steps` in the `TrainingArguments` instead of `num_train_epochs`.** Since iterable datasets are loaded chunk-by-chunk, data cannot run through epochs in a typical fashion as the preprocessor can not know length of the dataset as it is being passed through. If both `max_steps` and `num_train_epochs` are given in a training config, `max_steps` will overwrite `num_train_epochs` since `max_steps` directly specifies the total number of optimization steps, which is needed when dataset length cannot be known. 
 
-`max_steps` can be found by dividing the number of features in a dataset by the batch size.
+`max_steps` can be found by dividing the number of samples in a dataset by the batch size.
 
 ### Example data configs.
 

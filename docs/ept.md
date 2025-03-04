@@ -107,6 +107,35 @@ Here also the command line arguments would be
 
 The code again would add `EOS_TOKEN` to the non tokenized data before using it and also note that the `dataset_text_field` is assumed to be same across all datasets for now.
 
+### Large Non-Tokenized Dataset
+Lets say you have a large `JSONL` data file which cannot all fit into memory at once that you want to perform EPT on, you can create a `data_config` for the dataset in this manner,
+
+Sample data config for the above use case.
+```
+dataprocessor:
+    type: default
+    streaming: true
+datasets:
+  - name: non_tokenized_text_dataset
+    data_paths:
+      - "<path-to-the-jsonl-dataset>"
+        data_handlers:
+        - name: add_tokenizer_eos_token
+            arguments:
+            remove_columns: all
+            batched: false
+            fn_kwargs:
+                dataset_text_field: "dataset_text_field"
+```
+
+And the commandline passed to the library should include following.
+
+```
+--data_config <path to the data config> --packing=True --max_seq_len 8192 --max_steps <num training steps>
+```
+
+Please note when using streaming, user must pass `max_steps` instead of `num_train_epochs`. See advanced data preprocessing [document](./advanced-data-preprocessing.md#data-streaming) for more info.
+
 ### Additional Information
 This feature is supported post [v2.3.1](https://github.com/foundation-model-stack/fms-hf-tuning/releases/tag/v2.3.1) of this library.
 Post Last Updated On: 12-02-2025
