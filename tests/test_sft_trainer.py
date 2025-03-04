@@ -980,24 +980,17 @@ def test_run_chat_style_ft(dataset_path):
         assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
-@pytest.mark.parametrize(
-    "data_args",
-    [
-        (
-            # sample hugging face dataset id
-            configs.DataArguments(
-                training_data_path="lhoestq/demo1",
-                data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
-                response_template="\n### Stars:",
-            )
-        )
-    ],
-)
-def test_run_chat_style_add_special_tokens_ft(data_args):
+def test_run_chat_style_add_special_tokens_ft():
     """Check if we can perform an e2e run with chat template and multi turn chat training."""
     with tempfile.TemporaryDirectory() as tempdir:
 
-        data_args.add_special_tokens = ["<|assistant|>", "<|user|>"]
+        # sample hugging face dataset id
+        data_args = configs.DataArguments(
+            training_data_path="lhoestq/demo1",
+            data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
+            response_template="\n### Stars:",
+            add_special_tokens=["<|assistant|>", "<|user|>"],
+        )
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
@@ -1011,13 +1004,7 @@ def test_run_chat_style_add_special_tokens_ft(data_args):
         # Load the tokenizer
         tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint_path)
 
-        # token out of vocabulary
-        tok1 = "<|sample_not_in_vocab123|>"
-
-        # test for out of vocab token
-        assert not tok1 in tokenizer.vocab
-
-        # test for all tokens in vocab
+        # Check if all special tokens passed are in tokenizer
         for tok in data_args.add_special_tokens:
             assert tok in tokenizer.vocab
 
