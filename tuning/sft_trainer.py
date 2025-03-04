@@ -409,7 +409,9 @@ def train(
         accelerator = None if not is_accelerate_available() else trainer.accelerator
 
         # ready for train may produce additional callbacks for the trainer
-        for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
+        for x in framework.get_callbacks_and_ready_for_train(
+            model, accelerator, trainer, model_args.model_name_or_path
+        ):
             trainer.add_callback(x)
 
     resume_from_checkpoint = None
