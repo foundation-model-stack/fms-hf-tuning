@@ -1041,6 +1041,35 @@ def test_run_chat_style_ft(dataset_path):
         assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
+def test_run_chat_style_add_special_tokens_ft():
+    """Test to check an e2e multi turn chat training by adding special tokens via command line."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        # sample hugging face dataset id
+        data_args = configs.DataArguments(
+            training_data_path="lhoestq/demo1",
+            data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
+            response_template="\n### Stars:",
+            add_special_tokens=["<|assistant|>", "<|user|>"],
+        )
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the tokenizer
+        tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint_path)
+
+        # Check if all special tokens passed are in tokenizer
+        for tok in data_args.add_special_tokens:
+            assert tok in tokenizer.vocab
+
+
 @pytest.mark.parametrize(
     "datafiles, dataconfigfile",
     [
