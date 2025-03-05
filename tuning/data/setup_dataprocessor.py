@@ -75,6 +75,16 @@ def _process_dataconfig_file(
         tokenizer=tokenizer,
         additional_data_handlers=additional_data_handlers,
     )
+
+    if processor.processor_config.chat_template is not None:
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with data config's chat_template %s",
+                tokenizer.chat_template,
+                processor.processor_config.chat_template,
+            )
+        tokenizer.chat_template = processor.processor_config.chat_template
+
     if processor.processor_config.streaming:
         if train_args.max_steps < 1:
             logging.error(
