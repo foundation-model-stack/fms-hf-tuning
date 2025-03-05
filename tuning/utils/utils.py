@@ -18,6 +18,7 @@ import logging
 import os
 
 # Third Party
+from datasets import IterableDataset
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,22 @@ def load_yaml_or_json(file_path: str) -> dict:
         if ext == ".json":
             return json.load(f)
     return None
+
+
+def resolve_iterable_dataset_features(data: IterableDataset):
+    if data.column_names is None:
+        if isinstance(data, IterableDataset):
+            if hasattr(data, "_resolve_features"):
+                data = data._resolve_features()
+            else:
+                raise ValueError(
+                    "_resolve_features API is not available to fetch column names"
+                )
+        else:
+            raise ValueError(
+                f"not possible to fetch column names for the loaded dataset of type {type(data)}"
+            )
+    return data
 
 
 def validate_mergeable_datasets(datasets):

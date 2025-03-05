@@ -19,7 +19,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
@@ -33,7 +33,10 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
+    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+    DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
     MODEL_NAME,
@@ -141,7 +144,10 @@ def test_load_dataset_with_datafile(datafile, column_names):
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=None, splitName="train", datafile=datafile
+        datasetconfig=None,
+        streaming=processor.processor_config.streaming,
+        splitName="train",
+        datafile=datafile,
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -156,8 +162,12 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName=splitName, datafile=None
+        datasetconfig=datasetconfig,
+        streaming=processor.processor_config.streaming,
+        splitName=splitName,
+        datafile=None,
     )
+    assert processor.processor_config.streaming is False
     assert isinstance(load_dataset, Dataset)
 
 
@@ -251,7 +261,10 @@ def test_load_dataset_with_datasetconfig(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig,
+        streaming=processor.processor_config.streaming,
+        splitName="train",
+        datafile=None,
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -281,7 +294,10 @@ def test_load_dataset_with_non_exist_path(data_paths, datasetconfigname):
     )
     with pytest.raises((datasets.exceptions.DatasetNotFoundError, ValueError)):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
         )
 
 
@@ -303,7 +319,10 @@ def test_load_dataset_with_datasetconfig_incorrect_builder(
     )
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
         )
 
 
@@ -332,7 +351,10 @@ def test_load_dataset_with_dataconfig_and_datafile(datafile, datasetconfigname):
     )
     with pytest.raises(ValueError):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=datafile
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=datafile,
         )
 
 
@@ -362,7 +384,10 @@ def test_load_dataset_with_dataconfig_and_datafolder(datasetconfig, column_names
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig,
+        streaming=processor.processor_config.streaming,
+        splitName="train",
+        datafile=None,
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -384,7 +409,10 @@ def test_load_dataset_with_dataconfig_and_datafolder_incorrect_builder(datasetco
     )
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
         )
 
 
@@ -394,7 +422,12 @@ def test_load_dataset_without_dataconfig_and_datafile():
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     with pytest.raises(ValueError):
-        processor.load_dataset(datasetconfig=None, splitName="train", datafile=None)
+        processor.load_dataset(
+            datasetconfig=None,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
+        )
 
 
 @pytest.mark.parametrize(
@@ -431,7 +464,10 @@ def test_load_dataset_with_datasetconfig_files_folders(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     load_dataset = processor.load_dataset(
-        datasetconfig=datasetconfig, splitName="train", datafile=None
+        datasetconfig=datasetconfig,
+        streaming=processor.processor_config.streaming,
+        splitName="train",
+        datafile=None,
     )
     assert set(load_dataset.column_names) == column_names
 
@@ -461,7 +497,10 @@ def test_load_dataset_with_datasetconfig_files_folders_incorrect_builder(
     )
     with pytest.raises(ValueError):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
         )
 
 
@@ -666,13 +705,6 @@ def test_get_data_collator(
             ),
             False,
         ),
-        # Pretokenized data with packing to True
-        (
-            configs.DataArguments(
-                training_data_path=TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-            ),
-            True,
-        ),
     ],
 )
 def test_process_data_args_throws_error_where_needed(data_args, packing):
@@ -685,6 +717,115 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
             output_dir="tmp",  # Not needed but positional
         )
         (_, _, _, _, _, _) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+        (DATA_CONFIG_YAML_STREAMING_PRETOKENIZED, TWITTER_COMPLAINTS_TOKENIZED_JSON),
+    ],
+)
+def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
+    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        max_steps=1,
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    assert isinstance(train_set, IterableDataset)
+    if datasets_name == "text_dataset_input_output_masking":
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(train_set.column_names) == column_names
+    elif datasets_name == "pretokenized_dataset":
+        assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    elif datasets_name == "apply_custom_data_template":
+        assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+    ],
+)
+def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
+    data_config_path, data_path
+):
+    """Ensure that if max steps aren't passed with streaming, error is raised"""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    with pytest.raises(ValueError):
+        (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
 
 @pytest.mark.parametrize(
@@ -754,7 +895,12 @@ def test_process_dataconfig_file(data_config_path, data_path):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -766,6 +912,107 @@ def test_process_dataconfig_file(data_config_path, data_path):
         "apply_custom_data_jinja_template",
     ):
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path, add_eos_token",
+    [
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON, True),
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSON, False),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
+            TWITTER_COMPLAINTS_DATA_JSON,
+            True,
+        ),
+        (
+            DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
+            TWITTER_COMPLAINTS_DATA_JSON,
+            False,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            True,
+        ),
+        (
+            DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            False,
+        ),
+    ],
+)
+def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_token):
+    """Ensure that the data handlers correctly apply add_eos_token flag to append/remove eos_token."""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "input_field_name"
+        ] = "input"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "output_field_name"
+        ] = "output"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "add_eos_token"
+        ] = add_eos_token
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "dataset_text_field"
+        ] = formatted_dataset_field
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "template"
+        ] = template
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
+            "add_eos_token"
+        ] = add_eos_token
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer.add_special_tokens({"eos_token": "</s>"})
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    assert isinstance(train_set, Dataset)
+    if datasets_name == "text_dataset_input_output_masking":
+        column_names = set(["input_ids", "attention_mask", "labels"])
+        assert set(train_set.column_names) == column_names
+        assert (
+            train_set[0]["input_ids"][-1] == tokenizer.eos_token_id
+            if add_eos_token
+            else train_set[0]["input_ids"][-1] != tokenizer.eos_token_id
+        )
+    elif datasets_name == "pretokenized_dataset":
+        assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
+    elif datasets_name in (
+        "apply_custom_data_template",
+        "apply_custom_data_jinja_template",
+    ):
+        assert formatted_dataset_field in set(train_set.column_names)
+        assert (
+            train_set[0][formatted_dataset_field].endswith(tokenizer.eos_token)
+            if add_eos_token
+            else not train_set[0][formatted_dataset_field].endswith(tokenizer.eos_token)
+        )
 
 
 @pytest.mark.parametrize(
@@ -884,7 +1131,12 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -948,7 +1200,12 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, _, _) = _process_dataconfig_file(data_args, tokenizer)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+    )
+
+    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)
@@ -1007,7 +1264,10 @@ def test_process_dataconfig_multiple_files_folders_without_builder(
         (datasets.exceptions.DatasetNotFoundError, ValueError, pyarrow.lib.ArrowInvalid)
     ):
         processor.load_dataset(
-            datasetconfig=datasetconfig, splitName="train", datafile=None
+            datasetconfig=datasetconfig,
+            streaming=processor.processor_config.streaming,
+            splitName="train",
+            datafile=None,
         )
 
 
@@ -1173,9 +1433,10 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 def test_process_dataargs(data_args, is_padding_free):
     """Ensure that the train/eval data are properly formatted based on the data args / text field"""
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    max_seq_length = 5
     TRAIN_ARGS = configs.TrainingArguments(
         packing=False,
-        max_seq_length=1024,
+        max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
     (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
@@ -1187,6 +1448,7 @@ def test_process_dataargs(data_args, is_padding_free):
         column_names = set(["input_ids", "attention_mask", "labels"])
         assert set(eval_set.column_names) == column_names
         assert set(train_set.column_names) == column_names
+        assert len(train_set[0]["input_ids"]) == max_seq_length
     else:
         assert dataset_text_field in train_set.column_names
         assert dataset_text_field in eval_set.column_names
@@ -1337,7 +1599,7 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
 def test_process_dataset_configs_with_sampling_error(
     datafiles, sampling, datasetconfigname
 ):
-
+    """Ensure that if sampling ratios aren't correctly passed (don't add up to 1.0), error is raised"""
     data_args = configs.DataArguments()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     TRAIN_ARGS = configs.TrainingArguments(
@@ -1363,3 +1625,57 @@ def test_process_dataset_configs_with_sampling_error(
         (_, _, _, _, _, _) = process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
+
+
+@pytest.mark.parametrize(
+    "datafile, rename, retain, final, datasetconfigname",
+    [
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            {"input": "instruction", "output": "response"},
+            None,
+            ["ID", "Label", "instruction", "response"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            None,
+            ["ID", "input", "output"],
+            ["ID", "input", "output"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+            {"input": "instruction", "output": "response"},
+            ["Label", "instruction", "response"],
+            ["Label", "instruction", "response"],
+            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+        ),
+    ],
+)
+def test_rename_and_retain_dataset_columns(
+    datafile, rename, retain, final, datasetconfigname
+):
+    """Test process_dataset_configs for expected output."""
+    dataprocessor_config = DataPreProcessorConfig()
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    processor = DataPreProcessor(
+        processor_config=dataprocessor_config,
+        tokenizer=tokenizer,
+    )
+    datasetconfig = [
+        DataSetConfig(
+            name=datasetconfigname,
+            data_paths=[datafile],
+            rename_columns=rename,
+            retain_columns=retain,
+        )
+    ]
+    train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
+
+    assert isinstance(train_dataset, Dataset)
+    assert set(train_dataset.column_names) == set(final)
+
+    with open(datafile, "r") as file:
+        data = json.load(file)
+    assert len(train_dataset) == len(data)

@@ -13,6 +13,7 @@
   - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
+- [Extended Pre-Training](#extended-pre-training)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -186,6 +187,19 @@ Here are some scenarios addressed in the flow chart:
 3. There might be special tokens used in chat template which the tokenizer might be unaware of, for example `<|start_of_role|>` which can cause issues during tokenization as it might not be treated as a single token  
 
 
+#### Add Special Tokens
+Working with multi-turn chat data might require the tokenizer to use a few new control tokens ( ex: `<|assistant|>`, `[SYS]` ) as described above in the guidelines. These special tokens might not be present in the tokenizer's vocabulary if the user is using base model.
+
+Users can pass `--add_special_tokens` argument which would add the required tokens to the tokenizer's vocabulary.  
+For example required special tokens used in `--instruction_template`/`--response_template` can be passed as follows:
+
+```
+python -m tuning.sft_trainer \
+...
+--add_special_tokens "<|start_of_role|>" "<|end_of_role|>" \
+--instruction_template "<|start_of_role|>user<|end_of_role|>" \
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
+```
 
 ### 4. Pre tokenized datasets.
 
@@ -828,6 +842,9 @@ Number of trainable parameters = 13,631,488
 The `fms_acceleration.cli` can do more to search for all available configs, plugins and arguments, [see the advanced flow](https://github.com/foundation-model-stack/fms-acceleration#advanced-flow).
 
 
+## Extended Pre-Training
+
+We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.

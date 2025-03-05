@@ -1,5 +1,6 @@
 dataprocessor:
     type: default
+    streaming: true
 datasets:
   - name: apply_custom_data_template
     data_paths:
@@ -12,4 +13,3 @@ datasets:
           fn_kwargs:
             dataset_text_field: "dataset_text_field"
             template: "dataset_template"
-            add_eos_token: true

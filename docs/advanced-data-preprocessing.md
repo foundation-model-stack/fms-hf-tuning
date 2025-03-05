@@ -60,6 +60,10 @@ definitions:
         type: float
       builder:
         type: string
+      rename_columns:
+        type: object
+      retain_columns:
+        type: object
       data_paths:
         type: array
         items:
@@ -111,6 +115,7 @@ Users can create a data config file in any of YAML or JSON format they choose (w
 
 `datapreprocessor`:
  - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
+ - `streaming` (optional, bool): Stream datasets using [IterableDatasets](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset).
  - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
  - `sampling_seed` (optional, int): [Sampling seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
 
@@ -118,6 +123,8 @@ Users can create a data config file in any of YAML or JSON format they choose (w
   - `name` (optional, str): A unique identifier for the dataset.
     - `data_paths` (optional, list): A `list` of file paths or directories containing the dataset.
     - `builder` (optional, str): Specifies a [Hugging Face dataset builder](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/loading_methods#datasets.load_dataset.path), if applicable.
+    - `rename_columns` (optional, dict[str:str]): Specifies a dictionary of columns to rename like `{"old_name": "new_name"}` at dataset load time. *Applied before `retain_columns` if both are specified*.
+    - `retain_columns` (optional, list[str]): Specifies a list of columns to retain `["input_ids", "labels"]` every other column will be dropped at dataset load time. *Applied strictly after `rename_columns` if both are specified*.
     - `sampling` (optional, float): The sampling ratio (0.0 to 1.0) with which to sample a dataset in case of interleaving.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
@@ -149,6 +156,10 @@ Not Supported:
 Currently there's no support for sampling under multiple data paths which are defined inside a dataset definition.
 All dataset paths that will be specified inside one dataset will be [concatenated](https://huggingface.co/docs/datasets/v3.2.0/en/process#concatenate) after loading them, while across datasets users can specify [mixing via sampling datasets](#data-mixing)
 
+Probably something like this:
+
+Additionally while loading the dataset, users can specify which columns to rename via `rename_columns` and which to retain via `retain_columns` arguments above.
+The order of application of these operations is *strictly rename followed by retain* so users should note that an old column name which is renamed will not be available in retain and hence should be careful while applying these operations. The code will throw a `ValueError` in case user specified a column requested to be renamed via rename argument in retain argument as well. 
 
 ### How can users specify data handlers.
 
@@ -204,16 +215,21 @@ Users can also pass any number of `kwargs` arguments required for each data hand
 
 #### Preexisting data handlers
 This library currently supports the following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
- - `tokenize_and_apply_input_masking`:
-    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
- - `apply_dataset_formatting`:
-    Formats a dataset by appending an EOS token to a specified field.
+ - `add_tokenizer_eos_token`:
+    Appends the tokenizer's EOS token to a specified dataset field.
  - `apply_custom_data_formatting_template`:
     Applies a custom template (e.g., Alpaca style) to format dataset elements.
- - `apply_custom_data_formatting_jinja_template`:
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_template.yaml)
+ - `tokenize_and_apply_input_masking`:
+    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/tokenize_and_apply_input_masking.yaml) 
+ - `apply_custom_jinja_template`:
     Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
+    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_jinja_template.yaml)
  - `apply_tokenizer_chat_template`:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
+ - `duplicate_columns`:
+    Duplicates one column of the dataset to another column.
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 
@@ -235,6 +251,24 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 
 `Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
+
+### Data Streaming
+Dataset streaming allows users to utilize the functionality of iterable datasets to pass in data piece by piece, avoiding memory constraints with large datasets for use-cases like extended pre-training.
+
+Users can use streaming by setting `streaming` to `true` in the `datapreprocessor` config. This top-level variable must be set for all datasets in the config, and cannot differ from dataset to dataset. When `streaming` is `true`, the dataset is loaded as an `IterableDataset` ([docs](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset)) instead of a regular `Dataset`, this means the dataset is loaded chunk-by-chunk rather than all at once and is processed lazily. For more details on the differences, see the [HF Blog](https://huggingface.co/docs/datasets/en/about_mapstyle_vs_iterable).
+
+In a data config this looks like (see [ept document](./ept.md#large-non-tokenized-dataset) for a more in-depth example):
+```
+dataprocessor:
+    type: default
+    streaming: true
+```
+
+When using streaming, `split_batches` in the `TrainingArguments` will automatically be set to `True`, by doing so, the main process will fetch a full batch and slice it into `num_processes` batches for each process. This means that `num_processes` must be divisible by `batch_size`. This will replace the global batch size.
+
+**When using streaming, the user must set `max_steps` in the `TrainingArguments` instead of `num_train_epochs`.** Since iterable datasets are loaded chunk-by-chunk, data cannot run through epochs in a typical fashion as the **Trainer** can not know length of the dataset as it is being passed through. If both `max_steps` and `num_train_epochs` are given in a training config, `max_steps` will overwrite `num_train_epochs` since `max_steps` directly specifies the total number of optimization steps, which is needed when dataset length cannot be known. 
+
+If the dataset size is known to the user, `max_steps` can be calculated as the total number of samples divided by the batch size.
 
 ### Example data configs.
 

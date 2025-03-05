@@ -106,12 +106,12 @@ def test_mailicious_inputs_to_eval():
             "getattr((), '_' '_class_' '_')",
         ),
         (
-            "Sorry, I will not evalute something that long.",
+            "Sorry, I will not evaluate something that long.",
             False,
             '["hello"]*10000000000',
         ),
         (
-            "Sorry, I will not evalute something that long.",
+            "Sorry, I will not evaluate something that long.",
             False,
             "'i want to break free'.split() * 9999999999",
         ),
