@@ -45,12 +45,18 @@ DEFAULT_OUTPUT_COLUMN = "output"
 def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     if not data:
         return False
+
     if isinstance(data, str):
         # Create a data processor with default processor config
         processor = get_datapreprocessor(
             processor_config=DataPreProcessorConfig(), tokenizer=None
         )
-        data = processor.load_dataset(None, splitName="train[:1]", datafile=data)
+        data = processor.load_dataset(
+            None,
+            streaming=False,
+            splitName="train[:1]",
+            datafile=data,
+        )
 
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
@@ -59,6 +65,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 # This is very limited but is done to keep first implementation minimal
 def _process_dataconfig_file(
     data_args: DataArguments,
+    train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
     additional_data_handlers: Dict[str, Callable] = None,
 ):
@@ -68,6 +75,15 @@ def _process_dataconfig_file(
         tokenizer=tokenizer,
         additional_data_handlers=additional_data_handlers,
     )
+    if processor.processor_config.streaming:
+        if train_args.max_steps < 1:
+            logging.error(
+                "ValueError: `--max_steps` must be set when streaming is set in data \
+                            preprocessor config"
+            )
+            raise ValueError(
+                "`--max_steps` must be set when streaming is set in data preprocessor config"
+            )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
@@ -342,7 +358,7 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, tokenizer, additional_data_handlers
+            data_args, train_args, tokenizer, additional_data_handlers
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -372,6 +388,15 @@ def process_dataargs(
     dataset_kwargs = {}
     if is_tokenized_dataset:
         dataset_kwargs["skip_prepare_dataset"] = True
+
+    if isinstance(train_dataset, IterableDataset):
+        train_args.accelerator_config = {"split_batches": True}
+        logger.info(
+            "Setting `split_batches` to true - splitting batches among devices \
+                    `per_device_train_batch_size` is now the global batch size, and \
+                    should be treated as such. The main process will fetch a full \
+                    batch and slice it into `num_processes` batches for each process."
+        )
 
     return (
         train_dataset,
