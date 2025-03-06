@@ -122,6 +122,14 @@ class DataArguments:
             Passed in conjunction with response_template"
         },
     )
+    add_special_tokens: List[str] = field(
+        default=None,
+        metadata={
+            "help": "List of special tokens to be added to the tokenizer's vocabulary. \
+            Used to add Special Tokens to Tokenizer's Vocabulary,\
+            Add special tokens as new tokens and increase vocabulary and model embedding size."
+        },
+    )
 
 
 @dataclass

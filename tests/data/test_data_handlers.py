@@ -16,6 +16,7 @@
 # https://spdx.dev/learn/handling-license-info/
 
 # Third Party
+from datasets import IterableDatasetDict
 from transformers import AutoTokenizer
 import datasets
 import pytest
@@ -38,6 +39,7 @@ from tuning.data.data_handlers import (
 
 
 def test_apply_custom_formatting_template():
+    """Tests custom formatting data handler returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
@@ -65,6 +67,7 @@ def test_apply_custom_formatting_template():
 
 
 def test_apply_custom_formatting_jinja_template():
+    """Tests custom formatting data handler with jinja template dataset returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
@@ -88,6 +91,38 @@ def test_apply_custom_formatting_jinja_template():
 
     assert formatted_dataset_field in formatted_dataset["train"][0]
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
+
+
+def test_apply_custom_formatting_template_iterable():
+    """Tests custom formatting data handler with iterable dataset returns correct formatted response"""
+    json_dataset = datasets.load_dataset(
+        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
+    )
+    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    formatted_dataset_field = "formatted_data_field"
+    formatted_dataset = json_dataset.map(
+        apply_custom_data_formatting_template,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        },
+    )
+    assert isinstance(formatted_dataset, IterableDatasetDict)
+
+    # First response from the data file that is read.
+    expected_response = (
+        "### Input: @HMRCcustomers No this is my first job"
+        + " \n\n ### Response: no complaint"
+        + tokenizer.eos_token
+    )
+
+    first_sample = next(iter(formatted_dataset["train"]))
+
+    # a new dataset_text_field is created in Dataset
+    assert formatted_dataset_field in first_sample
+    assert first_sample[formatted_dataset_field] == expected_response
 
 
 def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
