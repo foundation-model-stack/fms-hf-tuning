@@ -18,11 +18,11 @@ import logging
 import os
 
 # Third Party
+from accelerate.state import PartialState
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from datasets.exceptions import DatasetNotFoundError
 from transformers import AutoTokenizer
 import datasets
-import torch
 
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
@@ -428,22 +428,15 @@ class DataPreProcessor:
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
 
-        if torch.distributed.is_available() and torch.distributed.is_initialized():
-            if torch.distributed.get_rank() == 0:
-                logger.info("Processing data on rank 0...")
-                train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
-            else:
-                train_dataset = None
+        # Use partial state as recommended by HF documentation for process control
+        # https://huggingface.co/docs/accelerate/v1.0.0rc1/en/package_reference/state#accelerate.PartialState
+        # and is used similarly in trainer.sft_trainer
+        # https://github.com/huggingface/trl/blob/e3244d/trl/trainer/sft_trainer.py#L367
+        state = PartialState()
 
-            # Use broadcast_object_list to share the dataset object across ranks
-            # TODO: Check if torch.distributed.barrier() is called in broadcast_object_list()
-            # See https://github.com/pytorch/pytorch/issues/56142
-            # for why the list is shared like this
-            to_share = [train_dataset]
-            torch.distributed.broadcast_object_list(to_share, src=0)
-            train_dataset = to_share[0]
-        else:
-            logger.info("Processing data...")
+        # The local_main_process_first context ensures that the main process runs first per node
+        # as we want to reuse HF cache and not redo computation on all nodes
+        with state.local_main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
