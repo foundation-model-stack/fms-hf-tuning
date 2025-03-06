@@ -35,7 +35,9 @@ from tuning.data.data_handlers import (
     apply_custom_jinja_template,
     combine_sequence,
     duplicate_columns,
+    tokenize,
 )
+from tuning.data.setup_dataprocessor import is_pretokenized_dataset
 
 
 def test_apply_custom_formatting_template():
@@ -250,3 +252,26 @@ def test_duplicate_columns_copies_columns():
     assert new in first_element
     assert old in first_element
     assert first_element[new] == first_element[old]
+
+
+def test_tokenizer_data_handler_tokenizes():
+    "Ensure tokenizer data handler tokenizes the input properly with proper truncation"
+    d = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA_JSONL)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    dataset_text_field = "output"
+    truncation = True
+    max_length = 10
+
+    updated_dataaset = d.map(
+        tokenize,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "dataset_text_field": dataset_text_field,
+            "truncation": truncation,
+            "max_length": max_length,
+        },
+    )
+
+    assert "input_ids" in updated_dataaset["train"][0]
+    for element in updated_dataaset["train"]:
+        assert len(element["input_ids"]) <= max_length
