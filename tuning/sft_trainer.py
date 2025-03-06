@@ -48,6 +48,7 @@ from tuning.config.acceleration_configs import (
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
+    get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import (
     AimConfig,
@@ -409,10 +410,14 @@ def train(
         accelerator = None if not is_accelerate_available() else trainer.accelerator
 
         # ready for train may produce additional callbacks for the trainer
-        for x in framework.get_callbacks_and_ready_for_train(
-            model, accelerator, trainer, model_args.model_name_or_path
-        ):
+        for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
+        for clb in get_additional_accel_framework_callbacks(
+            active_plugins=framework.active_plugins,
+            trainer=trainer,
+            pretrained_model_name_or_path=model_args.model_name_or_path,
+        ):
+            trainer.add_callback(clb)
 
     resume_from_checkpoint = None
     # Check if resume flag is not passed (None), or if flag is true and
