@@ -41,6 +41,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+    DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
@@ -79,7 +80,11 @@ from tuning.data.data_config import (
     DataPreProcessorConfig,
     DataSetConfig,
 )
-from tuning.data.data_handlers import add_tokenizer_eos_token
+from tuning.data.data_handlers import (
+    DataHandler,
+    DataHandlerType,
+    add_tokenizer_eos_token,
+)
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -1035,6 +1040,51 @@ def test_run_training_with_data_tokenized_using_tokenizer_handler():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+def test_run_training_with_skip_large_text_handler():
+    """Ensure that we can train succesfully after using skip large text handler."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_args.response_template = None
+        data_args.training_data_path = None
+
+        dataconfigfile = DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER
+        datapath = TWITTER_COMPLAINTS_TOKENIZED_JSON
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = [datapath]
+                yaml.dump(data, temp_yaml_file)
+                data_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
 @pytest.mark.parametrize(
     "dataset_path",
     [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
@@ -1695,7 +1745,8 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
         train_args.output_dir = tempdir
 
         with pytest.raises(
-            ValueError, match="Handlers should be of type Dict, str to callable"
+            ValueError,
+            match="Handler should be of type tuning.data_handler.DataHandler, and name of str",
         ):
             sft_trainer.train(
                 MODEL_ARGS,
@@ -1764,6 +1815,12 @@ def test_run_by_passing_additional_data_handlers():
             DATA_ARGS,
             train_args,
             PEFT_PT_ARGS,
-            additional_data_handlers={TEST_HANDLER: test_handler},
+            additional_data_handlers={
+                TEST_HANDLER: DataHandler(
+                    op=test_handler,
+                    handler_type=DataHandlerType.MAP,
+                    allows_batching=False,
+                )
+            },
         )
         _validate_training(tempdir)
