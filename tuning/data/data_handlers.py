@@ -15,6 +15,7 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
+from enum import Enum
 from typing import Dict, List, Union
 import copy
 import re
@@ -26,6 +27,31 @@ from transformers import AutoTokenizer
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
+
+
+class DataHandlerType(Enum):
+    MAP = 1
+    FILTER = 2
+
+
+class DataHandler:
+    op: callable  # the actual handler function
+    handler_type: DataHandlerType  # either map or filter
+    allows_batching: bool  # supports batched mode or not
+
+    def __init__(
+        self, op: callable, handler_type: DataHandlerType, allows_batching: bool
+    ):
+        self.op = op
+        self.handler_type = handler_type
+        self.allows_batching = allows_batching
+
+    def __str__(self):
+        return f"DataHandler(op={\
+                    self.op.__name__ if hasattr(self.op, '__name__') else str(self.op)\
+                },\
+                handler_type={self.handler_type.name},\
+                allows_batching={self.allows_batching})"
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
@@ -289,7 +315,7 @@ def tokenize(
 
 
 def duplicate_columns(
-    element: Dict[str, str],
+    element: Union[Dict[str, str], Dict[str, List]],
     old_column: str,
     new_column: str,
     **kwargs,
@@ -322,12 +348,55 @@ def duplicate_columns(
     }
 
 
+def skip_large_text(
+    element: Union[Dict[str, str], Dict[str, List]], column_name: str, max_length: int
+):
+    if column_name not in element or max_length is None:
+        raise ValueError(
+            "Please provide correct column name and max_length to skip large columns"
+        )
+    return len(element[column_name]) < max_length
+
+
 AVAILABLE_DATA_HANDLERS = {
-    "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
-    "add_tokenizer_eos_token": add_tokenizer_eos_token,
-    "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
-    "apply_custom_jinja_template": apply_custom_jinja_template,
-    "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
-    "duplicate_columns": duplicate_columns,
-    "tokenize": tokenize,
+    "tokenize_and_apply_input_masking": DataHandler(
+        op=tokenize_and_apply_input_masking,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "add_tokenizer_eos_token": DataHandler(
+        op=add_tokenizer_eos_token,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_custom_data_formatting_template": DataHandler(
+        op=apply_custom_data_formatting_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_custom_jinja_template": DataHandler(
+        op=apply_custom_jinja_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_tokenizer_chat_template": DataHandler(
+        op=apply_tokenizer_chat_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "duplicate_columns": DataHandler(
+        op=duplicate_columns,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
+    ),
+    "tokenize": DataHandler(
+        op=tokenize,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
+    ),
+    "skip_large_text": DataHandler(
+        op=skip_large_text,
+        handler_type=DataHandlerType.FILTER,
+        allows_batching=False,
+    ),
 }

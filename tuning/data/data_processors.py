@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Callable, Dict, List, Union
+from typing import Dict, List, Union
 import logging
 import os
 
@@ -26,7 +26,11 @@ import torch
 
 # Local
 from tuning.data.data_config import DataConfig, DataPreProcessorConfig, DataSetConfig
-from tuning.data.data_handlers import AVAILABLE_DATA_HANDLERS
+from tuning.data.data_handlers import (
+    AVAILABLE_DATA_HANDLERS,
+    DataHandler,
+    DataHandlerType,
+)
 from tuning.utils.utils import (
     get_loader_for_filepath,
     resolve_iterable_dataset_features,
@@ -41,7 +45,7 @@ class DataPreProcessor:
     tokenizer = None
     data_config: DataConfig = None
     processor_config: DataPreProcessorConfig = None
-    registered_handlers: Dict[str, Callable] = None
+    registered_handlers: Dict[str, DataHandler] = None
 
     def __init__(
         self, processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
@@ -56,23 +60,27 @@ class DataPreProcessor:
         for k, v in AVAILABLE_DATA_HANDLERS.items():
             self.registered_handlers[k] = v
 
-    def register_data_handler(self, name: str, func: Callable):
-        if not isinstance(name, str) or not callable(func):
-            raise ValueError("Handlers should be of type Dict, str to callable")
+    def register_data_handler(self, name: str, handler: DataHandler):
+        if not isinstance(name, str) or not isinstance(handler, DataHandler):
+            raise ValueError(
+                "Handler should be of type tuning.data_handler.DataHandler, and name of str"
+            )
         if name in self.registered_handlers:
             logger.warning(
                 "Handler name '%s' already exists and will be overwritten", name
             )
-        self.registered_handlers[name] = func
+        self.registered_handlers[name] = handler
         logger.info("Registered new handler %s", name)
 
-    def register_data_handlers(self, handlers: Dict[str, Callable]):
+    def register_data_handlers(self, handlers: Dict[str, DataHandler]):
         if handlers is None:
             return
         if not isinstance(handlers, Dict):
-            raise ValueError("Handlers should be of type Dict, str to callable")
+            raise ValueError(
+                "Handler should be of type tuning.data_handler.DataHandler, and name of str"
+            )
         for k, v in handlers.items():
-            self.register_data_handler(name=k, func=v)
+            self.register_data_handler(name=k, handler=v)
 
     def load_dataset(
         self,
@@ -303,26 +311,19 @@ class DataPreProcessor:
             if d.data_handlers:  # Execute the datahandlers
                 for data_handler in d.data_handlers:
                     handler_name: str = data_handler.name
-                    handler: callable = self.registered_handlers[handler_name]
                     kwargs: Dict = data_handler.arguments
+                    handler: DataHandler = self.registered_handlers[handler_name]
 
-                    if "batched" not in kwargs:
-                        kwargs["batched"] = False
-
-                    column_names = raw_datasets[splitName].column_names
-
-                    # remove __content__ from all processing
-                    if not column_names and isinstance(
-                        raw_datasets, IterableDatasetDict
-                    ):
-                        logger.warning("Could not remove columns from IterableDataset")
-                    if column_names and "__content__" in column_names:
-                        column_names.remove("__content__")
-
-                    if "remove_columns" not in kwargs:
-                        kwargs["remove_columns"] = None
-                    if kwargs["remove_columns"] == "all":
-                        kwargs["remove_columns"] = column_names
+                    if "batched" in kwargs:
+                        # If batching is requested but not allowed throw error
+                        if kwargs["batched"] and not handler.allows_batching:
+                            raise ValueError(
+                                f"DataHandler {handler} does not support batching\
+                                  but was called with batched=True in data config"
+                            )
+                    else:
+                        # If batching is not requested set the batching to allows_batching
+                        kwargs["batched"] = handler.allows_batching
 
                     if isinstance(raw_datasets, IterableDatasetDict):
                         if "num_proc" in kwargs:
@@ -336,17 +337,50 @@ class DataPreProcessor:
                             kwargs["num_proc"] = os.cpu_count()
                             logger.info("setting num_proc to %s", os.cpu_count())
 
-                    if "fn_kwargs" not in kwargs:
-                        kwargs["fn_kwargs"] = {}
+                    if handler.handler_type == DataHandlerType.FILTER:
 
-                    kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
-                    kwargs["fn_kwargs"]["column_names"] = column_names
+                        logger.info(
+                            "Applying Handler: %s Args: %s", data_handler, kwargs
+                        )
+                        raw_datasets = raw_datasets.filter(handler.op, **kwargs)
 
-                    kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
+                    elif handler.handler_type == DataHandlerType.MAP:
+                        column_names = raw_datasets[splitName].column_names
 
-                    logger.info("Applying Handler: %s Args: %s", data_handler, kwargs)
+                        # remove __content__ from all processing
+                        if not column_names and isinstance(
+                            raw_datasets, IterableDatasetDict
+                        ):
+                            logger.warning(
+                                "Could not remove columns from IterableDataset"
+                            )
+                        if column_names and "__content__" in column_names:
+                            column_names.remove("__content__")
 
-                    raw_datasets = raw_datasets.map(handler, **kwargs)
+                        if "remove_columns" not in kwargs:
+                            kwargs["remove_columns"] = None
+                        if kwargs["remove_columns"] == "all":
+                            kwargs["remove_columns"] = column_names
+
+                        if "fn_kwargs" not in kwargs:
+                            kwargs["fn_kwargs"] = {}
+
+                        kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
+                        kwargs["fn_kwargs"]["column_names"] = column_names
+
+                        kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
+
+                        logger.info(
+                            "Applying Handler: %s Args: %s", data_handler, kwargs
+                        )
+
+                        raw_datasets = raw_datasets.map(handler.op, **kwargs)
+                    else:
+                        raise ValueError(
+                            f"Unknown data handler type {handler.handler_type} \
+                              supported types are {DataHandlerType.FILTER.name}\
+                              or {DataHandlerType.MAP.name}"
+                        )
 
             # Append the processed datasets to the final dict
             all_datasetdicts.append(raw_datasets)
@@ -418,7 +452,7 @@ class DataPreProcessor:
 def get_datapreprocessor(
     processor_config: DataPreProcessorConfig,
     tokenizer: AutoTokenizer,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
 ) -> DataPreProcessor:
     processor = DataPreProcessor(
         processor_config=processor_config,
