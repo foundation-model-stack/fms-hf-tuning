@@ -15,7 +15,7 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
-from typing import Dict, List
+from typing import Dict, List, Union
 import copy
 import re
 
@@ -257,6 +257,37 @@ def apply_tokenizer_chat_template(
     }
 
 
+def tokenize(
+    element: Union[Dict[str, str], Dict[str, List]],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    truncation: Union[bool, str] = None,
+    max_length: int = None,
+    **kwargs,
+):
+    """Function (data handler) to tokenize dataset columns.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        tokenizer: Tokenizer to be used.
+        dataset_text_field: the dataset field to tokenize
+        truncation: Truncation strategy to use, refer the link
+                    (https://huggingface.co/docs/transformers/en/pad_truncation)
+        max_length: Max length to truncate the samples to.
+        kwargs: Any additional kwargs that need to be passed to the tokenizer can be passed as
+                kwargs['tokenizer_kwargs']
+    Returns:
+        tokenized dataset elemenent field "dataset_text_field"
+    """
+    tokenizer_kwargs = kwargs.get("tokenizer_kwargs", {})
+    return tokenizer(
+        element[dataset_text_field],
+        truncation=truncation,
+        max_length=max_length,
+        **tokenizer_kwargs,
+    )
+
+
 def duplicate_columns(
     element: Dict[str, str],
     old_column: str,
@@ -298,4 +329,5 @@ AVAILABLE_DATA_HANDLERS = {
     "apply_custom_jinja_template": apply_custom_jinja_template,
     "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
     "duplicate_columns": duplicate_columns,
+    "tokenize": tokenize,
 }

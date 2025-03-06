@@ -233,6 +233,8 @@ This library currently supports the following [preexisting data handlers](https:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
  - `duplicate_columns`:
     Duplicates one column of the dataset to another column.
+ - `tokenize`:
+    Tokenizes one column of the dataset passed as input `dataset_text_field`.
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 

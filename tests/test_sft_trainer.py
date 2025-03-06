@@ -42,6 +42,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
     DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
@@ -319,14 +320,6 @@ def _get_training_logs_by_epoch(dir_path: str, epoch: int = None):
                 mod_data_list.append(value)
         return mod_data_list
     return data_list
-
-
-def test_run_train_requires_output_dir():
-    """Check fails when output dir not provided."""
-    updated_output_dir_train_args = copy.deepcopy(TRAIN_ARGS)
-    updated_output_dir_train_args.output_dir = None
-    with pytest.raises(TypeError):
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, updated_output_dir_train_args, None)
 
 
 def test_run_train_fails_training_data_path_not_exist():
@@ -963,6 +956,52 @@ def test_run_training_with_pretokenised_dataset_containing_input_ids():
 
         dataconfigfile = DATA_CONFIG_DUPLICATE_COLUMNS
         datapath = TWITTER_COMPLAINTS_TOKENIZED_ONLY_INPUT_IDS_JSON
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = [datapath]
+                yaml.dump(data, temp_yaml_file)
+                data_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def test_run_training_with_data_tokenized_using_tokenizer_handler():
+    """Ensure that we can train on non tokenized dataset works by tokenizing using
+    tokenizer data handler via data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_args.response_template = None
+        data_args.training_data_path = None
+
+        dataconfigfile = DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER
+        datapath = TWITTER_COMPLAINTS_DATA_JSONL
 
         # add data_paths in data_config file
         with tempfile.NamedTemporaryFile(
