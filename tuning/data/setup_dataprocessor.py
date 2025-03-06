@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Callable, Dict, Union
+from typing import Dict, Union
 import logging
 
 # Third Party
@@ -30,6 +30,7 @@ from tuning.data.data_config import (
     DataSetConfig,
     load_and_validate_data_config,
 )
+from tuning.data.data_handlers import DataHandler
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
 
@@ -67,7 +68,7 @@ def _process_dataconfig_file(
     data_args: DataArguments,
     train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
@@ -235,7 +236,7 @@ def _process_raw_data_args(
     tokenizer: AutoTokenizer,
     packing: bool,
     max_seq_length: int,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
 ):
 
@@ -328,7 +329,7 @@ def process_dataargs(
     data_args: DataArguments,
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
 ):
     """
@@ -338,7 +339,7 @@ def process_dataargs(
         train_args: TrainingArguments
             Training arguments passed to the library
             Used for packing and max_seq_length
-        additional_data_handlers: A Dict of [str, callable] data handlers
+        additional_data_handlers: A Dict of [str, DataHandler] data handlers
             which need to be registered with the data preprocessor
         is_padding_free: A bool representing if Padding free plugin is enabled.
                          Defaults to False.
