@@ -8,7 +8,7 @@ datasets:
       - name: tokenize
         arguments:
           remove_columns: all
-          batched: false
+          batched: true
           fn_kwargs:
             dataset_text_field: "output"
             truncation: True
@@ -16,7 +16,7 @@ datasets:
       - name: duplicate_columns
         arguments:
           remove_columns: all
-          batched: false
+          batched: true
           fn_kwargs:
             old_column: "input_ids"
             new_column: "labels"
