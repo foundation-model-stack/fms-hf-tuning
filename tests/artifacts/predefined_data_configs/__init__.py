@@ -34,6 +34,9 @@ DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
+DATA_CONFIG_MULTITURN_DATA_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "multi_turn_data_with_chat_template.yaml"
+)
 DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
 )
@@ -45,4 +48,7 @@ DATA_CONFIG_DUPLICATE_COLUMNS = os.path.join(
 )
 DATA_CONFIG_RENAME_RETAIN_COLUMNS = os.path.join(
     PREDEFINED_DATA_CONFIGS, "rename_retain_columns.yaml"
+)
+DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "tokenize_using_handler_and_train.yaml"
 )
