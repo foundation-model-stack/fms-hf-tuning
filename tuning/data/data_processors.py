@@ -393,9 +393,15 @@ class DataPreProcessor:
         self, dataset_configs: List[DataSetConfig], **kwargs
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
+
+        # Use partial state as recommended by HF documentation for process control
+        # https://huggingface.co/docs/accelerate/v1.0.0rc1/en/package_reference/state#accelerate.PartialState
+        # and is used similarly in trainer.sft_trainer
+        # https://github.com/huggingface/trl/blob/main/trl/trainer/sft_trainer.py#L367
         state = PartialState()
 
         # The local_main_process_first context ensures that the main process runs first per node
+        # as we want to reuse HF cache and not redo computation
         with state.local_main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
