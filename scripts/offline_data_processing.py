@@ -201,7 +201,7 @@ def main():
             num_datasets_shard,
         )
         args["training_args"], logger = set_log_level(args["training_args"], __name__)
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Error parsing arguments: %s", traceback.format_exc())
         write_termination_log(f"Exception raised during argument parsing: {e}")
         sys.exit(USER_ERROR_EXIT_CODE)
@@ -213,7 +213,7 @@ def main():
             data_args=args["data_args"],
             train_args=args["training_args"],
         )
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Error processing dataset: %s", traceback.format_exc())
         write_termination_log(f"Exception raised during dataset processing: {e}")
         sys.exit(USER_ERROR_EXIT_CODE)
