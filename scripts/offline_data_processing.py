@@ -1,10 +1,4 @@
-"""
-This script processes datasets for training by loading the appropriate tokenizer,
-processing input data, and saving train and validation datasets in shards.
-"""
-
 # Standard
-from typing import Callable, Dict, Optional
 import logging
 import os
 import sys
@@ -135,7 +129,7 @@ def get_processed_dataset(
             "Adding user-defined special tokens: %s ", data_args.add_special_tokens
         )
         special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
-        
+
     if special_tokens_dict:
         logger.info("Adding special tokens: %s", special_tokens_dict)
         tokenizer.add_special_tokens(special_tokens_dict)
@@ -207,7 +201,7 @@ def main():
             num_datasets_shard,
         )
         args["training_args"], logger = set_log_level(args["training_args"], __name__)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("Error parsing arguments: %s", traceback.format_exc())
         write_termination_log(f"Exception raised during argument parsing: {e}")
         sys.exit(USER_ERROR_EXIT_CODE)
@@ -219,7 +213,7 @@ def main():
             data_args=args["data_args"],
             train_args=args["training_args"],
         )
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         logger.error("Error processing dataset: %s", traceback.format_exc())
         write_termination_log(f"Exception raised during dataset processing: {e}")
         sys.exit(USER_ERROR_EXIT_CODE)
@@ -260,7 +254,10 @@ def main():
     else:
         logging.warning("Validation dataset is None. Not saving validation dataset.")
 
-    logger.info("Data Processing script execution completed. Data saved in %s directory", args['training_args'].output_dir)
+    logger.info(
+        "Data Processing script execution completed. Data saved in %s directory",
+        args["training_args"].output_dir,
+    )
 
 
 if __name__ == "__main__":
