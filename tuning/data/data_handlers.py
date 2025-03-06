@@ -348,9 +348,7 @@ def duplicate_columns(
     }
 
 
-def skip_large_text(
-    element: Union[Dict[str, str], Dict[str, List]], column_name: str, max_length: int
-):
+def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
     if column_name not in element or max_length is None:
         raise ValueError(
             "Please provide correct column name and max_length to skip large columns"
