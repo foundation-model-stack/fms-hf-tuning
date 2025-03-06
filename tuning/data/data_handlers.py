@@ -349,6 +349,19 @@ def duplicate_columns(
 
 
 def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
+    """Function (data handler) to skip elements which contains certain columns {column_name}
+       larger than the passed {max_length} in the dataset.
+       Expects to be run as a HF Filter API function.
+    Args:
+        element: the HF Dataset element
+        column_name: Name of the column
+        max_length: Max allowed length of the column.
+                    If passing "input_ids" as column name this will be tokens
+                    else this can be characters for text column
+    Returns:
+        Filtered dataset which contains elements with column {column_name}
+                 having length shorter than {max_length}
+    """
     if column_name not in element or max_length is None:
         raise ValueError(
             "Please provide correct column name and max_length to skip large columns"
