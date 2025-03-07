@@ -360,6 +360,7 @@ def train(
     # from our object directly. In the future, we should consider renaming this class and / or
     # not adding things that are not directly used by the trainer instance to it.
 
+    # To filter out fields that are not defined as init (eg. _n_gpu)
     transformer_train_arg_fields = [
         x.name for x in dataclasses.fields(SFTConfig) if x.init
     ]
