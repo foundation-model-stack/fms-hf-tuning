@@ -349,7 +349,7 @@ def train(
     # not adding things that are not directly used by the trainer instance to it.
 
     transformer_train_arg_fields = [
-        x.name for x in dataclasses.fields(SFTConfig) if not x.name.startswith("_")
+        x.name for x in dataclasses.fields(SFTConfig) if x.init
     ]
     transformer_kwargs = {
         k: v for k, v in vars(train_args).items() if k in transformer_train_arg_fields
