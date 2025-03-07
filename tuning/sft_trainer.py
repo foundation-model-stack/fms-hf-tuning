@@ -264,7 +264,7 @@ def train(
 
     # Add special tokens only when a custom tokenizer is not passed
     special_tokens_dict = set_special_tokens_dict(
-        model_args=model_args, tokenizer=tokenizer
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def set_special_tokens_dict(
-    model_args: configs.ModelArguments, tokenizer: transformers.PreTrainedTokenizer
+    tokenizer_name_or_path: str, tokenizer: transformers.PreTrainedTokenizer
 ) -> dict:
     """Creates a special tokens dictionary and sets the special tokens,
        depending on the tokenizer.
@@ -39,7 +39,7 @@ def set_special_tokens_dict(
     """
 
     special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
+    if not tokenizer_name_or_path:
         # TODO: understand if we need to hardcode these here or just use defaults in model
         if isinstance(
             tokenizer, (transformers.LlamaTokenizer, transformers.LlamaTokenizerFast)
@@ -53,8 +53,7 @@ def set_special_tokens_dict(
         ):
             special_tokens_dict["pad_token"] = "<pad>"
 
-    # add special tokens only when a custom tokenizer is not passed
-    if not model_args.tokenizer_name_or_path:
+        # Add special tokens only when a custom tokenizer is not passed
         # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
             logger.warning("PAD token set to default, missing in tokenizer")

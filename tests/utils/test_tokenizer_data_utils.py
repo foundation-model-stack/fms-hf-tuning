@@ -17,7 +17,9 @@ def test_setting_special_tokens_with_LlamaTokenizerFast():
     # For LlamaTokenizerFast, Missing PAD Token
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    special_tokens_dict = set_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
     assert special_tokens_dict == {
         "bos_token": "<s>",
         "eos_token": "</s>",
@@ -30,7 +32,9 @@ def test_setting_special_tokens_with_GPT2TokenizerFast():
     # For GPT2TokenizerFast, PAD token = EOS Token
     tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    special_tokens_dict = set_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
     assert special_tokens_dict == {
         "pad_token": "<PAD>",
     }
@@ -40,7 +44,9 @@ def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
     # For GPTNeoXTokenizerFast, Missing PAD Token
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    special_tokens_dict = set_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
     assert special_tokens_dict == {
         "pad_token": "<PAD>",
     }
@@ -57,13 +63,25 @@ def test_setting_special_tokens_when_missing_all_special_tokens():
     tokenizer.pad_token = None
 
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(model_args, tokenizer)
+    special_tokens_dict = set_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
     assert special_tokens_dict == {
         "pad_token": "<PAD>",
         "eos_token": "</s>",
         "bos_token": "<s>",
         "unk_token": "<unk>",
     }
+
+
+def test_setting_special_tokens_when_path_is_not_none():
+    # Test to ensure dictionary is empty when path is not none
+    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    model_args = configs.ModelArguments(tokenizer_name_or_path="test_path")
+    special_tokens_dict = set_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
+    assert special_tokens_dict == {}
 
 
 def test_tokenizer_and_embedding_resize_return_values_missing_one_token():
