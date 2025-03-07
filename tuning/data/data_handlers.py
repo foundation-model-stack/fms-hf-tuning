@@ -47,11 +47,10 @@ class DataHandler:
         self.allows_batching = allows_batching
 
     def __str__(self):
-        return f"DataHandler(op={\
-                    self.op.__name__ if hasattr(self.op, '__name__') else str(self.op)\
-                },\
-                handler_type={self.handler_type.name},\
-                allows_batching={self.allows_batching})"
+        o = self.op.__name__ if hasattr(self.op, "__name__") else str(self.op)
+        n = self.handler_type.name
+        b = self.allows_batching
+        return f"DataHandler(op={o}, handler_type={n}, allows_batching={b})"
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
