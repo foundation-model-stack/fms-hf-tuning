@@ -73,6 +73,7 @@ from tests.artifacts.testdata import (
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
 from tuning.data.data_config import (
     DataConfig,
@@ -85,6 +86,7 @@ from tuning.data.data_handlers import (
     DataHandlerType,
     add_tokenizer_eos_token,
 )
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -1334,6 +1336,36 @@ def test_run_e2e_with_hf_dataset_id(data_args):
 
         # validate inference
         _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+    ],
+)
+def test_run_moe_ft_and_inference(dataset_path):
+    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        sft_trainer.train(
+            model_args, data_args, train_args, fast_moe_config=fast_moe_config
+        )
+        _test_run_inference(
+            checkpoint_path=os.path.join(
+                _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
+            )
+        )
 
 
 ############################# Helper functions #############################
