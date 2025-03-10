@@ -1,0 +1,57 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - setup: "3.10"
+            tox: "py310"
+        plugin_name:
+          - "framework"
+          - "accelerated-peft"
+          - "fused-ops-and-kernels"
+          - "attention-and-distributed-packing"
+          - "accelerated-moe"
+
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # should only trigger the release if the plugin has changes
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+              plugins:
+                - 'plugins/${{ matrix.plugin_name }}/**'
+
+      - if: steps.changes.outputs.plugins == 'true'
+        name: Set up Python ${{ matrix.python-version.setup }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version.setup }}
+
+      - if: steps.changes.outputs.plugins == 'true'
+        name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install tox
+
+      - if: steps.changes.outputs.plugins == 'true'
+        name: Build and check wheel package
+        run: |
+          cd plugins/${{ matrix.plugin_name }}
+          tox -e build,twinecheck
+          ls dist/*
+
+      - if: steps.changes.outputs.plugins == 'true'
+        name: "Upload to PyPI"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: plugins/${{ matrix.plugin_name }}/dist

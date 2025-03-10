@@ -1,0 +1,41 @@
+fp16,framework_config,learning_rate,lora_alpha,lora_dropout,mem_nvidia_mem_reserved,mem_peak_torch_mem_alloc_in_bytes,mem_torch_mem_alloc_in_bytes,model_name_or_path,num_gpus,peft_method,per_device_train_batch_size,r,target_modules,torch_dtype,train_loss,train_runtime,train_samples_per_second,train_steps_per_second,train_tokens_per_second
+,none,2e-5,,,80913.0,72468631040,43467890688,mistralai/Mistral-7B-v0.1,1,,4,,,float16,0.3243139202594757,1479.9863,5.405,0.676,2406.503
+,none,2e-5,,,56868.0,39994405376,28984272896,mistralai/Mistral-7B-v0.1,2,,2,,,float16,0.3235451452732086,1281.1794,6.244,0.781,1151.406
+,none,2e-5,,,80335.0,72470777344,43467936768,mistralai/Mistral-7B-v0.1,1,,8,,,float16,0.322289342880249,1429.713,5.596,0.35,2933.378
+,none,2e-5,,,65577.0,42136446464,28985091072,mistralai/Mistral-7B-v0.1,2,,4,,,float16,0.30999504756927493,924.8768,8.65,0.541,1911.926
+,aadp-padding-free,2e-5,,,74355.0,72469207040,43468465152,mistralai/Mistral-7B-v0.1,1,,4,,,float16,0.32760045647621155,1136.6168,7.038,0.88,2035.906
+,aadp-padding-free,2e-5,,,54678.0,39052826624,28984268288,mistralai/Mistral-7B-v0.1,2,,2,,,float16,0.3233459839820862,1179.0218,6.785,0.848,987.156
+,aadp-padding-free,2e-5,,,78457.0,72462646784,43467896832,mistralai/Mistral-7B-v0.1,1,,8,,,float16,0.31623488330841065,882.9336,9.061,0.566,2620.86
+,aadp-padding-free,2e-5,,,55823.0,39294677504,28984271360,mistralai/Mistral-7B-v0.1,2,,4,,,float16,0.31252191400527957,712.5667,11.227,0.702,1610.12
+True,accelerated-peft-bnb,2e-4,16,0.1,17733.0,11082124288,4306282496,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3046877062320709,1408.8746,5.678,0.71,2527.969
+True,accelerated-peft-bnb,2e-4,16,0.1,9841.0,6439246848,2244984832,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.3053441913127899,3125.0585,2.56,0.32,472.042
+True,accelerated-peft-bnb,2e-4,16,0.1,30467.0,17777112064,4306328576,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.31667393970489505,1272.14,6.289,0.393,3296.719
+True,accelerated-peft-bnb,2e-4,16,0.1,17190.0,9156817920,2244443136,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.31722236013412475,1558.7478,5.132,0.321,1134.434
+True,accelerated-peft-bnb-padding-free,2e-4,16,0.1,10813.0,6461013504,4306267136,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.30435174083709715,1274.6022,6.276,0.785,1815.504
+True,accelerated-peft-bnb-padding-free,2e-4,16,0.1,6938.0,4908377600,2244423168,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.30458667492866515,2974.4903,2.69,0.336,391.287
+True,accelerated-peft-bnb-padding-free,2e-4,16,0.1,14305.0,7270018560,4306640896,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.31687235641479494,840.7417,9.515,0.595,2752.385
+True,accelerated-peft-bnb-padding-free,2e-4,16,0.1,7691.0,5431198720,2244426240,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3182619490623474,1514.3983,5.283,0.33,757.607
+True,accelerated-peft-bnb-foak,2e-4,16,0.1,15147.0,9696840192,4307085312,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.30510280656814576,1253.8211,6.38,0.798,2840.59
+True,accelerated-peft-bnb-foak,2e-4,16,0.1,9259.0,6383557632,2244427776,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.31846265625953674,1386.4899,5.77,0.721,1063.952
+True,accelerated-peft-bnb-foak,2e-4,16,0.1,25333.0,15032201216,4306328576,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.31855770587921145,1093.3322,7.317,0.457,3835.877
+True,accelerated-peft-bnb-foak,2e-4,16,0.1,14672.0,9015342080,2244525056,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.32810805225372314,763.4493,10.479,0.655,2316.193
+True,accelerated-peft-bnb-foak-padding-free,2e-4,16,0.1,9047.0,6051464704,4306267136,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.30471327471733095,1234.4383,6.481,0.81,1874.573
+True,accelerated-peft-bnb-foak-padding-free,2e-4,16,0.1,6851.0,4865461760,2244423168,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.31753844475746157,1310.4764,6.105,0.763,888.134
+True,accelerated-peft-bnb-foak-padding-free,2e-4,16,0.1,11715.0,6702582784,4306640896,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.31742446279525754,792.5661,10.094,0.631,2919.687
+True,accelerated-peft-bnb-foak-padding-free,2e-4,16,0.1,7321.0,5382138880,2244426240,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3285783553123474,738.2245,10.837,0.677,1554.159
+True,accelerated-peft-autogptq,2e-4,16,0.1,17307.0,11120263680,4336591872,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3075476322174072,1258.4958,6.357,0.795,2836.733
+True,accelerated-peft-autogptq,2e-4,16,0.1,10258.0,6458449408,2261679104,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.30710003662109375,3090.615,2.588,0.324,478.659
+True,accelerated-peft-autogptq,2e-4,16,0.1,30751.0,17818205696,4336637952,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.3215496563911438,1218.3867,6.566,0.41,3449.072
+True,accelerated-peft-autogptq,2e-4,16,0.1,17829.0,9177592320,2261121024,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3209993424415588,1539.6799,5.196,0.325,1151.244
+True,accelerated-peft-autogptq-padding-free,2e-4,16,0.1,10451.0,6496056320,4336576512,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3071319921016693,1114.1344,7.18,0.898,2084.464
+True,accelerated-peft-autogptq-padding-free,2e-4,16,0.1,7404.0,4927542272,2261101056,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.30649436855316164,3015.4321,2.653,0.332,387.358
+True,accelerated-peft-autogptq-padding-free,2e-4,16,0.1,13995.0,7305730560,4336598016,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.32078352308273317,770.7363,10.38,0.649,3013.188
+True,accelerated-peft-autogptq-padding-free,2e-4,16,0.1,8216.0,5452073472,2261104128,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3212459750175476,1485.3403,5.386,0.337,775.241
+True,accelerated-peft-autogptq-foak,2e-4,16,0.1,15995.0,9732096000,4336591872,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.30671549201011655,1159.6895,6.898,0.862,3078.424
+True,accelerated-peft-autogptq-foak,2e-4,16,0.1,9525.0,6403931648,2261105664,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.3200006256103516,1411.5314,5.668,0.708,1048.048
+True,accelerated-peft-autogptq-foak,2e-4,16,0.1,28115.0,15071115264,4336637952,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.32278956651687624,1040.8787,7.686,0.48,4037.266
+True,accelerated-peft-autogptq-foak,2e-4,16,0.1,15980.0,9036755456,2261940224,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.33151373291015623,740.4527,10.804,0.675,2393.871
+True,accelerated-peft-autogptq-foak-padding-free,2e-4,16,0.1,8715.0,6084255744,4336576512,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.3068069202899933,1086.4096,7.364,0.92,2137.659
+True,accelerated-peft-autogptq-foak-padding-free,2e-4,16,0.1,7308.0,4884648960,2261101056,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.3218079490661621,1321.1833,6.055,0.757,884.095
+True,accelerated-peft-autogptq-foak-padding-free,2e-4,16,0.1,11267.0,6737638400,4336884736,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.32090167951583864,732.0691,10.928,0.683,3172.341
+True,accelerated-peft-autogptq-foak-padding-free,2e-4,16,0.1,7783.0,5403394560,2261104128,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.33433894968032835,724.7184,11.039,0.69,1588.887

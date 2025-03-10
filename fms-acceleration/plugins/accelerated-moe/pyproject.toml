@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fms-acceleration-moe"
+version = '0.1.1.dev'
+description = "FMS Acceleration Plugin for Mixture-of-Experts"
+authors = [
+  {name = "Fabian Lim", email = "flim@sg.ibm.com"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = "~=3.9"
+keywords = ['fms-hf-tuning', 'acceleration', 'mixture-of-experts', 'scattermoe', 'megablocks']
+classifiers=[
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/fms_acceleration_moe"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""

@@ -1,0 +1,38 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+  # Configurations to accelerate data packing/padding in training
+  training:
+
+    # attention module configurations
+    # e.g. padding-free modifications to attention layer
+    attention:
+
+      # this controls the confgurations for padding free computation of flash attention
+      padding_free:
+        method: huggingface
+  peft:
+
+    # quantization-releated acceleration
+    # e.g., kernels for quantized base weights
+    quantization:
+
+      # AutoGPTQ quantized base weights.
+      auto_gptq:
+
+        # Kernel to be used for GPTQ linear laeyer
+        # NOTE: Not all kernels are suitable for PEFT training; need to use 
+        # kernels that support autograd forward / backward. The best 
+        # recommendation at the moment is "triton_v2".
+        kernel: triton_v2
+
+        # If true, then will already expect quantized checkpoint 
+        # passed into TrainingArguments.model_name_or_path
+        from_quantized: true
+
+        # Setting to false, will create GPTQ-LORA using the local autogptq package.
+        # if true, will create legacy implementation of GPTQ-LORA using external 
+        # `auto_gptq`. Refer to README for installation instructions
+        use_external_lib: false

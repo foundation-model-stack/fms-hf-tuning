@@ -1,0 +1,29 @@
+bf16,epoch,fp16,framework_config,learning_rate,lora_alpha,lora_dropout,mem_nvidia_mem_reserved,mem_peak_torch_mem_alloc_in_bytes,mem_torch_mem_alloc_in_bytes,model_name_or_path,num_gpus,peft_method,per_device_train_batch_size,r,target_modules,torch_dtype,train_loss,train_runtime,train_samples_per_second,train_steps_per_second,train_tokens_per_second
+,0.14,,none,2e-05,,,47683.0,35134836736,21089537536,ibm/PowerLM-3b,1,,4,,,bfloat16,0.9708438396453858,321.2872,1.245,0.311,5099.488
+,0.14,,none,2e-05,,,25563.0,17626672128,14116037120,ibm/PowerLM-3b,2,,2,,,bfloat16,0.9699858856201172,178.9566,2.235,0.559,4577.647
+,0.29,,none,2e-05,,,52927.0,47059390976,21089930752,ibm/PowerLM-3b,1,,8,,,bfloat16,0.9677363204956054,627.2531,1.275,0.159,5224.047
+,0.29,,none,2e-05,,,28962.0,23781051904,14120288768,ibm/PowerLM-3b,2,,4,,,bfloat16,0.967378387451172,328.2929,2.437,0.305,4990.665
+,0.14,,foak-fast-kernels,2e-05,,,43333.0,35133716992,21088791040,ibm/PowerLM-3b,1,,4,,,bfloat16,0.9708970737457276,272.6346,1.467,0.367,6009.509
+,0.14,,foak-fast-kernels,2e-05,,,24945.0,17618562048,14107927040,ibm/PowerLM-3b,2,,2,,,bfloat16,0.9701127910614014,155.0031,2.581,0.645,5285.056
+,0.29,,foak-fast-kernels,2e-05,,,50077.0,40316365824,21089184256,ibm/PowerLM-3b,1,,8,,,bfloat16,0.9673656368255616,530.8662,1.507,0.188,6172.553
+,0.29,,foak-fast-kernels,2e-05,,,25856.0,20396960768,14108123648,ibm/PowerLM-3b,2,,4,,,bfloat16,0.9672414493560793,280.7892,2.849,0.356,5834.982
+,0.14,,none,0.0002,16.0,0.1,24591.0,20169870848,7183026688,ibm/PowerLM-3b,1,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0160441780090332,325.5188,1.229,0.307,5033.196
+,0.14,,none,0.0002,16.0,0.1,13919.0,10321519104,3624651776,ibm/PowerLM-3b,2,lora,2,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0179708290100098,205.3199,1.948,0.487,3989.872
+,0.29,,none,0.0002,16.0,0.1,41237.0,33152880128,7183419904,ibm/PowerLM-3b,1,lora,8,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.015061044692993,641.7595,1.247,0.156,5105.963
+,0.29,,none,0.0002,16.0,0.1,22182.0,16819665408,3629917184,ibm/PowerLM-3b,2,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0122298526763915,342.5583,2.335,0.292,4782.835
+,0.14,,foak-fast-kernels,0.0002,16.0,0.1,21375.0,16873442304,7183026688,ibm/PowerLM-3b,1,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0166709804534912,277.343,1.442,0.361,5907.487
+,0.14,,foak-fast-kernels,0.0002,16.0,0.1,12274.0,8673304576,3624651776,ibm/PowerLM-3b,2,lora,2,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0182081413269044,181.9223,2.199,0.55,4503.022
+,0.29,,foak-fast-kernels,0.0002,16.0,0.1,34803.0,26561596416,7183419904,ibm/PowerLM-3b,1,lora,8,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0157270526885986,546.8807,1.463,0.183,5991.8
+,0.29,,foak-fast-kernels,0.0002,16.0,0.1,19151.0,13518168064,3624848384,ibm/PowerLM-3b,2,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0141748046875,299.1818,2.674,0.334,5476.269
+True,0.14,,baseline-peft-bnb,0.0002,16.0,0.1,23127.0,18174161920,2143825920,ibm/PowerLM-3b,1,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.020770034790039,390.2779,1.025,0.256,4198.034
+True,0.14,,baseline-peft-bnb,0.0002,16.0,0.1,11366.0,7826759168,1129891840,ibm/PowerLM-3b,2,lora,2,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.026328239440918,217.3217,1.841,0.46,3769.527
+True,0.29,,baseline-peft-bnb,0.0002,16.0,0.1,43327.0,34177070080,2144219136,ibm/PowerLM-3b,1,lora,8,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0214418220520018,759.0108,1.054,0.132,4317.198
+True,0.29,,baseline-peft-bnb,0.0002,16.0,0.1,19662.0,14319836672,1130088448,ibm/PowerLM-3b,2,lora,4,16.0,q_proj k_proj v_proj o_proj,bfloat16,1.0208434104919433,325.6275,2.457,0.307,5031.517
+True,0.14,,accelerated-peft-bnb,0.0002,16.0,0.1,19379.0,15151677952,2141240832,ibm/PowerLM-3b,1,lora,4,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0252878952026367,295.7236,1.353,0.338,5540.308
+True,0.14,,accelerated-peft-bnb,0.0002,16.0,0.1,11316.0,7826759168,1129891840,ibm/PowerLM-3b,2,lora,2,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0245559310913086,216.0996,1.851,0.463,3790.845
+True,0.29,,accelerated-peft-bnb,0.0002,16.0,0.1,35837.0,28134687232,2141634048,ibm/PowerLM-3b,1,lora,8,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0224976921081543,578.3764,1.383,0.173,5665.515
+True,0.29,,accelerated-peft-bnb,0.0002,16.0,0.1,19600.0,14319836672,1130088448,ibm/PowerLM-3b,2,lora,4,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0212884616851807,328.1765,2.438,0.305,4992.436
+True,0.14,,accelerated-peft-bnb-foak,0.0002,16.0,0.1,16347.0,11831656448,2141240832,ibm/PowerLM-3b,1,lora,4,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0251048755645753,246.4572,1.623,0.406,6647.808
+True,0.14,,accelerated-peft-bnb-foak,0.0002,16.0,0.1,9796.0,6202137600,1129891840,ibm/PowerLM-3b,2,lora,2,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0391525173187257,137.496,2.909,0.727,5957.992
+True,0.29,,accelerated-peft-bnb-foak,0.0002,16.0,0.1,29777.0,21519810560,2141634048,ibm/PowerLM-3b,1,lora,8,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0225242614746093,479.5512,1.668,0.209,6833.055
+True,0.29,,accelerated-peft-bnb-foak,0.0002,16.0,0.1,16722.0,11047001088,1130088448,ibm/PowerLM-3b,2,lora,4,16.0,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.0340285396575928,252.7203,3.166,0.396,6483.058

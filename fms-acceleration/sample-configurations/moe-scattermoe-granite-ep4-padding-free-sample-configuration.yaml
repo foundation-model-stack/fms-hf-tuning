@@ -1,0 +1,28 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+  # Configurations to accelerate data packing/padding in training
+  training:
+
+    # attention module configurations
+    # e.g. padding-free modifications to attention layer
+    attention:
+
+      # this controls the confgurations for padding free computation of flash attention
+      padding_free:
+        method: huggingface
+    moe:
+
+      # expert-parallel for MoE
+      scattermoe:
+
+        # The level of expert parallel sharding. 
+        # - 1 means no sharding
+        # - if > 1, please ensure that this divides the world_size. This is because
+        #   the devices will be replicated for every ep_degree devices, and 
+        #   the experts will be sharded within each group.
+        # - if > 1, also ensure that it divides the number of experts, as each device
+        #   will then have num_of_experts / ep_degree experts.
+        ep_degree: 4

@@ -1,0 +1,51 @@
+# FMS Acceleration Plugin Configuration. 
+#
+# Each stanza incorporates various configurations for 
+# different fine-tuning / training tasks.
+plugins:
+  # Configurations to accelerate data packing/padding in training
+  training:
+
+    # attention module configurations
+    # e.g. padding-free modifications to attention layer
+    attention:
+
+      # this controls the confgurations for padding free computation of flash attention
+      padding_free:
+        method: huggingface
+    fused_ops_and_kernels:
+
+      # if under training stanza, then putting
+      # base_layer and fused_lora will be a misnomer
+      # - this should be in peft.quantized
+      # However, if it is specified, it will still 
+      # be read. This is useful in use cases where
+      # the yaml is system generated and not shown
+      # to a user.
+
+      # activate various unsloth optimizations
+      # there are two versions of the plugin
+      # - the FastKernel version supports individual kernels
+      # - the FastQuantized version is all-or-nothing
+
+      # fast loss triton kernels
+      fast_loss: true
+
+      # fast rms norm triton kernels
+      fast_rms_layernorm: true
+
+      # fast RoPE embedding triton kernels
+      fast_rope_embeddings: true
+    moe:
+
+      # expert-parallel for MoE
+      scattermoe:
+
+        # The level of expert parallel sharding. 
+        # - 1 means no sharding
+        # - if > 1, please ensure that this divides the world_size. This is because
+        #   the devices will be replicated for every ep_degree devices, and 
+        #   the experts will be sharded within each group.
+        # - if > 1, also ensure that it divides the number of experts, as each device
+        #   will then have num_of_experts / ep_degree experts.
+        ep_degree: 1

@@ -1,0 +1,30 @@
+# PEFT-related acceleration
+peft:
+
+  # quantization-releated acceleration
+  # e.g., kernels for quantized base weights
+  quantization: 
+
+    fused_ops_and_kernels: 
+
+      # load unsloth optimizations for these 4bit base layer weights.
+      # currently only support "auto_gptq" and "bitsandbytes"
+      base_layer: auto_gptq
+
+      # activate various unsloth optimizations
+      # there are two versions of the plugin
+      # - the FastKernel version supports individual kernels
+      # - the FastQuantized version is all-or-nothing
+
+
+      # fused kernels for lora linear layers
+      fused_lora: True
+
+      # fast loss triton kernels
+      fast_loss: fused_ce_liger
+
+      # fast rms norm triton kernels
+      fast_rsm_layernorm: True
+
+      # fast RoPE embedding triton kernels
+      fast_rope_embeddings: True
