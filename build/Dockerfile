@@ -103,6 +103,7 @@ RUN dnf config-manager \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
         cudnn9-cuda-12-6-9.6.0.74-1 \
         cudnn9-cuda-12-9.6.0.74-1 \
+        libcusparselt-devel-0.7.1.0-1 \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
