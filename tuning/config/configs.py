@@ -72,7 +72,9 @@ class DataArguments:
     dataset_text_field: str = field(
         default=None,
         metadata={
-            "help": "Training dataset text field containing single sequence. \
+            "help": "[DEPRECATED] "
+                    "Use text_column_name to specify this argument going forward\n"\
+                    "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
                     or data_formatter_template need to be supplied. \
                     For running vision language model tuning pass the column name for text data."
@@ -83,6 +85,14 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing multi-turn chat data. \
                     Used as key to point multi-turn data field."
+        },
+    )
+    text_column_name : str = field(
+        default=None,
+        metadata={
+            "help": "Training dataset text column name containing single sequence. \
+                    Either the text_column_name \
+                    or data_formatter_template need to be supplied."
         },
     )
     validation_data_path: str = field(
@@ -157,6 +167,9 @@ class DataArguments:
         self.response_template = unescape(self.response_template)
         self.instruction_template = unescape(self.instruction_template)
 
+        # Initialise deprecated field
+        if self.dataset_text_field:
+            self.text_column_name = self.dataset_text_field
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
