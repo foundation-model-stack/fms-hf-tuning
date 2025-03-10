@@ -115,6 +115,34 @@ sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....
 The code expects either the `local` or `remote` repo to be specified and will result in a `ValueError` otherwise.
 See [AimConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/tracker_configs.py#L25) for more details.
 
+## MLflow Tracker
+
+To enable [MLflow Tracking](https://mlflow.org/docs/latest/tracking.html) users need to pass `"mlflow"` as the requested tracker as part of the [training argument](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/config/configs.py#L131).
+
+
+When using MLflow, users need to specify additional arguments which specify [mlflow tracking uri](https://mlflow.org/docs/latest/tracking.html#common-setups) location where either a [mlflow supported database](https://mlflow.org/docs/latest/tracking/backend-stores.html#supported-store-types) or [mlflow remote tracking server](https://mlflow.org/docs/latest/tracking/server.html) is running.
+
+Example
+```
+from tuning import sft_trainer
+from tuning.config.tracker_configs import MLflowConfig, TrackerConfigFactory
+
+training_args = TrainingArguments(
+    ...,
+    trackers = ["mlflow"],
+)
+
+tracker_configs = TrackerConfigFactory(
+    mlflow_config=MLflowConfig(
+        mlflow_experiment="experiment-name",
+        mlflow_tracking_uri=<tracking uri>
+        )
+    )
+
+sft_trainer.train(train_args=training_args, tracker_configs=tracker_configs,....)
+```
+
+The code expects a valid uri to be specified and will result in a `ValueError` otherwise.
 
 ## Running the code via command line `tuning/sft_trainer::main` function
 
@@ -123,10 +151,10 @@ If running the code via main function of [sft_trainer.py](../tuning/sft_trainer.
 To enable tracking please pass
 
 ```
---tracker <aim/file_logger>
+--tracker <aim/file_logger/mlflow>
 ```
 
-To further customise tracking you can specify additional arguments needed by the tracker like
+To further customise tracking you can specify additional arguments needed by the tracker like (example shows aim follow similarly for mlflow)
 
 ```
 --tracker aim --aim_repo <path-to-aimrepo> --experiment <experiment-name>
