@@ -2,15 +2,19 @@ dataprocessor:
     type: default
 datasets:
   - name: text_dataset_input_output_masking
-    rename_columns:
-      "input"  : "instruction"
-      "output" : "response"
-    retain_columns:
-      - "instruction"
-      - "response"
     data_paths:
       - "FILE_PATH"
     data_handlers:
+      - name: rename_columns
+        arguments:
+          column_mapping:
+            "input"  : "instruction"
+            "output" : "response"
+      - name: select_columns
+        arguments:
+          column_names:
+            - "instruction"
+            - "response"
       - name: tokenize_and_apply_input_masking
         arguments:
           remove_columns: all

@@ -35,7 +35,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+    DATA_CONFIG_RENAME_SELECT_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
     DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
@@ -61,7 +61,11 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
-from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
+from tuning.data.data_config import (
+    DataHandlerConfig,
+    DataPreProcessorConfig,
+    DataSetConfig,
+)
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
@@ -1632,33 +1636,33 @@ def test_process_dataset_configs_with_sampling_error(
 
 
 @pytest.mark.parametrize(
-    "datafile, rename, retain, final, datasetconfigname",
+    "datafile, rename, select, final, datasetconfigname",
     [
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             {"input": "instruction", "output": "response"},
             None,
             ["ID", "Label", "instruction", "response"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             None,
             ["ID", "input", "output"],
             ["ID", "input", "output"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             {"input": "instruction", "output": "response"},
             ["Label", "instruction", "response"],
             ["Label", "instruction", "response"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
     ],
 )
-def test_rename_and_retain_dataset_columns(
-    datafile, rename, retain, final, datasetconfigname
+def test_rename_and_select_dataset_columns(
+    datafile, rename, select, final, datasetconfigname
 ):
     """Test process_dataset_configs for expected output."""
     dataprocessor_config = DataPreProcessorConfig()
@@ -1667,12 +1671,23 @@ def test_rename_and_retain_dataset_columns(
         processor_config=dataprocessor_config,
         tokenizer=tokenizer,
     )
+
+    handlers = []
+    if rename:
+        handlers.append(
+            DataHandlerConfig(
+                name="rename_columns", arguments={"column_mapping": rename}
+            )
+        )
+    if select:
+        handlers.append(
+            DataHandlerConfig(name="select_columns", arguments={"column_names": select})
+        )
+    data_paths = [datafile]
+
     datasetconfig = [
         DataSetConfig(
-            name=datasetconfigname,
-            data_paths=[datafile],
-            rename_columns=rename,
-            retain_columns=retain,
+            name=datasetconfigname, data_paths=data_paths, data_handlers=handlers
         )
     ]
     train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)

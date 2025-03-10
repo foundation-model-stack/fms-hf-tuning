@@ -41,8 +41,8 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
-    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
-    DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
+    DATA_CONFIG_RENAME_SELECT_COLUMNS,
+    DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
@@ -908,7 +908,7 @@ def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
         ),
         (
             [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
     ],
 )
@@ -1047,8 +1047,8 @@ def test_run_training_with_data_tokenized_using_tokenizer_handler():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-def test_run_training_with_skip_large_text_handler():
-    """Ensure that we can train succesfully after using skip large text handler."""
+def test_run_training_with_skip_large_column_handler():
+    """Ensure that we can train succesfully after using skip large column handler."""
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
@@ -1057,8 +1057,8 @@ def test_run_training_with_skip_large_text_handler():
         data_args.response_template = None
         data_args.training_data_path = None
 
-        dataconfigfile = DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER
-        datapath = TWITTER_COMPLAINTS_TOKENIZED_JSON
+        dataconfigfile = DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER
+        datapath = TWITTER_COMPLAINTS_DATA_JSONL
 
         # add data_paths in data_config file
         with tempfile.NamedTemporaryFile(

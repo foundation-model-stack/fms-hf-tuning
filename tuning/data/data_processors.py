@@ -82,6 +82,16 @@ class DataPreProcessor:
         for k, v in handlers.items():
             self.register_data_handler(name=k, handler=v)
 
+    def _get_registered_datahandler(self, handler_name):
+        try:
+            return self.registered_handlers[handler_name]
+        except KeyError as e:
+            raise ValueError(
+                f"Data handler requested {handler_name} is "
+                "not registed. Registered handlers are "
+                + ", ".join(self.registered_handlers.keys())
+            ) from e
+
     def load_dataset(
         self,
         datasetconfig: DataSetConfig,
@@ -233,14 +243,160 @@ class DataPreProcessor:
                 f"An error occurred while concatenating datasets from {datasetconfig.name}: {e}"
             ) from e
 
+    def __execute_rename_data_handler(self, raw_datasets, handler, **kwargs):
+        """
+        Rename columns in the dataset using the provided column mapping.
+        Uses Huggingface {DatasetDict/IterableDatasetDict}.rename_columns() API
+        """
+        if "column_mapping" not in kwargs:
+            raise ValueError(
+                f"Need to provide column_mapping for {handler.handler_type.name} data handler"
+            )
+        mapping = kwargs["column_mapping"]
+        if mapping is None or not isinstance(mapping, Dict):
+            raise ValueError(
+                f"column mapping {mapping} passed to {handler.handler_type.name} data handler "
+                "should be a Dict of str:str"
+            )
+        logger.info("Renaming %s columns", str(mapping))
+        return raw_datasets.rename_columns(column_mapping=mapping)
+
+    def __execute_select_data_handler(self, raw_datasets, handler, **kwargs):
+        """
+        Selects specific columns from the dataset.
+        Uses HuggingFace {DatasetDict/IterableDatasetDict}.select_columns() API
+        """
+        if "column_names" not in kwargs:
+            raise ValueError(
+                f"Need to provide column_names for {handler.handler_type.name} data handler"
+            )
+        columns = kwargs["column_names"]
+        if columns is None or not isinstance(columns, List):
+            raise ValueError(
+                f"column names {columns} passed to {handler.handler_type.name} data handler "
+                "should be a List of columns to select"
+            )
+        logger.info("Selecting only %s columns", str(columns))
+        return raw_datasets.select_columns(column_names=columns)
+
+    def __execute_remove_data_handler(self, raw_datasets, handler, **kwargs):
+        """
+        Removes specified columns from the dataset.
+        Uses HuggingFace {DatasetDict/IterableDatasetDict}.remove_columns() API
+        """
+        if "column_names" not in kwargs:
+            raise ValueError(
+                f"Need to provide column_names for {handler.handler_type.name} data handler"
+            )
+        columns = kwargs["column_names"]
+        if columns is None or not isinstance(columns, List):
+            raise ValueError(
+                f"column names {columns} passed to {handler.handler_type.name} data handler "
+                "should be a List of columns to remove"
+            )
+        logger.info("Removing %s columns", str(columns))
+        return raw_datasets.remove_columns(column_names=columns)
+
+    def __execute_filter_data_handler(self, raw_datasets, handler, **kwargs):
+        return raw_datasets.filter(handler.op, **kwargs)
+
+    def __execute_map_data_handler(
+        self, raw_datasets, handler, splitName, datasetName, **kwargs
+    ):
+
+        if splitName is None or datasetName is None:
+            raise ValueError("whyy")
+
+        column_names = None
+        if hasattr(raw_datasets[splitName], "column_names"):
+            column_names = raw_datasets[splitName].column_names
+
+        # remove __content__ from all processing
+        if column_names and "__content__" in column_names:
+            column_names.remove("__content__")
+
+        if "remove_columns" not in kwargs:
+            kwargs["remove_columns"] = None
+        if kwargs["remove_columns"] == "all":
+            if column_names is None:
+                logger.warning(
+                    "Could not infer column names from the dataset %s \
+                    unable to set `remove_columns` to all.\n \
+                    Please explicitly specify the column list or \
+                    use remove/select data handlers.",
+                    datasetName,
+                )
+            else:
+                kwargs["remove_columns"] = column_names
+
+        if "fn_kwargs" not in kwargs:
+            kwargs["fn_kwargs"] = {}
+
+        kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
+        kwargs["fn_kwargs"]["column_names"] = column_names
+
+        return raw_datasets.map(handler.op, **kwargs)
+
+    def _execute_data_handlers(
+        self, raw_datasets, data_handler_config, splitName, datasetName
+    ):
+
+        handler_name: str = data_handler_config.name
+        kwargs: Dict = data_handler_config.arguments
+        handler: DataHandler = self._get_registered_datahandler(handler_name)
+
+        # Check batching and num_proc for multiprocessing of handlers.
+        if "batched" in kwargs:
+            # If batching is requested but not allowed throw error
+            if kwargs["batched"] and not handler.allows_batching:
+                raise ValueError(
+                    f"DataHandler {handler} does not support batching\
+                        but was called with batched=True in data config"
+                )
+        else:
+            # If batching is not requested set the batching to allows_batching
+            kwargs["batched"] = handler.allows_batching
+
+        if isinstance(raw_datasets, IterableDatasetDict):
+            if "num_proc" in kwargs:
+                del kwargs["num_proc"]
+                logger.warning(
+                    "num_proc is not applicable for \
+                                IterableDatasets and has been removed."
+                )
+        else:
+            if "num_proc" not in kwargs:
+                kwargs["num_proc"] = os.cpu_count()
+                logger.info("setting num_proc to %s", os.cpu_count())
+
+        logger.info("Applying Handler: %s Args: %s", handler, kwargs)
+
+        handler_type = handler.handler_type
+        if handler_type is DataHandlerType.REMOVE:
+            return self.__execute_remove_data_handler(raw_datasets, handler, **kwargs)
+        if handler_type is DataHandlerType.SELECT:
+            return self.__execute_select_data_handler(raw_datasets, handler, **kwargs)
+        if handler_type is DataHandlerType.RENAME:
+            return self.__execute_rename_data_handler(raw_datasets, handler, **kwargs)
+        if handler_type is DataHandlerType.FILTER:
+            return self.__execute_filter_data_handler(raw_datasets, handler, **kwargs)
+        if handler_type is DataHandlerType.MAP:
+            return self.__execute_map_data_handler(
+                raw_datasets, handler, splitName, datasetName, **kwargs
+            )
+
+        raise ValueError(
+            f'Unknown data handler type {handler.handler_type} \
+              supported types are - \
+              {",".join([e.name for e in DataHandlerType])}'
+        )
+
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], **extra_kwargs
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
 
         splitName = "train"  # default
-
         all_datasetdicts = []
-        sampling_probabilities = []
 
         # quick check to see if we are sampling and if we need to throw error.
         sampling_probabilities = [d.sampling for d in dataset_configs if d.sampling]
@@ -282,26 +438,6 @@ class DataPreProcessor:
             else:
                 raw_datasets = DatasetDict()
 
-                # Check if both are conflicting options before proceeding.
-            if d.rename_columns and d.retain_columns:
-                commmon = set(d.rename_columns.keys()) & set(d.retain_columns)
-                if commmon:
-                    raise ValueError(
-                        f"You are trying to retain {str(commmon)} columns"
-                        " which will be renamed via rename operation."
-                    )
-
-            if d.rename_columns:
-                logger.info("Renaming %s columns", str(d.rename_columns))
-                raw_dataset = raw_dataset.rename_columns(
-                    column_mapping=d.rename_columns
-                )
-                logger.info("Done")
-            if d.retain_columns:
-                logger.info("Retaining %s columns", str(d.retain_columns))
-                raw_dataset = raw_dataset.select_columns(column_names=d.retain_columns)
-                logger.info("Done")
-
             # Assume all is train split
             if isinstance(raw_dataset, (Dataset, IterableDataset)):
                 raw_datasets[splitName] = raw_dataset
@@ -309,78 +445,13 @@ class DataPreProcessor:
                 raw_datasets = raw_dataset
 
             if d.data_handlers:  # Execute the datahandlers
-                for data_handler in d.data_handlers:
-                    handler_name: str = data_handler.name
-                    kwargs: Dict = data_handler.arguments
-                    handler: DataHandler = self.registered_handlers[handler_name]
-
-                    if "batched" in kwargs:
-                        # If batching is requested but not allowed throw error
-                        if kwargs["batched"] and not handler.allows_batching:
-                            raise ValueError(
-                                f"DataHandler {handler} does not support batching\
-                                  but was called with batched=True in data config"
-                            )
-                    else:
-                        # If batching is not requested set the batching to allows_batching
-                        kwargs["batched"] = handler.allows_batching
-
-                    if isinstance(raw_datasets, IterableDatasetDict):
-                        if "num_proc" in kwargs:
-                            del kwargs["num_proc"]
-                            logger.warning(
-                                "num_proc is not applicable for \
-                                            IterableDatasets and has been removed."
-                            )
-                    else:
-                        if "num_proc" not in kwargs:
-                            kwargs["num_proc"] = os.cpu_count()
-                            logger.info("setting num_proc to %s", os.cpu_count())
-
-                    if handler.handler_type == DataHandlerType.FILTER:
-
-                        logger.info(
-                            "Applying Handler: %s Args: %s", data_handler, kwargs
-                        )
-                        raw_datasets = raw_datasets.filter(handler.op, **kwargs)
-
-                    elif handler.handler_type == DataHandlerType.MAP:
-                        column_names = raw_datasets[splitName].column_names
-
-                        # remove __content__ from all processing
-                        if not column_names and isinstance(
-                            raw_datasets, IterableDatasetDict
-                        ):
-                            logger.warning(
-                                "Could not remove columns from IterableDataset"
-                            )
-                        if column_names and "__content__" in column_names:
-                            column_names.remove("__content__")
-
-                        if "remove_columns" not in kwargs:
-                            kwargs["remove_columns"] = None
-                        if kwargs["remove_columns"] == "all":
-                            kwargs["remove_columns"] = column_names
-
-                        if "fn_kwargs" not in kwargs:
-                            kwargs["fn_kwargs"] = {}
-
-                        kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
-                        kwargs["fn_kwargs"]["column_names"] = column_names
-
-                        kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
-
-                        logger.info(
-                            "Applying Handler: %s Args: %s", data_handler, kwargs
-                        )
-
-                        raw_datasets = raw_datasets.map(handler.op, **kwargs)
-                    else:
-                        raise ValueError(
-                            f"Unknown data handler type {handler.handler_type} \
-                              supported types are {DataHandlerType.FILTER.name}\
-                              or {DataHandlerType.MAP.name}"
-                        )
+                for data_handler_config in d.data_handlers:
+                    raw_datasets = self._execute_data_handlers(
+                        raw_datasets=raw_datasets,
+                        data_handler_config=data_handler_config,
+                        splitName=splitName,
+                        datasetName=d.name,
+                    )
 
             # Append the processed datasets to the final dict
             all_datasetdicts.append(raw_datasets)
@@ -424,7 +495,7 @@ class DataPreProcessor:
         return train_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], **kwargs
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
 
@@ -438,7 +509,7 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
+            train_dataset = self._process_dataset_configs(dataset_configs)
 
         return train_dataset
 
