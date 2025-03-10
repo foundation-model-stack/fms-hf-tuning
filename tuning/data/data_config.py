@@ -37,8 +37,6 @@ class DataSetConfig:
     data_paths: List[str]
     builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
-    rename_columns: Optional[Dict] = None
-    retain_columns: Optional[List] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
 
 

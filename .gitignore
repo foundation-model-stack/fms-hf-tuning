@@ -8,6 +8,7 @@ coverage*.xml
 dist
 htmlcov
 test
+error.log
 
 # IDEs
 .vscode/
