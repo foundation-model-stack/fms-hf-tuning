@@ -96,3 +96,8 @@ def get_data_collator(
         raise ValueError(
             "Could not pick a data collator. Please refer to supported data formats"
         )
+
+    if is_traindata_tokenized:
+        return DataCollatorForSeq2Seq(
+            tokenizer=tokenizer, padding=False, max_length=max_seq_length
+        )
