@@ -285,11 +285,13 @@ def apply_tokenizer_chat_template(
     else:
         converation = element
 
-    tools = element['tools'] if 'tools' in element else None
-    documents = element['documents'] if 'documents' in element else None
+    tools = element["tools"] if "tools" in element else None
+    documents = element["documents"] if "documents" in element else None
 
     return {
-        f"{dataset_text_field}": tokenizer.apply_chat_template(converation, tools=tools, documents=documents, tokenize=False)
+        f"{dataset_text_field}": tokenizer.apply_chat_template(
+            converation, tools=tools, documents=documents, tokenize=False
+        )
     }
 
 
