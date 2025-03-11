@@ -89,8 +89,8 @@ ENV NV_CUDA_CUDART_DEV_VERSION=12.1.55-1 \
     NV_LIBCUBLAS_DEV_VERSION=12.1.0.26-1 \
     NV_LIBNPP_DEV_VERSION=12.0.2.50-1 \
     NV_LIBNCCL_DEV_PACKAGE_VERSION=2.18.3-1+cuda12.1 \
-    NV_CUDNN9-CUDA=12-6-9.6.0.74-1 \
-    NV_LIBCUSPARSELT-DEVEL=0.7.1.0-1
+    NV_CUDNN9_CUDA_VERSION=9.6.0.74-1 \
+    NV_LIBCUSPARSELT_DEVEL_VERSION=0.7.1.0-1
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
@@ -103,8 +103,8 @@ RUN dnf config-manager \
         libcublas-devel-12-1-${NV_LIBCUBLAS_DEV_VERSION} \
         libnpp-devel-12-1-${NV_LIBNPP_DEV_VERSION} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
-        cudnn9-cuda-${NV_CUDNN9-CUDA} \
-        libcusparselt-devel-${NV_LIBCUSPARSELT-DEVEL} \
+        cudnn9-cuda-12-6-${NV_CUDNN9_CUDA_VERSION} \
+        libcusparselt-devel-${NV_LIBCUSPARSELT_DEVEL_VERSION} \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
