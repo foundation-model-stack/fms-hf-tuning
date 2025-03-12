@@ -158,7 +158,7 @@ def main():
 
     parser = get_parser()
     parser.add_argument(
-        "--num_datasets_shard",
+        "--num_dataset_shards",
         type=int,
         default=1,
         help="Number of shards to be used for saving the dataset.",
@@ -179,11 +179,11 @@ def main():
                     args[key] = item
 
         # Extract additional namespace argument
-        num_datasets_shard = next(
+        num_dataset_shards = next(
             (
-                item.num_datasets_shard
+                item.num_dataset_shards
                 for item in parsed_output
-                if hasattr(item, "num_datasets_shard")
+                if hasattr(item, "num_dataset_shards")
             ),
             1,
         )
@@ -198,7 +198,7 @@ def main():
             args["model_args"],
             args["data_args"],
             args["training_args"],
-            num_datasets_shard,
+            num_dataset_shards,
         )
         args["training_args"], logger = set_log_level(args["training_args"], __name__)
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -222,14 +222,14 @@ def main():
     train_dataset_dir = os.path.join(args["training_args"].output_dir, "train_dataset")
     logging.info(
         "Trying to dump %d shards of train dataset at %s",
-        num_datasets_shard,
+        num_dataset_shards,
         train_dataset_dir,
     )
     if formatted_train_dataset is not None:
         save_dataset_shards(
             formatted_train_dataset,
             train_dataset_dir,
-            num_datasets_shard,
+            num_dataset_shards,
             "train_dataset",
         )
     else:
@@ -241,14 +241,14 @@ def main():
     )
     logging.info(
         "Trying to dump %d shards of validation dataset at %s",
-        num_datasets_shard,
+        num_dataset_shards,
         validation_dataset_dir,
     )
     if formatted_validation_dataset is not None:
         save_dataset_shards(
             formatted_validation_dataset,
             validation_dataset_dir,
-            num_datasets_shard,
+            num_dataset_shards,
             "validation_dataset",
         )
     else:

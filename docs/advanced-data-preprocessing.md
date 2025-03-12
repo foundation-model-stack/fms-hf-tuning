@@ -283,8 +283,8 @@ We provide some example data configs [here](../tests/artifacts/predefined_data_c
 
 [This script](../scripts/offline_data_processing.py) provides the capability for users to perform standalone data 
 preprocessing, decoupled from the tuning/training part. It processes raw datasets, performs data preprocessing, and 
-saves the train and validation datasets in shards as a parquet file in the specified `output_dir`. A data config YAML file can be used to 
-pass configuration to this script. Example command to run this script:
+saves the train and validation datasets (in shards if `--num_dataset_shards` if passed) in parquet format inside the specified `output_dir`. 
+A data config YAML file can be used to pass configuration to this script. Example command to run this script:
 
 ```
 python scripts/offline_data_processing.py \
@@ -293,7 +293,7 @@ python scripts/offline_data_processing.py \
 --max_seq_length 4096 \
 --output_dir /path/to/output/directory  \
 --log_level info \
---num_datasets_shard 3
+--num_dataset_shards 3
 ```
 
 Example data config file:

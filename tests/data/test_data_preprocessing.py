@@ -1713,7 +1713,7 @@ def test_get_processed_dataset(datafile, datasetconfigname):
         model_name_or_path=MODEL_NAME, use_flash_attn=False
     )
     columns = [DATA_ARGS.dataset_text_field]
-    num_datasets_shard = 2
+    num_dataset_shards = 2
 
     with open(datasetconfigname, "r") as f:
         yaml_content = yaml.safe_load(f)
@@ -1749,7 +1749,7 @@ def test_get_processed_dataset(datafile, datasetconfigname):
         save_dataset_shards(
             formatted_train_dataset,
             train_dataset_dir,
-            num_datasets_shard,
+            num_dataset_shards,
             "train_dataset",
         )
-        assert len(os.listdir(train_dataset_dir)) == num_datasets_shard
+        assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
