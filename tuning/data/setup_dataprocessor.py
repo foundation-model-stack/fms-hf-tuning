@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Callable, Dict, Union
+from typing import Dict, Union
 import logging
 
 # Third Party
@@ -30,6 +30,7 @@ from tuning.data.data_config import (
     DataSetConfig,
     load_and_validate_data_config,
 )
+from tuning.data.data_handlers import DataHandler
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
 
@@ -45,12 +46,18 @@ DEFAULT_OUTPUT_COLUMN = "output"
 def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     if not data:
         return False
+
     if isinstance(data, str):
         # Create a data processor with default processor config
         processor = get_datapreprocessor(
             processor_config=DataPreProcessorConfig(), tokenizer=None
         )
-        data = processor.load_dataset(None, splitName="train[:1]", datafile=data)
+        data = processor.load_dataset(
+            None,
+            streaming=False,
+            splitName="train[:1]",
+            datafile=data,
+        )
 
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
@@ -59,8 +66,9 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 # This is very limited but is done to keep first implementation minimal
 def _process_dataconfig_file(
     data_args: DataArguments,
+    train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
@@ -68,6 +76,25 @@ def _process_dataconfig_file(
         tokenizer=tokenizer,
         additional_data_handlers=additional_data_handlers,
     )
+
+    if processor.processor_config.chat_template is not None:
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with data config's chat_template %s",
+                tokenizer.chat_template,
+                processor.processor_config.chat_template,
+            )
+        tokenizer.chat_template = processor.processor_config.chat_template
+
+    if processor.processor_config.streaming:
+        if train_args.max_steps < 1:
+            logging.error(
+                "ValueError: `--max_steps` must be set when streaming is set in data \
+                            preprocessor config"
+            )
+            raise ValueError(
+                "`--max_steps` must be set when streaming is set in data preprocessor config"
+            )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
@@ -209,7 +236,7 @@ def _process_raw_data_args(
     tokenizer: AutoTokenizer,
     packing: bool,
     max_seq_length: int,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
 ):
 
@@ -302,7 +329,7 @@ def process_dataargs(
     data_args: DataArguments,
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
-    additional_data_handlers: Dict[str, Callable] = None,
+    additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
 ):
     """
@@ -312,7 +339,7 @@ def process_dataargs(
         train_args: TrainingArguments
             Training arguments passed to the library
             Used for packing and max_seq_length
-        additional_data_handlers: A Dict of [str, callable] data handlers
+        additional_data_handlers: A Dict of [str, DataHandler] data handlers
             which need to be registered with the data preprocessor
         is_padding_free: A bool representing if Padding free plugin is enabled.
                          Defaults to False.
@@ -342,7 +369,7 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, tokenizer, additional_data_handlers
+            data_args, train_args, tokenizer, additional_data_handlers
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -372,6 +399,15 @@ def process_dataargs(
     dataset_kwargs = {}
     if is_tokenized_dataset:
         dataset_kwargs["skip_prepare_dataset"] = True
+
+    if isinstance(train_dataset, IterableDataset):
+        train_args.accelerator_config = {"split_batches": True}
+        logger.info(
+            "Setting `split_batches` to true - splitting batches among devices \
+                    `per_device_train_batch_size` is now the global batch size, and \
+                    should be treated as such. The main process will fetch a full \
+                    batch and slice it into `num_processes` batches for each process."
+        )
 
     return (
         train_dataset,
