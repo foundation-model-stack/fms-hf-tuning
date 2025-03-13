@@ -68,6 +68,35 @@ def resolve_iterable_dataset_features(data: IterableDataset):
     return data
 
 
+def get_dataset_text_field_config(data_config):
+    dataset_text_fields = []
+
+    # data_config.datasets will be a List[DataSetConfig]
+    for dataset in data_config.datasets or []:
+        # data_handlers is Optional[List[DataHandlerConfig]]
+        if not dataset.data_handlers:
+            continue
+        for handler in dataset.data_handlers:
+            # handler.arguments is Optional[Dict]. Handle if it's None
+            fn_kwargs = (
+                handler.arguments.get("fn_kwargs", {}) if handler.arguments else {}
+            )
+            dataset_text_field = fn_kwargs.get("dataset_text_field")
+            if dataset_text_field:
+                dataset_text_fields.append(dataset_text_field)
+
+    # If multiple unique fields, log a warning
+    if len(set(dataset_text_fields)) > 1:
+        logger.warning(
+            "Multiple dataset_text_field values found in data_config. "
+            "Only the first value will be used: %s",
+            dataset_text_fields[0],
+        )
+
+    # Return the first field if any, else None
+    return dataset_text_fields[0] if dataset_text_fields else None
+
+
 def validate_mergeable_datasets(datasets):
     """Given list of datasets, validate if all datasets have same type and number of columns."""
     if len(datasets) > 1:

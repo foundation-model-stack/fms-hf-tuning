@@ -33,6 +33,7 @@ from tuning.data.data_config import (
 from tuning.data.data_handlers import DataHandler
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
+from tuning.utils.utils import get_dataset_text_field_config
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,13 @@ def _process_dataconfig_file(
             )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
-    return (train_dataset, None, data_args.dataset_text_field)
+    dataset_text_field = data_args.dataset_text_field
+    if dataset_text_field is None:
+        try:
+            dataset_text_field = get_dataset_text_field_config(data_config)
+        except KeyError:
+            logger.warning("dataset_text_field not found in data_config arguments")
+    return (train_dataset, None, dataset_text_field)
 
 
 # Data Format 1: Pretokenized Data
