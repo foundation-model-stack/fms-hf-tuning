@@ -37,6 +37,7 @@ import yaml
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
+    DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
@@ -1190,6 +1191,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         data_args.dataset_text_field = "new_formatted_field"
 
         handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        data_args.dataset_text_field = None
         kwargs = {
             "fn_kwargs": handler_kwargs,
             "batched": False,
@@ -1260,6 +1262,7 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
         data_args.dataset_text_field = "new_formatted_field"
 
         handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        data_args.dataset_text_field = None
         kwargs = {
             "fn_kwargs": handler_kwargs,
             "batched": False,
@@ -1306,6 +1309,64 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
         )
         assert len(output_inference) > 0
         assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_file",
+    [
+        (DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML, TWITTER_COMPLAINTS_DATA_JSONL),
+    ],
+)
+def test_e2e_dataconfig_with_no_argument_dataset_text_field(
+    data_config_path, data_file
+):
+    """Ensure that datasets with multiple files are formatted and validated correctly based
+    on the arguments passed in config file when dataset_text_field in arguments is None."""
+
+    model_args = copy.deepcopy(MODEL_ARGS)
+    data_args = copy.deepcopy(DATA_ARGS)
+    formatted_dataset_field = "new_data_field"
+    template = "### Input: {{Tweet text}} \n\n### Response: {{text_label}}"
+
+    data_args.dataset_text_field = None
+    data_args.response_template = "\n### Response:"
+
+    with open(data_config_path, "r", encoding="utf-8") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = [data_file]
+
+    yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+        "dataset_text_field": formatted_dataset_field,
+        "template": template,
+        "add_eos_token": True,
+    }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args.data_config_path = temp_yaml_file_path
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
 @pytest.mark.parametrize(

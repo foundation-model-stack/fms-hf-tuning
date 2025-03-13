@@ -757,7 +757,9 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+        data_args = configs.DataArguments(
+            data_config_path=temp_yaml_file_path, dataset_text_field=None
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -816,7 +818,9 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+        data_args = configs.DataArguments(
+            data_config_path=temp_yaml_file_path, dataset_text_field=None
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -892,7 +896,9 @@ def test_process_dataconfig_file(data_config_path, data_path):
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+        data_args = configs.DataArguments(
+            data_config_path=temp_yaml_file_path, dataset_text_field=None
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -982,7 +988,9 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+        data_args = configs.DataArguments(
+            data_config_path=temp_yaml_file_path, dataset_text_field=None
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     tokenizer.add_special_tokens({"eos_token": "</s>"})
@@ -1128,7 +1136,9 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+        data_args = configs.DataArguments(
+            data_config_path=temp_yaml_file_path, dataset_text_field=None
+        )
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
