@@ -103,6 +103,12 @@ RUN dnf config-manager \
         libcublas-devel-12-1-${NV_LIBCUBLAS_DEV_VERSION} \
         libnpp-devel-12-1-${NV_LIBNPP_DEV_VERSION} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
+    && dnf clean all
+
+# opening connection for too long in one go was resulting in timeouts
+RUN dnf config-manager \
+       --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
+    && dnf install -y \
         cudnn9-cuda-12-6-${NV_CUDNN9_CUDA_VERSION} \
         libcusparselt-devel-${NV_LIBCUSPARSELT_DEVEL_VERSION} \
     && dnf clean all
