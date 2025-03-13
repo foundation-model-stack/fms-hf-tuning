@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Callable, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 import dataclasses
 import json
 import logging
@@ -48,6 +48,7 @@ from tuning.config.acceleration_configs import (
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
+    get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import (
     AimConfig,
@@ -56,6 +57,7 @@ from tuning.config.tracker_configs import (
     MLflowConfig,
     TrackerConfigFactory,
 )
+from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
@@ -92,7 +94,7 @@ def train(
         AttentionAndDistributedPackingConfig
     ] = None,
     fast_moe_config: Optional[FastMoeConfig] = None,
-    additional_data_handlers: Optional[Dict[str, Callable]] = None,
+    additional_data_handlers: Optional[Dict[str, DataHandler]] = None,
 ) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
 
@@ -122,7 +124,7 @@ def train(
             fused_lora and fast_kernels must used together (may change in future). \
         attention_and_distributed_packing_config: Used for padding-free attention and multipack. \
         fast_moe_config: Used for ScatterMoE to run MoE models in parallel.
-        additional_data_handlers: Dict [str:Callable] of any extra data handlers \
+        additional_data_handlers: Dict [str:DataHandler] of any extra data handlers \
                                    to be registered with the data preprocessor
     Returns:
         Tuple: Instance of SFTTrainer , some metadata in a dict
@@ -253,6 +255,10 @@ def train(
     )
 
     if data_args.chat_template:
+        # TODO: passing "/n" through cli causes parsing issues,
+        # hence providing a temporary fix
+        data_args.chat_template = data_args.chat_template.replace(r"\n", "\n")
+
         logger.info("adding chat_template to the tokenizer")
         if tokenizer.chat_template:
             logger.warning(
@@ -266,6 +272,13 @@ def train(
     special_tokens_dict = set_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
+
+    # adds user specified special tokens to vocab
+    if data_args.add_special_tokens:
+        logger.info(
+            "Adding user-defined special tokens: %s ", data_args.add_special_tokens
+        )
+        special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
 
     # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
     # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
@@ -369,6 +382,12 @@ def train(
         # ready for train may produce additional callbacks for the trainer
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
+        for clb in get_additional_accel_framework_callbacks(
+            active_plugins=framework.active_plugins,
+            trainer=trainer,
+            pretrained_model_name_or_path=model_args.model_name_or_path,
+        ):
+            trainer.add_callback(clb)
 
     resume_from_checkpoint = None
     # Check if resume flag is not passed (None), or if flag is true and
