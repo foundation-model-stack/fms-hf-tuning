@@ -307,7 +307,7 @@ def apply_multimodal_data_processor(
             raise ValueError(
                 "Expected image to be a non-empty list of lists \
                 with a single image for LlavaProcessor."
-            ) from e
+            )
 
     # If LlavaNextProcessor then convert mode of image to RGB. Process of Granite-3.2-Vision Model
     elif isinstance(processor, LlavaNextProcessor):
@@ -320,7 +320,7 @@ def apply_multimodal_data_processor(
             raise ValueError(
                 "Expected image to be a non-empty list of lists \
                 with a single image for LlavaNextProcessor."
-            ) from e
+            )
 
     element = processor(text=text, images=image, **processor_kwargs)
 
