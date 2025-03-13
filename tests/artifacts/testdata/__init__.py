@@ -68,6 +68,9 @@ TWITTER_COMPLAINTS_TOKENIZED_PARQUET = os.path.join(
 )
 CHAT_DATA_SINGLE_TURN = os.path.join(JSONL_DATA_DIR, "single_turn_chat.jsonl")
 CHAT_DATA_MULTI_TURN = os.path.join(JSONL_DATA_DIR, "multi_turn_chat.jsonl")
+CHAT_DATA_MULTI_TURN_GRANITE_3_1B = os.path.join(
+    JSONL_DATA_DIR, "multi_turn_chat_granite_instruct.jsonl"
+)
 EMPTY_DATA = os.path.join(JSON_DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(JSON_DATA_DIR, "malformatted_data.json")
 

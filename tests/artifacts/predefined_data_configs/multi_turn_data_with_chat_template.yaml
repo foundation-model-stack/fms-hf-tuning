@@ -16,5 +16,24 @@ datasets:
     data_handlers:
       - name: apply_tokenizer_chat_template
         arguments:
+          remove_columns: all
           fn_kwargs:
-            dataset_text_field: formatted_chat_data
+            dataset_text_field: "formatted_chat_data"
+  - name: dataset_2
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_tokenizer_chat_template
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            dataset_text_field: "formatted_chat_data"
+  - name: dataset_3
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_tokenizer_chat_template
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            dataset_text_field: "formatted_chat_data"
