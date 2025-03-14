@@ -10,13 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          if [ "$(docker image ls -q)" ]; then docker rmi $(docker image ls -aq); fi
-          df -h
+      - name: "Free up disk space"
+        uses: ./.github/actions/free-up-disk-space
       - name: Build image
         run: |
           docker build -t fms-hf-tuning:dev . -f build/Dockerfile

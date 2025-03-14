@@ -15,6 +15,10 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
+<<<<<<< HEAD
+=======
+from enum import Enum
+>>>>>>> main
 from typing import Dict, List, Union
 import copy
 import re
@@ -31,6 +35,30 @@ from transformers import (
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
+
+
+class DataHandlerType(Enum):
+    MAP = 1
+    FILTER = 2
+
+
+class DataHandler:
+    op: callable  # the actual handler function
+    handler_type: DataHandlerType  # either map or filter
+    allows_batching: bool  # supports batched mode or not
+
+    def __init__(
+        self, op: callable, handler_type: DataHandlerType, allows_batching: bool
+    ):
+        self.op = op
+        self.handler_type = handler_type
+        self.allows_batching = allows_batching
+
+    def __str__(self):
+        o = self.op.__name__ if hasattr(self.op, "__name__") else str(self.op)
+        n = self.handler_type.name
+        b = self.allows_batching
+        return f"DataHandler(op={o}, handler_type={n}, allows_batching={b})"
 
 
 ### Utils for custom masking / manipulating input / output strs, etc
@@ -317,8 +345,39 @@ def apply_multimodal_data_processor(
     return element
 
 
+def tokenize(
+    element: Union[Dict[str, str], Dict[str, List]],
+    tokenizer: AutoTokenizer,
+    dataset_text_field: str,
+    truncation: Union[bool, str] = None,
+    max_length: int = None,
+    **kwargs,
+):
+    """Function (data handler) to tokenize dataset columns.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        tokenizer: Tokenizer to be used.
+        dataset_text_field: the dataset field to tokenize
+        truncation: Truncation strategy to use, refer the link
+                    (https://huggingface.co/docs/transformers/en/pad_truncation)
+        max_length: Max length to truncate the samples to.
+        kwargs: Any additional kwargs that need to be passed to the tokenizer can be passed as
+                kwargs['tokenizer_kwargs']
+    Returns:
+        tokenized dataset elemenent field "dataset_text_field"
+    """
+    tokenizer_kwargs = kwargs.get("tokenizer_kwargs", {})
+    return tokenizer(
+        element[dataset_text_field],
+        truncation=truncation,
+        max_length=max_length,
+        **tokenizer_kwargs,
+    )
+
+
 def duplicate_columns(
-    element: Dict[str, str],
+    element: Union[Dict[str, str], Dict[str, List]],
     old_column: str,
     new_column: str,
     **kwargs,
@@ -351,12 +410,71 @@ def duplicate_columns(
     }
 
 
+def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
+    """Function (data handler) to skip elements which contains certain columns {column_name}
+       larger than the passed {max_length} in the dataset.
+       Expects to be run as a HF Filter API function.
+    Args:
+        element: the HF Dataset element
+        column_name: Name of the column
+        max_length: Max allowed length of the column.
+                    If passing "input_ids" as column name this will be tokens
+                    else this can be characters for text column
+    Returns:
+        Filtered dataset which contains elements with column {column_name}
+                 having length shorter than {max_length}
+    """
+    if column_name not in element or max_length is None:
+        raise ValueError(
+            "Please provide correct column name and max_length to skip large columns"
+        )
+    return len(element[column_name]) < max_length
+
+
 AVAILABLE_DATA_HANDLERS = {
-    "tokenize_and_apply_input_masking": tokenize_and_apply_input_masking,
-    "add_tokenizer_eos_token": add_tokenizer_eos_token,
-    "apply_custom_data_formatting_template": apply_custom_data_formatting_template,
-    "apply_custom_jinja_template": apply_custom_jinja_template,
-    "apply_tokenizer_chat_template": apply_tokenizer_chat_template,
-    "apply_multimodal_data_processor": apply_multimodal_data_processor,
-    "duplicate_columns": duplicate_columns,
+    "tokenize_and_apply_input_masking": DataHandler(
+        op=tokenize_and_apply_input_masking,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "add_tokenizer_eos_token": DataHandler(
+        op=add_tokenizer_eos_token,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_custom_data_formatting_template": DataHandler(
+        op=apply_custom_data_formatting_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_custom_jinja_template": DataHandler(
+        op=apply_custom_jinja_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "apply_tokenizer_chat_template": DataHandler(
+        op=apply_tokenizer_chat_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "duplicate_columns": DataHandler(
+        op=duplicate_columns,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
+    ),
+    "tokenize": DataHandler(
+        op=tokenize,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
+    ),
+    "skip_large_text": DataHandler(
+        op=skip_large_text,
+        handler_type=DataHandlerType.FILTER,
+        allows_batching=False,
+    ),
+    "apply_multimodal_data_processor": DataHandler(
+        op=apply_multimodal_data_processor,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
+    ),
 }

@@ -117,6 +117,7 @@ class RuleEvaluator(EvalWithCompoundTypes):
             "abs": abs,
             "len": len,
             "round": round,
+            "sum": sum,
             "math_trunc": math.trunc,
             "math_floor": math.floor,
             "math_ceil": math.ceil,
