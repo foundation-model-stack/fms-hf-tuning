@@ -23,7 +23,12 @@ import re
 # Third Party
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
-from transformers import AutoTokenizer
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    LlavaNextProcessor,
+    LlavaProcessor,
+)
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
@@ -260,6 +265,7 @@ def apply_tokenizer_chat_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
     dataset_text_field: str,
+    chat_data_key: str = None,
     **kwargs,
 ):
     """Function (data handler) to apply tokenizers chat template to dataset elements.
@@ -268,18 +274,72 @@ def apply_tokenizer_chat_template(
         element: the HF Dataset element.
         tokenizer: Tokenizer to be used.
         dataset_text_field: formatted_dataset_field.
+        chat_data_key: dataset field where chat template will be applied.
     Returns:
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to dataset_text_field argument.
     """
+    processor = kwargs.get("processor", None)
+    if processor is not None:
+        tokenizer = processor
     if tokenizer.chat_template is None:
         raise ValueError(
             "Tokenizer does not contain tokenizer.chat_template\
                           please pass data_args.chat_template"
         )
+    if chat_data_key and chat_data_key in element:
+        element = element[chat_data_key]
+
     return {
         f"{dataset_text_field}": tokenizer.apply_chat_template(element, tokenize=False)
     }
+
+
+def apply_multimodal_data_processor(
+    element: Dict[str, str],
+    processor: Union[AutoProcessor, LlavaProcessor],
+    **kwargs,
+):
+    """Function (data handler) to apply processor to multimodal dataset elements.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+        processor: The processor instance of AutoProcessor or LlavaProcessor.
+    Returns:
+        Formatted HF Dataset element by formatting dataset with processor
+    """
+
+    processor_kwargs = kwargs.get("processor_kwargs", {})
+    fields_name = kwargs.get("fields_name", {})
+    try:
+        text_field = fields_name["dataset_text_field"]
+        image_field = fields_name["dataset_image_field"]
+    except KeyError as e:
+        raise ValueError(f"Missing required field in fields_name: {e}") from e
+
+    text = element.get(text_field)
+    image = element.get(image_field)
+
+    if text is None or image is None:
+        raise ValueError("Missing text or image data in element.")
+
+    # Handler is used with batch=True where image is `List[List[PIL.Image], List[PIL.Image]]`
+    # We need to convert it to `List[PIL.Image]` for LlavaProcessor
+    if isinstance(processor, LlavaProcessor):
+        if isinstance(image, list) and image and isinstance(image[0], list):
+            image = [img[0] for img in image]
+
+    # If LlavaNextProcessor then convert mode of image to RGB. Process of Granite-3.2-Vision Model
+    elif isinstance(processor, LlavaNextProcessor):
+        if isinstance(image, list) and image and isinstance(image[0], list):
+            image = [
+                img[0].convert("RGB") if img[0].mode != "RGB" else img[0]
+                for img in image
+            ]
+
+    element = processor(text=text, images=image, **processor_kwargs)
+
+    return element
 
 
 def tokenize(
@@ -408,5 +468,10 @@ AVAILABLE_DATA_HANDLERS = {
         op=skip_large_text,
         handler_type=DataHandlerType.FILTER,
         allows_batching=False,
+    ),
+    "apply_multimodal_data_processor": DataHandler(
+        op=apply_multimodal_data_processor,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=True,
     ),
 }
