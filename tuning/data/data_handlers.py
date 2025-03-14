@@ -16,7 +16,7 @@
 
 # Standard
 from enum import Enum
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 import copy
 import re
 
@@ -30,17 +30,49 @@ from tuning.utils.config_utils import process_jinja_placeholders
 
 
 class DataHandlerType(Enum):
+    """
+    ENUM which represents the type of data handlers supported.
+    """
+
+    # Map:
+    #   https://huggingface.co/docs/datasets/en/process#map
     MAP = 1
+    # Filter:
+    #   https://huggingface.co/docs/datasets/en/process#select-and-filter
     FILTER = 2
+    # Remove and Select:
+    #   https://huggingface.co/docs/datasets/en/process#remove
+    REMOVE = 3
+    SELECT = 4
+    # Rename:
+    #   https://huggingface.co/docs/datasets/en/process#rename
+    RENAME = 5
 
 
 class DataHandler:
-    op: callable  # the actual handler function
-    handler_type: DataHandlerType  # either map or filter
-    allows_batching: bool  # supports batched mode or not
+    """
+    A class which represents a data processing handler internally.
+
+    Args:
+        op (callable): The data handler callable function which operates on the data
+                       in case of MAP or FILTER type handlers.
+                       For other handles like REMOVE/SELECT/RENAME use Native API so
+                       op can be None.
+        handler_type (DataHandlerType): Indicates whether the handler is for mapping or filtering.
+                                        One out of the supported types in DataHandlerType
+        allows_batching (bool): Flag to indicate if the handler supports batched operations.
+                                See https://huggingface.co/docs/datasets/en/about_map_batch
+    """
+
+    op: callable = None  # the actual handler function
+    handler_type: DataHandlerType = None  # either map or filter
+    allows_batching: bool = False  # supports batched mode or not
 
     def __init__(
-        self, op: callable, handler_type: DataHandlerType, allows_batching: bool
+        self,
+        op: callable = None,
+        handler_type: DataHandlerType = None,
+        allows_batching: bool = False,
     ):
         self.op = op
         self.handler_type = handler_type
@@ -100,7 +132,7 @@ def tokenize_and_apply_input_masking(
         Formatted Dataset element with input_ids, labels and attention_mask columns
     """
 
-    if (input_field_name or output_field_name) not in column_names:
+    if column_names and (input_field_name or output_field_name) not in column_names:
         raise ValueError(
             f"Dataset should contain {input_field_name} \
                 and {output_field_name} field if \
@@ -360,9 +392,14 @@ def duplicate_columns(
     }
 
 
-def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
+def skip_large_columns(element: Dict[str, Any], column_name: str, max_length: int):
     """Function (data handler) to skip elements which contains certain columns {column_name}
        larger than the passed {max_length} in the dataset.
+       i.e if element[column_name] <= max_length its allowed else skipped.
+       raises ValueError if
+          1) column_name is None
+          2) max_length is None
+          3) element[column_name] is None
        Expects to be run as a HF Filter API function.
     Args:
         element: the HF Dataset element
@@ -378,7 +415,11 @@ def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
         raise ValueError(
             "Please provide correct column name and max_length to skip large columns"
         )
-    return len(element[column_name]) < max_length
+    if element[column_name] is None:
+        raise ValueError(
+            f"Column {column_name} value in dataset element {element} is None"
+        )
+    return len(element[column_name]) <= max_length
 
 
 AVAILABLE_DATA_HANDLERS = {
@@ -417,9 +458,18 @@ AVAILABLE_DATA_HANDLERS = {
         handler_type=DataHandlerType.MAP,
         allows_batching=True,
     ),
-    "skip_large_text": DataHandler(
-        op=skip_large_text,
+    "skip_large_columns": DataHandler(
+        op=skip_large_columns,
         handler_type=DataHandlerType.FILTER,
         allows_batching=False,
+    ),
+    "remove_columns": DataHandler(
+        handler_type=DataHandlerType.REMOVE,
+    ),
+    "select_columns": DataHandler(
+        handler_type=DataHandlerType.SELECT,
+    ),
+    "rename_columns": DataHandler(
+        handler_type=DataHandlerType.RENAME,
     ),
 }

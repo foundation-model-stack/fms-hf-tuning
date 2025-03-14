@@ -35,10 +35,9 @@ from tuning.data.data_handlers import (
     apply_custom_jinja_template,
     combine_sequence,
     duplicate_columns,
-    skip_large_text,
+    skip_large_columns,
     tokenize,
 )
-from tuning.data.setup_dataprocessor import is_pretokenized_dataset
 
 
 def test_apply_custom_formatting_template():
@@ -287,19 +286,19 @@ def test_tokenizer_data_handler_tokenizes():
         ("not_existing", "not_existing"),
     ],
 )
-def test_skip_large_text_handler_throws_error_on_bad_args(column_name, max_length):
-    "Ensure that skip large text handler throws error on bad arguments"
+def test_skip_large_columns_handler_throws_error_on_bad_args(column_name, max_length):
+    "Ensure that skip large columns handler throws error on bad arguments"
     d = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA_JSONL)
     fn_kwargs = {}
     fn_kwargs["column_name"] = column_name
     fn_kwargs["max_length"] = max_length
 
     with pytest.raises(ValueError):
-        filtered = d.filter(skip_large_text, fn_kwargs=fn_kwargs)
+        filtered = d.filter(skip_large_columns, fn_kwargs=fn_kwargs)
 
 
-def test_skip_large_text_handler():
-    "Ensure that skip large text handler skips dataset as intended"
+def test_skip_large_columns_handler():
+    "Ensure that skip large columns handler skips dataset as intended"
 
     def test_dataset_generator():
         for i in range(0, 100):
@@ -308,7 +307,7 @@ def test_skip_large_text_handler():
     d = Dataset.from_generator(test_dataset_generator)
     fn_kwargs = {}
     fn_kwargs["column_name"] = "input"
-    fn_kwargs["max_length"] = 61
+    fn_kwargs["max_length"] = 60
 
-    filtered = d.filter(skip_large_text, fn_kwargs=fn_kwargs)
+    filtered = d.filter(skip_large_columns, fn_kwargs=fn_kwargs)
     assert len(filtered) == 60

@@ -1,7 +1,7 @@
 dataprocessor:
     type: default
 datasets:
-  - name: pre_tokenized
+  - name: non_tokenized
     data_paths:
       - "FILE_PATH"
     data_handlers:
@@ -18,7 +18,7 @@ datasets:
           fn_kwargs:
             old_column: "input_ids"
             new_column: "labels"
-      - name: skip_large_text
+      - name: skip_large_columns
         arguments:
           fn_kwargs:
             column_name: "input_ids"
