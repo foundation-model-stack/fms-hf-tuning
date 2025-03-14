@@ -260,14 +260,17 @@ def apply_tokenizer_chat_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
     dataset_text_field: str,
+    conversation_column: str = None,
     **kwargs,
 ):
     """Function (data handler) to apply tokenizers chat template to dataset elements.
+       Does not tokenize the dataset.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
         tokenizer: Tokenizer to be used.
-        dataset_text_field: formatted_dataset_field.
+        dataset_text_field: the field in which to store the rendered text.
+        conversation_column: column name where the chat template expects the conversation
     Returns:
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to dataset_text_field argument.
@@ -277,8 +280,18 @@ def apply_tokenizer_chat_template(
             "Tokenizer does not contain tokenizer.chat_template\
                           please pass data_args.chat_template"
         )
+    if conversation_column:
+        converation = element[conversation_column]
+    else:
+        converation = element
+
+    tools = element["tools"] if "tools" in element else None
+    documents = element["documents"] if "documents" in element else None
+
     return {
-        f"{dataset_text_field}": tokenizer.apply_chat_template(element, tokenize=False)
+        f"{dataset_text_field}": tokenizer.apply_chat_template(
+            converation, tools=tools, documents=documents, tokenize=False
+        )
     }
 
 

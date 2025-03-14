@@ -40,6 +40,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
+    DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
@@ -49,6 +50,7 @@ from tests.artifacts.predefined_data_configs import (
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
@@ -1244,7 +1246,15 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         (
             [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
             DATA_CONFIG_MULTITURN_DATA_YAML,
-        )
+        ),
+        (
+            [
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+            ],
+            DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
+        ),
     ],
 )
 def test_run_chat_style_ft_using_dataconfig_for_chat_template(
@@ -1255,20 +1265,18 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.response_template = "<|assistant|>"
-        data_args.instruction_template = "<|user|>"
-        data_args.dataset_text_field = "new_formatted_field"
+        if dataconfigfile == DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML:
+            data_args.response_template = "<|start_of_role|>assistant<|end_of_role|>"
+            data_args.instruction_template = "<|start_of_role|>user<|end_of_role|>"
+            data_args.add_special_tokens = [
+                "<|start_of_role|>assistant<|end_of_role|>",
+                "<|start_of_role|>user<|end_of_role|>",
+            ]
+        elif dataconfigfile == DATA_CONFIG_MULTITURN_DATA_YAML:
+            data_args.response_template = "<|assistant|>"
+            data_args.instruction_template = "<|user|>"
 
-        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
-        kwargs = {
-            "fn_kwargs": handler_kwargs,
-            "batched": False,
-            "remove_columns": "all",
-        }
-
-        handler_config = DataHandlerConfig(
-            name="apply_tokenizer_chat_template", arguments=kwargs
-        )
+        data_args.dataset_text_field = "formatted_chat_data"
 
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
@@ -1284,8 +1292,6 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
             datasets = data["datasets"]
             for i, d in enumerate(datasets):
                 d["data_paths"] = [datafiles[i]]
-                # Basic chat datasets don't need data handling
-                d["data_handlers"] = [asdict(handler_config)]
             yaml.dump(data, temp_yaml_file)
             data_args.data_config_path = temp_yaml_file.name
 
