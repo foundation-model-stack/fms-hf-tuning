@@ -69,6 +69,7 @@ def get_data_collator(
         # otherwise template is not found. We will create issue to clean this out after we discuss
         # data formats and collators we will support.
         if response_template:
+            response_template = response_template.encode('utf-8').decode('unicode_escape')
             response_template_ids = tokenizer.encode(
                 response_template, add_special_tokens=False
             )[2:]
