@@ -38,7 +38,7 @@ def tokenizer_and_embedding_resize(
     num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
-    
+
     if num_new_tokens > 0:
         model.resize_token_embeddings(embedding_size)
         input_embeddings = model.get_input_embeddings().weight.data
@@ -56,7 +56,9 @@ def tokenizer_and_embedding_resize(
 
         # resize vocab size when embeddings updated for Mllama models
         # needed to fix bug while waiting for https://github.com/huggingface/transformers/pull/36591
-        if type(model) == transformers.models.mllama.modeling_mllama.MllamaForConditionalGeneration:
+        if (
+            isinstance(model, transformers.models.mllama.modeling_mllama.MllamaForConditionalGeneration)
+        ):
             model.language_model.vocab_size = embedding_size
 
     return {"num_new_tokens": num_new_tokens, "new_embedding_size": embedding_size}
