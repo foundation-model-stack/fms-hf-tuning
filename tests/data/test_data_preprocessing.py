@@ -1717,14 +1717,24 @@ def test_get_processed_dataset(datafile, datasetconfigname):
 
     with open(datasetconfigname, "r") as f:
         yaml_content = yaml.safe_load(f)
-        yaml_content["datasets"][0]["data_paths"] = [datafile]
-        handler_kwargs = {"dataset_text_field": DATA_ARGS.dataset_text_field}
-        kwargs = {
-            "fn_kwargs": handler_kwargs,
-            "batched": False,
-            "remove_columns": "all",
-        }
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"] = kwargs
+        datasets = [
+            {
+                "data_paths": [datafile],
+                "data_handlers": [
+                    {
+                        "name": "apply_tokenizer_chat_template",
+                        "arguments": {
+                            "fn_kwargs": {
+                                "dataset_text_field": DATA_ARGS.dataset_text_field
+                            },
+                            "batched": False,
+                            "remove_columns": "all",
+                        },
+                    }
+                ],
+            }
+        ]
+        yaml_content["datasets"] = datasets
 
     with tempfile.NamedTemporaryFile(
         "w", delete=False, suffix=".yaml"
