@@ -940,6 +940,7 @@ RuntimeError: Expected weight to be of same shape as normalized_shape, but got w
 
 We also recommend running with `"remove_unused_columns": false` and `"dataset_kwargs": {"skip_prepare_dataset": true}` as you see above to avoid the default processing of the dataset and to ensure that the data is not processed as text-only.
 
+When running LoRA tuning, you must specify the `target_modules` since there are no defaults set for the vision models.
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.

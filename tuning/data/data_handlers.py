@@ -15,10 +15,7 @@
 # Definition of some predefined data preprocessing functions that we need.
 
 # Standard
-<<<<<<< HEAD
-=======
 from enum import Enum
->>>>>>> main
 from typing import Dict, List, Union
 import copy
 import re

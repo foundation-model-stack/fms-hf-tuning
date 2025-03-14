@@ -56,8 +56,9 @@ def tokenizer_and_embedding_resize(
 
         # resize vocab size when embeddings updated for Mllama models
         # needed to fix bug while waiting for https://github.com/huggingface/transformers/pull/36591
-        if (
-            isinstance(model, transformers.models.mllama.modeling_mllama.MllamaForConditionalGeneration)
+        if isinstance(
+            model,
+            transformers.models.mllama.modeling_mllama.MllamaForConditionalGeneration,
         ):
             model.language_model.vocab_size = embedding_size
 

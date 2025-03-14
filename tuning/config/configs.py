@@ -128,6 +128,8 @@ class DataArguments:
         metadata={
             "help": "For running vision language model tuning pass \
             the column name of the image data in the dataset."
+        },
+    )
     add_special_tokens: List[str] = field(
         default=None,
         metadata={
