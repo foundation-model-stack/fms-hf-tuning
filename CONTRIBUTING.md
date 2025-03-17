@@ -30,8 +30,10 @@ To contribute to this repo, you'll use the Fork and Pull model common in many op
 Guide](https://github.com/kubernetes/community/blob/master/contributors/guide/github-workflow.md)
 from Kubernetes.
 
-When your contribution is ready, you can create a pull request. Pull requests are often referred to as "PR". In general, we follow the standard [GitHub pull request](https://help.github.com/en/articles/about-pull-requests) process. Follow the template to provide details about your pull request to the maintainers. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes. 
-We require new unit tests to be contributed with any new functionality added. 
+When your contribution is ready, you can create a pull request. Pull requests are often referred to as "PR". In general, we follow the standard [GitHub pull request](https://help.github.com/en/articles/about-pull-requests) process. Follow the template to provide details about your pull request to the maintainers. 
+1. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes. 
+2. We require new unit tests to be contributed with any new functionality added.
+3. For any new feature or capability, documentation is a MUST. Features will not be announced in releases without documentation on how to use them. This is common practice in any open-sourced repository.
 
 Before sending pull requests, make sure your changes pass formatting, linting and unit tests. These checks will run with the pull request builds. Alternatively, you can run the checks manually on your local machine [as specified below](#development).
 
@@ -50,6 +52,7 @@ Once you've [created a pull request](#how-can-i-contribute), maintainers will re
 - Follow the project coding conventions
 - Write detailed commit messages
 - Break large changes into a logical series of smaller patches, which are easy to understand individually and combine to solve a broader issue
+- Ensure documentation is added on "how to use" for any new capabilities. Ensure follow-up issues are created for documentation and that feature is documented before announcing release.
 
 Maintainers will perform "squash and merge" actions on PRs in this repo, so it doesn't matter how many commits your PR has, as they will end up being a single commit after merging.
 
