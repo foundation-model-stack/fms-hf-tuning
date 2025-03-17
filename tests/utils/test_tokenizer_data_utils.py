@@ -14,7 +14,12 @@ from tuning.utils.tokenizer_data_utils import (
 
 
 def test_setting_special_tokens_with_LlamaTokenizerFast():
-    # For LlamaTokenizerFast, Missing PAD Token
+    """
+    Unit test using a LlamaTokenizerFast tokenizer. This tokenizer is only missing a PAD token, however
+    because it is a LlamaTokenizer, the function code automatically adds the BOS, EOS, UNK and PAD
+    tokens to the special tokens dict. Then, the <pad> token is replaced with a <PAD> token,
+    because the Llama tokenizer does not have a pad token specified.
+    """
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(
@@ -29,7 +34,11 @@ def test_setting_special_tokens_with_LlamaTokenizerFast():
 
 
 def test_setting_special_tokens_with_GPT2TokenizerFast():
-    # For GPT2TokenizerFast, PAD token = EOS Token
+    """
+    Unit test using a GPT2TokenizerFast tokenizer. This tokenizer is the case where the
+    EOS token = PAD token, both of them are <|endoftext|>. So, the pad token in the tokenizer is set
+    to <PAD> and the "pad_token": "<PAD>" is also added to the special tokens dict.
+    """
     tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(
@@ -41,7 +50,12 @@ def test_setting_special_tokens_with_GPT2TokenizerFast():
 
 
 def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
-    # For GPTNeoXTokenizerFast, Missing PAD Token
+    """
+    Unit test using a GPTNeoXTokenizerFast tokenizer. This tokenizer is another one that is hardcoded
+    into the function to automatically add just a pad token to the special tokens dict. However,
+    the tokenizer itself is also missing a pad token, so the function then replaces the <pad> token
+    with the default <PAD> token.
+    """
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     model_args = configs.ModelArguments()
     special_tokens_dict = set_special_tokens_dict(
@@ -53,7 +67,10 @@ def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
 
 
 def test_setting_special_tokens_when_missing_all_special_tokens():
-    # Missing all special tokens
+    """
+    Unit test using the GPT2TokenizerFast tokenizer. All the special tokens have been
+    removed from the tokenizer, so we expect all of them to appear in the special tokens dict.
+    """
     tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
 
     # Set all special tokens to None
@@ -75,7 +92,12 @@ def test_setting_special_tokens_when_missing_all_special_tokens():
 
 
 def test_setting_special_tokens_when_path_is_not_none():
-    # Test to ensure dictionary is empty when path is not none
+    """
+    A simple unit test that sets the `tokenizer_name_or_path` argument in
+    `model_args` to a non None value. Since the argument is not None, almost
+    the entire `set_special_tokens_dict` function is skipped and the
+    special tokens dict is expected to be empty.
+    """
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments(tokenizer_name_or_path="test_path")
     special_tokens_dict = set_special_tokens_dict(
@@ -85,7 +107,12 @@ def test_setting_special_tokens_when_path_is_not_none():
 
 
 def test_tokenizer_and_embedding_resize_return_values_missing_one_token():
-    """Test to ensure number of added tokens are returned correctly"""
+    """
+    Tests the resizing function when the special tokens dict contains a PAD token,
+    which means the tokenizer is missing one special token.
+
+    `mulitple_of` is set to 1.
+    """
     special_tokens_dict = {"pad_token": "<pad>"}
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
@@ -95,7 +122,12 @@ def test_tokenizer_and_embedding_resize_return_values_missing_one_token():
 
 
 def test_tokenizer_and_embedding_resize_return_values_missing_four_tokens():
-    """Test to ensure number of added tokens are returned correctly"""
+    """
+    Tests the resizing when the special tokens dict contains a PAD, EOS, BOS and UNK token,
+    which means the tokenizer is missing four special tokens.
+
+    `mulitple_of` is set to 1.
+    """
     special_tokens_dict = {
         "pad_token": "<PAD>",
         "eos_token": "</s>",
@@ -110,7 +142,13 @@ def test_tokenizer_and_embedding_resize_return_values_missing_four_tokens():
 
 
 def test_tokenizer_and_embedding_resize_return_values_mutliple_of_two():
-    """Test to ensure number of added tokens are returned correctly"""
+    """
+    Tests the resizing when the special tokens dict contains a PAD, EOS, BOS and UNK token,
+    which means the tokenizer is missing four special tokens.
+
+    `mulitple_of` is set to 2; this add one to the count of num_new_tokens and adds
+    one to the count of new_embedding_size.
+    """
     special_tokens_dict = {
         "pad_token": "<PAD>",
         "eos_token": "</s>",
