@@ -26,11 +26,7 @@ import traceback
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    TrainerCallback,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
