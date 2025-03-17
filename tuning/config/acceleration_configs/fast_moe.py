@@ -59,6 +59,7 @@ class FastMoeConfig:
 def get_callbacks(**kwargs):
     pretrained_model_name_or_path = kwargs.pop("pretrained_model_name_or_path")
     trainer = kwargs.pop("trainer")
+    save_model_dir = kwargs.pop("save_model_dir")
     callbacks = []
     if is_recover_safetensors_from_dcp_available:
 
@@ -66,6 +67,7 @@ def get_callbacks(**kwargs):
             def __init__(self, pretrained_model_name_or_path: str, trainer: Trainer):
                 self.pretrained_model_name_or_path = pretrained_model_name_or_path
                 self.trainer = trainer
+                self.save_model_dir = save_model_dir
 
             def on_save(
                 self,
@@ -124,8 +126,8 @@ def get_callbacks(**kwargs):
                     checkpoint(checkpoint_dir)
 
                     # If final save directory is provided, save the model there
-                    if getattr(args, "save_model_dir", None):
-                        checkpoint(args.save_model_dir)
+                    if getattr(self, "save_model_dir", None):
+                        checkpoint(self.save_model_dir)
 
         callbacks.append(
             ConvertAndSaveHFCheckpointAtEverySave(
