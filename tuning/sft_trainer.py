@@ -29,10 +29,6 @@ from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
     TrainerCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint

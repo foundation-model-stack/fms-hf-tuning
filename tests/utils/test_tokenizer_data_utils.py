@@ -14,10 +14,10 @@ from tuning.utils.tokenizer_data_utils import (
 
 def test_setting_special_tokens_with_LlamaTokenizerFast():
     """
-    Unit test using a LlamaTokenizerFast tokenizer. This tokenizer is only missing a PAD token, however
-    because it is a LlamaTokenizer, the function code automatically adds the BOS, EOS, UNK and PAD
-    tokens to the special tokens dict. Then, the <pad> token is replaced with a <PAD> token,
-    because the Llama tokenizer does not have a pad token specified.
+    Unit test using a LlamaTokenizerFast tokenizer. This tokenizer is only missing a PAD token,
+    however because it is a LlamaTokenizer, the function code automatically adds the BOS, EOS,
+    UNK and PAD tokens to the special tokens dict. Then, the <pad> token is replaced with
+    a <PAD> token, because the Llama tokenizer does not have a pad token specified.
     """
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments()
@@ -50,10 +50,10 @@ def test_setting_special_tokens_with_GPT2TokenizerFast():
 
 def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
     """
-    Unit test using a GPTNeoXTokenizerFast tokenizer. This tokenizer is another one that is hardcoded
-    into the function to automatically add just a pad token to the special tokens dict. However,
-    the tokenizer itself is also missing a pad token, so the function then replaces the <pad> token
-    with the default <PAD> token.
+    Unit test using a GPTNeoXTokenizerFast tokenizer. This tokenizer is another one that is
+    hardcoded into the function to automatically add just a pad token to the special tokens dict.
+    However, the tokenizer itself is also missing a pad token, so the function then replaces
+    the <pad> token with the default <PAD> token.
     """
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     model_args = configs.ModelArguments()
@@ -102,7 +102,8 @@ def test_setting_special_tokens_when_path_is_not_none():
     special_tokens_dict = set_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
-    assert special_tokens_dict == {}
+    # Assert special_tokens_dict is empty
+    assert not special_tokens_dict
 
 
 def test_tokenizer_and_embedding_resize_return_values_missing_one_token():
