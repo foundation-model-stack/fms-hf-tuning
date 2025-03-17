@@ -1,15 +1,14 @@
-# Third party
+# Third Party
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # First Party
 from tests.artifacts.testdata import MODEL_NAME
-from tuning.config import configs
 
 # Local
-# First party
+from tuning.config import configs
 from tuning.utils.tokenizer_data_utils import (
-    tokenizer_and_embedding_resize,
     set_special_tokens_dict,
+    tokenizer_and_embedding_resize,
 )
 
 
