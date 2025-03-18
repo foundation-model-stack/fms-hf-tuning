@@ -35,7 +35,7 @@ python scripts/offline_data_processing.py \
 --num_dataset_shards 3
 ```
 
-Additionally, once the offline data processing is complete, users can leverage the shards stored in output_dir for tuning, provided they find the sharded datasets beneficial for training.
+Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning, provided they find the sharded datasets beneficial for training.
 
 ## Example Usage
 ### Applying Chat Template
