@@ -126,7 +126,9 @@ def get_callbacks(**kwargs):
                     checkpoint(checkpoint_dir)
 
                     # If final save directory is provided, save the model there
-                    if getattr(self, "save_model_dir", None):
+                    if getattr(self, "save_model_dir", None) and state.global_step + 1 == state.max_steps:
+                        if not os.path.exists(self.save_model_dir):
+                            checkpoint(self.save_model_dir)
                         checkpoint(self.save_model_dir)
 
         callbacks.append(
