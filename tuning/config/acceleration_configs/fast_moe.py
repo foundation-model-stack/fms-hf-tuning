@@ -81,7 +81,7 @@ def get_callbacks(**kwargs):
                 Also saves the final model in save_model_dir if provided.
                 """
 
-                def checkpoint(save_dir):
+                def checkpoint(checkpoint_dir, save_dir):
                     hf_converted_output_dir = os.path.join(
                         save_dir, "hf_converted_checkpoint"
                     )
@@ -93,7 +93,7 @@ def get_callbacks(**kwargs):
                     os.mkdir(hf_converted_output_dir)
                     try:
                         recover_safetensors_from_dcp(
-                            save_dir,
+                            checkpoint_dir,
                             self.pretrained_model_name_or_path,
                             hf_converted_output_dir,
                         )
@@ -114,8 +114,8 @@ def get_callbacks(**kwargs):
 
                     except Exception as e:
                         raise ValueError(
-                            f"Failed to convert the checkpoint {save_dir}\
-                                to a HF compatible checkpoint"
+                            f"Failed to convert the checkpoint {checkpoint_dir}\
+                                to a HF compatible checkpoint in {save_dir}"
                         ) from e
 
                 if state.is_world_process_zero:
@@ -123,13 +123,13 @@ def get_callbacks(**kwargs):
                     checkpoint_dir = os.path.join(
                         args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}"
                     )
-                    checkpoint(checkpoint_dir)
+                    checkpoint(checkpoint_dir, checkpoint_dir)
 
                     # If final save directory is provided, save the model there
-                    if getattr(self, "save_model_dir", None) and state.global_step + 1 == state.max_steps:
+                    if getattr(self, "save_model_dir", None) and state.global_step == state.max_steps:
                         if not os.path.exists(self.save_model_dir):
-                            checkpoint(self.save_model_dir)
-                        checkpoint(self.save_model_dir)
+                            os.mkdir(self.save_model_dir)
+                        checkpoint(checkpoint_dir, self.save_model_dir)
 
         callbacks.append(
             ConvertAndSaveHFCheckpointAtEverySave(
