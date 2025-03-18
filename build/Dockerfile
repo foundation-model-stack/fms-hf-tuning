@@ -89,8 +89,7 @@ ENV NV_CUDA_CUDART_DEV_VERSION=12.1.55-1 \
     NV_LIBCUBLAS_DEV_VERSION=12.1.0.26-1 \
     NV_LIBNPP_DEV_VERSION=12.0.2.50-1 \
     NV_LIBNCCL_DEV_PACKAGE_VERSION=2.18.3-1+cuda12.1 \
-    NV_CUDNN9_CUDA_VERSION=9.6.0.74-1 \
-    NV_LIBCUSPARSELT_DEVEL_VERSION=0.7.1.0-1
+    NV_CUDNN9_CUDA_VERSION=9.6.0.74-1
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
@@ -108,9 +107,10 @@ RUN dnf config-manager \
 # opening connection for too long in one go was resulting in timeouts
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
+    && dnf clean packages \
     && dnf install -y \
+        libcusparselt0 libcusparselt-devel \
         cudnn9-cuda-12-6-${NV_CUDNN9_CUDA_VERSION} \
-        libcusparselt-devel-${NV_LIBCUSPARSELT_DEVEL_VERSION} \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
