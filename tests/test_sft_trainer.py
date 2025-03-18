@@ -1386,14 +1386,14 @@ def test_run_moe_ft_and_inference(dataset_path):
 def test_run_moe_ft_with_save_model_dir(dataset_path):
     """Check if we can finetune a moe model and check if hf checkpoint is created"""
     with tempfile.TemporaryDirectory() as tempdir:
-        save_model_dir = os.path_join(tempdir, "save_model")
+        save_model_dir = os.path.join(tempdir, "save_model")
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.output_dir = save_model_dir
+        train_args.save_model_dir = save_model_dir
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
