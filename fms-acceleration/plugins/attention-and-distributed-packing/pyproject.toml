@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fms-acceleration-aadp"
+version = '0.2.0.dev'
+description = "FMS Acceleration Plugin for Attention and Distributed Packing Optimizations"
+authors = [
+  {name = "Fabian Lim", email = "flim@sg.ibm.com"},
+  {name = "Aaron Chew", email = "aaron.chew1@ibm.com"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = "~=3.9"
+keywords = ['fms-hf-tuning', 'acceleration', 'padding-free', 'multipack']
+classifiers=[
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = ["numba", "trl"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/fms_acceleration_aadp"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""

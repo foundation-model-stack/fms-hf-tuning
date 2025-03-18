@@ -1,0 +1,25 @@
+# This file holds two sections:
+# - sft_tuning: for non-HF arguments
+# - hf: for HF arguments
+# TODO: consider combining them to a single list
+
+# Below are custom arguments for sft_trainer.py
+use_flash_attn: True
+response_template: "\n### Response:"
+dataset_text_field: output
+
+# Below are the transformers.TrainingArguments
+include_tokens_per_second: True
+num_train_epochs: 1
+gradient_accumulation_steps: 1
+gradient_checkpointing: True
+evaluation_strategy: "no"
+save_strategy: "no"
+weight_decay: 0.01
+warmup_steps: 10
+adam_epsilon: 1e-4
+lr_scheduler_type: linear
+logging_strategy: steps
+logging_steps: 10
+max_steps: 100
+

@@ -1,0 +1,5 @@
+{
+    "gradient_accumulation_kwargs": {
+        "sync_each_batch": true
+    }
+}
