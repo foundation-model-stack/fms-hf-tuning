@@ -1373,6 +1373,7 @@ def test_run_moe_ft_and_inference(dataset_path):
             )
         )
 
+
 @pytest.mark.skipif(
     not is_fms_accelerate_available(plugins="moe"),
     reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
@@ -1398,7 +1399,7 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
-        assert os.path.exists(os.path.join(save_model_dir,"hf_converted_checkpoint"))
+        assert os.path.exists(os.path.join(save_model_dir, "hf_converted_checkpoint"))
 
 
 ############################# Helper functions #############################
