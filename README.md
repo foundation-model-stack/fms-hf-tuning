@@ -851,8 +851,17 @@ We also have support for extended pre training where users might wanna pretrain 
 
 We also support full fine tuning and LoRA tuning for vision language models - Granite 3.2 Vision, Llama 3.2 Vision, and LLaVa-Next. 
 
-We support tuning an image+text dataset with a single text field that can be formatted using the model's chat template and a single image field that contains a list of images or a single image. The text should be in the OpenAI conversationl data format which contains a list of message objects, where each object has two required fields: role and content with the "content" field containing a list of dictionaries, where each dictionary specifies the type of data: "image" or "text". For example:
+We support tuning an `image+text` dataset that includes:
+- A single text field, formatted using the model’s chat template.
+- A single image field, which can contain either a list of images or a single image.
 
+The text must follow the OpenAI conversational data format, which is defined as a list of message objects. Each message object must have two required fields: `role` and `content`:
+- `role`: The speaker (e.g., "user" or "assistant").
+- `content`: A list of dictionaries, each specifying:
+   - `type`: `text` or `image`.
+   - `text`: The text content (if applicable).
+
+Example Format:
 ```json
 [
     {
@@ -883,13 +892,19 @@ We support tuning an image+text dataset with a single text field that can be for
 ]
 ```
 
-This is because the chat template will automatically be applied to the text and then the model's processor will combine the text and image together to input into the model.
+### Processing of dataset
 
-Note: Granite 3.2 and Llava-1.5 Vision models expect a single image and will reformat a dataset with a list of images to select only the first image in the list.
+First, each dataset sample is processed by applying the chat template to the raw text, which formats the conversation as required. Then, the model’s `processor` takes the formatted text and the corresponding image(s) and converts them into the final input representation (e.g., input_ids, attention masks, etc.) that the model uses for training.
 
-Two parameters will need to be passed in, the `dataset_text_field` for the name of the column in the dataset that contains the conversational text and `dataset_image_field` for the name of the column in the dataset that contains the images. Note that no répons
+**Note**: `Granite 3.2` and `Llava-1.5` Vision models expect a single image for each dataset sample. If a list of images is provided, only the first image will be used.
 
-An example configuration would be:
+### Tuning configurations
+
+Two parameters must be passed to specify which dataset columns to use:
+- `dataset_text_field`: The column name that contains the conversational text.
+- `dataset_image_field`: The column name that contains the images.
+
+Below is a sample configuration file:
 ```json
 {
   "model_name_or_path": "ibm-granite/granite-vision-3.2-2b", 
@@ -912,7 +927,9 @@ An example configuration would be:
 }
 ```
 
-This can similarly be run as:
+### Running the Trainer
+
+You can also run training by calling the trainer directly using the command line. For example:
 
 ```sh
 python tuning/sft_trainer.py  \
@@ -927,20 +944,62 @@ python tuning/sft_trainer.py  \
 --dataset_image_field "images"
 ```
 
-Flash Attention 2.0 is not supported by `MllamaForConditionalGeneration` models, thus when running tuning witht he Llama 3.2 models, set `use_flash_attn=False`.
+### Tuning Considerations for vision models
 
-To run multi-GPU tuning with FSDP, an additional layer will need to be wrappd that changes for eah model. For Granite 3.2 Vision models set `fsdp_transformer_layer_cls_to_wrap: "GraniteDecoderLayer"`. For Llava-Next and Llava-1.5 models, set `fsdp_transformer_layer_cls_to_wrap: "LlamaDecoderLayer"`. However, for Llava-1.6-mistral model set `fsdp_transformer_layer_cls_to_wrap: "MistralDecoderLayer"`. No additional configuration is needed for Llama 3.2 Vision models.
+Flash Attention 2.0 is not supported by `MllamaForConditionalGeneration` models, thus when running tuning with the `Llama 3.2 Vision Models` set:
 
-We recommend running with `gradient_checkpointing` set as this will greatly reduce the memory needed to load and run the model. When running with gradient checkpointing, for the Llava and Granite models, you will need to also set `"gradient_checkpointing_kwargs": {"use_reentrant": false}` as seen in the example above in order to not use the activation checkpoint variant that requires reentrant autograd. Without this set tuning will lead to error:
-
+```json
+"use_flash_attn": false
 ```
+#### Multi-GPU Tuning with FSDP:
+
+When running `multi-GPU` tuning with `FSDP`, you need to wrap specific transformer layers. Use the following setting in FSDP config based on your model:
+
+Granite 3.2 Vision Models:
+```json
+"accelerate_launch_args": { "fsdp_transformer_layer_cls_to_wrap": "GraniteDecoderLayer" }
+```
+
+Llava-Next and Llava-1.5 Models:
+```json
+"accelerate_launch_args": { "fsdp_transformer_layer_cls_to_wrap": "LlamaDecoderLayer" }
+```
+
+Llava-1.6-Mistral Model:
+```json
+"accelerate_launch_args": { "fsdp_transformer_layer_cls_to_wrap": "MistralDecoderLayer" }
+```
+
+Llama 3.2 Vision Models: No additional configuration is required.
+
+#### Gradient Checkpointing:
+
+We recommend running with argument `gradient_checkpointing=True` as enabling this will greatly reduce the memory needed to load and run the model.
+
+When running with gradient checkpointing for the `Llava` and `Granite` vision models, you will need to also set `gradient_checkpointing_kwargs` to not use the activation checkpoint variant that requires reentrant autograd.  
+
+```json
+"gradient_checkpointing_kwargs": {"use_reentrant": false}
+```
+
+Without setting this, tuning will lead to error:
+
+```sh
 RuntimeError: mat2 must be a matrix, got 1-D tensor
 RuntimeError: Expected weight to be of same shape as normalized_shape, but got weight of shape [0] and normalized_shape = [1152]
 ```
 
-We also recommend running with `"remove_unused_columns": false` and `"dataset_kwargs": {"skip_prepare_dataset": true}` as you see above to avoid the default processing of the dataset and to ensure that the data is not processed as text-only.
+#### Other arguments:
 
-When running LoRA tuning, you must specify the `target_modules` since there are no defaults set for the vision models.
+To prevent default text-only processing and ensure proper handling of multimodal data, we recommend setting:
+
+```json
+"remove_unused_columns": false
+"dataset_kwargs": {"skip_prepare_dataset": true}
+```
+
+When performing LoRA tuning on vision models, you must specify the `target_modules` explicitly, as no defaults are provided.
+
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
