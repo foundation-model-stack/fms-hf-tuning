@@ -37,6 +37,9 @@ DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
 DATA_CONFIG_MULTITURN_DATA_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multi_turn_data_with_chat_template.yaml"
 )
+DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "multi_turn_data_with_chat_template_granite_3_1B.yaml"
+)
 DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
 )
