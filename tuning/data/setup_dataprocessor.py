@@ -254,7 +254,7 @@ def _get_vision_dataset_handlers(data_args, processor):
     kwargs2 = {
         "fn_kwargs": fn_kwargs2,
         "batched": True,
-        "remove_columns": [data_args.dataset_text_field, data_args.dataset_image_field],
+        "remove_columns": "all",
         "num_proc": None,
     }
     handlers.append(
