@@ -1,0 +1,39 @@
+dataprocessor:
+    type: default
+    chat_template: |
+      {% for message in messages['messages'] %}
+        {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}
+        {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}
+        {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}
+        {% endif %}
+        {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}
+        {% endif %}
+      {% endfor %}
+datasets:
+  - name: dataset_1
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_tokenizer_chat_template
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            dataset_text_field: "formatted_chat_data"
+  - name: dataset_2
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_tokenizer_chat_template
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            dataset_text_field: "formatted_chat_data"
+  - name: dataset_3
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_tokenizer_chat_template
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            dataset_text_field: "formatted_chat_data"

@@ -47,6 +47,8 @@ class DataPreProcessorConfig:
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
     # Default seed is not none to ensure reproducability
     sampling_seed: Optional[float] = 42
+    streaming: Optional[bool] = False
+    chat_template: Optional[str] = None
 
 
 @dataclass
@@ -142,6 +144,14 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         seed = kwargs["sampling_seed"]
         assert isinstance(seed, int), "sampling seed should be int"
         c.sampling_seed = seed
+    if "streaming" in kwargs:
+        streaming = kwargs["streaming"]
+        assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
+        c.streaming = streaming
+    if "chat_template" in kwargs:
+        chat_template = kwargs["chat_template"]
+        assert isinstance(chat_template, str), "chat_template should be a string"
+        c.chat_template = chat_template
     return c
 
 

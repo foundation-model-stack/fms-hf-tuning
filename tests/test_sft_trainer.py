@@ -39,11 +39,18 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTITURN_DATA_YAML,
+    DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+    DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
+    DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
+    DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+    DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
@@ -68,6 +75,7 @@ from tests.artifacts.testdata import (
 # Local
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
+from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
 from tuning.config.tracker_configs import FileLoggingTrackerConfig
 from tuning.data.data_config import (
     DataConfig,
@@ -75,7 +83,12 @@ from tuning.data.data_config import (
     DataPreProcessorConfig,
     DataSetConfig,
 )
-from tuning.data.data_handlers import add_tokenizer_eos_token
+from tuning.data.data_handlers import (
+    DataHandler,
+    DataHandlerType,
+    add_tokenizer_eos_token,
+)
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -316,14 +329,6 @@ def _get_training_logs_by_epoch(dir_path: str, epoch: int = None):
                 mod_data_list.append(value)
         return mod_data_list
     return data_list
-
-
-def test_run_train_requires_output_dir():
-    """Check fails when output dir not provided."""
-    updated_output_dir_train_args = copy.deepcopy(TRAIN_ARGS)
-    updated_output_dir_train_args.output_dir = None
-    with pytest.raises(TypeError):
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, updated_output_dir_train_args, None)
 
 
 def test_run_train_fails_training_data_path_not_exist():
@@ -802,6 +807,65 @@ def test_run_causallm_ft_pretokenized(dataset_path):
     [
         (
             [TWITTER_COMPLAINTS_DATA_DIR_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+        ),
+        (
+            [TWITTER_COMPLAINTS_TOKENIZED_JSON],
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+        ),
+    ],
+)
+def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
+    """Check if we can finetune causallm models using multiple datasets with multiple files"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = datafiles
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.max_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname",
+    [
+        (
+            [TWITTER_COMPLAINTS_DATA_DIR_JSON],
             DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
         ),
         (
@@ -934,6 +998,97 @@ def test_run_training_with_pretokenised_dataset_containing_input_ids():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+def test_run_training_with_data_tokenized_using_tokenizer_handler():
+    """Ensure that we can train on non tokenized dataset works by tokenizing using
+    tokenizer data handler via data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_args.response_template = None
+        data_args.training_data_path = None
+
+        dataconfigfile = DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER
+        datapath = TWITTER_COMPLAINTS_DATA_JSONL
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = [datapath]
+                yaml.dump(data, temp_yaml_file)
+                data_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def test_run_training_with_skip_large_text_handler():
+    """Ensure that we can train succesfully after using skip large text handler."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_args.response_template = None
+        data_args.training_data_path = None
+
+        dataconfigfile = DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER
+        datapath = TWITTER_COMPLAINTS_TOKENIZED_JSON
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                datasets = data["datasets"]
+                for _, d in enumerate(datasets):
+                    d["data_paths"] = [datapath]
+                yaml.dump(data, temp_yaml_file)
+                data_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
 @pytest.mark.parametrize(
     "dataset_path",
     [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN],
@@ -978,6 +1133,35 @@ def test_run_chat_style_ft(dataset_path):
         )
         assert len(output_inference) > 0
         assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+def test_run_chat_style_add_special_tokens_ft():
+    """Test to check an e2e multi turn chat training by adding special tokens via command line."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        # sample hugging face dataset id
+        data_args = configs.DataArguments(
+            training_data_path="lhoestq/demo1",
+            data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
+            response_template="\n### Stars:",
+            add_special_tokens=["<|assistant|>", "<|user|>"],
+        )
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the tokenizer
+        tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint_path)
+
+        # Check if all special tokens passed are in tokenizer
+        for tok in data_args.add_special_tokens:
+            assert tok in tokenizer.vocab
 
 
 @pytest.mark.parametrize(
@@ -1057,6 +1241,80 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
 
 
 @pytest.mark.parametrize(
+    "datafiles, dataconfigfile",
+    [
+        (
+            [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
+            DATA_CONFIG_MULTITURN_DATA_YAML,
+        ),
+        (
+            [
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+            ],
+            DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
+        ),
+    ],
+)
+def test_run_chat_style_ft_using_dataconfig_for_chat_template(
+    datafiles, dataconfigfile
+):
+    """Check if we can perform an e2e run with chat template
+    and multi turn chat training using data config."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        if dataconfigfile == DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML:
+            data_args.response_template = "<|start_of_role|>assistant<|end_of_role|>"
+            data_args.instruction_template = "<|start_of_role|>user<|end_of_role|>"
+            data_args.add_special_tokens = [
+                "<|start_of_role|>assistant<|end_of_role|>",
+                "<|start_of_role|>user<|end_of_role|>",
+            ]
+        elif dataconfigfile == DATA_CONFIG_MULTITURN_DATA_YAML:
+            data_args.response_template = "<|assistant|>"
+            data_args.instruction_template = "<|user|>"
+
+        data_args.dataset_text_field = "formatted_chat_data"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            datasets = data["datasets"]
+            for i, d in enumerate(datasets):
+                d["data_paths"] = [datafiles[i]]
+            yaml.dump(data, temp_yaml_file)
+            data_args.data_config_path = temp_yaml_file.name
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+@pytest.mark.parametrize(
     "data_args",
     [
         (
@@ -1084,6 +1342,36 @@ def test_run_e2e_with_hf_dataset_id(data_args):
 
         # validate inference
         _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+    ],
+)
+def test_run_moe_ft_and_inference(dataset_path):
+    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        sft_trainer.train(
+            model_args, data_args, train_args, fast_moe_config=fast_moe_config
+        )
+        _test_run_inference(
+            checkpoint_path=os.path.join(
+                _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
+            )
+        )
 
 
 ############################# Helper functions #############################
@@ -1495,7 +1783,8 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
         train_args.output_dir = tempdir
 
         with pytest.raises(
-            ValueError, match="Handlers should be of type Dict, str to callable"
+            ValueError,
+            match="Handler should be of type tuning.data_handler.DataHandler, and name of str",
         ):
             sft_trainer.train(
                 MODEL_ARGS,
@@ -1564,6 +1853,12 @@ def test_run_by_passing_additional_data_handlers():
             DATA_ARGS,
             train_args,
             PEFT_PT_ARGS,
-            additional_data_handlers={TEST_HANDLER: test_handler},
+            additional_data_handlers={
+                TEST_HANDLER: DataHandler(
+                    op=test_handler,
+                    handler_type=DataHandlerType.MAP,
+                    allows_batching=False,
+                )
+            },
         )
         _validate_training(tempdir)

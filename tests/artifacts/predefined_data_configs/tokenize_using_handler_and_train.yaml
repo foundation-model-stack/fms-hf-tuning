@@ -1,0 +1,22 @@
+dataprocessor:
+    type: default
+datasets:
+  - name: non_tokenized_dataset
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize
+        arguments:
+          remove_columns: all
+          batched: true
+          fn_kwargs:
+            dataset_text_field: "output"
+            truncation: True
+            max_length: 1024
+      - name: duplicate_columns
+        arguments:
+          remove_columns: all
+          batched: true
+          fn_kwargs:
+            old_column: "input_ids"
+            new_column: "labels"

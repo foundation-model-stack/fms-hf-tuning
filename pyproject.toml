@@ -29,7 +29,7 @@ classifiers=[
 dependencies = [
 "numpy>=1.26.4,<2.0",
 "accelerate>=0.20.3,!=0.34,<1.1",
-"transformers>=4.46,<4.48.2",
+"transformers>=4.49,<5.0",
 "torch>=2.2.0,<2.5",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers>=0.13.3,<1.0",
@@ -37,8 +37,8 @@ dependencies = [
 "trl>=0.13,<0.15",
 "peft>=0.8.0,<0.14",
 "protobuf>=5.28.0,<6.0.0",
-"datasets>=2.15.0,<3.0",
-"simpleeval>=0.9.13,<1.0",
+"datasets>=2.15.0,<4.0",
+"simpleeval>=0.9.13,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +48,7 @@ aim = ["aim>=3.19.0,<4.0"]
 mlflow = ["mlflow"]
 fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
+mamba = ["mamba_ssm[causal-conv1d] @ git+https://github.com/state-spaces/mamba.git"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
 
 

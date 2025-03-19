@@ -47,6 +47,8 @@ definitions:
         type: string
       seed:
         type: integer
+      chat_template:
+        type: string
     required:
       - type
     title: Dataprocessor
@@ -115,8 +117,10 @@ Users can create a data config file in any of YAML or JSON format they choose (w
 
 `datapreprocessor`:
  - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
+ - `streaming` (optional, bool): Stream datasets using [IterableDatasets](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset).
  - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
  - `sampling_seed` (optional, int): [Sampling seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
+ - `chat_template` (optional, str): pass `chat_template` via data_config for multi-turn data, replaces existing default chat template.
 
 `datasets` (list):
   - `name` (optional, str): A unique identifier for the dataset.
@@ -229,6 +233,8 @@ This library currently supports the following [preexisting data handlers](https:
     Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
  - `duplicate_columns`:
     Duplicates one column of the dataset to another column.
+ - `tokenize`:
+    Tokenizes one column of the dataset passed as input `dataset_text_field`.
 
 These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
 
@@ -251,6 +257,64 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 `Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
 
+### Data Streaming
+Dataset streaming allows users to utilize the functionality of iterable datasets to pass in data piece by piece, avoiding memory constraints with large datasets for use-cases like extended pre-training.
+
+Users can use streaming by setting `streaming` to `true` in the `datapreprocessor` config. This top-level variable must be set for all datasets in the config, and cannot differ from dataset to dataset. When `streaming` is `true`, the dataset is loaded as an `IterableDataset` ([docs](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset)) instead of a regular `Dataset`, this means the dataset is loaded chunk-by-chunk rather than all at once and is processed lazily. For more details on the differences, see the [HF Blog](https://huggingface.co/docs/datasets/en/about_mapstyle_vs_iterable).
+
+In a data config this looks like (see [ept document](./ept.md#large-non-tokenized-dataset) for a more in-depth example):
+```
+dataprocessor:
+    type: default
+    streaming: true
+```
+
+When using streaming, `split_batches` in the `TrainingArguments` will automatically be set to `True`, by doing so, the main process will fetch a full batch and slice it into `num_processes` batches for each process. This means that `num_processes` must be divisible by `batch_size`. This will replace the global batch size.
+
+**When using streaming, the user must set `max_steps` in the `TrainingArguments` instead of `num_train_epochs`.** Since iterable datasets are loaded chunk-by-chunk, data cannot run through epochs in a typical fashion as the **Trainer** can not know length of the dataset as it is being passed through. If both `max_steps` and `num_train_epochs` are given in a training config, `max_steps` will overwrite `num_train_epochs` since `max_steps` directly specifies the total number of optimization steps, which is needed when dataset length cannot be known. 
+
+If the dataset size is known to the user, `max_steps` can be calculated as the total number of samples divided by the batch size.
+
 ### Example data configs.
 
 We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
+
+## Offline Data preprocessing
+
+[This script](../scripts/offline_data_processing.py) provides the capability for users to perform standalone data 
+preprocessing, decoupled from the tuning/training part. It processes raw datasets, performs data preprocessing, and 
+saves the train and validation datasets (in shards if `--num_dataset_shards` if passed) in parquet format inside the specified `output_dir`. 
+A data config YAML file can be used to pass configuration to this script. Example command to run this script:
+
+```
+python scripts/offline_data_processing.py \
+--data_config_path  /path/to/data_config.yaml \
+--model_name_or_path "model_name"  \
+--max_seq_length 4096 \
+--output_dir /path/to/output/directory  \
+--log_level info \
+--num_dataset_shards 3
+```
+
+Example data config file:
+
+```
+dataprocessor:
+    type: default
+    sampling_stopping_strategy: first_exhausted
+    seed: 66
+datasets:
+  - name: dataset_1
+    data_paths:
+      - tests/artifacts/testdata/jsonl/twitter_complaints_input_output.jsonl
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_field_name: input
+            output_field_name: output
+```
+
+
