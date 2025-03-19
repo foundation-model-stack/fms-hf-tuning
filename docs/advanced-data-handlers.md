@@ -4,7 +4,7 @@ All data handler routines are registered with our data preprocessor as a `k:func
 `k` is the name (`str`) of the data handler and `func` (`callable`) is the function which is called.
 
 In the data config, users can request which data handler to apply by requesting the corresponding `name`
-with which the data handler was registered and specifying the appropriate `arguments`. Each data handler accepts two types of arguments via `DataHandlerArguments` (as defined in the above [schema](#what-is-data-config-schema)), as shown below.
+with which the data handler was registered and specifying the appropriate `arguments`. Each data handler accepts two types of arguments via `DataHandlerArguments` (as defined in the data preprocessor [schema](./advanced-data-preprocessing.md#what-is-data-config-schema)), as shown below.
 
 ```yaml
 datapreprocessor:
