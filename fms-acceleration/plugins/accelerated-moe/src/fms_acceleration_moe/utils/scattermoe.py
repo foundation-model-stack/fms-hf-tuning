@@ -22,9 +22,11 @@ from torch.distributed._tensor import DTensor
 
 # pylint: disable=import-error
 from torch.distributed._tensor.device_mesh import DeviceMesh
-from transformers.activations import ACT2FN
 import torch
 import torch.nn.functional as F
+
+# First Party
+from transformers.activations import ACT2FN
 
 # Local
 from .scattermoe_constants import SCATTERMOE_SPEC_HAS_GATE

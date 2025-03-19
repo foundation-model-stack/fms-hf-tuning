@@ -19,8 +19,10 @@ from typing import Dict, Set, Tuple
 from fms_acceleration import AccelerationPlugin, AccelerationPluginConfigError
 from peft import LoraConfig
 from peft.tuners.lora.layer import LoraLayer
-from transformers import PretrainedConfig, TrainingArguments
 import torch
+
+# First Party
+from transformers import PretrainedConfig, TrainingArguments
 
 # Local
 from .utils import filter_mp_rules, lora_adapters_switch_ddp_from_fsdp

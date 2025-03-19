@@ -29,10 +29,12 @@ from typing import List, Optional, Tuple, Union
 
 # Third Party
 from torch.nn import CrossEntropyLoss
-from transformers.modeling_outputs import CausalLMOutputWithPast
 import torch
 import torch.nn.functional as F
 import triton
+
+# First Party
+from transformers.modeling_outputs import CausalLMOutputWithPast
 
 # Local
 from .cross_entropy import element_mul_kernel, liger_cross_entropy_kernel

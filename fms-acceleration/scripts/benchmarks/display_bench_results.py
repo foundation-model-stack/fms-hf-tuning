@@ -2,7 +2,7 @@
 from typing import List
 import argparse
 
-# Third Party
+# First Party
 # import this because of alot of internal contants
 from scripts.benchmarks.benchmark import DIR_SAMP_CONFIGS, gather_report
 

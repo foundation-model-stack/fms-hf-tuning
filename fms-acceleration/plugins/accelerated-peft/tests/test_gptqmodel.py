@@ -20,6 +20,10 @@ from typing import List
 
 # Third Party
 from peft import LoraConfig
+import pytest  # pylint: disable=import-error
+import torch
+
+# First Party
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -27,8 +31,6 @@ from transformers import (
     GenerationConfig,
 )
 from transformers.utils.import_utils import _is_package_available
-import pytest  # pylint: disable=import-error
-import torch
 
 GPTQ = "gptq"
 # r, lora_alpha

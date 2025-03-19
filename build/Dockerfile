@@ -125,6 +125,8 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user build
 COPY --chown=${USER}:root tuning tuning
 COPY --chown=${USER}:root fms-acceleration fms-acceleration
+COPY --chown=${USER}:root transformers transformers
+COPY --chown=${USER}:root accelerate accelerate
 COPY .git .git
 COPY pyproject.toml pyproject.toml
 
@@ -150,6 +152,8 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
         python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
         python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
+        python -m pip install --user ./transformers; \
+        python -m pip install --user ./accelerate; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \

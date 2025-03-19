@@ -3,8 +3,10 @@ from typing import Callable, Dict, List
 import warnings
 
 # Third Party
-from transformers import PreTrainedTokenizer
 from trl import DataCollatorForCompletionOnlyLM
+
+# First Party
+from transformers import PreTrainedTokenizer
 
 DEFAULT_FIELDS = ["input_ids", "attention_mask", "labels"]
 

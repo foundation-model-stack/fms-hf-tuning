@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Third Party
-from accelerate import Accelerator
 from fms_acceleration.accelerator_patcher import (
     AcceleratorPatcher,
     AcceleratorPatcherComponent,
@@ -22,6 +21,9 @@ from fms_acceleration.accelerator_patcher import (
 from fms_acceleration.utils.test_utils import instantiate_accel_patcher
 import pytest  # pylint: disable=import-error
 import torch
+
+# First Party
+from accelerate import Accelerator
 
 
 def test_AP_rule_raises_correct_errors():

@@ -1,0 +1,125 @@
+- sections:
+  - local: index
+    title: 🤗 Accelerate
+  - local: basic_tutorials/install
+    title: Installation
+  - local: quicktour
+    title: Quicktour
+  title: Getting started
+- sections:
+  - local: basic_tutorials/overview
+    title: Overview
+  - local: basic_tutorials/migration
+    title: Add Accelerate to your code
+  - local: basic_tutorials/execution
+    title: Execution process
+  - local: basic_tutorials/tpu
+    title: TPU training
+  - local: basic_tutorials/launch
+    title: Launching Accelerate scripts
+  - local: basic_tutorials/notebook
+    title: Launching distributed training from Jupyter Notebooks
+  title: Tutorials
+- sections:
+  - isExpanded: true
+    sections:
+    - local: usage_guides/explore
+      title: Start Here!
+    - local: usage_guides/model_size_estimator
+      title: Model memory estimator
+    - local: usage_guides/quantization
+      title: Model quantization
+    - local: usage_guides/tracking
+      title: Experiment trackers
+    - local: usage_guides/profiler
+      title: Profiler
+    - local: usage_guides/checkpoint
+      title: Checkpointing
+    - local: basic_tutorials/troubleshooting
+      title: Troubleshoot
+    - local: usage_guides/training_zoo
+      title: Example Zoo
+    title: Accelerate
+  - isExpanded: true
+    sections:
+    - local: usage_guides/gradient_accumulation
+      title: Gradient accumulation
+    - local: usage_guides/local_sgd
+      title: Local SGD
+    - local: usage_guides/low_precision_training
+      title: Low precision (FP8) training
+    - local: usage_guides/deepspeed
+      title: DeepSpeed
+    - local: usage_guides/deepspeed_multiple_model
+      title: Using multiple models with DeepSpeed
+    - local: usage_guides/ddp_comm_hook
+      title: DDP Communication Hooks
+    - local: usage_guides/fsdp
+      title: Fully Sharded Data Parallel
+    - local: usage_guides/megatron_lm
+      title: Megatron-LM
+    - local: usage_guides/sagemaker
+      title: Amazon SageMaker
+    - local: usage_guides/mps
+      title: Apple M1 GPUs
+    - local: usage_guides/ipex
+      title: IPEX training with CPU
+    title: Training
+  - isExpanded: true
+    sections:
+    - local: usage_guides/big_modeling
+      title: Big Model Inference
+    - local: usage_guides/distributed_inference
+      title: Distributed inference
+    title: Inference
+  title: How to guides
+- sections:
+  - local: concept_guides/internal_mechanism
+    title: Accelerate's internal mechanism
+  - local: concept_guides/big_model_inference
+    title: Loading big models into memory
+  - local: concept_guides/performance
+    title: Comparing performance across distributed setups
+  - local: concept_guides/deferring_execution
+    title: Executing and deferring jobs
+  - local: concept_guides/gradient_synchronization
+    title: Gradient synchronization
+  - local: concept_guides/fsdp_and_deepspeed
+    title: FSDP vs DeepSpeed
+  - local: concept_guides/low_precision_training
+    title: Low precision training methods
+  - local: concept_guides/training_tpu
+    title: Training on TPUs
+  title: Concepts and fundamentals
+- sections: 
+  - local: package_reference/accelerator
+    title: Accelerator
+  - local: package_reference/state
+    title: Stateful classes
+  - local: package_reference/cli
+    title: The Command Line
+  - local: package_reference/torch_wrappers
+    title: DataLoaders, Optimizers, Schedulers
+  - local: package_reference/tracking
+    title: Experiment trackers
+  - local: package_reference/launchers
+    title: Launchers
+  - local: package_reference/deepspeed
+    title: DeepSpeed utilities
+  - local: package_reference/logging
+    title: Logging
+  - local: package_reference/big_modeling
+    title: Working with large models
+  - local: package_reference/inference
+    title: Pipeline parallelism
+  - local: package_reference/kwargs
+    title: Kwargs handlers
+  - local: package_reference/fp8
+    title: FP8
+  - local: package_reference/utilities
+    title: Utility functions and classes
+  - local: package_reference/megatron_lm
+    title: Megatron-LM utilities
+  - local: package_reference/fsdp
+    title: Fully Sharded Data Parallel utilities
+  title: "Reference"

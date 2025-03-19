@@ -25,9 +25,11 @@ import os  # noqa: E402
 import unittest  # noqa: E402
 
 # Third Party
-from transformers import AutoTokenizer  # noqa: E402
 import torch  # noqa: E402
 import torch.utils.benchmark as benchmark  # noqa: E402
+
+# First Party
+from transformers import AutoTokenizer  # noqa: E402
 
 CUDA_AVAILABLE = False
 if torch.cuda.is_available():

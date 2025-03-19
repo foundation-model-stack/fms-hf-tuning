@@ -8,11 +8,13 @@ from typing import Dict
 from fms_acceleration.model_patcher import ModelPatcher, patch_model
 from fms_acceleration.utils.test_utils import instantiate_model_patcher
 from peft import LoraConfig
+import pytest  # pylint: disable=import-error
+import torch
+
+# First Party
 from transformers import AutoConfig
 from transformers.models.llama.modeling_llama import LlamaAttention
 from transformers.utils.import_utils import _is_package_available
-import pytest  # pylint: disable=import-error
-import torch
 
 BNB = "bitsandbytes"
 GPTQ = "auto_gptq"

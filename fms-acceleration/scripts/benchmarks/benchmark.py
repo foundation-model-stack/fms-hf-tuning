@@ -10,13 +10,15 @@ import subprocess
 import warnings
 
 # Third Party
-from scripts.benchmarks.data_processing import build_data_formatting_func
 from tqdm import tqdm
-from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, TrainingArguments
 import datasets
 import pandas as pd
 import torch
 import yaml
+
+# First Party
+from scripts.benchmarks.data_processing import build_data_formatting_func
+from transformers import AutoConfig, AutoTokenizer, HfArgumentParser, TrainingArguments
 
 """
 This benchmarking script 

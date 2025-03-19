@@ -40,7 +40,7 @@ def calculate_settings(n):
 
 pass
 
-# Third Party
+# First Party
 # import guard added by flim@sg.ibm.com
 from transformers.utils.import_utils import _bitsandbytes_available
 

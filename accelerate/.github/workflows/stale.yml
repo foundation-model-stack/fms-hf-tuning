@@ -1,0 +1,33 @@
+name: Stale Bot
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+
+jobs:
+  close_stale_issues:
+    name: Close Stale Issues
+    if: github.repository == 'huggingface/accelerate'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v3.1.0
+    
+    - name: Setup Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.9
+        cache: 'pip'
+        cache-dependency-path: 'setup.py'
+    
+    - name: Install requirements
+      run: |
+        pip install PyGithub
+    - name: Close stale issues
+      run: |
+        python utils/stale.py

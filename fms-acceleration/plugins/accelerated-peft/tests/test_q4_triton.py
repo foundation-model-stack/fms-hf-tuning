@@ -24,8 +24,10 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 import unittest  # noqa: E402
 
 # Third Party
-from transformers import AutoTokenizer  # noqa: E402
 import torch  # noqa: E402
+
+# First Party
+from transformers import AutoTokenizer  # noqa: E402
 
 CUDA_AVAILABLE = False
 if torch.cuda.is_available():

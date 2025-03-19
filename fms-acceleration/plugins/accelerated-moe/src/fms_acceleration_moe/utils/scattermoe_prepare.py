@@ -19,15 +19,17 @@ import json
 import os
 
 # Third Party
-from accelerate import init_empty_weights
 from peft import LoraConfig
 from torch.distributed._tensor import DTensor, Replicate, Shard, distribute_tensor
 
 # pylint: disable=import-error
 from torch.distributed._tensor.device_mesh import DeviceMesh, init_device_mesh
 from tqdm import tqdm
-from transformers.modeling_utils import is_fsdp_enabled, is_local_dist_rank_0
 import torch
+
+# First Party
+from accelerate import init_empty_weights
+from transformers.modeling_utils import is_fsdp_enabled, is_local_dist_rank_0
 
 # Local
 from .checkpoint_utils import get_resolved_checkpoint_location
@@ -118,9 +120,12 @@ def prepare_scattermoe(
     # pylint: disable=import-outside-toplevel
     from .scattermoe import ScatterMoE
 
-    no_ep_no_replication = False
+    ep_disabled = False
     if ep_degree == 0:
-        no_ep_no_replication = True
+        ep_disabled = True
+        # flow of code when EP not enabled is mostly same as
+        # with ep_degree set to 1. Therefore, we explicitly set
+        # ep_degree to 1 however handle it along with ep_disabled var
         ep_degree = 1
 
     assert world_size % ep_degree == 0, (
@@ -137,13 +142,14 @@ def prepare_scattermoe(
     device = torch.device(f"{device_type}:{rank}")
 
     # NOTE: fsdp_cpu_ram_efficient_loading is not supported for EP activated cases
-    fsdp_cpu_ram_efficient_loading = False
+    fsdp_cpu_ram_efficient_loading = is_fsdp_enabled()
 
-    if no_ep_no_replication is True:
+    if ep_disabled:
+        # Larger models result in OOM especially when loading
+        # all experts to the same GPU device (when EP disabled).
+        # For cases like FSDP + EP disabled, its memory efficient to
+        # load the model to CPU and hand it over to the FSDP.
         device = torch.device("cpu")
-
-    if os.environ["FSDP_CPU_RAM_EFFICIENT_LOADING"] == "true":
-        fsdp_cpu_ram_efficient_loading = True
 
     # get the scattermoe conversion spec
     (
@@ -158,9 +164,8 @@ def prepare_scattermoe(
     expert_name = expert_name.split("|")
 
     rep_size = world_size // ep_degree
-    if no_ep_no_replication:
-        rep_size = 1
-    if ep_degree == 1 and rep_size == 1:
+
+    if ep_degree == 1 and (rep_size == 1 or ep_disabled):
         # in this case no need for sharding
         device_mesh = None
     elif rep_size == 1:
@@ -339,11 +344,7 @@ def prepare_scattermoe(
             if device_mesh is None:
                 # - if not on meta, just load the state dict
                 # - and then put on the device
-                if fsdp_cpu_ram_efficient_loading:
-                    if rank == 0:
-                        moe.load_state_dict(sd)
-                        moe = moe.to(device)
-                else:
+                if rank == 0 or not fsdp_cpu_ram_efficient_loading:
                     moe.load_state_dict(sd)
                     moe = moe.to(device)
             else:

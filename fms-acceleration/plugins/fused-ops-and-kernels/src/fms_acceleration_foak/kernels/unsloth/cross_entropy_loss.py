@@ -376,7 +376,7 @@ def replace_custom_loss_when_triggered(
     def _trigger(mod):
         if isinstance(mod, module_cls) and hasattr(mod, "loss_function"):
             # guarded
-            # Third Party
+            # First Party
             from transformers.loss.loss_utils import LOSS_MAPPING
 
             LOSS_MAPPING[custom_loss_type] = FastForCausalLMLoss
