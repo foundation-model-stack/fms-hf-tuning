@@ -152,8 +152,6 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
         python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
         python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
-        python -m pip install --user ./transformers; \
-        python -m pip install --user ./accelerate; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
@@ -169,6 +167,9 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
     fi
 
 RUN python -m pip install --force-reinstall -v "triton==3.1.0"
+
+RUN python -m pip install --user ./transformers
+RUN python -m pip install --user ./accelerate
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
