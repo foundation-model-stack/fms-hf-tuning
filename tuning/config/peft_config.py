@@ -58,6 +58,50 @@ class LoraConfig:
     bias = "none"
     lora_dropout: float = 0.05
 
+@dataclass
+class aLoraConfig:
+    """
+    This is the configuration class to store the configuration of an Activated LoRA [`aLoraModel`].
+
+    Args:
+        r (`int`):
+            Lora attention dimension (the "rank").
+        target_modules (List[str]]):
+            The names of the modules to apply the adapter to. \
+            If this is specified, only the modules with the specified \
+            names will be replaced. Please specify modules as per model architecture. \
+            If the value is ["all-linear"], \
+            then LORA selects all linear and Conv1D modules as per model architecture, \
+            except for the output layer.
+        lora_alpha (`int`):
+            The alpha parameter for Lora scaling.
+        lora_dropout (`float`):
+            The dropout probability for Lora layers.
+        bias (`str`):
+            Bias type for LoRA. Can be 'none', 'all' or 'lora_only'. \
+            If 'all' or 'lora_only', the corresponding biases will be updated during training. \
+            Be aware that this means that, even when disabling the adapters, the model \
+            will not produce the same output as the base model would have without adaptation.
+        activation_prompt:
+            String which indicates the start of the aLoRA generation.
+    """
+
+    r: int = 8
+    lora_alpha: int = 32
+    target_modules: List[str] = field(
+        default=None,
+        metadata={
+            "help": "The names of the modules to apply LORA to. LORA selects modules which either \
+            completely match or "
+            'end with one of the strings. If the value is ["all-linear"], \
+            then LORA selects all linear and Conv1D '
+            "modules except for the output layer."
+        },
+    )
+    bias = "none"
+    lora_dropout: float = 0.05
+    activation_prompt: str = None
+
 
 @dataclass
 class PromptTuningConfig:
