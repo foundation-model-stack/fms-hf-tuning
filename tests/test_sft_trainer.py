@@ -40,6 +40,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
+    DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
@@ -49,6 +50,7 @@ from tests.artifacts.predefined_data_configs import (
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
@@ -759,17 +761,18 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 
 
 @pytest.mark.parametrize(
-    "dataset_path",
+    "dataset_path, packing",
     [
-        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-        TWITTER_COMPLAINTS_TOKENIZED_JSON,
-        TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
-        TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+        (TWITTER_COMPLAINTS_TOKENIZED_JSONL, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_PARQUET, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_JSON, False),
+        (TWITTER_COMPLAINTS_TOKENIZED_ARROW, False),
     ],
 )
-def test_run_causallm_ft_pretokenized(dataset_path):
+def test_run_causallm_ft_pretokenized(dataset_path, packing):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
+
         data_formatting_args = copy.deepcopy(DATA_ARGS)
 
         # below args not needed for pretokenized data
@@ -782,6 +785,8 @@ def test_run_causallm_ft_pretokenized(dataset_path):
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
+        train_args.packing = packing
+        train_args.max_seq_length = 256
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
 
@@ -1244,7 +1249,15 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         (
             [CHAT_DATA_SINGLE_TURN, CHAT_DATA_MULTI_TURN, CHAT_DATA_SINGLE_TURN],
             DATA_CONFIG_MULTITURN_DATA_YAML,
-        )
+        ),
+        (
+            [
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+            ],
+            DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
+        ),
     ],
 )
 def test_run_chat_style_ft_using_dataconfig_for_chat_template(
@@ -1255,20 +1268,18 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
-        data_args.response_template = "<|assistant|>"
-        data_args.instruction_template = "<|user|>"
-        data_args.dataset_text_field = "new_formatted_field"
+        if dataconfigfile == DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML:
+            data_args.response_template = "<|start_of_role|>assistant<|end_of_role|>"
+            data_args.instruction_template = "<|start_of_role|>user<|end_of_role|>"
+            data_args.add_special_tokens = [
+                "<|start_of_role|>assistant<|end_of_role|>",
+                "<|start_of_role|>user<|end_of_role|>",
+            ]
+        elif dataconfigfile == DATA_CONFIG_MULTITURN_DATA_YAML:
+            data_args.response_template = "<|assistant|>"
+            data_args.instruction_template = "<|user|>"
 
-        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
-        kwargs = {
-            "fn_kwargs": handler_kwargs,
-            "batched": False,
-            "remove_columns": "all",
-        }
-
-        handler_config = DataHandlerConfig(
-            name="apply_tokenizer_chat_template", arguments=kwargs
-        )
+        data_args.dataset_text_field = "formatted_chat_data"
 
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
@@ -1284,8 +1295,6 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
             datasets = data["datasets"]
             for i, d in enumerate(datasets):
                 d["data_paths"] = [datafiles[i]]
-                # Basic chat datasets don't need data handling
-                d["data_handlers"] = [asdict(handler_config)]
             yaml.dump(data, temp_yaml_file)
             data_args.data_config_path = temp_yaml_file.name
 
@@ -1366,6 +1375,34 @@ def test_run_moe_ft_and_inference(dataset_path):
                 _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
             )
         )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+    ],
+)
+def test_run_moe_ft_with_save_model_dir(dataset_path):
+    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        save_model_dir = os.path.join(tempdir, "save_model")
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_model_dir = save_model_dir
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        sft_trainer.train(
+            model_args, data_args, train_args, fast_moe_config=fast_moe_config
+        )
+        assert os.path.exists(os.path.join(save_model_dir, "hf_converted_checkpoint"))
 
 
 ############################# Helper functions #############################

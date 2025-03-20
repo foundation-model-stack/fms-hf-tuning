@@ -28,10 +28,12 @@ import pytest
 import yaml
 
 # First Party
+from scripts.offline_data_processing import get_processed_dataset, save_dataset_shards
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
@@ -39,6 +41,8 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
 )
 from tests.artifacts.testdata import (
+    CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_SINGLE_TURN,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
@@ -1679,3 +1683,83 @@ def test_rename_and_retain_dataset_columns(
     with open(datafile, "r") as file:
         data = json.load(file)
     assert len(train_dataset) == len(data)
+
+
+@pytest.mark.parametrize(
+    "datafile, datasetconfigname",
+    [
+        (
+            CHAT_DATA_SINGLE_TURN,
+            DATA_CONFIG_MULTITURN_DATA_YAML,
+        ),
+        (
+            CHAT_DATA_MULTI_TURN,
+            DATA_CONFIG_MULTITURN_DATA_YAML,
+        ),
+    ],
+)
+def test_get_processed_dataset(datafile, datasetconfigname):
+    """
+    Ensure functions in offline_data_preprocessing script,
+    get_processed_dataset and save_dataset_shards process
+    and saves the formatted dataset correctly.
+    """
+
+    DATA_ARGS = configs.DataArguments()
+    DATA_ARGS.response_template = "<|assistant|>"
+    DATA_ARGS.instruction_template = "<|user|>"
+    DATA_ARGS.dataset_text_field = "formatted_chat_data"
+    MODEL_ARGS = configs.ModelArguments(
+        model_name_or_path=MODEL_NAME, use_flash_attn=False
+    )
+    columns = [DATA_ARGS.dataset_text_field]
+    num_dataset_shards = 2
+
+    with open(datasetconfigname, "r") as f:
+        yaml_content = yaml.safe_load(f)
+        datasets = [
+            {
+                "data_paths": [datafile],
+                "data_handlers": [
+                    {
+                        "name": "apply_tokenizer_chat_template",
+                        "arguments": {
+                            "fn_kwargs": {
+                                "dataset_text_field": DATA_ARGS.dataset_text_field
+                            },
+                            "batched": False,
+                            "remove_columns": "all",
+                        },
+                    }
+                ],
+            }
+        ]
+        yaml_content["datasets"] = datasets
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        DATA_ARGS.data_config_path = temp_yaml_file_path
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        TRAIN_ARGS = configs.TrainingArguments(
+            output_dir=tmpdirname, max_seq_length=4096
+        )
+        formatted_train_dataset, _ = get_processed_dataset(
+            model_args=MODEL_ARGS, data_args=DATA_ARGS, train_args=TRAIN_ARGS
+        )
+
+        assert isinstance(formatted_train_dataset, Dataset)
+        assert set(formatted_train_dataset.column_names) == set(columns)
+        assert len(formatted_train_dataset) == sum(1 for _ in open(datafile))
+
+        train_dataset_dir = os.path.join(TRAIN_ARGS.output_dir, "train_dataset")
+        save_dataset_shards(
+            formatted_train_dataset,
+            train_dataset_dir,
+            num_dataset_shards,
+            "train_dataset",
+        )
+        assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
