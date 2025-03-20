@@ -55,7 +55,22 @@ def get_data_collator(
             Callable collator to be leveraged by the trainer.
     """
 
+    if packing:
+        if is_traindata_tokenized:
+            # packing with tokenized dataset requires seq2seq collator.
+            return DataCollatorForSeq2Seq(
+                tokenizer=tokenizer, padding=False, max_length=max_seq_length
+            )
+
+        # packing for non tokenized dataset doesn't require a collator with SFTrainer.
+        return None
+
+    # TODO: near term - how response template ids are parsed out needs to be cleaned.
+    # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
+    # otherwise template is not found. We will create issue to clean this out after we discuss
+    # data formats and collators we will support.
     if response_template and instruction_template:
+        # Pass both instruction and response template for chat style training.
         return DataCollatorForCompletionOnlyLM(
             response_template=response_template,
             instruction_template=instruction_template,
@@ -63,36 +78,32 @@ def get_data_collator(
             ignore_index=configs.IGNORE_INDEX,
         )
 
-    if not packing:
-        # TODO: near term - how response template ids are parsed out needs to be cleaned.
-        # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
-        # otherwise template is not found. We will create issue to clean this out after we discuss
-        # data formats and collators we will support.
-        if response_template:
-            response_template_ids = tokenizer.encode(
-                response_template, add_special_tokens=False
-            )[2:]
-            return DataCollatorForCompletionOnlyLM(
-                response_template=response_template_ids,
-                tokenizer=tokenizer,
-                ignore_index=configs.IGNORE_INDEX,
-            )
+    if response_template:
+        response_template_ids = tokenizer.encode(
+            response_template, add_special_tokens=False
+        )[2:]
+        return DataCollatorForCompletionOnlyLM(
+            response_template=response_template_ids,
+            tokenizer=tokenizer,
+            ignore_index=configs.IGNORE_INDEX,
+        )
 
-        if is_padding_free:
-            # when packing is false but padding_free is used and
-            # no response template is used then its a pretrained scenario.
-            # Current plugin in fms-acceleration is compatible with
-            # `DataCollatorForSeq2Seq` collator hence we use this.
-            return DataCollatorForSeq2Seq(
-                tokenizer=tokenizer, padding=False, max_length=max_seq_length
-            )
+    if is_padding_free:
+        # when packing is false but padding_free is used and
+        # no response template is used then its a pretrained scenario.
+        # Current plugin in fms-acceleration is compatible with
+        # `DataCollatorForSeq2Seq` collator hence we use this.
+        return DataCollatorForSeq2Seq(
+            tokenizer=tokenizer, padding=False, max_length=max_seq_length
+        )
 
+    if is_traindata_tokenized:
         # Note that this automatically pads labels with -100
         # TODO check if this is sufficient for preprocessed
-        if is_traindata_tokenized:
-            return DataCollatorForSeq2Seq(
-                tokenizer=tokenizer, padding=True, max_length=max_seq_length
-            )
-        raise ValueError(
-            "Could not pick a data collator. Please refer to supported data formats"
+        return DataCollatorForSeq2Seq(
+            tokenizer=tokenizer, padding=True, max_length=max_seq_length
         )
+
+    raise ValueError(
+        "Could not pick a data collator. Please refer to supported data formats"
+    )
