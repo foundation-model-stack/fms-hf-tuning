@@ -72,8 +72,18 @@ class DataArguments:
     dataset_text_field: str = field(
         default=None,
         metadata={
-            "help": "Training dataset text field containing single sequence. \
+            "help": "[DEPRECATED] "
+                    "Use text_column_name to specify this argument going forward\n"\
+                    "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
+                    or data_formatter_template need to be supplied."
+        },
+    )
+    text_column_name : str = field(
+        default=None,
+        metadata={
+            "help": "Training dataset text column name containing single sequence. \
+                    Either the text_column_name \
                     or data_formatter_template need to be supplied."
         },
     )
@@ -131,6 +141,15 @@ class DataArguments:
         },
     )
 
+    def __post_init__(self):
+        # Initialise deprecated field
+        if self.dataset_text_field:
+            self.text_column_name = self.dataset_text_field
+
+        # TODO: passing "/n" through cli causes parsing issues,
+        # hence providing a temporary fix
+        if self.chat_template:
+            self.chat_template = self.chat_template.replace(r"\n", "\n")
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
