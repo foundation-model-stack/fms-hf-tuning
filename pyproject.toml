@@ -40,6 +40,9 @@ dependencies = [
 "datasets>=2.15.0,<4.0",
 "simpleeval>=0.9.13,<2.0",
 "ochat",
+"packaging",
+"ninja",
+"deepspeed",
 ]
 
 [project.optional-dependencies]
