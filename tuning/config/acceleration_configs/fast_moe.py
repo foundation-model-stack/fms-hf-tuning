@@ -64,7 +64,12 @@ def get_callbacks(**kwargs):
     if is_recover_safetensors_from_dcp_available:
 
         class ConvertAndSaveHFCheckpointAtEverySave(TrainerCallback):
-            def __init__(self, pretrained_model_name_or_path: str, trainer: Trainer, save_model_dir: str):
+            def __init__(
+                self,
+                pretrained_model_name_or_path: str,
+                trainer: Trainer,
+                save_model_dir: str,
+            ):
                 self.pretrained_model_name_or_path = pretrained_model_name_or_path
                 self.trainer = trainer
                 self.save_model_dir = save_model_dir
