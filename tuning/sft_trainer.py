@@ -39,6 +39,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import transformers
+from activatedlora.alora.peft_model_alora import aLoRAPeftModelForCausalLM
+from activatedlora.alora.config import aLoraConfig
 
 # Local
 from tuning.config import configs, peft_config
