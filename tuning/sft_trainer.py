@@ -39,8 +39,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
 import transformers
-from activatedlora.alora.peft_model_alora import aLoRAPeftModelForCausalLM
-from activatedlora.alora.config import aLoraConfig
+from activated_lora.alora.peft_model_alora import aLoRAPeftModelForCausalLM
+from activated_lora.alora.config import aLoraConfig
 
 # Local
 from tuning.config import configs, peft_config
@@ -79,7 +79,7 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
+        Union[peft_config.LoraConfig, aLoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
@@ -377,16 +377,30 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        train_dataset=formatted_train_dataset,
-        eval_dataset=formatted_validation_dataset,
-        data_collator=data_collator,
-        args=training_args,
-        callbacks=trainer_callbacks,
-        peft_config=peft_config,
-    )
+    # activated LoRA
+    if isinstance(peft_config, aLoRAConfig):
+        response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
+        model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
+        trainer = SFTTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            train_dataset=formatted_train_dataset,
+            eval_dataset=formatted_validation_dataset,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=trainer_callbacks,
+        )
+    else:
+        trainer = SFTTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            train_dataset=formatted_train_dataset,
+            eval_dataset=formatted_validation_dataset,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=trainer_callbacks,
+            peft_config=peft_config,
+        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.
