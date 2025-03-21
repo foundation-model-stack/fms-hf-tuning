@@ -11,5 +11,5 @@ datasets:
           remove_columns: all
           batched: false
           fn_kwargs:
-            input_field_name: input
-            output_field_name: output
+            input_column_name: input
+            output_column_name: output
