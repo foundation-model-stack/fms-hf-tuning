@@ -215,6 +215,10 @@ python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokeniz
 
 For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
 
+## Offline Data Preprocessing
+
+If the user wants to perform standalone data preprocessing, decoupled from `tuning/training`, please refer to [this document](docs/offline-data-preprocessing.md).
+
 ## Supported Models
 
 - For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.

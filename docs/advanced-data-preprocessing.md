@@ -279,42 +279,4 @@ If the dataset size is known to the user, `max_steps` can be calculated as the t
 
 We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
 
-## Offline Data preprocessing
-
-[This script](../scripts/offline_data_processing.py) provides the capability for users to perform standalone data 
-preprocessing, decoupled from the tuning/training part. It processes raw datasets, performs data preprocessing, and 
-saves the train and validation datasets (in shards if `--num_dataset_shards` if passed) in parquet format inside the specified `output_dir`. 
-A data config YAML file can be used to pass configuration to this script. Example command to run this script:
-
-```
-python scripts/offline_data_processing.py \
---data_config_path  /path/to/data_config.yaml \
---model_name_or_path "model_name"  \
---max_seq_length 4096 \
---output_dir /path/to/output/directory  \
---log_level info \
---num_dataset_shards 3
-```
-
-Example data config file:
-
-```
-dataprocessor:
-    type: default
-    sampling_stopping_strategy: first_exhausted
-    seed: 66
-datasets:
-  - name: dataset_1
-    data_paths:
-      - tests/artifacts/testdata/jsonl/twitter_complaints_input_output.jsonl
-    data_handlers:
-      - name: tokenize_and_apply_input_masking
-        arguments:
-          remove_columns: all
-          batched: false
-          fn_kwargs:
-            input_field_name: input
-            output_field_name: output
-```
-
 
