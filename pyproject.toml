@@ -52,7 +52,7 @@ fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
 ochat = ["ochat"]
-deepspeed = ["deepspeed"]
+deepspeed = ["deepspeed>=0.16"]
 
 
 [tool.setuptools.packages.find]
