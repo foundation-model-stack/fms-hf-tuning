@@ -43,6 +43,8 @@ RUN dnf remove -y --disableplugin=subscription-manager \
     && dnf update -y \
     && dnf clean all
 
+RUN echo $(pwd)
+
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
@@ -182,7 +184,13 @@ RUN python -m pip uninstall wheel build -y && \
 FROM python-installations AS release
 ARG USER
 ARG PYTHON_VERSION
+ARG USER_UID=1000
 ARG ENABLE_AIM
+
+WORKDIR /
+
+RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
+    chmod g+rx /home/${USER}
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
