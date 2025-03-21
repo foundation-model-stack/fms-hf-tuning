@@ -10,6 +10,6 @@ datasets:
           remove_columns: all
           batched: false
           fn_kwargs:
-            dataset_text_field: "dataset_text_field"
+            formatted_text_column_name: "formatted_text"
             template: "dataset_template"
             add_eos_token: true

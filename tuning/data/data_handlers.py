@@ -118,7 +118,7 @@ def tokenize_and_apply_input_masking(
     add_eos_token: bool = True,
     **kwargs,
 ):
-    """Function (data handler) to tokenize and apply instruction masking on dataset
+    """Function to tokenize and apply instruction masking on dataset
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
@@ -136,7 +136,7 @@ def tokenize_and_apply_input_masking(
         raise ValueError(
             f"Dataset should contain {input_column_name} \
                 and {output_column_name} field if \
-                no dataset_text_field or data_formatter_template specified"
+                no text_column_name or data_formatter_template specified"
         )
 
     input_text = element[input_column_name]
@@ -171,7 +171,7 @@ def add_tokenizer_eos_token(
     text_column_name: str,
     **kwargs,
 ):
-    """Function (data handler) to add tokenizer's EOS token to text field of an element
+    """Function to add tokenizer's EOS token to text field of an element
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
@@ -184,9 +184,7 @@ def add_tokenizer_eos_token(
 
     if text_column_name not in element:
         raise KeyError(f"Dataset should contain {text_column_name} field.")
-    return {
-        f"{text_column_name}": element[f"{text_column_name}"] + tokenizer.eos_token
-    }
+    return {f"{text_column_name}": element[f"{text_column_name}"] + tokenizer.eos_token}
 
 
 def apply_custom_data_formatting_template(
@@ -197,7 +195,7 @@ def apply_custom_data_formatting_template(
     add_eos_token: bool = True,
     **kwargs,
 ):
-    """Function (data handler) to format datasets with Alpaca style / other templates.
+    """Function to format datasets with Alpaca style / other templates.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
@@ -245,7 +243,7 @@ def apply_custom_jinja_template(
     add_eos_token: bool = True,
     **kwargs,
 ):
-    """Function (data handler) to format datasets with jinja templates.
+    """Function to format datasets with jinja templates.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
@@ -299,13 +297,13 @@ def apply_tokenizer_chat_template(
     conversation_column_name: str = None,
     **kwargs,
 ):
-    """Function (data handler) to apply tokenizers chat template to dataset elements.
+    """Function to apply tokenizers chat template to dataset elements.
        Does not tokenize the dataset.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
         tokenizer: Tokenizer to be used.
-        formatted_text_column_name: Name of the column where the rendered text is to 
+        formatted_text_column_name: Name of the column where the rendered text is to
                                     be stored post applying chat template.
         conversation_column_name: If chat template is to be run on full sample pass this as None
                                   if chat template expects to be run on a specific column of the
@@ -342,7 +340,7 @@ def tokenize(
     max_length: int = None,
     **kwargs,
 ):
-    """Function (data handler) to tokenize dataset columns.
+    """Function to tokenize dataset columns.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
@@ -372,14 +370,15 @@ def duplicate_columns(
     new_column_name: str,
     **kwargs,
 ):
-    """Function (data handler) to duplicate one columne of a dataset to another.
+    """Function to duplicate one columne of a dataset to another.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
         old_column_name: Name of the column which is to be duplicated
         new_column_name: Name of the new column where duplicated column is to be saved
     Returns:
-        Formatted HF Dataset element with new_column_name where existing_columns content is deep copied.
+        Formatted HF Dataset element with
+        {"new_column_name": copy.deepcopy("old_column_name")}.
     """
     if not old_column_name or not new_column_name:
         raise ValueError(
@@ -387,11 +386,13 @@ def duplicate_columns(
         )
     if old_column_name not in element:
         raise ValueError(
-            f"Cannot duplicate {old_column_name} to {new_column_name} as column {old_column_name} doesn't exist"
+            "Cannot duplicate %s to %s as column %s doesn't exist"
+            % (old_column_name, new_column_name, old_column_name)
         )
     if new_column_name in element:
         raise ValueError(
-            f"Cannot duplicate {old_column_name} to f{new_column_name} as column {new_column_name} already exists"
+            "Cannot duplicate %s to %s as column %s already exist"
+            % (old_column_name, new_column_name, old_column_name)
         )
 
     return {
@@ -401,11 +402,9 @@ def duplicate_columns(
 
 
 def skip_samples_with_large_columns(
-        element: Dict[str, Any],
-        column_name: str,
-        max_allowed_length: int
-    ):
-    """Function (data handler) to skip samples which contains certain columns {column_name}
+    element: Dict[str, Any], column_name: str, max_allowed_length: int
+):
+    """Function to skip samples which contains certain columns {column_name}
        larger than the passed {max_allowed_length} in the dataset.
        i.e if samples[column_name] <= max_allowed_length its allowed else skipped.
        raises ValueError if
@@ -425,7 +424,7 @@ def skip_samples_with_large_columns(
     """
     if column_name not in element or max_allowed_length is None:
         raise ValueError(
-            "Please provide correct column name and max_allowed_length"\
+            "Please provide correct column name and max_allowed_length"
             "to skip samples with large columns"
         )
     if element[column_name] is None:

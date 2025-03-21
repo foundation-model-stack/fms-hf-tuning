@@ -10,5 +10,5 @@ datasets:
           remove_columns: all
           batched: false
           fn_kwargs:
-            old_column: "input_ids"
-            new_column: "labels"
+            old_column_name: "input_ids"
+            new_column_name: "labels"

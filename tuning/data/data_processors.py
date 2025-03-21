@@ -248,11 +248,14 @@ class DataPreProcessor:
         Rename columns in the dataset using the provided column mapping.
         Uses Huggingface {DatasetDict/IterableDatasetDict}.rename_columns() API
         """
-        if "column_mapping" not in kwargs:
+        fn_kwargs = kwargs.get("fn_kwargs", {})
+        if not isinstance(fn_kwargs, Dict) or "column_mapping" not in fn_kwargs:
             raise ValueError(
-                f"Need to provide column_mapping for {handler.handler_type.name} data handler"
+                "Please pass fn_kwargs dict with key column_mapping for "
+                + " %s data handler" % handler.handler_type.name
             )
-        mapping = kwargs["column_mapping"]
+
+        mapping = fn_kwargs["column_mapping"]
         if mapping is None or not isinstance(mapping, Dict):
             raise ValueError(
                 f"column mapping {mapping} passed to {handler.handler_type.name} data handler "
@@ -266,11 +269,14 @@ class DataPreProcessor:
         Selects specific columns from the dataset.
         Uses HuggingFace {DatasetDict/IterableDatasetDict}.select_columns() API
         """
-        if "column_names" not in kwargs:
+        fn_kwargs = kwargs.get("fn_kwargs", {})
+        if not isinstance(fn_kwargs, Dict) or "column_names" not in fn_kwargs:
             raise ValueError(
-                f"Need to provide column_names for {handler.handler_type.name} data handler"
+                "Please pass fn_kwargs dict with key column_names for "
+                + " %s data handler" % handler.handler_type.name
             )
-        columns = kwargs["column_names"]
+
+        columns = fn_kwargs["column_names"]
         if columns is None or not isinstance(columns, List):
             raise ValueError(
                 f"column names {columns} passed to {handler.handler_type.name} data handler "
@@ -284,11 +290,13 @@ class DataPreProcessor:
         Removes specified columns from the dataset.
         Uses HuggingFace {DatasetDict/IterableDatasetDict}.remove_columns() API
         """
-        if "column_names" not in kwargs:
+        fn_kwargs = kwargs.get("fn_kwargs", {})
+        if not isinstance(fn_kwargs, Dict) or "column_names" not in fn_kwargs:
             raise ValueError(
-                f"Need to provide column_names for {handler.handler_type.name} data handler"
+                "Please pass fn_kwargs dict with key column_names for "
+                + " %s data handler" % handler.handler_type.name
             )
-        columns = kwargs["column_names"]
+        columns = fn_kwargs["column_names"]
         if columns is None or not isinstance(columns, List):
             raise ValueError(
                 f"column names {columns} passed to {handler.handler_type.name} data handler "
@@ -298,15 +306,13 @@ class DataPreProcessor:
         return raw_datasets.remove_columns(column_names=columns)
 
     def __execute_filter_data_handler(self, raw_datasets, handler, **kwargs):
+        if "fn_kwargs" not in kwargs:
+            kwargs["fn_kwargs"] = {}
         return raw_datasets.filter(handler.op, **kwargs)
 
     def __execute_map_data_handler(
         self, raw_datasets, handler, splitName, datasetName, **kwargs
     ):
-
-        if splitName is None or datasetName is None:
-            raise ValueError("whyy")
-
         column_names = None
         if hasattr(raw_datasets[splitName], "column_names"):
             column_names = raw_datasets[splitName].column_names
@@ -340,7 +346,6 @@ class DataPreProcessor:
     def _execute_data_handlers(
         self, raw_datasets, data_handler_config, splitName, datasetName
     ):
-
         handler_name: str = data_handler_config.name
         kwargs: Dict = data_handler_config.arguments
         handler: DataHandler = self._get_registered_datahandler(handler_name)
@@ -372,6 +377,17 @@ class DataPreProcessor:
         logger.info("Applying Handler: %s Args: %s", handler, kwargs)
 
         handler_type = handler.handler_type
+
+        if handler_type is not DataHandlerType.MAP:
+            if "remove_columns" in kwargs:
+                logger.warning(
+                    "remove_columns passed to handler {} "
+                    "will not be used as underlying API doesn't support it".format(
+                        handler
+                    )
+                )
+                kwargs.pop("remove_columns")
+
         if handler_type is DataHandlerType.REMOVE:
             return self.__execute_remove_data_handler(raw_datasets, handler, **kwargs)
         if handler_type is DataHandlerType.SELECT:
