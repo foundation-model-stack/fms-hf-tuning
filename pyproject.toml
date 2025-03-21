@@ -41,6 +41,7 @@ dependencies = [
 "simpleeval>=0.9.13,<2.0",
 "packaging",
 "ninja",
+"deepspeed>=0.16",
 ]
 
 [project.optional-dependencies]
