@@ -89,8 +89,8 @@ def _process_dataconfig_file(
     if processor.processor_config.streaming:
         if train_args.max_steps < 1:
             logging.error(
-                "ValueError: `--max_steps` must be set when streaming is set in data \
-                            preprocessor config"
+                "ValueError: `--max_steps` must be set when streaming is set in data "
+                "preprocessor config"
             )
             raise ValueError(
                 "`--max_steps` must be set when streaming is set in data preprocessor config"
@@ -109,9 +109,11 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
         data_args.response_template
         or data_args.data_formatter_template
         or data_args.dataset_text_field
+        or data_args.instruction_template
     ):
         raise ValueError(
-            "fields response_template, data_formatter_template, and dataset_text_field \
+            "fields response_template, data_formatter_template,"
+            " dataset_text_field and instruction_template \
                             are not applicable for pretokenized datasets"
         )
 
@@ -128,6 +130,7 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
 
 ### Data format 2
+# pylint: disable=unused-argument
 def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
 
     if data_args.response_template is None:
@@ -156,39 +159,37 @@ def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
         # Only one of dataset_text_field or data_formatter_template should be set.
         if data_args.dataset_text_field and data_args.data_formatter_template:
             raise ValueError(
-                "dataset_text_field and data_formatter_template are both set,\
-                but are mutually exclusive options"
+                "dataset_text_field and data_formatter_template are both set, "
+                "but are mutually exclusive options"
             )
 
     fn_kwargs = {}
-    dataset_text_field = data_args.dataset_text_field
 
-    if dataset_text_field is None:
-        dataset_text_field = "new_formatted_field"
-
-    fn_kwargs["dataset_text_field"] = dataset_text_field
-    if data_args.data_formatter_template is None:
+    if data_args.dataset_text_field:
+        fn_kwargs["text_column_name"] = data_args.dataset_text_field
         handler = DataHandlerConfig(
             "add_tokenizer_eos_token",
             arguments={"fn_kwargs": fn_kwargs, "batched": False},
         )
     else:
+        data_args.dataset_text_field = "text"
+        fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
         fn_kwargs["template"] = data_args.data_formatter_template
         handler = DataHandlerConfig(
             "apply_custom_data_formatting_template",
             arguments={"fn_kwargs": fn_kwargs, "batched": False},
         )
-    return [handler], dataset_text_field
+    return [handler], data_args.dataset_text_field
 
 
 ### Default Format 3
 def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
 
     if data_args.dataset_text_field is None:
-        data_args.dataset_text_field = "new_formatted_field"
+        data_args.dataset_text_field = "text"
 
     fn_kwargs = {}
-    fn_kwargs["dataset_text_field"] = data_args.dataset_text_field
+    fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
     kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
@@ -204,8 +205,8 @@ def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
 def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
     fn_kwargs = {}
-    fn_kwargs["input_field_name"] = DEFAULT_INPUT_COLUMN
-    fn_kwargs["output_field_name"] = DEFAULT_OUTPUT_COLUMN
+    fn_kwargs["input_column_name"] = DEFAULT_INPUT_COLUMN
+    fn_kwargs["output_column_name"] = DEFAULT_OUTPUT_COLUMN
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
 
     kwargs = {
@@ -215,7 +216,8 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
     }
 
     handler = DataHandlerConfig("tokenize_and_apply_input_masking", arguments=kwargs)
-    return [handler], data_args.dataset_text_field
+    # This dataset is now tokenized
+    return [handler], None
 
 
 # Process raw dataargs for various usecases.
@@ -280,8 +282,8 @@ def _process_raw_data_args(
     # Lets not pad in tokenizer...we can handle that in the collator
     tokenizer_kwargs["padding"] = False
 
-    handlers = None
-    dataset_text_field = None
+    handlers = dataset_text_field = None
+
     if is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(

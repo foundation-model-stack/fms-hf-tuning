@@ -31,8 +31,8 @@ def get_data_collator(
     instruction_template: Optional[str],
     is_padding_free: bool = False,
 ) -> Callable:
-    """Create and return the the appropriate collator type based on the configuration for packing,
-    response_template, and dataset_text_field.
+    """Create and return the the appropriate collator type based on the configuration
+    for packing, padding_free, chat style training, instruction tuning.
 
     Args:
         packing: bool

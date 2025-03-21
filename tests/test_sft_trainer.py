@@ -41,8 +41,8 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
-    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
-    DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
+    DATA_CONFIG_RENAME_SELECT_COLUMNS,
+    DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
@@ -462,16 +462,16 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
     This test needs the trainer to format data to a single sequence internally.
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        data_formatting_args = copy.deepcopy(DATA_ARGS)
-        data_formatting_args.dataset_text_field = None
-        data_formatting_args.data_formatter_template = (
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = (
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
         )
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -772,23 +772,22 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 def test_run_causallm_ft_pretokenized(dataset_path, packing):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
-
-        data_formatting_args = copy.deepcopy(DATA_ARGS)
+        data_args = copy.deepcopy(DATA_ARGS)
 
         # below args not needed for pretokenized data
-        data_formatting_args.data_formatter_template = None
-        data_formatting_args.dataset_text_field = None
-        data_formatting_args.response_template = None
+        data_args.data_formatter_template = None
+        data_args.dataset_text_field = None
+        data_args.response_template = None
 
         # update the training data path to tokenized data
-        data_formatting_args.training_data_path = dataset_path
+        data_args.training_data_path = dataset_path
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.packing = packing
         train_args.max_seq_length = 256
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -908,7 +907,7 @@ def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
         ),
         (
             [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
     ],
 )
@@ -1047,8 +1046,8 @@ def test_run_training_with_data_tokenized_using_tokenizer_handler():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-def test_run_training_with_skip_large_text_handler():
-    """Ensure that we can train succesfully after using skip large text handler."""
+def test_run_training_with_skip_large_column_handler():
+    """Ensure that we can train succesfully after using skip large column handler."""
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
@@ -1057,8 +1056,8 @@ def test_run_training_with_skip_large_text_handler():
         data_args.response_template = None
         data_args.training_data_path = None
 
-        dataconfigfile = DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER
-        datapath = TWITTER_COMPLAINTS_TOKENIZED_JSON
+        dataconfigfile = DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER
+        datapath = TWITTER_COMPLAINTS_DATA_JSONL
 
         # add data_paths in data_config file
         with tempfile.NamedTemporaryFile(
@@ -1194,7 +1193,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         data_args.instruction_template = "<|user|>"
         data_args.dataset_text_field = "new_formatted_field"
 
-        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        handler_kwargs = {"formatted_text_column_name": data_args.dataset_text_field}
         kwargs = {
             "fn_kwargs": handler_kwargs,
             "batched": False,
@@ -1751,7 +1750,7 @@ def test_pretokenized_dataset(dataset_path):
 
 
 @pytest.mark.parametrize(
-    "dataset_text_field,response_template",
+    "dataset_text_field, response_template",
     [
         ("foo", None),
         (None, "bar"),

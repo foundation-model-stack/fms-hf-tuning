@@ -73,8 +73,8 @@ class DataArguments:
         default=None,
         metadata={
             "help": "Training dataset text field containing single sequence. \
-                    Either the dataset_text_field \
-                    or data_formatter_template need to be supplied."
+             Either the dataset_text_field \
+             or data_formatter_template need to be supplied."
         },
     )
     validation_data_path: str = field(
@@ -130,6 +130,12 @@ class DataArguments:
             Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
+
+    def __post_init__(self):
+        # TODO: passing "/n" through cli causes parsing issues,
+        # hence providing a temporary fix
+        if self.chat_template:
+            self.chat_template = self.chat_template.replace(r"\n", "\n")
 
 
 @dataclass

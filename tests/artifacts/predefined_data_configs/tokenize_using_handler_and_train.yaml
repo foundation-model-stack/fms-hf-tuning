@@ -10,7 +10,7 @@ datasets:
           remove_columns: all
           batched: true
           fn_kwargs:
-            dataset_text_field: "output"
+            text_column_name: "output"
             truncation: True
             max_length: 1024
       - name: duplicate_columns
@@ -18,5 +18,5 @@ datasets:
           remove_columns: all
           batched: true
           fn_kwargs:
-            old_column: "input_ids"
-            new_column: "labels"
+            old_column_name: "input_ids"
+            new_column_name: "labels"
