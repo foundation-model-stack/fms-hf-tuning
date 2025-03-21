@@ -150,7 +150,7 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user "$(head bdist_name)" && \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
     python -m pip install --user "$(head bdist_name)[deepspeed]" && \
-    python -m pip install --user "$(head bdist_name)[ochat]" && \
+    python -m pip install --user "$(head bdist_name)[ochat]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
