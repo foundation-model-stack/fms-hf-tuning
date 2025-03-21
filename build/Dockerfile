@@ -35,7 +35,7 @@ ARG USER_UID
 # Note this is tested to be working for version 3.9, 3.11, 3.12
 RUN dnf remove -y --disableplugin=subscription-manager \
         subscription-manager \
-    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel \
+    && dnf install -y python${PYTHON_VERSION} procps g++ python${PYTHON_VERSION}-devel git \
     && ln -s /usr/bin/python${PYTHON_VERSION} /bin/python \
     && python -m ensurepip --upgrade \
     && python -m pip install --upgrade pip \
@@ -181,16 +181,13 @@ RUN python -m pip uninstall wheel build -y && \
     rm $(head bdist_name) /tmp/bdist_name
 
 ## Final image ################################################
-FROM python-installations AS release
+FROM cuda-devel AS release
 ARG USER
 ARG PYTHON_VERSION
 ARG USER_UID=1000
 ARG ENABLE_AIM
 
 WORKDIR /
-
-RUN useradd -u $USER_UID ${USER} -m -g 0 --system && \
-    chmod g+rx /home/${USER}
 
 RUN mkdir -p /licenses
 COPY LICENSE /licenses/
