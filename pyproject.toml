@@ -39,10 +39,8 @@ dependencies = [
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<4.0",
 "simpleeval>=0.9.13,<2.0",
-"ochat",
 "packaging",
 "ninja",
-"deepspeed",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +51,8 @@ mlflow = ["mlflow"]
 fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
+ochat = ["ochat"]
+deepspeed = ["deepspeed"]
 
 
 [tool.setuptools.packages.find]
