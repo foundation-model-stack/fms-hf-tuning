@@ -22,5 +22,5 @@ datasets:
           remove_columns: all
           batched: false
           fn_kwargs:
-            input_field_name: instruction
-            output_field_name: response
+            input_column_name: instruction
+            output_column_name: response
