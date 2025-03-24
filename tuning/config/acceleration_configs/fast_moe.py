@@ -59,13 +59,20 @@ class FastMoeConfig:
 def get_callbacks(**kwargs):
     pretrained_model_name_or_path = kwargs.pop("pretrained_model_name_or_path")
     trainer = kwargs.pop("trainer")
+    save_model_dir = kwargs.pop("save_model_dir")
     callbacks = []
     if is_recover_safetensors_from_dcp_available:
 
         class ConvertAndSaveHFCheckpointAtEverySave(TrainerCallback):
-            def __init__(self, pretrained_model_name_or_path: str, trainer: Trainer):
+            def __init__(
+                self,
+                pretrained_model_name_or_path: str,
+                trainer: Trainer,
+                save_model_dir: str,
+            ):
                 self.pretrained_model_name_or_path = pretrained_model_name_or_path
                 self.trainer = trainer
+                self.save_model_dir = save_model_dir
 
             def on_save(
                 self,
@@ -76,18 +83,15 @@ def get_callbacks(**kwargs):
             ):
                 """
                 Save all HF files and convert dcp checkpoint to safetensors at every save operation.
+                Also saves the final model in save_model_dir if provided.
                 """
 
-                def checkpoint():
-                    checkpoint_dir = os.path.join(
-                        args.output_dir,
-                        f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}",
-                    )
+                def checkpoint(checkpoint_dir, save_dir):
                     hf_converted_output_dir = os.path.join(
-                        checkpoint_dir, "hf_converted_checkpoint"
+                        save_dir, "hf_converted_checkpoint"
                     )
                     if os.path.exists(hf_converted_output_dir):
-                        # if the folder already exists
+                        # If the folder already exists
                         # we return, since this is possible to happen
                         # saving the checkpointing at the end of the training
                         return
@@ -98,17 +102,17 @@ def get_callbacks(**kwargs):
                             self.pretrained_model_name_or_path,
                             hf_converted_output_dir,
                         )
-                        # save tokenizer
+                        # Save tokenizer
                         if self.trainer.processing_class:
                             self.trainer.processing_class.save_pretrained(
                                 hf_converted_output_dir
                             )
-                        # save training args
+                        # Save training args
                         torch.save(
                             args,
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
-                        # save model config files
+                        # Save model config files
                         self.trainer.model.config.save_pretrained(
                             hf_converted_output_dir
                         )
@@ -116,15 +120,28 @@ def get_callbacks(**kwargs):
                     except Exception as e:
                         raise ValueError(
                             f"Failed to convert the checkpoint {checkpoint_dir}\
-                                to a HF compatible checkpoint"
+                                to a HF compatible checkpoint in {save_dir}"
                         ) from e
 
                 if state.is_world_process_zero:
-                    checkpoint()
+                    # Save periodic checkpoint
+                    checkpoint_dir = os.path.join(
+                        args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}"
+                    )
+                    checkpoint(checkpoint_dir, checkpoint_dir)
+
+                    # If final save directory is provided, save the model there
+                    if (
+                        getattr(self, "save_model_dir", None)
+                        and state.global_step == state.max_steps
+                    ):
+                        if not os.path.exists(self.save_model_dir):
+                            os.mkdir(self.save_model_dir)
+                        checkpoint(checkpoint_dir, self.save_model_dir)
 
         callbacks.append(
             ConvertAndSaveHFCheckpointAtEverySave(
-                pretrained_model_name_or_path, trainer
+                pretrained_model_name_or_path, trainer, save_model_dir
             )
         )
     return callbacks

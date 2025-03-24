@@ -417,6 +417,7 @@ def train(
             active_plugins=framework.active_plugins,
             trainer=trainer,
             pretrained_model_name_or_path=model_args.model_name_or_path,
+            save_model_dir=train_args.save_model_dir,
         ):
             trainer.add_callback(clb)
 

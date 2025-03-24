@@ -761,17 +761,18 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 
 
 @pytest.mark.parametrize(
-    "dataset_path",
+    "dataset_path, packing",
     [
-        TWITTER_COMPLAINTS_TOKENIZED_JSONL,
-        TWITTER_COMPLAINTS_TOKENIZED_JSON,
-        TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
-        TWITTER_COMPLAINTS_TOKENIZED_ARROW,
+        (TWITTER_COMPLAINTS_TOKENIZED_JSONL, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_PARQUET, True),
+        (TWITTER_COMPLAINTS_TOKENIZED_JSON, False),
+        (TWITTER_COMPLAINTS_TOKENIZED_ARROW, False),
     ],
 )
-def test_run_causallm_ft_pretokenized(dataset_path):
+def test_run_causallm_ft_pretokenized(dataset_path, packing):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
+
         data_formatting_args = copy.deepcopy(DATA_ARGS)
 
         # below args not needed for pretokenized data
@@ -784,6 +785,8 @@ def test_run_causallm_ft_pretokenized(dataset_path):
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
+        train_args.packing = packing
+        train_args.max_seq_length = 256
 
         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
 
@@ -1372,6 +1375,34 @@ def test_run_moe_ft_and_inference(dataset_path):
                 _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
             )
         )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        TWITTER_COMPLAINTS_DATA_JSONL,
+    ],
+)
+def test_run_moe_ft_with_save_model_dir(dataset_path):
+    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        save_model_dir = os.path.join(tempdir, "save_model")
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_model_dir = save_model_dir
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        sft_trainer.train(
+            model_args, data_args, train_args, fast_moe_config=fast_moe_config
+        )
+        assert os.path.exists(os.path.join(save_model_dir, "hf_converted_checkpoint"))
 
 
 ############################# Helper functions #############################
