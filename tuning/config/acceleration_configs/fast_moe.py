@@ -14,6 +14,7 @@
 
 # Standard
 from dataclasses import dataclass
+from peft import PeftModel
 import os
 
 # Third Party
@@ -113,9 +114,13 @@ def get_callbacks(**kwargs):
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
                         # Save model config files
-                        self.trainer.model.config.save_pretrained(
-                            hf_converted_output_dir
-                        )
+                        if isinstance(self.trainer.model, PeftModel):
+                            # Save PEFT adapter configuration
+                            PeftModel.save_pretrained(hf_converted_output_dir)
+                        else:
+                            self.trainer.model.config.save_pretrained(
+                                hf_converted_output_dir
+                            )
 
                     except Exception as e:
                         raise ValueError(
