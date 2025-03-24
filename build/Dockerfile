@@ -181,7 +181,7 @@ RUN python -m pip uninstall wheel build -y && \
     rm $(head bdist_name) /tmp/bdist_name
 
 ## Final image ################################################
-FROM cuda-devel AS release
+FROM release-base AS release
 ARG USER
 ARG PYTHON_VERSION
 ARG USER_UID=1000
