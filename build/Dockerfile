@@ -17,7 +17,7 @@
 ARG BASE_UBI_IMAGE_TAG=latest
 ARG USER=tuning
 ARG USER_UID=1000
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.11
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
