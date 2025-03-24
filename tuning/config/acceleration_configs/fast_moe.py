@@ -116,7 +116,7 @@ def get_callbacks(**kwargs):
                         # Save model config files
                         if isinstance(self.trainer.model, PeftModel):
                             # Save PEFT adapter configuration
-                            PeftModel.save_pretrained(hf_converted_output_dir)
+                            PeftModel.save_pretrained(self.trainer.model, hf_converted_output_dir)
                         else:
                             self.trainer.model.config.save_pretrained(
                                 hf_converted_output_dir
