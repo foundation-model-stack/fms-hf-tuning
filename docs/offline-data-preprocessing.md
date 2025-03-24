@@ -44,12 +44,14 @@ This is a sample use case of the offline processing script being applied to a da
 
 In this use case, the chat template is applied to a dataset using the `apply_tokenizer_chat_template` handler, followed by additional data transformation handlers. 
 
+**NOTE**: Streaming of the dataset is not supported when running the offline data preprocessing script. Therefore, in the data config, the `streaming` argument should either be set to `False` or left unassigned. 
+
 ```yaml
 dataprocessor:
   type: default
   sampling_stopping_strategy: first_exhausted
   seed: 66
-  streaming: true
+  streaming: False
   chat_template: |
    {%- for message in messages['messages'] %}
     {%- if message['role'] == 'system' %}
@@ -104,15 +106,13 @@ python scripts/offline_data_processing.py \
 --data_config_path "data_config.yaml" \
 --instruction_template "<|start_of_role|>user<|end_of_role|>" \
 --max_seq_length "8192" \
---max_steps "12400" \
 --model_name_or_path "/test/models/granite-3.1-8b-instruct" \
---num_train_epochs "3" \
 --output_dir "/test/data/offline_processing_shards" \
 --packing "False" \
 --response_template "<|start_of_role|>assistant<|end_of_role|>" \
 --split_batches "true" \
 --use_flash_attn "true" \
---num_datasets_shard "10"
+--num_dataset_shards "10"
 ```
 
 The resulting shards are saved in the directory `/test/data/offline_processing_shards`, as specified by the `--output_dir` argument. These shards can then be used for tuning the model by pointing the `training_data_path` argument to the directory where the shards are stored—in this example, 
