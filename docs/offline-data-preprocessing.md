@@ -1,8 +1,8 @@
 # Offline Data Preprocessing
 
-Our library provides a [script](../scripts/offline_data_processing.py) that allows users to perform standalone data preprocessing, independent of `tuning/training`. This script enables users to process raw datasets, apply basic/advance data preprocessing, and save the train and validation datasets in `Parquet` format inside the specified `output_dir`. When the `--num_dataset_shards` argument is specified, the datasets are divided and saved into multiple shards.
+Our library provides a [script](../scripts/offline_data_processing.py) that allows users to perform standalone data preprocessing, independent of tuning/training. This script enables users to process raw datasets, apply basic/advanced data preprocessing, and save the train and validation datasets in Parquet format inside the specified `output_dir`. When the `--num_dataset_shards` argument is specified, the datasets are divided and saved into multiple shards.
 
-A data configuration YAML file can be used to pass configuration parameters to this script. Example data config file:
+Users can pass any data config to this script. The goal of the script is to take the provided data config and generate a dataset that can be used directly for training, without requiring any online processing. As an example see this data config below:
 
 ```yaml
 dataprocessor:
@@ -35,10 +35,12 @@ python scripts/offline_data_processing.py \
 --num_dataset_shards 3
 ```
 
-Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning, provided they find the sharded datasets beneficial for training.
+Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning by passing it through the `--training_data_path` flag or passing it via `data_paths` argument in data config yaml, provided they find the sharded datasets beneficial for training.
 
 ## Example Usage
 ### Applying Chat Template
+
+This is a sample use case of the offline processing script being applied to a dataset with a chat template, after which the offline processed dataset is used to train a model.
 
 In this use case, the chat template is applied to a dataset using the `apply_tokenizer_chat_template` handler, followed by additional data transformation handlers. 
 

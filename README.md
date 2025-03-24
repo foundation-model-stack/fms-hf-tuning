@@ -217,7 +217,13 @@ For advanced data preprocessing support including mixing and custom preprocessin
 
 ## Offline Data Preprocessing
 
-If the user wants to perform standalone data preprocessing, decoupled from `tuning/training`, please refer to [this document](docs/offline-data-preprocessing.md).
+We also provide a script for the user to perform standalone data preprocessing. Our script for standalone data processing decoupled from the `tuning/training` is [offline_data_processing.py](./scripts/offline_data_processing.py). This script is especially useful if:
+
+1. The user is working with a large dataset and wants to perform the processing in one shot and then train the model directly on the processed dataset.
+
+2. The user wants to test out the data preprocessing outcome before training.
+
+Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to use the offline data processing script.
 
 ## Supported Models
 
