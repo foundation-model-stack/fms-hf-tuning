@@ -33,7 +33,7 @@ def set_special_tokens_dict(
        depending on the tokenizer.
 
     Args:
-        model_args: configs.ModelArguments.
+        tokenizer_name_or_path: configs.ModelArguments.tokenizer_name_or_path
         tokenizer: transformers.PreTrainedTokenizer.
 
     Returns:
