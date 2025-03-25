@@ -85,23 +85,23 @@ Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used for tokenization.
  - `column_names`: List of all the columns in the dataset.
- - `input_field_name`: Name of the input (instruction) field in dataset
- - `output_field_name`: Name of the output field in dataset
+ - `input_column_name`: Name of the input (instruction) column in dataset
+ - `output_column_name`: Name of the output column in dataset
  - `add_eos_token`: should add tokenizer.eos_token to text or not, defaults to True
 
 Returns formatted Dataset element with input_ids, labels and attention_mask columns
 
 ### `add_tokenizer_eos_token`:
-Appends the tokenizer's EOS token to a specified dataset field.
+Appends the tokenizer's EOS token to a specified dataset column.
 
 Type: MAP
 
 Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used for the EOS token, which will be appended when formatting the data into a single sequence. Defaults to empty.
- - `dataset_text_field`: Text column name of the dataset where EOS is to be added.
+ - `text_column_name`: Text column name of the dataset where EOS is to be added.
 
-Returns formatted Dataset element with EOS added to dataset_text_field of the element.
+Returns formatted Dataset element with EOS added to text_column_name of the element.
 
 ### `apply_custom_data_formatting_template`:
 Applies a custom template (e.g., Alpaca style) to format dataset elements.
@@ -112,11 +112,11 @@ Type: MAP
 Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used for the EOS token, which will be appended when formatting the data into a single sequence. Defaults to empty.
- - `dataset_text_field`: Text column name of the dataset where formatted text is saved.
+ - `formatted_text_column_name`: Text column name of the dataset where formatted text is saved.
  - `template`: Template to format data with. Features of Dataset should be referred to by their key.
  - `add_eos_token`: should add tokenizer.eos_token to text or not, defaults to True.
 
-Returns formatted Dataset element by formatting dataset with template+tokenizer.EOS_TOKEN, saving the result to dataset_text_field argument.
+Returns formatted Dataset element by formatting dataset with template+tokenizer.EOS_TOKEN, saving the result to formatted_text_column_name argument.
 
 ### `apply_custom_jinja_template`:
 Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
@@ -126,13 +126,12 @@ Type: MAP
 
 Args:
  - `element`: the HF Dataset element
- - `tokenizer`: Tokenizer to be used for the EOS token, which will be appended
-    when formatting the data into a single sequence. Defaults to empty.
- - `dataset_text_field`: formatted_dataset_field.
+ - `tokenizer`: Tokenizer to be used for the EOS token, which will be appended when formatting the data into a single sequence. Defaults to empty.
+ - `formatted_text_column_name`: Name of the dataset column where formatted text is to be saved. If doesn't exist a new column will be created.
  - `template`: Template to format data with. Features of Dataset should be referred to by their key.
  - `add_eos_token`: should add tokenizer.eos_token to text or not, defaults to True.
 
-Returns formatted HF Dataset element by formatting dataset with provided jinja template, saving the result to dataset_text_field argument.
+Returns formatted HF Dataset element by formatting dataset with provided jinja template, saving the result to formatted_text_column_name argument.
 
 ### `apply_tokenizer_chat_template`:
 Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
@@ -142,24 +141,24 @@ Type: MAP
 Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used.
- - `dataset_text_field`: the field in which to store the rendered text.
+ - `formatted_text_column_name`: the column in which to store the rendered text.
  - `conversation_column`: column name where the chat template expects the conversation
 
-Returns formatted HF Dataset element by formatting dataset with tokenizer's chat template, saving the result to dataset_text_field argument.
+Returns formatted HF Dataset element by formatting dataset with tokenizer's chat template, saving the result to formatted_text_column_name argument.
 
 ### `tokenize`:
-Tokenizes one column of the dataset passed as input `dataset_text_field`.
+Tokenizes one column of the dataset passed as input `text_column_name`.
 
 Type: MAP
 
 Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used.
- - `dataset_text_field`: The dataset field to tokenize.
+ - `text_column_name`: The dataset column to tokenize.
  - `truncation`: Truncation strategy to use, refer the link (https://huggingface.co/docs/transformers/en/pad_truncation). Value defaults to `True`.
  - `max_length`: Max length to truncate the samples to.
 
-Returns tokenized dataset element field `dataset_text_field`
+Returns tokenized dataset element column `text_column_name` in-place
 
 ### `duplicate_columns`:
 Duplicate one columne of a dataset to another new column.
