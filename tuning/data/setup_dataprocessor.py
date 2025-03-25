@@ -396,10 +396,6 @@ def process_dataargs(
         is_padding_free=is_padding_free,
     )
 
-    dataset_kwargs = {}
-    if is_tokenized_dataset:
-        dataset_kwargs["skip_prepare_dataset"] = True
-
     if isinstance(train_dataset, IterableDataset):
         train_args.accelerator_config = {"split_batches": True}
         logger.info(
@@ -415,5 +411,5 @@ def process_dataargs(
         dataset_text_field,
         data_collator,
         max_seq_length,
-        dataset_kwargs,
+        None,
     )
