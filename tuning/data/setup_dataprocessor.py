@@ -218,6 +218,52 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
     return [handler], data_args.dataset_text_field
 
 
+### Vsion Data Format
+def _get_vision_dataset_handlers(data_args, processor):
+
+    handlers = []
+
+    # First data handler configuration
+    fn_kwargs1 = {
+        "processor": processor,
+        "dataset_text_field": data_args.dataset_text_field,
+        "chat_data_key": data_args.dataset_text_field,
+    }
+    kwargs1 = {
+        "fn_kwargs": fn_kwargs1,
+        "batched": False,
+        "remove_columns": None,
+    }
+    handlers.append(
+        DataHandlerConfig("apply_tokenizer_chat_template", arguments=kwargs1)
+    )
+
+    # Second data handler configuration
+    processor_kwargs = {
+        "return_tensors": "pt",
+        "padding": True,
+    }
+    fn_kwargs2 = {
+        "processor": processor,
+        "fields_name": {
+            "dataset_text_field": data_args.dataset_text_field,
+            "dataset_image_field": data_args.dataset_image_field,
+        },
+        "processor_kwargs": processor_kwargs,
+    }
+    kwargs2 = {
+        "fn_kwargs": fn_kwargs2,
+        "batched": True,
+        "remove_columns": "all",
+        "num_proc": None,
+    }
+    handlers.append(
+        DataHandlerConfig("apply_multimodal_data_processor", arguments=kwargs2)
+    )
+
+    return handlers, data_args.dataset_text_field
+
+
 # Process raw dataargs for various usecases.
 # Data Format 1: Pretokenized Data
 #   Use pretokenized data as-is without preprocessing.
@@ -238,6 +284,7 @@ def _process_raw_data_args(
     max_seq_length: int,
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
+    processor=None,
 ):
 
     # Create a data processor with default processor config
@@ -282,7 +329,14 @@ def _process_raw_data_args(
 
     handlers = None
     dataset_text_field = None
-    if is_traindata_tokenized:
+
+    # TODO: Better way to handle vision if condition
+    if data_args.dataset_text_field and data_args.dataset_image_field:
+
+        handlers, dataset_text_field = _get_vision_dataset_handlers(
+            data_args, processor
+        )
+    elif is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
@@ -331,6 +385,7 @@ def process_dataargs(
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
+    processor=None,
 ):
     """
     Args:
@@ -343,6 +398,9 @@ def process_dataargs(
             which need to be registered with the data preprocessor
         is_padding_free: A bool representing if Padding free plugin is enabled.
                          Defaults to False.
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model. Defaults to None.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing
@@ -379,12 +437,22 @@ def process_dataargs(
             max_seq_length,
             additional_data_handlers,
             is_padding_free,
+            processor,
         )
 
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to
     #       check if we already tokenized the dataset or not.
     is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
+
+    if processor and not (
+        data_args.dataset_text_field or data_args.dataset_image_field
+    ):
+        raise ValueError(
+            f"When running a vision model you must provide the dataset_text_field and \
+            dataset_image_field for the columns in the dataset. Values should be from \
+            column names: {train_dataset.column_names}",
+        )
 
     data_collator = get_data_collator(
         train_args.packing,
@@ -394,7 +462,12 @@ def process_dataargs(
         max_seq_length,
         data_args.instruction_template,
         is_padding_free=is_padding_free,
+        processor=processor,
     )
+
+    dataset_kwargs = {}
+    if is_tokenized_dataset or processor is not None:
+        dataset_kwargs["skip_prepare_dataset"] = True
 
     if isinstance(train_dataset, IterableDataset):
         train_args.accelerator_config = {"split_batches": True}
