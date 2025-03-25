@@ -1,10 +1,13 @@
 # Data Handlers
-Data handlers, are routines which process a dataset using [HF process frameworks](https://huggingface.co/docs/datasets/en/process) including map, filter, remove, select, and rename. 
-All data handler routines are registered with our data preprocessor as a `k:func` object where
-`k` is the name (`str`) of the data handler and `func` (`callable`) is the function which is called.
+Data handlers, as explained above, are routines which process the dataset using [Hugging Face process frameworks](https://huggingface.co/docs/datasets/en/process) including `map`, `filter`, `remove`, `select`, and `rename`.
+Data handlers are routines which process a dataset using [Hugging Face process frameworks](https://huggingface.co/docs/datasets/en/process) including `map`, `filter`, `remove`, `select`, and `rename_columns`. Each data handler routines are registered with our data preprocessor as a `k:func` object, where:
 
-In the data config, users can request which data handler to apply by requesting the corresponding `name`
-with which the data handler was registered and specifying the appropriate `arguments`. Each data handler accepts two types of arguments via `DataHandlerArguments` (as defined in the data preprocessor [schema](./advanced-data-preprocessing.md#what-is-data-config-schema)), as shown below.
+- k (str): The name of the data handler.
+- func (callable): The function called to perform the operation.
+
+In the data config, you can request a particular data handler by referring to its registered `name` and specifying the appropriate arguments. Each data handler accepts two types of arguments via `DataHandlerArguments` (defined in the data preprocessor [schema](https://github.com/foundation-model-stack/fms-hf-tuning/pull/494/advanced-data-preprocessing.md#what-is-data-config-schema)):
+- Top-level arguments `argumets` – Control the behavior of the handler itself.
+- Key word arguments `fn_kwargs` – Passed directly to the underlying Hugging Face Datasets API call (e.g., `map`, `filter`, etc.).
 
 ```yaml
 datapreprocessor:
@@ -41,6 +44,32 @@ For example, users can pass `batched` through `arguments` to ensure [batched pro
 
 Users can also pass any number of `kwargs` arguments required for each data handling `routine` function as [`fn_kwargs`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.map.fn_kwargs) inside the arguments.
 
+A typical YAML snippet might look like:
+
+```yaml
+datapreprocessor:
+  ...
+  datasets:
+    - name: my_dataset
+      data_paths:
+        - /path/to/my_dataset
+      data_handlers:
+        - name: tokenize
+          arguments:
+            # Additional kwargs passed directly to the underlying HF API call
+            batched: false
+            num_proc: 10
+            
+            fn_kwargs:
+              # Any arguments specific to the tokenize handler itself
+              truncation: true
+              max_length: 1280
+```
+
+For example, `num_proc` and `batched` in the snippet above are passed straight to 
+`datasets.Dataset.map(...) ` while, the `truncation` and `max_length` arguments 
+in the snippet above directly control how the handler performs tokenization.
+
 
 ## Preexisting data handlers
 This library currently supports the following preexisting data handlers. These handlers could be requested by their same name and users can lookup the function args from [data handlers source code](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py):
@@ -55,7 +84,7 @@ Type: MAP
 Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used for tokenization.
- - `column_names`: Name of all the columns in the dataset.
+ - `column_names`: List of all the columns in the dataset.
  - `input_field_name`: Name of the input (instruction) field in dataset
  - `output_field_name`: Name of the output field in dataset
  - `add_eos_token`: should add tokenizer.eos_token to text or not, defaults to True
@@ -127,7 +156,7 @@ Args:
  - `element`: the HF Dataset element.
  - `tokenizer`: Tokenizer to be used.
  - `dataset_text_field`: The dataset field to tokenize.
- - `truncation`: Truncation strategy to use, refer the link (https://huggingface.co/docs/transformers/en/pad_truncation).
+ - `truncation`: Truncation strategy to use, refer the link (https://huggingface.co/docs/transformers/en/pad_truncation). Value defaults to `True`.
  - `max_length`: Max length to truncate the samples to.
 
 Returns tokenized dataset element field `dataset_text_field`
@@ -154,7 +183,7 @@ Args:
  - `column_name`: Name of column to be filtered.
  - `max_length`: Max allowed lenght of column in either characters or tokens.
 
- Returns a filtered dataset which contains elements with length shorter than max length
+Returns a filtered dataset which contains elements with length shorter than max length
 
 ### `remove_columns`:
 Directly calls [remove_columns](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.remove_columns) in HF API
@@ -162,7 +191,7 @@ Directly calls [remove_columns](https://huggingface.co/docs/datasets/v3.2.0/en/p
 Type: REMOVE
 
 Args:
- - `column_names`: Names of columns to be removed from dataset
+ - `column_names`: List of columns to be removed from dataset
 
 Removes specified columns of dataset
 
@@ -172,7 +201,7 @@ Directly calls [select](https://huggingface.co/docs/datasets/v3.2.0/en/package_r
 Type: SELECT
 
 Args:
- - `column_names`: Names of columns to be retained in the new dataset
+ - `column_names`: Lust of columns to be retained in the new dataset
 
 Create a new dataset with rows selected following the list/array of indices.
 

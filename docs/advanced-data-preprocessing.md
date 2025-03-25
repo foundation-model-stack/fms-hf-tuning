@@ -168,7 +168,7 @@ The order of application of these operations is *strictly rename followed by ret
 
 Data handlers, as explained above, are routines which process the dataset using [HF process frameworks](https://huggingface.co/docs/datasets/en/process) including map, filter, remove, select, and rename. 
 
-For a thorough explanation of data handlers, how to use them, see the [data handlers document](./advanced-data-handlers.md)
+For a thorough explanation of data handlers and how to use them, refer to the [Data Handlers documentation](./advanced-data-handlers.md)
 
 ### Data Mixing
 Dataset mixing allows users to mix multiple datasets often with different `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
