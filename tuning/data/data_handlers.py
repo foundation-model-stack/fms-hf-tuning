@@ -317,7 +317,7 @@ def apply_tokenizer_chat_template(
             "Tokenizer does not contain tokenizer.chat_template\
                           please pass data_args.chat_template"
         )
-    if conversation_column_name:
+    if conversation_column_name and conversation_column_name in element:
         converation = element[conversation_column_name]
     else:
         converation = element
