@@ -46,6 +46,14 @@ pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
+*Debug recommendation:* While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
+
+```
+pip uninstall flash-attn
+pip cache purge
+pip install fms-hf-tuning[flash-attn]
+```
+
 ### Using FMS-Acceleration
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
