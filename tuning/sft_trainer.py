@@ -37,10 +37,10 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
-from trl import SFTConfig, SFTTrainer
+from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
-from activated_lora.alora.peft_model_alora import aLoRAPeftModelForCausalLM
-from activated_lora.alora.config import aLoraConfig
+from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+from alora.config import aLoraConfig
 
 # Local
 from tuning.config import configs, peft_config
@@ -378,9 +378,11 @@ def train(
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
     # activated LoRA
-    if isinstance(peft_config, aLoRAConfig):
+    if isinstance(peft_config, aLoraConfig):
+        tokenizer.padding_side='right'
         response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
         model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
+        data_collator = DataCollatorForCompletionOnlyLM(invocation_string, tokenizer=tokenizer)
         trainer = SFTTrainer(
             model=model,
             tokenizer=tokenizer,
@@ -508,7 +510,7 @@ def get_parser():
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices=["pt", "lora", None, "none"],
+        choices=["pt", "lora","alora", None, "none"],
         default="none",
     )
 
@@ -518,6 +520,12 @@ def get_parser():
         default=None,
         help='Pass a json string representing K:V pairs to be associated\
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
+    )
+    parser.add_argument(
+            "--invocation_string",
+            type=str,
+            default=None,
+            help='Pass a invocation string that will be used to activate the aLoRA. This needs to be present in each training data row.',
     )
     return parser
 
@@ -540,7 +548,7 @@ def parse_arguments(parser, json_config=None):
             Configuration for training model.
         TrainerControllerArguments
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
-        PromptTuningConfig/LoraConfig/None
+        PromptTuningConfig/LoraConfig/aLoRAConfig/None
             Configuration for running PEFT, different depending on type of PEFT.
         FileLoggingTrackerConfig
             Configuration for training log file.
@@ -580,6 +588,11 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
+        invocation_string = json_config.get("invocation_string")
+        if peft_method == "alora":
+            if invocation_string is None:
+                error("invocation_string needed for aLoRA")
+
     else:
         (
             model_args,
@@ -602,9 +615,14 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
-
+        invocation_string = additional.invocation_string
+        if peft_method == "alora":  
+            if invocation_string is None:
+                error("invocation_string needed for aLoRA")
     if peft_method == "lora":
         tune_config = lora_config
+    elif peft_method == "alora": 
+        tune_config = aLoraConfig(**vars(lora_config), invocation_string=invocation_string)
     elif peft_method == "pt":
         tune_config = prompt_tuning_config
     else:
@@ -764,7 +782,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(tune_config, peft_config.LoraConfig):
+    if isinstance(tune_config, peft_config.LoraConfig) or isinstance(tune_config, aLoraConfig):
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts
