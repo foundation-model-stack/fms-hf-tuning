@@ -35,11 +35,11 @@ dependencies = [
 "tokenizers>=0.13.3,<1.0",
 "tqdm>=4.66.2,<5.0",
 "trl>=0.13,<0.15",
-"peft>=0.8.0,<0.14",
+"peft>=0.8.0,<=0.14",
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=2.15.0,<4.0",
 "simpleeval>=0.9.13,<2.0",
-"git+https://github.ibm.com/Kristjan-H-Greenewald/activated-lora.git@main#egg=activated_lora",
+"alora @ git+ssh://git@github.ibm.com/Kristjan-H-Greenewald/activated-lora.git@main",
 ]
 
 [project.optional-dependencies]
