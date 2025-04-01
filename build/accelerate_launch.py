@@ -145,6 +145,13 @@ def main():
                 post_process_vLLM_adapters_new_tokens(
                     save_model_dir, save_model_dir, num_added_tokens
                 )
+                hf_converted_checkpoint = os.path.join(save_model_dir, "hf_converted_checkpoint")
+                if os.path.exists(
+                    os.path.join(hf_converted_checkpoint, "adapter_model.safetensors")
+                ):
+                    post_process_vLLM_adapters_new_tokens(
+                        hf_converted_checkpoint, hf_converted_checkpoint, num_added_tokens
+                    )
 
         if (
             os.path.exists(os.path.join(output_dir, "added_tokens_info.json"))
