@@ -820,7 +820,10 @@ Notes:
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
  * Notes on Fast MoE
-    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `--fast_moe` takes either an integer or boolean value.
+      - When its an integer it enables expert parallel sharding with the given expert parallel degree along with Scatter MoE kernels.
+      - When its boolean False, it is Scatter MoE Kernels with complete replication of experts across ranks.
+      - When its boolean True, it is Scatter MoE Kernels with experts sharded based on the top level sharding protocol (e.g. FSDP).
     - `world_size` must be divisible by the `ep_degree`
     - Running fast moe modifies the state dict of the model, and must be post-processed which happens automatically and the converted checkpoint can be found at `hf_converted_checkpoint` folder within every saved checkpoint directory. Alternatively, we can perform similar option manually through [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) script.
       - The typical usecase for this script is to run:
