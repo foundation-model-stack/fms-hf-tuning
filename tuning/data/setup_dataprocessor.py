@@ -20,7 +20,7 @@ import logging
 from datasets import Dataset, IterableDataset
 
 # Third
-from transformers import AutoTokenizer
+from transformers import AutoProcessor, AutoTokenizer
 
 # Local
 from tuning.config.configs import DataArguments, TrainingArguments
@@ -219,15 +219,14 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
 
 ### Vsion Data Format
-def _get_vision_dataset_handlers(data_args, processor):
+def _get_vision_dataset_handlers(data_args, processor_kwargs):
 
     handlers = []
 
     # First data handler configuration
     fn_kwargs1 = {
-        "processor": processor,
         "dataset_text_field": data_args.dataset_text_field,
-        "chat_data_key": data_args.dataset_text_field,
+        "conversation_column": data_args.dataset_text_field,
     }
     kwargs1 = {
         "fn_kwargs": fn_kwargs1,
@@ -239,12 +238,7 @@ def _get_vision_dataset_handlers(data_args, processor):
     )
 
     # Second data handler configuration
-    processor_kwargs = {
-        "return_tensors": "pt",
-        "padding": True,
-    }
     fn_kwargs2 = {
-        "processor": processor,
         "fields_name": {
             "dataset_text_field": data_args.dataset_text_field,
             "dataset_image_field": data_args.dataset_image_field,
@@ -253,12 +247,11 @@ def _get_vision_dataset_handlers(data_args, processor):
     }
     kwargs2 = {
         "fn_kwargs": fn_kwargs2,
-        "batched": True,
-        "remove_columns": "all",
+        "batched": False,
         "num_proc": None,
     }
     handlers.append(
-        DataHandlerConfig("apply_multimodal_data_processor", arguments=kwargs2)
+        DataHandlerConfig("prepare_multimodal_data_processor", arguments=kwargs2)
     )
 
     return handlers, data_args.dataset_text_field
@@ -284,14 +277,16 @@ def _process_raw_data_args(
     max_seq_length: int,
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
-    processor=None,
+    processor: AutoProcessor = None,
 ):
 
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
+    default_processor_config.streaming = data_args.use_streaming_dataset
     data_processor = get_datapreprocessor(
         processor_config=default_processor_config,
         tokenizer=tokenizer,
+        image_processor=processor,
         additional_data_handlers=additional_data_handlers,
     )
     assert isinstance(
@@ -327,19 +322,23 @@ def _process_raw_data_args(
     # Lets not pad in tokenizer...we can handle that in the collator
     tokenizer_kwargs["padding"] = False
 
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = not is_padding_free
+
     handlers = None
     dataset_text_field = None
 
-    # TODO: Better way to handle vision if condition
-    if data_args.dataset_text_field and data_args.dataset_image_field:
-
-        handlers, dataset_text_field = _get_vision_dataset_handlers(
-            data_args, processor
-        )
-    elif is_traindata_tokenized:
+    if is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
+        )
+    # TODO: Better way to handle vision this elif condition
+    elif data_args.dataset_text_field and data_args.dataset_image_field:
+
+        handlers, dataset_text_field = _get_vision_dataset_handlers(
+            data_args, processor_kwargs
         )
     elif data_args.instruction_template and data_args.response_template:
         # Data Format 2: Chat dataset with instruction and response template
@@ -385,7 +384,7 @@ def process_dataargs(
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
-    processor=None,
+    processor: AutoProcessor = None,
 ):
     """
     Args:
@@ -425,6 +424,15 @@ def process_dataargs(
 
     train_dataset = eval_dataset = dataset_text_field = None
 
+    if processor and not (
+        data_args.dataset_text_field or data_args.dataset_image_field
+    ):
+        raise ValueError(
+            f"When running a vision model you must provide the dataset_text_field and \
+            dataset_image_field for the columns in the dataset. Values should be from \
+            column names: {train_dataset.column_names}",
+        )
+
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
             data_args, train_args, tokenizer, additional_data_handlers
@@ -445,15 +453,6 @@ def process_dataargs(
     #       check if we already tokenized the dataset or not.
     is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
-    if processor and not (
-        data_args.dataset_text_field or data_args.dataset_image_field
-    ):
-        raise ValueError(
-            f"When running a vision model you must provide the dataset_text_field and \
-            dataset_image_field for the columns in the dataset. Values should be from \
-            column names: {train_dataset.column_names}",
-        )
-
     data_collator = get_data_collator(
         train_args.packing,
         data_args.response_template,
@@ -466,7 +465,7 @@ def process_dataargs(
     )
 
     dataset_kwargs = {}
-    if is_tokenized_dataset or processor is not None:
+    if processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True
 
     if isinstance(train_dataset, IterableDataset):

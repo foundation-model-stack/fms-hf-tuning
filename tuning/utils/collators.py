@@ -11,45 +11,85 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
-import torch
+
+# Local
+from tuning.utils.utils import try_convert_bytes_dict_to_pil
 
 
 class VisionDataCollator:
+    """
+    A data collator specialized for multi-modal (text + image) inputs.
+    It uses a processor (e.g., LlavaProcessor or MllamaProcessor) to
+    combine text and images into model-ready tensors.
+
+    For padding-free tuning, configure the processor's arguments
+    in `processor_kwargs`, for example:
+        processor_kwargs = {
+            "padding": False,
+            "max_length": 1024,
+            ...
+        }
+
+    Args:
+        processor: A processor (like `LlavaProcessor`, `MllamaProcessor`, etc.).
+    """
+
     def __init__(self, processor):
         self.processor = processor
 
     def __call__(self, features):
         """
-        Collator function for batching already padded inputs.
+        Collate function that:
+            1. Extracts text and image data from each example in `features`.
+            2. Uses `self.processor` to tokenize/encode them into a single batch.
+            3. Creates `labels` by cloning `input_ids` and masking out:
+                - Padding tokens (if `pad_token_id` is defined) with `-100`.
+                - Special image tokens with `-100`.
 
         Args:
-            features (List[Dict[str, List[Any]]]): A list of dict, where each dict
-            represents a single example in the batch. The dict contains key as
-            input_ids, attention_mask, pixel_values etc.
+            features (List[Dict[str, Any]]):
+                A list of examples (dicts). Each dict must have:
+                - "processor_kwargs": Additional arguments passed to the processor.
+                - "fields_name": A dict with "dataset_text_field" and "dataset_image_field"
+                that identify the text and image keys inside each example.
 
         Returns:
-            batch (Dict[str, torch.Tensor]): A dict where each key corresponds to a batched tensor
-            created from the respective feature key in `features`. A new key `"labels"` is added,
-            which is a clone of `"input_ids"` with padding and image tokens masked as `-100`.
+            batch (Dict[str, torch.Tensor]):
+                A dict where each key corresponds to a batched tensor created from the
+                respective feature key in `features`. A new key `"labels"` is added,
+                which is a clone of `"input_ids"` with padding and image tokens masked as `-100`.
         """
 
-        # The labels are the input_ids, and we mask the padding tokens in the loss computation
-        # As chat template is applied so it should be set.
-        batch = {}
-        for key in features[0].keys():
-            values = [feature[key] for feature in features]
-            batch[key] = torch.tensor(values)
+        # Pull out the keys that point to text & image fields, along with processor kwargs
+        processor_kwargs = features[0]["processor_kwargs"]
+        fields_name = features[0]["fields_name"]
+        text_field = fields_name["dataset_text_field"]
+        image_field = fields_name["dataset_image_field"]
 
+        # Extract lists of text and images across all examples in the batch
+        batch_text = [feature[text_field] for feature in features]
+        batch_image = [feature[image_field] for feature in features]
+
+        # Convert any byte-based image data to PIL images (if needed)
+        batch_image = try_convert_bytes_dict_to_pil(batch_image)
+
+        # Let the processor tokenize/combine text & images into a batch
+        batch = self.processor(text=batch_text, images=batch_image, **processor_kwargs)
+
+        # Clone input_ids to create labels
         labels = batch["input_ids"].clone()
+
+        # Mask out pad tokens if the processor's tokenizer defines a pad_token_id
         if self.processor.tokenizer.pad_token_id is not None:
             labels[labels == self.processor.tokenizer.pad_token_id] = -100
 
-        # Ignore the image token index in the loss computation (model specific)
+        # Mask out special image tokens so they're ignored for the language loss
         image_token_id = self.processor.tokenizer.convert_tokens_to_ids(
             self.processor.image_token
         )
         labels[labels == image_token_id] = -100
+
+        # Include these masked labels in the batch
         batch["labels"] = labels
 
         return batch
