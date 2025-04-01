@@ -26,6 +26,7 @@ from jinja2.sandbox import SandboxedEnvironment, SecurityError
 from transformers import (
     AutoProcessor,
     AutoTokenizer,
+    GPT2TokenizerFast,
     LlavaNextProcessor,
     LlavaProcessor,
 )
@@ -341,8 +342,8 @@ def apply_multimodal_data_processor(
         if isinstance(image, list) and image and isinstance(image[0], list):
             image = [img[0] for img in image]
 
-    # If LlavaNextProcessor then convert mode of image to RGB. Process of Granite-3.2-Vision Model
-    elif isinstance(processor, LlavaNextProcessor):
+    # Granite-3.2-Vision Model only take first image
+    elif isinstance(processor, LlavaNextProcessor) and isinstance(processor.tokenizer, GPT2TokenizerFast):
         if isinstance(image, list) and image and isinstance(image[0], list):
             image = [
                 img[0].convert("RGB") if img[0].mode != "RGB" else img[0]
