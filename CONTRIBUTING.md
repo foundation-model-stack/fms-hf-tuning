@@ -31,7 +31,7 @@ Guide](https://github.com/kubernetes/community/blob/master/contributors/guide/gi
 from Kubernetes.
 
 When your contribution is ready, you can create a pull request. Pull requests are often referred to as "PR". In general, we follow the standard [GitHub pull request](https://help.github.com/en/articles/about-pull-requests) process. Follow the template to provide details about your pull request to the maintainers. 
-1. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes. 
+1. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes in the PR description. 
 2. We require new unit tests to be contributed with any new functionality added.
 3. We require each feature to be documented as part of the PR. If certain feature is experimental and not documented it will be announced as a dev preview.
 
