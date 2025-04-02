@@ -53,6 +53,7 @@ from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
+from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
@@ -339,16 +340,28 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        train_dataset=formatted_train_dataset,
-        eval_dataset=formatted_validation_dataset,
-        data_collator=data_collator,
-        args=training_args,
-        callbacks=trainer_callbacks,
-        peft_config=peft_config,
-    )
+    if train_args.enable_reduce_loss_sum:
+        trainer = SumLossSFTTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            train_dataset=formatted_train_dataset,
+            eval_dataset=formatted_validation_dataset,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=trainer_callbacks,
+            peft_config=peft_config,
+        )
+    else:
+        trainer = SFTTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            train_dataset=formatted_train_dataset,
+            eval_dataset=formatted_validation_dataset,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=trainer_callbacks,
+            peft_config=peft_config,
+        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

@@ -208,6 +208,12 @@ class TrainingArguments(transformers.TrainingArguments):
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
         },
     )
+    enable_reduce_loss_sum: bool = field(
+        default=False,
+        metadata={
+            "help": "This function enables reduce_loss = sum in OpenInstruct style."
+        },
+    )
 
 
 @dataclass
