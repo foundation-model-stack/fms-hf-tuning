@@ -15,14 +15,23 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
+# Standard
+import copy
+
 # Third Party
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForVision2Seq,
+    AutoProcessor,
+    AutoTokenizer,
+)
 import torch
 
 # Local
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
+LLAMA_VISION_MODEL_NAME = "tests/artifacts/tiny-llama-vision-model"
 INPUT_TEXT = "### Text: @NortonSupport Thanks much.\n\n### Label:"
 
 
@@ -140,3 +149,41 @@ def test_resize_with_multiple_of():
     assert model.get_input_embeddings().embedding_dim % 8 == 0
     assert resize_result["new_embedding_size"] % 8 == 0
     assert model.get_output_embeddings().out_features % 8 == 0
+
+
+def test_resize_llama_vision_model():
+    model = AutoModelForVision2Seq.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    processor = AutoProcessor.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    tokenizer = processor.tokenizer
+
+    current_input_embeddings = model.get_input_embeddings()
+    current_input_embeddings = copy.deepcopy(current_input_embeddings)
+    current_output_embeddings = model.get_output_embeddings()
+    current_output_embeddings = copy.deepcopy(current_output_embeddings)
+
+    current_tokenizer_len = len(tokenizer.get_vocab())
+
+    resize_result = tokenizer_and_embedding_resize(
+        special_tokens_dict={"unk_token": "<unk>"},
+        tokenizer=tokenizer,
+        model=model,
+        multiple_of=1,
+    )
+
+    resized_input_embeddings = model.get_input_embeddings()
+    resized_output_embeddings = model.get_output_embeddings()
+    resized_tokenizer_len = len(tokenizer.get_vocab())
+
+    assert resized_tokenizer_len == current_tokenizer_len + 1
+    assert "<unk>" in tokenizer.get_vocab()
+    assert resize_result["num_new_tokens"] == 1
+
+    # 2 new tokens were added: <unk> and <image>
+    assert (
+        resized_output_embeddings.weight.shape[0]
+        == current_output_embeddings.weight.shape[0] + 2
+    )
+    assert (
+        resized_input_embeddings.weight.shape[0]
+        == current_input_embeddings.weight.shape[0] + 2
+    )
