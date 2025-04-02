@@ -46,6 +46,14 @@ pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
 
+*Debug recommendation:* While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
+
+```
+pip uninstall flash-attn
+pip cache purge
+pip install fms-hf-tuning[flash-attn]
+```
+
 ### Using FMS-Acceleration
 
 If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
@@ -214,6 +222,16 @@ python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokeniz
 ### Advanced data preprocessing.
 
 For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
+
+## Offline Data Preprocessing
+
+We also provide a script for the user to perform standalone data preprocessing. Our script for standalone data processing decoupled from the `tuning/training` is [offline_data_processing.py](./scripts/offline_data_processing.py). This script is especially useful if:
+
+1. The user is working with a large dataset and wants to perform the processing in one shot and then train the model directly on the processed dataset.
+
+2. The user wants to test out the data preprocessing outcome before training.
+
+Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to use the offline data processing script.
 
 ## Supported Models
 
@@ -782,7 +800,7 @@ The list of configurations for various `fms_acceleration` plugins:
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 - [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
-  - `--fast_moe`: trains MoE models in parallel, increasing throughput and decreasing memory usage.
+  - `--fast_moe`: trains MoE models in parallel with [Scatter MoE kernels](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/accelerated-moe#fms-acceleration-for-mixture-of-experts), increasing throughput and decreasing memory usage.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
@@ -802,8 +820,13 @@ Notes:
     - works only for *multi-gpu*.
     - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
  * Notes on Fast MoE
-    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `--fast_moe` takes either an integer or boolean value.
+      - When an integer `n` is passed, it enables expert parallel sharding with the expert parallel degree as `n` along with Scatter MoE kernels enabled.
+      - When a boolean is passed, the expert parallel degree defaults to 1 and further the behaviour would be as follows:
+          - if True, it is Scatter MoE Kernels with experts sharded based on the top level sharding protocol (e.g. FSDP).
+          - if False, Scatter MoE Kernels with complete replication of experts across ranks.
     - `world_size` must be divisible by the `ep_degree`
+    - `number of experts` in the MoE module must be divisible by the `ep_degree`
     - Running fast moe modifies the state dict of the model, and must be post-processed which happens automatically and the converted checkpoint can be found at `hf_converted_checkpoint` folder within every saved checkpoint directory. Alternatively, we can perform similar option manually through [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) script.
       - The typical usecase for this script is to run:
         ```

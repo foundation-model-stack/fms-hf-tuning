@@ -434,9 +434,10 @@ class DataPreProcessor:
         # https://github.com/huggingface/trl/blob/e3244d/trl/trainer/sft_trainer.py#L367
         state = PartialState()
 
-        # The local_main_process_first context ensures that the main process runs first per node
+        # The main_process_first context ensures that the main process runs first
         # as we want to reuse HF cache and not redo computation on all nodes
-        with state.local_main_process_first():
+        # For rationale see https://github.com/huggingface/trl/pull/3106
+        with state.main_process_first():
             train_dataset = self._process_dataset_configs(dataset_configs, **kwargs)
 
         return train_dataset
