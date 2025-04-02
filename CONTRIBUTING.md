@@ -52,7 +52,7 @@ Once you've [created a pull request](#how-can-i-contribute), maintainers will re
 - Follow the project coding conventions
 - Write detailed commit messages
 - Break large changes into a logical series of smaller patches, which are easy to understand individually and combine to solve a broader issue
-- Ensure documentation is added on "how to use" for any new capabilities. Ensure follow-up issues are created for documentation and that feature is documented before announcing release.
+Ensure documentation is added on `how to use` any new capabilities. Ensure follow-up issues are created for documentation and that feature is not officially released without full documentation.
 
 Maintainers will perform "squash and merge" actions on PRs in this repo, so it doesn't matter how many commits your PR has, as they will end up being a single commit after merging.
 
