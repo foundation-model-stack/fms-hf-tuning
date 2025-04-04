@@ -5,13 +5,7 @@ import sys
 import traceback
 
 # Third Party
-from transformers import (
-    AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
-)
+from transformers import AutoTokenizer
 
 # Local
 from tuning.config import configs
