@@ -56,7 +56,6 @@ def set_special_tokens_dict(
             special_tokens_dict["pad_token"] = "<pad>"
 
         # Add special tokens only when a custom tokenizer is not passed
-        # TODO: we need to change this, perhaps follow what open instruct does?
         if tokenizer.pad_token is None:
             logger.warning("PAD token set to default, missing in tokenizer")
             special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
