@@ -252,10 +252,6 @@ def train(
     )
 
     if data_args.chat_template:
-        # TODO: passing "/n" through cli causes parsing issues,
-        # hence providing a temporary fix
-        data_args.chat_template = data_args.chat_template.replace(r"\n", "\n")
-
         logger.info("adding chat_template to the tokenizer")
         if tokenizer.chat_template:
             logger.warning(
