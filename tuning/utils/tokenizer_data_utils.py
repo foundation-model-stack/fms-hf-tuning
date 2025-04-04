@@ -35,7 +35,9 @@ def tokenizer_and_embedding_resize(
     Return:
         dict: Metadata on number of added tokens
     """
-    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    num_new_tokens = tokenizer.add_special_tokens(
+        special_tokens_dict=special_tokens_dict, replace_additional_special_tokens=False
+    )
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
     model.resize_token_embeddings(embedding_size)
