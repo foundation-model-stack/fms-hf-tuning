@@ -383,26 +383,17 @@ def train(
         response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
         model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
         data_collator = DataCollatorForCompletionOnlyLM(invocation_string, tokenizer=tokenizer)
-        trainer = SFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=formatted_train_dataset,
-            eval_dataset=formatted_validation_dataset,
-            data_collator=data_collator,
-            args=training_args,
-            callbacks=trainer_callbacks,
-        )
-    else:
-        trainer = SFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=formatted_train_dataset,
-            eval_dataset=formatted_validation_dataset,
-            data_collator=data_collator,
-            args=training_args,
-            callbacks=trainer_callbacks,
-            peft_config=peft_config,
-        )
+        peft_config = None
+    trainer = SFTTrainer(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
+        data_collator=data_collator,
+        args=training_args,
+        callbacks=trainer_callbacks,
+        peft_config=peft_config,
+    )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.
