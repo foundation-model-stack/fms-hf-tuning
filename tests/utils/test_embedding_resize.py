@@ -137,9 +137,7 @@ def test_special_tokens_before_and_after():
     output_tokenizer_len = len(tokenizer.get_vocab())
     addn_spl_tokens_before.extend(addn_spl_tokens_added)
     expected_addn_special_tokens = addn_spl_tokens_before
-    expected_embedding_size = (
-        input_tokenizer_len + len(addn_spl_tokens_added) + 2
-    )
+    expected_embedding_size = input_tokenizer_len + len(addn_spl_tokens_added) + 2
     addn_spl_tokens_after = tokenizer.special_tokens_map.get(
         "additional_special_tokens"
     )
