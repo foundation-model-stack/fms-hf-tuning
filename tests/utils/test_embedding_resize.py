@@ -19,6 +19,9 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
+# First Party
+from tests.artifacts.testdata import CUSTOM_TOKENIZER_TINYLLAMA
+
 # Local
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
@@ -99,6 +102,60 @@ def test_resize_with_special_tokens():
 
     assert output_tokenizer_len == input_tokenizer_len + 2
     assert resize_result["num_new_tokens"] == output_tokenizer_len - input_tokenizer_len
+
+    output = _inference(
+        tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
+    )
+    assert output is not None
+
+
+def test_special_tokens_before_and_after():
+    """Test if additional special tokens added do not replace existing tokens"""
+    input_text = INPUT_TEXT
+    tokenizer = AutoTokenizer.from_pretrained(CUSTOM_TOKENIZER_TINYLLAMA)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+    input_tokenizer_len = len(tokenizer.get_vocab())
+    addn_spl_tokens_before = tokenizer.special_tokens_map.get(
+        "additional_special_tokens"
+    )
+    assert (
+        len(addn_spl_tokens_before) > 0
+    ), "this test needs tokenizer special tokens to not be empty before testing"
+
+    special_tokens_dict = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
+    addn_spl_tokens_added = ["<NotSeenTokenA>", "<NotSeenTokenB>", "<NotSeenTokenC>"]
+    special_tokens_dict["additional_special_tokens"] = addn_spl_tokens_added
+
+    resize_result = tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens_dict,
+        tokenizer=tokenizer,
+        model=model,
+        multiple_of=1,
+    )
+
+    output_tokenizer_len = len(tokenizer.get_vocab())
+    addn_spl_tokens_before.extend(addn_spl_tokens_added)
+    expected_addn_special_tokens = addn_spl_tokens_before
+    expected_embedding_size = input_tokenizer_len + len(addn_spl_tokens_added) + 2
+    addn_spl_tokens_after = tokenizer.special_tokens_map.get(
+        "additional_special_tokens"
+    )
+
+    assert "<SEP>" in tokenizer.get_vocab()
+    assert "<PAD>" in tokenizer.get_vocab()
+    assert output_tokenizer_len == expected_embedding_size
+    assert resize_result["num_new_tokens"] == output_tokenizer_len - input_tokenizer_len
+    assert resize_result["new_embedding_size"] == expected_embedding_size
+
+    assert len(addn_spl_tokens_after) == len(
+        expected_addn_special_tokens
+    ), "length of the additional special tokens after must equal length before plus added tokens"
+
+    for tok in expected_addn_special_tokens:
+        assert (
+            tok in addn_spl_tokens_after
+        ), "additional special tokens added are not in tokenizer"
 
     output = _inference(
         tokenizer=tokenizer, model=model, input_text=input_text, max_new_tokens=20
