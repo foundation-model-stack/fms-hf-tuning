@@ -224,6 +224,7 @@ def train(
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+        use_cache=False if train_args.gradient_checkpointing else True,
     )
 
     # TODO: Move these to a config as well
