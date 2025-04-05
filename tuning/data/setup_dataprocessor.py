@@ -69,11 +69,13 @@ def _process_dataconfig_file(
     train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
     additional_data_handlers: Dict[str, DataHandler] = None,
+    processor: AutoProcessor = None,
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
         processor_config=data_config.dataprocessor,
         tokenizer=tokenizer,
+        image_processor=processor,
         additional_data_handlers=additional_data_handlers,
     )
 
@@ -435,7 +437,7 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, train_args, tokenizer, additional_data_handlers
+            data_args, train_args, tokenizer, additional_data_handlers, processor
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(

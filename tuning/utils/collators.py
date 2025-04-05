@@ -68,7 +68,11 @@ class VisionDataCollator:
 
         # Extract lists of text and images across all examples in the batch
         batch_text = [feature[text_field] for feature in features]
-        batch_image = [feature[image_field] for feature in features]
+        batch_image = [
+            feature[image_field] if isinstance(feature[image_field], list)
+            else [feature[image_field]]
+            for feature in features
+        ]
 
         # Convert any byte-based image data to PIL images (if needed)
         batch_image = try_convert_bytes_dict_to_pil(batch_image)
