@@ -132,7 +132,10 @@ def get_processed_dataset(
 
     if special_tokens_dict:
         logger.info("Adding special tokens: %s", special_tokens_dict)
-        tokenizer.add_special_tokens(special_tokens_dict)
+        tokenizer.add_special_tokens(
+            special_tokens_dict=special_tokens_dict,
+            replace_additional_special_tokens=False,
+        )
 
     # Process data using the provided arguments and tokenizer
     logger.info("Calling process_dataargs to format datasets.")
