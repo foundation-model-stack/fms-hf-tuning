@@ -74,7 +74,8 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
-                    or data_formatter_template need to be supplied."
+                    or data_formatter_template need to be supplied. \
+                    For running vision language model tuning pass the column name for text data."
         },
     )
     validation_data_path: str = field(
@@ -122,12 +123,25 @@ class DataArguments:
             Passed in conjunction with response_template"
         },
     )
+    dataset_image_field: str = field(
+        default=None,
+        metadata={
+            "help": "For running vision language model tuning pass \
+            the column name of the image data in the dataset."
+        },
+    )
     add_special_tokens: List[str] = field(
         default=None,
         metadata={
             "help": "List of special tokens to be added to the tokenizer's vocabulary. \
             Used to add Special Tokens to Tokenizer's Vocabulary,\
             Add special tokens as new tokens and increase vocabulary and model embedding size."
+        },
+    )
+    use_streaming_dataset: bool = field(
+        default=False,
+        metadata={
+            "help": "Use of Streaming with Iterable dataset to be enabled, default is False"
         },
     )
 
