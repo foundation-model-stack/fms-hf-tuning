@@ -184,6 +184,83 @@ For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
 
+#### Aligning dataset formats
+In some cases the chat template might not be aligned with the data format of the dataset. For example, consider the following data sample and suppose we want to use the list of contents associated with the `messages` key from the data sample for our multi-turn training job!
+
+```
+{
+  "messages": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+```
+Different Chat templates support different data formats and the chat template might not always align with the data format of the dataset!
+
+Here is a example of chat template that iterates over the nested data sample by addressing the "messages" key in `for message in messages['messages']` :
+```
+{% for message in messages['messages'] %}\
+  {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {% endif %}\
+  {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+  {% endif %}\
+{% endfor %}
+```
+While the above template might be suitable for certain data formats, not all chat templates access the nested contents in a data sample.
+
+In the following example notice the `for message in messages` line which does not access any nested contents in the data and expects the nested content to be passed directly to the chat template!
+
+```
+{%- for message in messages %}\
+  {%- if message['role'] == 'system' %}\
+  {{- '<|system|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'user' %}\
+  {{- '<|user|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'assistant' %}\
+  {%- if not loop.last %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token + '\n' }}\
+  {%- else %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {%- endif %}\
+  {%- endif %}\
+  {%- if loop.last and add_generation_prompt %}\
+  {{- '<|assistant|>\n' }}\
+  {%- endif %}\
+{%- endfor %}
+```
+
+When working with multi-turn datasets, it's often necessary to extract specific fields from the data depending on the format. For example, in many multi-turn datasets, conversations may be stored under a dedicated key (e.g., `conversations`, `messages`, etc), and you may only need the content of that key for processing.
+
+```
+{
+  "conversations": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+
+```
+To extract and use the conversations field, pass the following flag when running:
+```
+--conversation_column "conversations"
+``` 
+
+Note: For most cases, users following Granite3.1 Instruct chat template are expected to pass `--conversation_column "messages"` while using multi-turn data.
+
+It is recommended to inspect data format for passing the `--conversation_column` flag!
+
+### Guidelines
+
 Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
 
 Following are the Guidelines from us in a flow chart :  

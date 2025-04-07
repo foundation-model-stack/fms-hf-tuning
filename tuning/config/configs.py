@@ -77,6 +77,13 @@ class DataArguments:
                     or data_formatter_template need to be supplied."
         },
     )
+    dataset_conversation_field: str = field(
+        default=None,
+        metadata={
+            "help": "Training dataset text field containing multi-turn chat data. \
+                    Used as key to point multi-turn data field."
+        },
+    )
     validation_data_path: str = field(
         default=None,
         metadata={"help": "Path to the validation data in JSON/JSONL format."},
