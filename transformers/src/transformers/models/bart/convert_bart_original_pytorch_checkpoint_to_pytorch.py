@@ -33,12 +33,7 @@ from transformers import (
 from transformers.utils import logging
 
 
-FAIRSEQ_MODELS = [
-    "bart.large",
-    "bart.large.mnli",
-    "bart.large.cnn",
-    "bart_xsum/model.pt",
-]
+FAIRSEQ_MODELS = ["bart.large", "bart.large.mnli", "bart.large.cnn", "bart_xsum/model.pt"]
 extra_arch = {"bart.large": BartModel, "bart.large.mnli": BartForSequenceClassification}
 if version.parse(fairseq.__version__) < version.parse("0.9.0"):
     raise Exception("requires fairseq >= 0.9.0")
@@ -50,19 +45,10 @@ logger = logging.get_logger(__name__)
 SAMPLE_TEXT = " Hello world! cécé herlolip"
 
 mnli_rename_keys = [
-    (
-        "model.classification_heads.mnli.dense.weight",
-        "classification_head.dense.weight",
-    ),
+    ("model.classification_heads.mnli.dense.weight", "classification_head.dense.weight"),
     ("model.classification_heads.mnli.dense.bias", "classification_head.dense.bias"),
-    (
-        "model.classification_heads.mnli.out_proj.weight",
-        "classification_head.out_proj.weight",
-    ),
-    (
-        "model.classification_heads.mnli.out_proj.bias",
-        "classification_head.out_proj.bias",
-    ),
+    ("model.classification_heads.mnli.out_proj.weight", "classification_head.out_proj.weight"),
+    ("model.classification_heads.mnli.out_proj.bias", "classification_head.out_proj.bias"),
 ]
 
 
@@ -99,9 +85,7 @@ def make_linear_from_emb(emb):
 
 
 @torch.no_grad()
-def convert_bart_checkpoint(
-    checkpoint_path, pytorch_dump_folder_path, hf_checkpoint_name=None
-):
+def convert_bart_checkpoint(checkpoint_path, pytorch_dump_folder_path, hf_checkpoint_name=None):
     """
     Copy/paste/tweak model's weights to our BERT structure.
     """
@@ -115,11 +99,7 @@ def convert_bart_checkpoint(
         hf_checkpoint_name = checkpoint_path.replace(".", "-")
     config = BartConfig.from_pretrained(hf_checkpoint_name)
     tokens = bart.encode(SAMPLE_TEXT).unsqueeze(0)
-    tokens2 = (
-        BartTokenizer.from_pretrained(hf_checkpoint_name)
-        .encode(SAMPLE_TEXT, return_tensors="pt")
-        .unsqueeze(0)
-    )
+    tokens2 = BartTokenizer.from_pretrained(hf_checkpoint_name).encode(SAMPLE_TEXT, return_tensors="pt").unsqueeze(0)
     if not torch.eq(tokens, tokens2).all():
         raise ValueError(
             f"converted tokenizer and pretrained tokenizer returned different output: {tokens} != {tokens2}"
@@ -128,9 +108,7 @@ def convert_bart_checkpoint(
     if checkpoint_path == "bart.large.mnli":
         state_dict = bart.state_dict()
         remove_ignore_keys_(state_dict)
-        state_dict["model.shared.weight"] = state_dict[
-            "model.decoder.embed_tokens.weight"
-        ]
+        state_dict["model.shared.weight"] = state_dict["model.decoder.embed_tokens.weight"]
         for src, dest in mnli_rename_keys:
             rename_key(state_dict, src, dest)
         model = BartForSequenceClassification(config).eval()
@@ -147,9 +125,7 @@ def convert_bart_checkpoint(
             model.load_state_dict(state_dict)
             new_model_outputs = model(tokens).model[0]
         else:
-            model = BartForConditionalGeneration(
-                config
-            ).eval()  # an existing summarization ckpt
+            model = BartForConditionalGeneration(config).eval()  # an existing summarization ckpt
             model.model.load_state_dict(state_dict)
             if hasattr(model, "lm_head"):
                 model.lm_head = make_linear_from_emb(model.model.shared)
@@ -161,9 +137,7 @@ def convert_bart_checkpoint(
             f"`fairseq_output` shape and `new_model_output` shape are different: {fairseq_output.shape=}, {new_model_outputs.shape}"
         )
     if (fairseq_output != new_model_outputs).any().item():
-        raise ValueError(
-            "Some values in `fairseq_output` are different from `new_model_outputs`"
-        )
+        raise ValueError("Some values in `fairseq_output` are different from `new_model_outputs`")
     Path(pytorch_dump_folder_path).mkdir(exist_ok=True)
     model.save_pretrained(pytorch_dump_folder_path)
 
@@ -172,25 +146,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "fairseq_path",
-        type=str,
-        help="bart.large, bart.large.cnn or a path to a model.pt on local filesystem.",
+        "fairseq_path", type=str, help="bart.large, bart.large.cnn or a path to a model.pt on local filesystem."
     )
+    parser.add_argument("pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
     parser.add_argument(
-        "pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
-    parser.add_argument(
-        "--hf_config",
-        default=None,
-        type=str,
-        help="Which huggingface architecture to use: bart-large-xsum",
+        "--hf_config", default=None, type=str, help="Which huggingface architecture to use: bart-large-xsum"
     )
     args = parser.parse_args()
-    convert_bart_checkpoint(
-        args.fairseq_path,
-        args.pytorch_dump_folder_path,
-        hf_checkpoint_name=args.hf_config,
-    )
+    convert_bart_checkpoint(args.fairseq_path, args.pytorch_dump_folder_path, hf_checkpoint_name=args.hf_config)

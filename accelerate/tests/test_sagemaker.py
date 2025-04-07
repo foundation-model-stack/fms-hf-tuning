@@ -11,14 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from dataclasses import dataclass
 import unittest
+from dataclasses import dataclass
 
-# Third Party
 import pytest
 
-# First Party
 from accelerate.commands.config.config_args import SageMakerConfig
 from accelerate.utils import ComputeEnvironment
 from accelerate.utils.launch import _convert_nargs_to_dict
@@ -68,9 +65,7 @@ class MockLaunchConfig(SageMakerConfig):
 class SageMakerLaunch(unittest.TestCase):
     def test_args_convert(self):
         # If no defaults are changed, `to_kwargs` returns an empty dict.
-        converted_args = _convert_nargs_to_dict(
-            MockLaunchConfig.success_training_script_args
-        )
+        converted_args = _convert_nargs_to_dict(MockLaunchConfig.success_training_script_args)
         assert isinstance(converted_args["model_name_or_path"], str)
         assert isinstance(converted_args["do_train"], bool)
         assert isinstance(converted_args["epochs"], int)

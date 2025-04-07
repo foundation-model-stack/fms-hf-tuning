@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
 import torch
 
-# First Party
 from accelerate import Accelerator, DistributedType
 
 
@@ -53,13 +51,7 @@ class LocalSGD:
             self._sync_and_avg_model_params()
             self.model_sync_obj.__exit__(type, value, tb)
 
-    def __init__(
-        self,
-        accelerator: Accelerator,
-        model: torch.nn.Module,
-        local_sgd_steps: int,
-        enabled: bool = True,
-    ):
+    def __init__(self, accelerator: Accelerator, model: torch.nn.Module, local_sgd_steps: int, enabled: bool = True):
         """
         Constructor.
 
@@ -79,12 +71,12 @@ class LocalSGD:
             DistributedType.MULTI_GPU,
             DistributedType.MULTI_XPU,
             DistributedType.MULTI_MLU,
+            DistributedType.MULTI_HPU,
+            DistributedType.MULTI_SDAA,
             DistributedType.MULTI_MUSA,
             DistributedType.MULTI_NPU,
         ]:
-            raise NotImplementedError(
-                "LocalSGD is supported only for CPUs and GPUs (no DeepSpeed or MegatronLM)"
-            )
+            raise NotImplementedError("LocalSGD is supported only for CPUs and GPUs (no DeepSpeed or MegatronLM)")
         self.enabled = enabled and accelerator.distributed_type != DistributedType.NO
         self.num_steps = 0
         if self.enabled:

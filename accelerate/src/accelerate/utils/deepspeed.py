@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from copy import deepcopy
 import base64
 import json
 import os
+from copy import deepcopy
 
-# Third Party
 from torch import optim
 
-# Local
 from ..optimizer import AcceleratedOptimizer
 from ..scheduler import AcceleratedScheduler
 from .dataclasses import DistributedType
@@ -37,13 +34,10 @@ def map_pytorch_optim_to_deepspeed(optimizer):
     Returns the DeepSeedCPUOptimizer (deepspeed.ops) version of the optimizer.
     """
 
-    defaults = {
-        k: v for k, v in optimizer.defaults.items() if k in ["lr", "weight_decay"]
-    }
+    defaults = {k: v for k, v in optimizer.defaults.items() if k in ["lr", "weight_decay"]}
 
     # Select the DeepSpeedCPUOptimizer based on the original optimizer class.
     # DeepSpeedCPUAdam is the default
-    # Third Party
     from deepspeed.ops.adam import DeepSpeedCPUAdam
 
     optimizer_class = DeepSpeedCPUAdam
@@ -54,7 +48,6 @@ def map_pytorch_optim_to_deepspeed(optimizer):
         is_adaw = isinstance(optimizer, optim.AdamW)
 
         if is_bnb_available() and not is_adaw:
-            # Third Party
             import bitsandbytes.optim as bnb_opt
 
             if isinstance(optimizer, (bnb_opt.AdamW, bnb_opt.AdamW32bit)):
@@ -75,7 +68,6 @@ def map_pytorch_optim_to_deepspeed(optimizer):
         # If not, and bitsandbytes is available,
         # # check if the optimizer is the 32-bit bitsandbytes Adagrad.
         if is_bnb_available() and not is_ada:
-            # Third Party
             import bitsandbytes.optim as bnb_opt
 
             if isinstance(optimizer, (bnb_opt.Adagrad, bnb_opt.Adagrad32bit)):
@@ -84,16 +76,12 @@ def map_pytorch_optim_to_deepspeed(optimizer):
                 except AttributeError:
                     is_ada = optimizer.args.optim_bits == 32
         if is_ada:
-            # Third Party
             from deepspeed.ops.adagrad import DeepSpeedCPUAdagrad
 
             optimizer_class = DeepSpeedCPUAdagrad
 
     # For DeepSpeedCPULion
-    if is_bnb_available(min_version="0.38.0") and compare_versions(
-        "deepspeed", ">=", "0.11.0"
-    ):
-        # Third Party
+    if is_bnb_available(min_version="0.38.0") and compare_versions("deepspeed", ">=", "0.11.0"):
         from bitsandbytes.optim import Lion, Lion32bit
 
         if isinstance(optimizer, (Lion, Lion32bit)):
@@ -102,7 +90,6 @@ def map_pytorch_optim_to_deepspeed(optimizer):
             except AttributeError:
                 is_bnb_32bits = optimizer.args.optim_bits == 32
             if is_bnb_32bits:
-                # Third Party
                 from deepspeed.ops.lion import DeepSpeedCPULion
 
                 optimizer_class = DeepSpeedCPULion
@@ -126,9 +113,7 @@ def get_active_deepspeed_plugin(state):
         )
     if not isinstance(state.deepspeed_plugins, dict):
         return state.deepspeed_plugins
-    return next(
-        plugin for plugin in state.deepspeed_plugins.values() if plugin.selected
-    )
+    return next(plugin for plugin in state.deepspeed_plugins.values() if plugin.selected)
 
 
 class HfDeepSpeedConfig:
@@ -163,9 +148,7 @@ class HfDeepSpeedConfig:
                     config = json.loads(config_file_or_dict)
                 except json.JSONDecodeError:
                     # If that fails, try base64 decoding
-                    config_decoded = base64.urlsafe_b64decode(
-                        config_file_or_dict
-                    ).decode("utf-8")
+                    config_decoded = base64.urlsafe_b64decode(config_file_or_dict).decode("utf-8")
                     config = json.loads(config_decoded)
             except (UnicodeDecodeError, AttributeError, ValueError):
                 raise ValueError(
@@ -232,9 +215,7 @@ class HfDeepSpeedConfig:
             config = config.get(node)
             if config is None:
                 if must_exist:
-                    raise ValueError(
-                        f"Can't find {ds_key_long} entry in the config: {self.config}"
-                    )
+                    raise ValueError(f"Can't find {ds_key_long} entry in the config: {self.config}")
                 else:
                     return
 
@@ -382,14 +363,7 @@ class DummyScheduler:
             Other arguments.
     """
 
-    def __init__(
-        self,
-        optimizer,
-        total_num_steps=None,
-        warmup_num_steps=0,
-        lr_scheduler_callable=None,
-        **kwargs,
-    ):
+    def __init__(self, optimizer, total_num_steps=None, warmup_num_steps=0, lr_scheduler_callable=None, **kwargs):
         self.optimizer = optimizer
         self.total_num_steps = total_num_steps
         self.warmup_num_steps = warmup_num_steps

@@ -24,20 +24,18 @@ accelerate launch distributed_image_generation.py --batch_size 8
 accelerate launch distributed_image_generation.py --batch_size 8 --low_mem
 """
 
-# Standard
 import os
 import time
 
-# Third Party
+import fire
+import torch
 from datasets import load_dataset
 from diffusers import DiffusionPipeline
 from tqdm import tqdm
-import fire
-import torch
 
-# First Party
 from accelerate import PartialState
 from accelerate.utils import gather_object
+
 
 START_TIME = time.strftime("%Y%m%d_%H%M%S")
 DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -93,10 +91,7 @@ def main(
         with distributed_state.split_between_processes(prompts_raw) as prompts:
             generator = torch.manual_seed(seed)
             images = pipeline(
-                prompts,
-                num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale,
-                generator=generator,
+                prompts, num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, generator=generator
             ).images
             input_prompts.extend(prompts)
 

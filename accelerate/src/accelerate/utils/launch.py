@@ -12,33 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from ast import literal_eval
-from shutil import which
-from typing import Any, Dict, List, Tuple
 import argparse
 import os
 import subprocess
 import sys
+from ast import literal_eval
+from shutil import which
+from typing import Any
 
-# Third Party
 import torch
 
-# Local
 from ..commands.config.config_args import SageMakerConfig
 from ..utils import (
     DynamoBackend,
     PrecisionType,
     is_fp8_available,
+    is_hpu_available,
     is_ipex_available,
     is_mlu_available,
     is_musa_available,
     is_npu_available,
+    is_sdaa_available,
     is_torch_xla_available,
     is_xpu_available,
 )
 from ..utils.constants import DEEPSPEED_MULTINODE_LAUNCHERS
 from ..utils.other import is_port_in_use, merge_dicts
+from ..utils.versions import compare_versions
 from .dataclasses import DistributedType, SageMakerDistributedType
 
 
@@ -64,9 +64,7 @@ def _get_mpirun_args():
     mpi_apps = [x for x in ["mpirun", "mpiexec"] if which(x)]
 
     if len(mpi_apps) == 0:
-        raise OSError(
-            "mpirun or mpiexec were not found. Ensure that Intel MPI, Open MPI, or MVAPICH are installed."
-        )
+        raise OSError("mpirun or mpiexec were not found. Ensure that Intel MPI, Open MPI, or MVAPICH are installed.")
 
     # Call the app with the --version flag to determine which MPI app is installed
     mpi_app = mpi_apps[0]
@@ -79,7 +77,7 @@ def _get_mpirun_args():
         return mpi_app, "-f", "-n", "-ppn", ""
 
 
-def setup_fp8_env(args: argparse.Namespace, current_env: Dict[str, str]):
+def setup_fp8_env(args: argparse.Namespace, current_env: dict[str, str]):
     """
     Setup the FP8 environment variables.
     """
@@ -89,18 +87,15 @@ def setup_fp8_env(args: argparse.Namespace, current_env: Dict[str, str]):
             value = getattr(args, arg)
             if value is not None:
                 if arg == "fp8_override_linear_precision":
-                    values = value.strip("()").split(",")
-                    current_env[prefix + "FP8_OVERRIDE_FPROP"] = values[0].strip()
-                    current_env[prefix + "FP8_OVERRIDE_DGRAD"] = values[1].strip()
-                    current_env[prefix + "FP8_OVERRIDE_WGRAD"] = values[2].strip()
+                    current_env[prefix + "FP8_OVERRIDE_FPROP"] = value[0]
+                    current_env[prefix + "FP8_OVERRIDE_DGRAD"] = value[1]
+                    current_env[prefix + "FP8_OVERRIDE_WGRAD"] = value[2]
                 else:
                     current_env[f"{prefix}{arg.upper()}"] = str(getattr(args, arg))
     return current_env
 
 
-def prepare_simple_launcher_cmd_env(
-    args: argparse.Namespace,
-) -> Tuple[List[str], Dict[str, str]]:
+def prepare_simple_launcher_cmd_env(args: argparse.Namespace) -> tuple[list[str], dict[str, str]]:
     """
     Prepares and returns the command list and an environment with the correct simple launcher environment variables.
     """
@@ -109,22 +104,12 @@ def prepare_simple_launcher_cmd_env(
         raise ValueError("--module and --no_python cannot be used together")
 
     if args.mpirun_hostfile is not None:
-        (
-            mpi_app_name,
-            hostfile_arg,
-            num_proc_arg,
-            proc_per_node_arg,
-            bind_to_arg,
-        ) = _get_mpirun_args()
+        mpi_app_name, hostfile_arg, num_proc_arg, proc_per_node_arg, bind_to_arg = _get_mpirun_args()
         mpirun_ccl = getattr(args, "mpirun_ccl", None)
         bind_to = getattr(args, "bind-to", "socket")
         num_machines = args.num_machines
         num_processes = getattr(args, "num_processes", None)
-        nproc_per_node = (
-            str(num_processes // num_machines)
-            if num_processes and num_machines
-            else "1"
-        )
+        nproc_per_node = str(num_processes // num_machines) if num_processes and num_machines else "1"
         cmd += [
             mpi_app_name,
             hostfile_arg,
@@ -152,10 +137,14 @@ def prepare_simple_launcher_cmd_env(
             current_env["ZE_AFFINITY_MASK"] = args.gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = args.gpu_ids
+        elif is_sdaa_available():
+            current_env["SDAA_VISIBLE_DEVICES"] = args.gpu_ids
         elif is_musa_available():
             current_env["MUSA_VISIBLE_DEVICES"] = args.gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = args.gpu_ids
+        elif is_hpu_available():
+            current_env["HABANA_VISIBLE_MODULES"] = args.gpu_ids
         else:
             current_env["CUDA_VISIBLE_DEVICES"] = args.gpu_ids
     if args.num_machines > 1:
@@ -165,14 +154,8 @@ def prepare_simple_launcher_cmd_env(
         if args.mpirun_hostfile is not None:
             current_env["CCL_WORKER_COUNT"] = str(mpirun_ccl)
     elif args.num_processes > 1:
-        current_env["MASTER_ADDR"] = (
-            args.main_process_ip if args.main_process_ip is not None else "127.0.0.1"
-        )
-        current_env["MASTER_PORT"] = (
-            str(args.main_process_port)
-            if args.main_process_port is not None
-            else "29500"
-        )
+        current_env["MASTER_ADDR"] = args.main_process_ip if args.main_process_ip is not None else "127.0.0.1"
+        current_env["MASTER_PORT"] = str(args.main_process_port) if args.main_process_port is not None else "29500"
 
     try:
         mixed_precision = PrecisionType(args.mixed_precision.lower())
@@ -203,13 +186,12 @@ def prepare_simple_launcher_cmd_env(
     current_env["OMP_NUM_THREADS"] = str(args.num_cpu_threads_per_process)
     if is_ipex_available():
         current_env["ACCELERATE_USE_IPEX"] = str(args.ipex).lower()
-        current_env["ACCELERATE_USE_XPU"] = str(args.use_xpu).lower()
     if args.enable_cpu_affinity:
         current_env["ACCELERATE_CPU_AFFINITY"] = "1"
     return cmd, current_env
 
 
-def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
+def prepare_multi_gpu_env(args: argparse.Namespace) -> dict[str, str]:
     """
     Prepares and returns an environment with the correct multi-GPU environment variables.
     """
@@ -260,19 +242,21 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
             current_env["ZE_AFFINITY_MASK"] = gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = gpu_ids
+        elif is_sdaa_available():
+            current_env["SDAA_VISIBLE_DEVICES"] = gpu_ids
         elif is_musa_available():
             current_env["MUSA_VISIBLE_DEVICES"] = gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = gpu_ids
+        elif is_hpu_available():
+            current_env["HABANA_VISIBLE_MODULES"] = gpu_ids
         else:
             current_env["CUDA_VISIBLE_DEVICES"] = gpu_ids
     mixed_precision = args.mixed_precision.lower()
     try:
         mixed_precision = PrecisionType(mixed_precision)
     except ValueError:
-        raise ValueError(
-            f"Unknown mixed_precision mode: {mixed_precision}. Choose between {PrecisionType.list()}."
-        )
+        raise ValueError(f"Unknown mixed_precision mode: {mixed_precision}. Choose between {PrecisionType.list()}.")
 
     current_env["ACCELERATE_MIXED_PRECISION"] = str(mixed_precision)
     if args.mixed_precision.lower() == "fp8":
@@ -296,50 +280,30 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
     if args.use_fsdp:
         current_env["ACCELERATE_USE_FSDP"] = "true"
         if args.fsdp_cpu_ram_efficient_loading and not args.fsdp_sync_module_states:
-            raise ValueError(
-                "When using `--fsdp_cpu_ram_efficient_loading` set `--fsdp_sync_module_states` to `True`"
-            )
+            raise ValueError("When using `--fsdp_cpu_ram_efficient_loading` set `--fsdp_sync_module_states` to `True`")
 
+        current_env["FSDP_VERSION"] = str(args.fsdp_version) if hasattr(args, "fsdp_version") else "1"
+
+        # For backwards compatibility, we support this in launched scripts,
+        # however, we do not ask users for this in `accelerate config` CLI
         current_env["FSDP_SHARDING_STRATEGY"] = str(args.fsdp_sharding_strategy)
+
+        current_env["FSDP_RESHARD_AFTER_FORWARD"] = str(args.fsdp_reshard_after_forward).lower()
         current_env["FSDP_OFFLOAD_PARAMS"] = str(args.fsdp_offload_params).lower()
         current_env["FSDP_MIN_NUM_PARAMS"] = str(args.fsdp_min_num_params)
         if args.fsdp_auto_wrap_policy is not None:
             current_env["FSDP_AUTO_WRAP_POLICY"] = str(args.fsdp_auto_wrap_policy)
         if args.fsdp_transformer_layer_cls_to_wrap is not None:
-            current_env["FSDP_TRANSFORMER_CLS_TO_WRAP"] = str(
-                args.fsdp_transformer_layer_cls_to_wrap
-            )
+            current_env["FSDP_TRANSFORMER_CLS_TO_WRAP"] = str(args.fsdp_transformer_layer_cls_to_wrap)
         if args.fsdp_backward_prefetch is not None:
             current_env["FSDP_BACKWARD_PREFETCH"] = str(args.fsdp_backward_prefetch)
         if args.fsdp_state_dict_type is not None:
             current_env["FSDP_STATE_DICT_TYPE"] = str(args.fsdp_state_dict_type)
         current_env["FSDP_FORWARD_PREFETCH"] = str(args.fsdp_forward_prefetch).lower()
         current_env["FSDP_USE_ORIG_PARAMS"] = str(args.fsdp_use_orig_params).lower()
-        current_env["FSDP_CPU_RAM_EFFICIENT_LOADING"] = str(
-            args.fsdp_cpu_ram_efficient_loading
-        ).lower()
-        current_env["FSDP_SYNC_MODULE_STATES"] = str(
-            args.fsdp_sync_module_states
-        ).lower()
-        current_env["FSDP_ACTIVATION_CHECKPOINTING"] = str(
-            args.fsdp_activation_checkpointing
-        ).lower()
-
-    if args.use_fsdp2:
-        current_env["ACCELERATE_USE_FSDP2"] = "true"
-        current_env["FSDP2_RESHARD_AFTER_FORWARD"] = str(
-            args.fsdp2_reshard_after_forward
-        ).lower()
-        current_env["FSDP2_CPU_OFFLOAD"] = str(args.fsdp2_cpu_offload).lower()
-        current_env["FSDP2_CPU_OFFLOAD_PIN_MEMORY"] = str(
-            args.fsdp2_cpu_offload_pin_memory
-        ).lower()
-        current_env["FSDP2_MP_PARAM_DTYPE"] = str(args.fsdp2_mp_param_dtype).lower()
-        current_env["FSDP2_MP_REDUCE_DTYPE"] = str(args.fsdp2_mp_reduce_dtype).lower()
-        current_env["FSDP2_MP_OUTPUT_DTYPE"] = str(args.fsdp2_mp_output_dtype).lower()
-        current_env["FSDP2_CAST_FORWARD_INPUTS"] = str(
-            args.fsdp2_cast_forward_inputs
-        ).lower()
+        current_env["FSDP_CPU_RAM_EFFICIENT_LOADING"] = str(args.fsdp_cpu_ram_efficient_loading).lower()
+        current_env["FSDP_SYNC_MODULE_STATES"] = str(args.fsdp_sync_module_states).lower()
+        current_env["FSDP_ACTIVATION_CHECKPOINTING"] = str(args.fsdp_activation_checkpointing).lower()
 
     if args.use_tp:
         current_env["ACCELERATE_USE_TP"] = "true"
@@ -350,25 +314,15 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
         current_env["ACCELERATE_USE_MEGATRON_LM"] = "true"
         current_env[prefix + "TP_DEGREE"] = str(args.megatron_lm_tp_degree)
         current_env[prefix + "PP_DEGREE"] = str(args.megatron_lm_pp_degree)
-        current_env[prefix + "GRADIENT_CLIPPING"] = str(
-            args.megatron_lm_gradient_clipping
-        )
+        current_env[prefix + "GRADIENT_CLIPPING"] = str(args.megatron_lm_gradient_clipping)
         if args.megatron_lm_num_micro_batches is not None:
-            current_env[prefix + "NUM_MICRO_BATCHES"] = str(
-                args.megatron_lm_num_micro_batches
-            )
+            current_env[prefix + "NUM_MICRO_BATCHES"] = str(args.megatron_lm_num_micro_batches)
         if args.megatron_lm_sequence_parallelism is not None:
-            current_env[prefix + "SEQUENCE_PARALLELISM"] = str(
-                args.megatron_lm_sequence_parallelism
-            )
+            current_env[prefix + "SEQUENCE_PARALLELISM"] = str(args.megatron_lm_sequence_parallelism)
         if args.megatron_lm_recompute_activations is not None:
-            current_env[prefix + "RECOMPUTE_ACTIVATIONS"] = str(
-                args.megatron_lm_recompute_activations
-            )
+            current_env[prefix + "RECOMPUTE_ACTIVATIONS"] = str(args.megatron_lm_recompute_activations)
         if args.megatron_lm_use_distributed_optimizer is not None:
-            current_env[prefix + "USE_DISTRIBUTED_OPTIMIZER"] = str(
-                args.megatron_lm_use_distributed_optimizer
-            )
+            current_env[prefix + "USE_DISTRIBUTED_OPTIMIZER"] = str(args.megatron_lm_use_distributed_optimizer)
 
     current_env["OMP_NUM_THREADS"] = str(args.num_cpu_threads_per_process)
     if args.enable_cpu_affinity:
@@ -376,9 +330,7 @@ def prepare_multi_gpu_env(args: argparse.Namespace) -> Dict[str, str]:
     return current_env
 
 
-def prepare_deepspeed_cmd_env(
-    args: argparse.Namespace,
-) -> Tuple[List[str], Dict[str, str]]:
+def prepare_deepspeed_cmd_env(args: argparse.Namespace) -> tuple[list[str], dict[str, str]]:
     """
     Prepares and returns the command list and an environment with the correct DeepSpeed environment variables.
     """
@@ -393,19 +345,15 @@ def prepare_deepspeed_cmd_env(
         # set to default pdsh
         args.deepspeed_multinode_launcher = DEEPSPEED_MULTINODE_LAUNCHERS[0]
 
-    if (
-        num_machines > 1
-        and args.deepspeed_multinode_launcher != DEEPSPEED_MULTINODE_LAUNCHERS[1]
-    ):
-        cmd = ["deepspeed", "--no_local_rank"]
-        cmd.extend(
-            [
-                "--hostfile",
-                str(args.deepspeed_hostfile),
-                "--launcher",
-                str(args.deepspeed_multinode_launcher),
-            ]
-        )
+    if num_machines > 1 and args.deepspeed_multinode_launcher != DEEPSPEED_MULTINODE_LAUNCHERS[1]:
+        cmd = ["deepspeed"]
+        cmd.extend(["--hostfile", str(args.deepspeed_hostfile)])
+        if args.deepspeed_multinode_launcher == "nossh":
+            if compare_versions("deepspeed", "<", "0.14.5"):
+                raise ValueError("nossh launcher requires DeepSpeed >= 0.14.5")
+            cmd.extend(["--node_rank", str(args.machine_rank), "--no_ssh"])
+        else:
+            cmd.extend(["--no_local_rank", "--launcher", str(args.deepspeed_multinode_launcher)])
         if args.deepspeed_exclusion_filter is not None:
             cmd.extend(
                 [
@@ -433,10 +381,7 @@ def prepare_deepspeed_cmd_env(
             cmd.append("--no_python")
         cmd.append(args.training_script)
         cmd.extend(args.training_script_args)
-    elif (
-        num_machines > 1
-        and args.deepspeed_multinode_launcher == DEEPSPEED_MULTINODE_LAUNCHERS[1]
-    ):
+    elif num_machines > 1 and args.deepspeed_multinode_launcher == DEEPSPEED_MULTINODE_LAUNCHERS[1]:
         args.nproc_per_node = str(num_processes // num_machines)
         args.nnodes = str(num_machines)
         args.node_rank = int(args.machine_rank)
@@ -479,10 +424,14 @@ def prepare_deepspeed_cmd_env(
             current_env["ZE_AFFINITY_MASK"] = gpu_ids
         elif is_mlu_available():
             current_env["MLU_VISIBLE_DEVICES"] = gpu_ids
+        elif is_sdaa_available():
+            current_env["SDAA_VISIBLE_DEVICES"] = gpu_ids
         elif is_musa_available():
             current_env["MUSA_VISIBLE_DEVICES"] = gpu_ids
         elif is_npu_available():
             current_env["ASCEND_RT_VISIBLE_DEVICES"] = gpu_ids
+        elif is_hpu_available():
+            current_env["HABANA_VISIBLE_MODULES"] = gpu_ids
         else:
             current_env["CUDA_VISIBLE_DEVICES"] = gpu_ids
     try:
@@ -500,52 +449,34 @@ def prepare_deepspeed_cmd_env(
                 "FP8 is not available on this machine. Please ensure that either Transformer Engine or MSAMP is installed."
             )
         current_env = setup_fp8_env(args, current_env)
-    current_env["ACCELERATE_CONFIG_DS_FIELDS"] = str(
-        args.deepspeed_fields_from_accelerate_config
-    ).lower()
+    current_env["ACCELERATE_CONFIG_DS_FIELDS"] = str(args.deepspeed_fields_from_accelerate_config).lower()
     current_env["ACCELERATE_USE_DEEPSPEED"] = "true"
     if args.zero_stage is not None:
         current_env["ACCELERATE_DEEPSPEED_ZERO_STAGE"] = str(args.zero_stage)
     if args.gradient_accumulation_steps is not None:
-        current_env["ACCELERATE_GRADIENT_ACCUMULATION_STEPS"] = str(
-            args.gradient_accumulation_steps
-        )
+        current_env["ACCELERATE_GRADIENT_ACCUMULATION_STEPS"] = str(args.gradient_accumulation_steps)
     if args.gradient_clipping is not None:
-        current_env["ACCELERATE_GRADIENT_CLIPPING"] = str(
-            args.gradient_clipping
-        ).lower()
+        current_env["ACCELERATE_GRADIENT_CLIPPING"] = str(args.gradient_clipping).lower()
     if args.offload_optimizer_device is not None:
-        current_env["ACCELERATE_DEEPSPEED_OFFLOAD_OPTIMIZER_DEVICE"] = str(
-            args.offload_optimizer_device
-        ).lower()
+        current_env["ACCELERATE_DEEPSPEED_OFFLOAD_OPTIMIZER_DEVICE"] = str(args.offload_optimizer_device).lower()
     if args.offload_param_device is not None:
-        current_env["ACCELERATE_DEEPSPEED_OFFLOAD_PARAM_DEVICE"] = str(
-            args.offload_param_device
-        ).lower()
+        current_env["ACCELERATE_DEEPSPEED_OFFLOAD_PARAM_DEVICE"] = str(args.offload_param_device).lower()
     if args.zero3_init_flag is not None:
-        current_env["ACCELERATE_DEEPSPEED_ZERO3_INIT"] = str(
-            args.zero3_init_flag
-        ).lower()
+        current_env["ACCELERATE_DEEPSPEED_ZERO3_INIT"] = str(args.zero3_init_flag).lower()
     if args.zero3_save_16bit_model is not None:
-        current_env["ACCELERATE_DEEPSPEED_ZERO3_SAVE_16BIT_MODEL"] = str(
-            args.zero3_save_16bit_model
-        ).lower()
+        current_env["ACCELERATE_DEEPSPEED_ZERO3_SAVE_16BIT_MODEL"] = str(args.zero3_save_16bit_model).lower()
     if args.deepspeed_config_file is not None:
-        current_env["ACCELERATE_DEEPSPEED_CONFIG_FILE"] = str(
-            args.deepspeed_config_file
-        )
+        current_env["ACCELERATE_DEEPSPEED_CONFIG_FILE"] = str(args.deepspeed_config_file)
     if args.enable_cpu_affinity:
         current_env["ACCELERATE_CPU_AFFINITY"] = "1"
     if args.deepspeed_moe_layer_cls_names is not None:
-        current_env["ACCELERATE_DEEPSPEED_MOE_LAYER_CLS_NAMES"] = str(
-            args.deepspeed_moe_layer_cls_names
-        )
+        current_env["ACCELERATE_DEEPSPEED_MOE_LAYER_CLS_NAMES"] = str(args.deepspeed_moe_layer_cls_names)
     return cmd, current_env
 
 
 def prepare_tpu(
-    args: argparse.Namespace, current_env: Dict[str, str], pod: bool = False
-) -> Tuple[argparse.Namespace, Dict[str, str]]:
+    args: argparse.Namespace, current_env: dict[str, str], pod: bool = False
+) -> tuple[argparse.Namespace, dict[str, str]]:
     """
     Prepares and returns an environment with the correct TPU environment variables.
     """
@@ -563,7 +494,7 @@ def prepare_tpu(
     return args, current_env
 
 
-def _convert_nargs_to_dict(nargs: List[str]) -> Dict[str, str]:
+def _convert_nargs_to_dict(nargs: list[str]) -> dict[str, str]:
     if len(nargs) < 0:
         return {}
     # helper function to infer type for argsparser
@@ -584,9 +515,7 @@ def _convert_nargs_to_dict(nargs: List[str]) -> Dict[str, str]:
         if argument.startswith(("-", "--")):
             action = None
             if index + 1 < len(unknown):  # checks if next index would be in list
-                if unknown[index + 1].startswith(
-                    ("-", "--")
-                ):  # checks if next element is an key
+                if unknown[index + 1].startswith(("-", "--")):  # checks if next element is an key
                     # raise an error if element is store_true or store_false
                     raise ValueError(
                         "SageMaker doesn’t support argparse actions for `store_true` or `store_false`. Please define explicit types"
@@ -609,7 +538,7 @@ def _convert_nargs_to_dict(nargs: List[str]) -> Dict[str, str]:
 
 def prepare_sagemager_args_inputs(
     sagemaker_config: SageMakerConfig, args: argparse.Namespace
-) -> Tuple[argparse.Namespace, Dict[str, Any]]:
+) -> tuple[argparse.Namespace, dict[str, Any]]:
     # configure environment
     print("Configuring Amazon SageMaker environment")
     os.environ["AWS_DEFAULT_REGION"] = sagemaker_config.region
@@ -621,9 +550,7 @@ def prepare_sagemager_args_inputs(
         os.environ["AWS_ACCESS_KEY_ID"] = args.aws_access_key_id
         os.environ["AWS_SECRET_ACCESS_KEY"] = args.aws_secret_access_key
     else:
-        raise OSError(
-            "You need to provide an aws_access_key_id and aws_secret_access_key when not using aws_profile"
-        )
+        raise OSError("You need to provide an aws_access_key_id and aws_secret_access_key when not using aws_profile")
 
     # extract needed arguments
     source_dir = os.path.dirname(args.training_script)
@@ -631,9 +558,7 @@ def prepare_sagemager_args_inputs(
         source_dir = "."
     entry_point = os.path.basename(args.training_script)
     if not entry_point.endswith(".py"):
-        raise ValueError(
-            f'Your training script should be a python script and not "{entry_point}"'
-        )
+        raise ValueError(f'Your training script should be a python script and not "{entry_point}"')
 
     print("Converting Arguments to Hyperparameters")
     hyperparameters = _convert_nargs_to_dict(args.training_script_args)
@@ -676,9 +601,7 @@ def prepare_sagemager_args_inputs(
     # configure sagemaker inputs
     sagemaker_inputs = None
     if sagemaker_config.sagemaker_inputs_file is not None:
-        print(
-            f"Loading SageMaker Inputs from {sagemaker_config.sagemaker_inputs_file} file"
-        )
+        print(f"Loading SageMaker Inputs from {sagemaker_config.sagemaker_inputs_file} file")
         sagemaker_inputs = {}
         with open(sagemaker_config.sagemaker_inputs_file) as file:
             for i, line in enumerate(file):
@@ -691,9 +614,7 @@ def prepare_sagemager_args_inputs(
     # configure sagemaker metrics
     sagemaker_metrics = None
     if sagemaker_config.sagemaker_metrics_file is not None:
-        print(
-            f"Loading SageMaker Metrics from {sagemaker_config.sagemaker_metrics_file} file"
-        )
+        print(f"Loading SageMaker Metrics from {sagemaker_config.sagemaker_metrics_file} file")
         sagemaker_metrics = []
         with open(sagemaker_config.sagemaker_metrics_file) as file:
             for i, line in enumerate(file):

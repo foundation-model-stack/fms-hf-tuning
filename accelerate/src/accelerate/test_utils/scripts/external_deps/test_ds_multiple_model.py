@@ -19,26 +19,20 @@ Scenario 1: One model is training, another model is being used for inference/log
 Scenario 2: Two models are training simultaneously, which means two optimizers, etc.
 """
 
-# Standard
-from pathlib import Path
 import argparse
+from pathlib import Path
 
-# Third Party
+import evaluate
+import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-import evaluate
-import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup
 
-# First Party
 from accelerate import Accelerator, DeepSpeedPlugin, DistributedType
 from accelerate.state import AcceleratorState
 from accelerate.utils.deepspeed import get_active_deepspeed_plugin
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    get_linear_schedule_with_warmup,
-)
+
 
 MAX_GPU_BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 32
@@ -47,17 +41,13 @@ EVAL_BATCH_SIZE = 32
 class NoiseModel(torch.nn.Module):
     def __init__(self, noise_factor=0.1):
         super().__init__()
-        self.noise_factor = torch.nn.Parameter(
-            torch.tensor(noise_factor, dtype=torch.float32)
-        )
+        self.noise_factor = torch.nn.Parameter(torch.tensor(noise_factor, dtype=torch.float32))
 
     def forward(self, loss):
         return loss * self.noise_factor
 
 
-def get_dataloaders(
-    accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"
-):
+def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"):
     """
     Creates a set of `DataLoader`s for the `glue` dataset.
 
@@ -73,20 +63,12 @@ def get_dataloaders(
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
     tokenized_datasets = datasets.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=["idx", "sentence1", "sentence2"],
-        load_from_cache_file=False,
+        tokenize_function, batched=True, remove_columns=["idx", "sentence1", "sentence2"], load_from_cache_file=False
     )
 
     # We also rename the 'label' column to 'labels' which is the expected name for labels by the models of the
@@ -96,23 +78,15 @@ def get_dataloaders(
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
         if accelerator.distributed_type == DistributedType.XLA:
-            return tokenizer.pad(
-                examples, padding="max_length", max_length=128, return_tensors="pt"
-            )
+            return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
         return tokenizer.pad(examples, padding="longest", return_tensors="pt")
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     return train_dataloader, eval_dataloader
@@ -146,9 +120,7 @@ def single_model_training(config, args):
 
     # Initialize model under zero2 plugin
     assert get_active_deepspeed_plugin(accelerator.state) is zero2_plugin
-    train_model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name_or_path
-    )
+    train_model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path)
     train_dataloader, eval_dataloader = get_dataloaders(
         accelerator, batch_size=config["batch_size"], model_name=args.model_name_or_path
     )
@@ -158,13 +130,7 @@ def single_model_training(config, args):
         optimizer, num_warmup_steps=0, num_training_steps=max_training_steps
     )
 
-    (
-        train_dataloader,
-        eval_dataloader,
-        train_model,
-        optimizer,
-        lr_scheduler,
-    ) = accelerator.prepare(
+    train_dataloader, eval_dataloader, train_model, optimizer, lr_scheduler = accelerator.prepare(
         train_dataloader, eval_dataloader, train_model, optimizer, lr_scheduler
     )
 
@@ -205,9 +171,7 @@ def single_model_training(config, args):
                 outputs = train_model(**batch)
             predictions = outputs.logits.argmax(dim=-1)
             # It is slightly faster to call this once, than multiple times
-            predictions, references = accelerator.gather_for_metrics(
-                (predictions, batch["labels"])
-            )
+            predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
             metric.add_batch(
                 predictions=predictions,
                 references=references,
@@ -242,13 +206,9 @@ def multiple_model_training(config, args):
 
     # Initialize model under zero2 plugin
     assert get_active_deepspeed_plugin(zero2_accelerator.state) is zero2_plugin
-    zero2_model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name_or_path
-    )
+    zero2_model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path)
     train_dataloader, eval_dataloader = get_dataloaders(
-        zero2_accelerator,
-        batch_size=config["batch_size"],
-        model_name=args.model_name_or_path,
+        zero2_accelerator, batch_size=config["batch_size"], model_name=args.model_name_or_path
     )
     max_training_steps = len(train_dataloader) * config["num_epochs"]
     zero2_optimizer = AdamW(zero2_model.parameters(), lr=config["lr"])
@@ -256,30 +216,18 @@ def multiple_model_training(config, args):
         zero2_optimizer, num_warmup_steps=0, num_training_steps=max_training_steps
     )
 
-    (
-        train_dataloader,
-        eval_dataloader,
-        zero2_model,
-        zero2_optimizer,
-        zero2_lr_scheduler,
-    ) = zero2_accelerator.prepare(
-        train_dataloader,
-        eval_dataloader,
-        zero2_model,
-        zero2_optimizer,
-        zero2_lr_scheduler,
+    train_dataloader, eval_dataloader, zero2_model, zero2_optimizer, zero2_lr_scheduler = zero2_accelerator.prepare(
+        train_dataloader, eval_dataloader, zero2_model, zero2_optimizer, zero2_lr_scheduler
     )
     assert zero2_accelerator.deepspeed_engine_wrapped.engine is zero2_model
 
     # now do Zero3
     zero3_accelerator.state.select_deepspeed_plugin("zero3")
-    zero3_plugin.deepspeed_config[
+    zero3_plugin.deepspeed_config["train_micro_batch_size_per_gpu"] = zero2_plugin.deepspeed_config[
         "train_micro_batch_size_per_gpu"
-    ] = zero2_plugin.deepspeed_config["train_micro_batch_size_per_gpu"]
+    ]
     assert get_active_deepspeed_plugin(zero3_accelerator.state) is zero3_plugin
-    zero3_model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name_or_path
-    )
+    zero3_model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path)
     zero3_optimizer = AdamW(zero3_model.parameters(), lr=config["lr"])
     zero3_lr_scheduler = get_linear_schedule_with_warmup(
         zero3_optimizer, num_warmup_steps=0, num_training_steps=max_training_steps
@@ -325,11 +273,7 @@ def multiple_model_training(config, args):
             predictions_a = logits_a.argmax(dim=-1)
             predictions_b = logits_b.argmax(dim=-1)
             # It is slightly faster to call this once, than multiple times
-            (
-                predictions_a,
-                predictions_b,
-                references,
-            ) = zero2_accelerator.gather_for_metrics(
+            predictions_a, predictions_b, references = zero2_accelerator.gather_for_metrics(
                 (predictions_a, predictions_b, batch["labels"])
             )
             metric_a.add_batch(
@@ -357,9 +301,7 @@ def multiple_model_training(config, args):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Simple example of training script tracking peak GPU memory usage."
-    )
+    parser = argparse.ArgumentParser(description="Simple example of training script tracking peak GPU memory usage.")
     parser.add_argument(
         "--model_name_or_path",
         type=str,

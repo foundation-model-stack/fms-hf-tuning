@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
 
@@ -33,6 +32,9 @@ class _StoreAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, values)
+        if not hasattr(namespace, "nondefault"):
+            namespace.nondefault = set()
+        namespace.nondefault.add(self.dest)
 
 
 class _StoreConstAction(_StoreAction):
@@ -40,9 +42,7 @@ class _StoreConstAction(_StoreAction):
     Same as `argparse._StoreConstAction` but uses the custom `_StoreAction`.
     """
 
-    def __init__(
-        self, option_strings, dest, const, default=None, required=False, help=None
-    ):
+    def __init__(self, option_strings, dest, const, default=None, required=False, help=None):
         super().__init__(
             option_strings=option_strings,
             dest=dest,
@@ -54,7 +54,7 @@ class _StoreConstAction(_StoreAction):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, self.const)
+        super().__call__(parser, namespace, self.const, option_string)
 
 
 class _StoreTrueAction(_StoreConstAction):
@@ -71,12 +71,7 @@ class _StoreTrueAction(_StoreConstAction):
         help=None,
     ):
         super().__init__(
-            option_strings=option_strings,
-            dest=dest,
-            const=True,
-            default=default,
-            required=required,
-            help=help,
+            option_strings=option_strings, dest=dest, const=True, default=default, required=required, help=help
         )
 
 
@@ -90,11 +85,7 @@ class CustomArgumentGroup(argparse._ArgumentGroup):
         args = vars(action)
         if isinstance(action, argparse._StoreTrueAction):
             action = _StoreTrueAction(
-                args["option_strings"],
-                args["dest"],
-                args["default"],
-                args["required"],
-                args["help"],
+                args["option_strings"], args["dest"], args["default"], args["required"], args["help"]
             )
         elif isinstance(action, argparse._StoreConstAction):
             action = _StoreConstAction(

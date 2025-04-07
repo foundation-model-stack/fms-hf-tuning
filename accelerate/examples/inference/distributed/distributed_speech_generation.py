@@ -13,24 +13,22 @@
 # limitations under the License.
 
 
-# Standard
-from concurrent.futures import ThreadPoolExecutor
-from typing import Union
 import json
 import os
 import pathlib
 import queue
+from concurrent.futures import ThreadPoolExecutor
+from typing import Union
 
-# Third Party
-from datasets import load_dataset
 import fire
 import scipy.io.wavfile
 import torch
+from datasets import load_dataset
+from transformers import AutoTokenizer, VitsModel
 
-# First Party
 from accelerate import PartialState
 from accelerate.utils import tqdm
-from transformers import AutoTokenizer, VitsModel
+
 
 """
 Requirements: transformers accelerate fire scipy datasets
@@ -61,9 +59,7 @@ def load_pokemon_data(split: str, max_text_length: int):
             dataset.append(
                 {
                     "id": f"pokemon_{idx:06d}",
-                    "text": text.strip()[
-                        :max_text_length
-                    ],  # Truncate long descriptions
+                    "text": text.strip()[:max_text_length],  # Truncate long descriptions
                     "original_text": text.strip(),  # Keep original for metadata
                 }
             )
@@ -72,9 +68,7 @@ def load_pokemon_data(split: str, max_text_length: int):
 
 class ExistsFilter:
     def __init__(self, output_dir: Union[pathlib.Path, str]):
-        current_files = [
-            f.split(".wav")[0] for f in os.listdir(output_dir) if f.endswith(".wav")
-        ]
+        current_files = [f.split(".wav")[0] for f in os.listdir(output_dir) if f.endswith(".wav")]
         self.processed_files = set(current_files)
         print(f"Existing audio files found: {len(self.processed_files)}.")
 
@@ -83,13 +77,7 @@ class ExistsFilter:
 
 
 def preprocess_fn(sample, tokenizer, max_text_length: int):
-    inputs = tokenizer(
-        sample["text"],
-        padding=False,
-        truncation=True,
-        max_length=max_text_length,
-        return_tensors="pt",
-    )
+    inputs = tokenizer(sample["text"], padding=False, truncation=True, max_length=max_text_length, return_tensors="pt")
 
     return {
         "input_ids": inputs["input_ids"][0].tolist(),
@@ -115,9 +103,7 @@ def collate_fn(examples, tokenizer):
         padding_length = max_length - curr_len
 
         # Pad sequences
-        padded_input_ids = (
-            example["input_ids"] + [tokenizer.pad_token_id] * padding_length
-        )
+        padded_input_ids = example["input_ids"] + [tokenizer.pad_token_id] * padding_length
         padded_attention_mask = example["attention_mask"] + [0] * padding_length
 
         input_ids_list.append(padded_input_ids)
@@ -142,9 +128,7 @@ def collate_fn(examples, tokenizer):
 
 def create_dataloader(dataset, batch_size, distributed_state, tokenizer):
     """Create dataloader with preprocessing"""
-    processed_dataset = [
-        preprocess_fn(item, tokenizer, max_text_length=200) for item in dataset
-    ]
+    processed_dataset = [preprocess_fn(item, tokenizer, max_text_length=200) for item in dataset]
 
     # Split dataset for distributed processing
     if distributed_state.num_processes > 1:
@@ -165,9 +149,7 @@ def create_dataloader(dataset, batch_size, distributed_state, tokenizer):
     return batches
 
 
-def save_results(
-    output_queue: queue.Queue, output_dir: pathlib.Path, sampling_rate: int
-):
+def save_results(output_queue: queue.Queue, output_dir: pathlib.Path, sampling_rate: int):
     while True:
         try:
             item = output_queue.get(timeout=5)
@@ -176,14 +158,10 @@ def save_results(
             waveforms, ids, texts, original_texts = item
 
             # Save each audio file and its metadata
-            for waveform, file_id, text, original_text in zip(
-                waveforms, ids, texts, original_texts
-            ):
+            for waveform, file_id, text, original_text in zip(waveforms, ids, texts, original_texts):
                 # Save audio
                 wav_path = output_dir / f"{file_id}.wav"
-                scipy.io.wavfile.write(
-                    wav_path, rate=sampling_rate, data=waveform.cpu().float().numpy()
-                )
+                scipy.io.wavfile.write(wav_path, rate=sampling_rate, data=waveform.cpu().float().numpy())
 
                 # Save metadata with both truncated and original text
                 metadata = {
@@ -234,25 +212,17 @@ def main(
     # Setup output queue and save thread
     output_queue = queue.Queue()
     save_thread = ThreadPoolExecutor(max_workers=num_workers)
-    save_future = save_thread.submit(
-        save_results, output_queue, output_dir, model.config.sampling_rate
-    )
+    save_future = save_thread.submit(save_results, output_queue, output_dir, model.config.sampling_rate)
 
     try:
         for batch in tqdm(batches, desc="Generating Pokemon descriptions"):
             with torch.no_grad():
                 outputs = model(
-                    input_ids=batch["input_ids"].to(
-                        distributed_state.device, dtype=torch.long
-                    ),
-                    attention_mask=batch["attention_mask"].to(
-                        distributed_state.device, dtype=torch.long
-                    ),
+                    input_ids=batch["input_ids"].to(distributed_state.device, dtype=torch.long),
+                    attention_mask=batch["attention_mask"].to(distributed_state.device, dtype=torch.long),
                 ).waveform
 
-                output_queue.put(
-                    (outputs, batch["ids"], batch["texts"], batch["original_texts"])
-                )
+                output_queue.put((outputs, batch["ids"], batch["texts"], batch["original_texts"]))
     finally:
         output_queue.put(None)
         save_thread.shutdown(wait=True)

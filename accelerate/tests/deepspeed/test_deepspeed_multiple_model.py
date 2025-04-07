@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from functools import partial
-from pathlib import Path
 import inspect
 import json
+from functools import partial
+from pathlib import Path
 
-# Third Party
 import torch
+from transformers import AutoModelForCausalLM
 
-# First Party
 from accelerate import Accelerator, DeepSpeedPlugin
 from accelerate.commands.launch import launch_command, launch_command_parser
 from accelerate.test_utils.testing import (
@@ -31,16 +29,13 @@ from accelerate.test_utils.testing import (
     require_huggingface_suite,
     require_multi_device,
     require_non_cpu,
+    run_first,
     slow,
 )
 from accelerate.test_utils.training import RegressionDataset
 from accelerate.utils import patch_environment
-from accelerate.utils.deepspeed import (
-    DummyOptim,
-    DummyScheduler,
-    get_active_deepspeed_plugin,
-)
-from transformers import AutoModelForCausalLM
+from accelerate.utils.deepspeed import DummyOptim, DummyScheduler, get_active_deepspeed_plugin
+
 
 GPT2_TINY = "hf-internal-testing/tiny-random-gpt2"
 
@@ -49,9 +44,7 @@ GPT2_TINY = "hf-internal-testing/tiny-random-gpt2"
 @require_non_cpu
 class DeepSpeedConfigIntegration(AccelerateTestCase):
     parser = launch_command_parser()
-    test_scripts_folder = path_in_accelerate_package(
-        "test_utils", "scripts", "external_deps"
-    )
+    test_scripts_folder = path_in_accelerate_package("test_utils", "scripts", "external_deps")
 
     def setUp(self):
         super().setUp()
@@ -89,9 +82,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             hf_ds_config=self.config_zero2,
         )
         ds_zero3 = DeepSpeedPlugin(
-            hf_ds_config=self.config_zero3
-            if not zero3_inference
-            else self.config_zero3_inference,
+            hf_ds_config=self.config_zero3 if not zero3_inference else self.config_zero3_inference,
         )
         return {"zero2": ds_zero2, "zero3": ds_zero3}
 
@@ -126,7 +117,6 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         ds_plugins = self.get_ds_plugins(zero3_inference=True)
         zero2, zero3 = ds_plugins.values()
         accelerator = Accelerator(deepspeed_plugin=ds_plugins)
-        # First Party
         from transformers.integrations.deepspeed import deepspeed_config
 
         # Note that these have `auto` values being set so we need to adjust
@@ -170,9 +160,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
             dataset = RegressionDataset()
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
-            model1, optimizer, scheduler, dataloader = accelerator.prepare(
-                model1, optimizer, scheduler, dataloader
-            )
+            model1, optimizer, scheduler, dataloader = accelerator.prepare(model1, optimizer, scheduler, dataloader)
             accelerator.state.select_deepspeed_plugin("zero3")
             model2 = self.model_init()
             with self.assertLogs(level="WARNING") as captured:
@@ -184,16 +172,12 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
             assert accelerator.deepspeed_engine_wrapped.engine is model1
 
+    @run_first
     @require_huggingface_suite
     @require_multi_device
     @slow
     def test_train_multiple_models(self):
         self.test_file_path = self.test_scripts_folder / "test_ds_multiple_model.py"
-        args = [
-            "--num_processes=2",
-            "--num_machines=1",
-            "--main_process_port=0",
-            str(self.test_file_path),
-        ]
+        args = ["--num_processes=2", "--num_machines=1", str(self.test_file_path)]
         args = self.parser.parse_args(args)
         launch_command(args)

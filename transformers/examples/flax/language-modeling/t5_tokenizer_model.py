@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
 import json
-from typing import Iterator, List, Union
+from collections.abc import Iterator
+from typing import Union
 
-from tokenizers import (
-    AddedToken,
-    Regex,
-    Tokenizer,
-    decoders,
-    normalizers,
-    pre_tokenizers,
-    trainers,
-)
+from tokenizers import AddedToken, Regex, Tokenizer, decoders, normalizers, pre_tokenizers, trainers
 from tokenizers.implementations.base_tokenizer import BaseTokenizer
 from tokenizers.models import Unigram
 from tokenizers.processors import TemplateProcessing
@@ -55,23 +48,19 @@ class SentencePieceUnigramTokenizer(BaseTokenizer):
         tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
             [
                 pre_tokenizers.Metaspace(
-                    replacement=replacement,
-                    prepend_scheme="always" if add_prefix_space else "never",
+                    replacement=replacement, prepend_scheme="always" if add_prefix_space else "never"
                 ),
                 pre_tokenizers.Digits(individual_digits=True),
                 pre_tokenizers.Punctuation(),
             ]
         )
         tokenizer.decoder = decoders.Metaspace(
-            replacement=replacement,
-            prepend_scheme="always" if add_prefix_space else "never",
+            replacement=replacement, prepend_scheme="always" if add_prefix_space else "never"
         )
 
         tokenizer.post_processor = TemplateProcessing(
             single=f"$A {self.special_tokens['eos']['token']}",
-            special_tokens=[
-                (self.special_tokens["eos"]["token"], self.special_tokens["eos"]["id"])
-            ],
+            special_tokens=[(self.special_tokens["eos"]["token"], self.special_tokens["eos"]["id"])],
         )
 
         parameters = {
@@ -84,7 +73,7 @@ class SentencePieceUnigramTokenizer(BaseTokenizer):
 
     def train(
         self,
-        files: Union[str, List[str]],
+        files: Union[str, list[str]],
         vocab_size: int = 8000,
         show_progress: bool = True,
     ):

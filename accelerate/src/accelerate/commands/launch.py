@@ -14,20 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
 import argparse
 import importlib
 import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-# Third Party
 import psutil
 import torch
 
-# First Party
 from accelerate.commands.config import default_config_file, load_config_from_file
 from accelerate.commands.config.config_args import SageMakerConfig
 from accelerate.commands.config.config_utils import DYNAMO_BACKENDS
@@ -42,11 +39,13 @@ from accelerate.utils import (
     convert_dict_to_env_variables,
     is_bf16_available,
     is_deepspeed_available,
+    is_hpu_available,
     is_mlu_available,
     is_musa_available,
     is_npu_available,
     is_rich_available,
     is_sagemaker_available,
+    is_sdaa_available,
     is_torch_xla_available,
     is_xpu_available,
     patch_environment,
@@ -59,8 +58,8 @@ from accelerate.utils import (
 )
 from accelerate.utils.constants import DEEPSPEED_MULTINODE_LAUNCHERS, TORCH_DYNAMO_MODES
 
+
 if is_rich_available():
-    # Third Party
     from rich import get_console
     from rich.logging import RichHandler
 
@@ -76,7 +75,6 @@ options_to_group = {
     "tpu": "TPU",
     "use_deepspeed": "DeepSpeed Arguments",
     "use_fsdp": "FSDP Arguments",
-    "use_fsdp2": "FSDP2 Arguments",
     "use_tp": "PyTorch TP Arguments",
     "use_megatron_lm": "Megatron-LM Arguments",
     "fp8_backend": "FP8 Arguments",
@@ -145,11 +143,7 @@ def launch_command_parser(subparsers=None):
     description = "Launch a python script in a distributed scenario. Arguments can be passed in with either hyphens (`--num-processes=2`) or underscores (`--num_processes=2`)"
     if subparsers is not None:
         parser = subparsers.add_parser(
-            "launch",
-            description=description,
-            add_help=False,
-            allow_abbrev=False,
-            formatter_class=CustomHelpFormatter,
+            "launch", description=description, add_help=False, allow_abbrev=False, formatter_class=CustomHelpFormatter
         )
     else:
         parser = CustomArgumentParser(
@@ -160,9 +154,7 @@ def launch_command_parser(subparsers=None):
             formatter_class=CustomHelpFormatter,
         )
 
-    parser.add_argument(
-        "-h", "--help", action="help", help="Show this help message and exit."
-    )
+    parser.add_argument("-h", "--help", action="help", help="Show this help message and exit.")
 
     parser.add_argument(
         "--config_file",
@@ -177,14 +169,10 @@ def launch_command_parser(subparsers=None):
     )
     # Hardware selection arguments
     hardware_args = parser.add_argument_group(
-        "Hardware Selection Arguments",
-        "Arguments for selecting the hardware to be used.",
+        "Hardware Selection Arguments", "Arguments for selecting the hardware to be used."
     )
     hardware_args.add_argument(
-        "--cpu",
-        default=False,
-        action="store_true",
-        help="Whether or not to force the training on the CPU.",
+        "--cpu", default=False, action="store_true", help="Whether or not to force the training on the CPU."
     )
     hardware_args.add_argument(
         "--multi_gpu",
@@ -193,10 +181,7 @@ def launch_command_parser(subparsers=None):
         help="Whether or not this should launch a distributed GPU training.",
     )
     hardware_args.add_argument(
-        "--tpu",
-        default=False,
-        action="store_true",
-        help="Whether or not this should launch a TPU training.",
+        "--tpu", default=False, action="store_true", help="Whether or not this should launch a TPU training."
     )
     hardware_args.add_argument(
         "--ipex",
@@ -207,8 +192,7 @@ def launch_command_parser(subparsers=None):
 
     # Resource selection arguments
     resource_args = parser.add_argument_group(
-        "Resource Selection Arguments",
-        "Arguments for fine-tuning how available hardware should be used.",
+        "Resource Selection Arguments", "Arguments for fine-tuning how available hardware should be used."
     )
     resource_args.add_argument(
         "--mixed_precision",
@@ -219,16 +203,10 @@ def launch_command_parser(subparsers=None):
         "BF16 training is only supported on Nvidia Ampere GPUs and PyTorch 1.10 or later.",
     )
     resource_args.add_argument(
-        "--num_processes",
-        type=int,
-        default=None,
-        help="The total number of processes to be launched in parallel.",
+        "--num_processes", type=int, default=None, help="The total number of processes to be launched in parallel."
     )
     resource_args.add_argument(
-        "--num_machines",
-        type=int,
-        default=None,
-        help="The total number of machines used in this training.",
+        "--num_machines", type=int, default=None, help="The total number of machines used in this training."
     )
     resource_args.add_argument(
         "--num_cpu_threads_per_process",
@@ -272,8 +250,7 @@ def launch_command_parser(subparsers=None):
 
     # Training Paradigm arguments
     paradigm_args = parser.add_argument_group(
-        "Training Paradigm Arguments",
-        "Arguments for selecting which training paradigm to be used.",
+        "Training Paradigm Arguments", "Arguments for selecting which training paradigm to be used."
     )
     paradigm_args.add_argument(
         "--use_deepspeed",
@@ -288,12 +265,6 @@ def launch_command_parser(subparsers=None):
         help="Whether to use fsdp.",
     )
     paradigm_args.add_argument(
-        "--use_fsdp2",
-        default=False,
-        action="store_true",
-        help="Whether to use fsdpv2.",
-    )
-    paradigm_args.add_argument(
         "--use_tp",
         default=False,
         action="store_true",
@@ -305,17 +276,16 @@ def launch_command_parser(subparsers=None):
         action="store_true",
         help="Whether to use Megatron-LM.",
     )
+
     paradigm_args.add_argument(
         "--use_xpu",
-        default=False,
+        default=None,
         action="store_true",
-        help="Whether to use IPEX plugin to speed up training on XPU specifically.",
+        help="Whether to use IPEX plugin to speed up training on XPU specifically. This argument is deprecated and ignored, will be removed in Accelerate v1.20.",
     )
 
     # distributed GPU training arguments
-    distributed_args = parser.add_argument_group(
-        "Distributed GPUs", "Arguments related to distributed GPU training."
-    )
+    distributed_args = parser.add_argument_group("Distributed GPUs", "Arguments related to distributed GPU training.")
     distributed_args.add_argument(
         "--gpu_ids",
         default=None,
@@ -328,16 +298,10 @@ def launch_command_parser(subparsers=None):
         help="Whether all machines used for multinode training exist on the same local network.",
     )
     distributed_args.add_argument(
-        "--machine_rank",
-        type=int,
-        default=None,
-        help="The rank of the machine on which this script is launched.",
+        "--machine_rank", type=int, default=None, help="The rank of the machine on which this script is launched."
     )
     distributed_args.add_argument(
-        "--main_process_ip",
-        type=str,
-        default=None,
-        help="The IP address of the machine of rank 0.",
+        "--main_process_ip", type=str, default=None, help="The IP address of the machine of rank 0."
     )
     distributed_args.add_argument(
         "--main_process_port",
@@ -451,9 +415,7 @@ def launch_command_parser(subparsers=None):
     )
 
     # DeepSpeed arguments
-    deepspeed_args = parser.add_argument_group(
-        "DeepSpeed Arguments", "Arguments related to DeepSpeed."
-    )
+    deepspeed_args = parser.add_argument_group("DeepSpeed Arguments", "Arguments related to DeepSpeed.")
     deepspeed_args.add_argument(
         "--deepspeed_config_file",
         default=None,
@@ -545,7 +507,7 @@ def launch_command_parser(subparsers=None):
         "--deepspeed_multinode_launcher",
         default=None,
         type=str,
-        help="DeepSpeed multi-node launcher to use. If unspecified, will default to `pdsh`.",
+        help="DeepSpeed multi-node launcher to use, e.g. `pdsh`, `standard`, `openmpi`, `mvapich`, `mpich`, `slurm`, `nossh` (requires DeepSpeed >= 0.14.5). If unspecified, will default to `pdsh`.",
     )
     deepspeed_args.add_argument(
         "--deepspeed_moe_layer_cls_names",
@@ -556,8 +518,13 @@ def launch_command_parser(subparsers=None):
     )
 
     # fsdp arguments
-    fsdp_args = parser.add_argument_group(
-        "FSDP Arguments", "Arguments related to Fully Shared Data Parallelism."
+    fsdp_args = parser.add_argument_group("FSDP Arguments", "Arguments related to Fully Shared Data Parallelism.")
+    fsdp_args.add_argument(
+        "--fsdp_version",
+        type=str,
+        default="1",
+        choices=["1", "2"],
+        help="FSDP version to use. (useful only when `use_fsdp` flag is passed).",
     )
     fsdp_args.add_argument(
         "--fsdp_offload_params",
@@ -571,11 +538,18 @@ def launch_command_parser(subparsers=None):
         default=1e8,
         help="FSDP's minimum number of parameters for Default Auto Wrapping. (useful only when `use_fsdp` flag is passed).",
     )
+    # We enable this for backwards compatibility, throw a warning if this is set in `FullyShardedDataParallelPlugin`
     fsdp_args.add_argument(
         "--fsdp_sharding_strategy",
         type=str,
         default="FULL_SHARD",
-        help="FSDP's Sharding Strategy. (useful only when `use_fsdp` flag is passed).",
+        help="FSDP's sharding strategy. (useful only when `use_fsdp` flag is passed and `fsdp_version=1`).",
+    )
+    fsdp_args.add_argument(
+        "--fsdp_reshard_after_forward",
+        type=str,
+        default="true",
+        help="FSDP's Reshard After Forward Strategy. (useful only when `use_fsdp` flag is passed). Supports either boolean (FSDP2) or `FULL_SHARD | SHARD_GRAD_OP | NO_RESHARD` (FSDP1).",
     )
     fsdp_args.add_argument(
         "--fsdp_auto_wrap_policy",
@@ -639,9 +613,7 @@ def launch_command_parser(subparsers=None):
     )
 
     # tp args
-    tp_args = parser.add_argument_group(
-        "TP Arguments", "Arguments related to Tensor Parallelism using PyToch."
-    )
+    tp_args = parser.add_argument_group("TP Arguments", "Arguments related to Tensor Parallelism using PyToch.")
     tp_args.add_argument(
         "--tp_size",
         default=1,
@@ -649,61 +621,8 @@ def launch_command_parser(subparsers=None):
         help="PyTorch Tensor Parallelism (TP) degree. Set a value greater than 1 to activate. (useful only when `use_tp` flag is passed)",
     )
 
-    # fsdp2 args
-    fsdp2_args = parser.add_argument_group(
-        "FSDP2 Arguments",
-        "Arguments related to Fully Shared Data Parallelism Version 2.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_reshard_after_forward",
-        default="true",
-        type=str,
-        help="Decides Whether (true|false) to reshard parameters after forward pass.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_cpu_offload",
-        default="false",
-        type=str,
-        help="Decides Whether (true|false) to offload to CPU.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_cpu_offload_pin_memory",
-        default="false",
-        type=str,
-        help="Decides Whether (true|false) to pin memory during CPU offload.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_mp_param_dtype",
-        default="no",
-        type=str,
-        choices=["no", "fp16", "bf16", "fp8"],
-        help="Parameter datatype to be used in mixed precision training.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_mp_reduce_dtype",
-        default="no",
-        type=str,
-        choices=["no", "fp16", "bf16", "fp8"],
-        help="Dtype for gradient reduction to be used in mixed precision training.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_mp_output_dtype",
-        default="no",
-        type=str,
-        choices=["no", "fp16", "bf16", "fp8"],
-        help="Dtype for forward outputs to be used in mixed precision training.",
-    )
-    fsdp2_args.add_argument(
-        "--fsdp2_cast_forward_inputs",
-        default="false",
-        type=str,
-        help="Decides Whether (true|false) to cast forward inputs in mixed precision training.",
-    )
-
     # megatron_lm args
-    megatron_lm_args = parser.add_argument_group(
-        "Megatron-LM Arguments", "Arguments related to Megatron-LM."
-    )
+    megatron_lm_args = parser.add_argument_group("Megatron-LM Arguments", "Arguments related to Megatron-LM.")
     megatron_lm_args.add_argument(
         "--megatron_lm_tp_degree",
         type=int,
@@ -754,8 +673,7 @@ def launch_command_parser(subparsers=None):
 
     # FP8 arguments
     fp8_args = parser.add_argument_group(
-        "FP8 Arguments",
-        "Arguments related to FP8 training (requires `--mixed_precision=fp8`)",
+        "FP8 Arguments", "Arguments related to FP8 training (requires `--mixed_precision=fp8`)"
     )
     fp8_args.add_argument(
         "--fp8_backend",
@@ -844,9 +762,7 @@ def launch_command_parser(subparsers=None):
     )
 
     # MPI arguments
-    mpirun_args = parser.add_argument_group(
-        "MPI Arguments", "Arguments related to mpirun for Multi-CPU"
-    )
+    mpirun_args = parser.add_argument_group("MPI Arguments", "Arguments related to mpirun for Multi-CPU")
     mpirun_args.add_argument(
         "--mpirun_hostfile",
         type=str,
@@ -862,11 +778,7 @@ def launch_command_parser(subparsers=None):
     )
 
     # Other arguments of the training scripts
-    parser.add_argument(
-        "training_script_args",
-        nargs=argparse.REMAINDER,
-        help="Arguments of the training script.",
-    )
+    parser.add_argument("training_script_args", nargs=argparse.REMAINDER, help="Arguments of the training script.")
 
     if subparsers is not None:
         parser.set_defaults(func=launch_command)
@@ -886,7 +798,6 @@ def simple_launcher(args):
 
 
 def multi_gpu_launcher(args):
-    # Third Party
     import torch.distributed.run as distrib_run
 
     current_env = prepare_multi_gpu_env(args)
@@ -906,12 +817,7 @@ def multi_gpu_launcher(args):
     args = _filter_args(
         args,
         distrib_run.get_args_parser(),
-        [
-            "--training_script",
-            args.training_script,
-            "--training_script_args",
-            args.training_script_args,
-        ],
+        ["--training_script", args.training_script, "--training_script_args", args.training_script_args],
     )
 
     with patch_environment(**current_env):
@@ -920,24 +826,18 @@ def multi_gpu_launcher(args):
         except Exception:
             if is_rich_available() and debug:
                 console = get_console()
-                console.print(
-                    "\n[bold red]Using --debug, `torch.distributed` Stack Trace:[/bold red]"
-                )
+                console.print("\n[bold red]Using --debug, `torch.distributed` Stack Trace:[/bold red]")
                 console.print_exception(suppress=[__file__], show_locals=False)
             else:
                 raise
 
 
 def deepspeed_launcher(args):
-    # Third Party
     import torch.distributed.run as distrib_run
 
     if not is_deepspeed_available():
-        raise ImportError(
-            "DeepSpeed is not installed => run `pip3 install deepspeed` or build it from source."
-        )
+        raise ImportError("DeepSpeed is not installed => run `pip3 install deepspeed` or build it from source.")
     else:
-        # Third Party
         from deepspeed.launcher.runner import DEEPSPEED_ENVIRONMENT_NAME
 
     cmd, current_env = prepare_deepspeed_cmd_env(args)
@@ -953,10 +853,7 @@ def deepspeed_launcher(args):
         if warn:
             logger.warning(message)
 
-    if (
-        args.num_machines > 1
-        and args.deepspeed_multinode_launcher != DEEPSPEED_MULTINODE_LAUNCHERS[1]
-    ):
+    if args.num_machines > 1 and args.deepspeed_multinode_launcher != DEEPSPEED_MULTINODE_LAUNCHERS[1]:
         with open(DEEPSPEED_ENVIRONMENT_NAME, "a") as f:
             valid_env_items = convert_dict_to_env_variables(current_env)
             if len(valid_env_items) > 1:
@@ -966,9 +863,7 @@ def deepspeed_launcher(args):
         process.wait()
         if process.returncode != 0:
             if not args.quiet:
-                raise subprocess.CalledProcessError(
-                    returncode=process.returncode, cmd=cmd
-                )
+                raise subprocess.CalledProcessError(returncode=process.returncode, cmd=cmd)
             else:
                 sys.exit(1)
     else:
@@ -976,12 +871,7 @@ def deepspeed_launcher(args):
         args = _filter_args(
             args,
             distrib_run.get_args_parser(),
-            [
-                "--training_script",
-                args.training_script,
-                "--training_script_args",
-                args.training_script_args,
-            ],
+            ["--training_script", args.training_script, "--training_script_args", args.training_script_args],
         )
         with patch_environment(**current_env):
             try:
@@ -989,18 +879,15 @@ def deepspeed_launcher(args):
             except Exception:
                 if is_rich_available() and debug:
                     console = get_console()
-                    console.print(
-                        "\n[bold red]Using --debug, `torch.distributed` Stack Trace:[/bold red]"
-                    )
+                    console.print("\n[bold red]Using --debug, `torch.distributed` Stack Trace:[/bold red]")
                     console.print_exception(suppress=[__file__], show_locals=False)
                 else:
                     raise
 
 
 def tpu_launcher(args):
-    # Third Party
-    from torch_xla import device_count
     import torch_xla.distributed.xla_multiprocessing as xmp
+    from torch_xla import device_count
 
     if args.no_python:
         raise ValueError("--no_python cannot be used with TPU launcher")
@@ -1035,7 +922,6 @@ def tpu_launcher(args):
 
 
 def tpu_pod_launcher(args):
-    # Third Party
     from torch_xla.distributed import xla_dist
 
     current_env = {}
@@ -1045,9 +931,7 @@ def tpu_pod_launcher(args):
     training_script = args.training_script
     training_script_args = args.training_script_args
     new_args = _filter_args(
-        args,
-        xla_dist.get_args_parser(),
-        ["--tpu", args.tpu_name, "--positional", "", "--restart-tpuvm-pod-server"],
+        args, xla_dist.get_args_parser(), ["--tpu", args.tpu_name, "--positional", "", "--restart-tpuvm-pod-server"]
     )
 
     if args.tpu_use_sudo:
@@ -1090,9 +974,7 @@ def tpu_pod_launcher(args):
     except Exception:
         if is_rich_available() and debug:
             console = get_console()
-            console.print(
-                "\n[bold red]Using --debug, `torch_xla.xla_dist` Stack Trace:[/bold red]"
-            )
+            console.print("\n[bold red]Using --debug, `torch_xla.xla_dist` Stack Trace:[/bold red]")
             console.print_exception(suppress=[__file__], show_locals=False)
         else:
             raise
@@ -1108,7 +990,6 @@ def sagemaker_launcher(sagemaker_config: SageMakerConfig, args):
             "SageMaker requires a python training script file and cannot be used with --module or --no_python"
         )
 
-    # Third Party
     from sagemaker.huggingface import HuggingFace
 
     args, sagemaker_inputs = prepare_sagemager_args_inputs(sagemaker_config, args)
@@ -1121,19 +1002,7 @@ def sagemaker_launcher(sagemaker_config: SageMakerConfig, args):
 
 def _validate_launch_command(args):
     # Sanity checks
-    if (
-        sum(
-            [
-                args.multi_gpu,
-                args.cpu,
-                args.tpu,
-                args.use_deepspeed,
-                args.use_fsdp,
-                args.use_tp,
-            ]
-        )
-        > 1
-    ):
+    if sum([args.multi_gpu, args.cpu, args.tpu, args.use_deepspeed, args.use_fsdp, args.use_tp]) > 1:
         raise ValueError(
             "You can only use one of `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`, `--use_tp` at a time."
         )
@@ -1144,11 +1013,7 @@ def _validate_launch_command(args):
     warned = []
     mp_from_config_flag = False
     # Get the default from the config file.
-    if (
-        args.config_file is not None
-        or os.path.isfile(default_config_file)
-        and not args.cpu
-    ):
+    if args.config_file is not None or os.path.isfile(default_config_file) and not args.cpu:
         defaults = load_config_from_file(args.config_file)
         if (
             not args.multi_gpu
@@ -1156,7 +1021,6 @@ def _validate_launch_command(args):
             and not args.tpu_use_cluster
             and not args.use_deepspeed
             and not args.use_fsdp
-            and not args.use_fsdp2
             and not args.use_tp
             and not args.use_megatron_lm
         ):
@@ -1168,18 +1032,17 @@ def _validate_launch_command(args):
                     DistributedType.MULTI_GPU,
                     DistributedType.MULTI_NPU,
                     DistributedType.MULTI_MLU,
+                    DistributedType.MULTI_SDAA,
                     DistributedType.MULTI_MUSA,
                     DistributedType.MULTI_XPU,
+                    DistributedType.MULTI_HPU,
                 )
                 else False
             )
             args.tpu = defaults.distributed_type == DistributedType.XLA
             args.use_fsdp = defaults.distributed_type == DistributedType.FSDP
             args.use_tp = defaults.distributed_type == DistributedType.TP
-            args.use_fsdp2 = defaults.distributed_type == DistributedType.FSDP2
-            args.use_megatron_lm = (
-                defaults.distributed_type == DistributedType.MEGATRON_LM
-            )
+            args.use_megatron_lm = defaults.distributed_type == DistributedType.MEGATRON_LM
             args.tpu_use_cluster = defaults.tpu_use_cluster if args.tpu else False
         if args.gpu_ids is None:
             if defaults.gpu_ids is not None:
@@ -1190,12 +1053,7 @@ def _validate_launch_command(args):
         if args.multi_gpu and args.num_machines is None:
             args.num_machines = defaults.num_machines
 
-        if (
-            len(args.gpu_ids.split(",")) < 2
-            and (args.gpu_ids != "all")
-            and args.multi_gpu
-            and args.num_machines <= 1
-        ):
+        if len(args.gpu_ids.split(",")) < 2 and (args.gpu_ids != "all") and args.multi_gpu and args.num_machines <= 1:
             raise ValueError(
                 "Less than two GPU ids were configured and tried to run on on multiple GPUs. "
                 "Please ensure at least two are specified for `--gpu_ids`, or use `--gpu_ids='all'`."
@@ -1204,40 +1062,20 @@ def _validate_launch_command(args):
             # Update args with the defaults
             for name, attr in defaults.__dict__.items():
                 if isinstance(attr, dict):
-                    for k in defaults.deepspeed_config:
-                        setattr(args, k, defaults.deepspeed_config[k])
-                    for k in defaults.fsdp_config:
-                        arg_to_set = k
-                        if "fsdp" not in arg_to_set:
-                            arg_to_set = "fsdp_" + arg_to_set
-                        setattr(args, arg_to_set, defaults.fsdp_config[k])
-                    for k in defaults.tp_config:
-                        setattr(args, k, defaults.tp_config[k])
-                    for k in defaults.megatron_lm_config:
-                        setattr(args, k, defaults.megatron_lm_config[k])
-                    for k in defaults.dynamo_config:
-                        setattr(args, k, defaults.dynamo_config[k])
-                    for k in defaults.ipex_config:
-                        setattr(args, k, defaults.ipex_config[k])
-                    for k in defaults.mpirun_config:
-                        setattr(args, k, defaults.mpirun_config[k])
-                    for k in defaults.fp8_config:
-                        arg_to_set = k
-                        if "fp8" not in arg_to_set:
-                            arg_to_set = "fp8_" + arg_to_set
-                        setattr(args, arg_to_set, defaults.fp8_config[k])
-                    continue
-
-                # Those args are handled separately
-                if (
-                    name
-                    not in [
-                        "compute_environment",
-                        "mixed_precision",
-                        "distributed_type",
-                    ]
+                    # Copy defaults.somedict.somearg to args.somearg and
+                    # defaults.fsdp_config.x to args.fsdp_x
+                    for key, value in attr.items():
+                        if name == "fsdp_config" and not key.startswith("fsdp"):
+                            key = "fsdp_" + key
+                        elif name == "fp8_config" and not key.startswith("fp8"):
+                            key = "fp8_" + key
+                        if hasattr(args, "nondefault") and key not in args.nondefault:
+                            setattr(args, key, value)
+                elif (
+                    name not in ["compute_environment", "mixed_precision", "distributed_type"]
                     and getattr(args, name, None) is None
                 ):
+                    # Those args are handled separately
                     setattr(args, name, attr)
         if not args.debug:
             args.debug = defaults.debug
@@ -1249,52 +1087,49 @@ def _validate_launch_command(args):
                 args.mixed_precision = defaults.mixed_precision
                 mp_from_config_flag = True
         else:
-            if args.use_cpu or (args.use_xpu and torch.xpu.is_available()):
-                native_amp = True
-            else:
-                native_amp = is_bf16_available(True)
+            native_amp = is_bf16_available(True)
             if (
                 args.mixed_precision == "bf16"
                 and not native_amp
                 and not (args.tpu and is_torch_xla_available(check_is_tpu=True))
             ):
-                raise ValueError(
-                    "bf16 mixed precision requires PyTorch >= 1.10 and a supported device."
-                )
+                raise ValueError("bf16 mixed precision requires PyTorch >= 1.10 and a supported device.")
 
         # Silently set the default here
         if args.dynamo_backend is None:
             args.dynamo_backend = "no"
         if args.num_processes == -1:
-            raise ValueError(
-                "You need to manually pass in `--num_processes` using this config yaml."
-            )
+            raise ValueError("You need to manually pass in `--num_processes` using this config yaml.")
     else:
         if args.num_processes is None:
-            if args.use_xpu and is_xpu_available():
+            if is_xpu_available():
                 args.num_processes = torch.xpu.device_count()
             elif is_mlu_available():
                 args.num_processes = torch.mlu.device_count()
+            elif is_sdaa_available():
+                args.num_processes = torch.sdaa.device_count()
             elif is_musa_available():
                 args.num_processes = torch.musa.device_count()
             elif is_npu_available():
                 args.num_processes = torch.npu.device_count()
+            elif is_hpu_available():
+                args.num_processes = torch.hpu.device_count()
             else:
                 args.num_processes = torch.cuda.device_count()
-            warned.append(
-                f"\t`--num_processes` was set to a value of `{args.num_processes}`"
-            )
+            warned.append(f"\t`--num_processes` was set to a value of `{args.num_processes}`")
         if args.debug is None:
             args.debug = False
         if (
             not args.multi_gpu
             and args.num_processes > 1
             and (
-                (args.use_xpu and is_xpu_available() and torch.xpu.device_count() > 1)
-                or (is_mlu_available() and torch.mlu.device_count() > 1)
-                or (is_musa_available() and torch.musa.device_count() > 1)
+                (is_xpu_available() and torch.xpu.device_count() > 1)
                 or (is_npu_available() and torch.npu.device_count() > 1)
-                or (torch.cuda.device_count() > 1)
+                or (is_hpu_available() and torch.hpu.device_count() > 1)
+                or (is_mlu_available() and torch.mlu.device_count() > 1)
+                or (is_sdaa_available() and torch.sdaa.device_count() > 1)
+                or (is_musa_available() and torch.musa.device_count() > 1)
+                or (torch.cuda.is_available() and torch.cuda.device_count() > 1)
             )
         ):
             warned.append(
@@ -1314,27 +1149,16 @@ def _validate_launch_command(args):
             warned.append("\t`--dynamo_backend` was set to a value of `'no'`")
             args.dynamo_backend = "no"
     if args.debug:
-        logger.debug(
-            "Running script in debug mode, expect distributed operations to be slightly slower."
-        )
+        logger.debug("Running script in debug mode, expect distributed operations to be slightly slower.")
 
     is_aws_env_disabled = defaults is None or (
-        defaults is not None
-        and defaults.compute_environment != ComputeEnvironment.AMAZON_SAGEMAKER
+        defaults is not None and defaults.compute_environment != ComputeEnvironment.AMAZON_SAGEMAKER
     )
     if is_aws_env_disabled and args.num_cpu_threads_per_process is None:
         args.num_cpu_threads_per_process = get_int_from_env(["OMP_NUM_THREADS"], 1)
-        if (
-            args.use_cpu
-            and args.num_processes >= 1
-            and get_int_from_env(["OMP_NUM_THREADS"], 0) == 0
-        ):
+        if args.use_cpu and args.num_processes >= 1 and get_int_from_env(["OMP_NUM_THREADS"], 0) == 0:
             local_size = get_int_from_env(
-                [
-                    "MPI_LOCALNRANKS",
-                    "OMPI_COMM_WORLD_LOCAL_SIZE",
-                    "MV2_COMM_WORLD_LOCAL_SIZE",
-                ],
+                ["MPI_LOCALNRANKS", "OMPI_COMM_WORLD_LOCAL_SIZE", "MV2_COMM_WORLD_LOCAL_SIZE"],
                 max(int(args.num_processes / args.num_machines), 1),
             )
             threads_per_process = int(psutil.cpu_count(logical=False) / local_size)
@@ -1344,10 +1168,19 @@ def _validate_launch_command(args):
                     f"\t`--num_cpu_threads_per_process` was set to `{args.num_cpu_threads_per_process}` to improve out-of-box performance when training on CPUs"
                 )
 
+    if args.use_xpu is not None:
+        logger.warning(
+            "use_xpu is deprecated and ignored, will be removed in Accelerate v1.20. "
+            "XPU is a PyTorch native citizen now, we don't need extra argument to enable it any more.",
+            FutureWarning,
+        )
+
     if any(warned):
         message = "The following values were not passed to `accelerate launch` and had defaults used instead:\n"
         message += "\n".join(warned)
-        message += "\nTo avoid this warning pass in values for each of the problematic parameters or run `accelerate config`."
+        message += (
+            "\nTo avoid this warning pass in values for each of the problematic parameters or run `accelerate config`."
+        )
         logger.warning(message)
     return args, defaults, mp_from_config_flag
 
@@ -1356,18 +1189,12 @@ def launch_command(args):
     args, defaults, mp_from_config_flag = _validate_launch_command(args)
     # Use the proper launcher
     if args.use_deepspeed and not args.cpu:
-        args.deepspeed_fields_from_accelerate_config = (
-            list(defaults.deepspeed_config.keys()) if defaults else []
-        )
+        args.deepspeed_fields_from_accelerate_config = list(defaults.deepspeed_config.keys()) if defaults else []
         if mp_from_config_flag:
             args.deepspeed_fields_from_accelerate_config.append("mixed_precision")
-        args.deepspeed_fields_from_accelerate_config = ",".join(
-            args.deepspeed_fields_from_accelerate_config
-        )
+        args.deepspeed_fields_from_accelerate_config = ",".join(args.deepspeed_fields_from_accelerate_config)
         deepspeed_launcher(args)
     elif args.use_fsdp and not args.cpu:
-        multi_gpu_launcher(args)
-    elif args.use_fsdp2 and not args.cpu:
         multi_gpu_launcher(args)
     elif args.use_tp and not args.cpu:
         multi_gpu_launcher(args)
@@ -1380,10 +1207,7 @@ def launch_command(args):
             tpu_pod_launcher(args)
         else:
             tpu_launcher(args)
-    elif (
-        defaults is not None
-        and defaults.compute_environment == ComputeEnvironment.AMAZON_SAGEMAKER
-    ):
+    elif defaults is not None and defaults.compute_environment == ComputeEnvironment.AMAZON_SAGEMAKER:
         sagemaker_launcher(defaults, args)
     else:
         simple_launcher(args)

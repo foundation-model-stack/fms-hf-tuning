@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
 import torch
-
-# First Party
-from accelerate import PartialState
-from accelerate.inference import prepare_pippy
-from accelerate.utils import DistributedType, set_seed
 from transformers import (
     BertConfig,
     BertForMaskedLM,
     GPT2Config,
     GPT2ForSequenceClassification,
 )
+
+from accelerate import PartialState
+from accelerate.inference import prepare_pippy
+from accelerate.test_utils import torch_device
+from accelerate.utils import DistributedType, set_seed
+
 
 model_to_config = {
     "bert": (BertForMaskedLM, BertConfig, 512),
@@ -39,13 +39,7 @@ def get_model_and_data_for_text(model_name, device, num_processes: int = 2):
     #     config_args["pad_token_id"] = 0
     model_config = config(**config_args)
     model = initializer(model_config)
-    kwargs = dict(
-        low=0,
-        high=model_config.vocab_size,
-        device=device,
-        dtype=torch.int64,
-        requires_grad=False,
-    )
+    kwargs = dict(low=0, high=model_config.vocab_size, device=device, dtype=torch.int64, requires_grad=False)
     trace_input = torch.randint(size=(1, seq_len), **kwargs)
     inference_inputs = torch.randint(size=(num_processes, seq_len), **kwargs)
     return model, trace_input, inference_inputs
@@ -54,16 +48,10 @@ def get_model_and_data_for_text(model_name, device, num_processes: int = 2):
 def test_bert(batch_size: int = 2):
     set_seed(42)
     state = PartialState()
-    model, trace_input, inference_inputs = get_model_and_data_for_text(
-        "bert", "cpu", batch_size
-    )
-    model = prepare_pippy(
-        model,
-        example_args=(trace_input,),
-        no_split_module_classes=model._no_split_modules,
-    )
+    model, trace_input, inference_inputs = get_model_and_data_for_text("bert", "cpu", batch_size)
+    model = prepare_pippy(model, example_args=(trace_input,), no_split_module_classes=model._no_split_modules)
     # For inference args need to be a tuple
-    inputs = inference_inputs.to("cuda")
+    inputs = inference_inputs.to(torch_device)
     with torch.no_grad():
         output = model(inputs)
     # Zach: Check that we just grab the real outputs we need at the end
@@ -76,16 +64,10 @@ def test_bert(batch_size: int = 2):
 def test_gpt2(batch_size: int = 2):
     set_seed(42)
     state = PartialState()
-    model, trace_input, inference_inputs = get_model_and_data_for_text(
-        "gpt2", "cpu", batch_size
-    )
-    model = prepare_pippy(
-        model,
-        example_args=(trace_input,),
-        no_split_module_classes=model._no_split_modules,
-    )
+    model, trace_input, inference_inputs = get_model_and_data_for_text("gpt2", "cpu", batch_size)
+    model = prepare_pippy(model, example_args=(trace_input,), no_split_module_classes=model._no_split_modules)
     # For inference args need to be a tuple
-    inputs = inference_inputs.to("cuda")
+    inputs = inference_inputs.to(torch_device)
     with torch.no_grad():
         output = model(inputs)
     # Zach: Check that we just grab the real outputs we need at the end
@@ -106,7 +88,7 @@ def test_gpt2(batch_size: int = 2):
 #         example_args=(input_tensor,),
 #     )
 #     inference_inputs = torch.rand(batch_size, 3, 224, 224)
-#     inputs = send_to_device(inference_inputs, "cuda:0")
+#     inputs = send_to_device(inference_inputs, torch_device)
 #     with torch.no_grad():
 #         output = model(inputs)
 #     # Zach: Check that we just grab the real outputs we need at the end
@@ -120,7 +102,7 @@ if __name__ == "__main__":
     state = PartialState()
     state.print("Testing pippy integration...")
     try:
-        if state.distributed_type == DistributedType.MULTI_GPU:
+        if state.distributed_type in [DistributedType.MULTI_GPU, DistributedType.MULTI_HPU]:
             state.print("Testing GPT2...")
             test_gpt2()
             # Issue: When modifying the tokenizer for batch GPT2 inference, there's an issue

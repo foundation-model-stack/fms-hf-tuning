@@ -17,10 +17,10 @@ A variety of helper functions and constants when dealing with terminal menu choi
 https://github.com/bchao1/bullet
 """
 
-# Standard
 import enum
 import shutil
 import sys
+
 
 TERMINAL_WIDTH, _ = shutil.get_terminal_size()
 

@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from types import MethodType
-from typing import Any, Dict, List, Optional, Tuple, Union
 import math
+from types import MethodType
+from typing import Any, Optional, Union
 
-# Local
 from .state import PartialState
 from .utils import (
     calculate_maximum_sizes,
@@ -30,16 +28,12 @@ from .utils import (
 )
 
 
-def generate_device_map(
-    model, num_processes: int = 1, no_split_module_classes=None, max_memory: dict = None
-):
+def generate_device_map(model, num_processes: int = 1, no_split_module_classes=None, max_memory: dict = None):
     """
     Calculates the device map for `model` with an offset for PiPPy
     """
     if num_processes == 1:
-        return infer_auto_device_map(
-            model, no_split_module_classes=no_split_module_classes, clean_result=False
-        )
+        return infer_auto_device_map(model, no_split_module_classes=no_split_module_classes, clean_result=False)
     if max_memory is None:
         model_size, shared = calculate_maximum_sizes(model)
 
@@ -85,7 +79,6 @@ def build_pipeline(model, split_points, args, kwargs, num_chunks):
     `AcceleratorState.num_processes`
     """
     # Note: We import here to reduce import time from general modules, and isolate outside dependencies
-    # Third Party
     from torch.distributed.pipelining import ScheduleGPipe, SplitPoint, pipeline
 
     # We need to annotate the split points in the model for PiPPy
@@ -130,10 +123,10 @@ def pippy_forward(forward, num_chunks, gather_output, *args, **kwargs):
 
 def prepare_pippy(
     model,
-    split_points: Optional[Union[str, List[str]]] = "auto",
-    no_split_module_classes: Optional[List[str]] = None,
-    example_args: Optional[Tuple[Any]] = (),
-    example_kwargs: Optional[Dict[str, Any]] = None,
+    split_points: Optional[Union[str, list[str]]] = "auto",
+    no_split_module_classes: Optional[list[str]] = None,
+    example_args: Optional[tuple[Any]] = (),
+    example_kwargs: Optional[dict[str, Any]] = None,
     num_chunks: Optional[int] = None,
     gather_output: Optional[bool] = False,
 ):
@@ -162,25 +155,19 @@ def prepare_pippy(
             If `True`, the output from the last GPU (which holds the true outputs) is sent across to all GPUs.
     """
     if not is_pippy_available():
-        raise ImportError(
-            "Using `torch.distributed.pipelining` requires PyTorch 2.4.0 or later."
-        )
+        raise ImportError("Using `torch.distributed.pipelining` requires PyTorch 2.4.0 or later.")
     state = PartialState()
     example_args = send_to_device(example_args, "cpu")
     example_kwargs = send_to_device(example_kwargs, "cpu")
     if num_chunks is None:
         num_chunks = state.num_processes
     if split_points == "auto":
-        device_map = generate_device_map(
-            model, num_chunks, no_split_module_classes=no_split_module_classes
-        )
+        device_map = generate_device_map(model, num_chunks, no_split_module_classes=no_split_module_classes)
         split_points = []
         for i in range(1, num_chunks):
             split_points.append(next(k for k, v in device_map.items() if v == i))
     model.hf_split_points = split_points
-    stage = build_pipeline(
-        model, split_points, example_args, example_kwargs, num_chunks
-    )
+    stage = build_pipeline(model, split_points, example_args, example_kwargs, num_chunks)
     model._original_forward = model.forward
     model._original_call = model.__call__
     model.pippy_stage = stage

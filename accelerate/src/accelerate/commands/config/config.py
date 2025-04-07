@@ -14,27 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 import os
 
-# First Party
 from accelerate.utils import ComputeEnvironment
 
-# Local
 from .cluster import get_cluster_input
-from .config_args import (  # noqa: F401
-    cache_dir,
-    default_config_file,
-    default_yaml_config_file,
-    load_config_from_file,
-)
-from .config_utils import (  # noqa: F401
-    _ask_field,
-    _ask_options,
-    _convert_compute_environment,
-)
+from .config_args import cache_dir, default_config_file, default_yaml_config_file, load_config_from_file  # noqa: F401
+from .config_utils import _ask_field, _ask_options, _convert_compute_environment  # noqa: F401
 from .sagemaker import get_sagemaker_input
+
 
 description = "Launches a series of prompts to create and save a `default_config.yaml` configuration file for your training system. Should always be ran first on your machine"
 
@@ -56,9 +45,7 @@ def config_command_parser(subparsers=None):
     if subparsers is not None:
         parser = subparsers.add_parser("config", description=description)
     else:
-        parser = argparse.ArgumentParser(
-            "Accelerate config command", description=description
-        )
+        parser = argparse.ArgumentParser("Accelerate config command", description=description)
 
     parser.add_argument(
         "--config_file",

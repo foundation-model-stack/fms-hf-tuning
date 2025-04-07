@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 from torch import nn
 
-# First Party
 from accelerate.test_utils import (
     memory_allocated_func,
     require_non_cpu,
@@ -41,6 +38,15 @@ class ModelForTest(nn.Module):
 
     def forward(self, x):
         return self.linear2(self.batchnorm(self.linear1(x)))
+
+
+class BigModelForTest(ModelForTest):
+    def __init__(self):
+        super().__init__()
+        self.linear3 = nn.Linear(5, 1000)
+
+    def forward(self, x):
+        return self.linear3(super().forward(x))
 
 
 class MemoryTest(unittest.TestCase):
@@ -79,9 +85,7 @@ class MemoryTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeError) as cm:
             mock_training_loop_function()
-            assert (
-                "No executable batch size found, reached zero." in cm.exception.args[0]
-            )
+            assert "No executable batch size found, reached zero." in cm.exception.args[0]
 
     def test_approach_zero(self):
         @find_executable_batch_size(starting_batch_size=16)
@@ -92,9 +96,7 @@ class MemoryTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeError) as cm:
             mock_training_loop_function()
-            assert (
-                "No executable batch size found, reached zero." in cm.exception.args[0]
-            )
+            assert "No executable batch size found, reached zero." in cm.exception.args[0]
 
     def test_verbose_guard(self):
         @find_executable_batch_size(starting_batch_size=128)
@@ -120,7 +122,14 @@ class MemoryTest(unittest.TestCase):
     @require_non_torch_xla
     def test_release_memory(self):
         starting_memory = memory_allocated_func()
-        model = ModelForTest()
+
+        if torch_device.startswith("hpu"):
+            # hpu has a minimum memory allocation that cannot be released,
+            # we need to surpass it by using a bigger model (>5767296 bytes)
+            model = BigModelForTest()
+        else:
+            model = ModelForTest()
+
         model.to(torch_device)
         assert memory_allocated_func() > starting_memory
         model = release_memory(model)

@@ -12,26 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-from typing import Union
 import json
 import os
 import pathlib
 import queue
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from typing import Union
 
-# Third Party
-from huggingface_hub.utils import insecure_hashlib
-from PIL import Image
-from tqdm import tqdm
 import fire
 import torch
 import webdataset as wds
-
-# First Party
-from accelerate import PartialState
+from huggingface_hub.utils import insecure_hashlib
+from PIL import Image
+from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoProcessor
+
+from accelerate import PartialState
+
 
 """
 Additional requirements: flash_attn einops timm webdataset fire tqdm huggingface_hub
@@ -67,20 +65,14 @@ def main(
         trust_remote_code=True,
     )
 
-    processor = AutoProcessor.from_pretrained(
-        model_name, trust_remote_code=True, clean_up_tokenization_spaces=True
-    )
+    processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True, clean_up_tokenization_spaces=True)
 
     class ExistsFilter:
         def __init__(self, output_dir: Union[pathlib.Path, str]):
-            current_training_img_hashes = [
-                f.split(".jpg")[0] for f in os.listdir(output_dir) if f.endswith(".jpg")
-            ]
+            current_training_img_hashes = [f.split(".jpg")[0] for f in os.listdir(output_dir) if f.endswith(".jpg")]
             self.current_training_img_hashes = set(current_training_img_hashes)
             if distributed_state.is_main_process:
-                print(
-                    f"Existing images found: {len(self.current_training_img_hashes)}."
-                )
+                print(f"Existing images found: {len(self.current_training_img_hashes)}.")
 
         def __call__(self, x):
             if len(self.current_training_img_hashes) > 0:
@@ -163,9 +155,7 @@ def main(
                     original_captions, predicted_captions, images, img_hashes
                 ):
                     processed_caption = processor.post_process_generation(
-                        pred_caption,
-                        task=prompt,
-                        image_size=(image.width, image.height),
+                        pred_caption, task=prompt, image_size=(image.width, image.height)
                     )[prompt]
                     img_path = output_dir.joinpath(f"{img_hash}.jpg")
                     image.save(img_path)
@@ -189,9 +179,7 @@ def main(
             with distributed_state.split_between_processes(batch_raw) as batch:
                 outputs = model.generate(
                     input_ids=batch["input_ids"].to(distributed_state.device),
-                    pixel_values=batch["pixel_values"].to(
-                        distributed_state.device, model.dtype
-                    ),
+                    pixel_values=batch["pixel_values"].to(distributed_state.device, model.dtype),
                     max_new_tokens=max_new_tokens,
                     num_beams=num_beams,
                 )

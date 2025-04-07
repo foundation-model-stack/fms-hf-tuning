@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# First Party
 from accelerate.test_utils import execute_subprocess_async, path_in_accelerate_package
 
 

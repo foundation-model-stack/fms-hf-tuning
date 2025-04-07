@@ -12,26 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from copy import deepcopy
 import logging
 import math
 import os
+from copy import deepcopy
 
-# Third Party
-from datasets import load_dataset
-from torch.utils.data import DataLoader, IterableDataset
 import datasets
 import evaluate
 import torch
+import transformers
+from datasets import load_dataset
+from torch.utils.data import DataLoader, IterableDataset
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-# First Party
 from accelerate import Accelerator, DataLoaderConfiguration, DistributedType
 from accelerate.data_loader import DataLoaderDispatcher
 from accelerate.test_utils import RegressionDataset, RegressionModel, torch_device
 from accelerate.utils import is_torch_xla_available, set_seed
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import transformers
+
 
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 
@@ -58,18 +56,11 @@ def get_basic_setup(accelerator, num_samples=82, batch_size=16):
 
 
 def get_dataloader(accelerator: Accelerator, use_longest=False):
-    tokenizer = AutoTokenizer.from_pretrained(
-        "hf-internal-testing/mrpc-bert-base-cased"
-    )
+    tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/mrpc-bert-base-cased")
     dataset = load_dataset("glue", "mrpc", split="validation")
 
     def tokenize_function(examples):
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     with accelerator.main_process_first():
@@ -84,19 +75,13 @@ def get_dataloader(accelerator: Accelerator, use_longest=False):
     def collate_fn(examples):
         if use_longest:
             return tokenizer.pad(examples, padding="longest", return_tensors="pt")
-        return tokenizer.pad(
-            examples, padding="max_length", max_length=128, return_tensors="pt"
-        )
+        return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
 
-    return DataLoader(
-        tokenized_datasets, shuffle=False, collate_fn=collate_fn, batch_size=16
-    )
+    return DataLoader(tokenized_datasets, shuffle=False, collate_fn=collate_fn, batch_size=16)
 
 
 def get_mrpc_setup(dispatch_batches, split_batches):
-    dataloader_config = DataLoaderConfiguration(
-        dispatch_batches=dispatch_batches, split_batches=split_batches
-    )
+    dataloader_config = DataLoaderConfiguration(dispatch_batches=dispatch_batches, split_batches=split_batches)
     accelerator = Accelerator(dataloader_config=dataloader_config)
     dataloader = get_dataloader(accelerator, not dispatch_batches)
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -126,17 +111,13 @@ def generate_predictions(model, dataloader, accelerator):
 
 
 def test_torch_metrics(
-    accelerator: Accelerator,
-    num_samples=82,
-    dispatch_batches=False,
-    split_batches=False,
-    batch_size=16,
+    accelerator: Accelerator, num_samples=82, dispatch_batches=False, split_batches=False, batch_size=16
 ):
     _, ddp_model, dataloader = get_basic_setup(accelerator, num_samples, batch_size)
     logits, _ = generate_predictions(ddp_model, dataloader, accelerator)
-    assert (
-        len(logits) == num_samples
-    ), f"Unexpected number of inputs:\n    Expected: {num_samples}\n    Actual: {len(logits)}"
+    assert len(logits) == num_samples, (
+        f"Unexpected number of inputs:\n    Expected: {num_samples}\n    Actual: {len(logits)}"
+    )
 
 
 def test_mrpc(dispatch_batches: bool = False, split_batches: bool = False):
@@ -167,9 +148,9 @@ def test_mrpc(dispatch_batches: bool = False, split_batches: bool = False):
     distributed = metric.compute()
 
     for key in "accuracy f1".split():
-        assert math.isclose(
-            baseline[key], distributed[key]
-        ), f"Baseline and Distributed are not the same for key {key}:\n\tBaseline: {baseline[key]}\n\tDistributed: {distributed[key]}\n"
+        assert math.isclose(baseline[key], distributed[key]), (
+            f"Baseline and Distributed are not the same for key {key}:\n\tBaseline: {baseline[key]}\n\tDistributed: {distributed[key]}\n"
+        )
 
 
 def test_gather_for_metrics_with_non_tensor_objects_iterable_dataset():
@@ -244,9 +225,7 @@ def test_gather_for_metrics_drop_last():
     accelerator = Accelerator()
     per_device_batch_size = 5
     num_items = (10 * accelerator.num_processes) + 1
-    dataloader = DataLoader(
-        range(num_items), batch_size=per_device_batch_size, drop_last=True
-    )
+    dataloader = DataLoader(range(num_items), batch_size=per_device_batch_size, drop_last=True)
     dataloader = accelerator.prepare(dataloader)
 
     iterator = iter(dataloader)
@@ -256,15 +235,13 @@ def test_gather_for_metrics_drop_last():
 
     # Should return a full set of complete batches from each GPU
     num_expected_items = per_device_batch_size * accelerator.num_processes
-    assert gathered_items.size(0) == (
-        num_expected_items
-    ), f"Expected number of items: {num_expected_items}, Actual: {gathered_items.size(0)}"
+    assert gathered_items.size(0) == (num_expected_items), (
+        f"Expected number of items: {num_expected_items}, Actual: {gathered_items.size(0)}"
+    )
 
 
 def main():
-    dataloader_config = DataLoaderConfiguration(
-        split_batches=False, dispatch_batches=False
-    )
+    dataloader_config = DataLoaderConfiguration(split_batches=False, dispatch_batches=False)
     accelerator = Accelerator(dataloader_config=dataloader_config)
     if accelerator.is_local_main_process:
         datasets.utils.logging.set_verbosity_warning()
@@ -274,11 +251,7 @@ def main():
         transformers.utils.logging.set_verbosity_error()
     # TorchXLA does not support batch dispatching. 'put_on_device' is always False for
     # TorchXLA, which can cause a value error in 'prepare_data_loader' function.
-    dispatch_batches_options = (
-        [False]
-        if accelerator.state.distributed_type == DistributedType.XLA
-        else [True, False]
-    )
+    dispatch_batches_options = [False] if accelerator.state.distributed_type == DistributedType.XLA else [True, False]
 
     # Temporarily close this test for TorchXLA due to the 'Cannot set version_counter for
     # inference tensor' error in inference mode. Reopen it after TorchXLA fixes this bug.
@@ -289,9 +262,7 @@ def main():
         for split_batches in [True, False]:
             for dispatch_batches in dispatch_batches_options:
                 if accelerator.is_local_main_process:
-                    print(
-                        f"With: `split_batches={split_batches}`, `dispatch_batches={dispatch_batches}`"
-                    )
+                    print(f"With: `split_batches={split_batches}`, `dispatch_batches={dispatch_batches}`")
                 test_mrpc(dispatch_batches, split_batches)
                 accelerator.state._reset_state()
         print("test_gather_for_metrics_with_iterable_dataset")
@@ -312,9 +283,7 @@ def main():
                 )
                 accelerator = Accelerator(dataloader_config=dataloader_config)
                 if accelerator.is_local_main_process:
-                    print(
-                        f"With: `split_batches={split_batches}`, `dispatch_batches={dispatch_batches}`, length=99"
-                    )
+                    print(f"With: `split_batches={split_batches}`, `dispatch_batches={dispatch_batches}`, length=99")
                 test_torch_metrics(accelerator, 99)
                 accelerator.state._reset_state()
     if accelerator.is_local_main_process:

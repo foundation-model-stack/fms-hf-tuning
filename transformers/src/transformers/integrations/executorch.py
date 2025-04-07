@@ -21,10 +21,7 @@ from ..utils.import_utils import is_torch_available
 
 if is_torch_available():
     from transformers import PreTrainedModel, StaticCache
-    from transformers.pytorch_utils import (
-        is_torch_greater_or_equal,
-        is_torch_greater_or_equal_than_2_3,
-    )
+    from transformers.pytorch_utils import is_torch_greater_or_equal, is_torch_greater_or_equal_than_2_3
 
 
 class TorchExportableModuleWithStaticCache(torch.nn.Module):
@@ -80,16 +77,10 @@ class TorchExportableModuleWithStaticCache(torch.nn.Module):
             dtype=self.model.dtype,
         )
         for i in range(len(self.static_cache.key_cache)):
-            self.register_buffer(
-                f"key_cache_{i}", self.static_cache.key_cache[i], persistent=False
-            )
-            self.register_buffer(
-                f"value_cache_{i}", self.static_cache.value_cache[i], persistent=False
-            )
+            self.register_buffer(f"key_cache_{i}", self.static_cache.key_cache[i], persistent=False)
+            self.register_buffer(f"value_cache_{i}", self.static_cache.value_cache[i], persistent=False)
 
-        self.is_causal = any(
-            "CausalLM" in arch for arch in self.model.config.architectures
-        )
+        self.is_causal = any("CausalLM" in arch for arch in self.model.config.architectures)
         if self.is_causal:
             causal_mask = torch.tril(
                 torch.ones(
@@ -138,9 +129,7 @@ class TorchExportableModuleWithStaticCache(torch.nn.Module):
 
     @staticmethod
     def generate(
-        exported_program: torch.export.ExportedProgram,
-        prompt_token_ids: torch.Tensor,
-        max_new_tokens: int,
+        exported_program: torch.export.ExportedProgram, prompt_token_ids: torch.Tensor, max_new_tokens: int
     ) -> torch.Tensor:
         """
         Generate a sequence of tokens using an exported program.
@@ -214,14 +203,10 @@ def convert_and_export_with_cache(
     with torch.no_grad():
         # TODO: The default inputs only work for text models. We need to add support for vision/audio models.
         example_input_ids = (
-            example_input_ids
-            if example_input_ids is not None
-            else torch.tensor([[1]], dtype=torch.long)
+            example_input_ids if example_input_ids is not None else torch.tensor([[1]], dtype=torch.long)
         )
         example_cache_position = (
-            example_cache_position
-            if example_cache_position is not None
-            else torch.tensor([0], dtype=torch.long)
+            example_cache_position if example_cache_position is not None else torch.tensor([0], dtype=torch.long)
         )
 
         if is_torch_greater_or_equal("2.5.0"):
@@ -286,12 +271,8 @@ class Seq2SeqLMDecoderExportableModuleWithStaticCache(torch.nn.Module):
 
         # Register cache buffers to make them exportable
         for i in range(len(self.static_cache.key_cache)):
-            self.register_buffer(
-                f"key_cache_{i}", self.static_cache.key_cache[i], persistent=False
-            )
-            self.register_buffer(
-                f"value_cache_{i}", self.static_cache.value_cache[i], persistent=False
-            )
+            self.register_buffer(f"key_cache_{i}", self.static_cache.key_cache[i], persistent=False)
+            self.register_buffer(f"value_cache_{i}", self.static_cache.value_cache[i], persistent=False)
 
     def forward(self, decoder_input_ids, encoder_hidden_states, cache_position):
         # Get outputs from decoder
@@ -311,12 +292,7 @@ class Seq2SeqLMDecoderExportableModuleWithStaticCache(torch.nn.Module):
 
 class Seq2SeqLMExportableModule(torch.nn.Module):
     def __init__(
-        self,
-        model,
-        batch_size=1,
-        max_hidden_seq_length=4096,
-        cache_implementation="static",
-        max_cache_length=1024,
+        self, model, batch_size=1, max_hidden_seq_length=4096, cache_implementation="static", max_cache_length=1024
     ):
         super().__init__()
 
@@ -337,22 +313,15 @@ class Seq2SeqLMExportableModule(torch.nn.Module):
         self.exported_decoder = None
 
     def _export_encoder(self, encoder_input_ids):
-        wrapped_encoder = (
-            Seq2SeqLMEncoderExportableModule(self.encoder).to("cpu").eval()
-        )
+        wrapped_encoder = Seq2SeqLMEncoderExportableModule(self.encoder).to("cpu").eval()
 
         # Define dynamic sequence length for encoder
-        seq_len_dim = torch.export.Dim(
-            "encoder_seq_length", max=self.max_hidden_seq_length
-        )
+        seq_len_dim = torch.export.Dim("encoder_seq_length", max=self.max_hidden_seq_length)
 
         # Export the encoder
         with torch.no_grad():
             exported_encoder = torch.export.export(
-                wrapped_encoder,
-                (encoder_input_ids,),
-                dynamic_shapes={"input_ids": {1: seq_len_dim}},
-                strict=True,
+                wrapped_encoder, (encoder_input_ids,), dynamic_shapes={"input_ids": {1: seq_len_dim}}, strict=True
             )
 
         return exported_encoder
@@ -369,9 +338,7 @@ class Seq2SeqLMExportableModule(torch.nn.Module):
         )
 
         # Define dynamic dimension for encoder output sequence length
-        encoder_seq_len_dim = torch.export.Dim(
-            "encoder_hidden_seq_length", max=self.max_hidden_seq_length
-        )
+        encoder_seq_len_dim = torch.export.Dim("encoder_hidden_seq_length", max=self.max_hidden_seq_length)
 
         # Export the decoder
         with torch.no_grad():
@@ -388,45 +355,24 @@ class Seq2SeqLMExportableModule(torch.nn.Module):
 
         return exported_decoder
 
-    def export(
-        self,
-        encoder_input_ids=None,
-        decoder_input_ids=None,
-        encoder_hidden_states=None,
-        cache_position=None,
-    ):
+    def export(self, encoder_input_ids=None, decoder_input_ids=None, encoder_hidden_states=None, cache_position=None):
         example_encoder_input_ids = (
-            encoder_input_ids
-            if encoder_input_ids is not None
-            else torch.ones((1, 10), dtype=torch.long)
+            encoder_input_ids if encoder_input_ids is not None else torch.ones((1, 10), dtype=torch.long)
         )
         example_decoder_input_ids = (
-            decoder_input_ids
-            if decoder_input_ids is not None
-            else torch.tensor([[0]], dtype=torch.long)
+            decoder_input_ids if decoder_input_ids is not None else torch.tensor([[0]], dtype=torch.long)
         )  # Start token
-        example_cache_position = (
-            cache_position
-            if cache_position is not None
-            else torch.tensor([0], dtype=torch.long)
-        )
+        example_cache_position = cache_position if cache_position is not None else torch.tensor([0], dtype=torch.long)
         example_encoder_hidden_states = (
             encoder_hidden_states
             if encoder_hidden_states is not None
             else torch.zeros(
-                (
-                    self.generation_config.cache_config.batch_size,
-                    10,
-                    self.config.d_model,
-                ),
-                dtype=torch.float32,
+                (self.generation_config.cache_config.batch_size, 10, self.config.d_model), dtype=torch.float32
             )
         )
         self.exported_encoder = self._export_encoder(example_encoder_input_ids)
         self.exported_decoder = self._export_decoder(
-            example_decoder_input_ids,
-            example_encoder_hidden_states,
-            example_cache_position,
+            example_decoder_input_ids, example_encoder_hidden_states, example_cache_position
         )
 
         # Return self to allow chaining
@@ -445,9 +391,7 @@ class Seq2SeqLMExportableModule(torch.nn.Module):
             for i in range(max_new_tokens - 1):
                 # Run decoder for next token prediction
                 logits = self.exported_decoder.module()(
-                    decoder_input_ids,
-                    encoder_output,
-                    torch.tensor([i], dtype=torch.long),
+                    decoder_input_ids, encoder_output, torch.tensor([i], dtype=torch.long)
                 )
 
                 # Get next token

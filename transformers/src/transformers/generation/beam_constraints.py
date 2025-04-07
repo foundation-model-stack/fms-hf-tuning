@@ -142,15 +142,9 @@ class PhrasalConstraint(Constraint):
         super(Constraint, self).__init__()
 
         if not isinstance(token_ids, list) or len(token_ids) == 0:
-            raise ValueError(
-                f"`token_ids` has to be a non-empty list, but is {token_ids}."
-            )
-        if any(
-            (not isinstance(token_id, int) or token_id < 0) for token_id in token_ids
-        ):
-            raise ValueError(
-                f"Each list in `token_ids` has to be a list of positive integers, but is {token_ids}."
-            )
+            raise ValueError(f"`token_ids` has to be a non-empty list, but is {token_ids}.")
+        if any((not isinstance(token_id, int) or token_id < 0) for token_id in token_ids):
+            raise ValueError(f"Each list in `token_ids` has to be a list of positive integers, but is {token_ids}.")
 
         self.token_ids = token_ids
 
@@ -165,9 +159,7 @@ class PhrasalConstraint(Constraint):
 
     def does_advance(self, token_id: int):
         if not isinstance(token_id, int):
-            raise TypeError(
-                f"`token_id` has to be an `int`, but is {token_id} of type {type(token_id)}"
-            )
+            raise TypeError(f"`token_id` has to be an `int`, but is {token_id} of type {type(token_id)}")
 
         if self.completed:
             return False
@@ -176,9 +168,7 @@ class PhrasalConstraint(Constraint):
 
     def update(self, token_id: int):
         if not isinstance(token_id, int):
-            raise TypeError(
-                f"`token_id` has to be an `int`, but is {token_id} of type {type(token_id)}"
-            )
+            raise TypeError(f"`token_id` has to be an `int`, but is {token_id} of type {type(token_id)}")
 
         stepped = False
         completed = False
@@ -285,18 +275,11 @@ class DisjunctiveConstraint(Constraint):
         super(Constraint, self).__init__()
 
         if not isinstance(nested_token_ids, list) or len(nested_token_ids) == 0:
-            raise ValueError(
-                f"`nested_token_ids` has to be a non-empty list, but is {nested_token_ids}."
-            )
+            raise ValueError(f"`nested_token_ids` has to be a non-empty list, but is {nested_token_ids}.")
         if any(not isinstance(token_ids, list) for token_ids in nested_token_ids):
-            raise ValueError(
-                f"`nested_token_ids` has to be a list of lists, but is {nested_token_ids}."
-            )
+            raise ValueError(f"`nested_token_ids` has to be a list of lists, but is {nested_token_ids}.")
         if any(
-            any(
-                (not isinstance(token_id, int) or token_id < 0)
-                for token_id in token_ids
-            )
+            any((not isinstance(token_id, int) or token_id < 0) for token_id in token_ids)
             for token_ids in nested_token_ids
         ):
             raise ValueError(
@@ -320,9 +303,7 @@ class DisjunctiveConstraint(Constraint):
 
     def does_advance(self, token_id: int):
         if not isinstance(token_id, int):
-            raise TypeError(
-                f"`token_id` is supposed to be type `int`, but is {token_id} of type {type(token_id)}"
-            )
+            raise TypeError(f"`token_id` is supposed to be type `int`, but is {token_id} of type {type(token_id)}")
 
         next_tokens = self.trie.next_tokens(self.current_seq)
 
@@ -330,9 +311,7 @@ class DisjunctiveConstraint(Constraint):
 
     def update(self, token_id: int):
         if not isinstance(token_id, int):
-            raise TypeError(
-                f"`token_id` is supposed to be type `int`, but is {token_id} of type {type(token_id)}"
-            )
+            raise TypeError(f"`token_id` is supposed to be type `int`, but is {token_id} of type {type(token_id)}")
 
         stepped = False
         completed = False
@@ -394,9 +373,7 @@ class ConstraintListState:
     def init_state(self):
         self.complete_constraints = []
         self.inprogress_constraint = None
-        self.pending_constraints = [
-            constraint.copy(stateful=False) for constraint in self.constraints
-        ]
+        self.pending_constraints = [constraint.copy(stateful=False) for constraint in self.constraints]
 
     def get_bank(self):
         add = 0
@@ -423,9 +400,7 @@ class ConstraintListState:
         """
         token_list = []
         if self.inprogress_constraint is None:
-            for (
-                constraint
-            ) in self.pending_constraints:  # "pending" == "unfulfilled yet"
+            for constraint in self.pending_constraints:  # "pending" == "unfulfilled yet"
                 advance = constraint.advance()
                 if isinstance(advance, int):
                     token_list.append(advance)
@@ -481,9 +456,7 @@ class ConstraintListState:
                 #     But that doesn't mean we self.init_state(), since we only reset the state for this particular
                 #     constraint, not the full list of constraints.
 
-                self.pending_constraints.append(
-                    self.inprogress_constraint.copy(stateful=False)
-                )
+                self.pending_constraints.append(self.inprogress_constraint.copy(stateful=False))
                 self.inprogress_constraint = None
 
             if complete:
@@ -523,14 +496,10 @@ class ConstraintListState:
                         # If we made any progress at all, then it's at least not a "pending constraint".
 
                         self.pending_constraints = (
-                            self.pending_constraints[:cidx]
-                            + self.pending_constraints[cidx + 1 :]
+                            self.pending_constraints[:cidx] + self.pending_constraints[cidx + 1 :]
                         )
 
-                        if (
-                            len(self.pending_constraints) == 0
-                            and self.inprogress_constraint is None
-                        ):
+                        if len(self.pending_constraints) == 0 and self.inprogress_constraint is None:
                             # If there's no longer any pending after this and no inprogress either, then we must be
                             # complete.
 
@@ -541,22 +510,15 @@ class ConstraintListState:
         return complete, stepped
 
     def copy(self, stateful=True):
-        new_state = ConstraintListState(
-            self.constraints
-        )  # we actually never though self.constraints objects
+        new_state = ConstraintListState(self.constraints)  # we actually never though self.constraints objects
         # throughout this process. So it's at initialization state.
 
         if stateful:
             new_state.complete_constraints = [
-                constraint.copy(stateful=True)
-                for constraint in self.complete_constraints
+                constraint.copy(stateful=True) for constraint in self.complete_constraints
             ]
             if self.inprogress_constraint is not None:
-                new_state.inprogress_constraint = self.inprogress_constraint.copy(
-                    stateful=True
-                )
-            new_state.pending_constraints = [
-                constraint.copy() for constraint in self.pending_constraints
-            ]
+                new_state.inprogress_constraint = self.inprogress_constraint.copy(stateful=True)
+            new_state.pending_constraints = [constraint.copy() for constraint in self.pending_constraints]
 
         return new_state

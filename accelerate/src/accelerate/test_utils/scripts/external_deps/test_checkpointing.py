@@ -11,35 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 import json
 import os
 
-# Third Party
+import evaluate
+import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-import evaluate
-import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup, set_seed
 
-# First Party
 from accelerate import Accelerator, DistributedType
 from accelerate.utils.deepspeed import DummyOptim, DummyScheduler
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    get_linear_schedule_with_warmup,
-    set_seed,
-)
+
 
 MAX_GPU_BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 32
 
 
-def get_dataloaders(
-    accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"
-):
+def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"):
     """
     Creates a set of `DataLoader`s for the `glue` dataset.
 
@@ -55,20 +46,12 @@ def get_dataloaders(
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
     tokenized_datasets = datasets.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=["idx", "sentence1", "sentence2"],
-        load_from_cache_file=False,
+        tokenize_function, batched=True, remove_columns=["idx", "sentence1", "sentence2"], load_from_cache_file=False
     )
 
     # We also rename the 'label' column to 'labels' which is the expected name for labels by the models of the
@@ -78,23 +61,15 @@ def get_dataloaders(
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
         if accelerator.distributed_type == DistributedType.XLA:
-            return tokenizer.pad(
-                examples, padding="max_length", max_length=128, return_tensors="pt"
-            )
+            return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
         return tokenizer.pad(examples, padding="longest", return_tensors="pt")
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     return train_dataloader, eval_dataloader
@@ -140,14 +115,10 @@ def training_function(config, args):
     model_name = args.model_name_or_path
 
     set_seed(seed)
-    train_dataloader, eval_dataloader = get_dataloaders(
-        accelerator, batch_size, model_name
-    )
+    train_dataloader, eval_dataloader = get_dataloaders(accelerator, batch_size, model_name)
 
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, return_dict=True
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, return_dict=True)
 
     # Instantiate optimizer
     optimizer_cls = (
@@ -159,16 +130,12 @@ def training_function(config, args):
     optimizer = optimizer_cls(params=model.parameters(), lr=lr)
 
     if accelerator.state.deepspeed_plugin is not None:
-        gradient_accumulation_steps = (
-            accelerator.state.deepspeed_plugin.deepspeed_config[
-                "gradient_accumulation_steps"
-            ]
-        )
+        gradient_accumulation_steps = accelerator.state.deepspeed_plugin.deepspeed_config[
+            "gradient_accumulation_steps"
+        ]
     else:
         gradient_accumulation_steps = 1
-    max_training_steps = (
-        len(train_dataloader) * num_epochs
-    ) // gradient_accumulation_steps
+    max_training_steps = (len(train_dataloader) * num_epochs) // gradient_accumulation_steps
 
     # Instantiate scheduler
     if (
@@ -181,20 +148,12 @@ def training_function(config, args):
             num_training_steps=max_training_steps,
         )
     else:
-        lr_scheduler = DummyScheduler(
-            optimizer, total_num_steps=max_training_steps, warmup_num_steps=0
-        )
+        lr_scheduler = DummyScheduler(optimizer, total_num_steps=max_training_steps, warmup_num_steps=0)
 
     # Prepare everything
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = accelerator.prepare(
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
@@ -220,26 +179,18 @@ def training_function(config, args):
         starting_epoch = int(state_epoch_num) + 1
         accuracy = evaluation_loop(accelerator, model, eval_dataloader, metric)
         accelerator.print("resumed checkpoint performance:", accuracy)
-        accelerator.print(
-            "resumed checkpoint's scheduler's lr:", lr_scheduler.get_lr()[0]
-        )
+        accelerator.print("resumed checkpoint's scheduler's lr:", lr_scheduler.get_lr()[0])
         accelerator.print("resumed optimizers's lr:", optimizer.param_groups[0]["lr"])
-        with open(
-            os.path.join(args.output_dir, f"state_{starting_epoch - 1}.json")
-        ) as f:
+        with open(os.path.join(args.output_dir, f"state_{starting_epoch - 1}.json")) as f:
             resumed_state = json.load(f)
-            assert (
-                resumed_state["accuracy"] == accuracy
-            ), "Accuracy mismatch, loading from checkpoint failed"
-            assert (
-                resumed_state["lr"] == lr_scheduler.get_lr()[0]
-            ), "Scheduler learning rate mismatch, loading from checkpoint failed"
-            assert (
-                resumed_state["optimizer_lr"] == optimizer.param_groups[0]["lr"]
-            ), "Optimizer learning rate mismatch, loading from checkpoint failed"
-            assert (
-                resumed_state["epoch"] == starting_epoch - 1
-            ), "Epoch mismatch, loading from checkpoint failed"
+            assert resumed_state["accuracy"] == accuracy, "Accuracy mismatch, loading from checkpoint failed"
+            assert resumed_state["lr"] == lr_scheduler.get_lr()[0], (
+                "Scheduler learning rate mismatch, loading from checkpoint failed"
+            )
+            assert resumed_state["optimizer_lr"] == optimizer.param_groups[0]["lr"], (
+                "Optimizer learning rate mismatch, loading from checkpoint failed"
+            )
+            assert resumed_state["epoch"] == starting_epoch - 1, "Epoch mismatch, loading from checkpoint failed"
             return
 
     # Now we train the model
@@ -276,9 +227,7 @@ def training_function(config, args):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Simple example of training script tracking peak GPU memory usage."
-    )
+    parser = argparse.ArgumentParser(description="Simple example of training script tracking peak GPU memory usage.")
     parser.add_argument(
         "--model_name_or_path",
         type=str,

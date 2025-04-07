@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from contextlib import suppress
-from typing import Callable, List, Optional, Union
 import importlib
 import math
+from contextlib import suppress
+from typing import Callable, Optional, Union
 
-# Third Party
+import torch
 from packaging import version
 from torch.utils.data import BatchSampler, DataLoader, IterableDataset, RandomSampler
-import torch
 
-# Local
 from .logging import get_logger
 from .state import DistributedType, GradientState, PartialState, is_torch_xla_available
 from .utils import (
@@ -41,6 +38,7 @@ from .utils import (
     slice_tensors,
     synchronize_rng_states,
 )
+
 
 logger = get_logger(__name__)
 
@@ -86,14 +84,14 @@ class SeedableRandomSampler(RandomSampler):
         data_seed = kwargs.pop("data_seed", None)
         super().__init__(*args, **kwargs)
 
-        self.initial_seed = (
-            data_seed if data_seed is not None else torch.random.initial_seed()
-        )
+        self.initial_seed = data_seed if data_seed is not None else torch.random.initial_seed()
         self.epoch = 0
 
     def __iter__(self):
         if self.generator is None:
-            self.generator = torch.Generator()
+            self.generator = torch.Generator(
+                device=torch.get_default_device() if hasattr(torch, "get_default_device") else "cpu"
+            )
             self.generator.manual_seed(self.initial_seed)
 
         # Allow `self.epoch` to modify the seed of the generator
@@ -189,18 +187,10 @@ class BatchSamplerShard(BatchSampler):
             return length + 1
         else:
             # Otherwise it depends on the process index.
-            return (
-                length + 1
-                if self.process_index < len(self.batch_sampler) % self.num_processes
-                else length
-            )
+            return length + 1 if self.process_index < len(self.batch_sampler) % self.num_processes else length
 
     def __iter__(self):
-        return (
-            self._iter_with_split()
-            if self.split_batches
-            else self._iter_with_no_split()
-        )
+        return self._iter_with_split() if self.split_batches else self._iter_with_no_split()
 
     def _iter_with_split(self):
         initial_data = []
@@ -210,35 +200,19 @@ class BatchSamplerShard(BatchSampler):
                 initial_data = batch
             if len(batch) == self.batch_size:
                 # If the batch is full, we yield the part of it this process is responsible of.
-                yield batch[
-                    batch_length
-                    * self.process_index : batch_length
-                    * (self.process_index + 1)
-                ]
+                yield batch[batch_length * self.process_index : batch_length * (self.process_index + 1)]
 
         # If drop_last is True of the last batch was full, iteration is over, otherwise...
-        if (
-            not self.drop_last
-            and len(initial_data) > 0
-            and len(batch) < self.batch_size
-        ):
+        if not self.drop_last and len(initial_data) > 0 and len(batch) < self.batch_size:
             if not self.even_batches:
                 if len(batch) > batch_length * self.process_index:
-                    yield batch[
-                        batch_length
-                        * self.process_index : batch_length
-                        * (self.process_index + 1)
-                    ]
+                    yield batch[batch_length * self.process_index : batch_length * (self.process_index + 1)]
             else:
                 # For degenerate cases where the dataset has less than num_process * batch_size samples
                 while len(initial_data) < self.batch_size:
                     initial_data += initial_data
                 batch = batch + initial_data
-                yield batch[
-                    batch_length
-                    * self.process_index : batch_length
-                    * (self.process_index + 1)
-                ]
+                yield batch[batch_length * self.process_index : batch_length * (self.process_index + 1)]
 
     def _iter_with_no_split(self):
         initial_data = []
@@ -350,14 +324,9 @@ class IterableDatasetShard(IterableDataset):
     def __len__(self):
         # We will just raise the downstream error if the underlying dataset is not sized
         if self.drop_last:
-            return (
-                len(self.dataset) // (self.batch_size * self.num_processes)
-            ) * self.batch_size
+            return (len(self.dataset) // (self.batch_size * self.num_processes)) * self.batch_size
         else:
-            return (
-                math.ceil(len(self.dataset) / (self.batch_size * self.num_processes))
-                * self.batch_size
-            )
+            return math.ceil(len(self.dataset) / (self.batch_size * self.num_processes)) * self.batch_size
 
     def __iter__(self):
         if (
@@ -366,20 +335,9 @@ class IterableDatasetShard(IterableDataset):
             and isinstance(self.dataset.generator, torch.Generator)
         ):
             self.dataset.generator.manual_seed(self.epoch)
-        real_batch_size = (
-            self.batch_size
-            if self.split_batches
-            else (self.batch_size * self.num_processes)
-        )
-        process_batch_size = (
-            (self.batch_size // self.num_processes)
-            if self.split_batches
-            else self.batch_size
-        )
-        process_slice = range(
-            self.process_index * process_batch_size,
-            (self.process_index + 1) * process_batch_size,
-        )
+        real_batch_size = self.batch_size if self.split_batches else (self.batch_size * self.num_processes)
+        process_batch_size = (self.batch_size // self.num_processes) if self.split_batches else self.batch_size
+        process_slice = range(self.process_index * process_batch_size, (self.process_index + 1) * process_batch_size)
 
         first_batch = None
         current_batch = []
@@ -437,9 +395,7 @@ class DataLoaderStateMixin:
         self.reset()
         with suppress(Exception):
             if not self._drop_last:
-                length = getattr(
-                    self.dataset, "total_dataset_length", len(self.dataset)
-                )
+                length = getattr(self.dataset, "total_dataset_length", len(self.dataset))
                 self.remainder = length % self.total_batch_size
         self.gradient_state._add_dataloader(self)
 
@@ -454,12 +410,9 @@ class DataLoaderAdapter:
     compatability reasons, this class inherits from the class it wraps around, so it can be used as a drop-in.
     """
 
-    def __init__(
-        self, dataset, use_stateful_dataloader=False, batch_sampler=None, **kwargs
-    ):
+    def __init__(self, dataset, use_stateful_dataloader=False, batch_sampler=None, **kwargs):
         self.use_stateful_dataloader = use_stateful_dataloader
         if is_torchdata_stateful_dataloader_available():
-            # Third Party
             from torchdata.stateful_dataloader import StatefulDataLoader
 
         if use_stateful_dataloader and not is_torchdata_stateful_dataloader_available():
@@ -474,13 +427,9 @@ class DataLoaderAdapter:
                 and is_torch_version(">=", "2.6.0")
             ):
                 kwargs.pop("in_order")
-            self.base_dataloader = StatefulDataLoader(
-                dataset, batch_sampler=batch_sampler, **kwargs
-            )
+            self.base_dataloader = StatefulDataLoader(dataset, batch_sampler=batch_sampler, **kwargs)
         else:
-            self.base_dataloader = DataLoader(
-                dataset, batch_sampler=batch_sampler, **kwargs
-            )
+            self.base_dataloader = DataLoader(dataset, batch_sampler=batch_sampler, **kwargs)
 
         if hasattr(self.base_dataloader, "state_dict"):
             self.dl_state_dict = self.base_dataloader.state_dict()
@@ -529,12 +478,9 @@ class DataLoaderAdapter:
             if self.dl_state_dict["_index_sampler_state"] is not None:
                 if (
                     "samples_yielded" in self.dl_state_dict["_index_sampler_state"]
-                    and self.dl_state_dict["_index_sampler_state"]["samples_yielded"]
-                    > 0
+                    and self.dl_state_dict["_index_sampler_state"]["samples_yielded"] > 0
                 ):
-                    self.dl_state_dict["_index_sampler_state"]["samples_yielded"] -= (
-                        self.batch_size * factor
-                    )
+                    self.dl_state_dict["_index_sampler_state"]["samples_yielded"] -= self.batch_size * factor
 
     def _update_state_dict(self):
         # The state_dict of the underlying base_dataloader may be ahead of what is currently being yielded.
@@ -598,9 +544,7 @@ class DataLoaderShard(DataLoaderAdapter, DataLoaderStateMixin):
         torch_device_mesh=None,
         **kwargs,
     ):
-        super().__init__(
-            dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs
-        )
+        super().__init__(dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs)
         self.device = device
         self.rng_types = rng_types
         self.synchronized_generator = synchronized_generator
@@ -628,9 +572,7 @@ class DataLoaderShard(DataLoaderAdapter, DataLoaderStateMixin):
             try:
                 # But we still move it to the device so it is done before `StopIteration` is reached
                 if self.device is not None:
-                    current_batch = send_to_device(
-                        current_batch, self.device, non_blocking=self._non_blocking
-                    )
+                    current_batch = send_to_device(current_batch, self.device, non_blocking=self._non_blocking)
                 self._update_state_dict()
                 next_batch = next(dataloader_iter)
                 if batch_index >= self.skip_batches:
@@ -662,9 +604,7 @@ class DataLoaderShard(DataLoaderAdapter, DataLoaderStateMixin):
             self.iteration = epoch
         if hasattr(self.batch_sampler, "set_epoch"):
             self.batch_sampler.set_epoch(epoch)
-        if hasattr(self.batch_sampler, "sampler") and hasattr(
-            self.batch_sampler.sampler, "set_epoch"
-        ):
+        if hasattr(self.batch_sampler, "sampler") and hasattr(self.batch_sampler.sampler, "set_epoch"):
             self.batch_sampler.sampler.set_epoch(epoch)
         # We support if a custom `Dataset` implementation has `set_epoch`
         # or in general HF datasets `Datasets`
@@ -673,11 +613,7 @@ class DataLoaderShard(DataLoaderAdapter, DataLoaderStateMixin):
 
     @property
     def total_batch_size(self):
-        batch_sampler = (
-            self.sampler
-            if isinstance(self.sampler, BatchSampler)
-            else self.batch_sampler
-        )
+        batch_sampler = self.sampler if isinstance(self.sampler, BatchSampler) else self.batch_sampler
         return (
             batch_sampler.batch_size
             if getattr(batch_sampler, "split_batches", False)
@@ -705,7 +641,6 @@ class DataLoaderShard(DataLoaderAdapter, DataLoaderStateMixin):
 
 
 if is_torch_xla_available():
-    # Third Party
     import torch_xla.distributed.parallel_loader as xpl
 
     class MpDeviceLoaderWrapper(xpl.MpDeviceLoader):
@@ -733,9 +668,7 @@ if is_torch_xla_available():
 
         def __iter__(self):
             if self._rng_types is not None:
-                synchronize_rng_states(
-                    self._rng_types, self._loader.synchronized_generator
-                )
+                synchronize_rng_states(self._rng_types, self._loader.synchronized_generator)
 
             return super().__iter__()
 
@@ -800,20 +733,15 @@ class DataLoaderDispatcher(DataLoaderAdapter, DataLoaderStateMixin):
         **kwargs,
     ):
         shuffle = False
-        # Third Party
         from torch.utils.data.datapipes.iter.combinatorics import ShufflerIterDataPipe
 
         # We need to save the shuffling state of the DataPipe
         if isinstance(dataset, ShufflerIterDataPipe):
             shuffle = dataset._shuffle_enabled
-        super().__init__(
-            dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs
-        )
+        super().__init__(dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs)
         self.split_batches = split_batches
         if shuffle:
-            torch.utils.data.graph_settings.apply_shuffle_settings(
-                dataset, shuffle=shuffle
-            )
+            torch.utils.data.graph_settings.apply_shuffle_settings(dataset, shuffle=shuffle)
 
         self.gradient_state = GradientState()
         self.state = PartialState()
@@ -935,9 +863,7 @@ class DataLoaderDispatcher(DataLoaderAdapter, DataLoaderStateMixin):
             if self.state.process_index != 0:
                 # Initialize tensors on other processes than process 0.
                 batch = initialize_tensors(batch_info[0])
-            batch = send_to_device(
-                batch, self.state.device, non_blocking=self._non_blocking
-            )
+            batch = send_to_device(batch, self.state.device, non_blocking=self._non_blocking)
             # Broadcast the batch before splitting it.
             batch = broadcast(batch, from_process=0)
 
@@ -967,20 +893,13 @@ class DataLoaderDispatcher(DataLoaderAdapter, DataLoaderStateMixin):
                 if self._stop_iteration and next_batch_info[0] is None:
                     stop_iteration = True
 
-            if (
-                not self._drop_last
-                and stop_iteration
-                and observed_batch_size % self.state.num_processes != 0
-            ):
+            if not self._drop_last and stop_iteration and observed_batch_size % self.state.num_processes != 0:
                 # If the last batch is not complete, let's add the first batch to it.
                 batch = concatenate([batch, first_batch], dim=0)
                 # Batch size computation above is wrong, it's off by 1 so we fix it.
                 batch_size += 1
 
-            data_slice = slice(
-                self.state.process_index * batch_size,
-                (self.state.process_index + 1) * batch_size,
-            )
+            data_slice = slice(self.state.process_index * batch_size, (self.state.process_index + 1) * batch_size)
             batch = self.slice_fn(
                 batch,
                 data_slice,
@@ -1002,9 +921,7 @@ class DataLoaderDispatcher(DataLoaderAdapter, DataLoaderStateMixin):
         # In case it is manually passed in, the user can set it to what they like
         if self.iteration != epoch:
             self.iteration = epoch
-        if hasattr(self.batch_sampler, "sampler") and hasattr(
-            self.batch_sampler.sampler, "set_epoch"
-        ):
+        if hasattr(self.batch_sampler, "sampler") and hasattr(self.batch_sampler.sampler, "set_epoch"):
             self.batch_sampler.sampler.set_epoch(epoch)
         elif hasattr(self.dataset, "set_epoch"):
             self.dataset.set_epoch(epoch)
@@ -1030,9 +947,7 @@ class DataLoaderDispatcher(DataLoaderAdapter, DataLoaderStateMixin):
     @property
     def total_batch_size(self):
         return (
-            self.dataset.batch_size
-            if self.split_batches
-            else (self.dataset.batch_size * self.dataset.num_processes)
+            self.dataset.batch_size if self.split_batches else (self.dataset.batch_size * self.dataset.num_processes)
         )
 
     @property
@@ -1077,7 +992,7 @@ def prepare_data_loader(
     process_index: Optional[int] = None,
     split_batches: bool = False,
     put_on_device: bool = False,
-    rng_types: Optional[List[Union[str, RNGType]]] = None,
+    rng_types: Optional[list[Union[str, RNGType]]] = None,
     dispatch_batches: Optional[bool] = None,
     even_batches: bool = True,
     slice_fn_for_dispatch: Optional[Callable] = None,
@@ -1183,27 +1098,38 @@ def prepare_data_loader(
     if process_index is None:
         process_index = state.process_index
 
-    # when device mesh is used, specifically with TP
-    # then there is need to update process_index and num_processes
-    # to bring in the effect of generating same batch across TP ranks
-    # and different batch across FSDP and DP ranks.
-    # Example:
-    # if device mesh is (dp,fsdp,tp) = (2, 2, 3)
-    # ranks would range from 0...11
-    # from data angle ranks should look like 0 0 0 1 1 1 2 2 2 3 3 3
-    # processes with same ranks/ids would receive the same batch
     if torch_device_mesh:
-        submesh_fsdp_size = 1
-        submesh_dp_size = 1
-        submesh_tp_size = 1
-        if "tp" in torch_device_mesh.mesh_dim_names:
-            submesh_tp_size = torch_device_mesh["tp"].size()
-        if "dp" in torch_device_mesh.mesh_dim_names:
-            submesh_dp_size = torch_device_mesh["dp"].size()
-        if "fsdp" in torch_device_mesh.mesh_dim_names:
-            submesh_fsdp_size = torch_device_mesh["fsdp"].size()
-        process_index = process_index // submesh_tp_size
-        num_processes = submesh_fsdp_size * submesh_dp_size
+        if state.distributed_type == DistributedType.DEEPSPEED:
+            # In DeepSpeed, the optimizer sharing level in DP is determined by the config file.
+            # Only considers "dp" and "tp".
+            # Given a device mesh (dp, tp) = (2, 3):
+            # - From the data parallel perspective, ranks should be structured as: 0 0 0 1 1 1
+            # - Processes with the same DP rank will receive the same batch.
+            if "tp" in torch_device_mesh.mesh_dim_names:
+                submesh_tp_size = torch_device_mesh["tp"].size()
+            process_index = process_index // submesh_tp_size
+            num_processes = num_processes // submesh_tp_size
+        else:
+            # when device mesh is used, specifically with TP
+            # then there is need to update process_index and num_processes
+            # to bring in the effect of generating same batch across TP ranks
+            # and different batch across FSDP and DP ranks.
+            # Example:
+            # if device mesh is (dp,fsdp,tp) = (2, 2, 3)
+            # ranks would range from 0...11
+            # from data angle ranks should look like 0 0 0 1 1 1 2 2 2 3 3 3
+            # processes with same ranks/ids would receive the same batch
+            submesh_fsdp_size = 1
+            submesh_dp_size = 1
+            submesh_tp_size = 1
+            if "tp" in torch_device_mesh.mesh_dim_names:
+                submesh_tp_size = torch_device_mesh["tp"].size()
+            if "dp" in torch_device_mesh.mesh_dim_names:
+                submesh_dp_size = torch_device_mesh["dp"].size()
+            if "fsdp" in torch_device_mesh.mesh_dim_names:
+                submesh_fsdp_size = torch_device_mesh["fsdp"].size()
+            process_index = process_index // submesh_tp_size
+            num_processes = submesh_fsdp_size * submesh_dp_size
 
     # Sanity check
     if split_batches:
@@ -1229,11 +1155,7 @@ def prepare_data_loader(
 
     new_dataset = dataloader.dataset
     # Iterable dataset doesn't like batch_sampler, but data_loader creates a default one for it
-    new_batch_sampler = (
-        dataloader.batch_sampler
-        if not isinstance(new_dataset, IterableDataset)
-        else None
-    )
+    new_batch_sampler = dataloader.batch_sampler if not isinstance(new_dataset, IterableDataset) else None
     sampler_is_batch_sampler = isinstance(dataloader.sampler, BatchSampler)
     synchronized_generator = None
 
@@ -1247,22 +1169,25 @@ def prepare_data_loader(
             data_source=sampler.data_source,
             replacement=sampler.replacement,
             num_samples=sampler._num_samples,
-            generator=getattr(sampler, "generator", torch.Generator()),
+            generator=getattr(
+                sampler,
+                "generator",
+                torch.Generator(device=torch.get_default_device() if hasattr(torch, "get_default_device") else "cpu"),
+            ),
             data_seed=data_seed,
         )
 
-    if (
-        isinstance(dataloader.sampler, RandomSampler)
-        and state.distributed_type == DistributedType.XLA
-    ):
+    if isinstance(dataloader.sampler, RandomSampler) and state.distributed_type == DistributedType.XLA:
         # isinstance(dataloader.sampler, RandomSampler) indicates the original dataloader has `shuffle` enabled.
-        generator = torch.Generator().manual_seed(42)
+        generator = torch.Generator(
+            device=torch.get_default_device() if hasattr(torch, "get_default_device") else "cpu"
+        )
+        seed = int(torch.empty((), dtype=torch.int64).random_().item())
+        generator.manual_seed(seed)
         dataloader.generator = generator
         dataloader.sampler.generator = generator
     # No change if no multiprocess
-    if (
-        num_processes != 1 or state.distributed_type == DistributedType.MEGATRON_LM
-    ) and not dispatch_batches:
+    if (num_processes != 1 or state.distributed_type == DistributedType.MEGATRON_LM) and not dispatch_batches:
         if isinstance(new_dataset, IterableDataset):
             if getattr(dataloader.dataset, "generator", None) is not None:
                 synchronized_generator = dataloader.dataset.generator
@@ -1277,13 +1202,13 @@ def prepare_data_loader(
         else:
             if not use_seedable_sampler and hasattr(sampler, "generator"):
                 if sampler.generator is None:
-                    sampler.generator = torch.Generator()
+                    sampler.generator = torch.Generator(
+                        device=torch.get_default_device() if hasattr(torch, "get_default_device") else "cpu"
+                    )
+                    seed = int(torch.empty((), dtype=torch.int64).random_().item())
+                    sampler.generator.manual_seed(seed)
                 synchronized_generator = sampler.generator
-            batch_sampler = (
-                dataloader.sampler
-                if sampler_is_batch_sampler
-                else dataloader.batch_sampler
-            )
+            batch_sampler = dataloader.sampler if sampler_is_batch_sampler else dataloader.batch_sampler
             new_batch_sampler = BatchSamplerShard(
                 batch_sampler,
                 num_processes=num_processes,
@@ -1301,11 +1226,7 @@ def prepare_data_loader(
         "drop_last",
     ]
 
-    if (
-        rng_types is not None
-        and synchronized_generator is None
-        and "generator" in rng_types
-    ):
+    if rng_types is not None and synchronized_generator is None and "generator" in rng_types:
         rng_types.remove("generator")
 
     kwargs = {
@@ -1318,9 +1239,7 @@ def prepare_data_loader(
     if new_batch_sampler is None:
         kwargs["drop_last"] = dataloader.drop_last
         kwargs["batch_size"] = (
-            dataloader.batch_size // num_processes
-            if split_batches and not dispatch_batches
-            else dataloader.batch_size
+            dataloader.batch_size // num_processes if split_batches and not dispatch_batches else dataloader.batch_size
         )
     if dispatch_batches:
         kwargs.pop("generator")
@@ -1338,9 +1257,7 @@ def prepare_data_loader(
     elif sampler_is_batch_sampler:
         dataloader = DataLoaderShard(
             new_dataset,
-            device=device
-            if put_on_device and state.distributed_type != DistributedType.XLA
-            else None,
+            device=device if put_on_device and state.distributed_type != DistributedType.XLA else None,
             sampler=new_batch_sampler,
             batch_size=dataloader.batch_size,
             rng_types=rng_types,
@@ -1353,9 +1270,7 @@ def prepare_data_loader(
     else:
         dataloader = DataLoaderShard(
             new_dataset,
-            device=device
-            if put_on_device and state.distributed_type != DistributedType.XLA
-            else None,
+            device=device if put_on_device and state.distributed_type != DistributedType.XLA else None,
             batch_sampler=new_batch_sampler,
             rng_types=rng_types,
             synchronized_generator=synchronized_generator,
@@ -1409,12 +1324,8 @@ class SkipDataLoader(DataLoaderAdapter, DataLoaderStateMixin):
             All other keyword arguments to pass to the regular `DataLoader` initialization.
     """
 
-    def __init__(
-        self, dataset, skip_batches=0, use_stateful_dataloader=False, **kwargs
-    ):
-        super().__init__(
-            dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs
-        )
+    def __init__(self, dataset, skip_batches=0, use_stateful_dataloader=False, **kwargs):
+        super().__init__(dataset, use_stateful_dataloader=use_stateful_dataloader, **kwargs)
         self.skip_batches = skip_batches
         self.gradient_state = GradientState()
 
@@ -1455,9 +1366,7 @@ def skip_first_batches(dataloader, num_batches=0):
         new_batch_sampler = None
     else:
         sampler_is_batch_sampler = isinstance(dataloader.sampler, BatchSampler)
-        batch_sampler = (
-            dataloader.sampler if sampler_is_batch_sampler else dataloader.batch_sampler
-        )
+        batch_sampler = dataloader.sampler if sampler_is_batch_sampler else dataloader.batch_sampler
         new_batch_sampler = SkipBatchSampler(batch_sampler, skip_batches=num_batches)
 
     # We ignore all of those since they are all dealt with by our new_batch_sampler

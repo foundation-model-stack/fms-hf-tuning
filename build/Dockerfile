@@ -170,6 +170,7 @@ RUN python -m pip install --force-reinstall -v "triton==3.1.0"
 
 RUN python -m pip install --user ./transformers
 RUN python -m pip install --user ./accelerate
+RUN python -m pip install torch==2.6.0
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \

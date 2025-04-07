@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import sys
 import tempfile
 
-# Third Party
 import torch
 
-# Local
 from .state import AcceleratorState, PartialState
 from .utils import (
     PrecisionType,
@@ -137,9 +134,8 @@ def notebook_launcher(
 
     if (in_colab or in_kaggle) and (os.environ.get("TPU_NAME", None) is not None):
         # TPU launch
-        # Third Party
-        from torch_xla import device_count
         import torch_xla.distributed.xla_multiprocessing as xmp
+        from torch_xla import device_count
 
         if len(AcceleratorState._shared_state) > 0:
             raise ValueError(
@@ -167,7 +163,6 @@ def notebook_launcher(
             raise ValueError("The node_rank must be less than the number of nodes.")
         if num_processes > 1:
             # Multi-GPU launch
-            # Third Party
             from torch.distributed.launcher.api import LaunchConfig, elastic_launch
             from torch.multiprocessing import start_processes
             from torch.multiprocessing.spawn import ProcessRaisedException
@@ -208,19 +203,12 @@ def notebook_launcher(
             with patch_environment(**patched_env):
                 # First dummy launch
                 if os.environ.get("ACCELERATE_DEBUG_MODE", "false").lower() == "true":
-                    launcher = PrepareForLaunch(
-                        test_launch, distributed_type="MULTI_GPU"
-                    )
+                    launcher = PrepareForLaunch(test_launch, distributed_type="MULTI_GPU")
                     try:
-                        start_processes(
-                            launcher, args=(), nprocs=num_processes, start_method="fork"
-                        )
+                        start_processes(launcher, args=(), nprocs=num_processes, start_method="fork")
                     except ProcessRaisedException as e:
                         err = "An issue was found when verifying a stable environment for the notebook launcher."
-                        if (
-                            "Cannot re-initialize CUDA in forked subprocess"
-                            in e.args[0]
-                        ):
+                        if "Cannot re-initialize CUDA in forked subprocess" in e.args[0]:
                             raise RuntimeError(
                                 f"{err}"
                                 "This likely stems from an outside import causing issues once the `notebook_launcher()` is called. "
@@ -228,9 +216,7 @@ def notebook_launcher(
                                 "which one is problematic and causing CUDA to be initialized."
                             ) from e
                         else:
-                            raise RuntimeError(
-                                f"{err} The following error was raised: {e}"
-                            ) from e
+                            raise RuntimeError(f"{err} The following error was raised: {e}") from e
                 # Now the actual launch
                 launcher = PrepareForLaunch(function, distributed_type="MULTI_GPU")
                 print(f"Launching training on {num_processes} GPUs.")
@@ -253,15 +239,9 @@ def notebook_launcher(
                         monitor_interval=monitor_interval,
                         start_method="fork",
                     )
-                    if is_torch_version(
-                        ">=", ELASTIC_LOG_LINE_PREFIX_TEMPLATE_PYTORCH_VERSION
-                    ):
-                        launch_config_kwargs[
-                            "log_line_prefix_template"
-                        ] = log_line_prefix_template
-                    elastic_launch(
-                        config=LaunchConfig(**launch_config_kwargs), entrypoint=function
-                    )(*args)
+                    if is_torch_version(">=", ELASTIC_LOG_LINE_PREFIX_TEMPLATE_PYTORCH_VERSION):
+                        launch_config_kwargs["log_line_prefix_template"] = log_line_prefix_template
+                    elastic_launch(config=LaunchConfig(**launch_config_kwargs), entrypoint=function)(*args)
                 except ProcessRaisedException as e:
                     if "Cannot re-initialize CUDA in forked subprocess" in e.args[0]:
                         raise RuntimeError(
@@ -271,9 +251,7 @@ def notebook_launcher(
                             "which one is problematic and causing CUDA to be initialized."
                         ) from e
                     else:
-                        raise RuntimeError(
-                            f"An issue was found when launching the training: {e}"
-                        ) from e
+                        raise RuntimeError(f"An issue was found when launching the training: {e}") from e
 
         else:
             # No need for a distributed launch otherwise as it's either CPU, GPU or MPS.
@@ -306,7 +284,6 @@ def debug_launcher(function, args=(), num_processes=2):
         num_processes (`int`, *optional*, defaults to 2):
             The number of processes to use for training.
     """
-    # Third Party
     from torch.multiprocessing import start_processes
 
     with tempfile.NamedTemporaryFile() as tmp_file:
@@ -321,6 +298,4 @@ def debug_launcher(function, args=(), num_processes=2):
             accelerate_use_cpu="yes",
         ):
             launcher = PrepareForLaunch(function, debug=True)
-            start_processes(
-                launcher, args=args, nprocs=num_processes, start_method="fork"
-            )
+            start_processes(launcher, args=args, nprocs=num_processes, start_method="fork")

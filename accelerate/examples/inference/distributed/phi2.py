@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# First Party
 from accelerate import PartialState
 from accelerate.utils import gather_object
-from transformers import AutoModelForCausalLM, AutoTokenizer
+
 
 # Start up the distributed environment without needing the Accelerator.
 distributed_state = PartialState()
@@ -49,21 +48,14 @@ pad_to_multiple_of = 8
 # Split into batches
 # We will get the following results:
 # [ ["I would like to", "hello how are you"], [ "what is going on", "roses are red and"], [ "welcome to the hotel"] ]
-formatted_prompts = [
-    prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)
-]
+formatted_prompts = [prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)]
 
 # Apply padding on the left since we are doing generation
 padding_side_default = tokenizer.padding_side
 tokenizer.padding_side = "left"
 # Tokenize each batch
 tokenized_prompts = [
-    tokenizer(
-        formatted_prompt,
-        padding=True,
-        pad_to_multiple_of=pad_to_multiple_of,
-        return_tensors="pt",
-    )
+    tokenizer(formatted_prompt, padding=True, pad_to_multiple_of=pad_to_multiple_of, return_tensors="pt")
     for formatted_prompt in formatted_prompts
 ]
 # Put back the original padding behavior
@@ -75,9 +67,7 @@ completions_per_process = []
 # For example, if we have 2 gpus, the distribution will be:
 # GPU 0: ["I would like to", "hello how are you"],  "what is going on", "roses are red and"]
 # GPU 1: ["welcome to the hotel"], ["welcome to the hotel"] -> this prompt is duplicated to ensure that all gpus have the same number of prompts
-with distributed_state.split_between_processes(
-    tokenized_prompts, apply_padding=True
-) as batched_prompts:
+with distributed_state.split_between_processes(tokenized_prompts, apply_padding=True) as batched_prompts:
     for batch in batched_prompts:
         # Move the batch to the device
         batch = batch.to(distributed_state.device)

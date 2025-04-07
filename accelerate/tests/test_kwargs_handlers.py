@@ -12,26 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from dataclasses import dataclass
 import inspect
 import os
-import unittest
+from dataclasses import dataclass
 
-# Third Party
 import torch
 
-# First Party
 from accelerate import Accelerator, DistributedDataParallelKwargs, GradScalerKwargs
 from accelerate.state import AcceleratorState
 from accelerate.test_utils import (
     DEFAULT_LAUNCH_COMMAND,
     execute_subprocess_async,
     path_in_accelerate_package,
+    require_fp16,
     require_multi_device,
     require_non_cpu,
+    run_first,
 )
-from accelerate.test_utils.testing import slow
+from accelerate.test_utils.testing import AccelerateTestCase, slow
 from accelerate.utils import (
     AutocastKwargs,
     KwargsHandler,
@@ -49,7 +47,7 @@ class MockClass(KwargsHandler):
     c: float = 3.0
 
 
-class KwargsHandlerTester(unittest.TestCase):
+class KwargsHandlerTester(AccelerateTestCase):
     def test_kwargs_handler(self):
         # If no defaults are changed, `to_kwargs` returns an empty dict.
         assert MockClass().to_kwargs() == {}
@@ -57,14 +55,13 @@ class KwargsHandlerTester(unittest.TestCase):
         assert MockClass(a=2, b=True).to_kwargs() == {"a": 2, "b": True}
         assert MockClass(a=2, c=2.25).to_kwargs() == {"a": 2, "c": 2.25}
 
+    @require_fp16
     @require_non_cpu
     def test_grad_scaler_kwargs(self):
         # If no defaults are changed, `to_kwargs` returns an empty dict.
         scaler_handler = GradScalerKwargs(init_scale=1024, growth_factor=2)
         AcceleratorState._reset_state()
-        accelerator = Accelerator(
-            mixed_precision="fp16", kwargs_handlers=[scaler_handler]
-        )
+        accelerator = Accelerator(mixed_precision="fp16", kwargs_handlers=[scaler_handler])
         assert accelerator.mixed_precision == "fp16"
         scaler = accelerator.scaler
 
@@ -77,11 +74,13 @@ class KwargsHandlerTester(unittest.TestCase):
         assert scaler._growth_interval == 2000
         assert scaler._enabled is True
 
+    @run_first
     @require_multi_device
     def test_ddp_kwargs(self):
         cmd = DEFAULT_LAUNCH_COMMAND + [inspect.getfile(self.__class__)]
         execute_subprocess_async(cmd)
 
+    @require_fp16
     @require_non_cpu
     def test_autocast_kwargs(self):
         kwargs = AutocastKwargs(enabled=False)
@@ -135,15 +134,9 @@ class KwargsHandlerTester(unittest.TestCase):
                 nonlocal table_outputs
 
                 count += 1
-                table_outputs.append(
-                    prof.key_averages().table(sort_by="cpu_time_total", row_limit=-1)
-                )
+                table_outputs.append(prof.key_averages().table(sort_by="cpu_time_total", row_limit=-1))
 
-            kwargs = ProfileKwargs(
-                activities=["cpu"],
-                on_trace_ready=on_trace_ready,
-                schedule_option=option,
-            )
+            kwargs = ProfileKwargs(activities=["cpu"], on_trace_ready=on_trace_ready, schedule_option=option)
             accelerator = Accelerator(kwargs_handlers=[kwargs])
 
             # Act
@@ -154,9 +147,7 @@ class KwargsHandlerTester(unittest.TestCase):
 
             # Assert
             assert isinstance(prof, torch.profiler.profile)
-            assert (
-                count == expected_count
-            ), f"Option: {option}, Expected count: {expected_count}, but got {count}"
+            assert count == expected_count, f"Option: {option}, Expected count: {expected_count}, but got {count}"
             for output in table_outputs:
                 self.assertIn("CPU time total:", output)
 
@@ -169,24 +160,18 @@ class KwargsHandlerTester(unittest.TestCase):
             os.environ[prefix + "MODE"] = "reduce-overhead"
 
             dynamo_plugin_kwargs = TorchDynamoPlugin().to_kwargs()
-            assert dynamo_plugin_kwargs == {
-                "backend": "aot_ts_nvfuser",
-                "mode": "reduce-overhead",
-            }
+            assert dynamo_plugin_kwargs == {"backend": "aot_ts_nvfuser", "mode": "reduce-overhead"}
         assert os.environ.get(prefix + "BACKEND") != "aot_ts_nvfuser"
 
+    @run_first
     @require_multi_device
     def test_ddp_comm_hook(self):
-        cmd = DEFAULT_LAUNCH_COMMAND + [
-            path_in_accelerate_package("test_utils", "scripts", "test_ddp_comm_hook.py")
-        ]
+        cmd = DEFAULT_LAUNCH_COMMAND + [path_in_accelerate_package("test_utils", "scripts", "test_ddp_comm_hook.py")]
         execute_subprocess_async(cmd)
 
 
 def main():
-    ddp_scaler = DistributedDataParallelKwargs(
-        bucket_cap_mb=15, find_unused_parameters=True
-    )
+    ddp_scaler = DistributedDataParallelKwargs(bucket_cap_mb=15, find_unused_parameters=True)
     accelerator = Accelerator(kwargs_handlers=[ddp_scaler])
 
     # Skip this test due to TorchXLA not using torch.nn.parallel.DistributedDataParallel for model wrapping.
@@ -206,9 +191,7 @@ def main():
 
     # Check the values of the defaults
     if model.dim != 0:
-        error_msg += (
-            f"Default value not respected, should have `0` but found {model.dim}.\n"
-        )
+        error_msg += f"Default value not respected, should have `0` but found {model.dim}.\n"
     if model.broadcast_buffers is not True:
         error_msg += f"Default value not respected, should have `True` but found {model.broadcast_buffers}.\n"
     if model.gradient_as_bucket_view is not False:

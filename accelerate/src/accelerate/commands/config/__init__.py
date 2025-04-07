@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Local
 from .config import config_command_parser
 from .config_args import default_config_file, load_config_from_file  # noqa: F401
 from .default import default_command_parser

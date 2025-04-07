@@ -17,25 +17,24 @@ A collection of utilities for ensuring that training can always occur. Heavily i
 [toma](https://github.com/BlackHC/toma) library.
 """
 
-# Standard
 import functools
 import gc
 import importlib
 import inspect
 import warnings
 
-# Third Party
-from packaging import version
 import torch
+from packaging import version
 
-# Local
 from .imports import (
     is_cuda_available,
+    is_hpu_available,
     is_ipex_available,
     is_mlu_available,
     is_mps_available,
     is_musa_available,
     is_npu_available,
+    is_sdaa_available,
     is_xpu_available,
 )
 from .versions import compare_versions
@@ -53,6 +52,8 @@ def clear_device_cache(garbage_collection=False):
         torch.xpu.empty_cache()
     elif is_mlu_available():
         torch.mlu.empty_cache()
+    elif is_sdaa_available():
+        torch.sdaa.empty_cache()
     elif is_musa_available():
         torch.musa.empty_cache()
     elif is_npu_available():
@@ -61,6 +62,9 @@ def clear_device_cache(garbage_collection=False):
         torch.mps.empty_cache()
     elif is_cuda_available():
         torch.cuda.empty_cache()
+    elif is_hpu_available():
+        # torch.hpu.empty_cache() # not available on hpu as it reserves all device memory for the current process
+        pass
 
 
 def release_memory(*objects):
@@ -102,19 +106,17 @@ def should_reduce_batch_size(exception: Exception) -> bool:
             An exception
     """
     _statements = [
-        "CUDA out of memory.",  # CUDA OOM
-        "XPU out of memory.",  # XPU OOM
+        " out of memory.",  # OOM for CUDA, HIP, XPU
         "cuDNN error: CUDNN_STATUS_NOT_SUPPORTED.",  # CUDNN SNAFU
         "DefaultCPUAllocator: can't allocate memory",  # CPU OOM
+        "FATAL ERROR :: MODULE:PT_DEVMEM Allocation failed",  # HPU OOM
     ]
     if isinstance(exception, RuntimeError) and len(exception.args) == 1:
         return any(err in exception.args[0] for err in _statements)
     return False
 
 
-def find_executable_batch_size(
-    function: callable = None, starting_batch_size: int = 128
-):
+def find_executable_batch_size(function: callable = None, starting_batch_size: int = 128):
     """
     A basic decorator that will try to execute `function`. If it fails from exceptions related to out-of-memory or
     CUDNN, the batch size is cut in half and passed to `function`
@@ -142,9 +144,7 @@ def find_executable_batch_size(
     ```
     """
     if function is None:
-        return functools.partial(
-            find_executable_batch_size, starting_batch_size=starting_batch_size
-        )
+        return functools.partial(find_executable_batch_size, starting_batch_size=starting_batch_size)
 
     batch_size = starting_batch_size
 
@@ -154,9 +154,7 @@ def find_executable_batch_size(
         params = list(inspect.signature(function).parameters.keys())
         # Guard against user error
         if len(params) < (len(args) + 1):
-            arg_str = ", ".join(
-                [f"{arg}={value}" for arg, value in zip(params[1:], args[1:])]
-            )
+            arg_str = ", ".join([f"{arg}={value}" for arg, value in zip(params[1:], args[1:])])
             raise TypeError(
                 f"Batch size was passed into `{function.__name__}` as the first argument when called."
                 f"Remove this as the decorator already does so: `{function.__name__}({arg_str})`"
@@ -178,11 +176,8 @@ def find_executable_batch_size(
 
 def get_xpu_available_memory(device_index: int):
     if is_ipex_available():
-        ipex_version = version.parse(
-            importlib.metadata.version("intel_extension_for_pytorch")
-        )
+        ipex_version = version.parse(importlib.metadata.version("intel_extension_for_pytorch"))
         if compare_versions(ipex_version, ">=", "2.5"):
-            # Third Party
             from intel_extension_for_pytorch.xpu import mem_get_info
 
             return mem_get_info(device_index)[0]

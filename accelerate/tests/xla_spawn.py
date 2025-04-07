@@ -24,15 +24,13 @@ Inspired by https://github.com/pytorch/pytorch/blob/master/torch/distributed/lau
 
 """
 
-# Standard
-from argparse import REMAINDER, ArgumentParser
-from pathlib import Path
 import importlib
 import sys
+from argparse import REMAINDER, ArgumentParser
+from pathlib import Path
 
-# Third Party
-from torch_xla import device_count
 import torch_xla.distributed.xla_multiprocessing as xmp
+from torch_xla import device_count
 
 
 def parse_args():
@@ -42,9 +40,7 @@ def parse_args():
     """
     parser = ArgumentParser(
         description=(
-            "PyTorch TPU distributed training launch "
-            "helper utility that will spawn up "
-            "multiple distributed processes"
+            "PyTorch TPU distributed training launch helper utility that will spawn up multiple distributed processes"
         )
     )
 

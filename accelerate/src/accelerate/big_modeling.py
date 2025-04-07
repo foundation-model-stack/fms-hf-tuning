@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from contextlib import contextmanager
-from functools import wraps
-from typing import Dict, List, Optional, Union
 import logging
 import os
+from contextlib import contextmanager
+from functools import wraps
+from typing import Optional, Union
 
-# Third Party
 import torch
 import torch.nn as nn
 
-# Local
 from .hooks import (
     AlignDevicesHook,
     CpuOffload,
@@ -44,6 +41,7 @@ from .utils import (
     is_mlu_available,
     is_musa_available,
     is_npu_available,
+    is_sdaa_available,
     is_xpu_available,
     load_checkpoint_in_model,
     offload_state_dict,
@@ -51,6 +49,7 @@ from .utils import (
     retie_parameters,
 )
 from .utils.other import recursive_getattr
+
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +129,7 @@ def init_on_device(device: torch.device, include_buffers: bool = None):
             param_cls = type(module._parameters[name])
             kwargs = module._parameters[name].__dict__
             kwargs["requires_grad"] = param.requires_grad
-            module._parameters[name] = param_cls(
-                module._parameters[name].to(device), **kwargs
-            )
+            module._parameters[name] = param_cls(module._parameters[name].to(device), **kwargs)
 
     def register_empty_buffer(module, name, buffer, persistent=True):
         old_register_buffer(module, name, buffer, persistent=persistent)
@@ -160,20 +157,13 @@ def init_on_device(device: torch.device, include_buffers: bool = None):
         if include_buffers:
             nn.Module.register_buffer = register_empty_buffer
         for torch_function_name in tensor_constructors_to_patch.keys():
-            setattr(
-                torch,
-                torch_function_name,
-                patch_tensor_constructor(getattr(torch, torch_function_name)),
-            )
+            setattr(torch, torch_function_name, patch_tensor_constructor(getattr(torch, torch_function_name)))
         yield
     finally:
         nn.Module.register_parameter = old_register_parameter
         if include_buffers:
             nn.Module.register_buffer = old_register_buffer
-        for (
-            torch_function_name,
-            old_torch_function,
-        ) in tensor_constructors_to_patch.items():
+        for torch_function_name, old_torch_function in tensor_constructors_to_patch.items():
             setattr(torch, torch_function_name, old_torch_function)
 
 
@@ -181,8 +171,8 @@ def cpu_offload(
     model: nn.Module,
     execution_device: Optional[torch.device] = None,
     offload_buffers: bool = False,
-    state_dict: Optional[Dict[str, torch.Tensor]] = None,
-    preload_module_classes: Optional[List[str]] = None,
+    state_dict: Optional[dict[str, torch.Tensor]] = None,
+    preload_module_classes: Optional[list[str]] = None,
 ):
     """
     Activates full CPU offload for a model. As a result, all parameters of the model will be offloaded and only one
@@ -261,9 +251,7 @@ def cpu_offload_with_hook(
     hook_3.offload()
     ```
     """
-    hook = CpuOffload(
-        execution_device=execution_device, prev_module_hook=prev_module_hook
-    )
+    hook = CpuOffload(execution_device=execution_device, prev_module_hook=prev_module_hook)
     add_hook_to_module(model, hook, append=True)
     user_hook = UserCpuOffloadHook(model, hook)
     return model, user_hook
@@ -274,7 +262,7 @@ def disk_offload(
     offload_dir: Union[str, os.PathLike],
     execution_device: Optional[torch.device] = None,
     offload_buffers: bool = False,
-    preload_module_classes: Optional[List[str]] = None,
+    preload_module_classes: Optional[list[str]] = None,
 ):
     """
     Activates full disk offload for a model. As a result, all parameters of the model will be offloaded as
@@ -296,9 +284,7 @@ def disk_offload(
             called directly during the forward, for instance if a `dense` linear layer is registered, but at forward,
             `dense.weight` and `dense.bias` are used in some operations instead of calling `dense` directly.
     """
-    if not os.path.isdir(offload_dir) or not os.path.isfile(
-        os.path.join(offload_dir, "index.json")
-    ):
+    if not os.path.isdir(offload_dir) or not os.path.isfile(os.path.join(offload_dir, "index.json")):
         offload_state_dict(offload_dir, model.state_dict())
     if execution_device is None:
         execution_device = next(iter(model.parameters())).device
@@ -319,14 +305,14 @@ def disk_offload(
 
 def dispatch_model(
     model: nn.Module,
-    device_map: Dict[str, Union[str, int, torch.device]],
+    device_map: dict[str, Union[str, int, torch.device]],
     main_device: Optional[torch.device] = None,
-    state_dict: Optional[Dict[str, torch.Tensor]] = None,
+    state_dict: Optional[dict[str, torch.Tensor]] = None,
     offload_dir: Optional[Union[str, os.PathLike]] = None,
-    offload_index: Optional[Dict[str, str]] = None,
+    offload_index: Optional[dict[str, str]] = None,
     offload_buffers: bool = False,
-    skip_keys: Optional[Union[str, List[str]]] = None,
-    preload_module_classes: Optional[List[str]] = None,
+    skip_keys: Optional[Union[str, list[str]]] = None,
+    preload_module_classes: Optional[list[str]] = None,
     force_hooks: bool = False,
 ):
     """
@@ -369,8 +355,7 @@ def dispatch_model(
     if getattr(model, "quantization_method", "bitsandbytes") == "bitsandbytes":
         # since bnb 0.43.2, we can move 4-bit model
         if getattr(model, "is_loaded_in_8bit", False) or (
-            getattr(model, "is_loaded_in_4bit", False)
-            and not is_bnb_available(min_version="0.43.2")
+            getattr(model, "is_loaded_in_4bit", False) and not is_bnb_available(min_version="0.43.2")
         ):
             force_hooks = True
 
@@ -380,24 +365,15 @@ def dispatch_model(
     # If the model is quantized, we always force-dispatch the model
     if (len(set(device_map.values())) > 1) or force_hooks:
         if main_device is None:
-            if set(device_map.values()) == {"cpu"} or set(device_map.values()) == {
-                "cpu",
-                "disk",
-            }:
+            if set(device_map.values()) == {"cpu"} or set(device_map.values()) == {"cpu", "disk"}:
                 main_device = "cpu"
             else:
-                main_device = [
-                    d for d in device_map.values() if d not in ["cpu", "disk"]
-                ][0]
+                main_device = [d for d in device_map.values() if d not in ["cpu", "disk"]][0]
 
         if main_device != "cpu":
-            cpu_modules = [
-                name for name, device in device_map.items() if device == "cpu"
-            ]
+            cpu_modules = [name for name, device in device_map.items() if device == "cpu"]
             if state_dict is None and len(cpu_modules) > 0:
-                state_dict = extract_submodules_state_dict(
-                    model.state_dict(), cpu_modules
-                )
+                state_dict = extract_submodules_state_dict(model.state_dict(), cpu_modules)
 
         disk_modules = [name for name, device in device_map.items() if device == "disk"]
         if offload_dir is None and offload_index is None and len(disk_modules) > 0:
@@ -408,41 +384,22 @@ def dispatch_model(
         if (
             len(disk_modules) > 0
             and offload_index is None
-            and (
-                not os.path.isdir(offload_dir)
-                or not os.path.isfile(os.path.join(offload_dir, "index.json"))
-            )
+            and (not os.path.isdir(offload_dir) or not os.path.isfile(os.path.join(offload_dir, "index.json")))
         ):
-            disk_state_dict = extract_submodules_state_dict(
-                model.state_dict(), disk_modules
-            )
+            disk_state_dict = extract_submodules_state_dict(model.state_dict(), disk_modules)
             offload_state_dict(offload_dir, disk_state_dict)
 
         execution_device = {
-            name: main_device if device in ["cpu", "disk"] else device
-            for name, device in device_map.items()
+            name: main_device if device in ["cpu", "disk"] else device for name, device in device_map.items()
         }
         execution_device[""] = main_device
-        offloaded_devices = (
-            ["disk"]
-            if main_device == "cpu" or main_device == "mps"
-            else ["cpu", "disk"]
-        )
-        offload = {
-            name: device in offloaded_devices for name, device in device_map.items()
-        }
+        offloaded_devices = ["disk"] if main_device == "cpu" or main_device == "mps" else ["cpu", "disk"]
+        offload = {name: device in offloaded_devices for name, device in device_map.items()}
         save_folder = offload_dir if len(disk_modules) > 0 else None
-        if (
-            state_dict is not None
-            or save_folder is not None
-            or offload_index is not None
-        ):
+        if state_dict is not None or save_folder is not None or offload_index is not None:
             device = main_device if offload_index is not None else None
             weights_map = OffloadedWeightsLoader(
-                state_dict=state_dict,
-                save_folder=save_folder,
-                index=offload_index,
-                device=device,
+                state_dict=state_dict, save_folder=save_folder, index=offload_index, device=device
             )
         else:
             weights_map = None
@@ -499,9 +456,7 @@ def dispatch_model(
                     logger.warning(warning_msg)
                 for param in model.parameters():
                     if param.device == torch.device("meta"):
-                        raise RuntimeError(
-                            "You can't move a model that has some modules offloaded to cpu or disk."
-                        )
+                        raise RuntimeError("You can't move a model that has some modules offloaded to cpu or disk.")
                 return fn(*args, **kwargs)
 
             return wrapper
@@ -512,6 +467,8 @@ def dispatch_model(
             model.npu = add_warning(model.npu, model)
         elif is_mlu_available():
             model.mlu = add_warning(model.mlu, model)
+        elif is_sdaa_available():
+            model.sdaa = add_warning(model.sdaa, model)
         elif is_musa_available():
             model.musa = add_warning(model.musa, model)
         elif is_xpu_available():
@@ -520,16 +477,7 @@ def dispatch_model(
             model.cuda = add_warning(model.cuda, model)
 
         # Check if we are using multi-gpus with RTX 4000 series
-        use_multi_gpu = (
-            len(
-                [
-                    device
-                    for device in set(device_map.values())
-                    if device not in ("cpu", "disk")
-                ]
-            )
-            > 1
-        )
+        use_multi_gpu = len([device for device in set(device_map.values()) if device not in ("cpu", "disk")]) > 1
         if use_multi_gpu and not check_cuda_p2p_ib_support():
             logger.warning(
                 "We've detected an older driver with an RTX 4000 series GPU. These drivers have issues with P2P. "
@@ -543,10 +491,10 @@ def dispatch_model(
             device = f"npu:{device}"
         elif is_mlu_available() and isinstance(device, int):
             device = f"mlu:{device}"
+        elif is_sdaa_available() and isinstance(device, int):
+            device = f"sdaa:{device}"
         elif is_musa_available() and isinstance(device, int):
             device = f"musa:{device}"
-        elif is_xpu_available() and isinstance(device, int):
-            device = f"xpu:{device}"
         if device != "disk":
             model.to(device)
         else:
@@ -561,15 +509,15 @@ def dispatch_model(
 def load_checkpoint_and_dispatch(
     model: nn.Module,
     checkpoint: Union[str, os.PathLike],
-    device_map: Optional[Union[str, Dict[str, Union[int, str, torch.device]]]] = None,
-    max_memory: Optional[Dict[Union[int, str], Union[int, str]]] = None,
-    no_split_module_classes: Optional[List[str]] = None,
+    device_map: Optional[Union[str, dict[str, Union[int, str, torch.device]]]] = None,
+    max_memory: Optional[dict[Union[int, str], Union[int, str]]] = None,
+    no_split_module_classes: Optional[list[str]] = None,
     offload_folder: Optional[Union[str, os.PathLike]] = None,
     offload_buffers: bool = False,
     dtype: Optional[Union[str, torch.dtype]] = None,
     offload_state_dict: Optional[bool] = None,
-    skip_keys: Optional[Union[str, List[str]]] = None,
-    preload_module_classes: Optional[List[str]] = None,
+    skip_keys: Optional[Union[str, list[str]]] = None,
+    preload_module_classes: Optional[list[str]] = None,
     force_hooks: bool = False,
     strict: bool = False,
 ):
@@ -644,15 +592,9 @@ def load_checkpoint_and_dispatch(
     ... )
     ```
     """
-    if isinstance(device_map, str) and device_map not in [
-        "auto",
-        "balanced",
-        "balanced_low_0",
-        "sequential",
-    ]:
+    if isinstance(device_map, str) and device_map not in ["auto", "balanced", "balanced_low_0", "sequential"]:
         raise ValueError(
-            "If passing a string for `device_map`, please choose 'auto', 'balanced', 'balanced_low_0' or "
-            "'sequential'."
+            "If passing a string for `device_map`, please choose 'auto', 'balanced', 'balanced_low_0' or 'sequential'."
         )
     if isinstance(device_map, str):
         if device_map != "sequential":
@@ -670,11 +612,7 @@ def load_checkpoint_and_dispatch(
             dtype=dtype,
             offload_buffers=offload_buffers,
         )
-    if (
-        offload_state_dict is None
-        and device_map is not None
-        and "disk" in device_map.values()
-    ):
+    if offload_state_dict is None and device_map is not None and "disk" in device_map.values():
         offload_state_dict = True
     load_checkpoint_in_model(
         model,

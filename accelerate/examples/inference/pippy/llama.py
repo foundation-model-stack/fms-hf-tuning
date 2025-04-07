@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
 import torch
-
-# First Party
-from accelerate import PartialState, prepare_pippy
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from accelerate import PartialState, prepare_pippy
+
 
 # sdpa implementation which is the default torch>2.1.2 fails with the tracing + attention mask kwarg
 # with attn_implementation="eager" mode, the forward is very slow for some reason

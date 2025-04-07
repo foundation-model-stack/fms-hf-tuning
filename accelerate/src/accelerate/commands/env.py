@@ -14,28 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 import os
 import platform
 import subprocess
 
-# Third Party
 import numpy as np
 import psutil
 import torch
 
-# First Party
 from accelerate import __version__ as version
 from accelerate.commands.config import default_config_file, load_config_from_file
 
-# Local
-from ..utils import (
-    is_mlu_available,
-    is_musa_available,
-    is_npu_available,
-    is_xpu_available,
-)
+from ..utils import is_mlu_available, is_musa_available, is_npu_available, is_sdaa_available, is_xpu_available
 
 
 def env_command_parser(subparsers=None):
@@ -45,9 +36,7 @@ def env_command_parser(subparsers=None):
         parser = argparse.ArgumentParser("Accelerate env command")
 
     parser.add_argument(
-        "--config_file",
-        default=None,
-        help="The config file to use for the default values in the launching script.",
+        "--config_file", default=None, help="The config file to use for the default values in the launching script."
     )
 
     if subparsers is not None:
@@ -60,6 +49,7 @@ def env_command(args):
     pt_cuda_available = torch.cuda.is_available()
     pt_xpu_available = is_xpu_available()
     pt_mlu_available = is_mlu_available()
+    pt_sdaa_available = is_sdaa_available()
     pt_musa_available = is_musa_available()
     pt_npu_available = is_npu_available()
 
@@ -76,9 +66,7 @@ def env_command(args):
     elif os.name == "posix":
         command = ["which", "accelerate"]
     if command is not None:
-        bash_location = subprocess.check_output(
-            command, text=True, stderr=subprocess.STDOUT
-        ).strip()
+        bash_location = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT).strip()
     info = {
         "`Accelerate` version": version,
         "Platform": platform.platform(),
@@ -89,13 +77,16 @@ def env_command(args):
         "PyTorch XPU available": str(pt_xpu_available),
         "PyTorch NPU available": str(pt_npu_available),
         "PyTorch MLU available": str(pt_mlu_available),
+        "PyTorch SDAA available": str(pt_sdaa_available),
         "PyTorch MUSA available": str(pt_musa_available),
-        "System RAM": f"{psutil.virtual_memory().total / 1024 ** 3:.2f} GB",
+        "System RAM": f"{psutil.virtual_memory().total / 1024**3:.2f} GB",
     }
     if pt_cuda_available:
         info["GPU type"] = torch.cuda.get_device_name()
     if pt_mlu_available:
         info["MLU type"] = torch.mlu.get_device_name()
+    if pt_sdaa_available:
+        info["SDAA type"] = torch.sdaa.get_device_name()
     if pt_musa_available:
         info["MUSA type"] = torch.musa.get_device_name()
     if pt_npu_available:
@@ -104,11 +95,7 @@ def env_command(args):
     print("\nCopy-and-paste the text below in your GitHub issue\n")
     print("\n".join([f"- {prop}: {val}" for prop, val in info.items()]))
 
-    print(
-        "- `Accelerate` default config:"
-        if args.config_file is None
-        else "- `Accelerate` config passed:"
-    )
+    print("- `Accelerate` default config:" if args.config_file is None else "- `Accelerate` config passed:")
     accelerate_config_str = (
         "\n".join([f"\t- {prop}: {val}" for prop, val in accelerate_config.items()])
         if isinstance(accelerate_config, dict)

@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
-from typing import Optional
-from unittest import mock
 import csv
 import json
 import logging
@@ -25,13 +21,14 @@ import subprocess
 import tempfile
 import unittest
 import zipfile
+from pathlib import Path
+from typing import Optional
+from unittest import mock
 
-# Third Party
-from packaging import version
 import numpy as np
 import torch
+from packaging import version
 
-# First Party
 # We use TF to parse the logs
 from accelerate import Accelerator
 from accelerate.test_utils.testing import (
@@ -40,12 +37,14 @@ from accelerate.test_utils.testing import (
     require_clearml,
     require_comet_ml,
     require_dvclive,
+    require_matplotlib,
+    require_mlflow,
     require_pandas,
     require_tensorboard,
     require_wandb,
     skip,
 )
-from accelerate.tracking import CometMLTracker, GeneralTracker
+from accelerate.tracking import CometMLTracker, GeneralTracker, MLflowTracker
 from accelerate.utils import (
     ProjectConfiguration,
     is_comet_ml_available,
@@ -53,19 +52,16 @@ from accelerate.utils import (
     is_tensorboard_available,
 )
 
+
 if is_comet_ml_available():
-    # Third Party
-    from comet_ml import OfflineExperiment
+    from comet_ml import ExperimentConfig
 
 if is_tensorboard_available():
-    # Standard
     import struct
 
-    # Third Party
     import tensorboard.compat.proto.event_pb2 as event_pb2
 
 if is_dvclive_available():
-    # Third Party
     from dvclive.plots.metric import Metric
     from dvclive.serialize import load_yaml
     from dvclive.utils import parse_metrics
@@ -75,20 +71,12 @@ logger = logging.getLogger(__name__)
 
 @require_tensorboard
 class TensorBoardTrackingTest(unittest.TestCase):
-    @unittest.skipIf(
-        version.parse(np.__version__) >= version.parse("2.0"),
-        "TB doesn't support numpy 2.0",
-    )
+    @unittest.skipIf(version.parse(np.__version__) >= version.parse("2.0"), "TB doesn't support numpy 2.0")
     def test_init_trackers(self):
         project_name = "test_project_with_config"
         with tempfile.TemporaryDirectory() as dirpath:
             accelerator = Accelerator(log_with="tensorboard", project_dir=dirpath)
-            config = {
-                "num_iterations": 12,
-                "learning_rate": 1e-2,
-                "some_boolean": False,
-                "some_string": "some_value",
-            }
+            config = {"num_iterations": 12, "learning_rate": 1e-2, "some_boolean": False, "some_string": "some_value"}
             accelerator.init_trackers(project_name, config)
             accelerator.end_training()
             for child in Path(f"{dirpath}/{project_name}").glob("*/**"):
@@ -105,11 +93,7 @@ class TensorBoardTrackingTest(unittest.TestCase):
             accelerator.end_training()
             # Logged values are stored in the outermost-tfevents file and can be read in as a TFRecord
             # Names are randomly generated each time
-            log = list(
-                filter(
-                    lambda x: x.is_file(), Path(f"{dirpath}/{project_name}").iterdir()
-                )
-            )[0]
+            log = list(filter(lambda x: x.is_file(), Path(f"{dirpath}/{project_name}").iterdir()))[0]
             assert str(log) != ""
 
     def test_log_with_tensor(self):
@@ -122,11 +106,7 @@ class TensorBoardTrackingTest(unittest.TestCase):
             accelerator.end_training()
             # Logged values are stored in the outermost-tfevents file and can be read in as a TFRecord
             # Names are randomly generated each time
-            log = list(
-                filter(
-                    lambda x: x.is_file(), Path(f"{dirpath}/{project_name}").iterdir()
-                )
-            )[0]
+            log = list(filter(lambda x: x.is_file(), Path(f"{dirpath}/{project_name}").iterdir()))[0]
             # Reading implementation based on https://github.com/pytorch/pytorch/issues/45327#issuecomment-703757685
             with open(log, "rb") as f:
                 data = f.read()
@@ -146,9 +126,7 @@ class TensorBoardTrackingTest(unittest.TestCase):
             assert found_tensor, "Converted tensor was not found in the log file!"
 
     def test_project_dir(self):
-        with self.assertRaisesRegex(
-            ValueError, "Logging with `tensorboard` requires a `logging_dir`"
-        ):
+        with self.assertRaisesRegex(ValueError, "Logging with `tensorboard` requires a `logging_dir`"):
             _ = Accelerator(log_with="tensorboard")
         with tempfile.TemporaryDirectory() as dirpath:
             _ = Accelerator(log_with="tensorboard", project_dir=dirpath)
@@ -156,9 +134,7 @@ class TensorBoardTrackingTest(unittest.TestCase):
     def test_project_dir_with_config(self):
         config = ProjectConfiguration(total_limit=30)
         with tempfile.TemporaryDirectory() as dirpath:
-            _ = Accelerator(
-                log_with="tensorboard", project_dir=dirpath, project_config=config
-            )
+            _ = Accelerator(log_with="tensorboard", project_dir=dirpath, project_config=config)
 
 
 @require_wandb
@@ -185,9 +161,7 @@ class WandBTrackingTest(TempDirTestCase, MockingTestCase):
         # A config
         if section == "config" or section == "history":
             cleaned_record = re.findall(r'"([a-zA-Z0-9_.,]+)', cleaned_record)
-            return {
-                key: val for key, val in zip(cleaned_record[0::2], cleaned_record[1::2])
-            }
+            return {key: val for key, val in zip(cleaned_record[0::2], cleaned_record[1::2])}
         # Everything else
         else:
             return dict(re.findall(r'(\w+): "([^\s]+)"', cleaned_record))
@@ -196,12 +170,7 @@ class WandBTrackingTest(TempDirTestCase, MockingTestCase):
     def test_wandb(self):
         project_name = "test_project_with_config"
         accelerator = Accelerator(log_with="wandb")
-        config = {
-            "num_iterations": 12,
-            "learning_rate": 1e-2,
-            "some_boolean": False,
-            "some_string": "some_value",
-        }
+        config = {"num_iterations": 12, "learning_rate": 1e-2, "some_boolean": False, "some_string": "some_value"}
         kwargs = {"wandb": {"tags": ["my_tag"]}}
         accelerator.init_trackers(project_name, config, kwargs)
         values = {"total_loss": 0.1, "iteration": 1, "my_text": "some_value"}
@@ -234,18 +203,111 @@ class WandBTrackingTest(TempDirTestCase, MockingTestCase):
         assert logged_items["_step"] == "0"
 
 
-# Comet has a special `OfflineExperiment` we need to use for testing
-def offline_init(self, run_name: str, tmpdir: str):
-    self.run_name = run_name
-    self.writer = OfflineExperiment(project_name=run_name, offline_directory=tmpdir)
-    logger.info(f"Initialized offline CometML project {self.run_name}")
-    logger.info(
-        "Make sure to log any initial configurations with `self.store_init_configuration` before training!"
-    )
+@require_mlflow
+class MLflowTrackingTest(unittest.TestCase):
+    def setUp(self):
+        import mlflow
+
+        self.tmpdir = tempfile.TemporaryDirectory()
+        mlflow.set_tracking_uri("file://" + self.tmpdir.name)
+
+    @require_matplotlib
+    def create_mock_figure(self):
+        """Create a mock figure for testing."""
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure(figsize=(6, 4))
+        return fig
+
+    def test_log(self):
+        import mlflow
+
+        """Test that log calls mlflow.log_metrics with only numeric values and the correct step."""
+        values = {"accuracy": 0.95, "loss": 0.1, "non_numeric": "ignored"}
+        tracker = MLflowTracker(experiment_name="test_exp", logging_dir=self.tmpdir.name)
+        accelerator = Accelerator(log_with=tracker)
+        accelerator.init_trackers(project_name="test_exp")
+        tracker.log(values, step=10)
+
+        run_id = tracker.active_run.info.run_id
+        accelerator.end_training()
+
+        # Retrieve the run and check the logged metrics.
+        run = mlflow.get_run(run_id)
+        metrics = run.data.metrics
+        self.assertEqual(metrics.get("accuracy"), 0.95)
+        self.assertEqual(metrics.get("loss"), 0.1)
+        self.assertNotIn("non_numeric", metrics)
+
+    @require_matplotlib
+    def test_log_figure(self):
+        import mlflow
+
+        """Test that log_figure calls mlflow.log_figure with the correct arguments."""
+        dummy_figure = self.create_mock_figure()
+        tracker = MLflowTracker(experiment_name="test_exp", logging_dir=self.tmpdir.name)
+        accelerator = Accelerator(log_with=tracker)
+        accelerator.init_trackers(project_name="test_exp")
+        tracker.log_figure(dummy_figure, artifact_file="dummy_figure.png")
+
+        run_id = tracker.active_run.info.run_id
+        accelerator.end_training()
+
+        self.assertIn(
+            "dummy_figure.png",
+            [artifact.path for artifact in mlflow.artifacts.list_artifacts(run_id=run_id)],
+        )
+
+    def test_log_artifact(self):
+        import mlflow
+
+        """Test that log_artifact calls mlflow.log_artifact with the correct file path."""
+        dummy_file_path = os.path.join(self.tmpdir.name, "dummy.txt")
+        with open(dummy_file_path, "w") as f:
+            f.write("dummy content")
+        tracker = MLflowTracker(experiment_name="test_exp", logging_dir=self.tmpdir.name)
+        accelerator = Accelerator(log_with=tracker)
+        accelerator.init_trackers(project_name="test_exp")
+        tracker.log_artifact(dummy_file_path, artifact_path="artifact_dir")
+
+        run_id = tracker.active_run.info.run_id
+        accelerator.end_training()
+
+        self.assertIn(
+            "artifact_dir/dummy.txt",
+            [
+                artifact.path
+                for artifact in mlflow.artifacts.list_artifacts(run_id=run_id, artifact_path="artifact_dir")
+            ],
+        )
+
+    def test_log_artifacts(self):
+        import mlflow
+
+        """Test that log_artifacts calls mlflow.log_artifacts with the correct directory."""
+        dummy_dir = os.path.join(self.tmpdir.name, "dummy_dir")
+        os.mkdir(dummy_dir)
+        dummy_file_path = os.path.join(dummy_dir, "dummy.txt")
+        with open(dummy_file_path, "w") as f:
+            f.write("dummy content")
+        tracker = MLflowTracker(experiment_name="test_exp", logging_dir=self.tmpdir.name)
+        accelerator = Accelerator(log_with=tracker)
+        accelerator.init_trackers(project_name="test_exp")
+        tracker.log_artifacts(dummy_dir, artifact_path="artifact_dir")
+
+        run_id = tracker.active_run.info.run_id
+        accelerator.end_training()
+
+        self.assertIn(
+            "artifact_dir/dummy.txt",
+            [
+                artifact.path
+                for artifact in mlflow.artifacts.list_artifacts(run_id=run_id, artifact_path="artifact_dir")
+            ],
+        )
 
 
 @require_comet_ml
-@mock.patch.object(CometMLTracker, "__init__", offline_init)
 class CometMLTest(unittest.TestCase):
     @staticmethod
     def get_value_from_key(log_list, key: str, is_param: bool = False):
@@ -266,14 +328,11 @@ class CometMLTest(unittest.TestCase):
 
     def test_init_trackers(self):
         with tempfile.TemporaryDirectory() as d:
-            tracker = CometMLTracker("test_project_with_config", d)
+            tracker = CometMLTracker(
+                "test_project_with_config", online=False, experiment_config=ExperimentConfig(offline_directory=d)
+            )
             accelerator = Accelerator(log_with=tracker)
-            config = {
-                "num_iterations": 12,
-                "learning_rate": 1e-2,
-                "some_boolean": False,
-                "some_string": "some_value",
-            }
+            config = {"num_iterations": 12, "learning_rate": 1e-2, "some_boolean": False, "some_string": "some_value"}
             accelerator.init_trackers(None, config)
             accelerator.end_training()
             log = os.listdir(d)[0]  # Comet is nice, it's just a zip file here
@@ -285,13 +344,13 @@ class CometMLTest(unittest.TestCase):
         assert self.get_value_from_key(list_of_json, "num_iterations", True) == 12
         assert self.get_value_from_key(list_of_json, "learning_rate", True) == 0.01
         assert self.get_value_from_key(list_of_json, "some_boolean", True) is False
-        assert (
-            self.get_value_from_key(list_of_json, "some_string", True) == "some_value"
-        )
+        assert self.get_value_from_key(list_of_json, "some_string", True) == "some_value"
 
     def test_log(self):
         with tempfile.TemporaryDirectory() as d:
-            tracker = CometMLTracker("test_project_with_config", d)
+            tracker = CometMLTracker(
+                "test_project_with_config", online=False, experiment_config=ExperimentConfig(offline_directory=d)
+            )
             accelerator = Accelerator(log_with=tracker)
             accelerator.init_trackers(None)
             values = {"total_loss": 0.1, "iteration": 1, "my_text": "some_value"}
@@ -314,18 +373,13 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
     def setUp(self):
         super().setUp()
         # ClearML offline session location is stored in CLEARML_CACHE_DIR
-        self.add_mocks(
-            mock.patch.dict(os.environ, {"CLEARML_CACHE_DIR": str(self.tmpdir)})
-        )
+        self.add_mocks(mock.patch.dict(os.environ, {"CLEARML_CACHE_DIR": str(self.tmpdir)}))
 
     @staticmethod
     def _get_offline_dir(accelerator):
-        # Third Party
         from clearml.config import get_offline_dir
 
-        return get_offline_dir(
-            task_id=accelerator.get_tracker("clearml", unwrap=True).id
-        )
+        return get_offline_dir(task_id=accelerator.get_tracker("clearml", unwrap=True).id)
 
     @staticmethod
     def _get_metrics(offline_dir):
@@ -337,18 +391,12 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
         return metrics
 
     def test_init_trackers(self):
-        # Third Party
         from clearml import Task
         from clearml.utilities.config import text_to_config_dict
 
         Task.set_offline(True)
         accelerator = Accelerator(log_with="clearml")
-        config = {
-            "num_iterations": 12,
-            "learning_rate": 1e-2,
-            "some_boolean": False,
-            "some_string": "some_value",
-        }
+        config = {"num_iterations": 12, "learning_rate": 1e-2, "some_boolean": False, "some_string": "some_value"}
         accelerator.init_trackers("test_project_with_config", config)
 
         offline_dir = ClearMLTest._get_offline_dir(accelerator)
@@ -356,24 +404,16 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
 
         with open(os.path.join(offline_dir, "task.json")) as f:
             offline_session = json.load(f)
-        clearml_offline_config = text_to_config_dict(
-            offline_session["configuration"]["General"]["value"]
-        )
+        clearml_offline_config = text_to_config_dict(offline_session["configuration"]["General"]["value"])
         assert config == clearml_offline_config
 
     def test_log(self):
-        # Third Party
         from clearml import Task
 
         Task.set_offline(True)
         accelerator = Accelerator(log_with="clearml")
         accelerator.init_trackers("test_project_with_log")
-        values_with_iteration = {
-            "should_be_under_train": 1,
-            "eval_value": 2,
-            "test_value": 3.1,
-            "train_value": 4.1,
-        }
+        values_with_iteration = {"should_be_under_train": 1, "eval_value": 2, "test_value": 3.1, "train_value": 4.1}
         accelerator.log(values_with_iteration, step=1)
         single_values = {"single_value_1": 1.1, "single_value_2": 2.2}
         accelerator.log(single_values)
@@ -395,12 +435,9 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
                 values_with_iteration_key = metric["variant"] + "_" + metric["metric"]
                 assert values_with_iteration_key in values_with_iteration
                 assert metric["iter"] == 1
-                assert (
-                    metric["value"] == values_with_iteration[values_with_iteration_key]
-                )
+                assert metric["value"] == values_with_iteration[values_with_iteration_key]
 
     def test_log_images(self):
-        # Third Party
         from clearml import Task
 
         Task.set_offline(True)
@@ -408,9 +445,7 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
         accelerator.init_trackers("test_project_with_log_images")
 
         base_image = np.eye(256, 256, dtype=np.uint8) * 255
-        base_image_3d = np.concatenate(
-            (np.atleast_3d(base_image), np.zeros((256, 256, 2), dtype=np.uint8)), axis=2
-        )
+        base_image_3d = np.concatenate((np.atleast_3d(base_image), np.zeros((256, 256, 2), dtype=np.uint8)), axis=2)
         images = {
             "base_image": base_image,
             "base_image_3d": base_image_3d,
@@ -424,7 +459,6 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
         assert len(list(images_saved)) == len(images)
 
     def test_log_table(self):
-        # Third Party
         from clearml import Task
 
         Task.set_offline(True)
@@ -432,13 +466,9 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
         accelerator.init_trackers("test_project_with_log_table")
 
         accelerator.get_tracker("clearml").log_table(
-            "from lists with columns",
-            columns=["A", "B", "C"],
-            data=[[1, 3, 5], [2, 4, 6]],
+            "from lists with columns", columns=["A", "B", "C"], data=[[1, 3, 5], [2, 4, 6]]
         )
-        accelerator.get_tracker("clearml").log_table(
-            "from lists", data=[["A2", "B2", "C2"], [7, 9, 11], [8, 10, 12]]
-        )
+        accelerator.get_tracker("clearml").log_table("from lists", data=[["A2", "B2", "C2"], [7, 9, 11], [8, 10, 12]])
         offline_dir = ClearMLTest._get_offline_dir(accelerator)
         accelerator.end_training()
 
@@ -449,34 +479,23 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
             plot = json.loads(metric["plot_str"])
             if metric["metric"] == "from lists with columns":
                 print(plot["data"][0])
-                self.assertCountEqual(
-                    plot["data"][0]["header"]["values"], ["A", "B", "C"]
-                )
-                self.assertCountEqual(
-                    plot["data"][0]["cells"]["values"], [[1, 2], [3, 4], [5, 6]]
-                )
+                self.assertCountEqual(plot["data"][0]["header"]["values"], ["A", "B", "C"])
+                self.assertCountEqual(plot["data"][0]["cells"]["values"], [[1, 2], [3, 4], [5, 6]])
             else:
-                self.assertCountEqual(
-                    plot["data"][0]["header"]["values"], ["A2", "B2", "C2"]
-                )
-                self.assertCountEqual(
-                    plot["data"][0]["cells"]["values"], [[7, 8], [9, 10], [11, 12]]
-                )
+                self.assertCountEqual(plot["data"][0]["header"]["values"], ["A2", "B2", "C2"])
+                self.assertCountEqual(plot["data"][0]["cells"]["values"], [[7, 8], [9, 10], [11, 12]])
 
     @require_pandas
     def test_log_table_pandas(self):
-        # Third Party
-        from clearml import Task
         import pandas as pd
+        from clearml import Task
 
         Task.set_offline(True)
         accelerator = Accelerator(log_with="clearml")
         accelerator.init_trackers("test_project_with_log_table_pandas")
 
         accelerator.get_tracker("clearml").log_table(
-            "from df",
-            dataframe=pd.DataFrame({"A": [1, 2], "B": [3, 4], "C": [5, 6]}),
-            step=1,
+            "from df", dataframe=pd.DataFrame({"A": [1, 2], "B": [3, 4], "C": [5, 6]}), step=1
         )
 
         offline_dir = ClearMLTest._get_offline_dir(accelerator)
@@ -486,12 +505,8 @@ class ClearMLTest(TempDirTestCase, MockingTestCase):
         assert len(metrics) == 1
         assert metrics[0]["metric"] == "from df"
         plot = json.loads(metrics[0]["plot_str"])
-        self.assertCountEqual(
-            plot["data"][0]["header"]["values"], [["A"], ["B"], ["C"]]
-        )
-        self.assertCountEqual(
-            plot["data"][0]["cells"]["values"], [[1, 2], [3, 4], [5, 6]]
-        )
+        self.assertCountEqual(plot["data"][0]["header"]["values"], [["A"], ["B"], ["C"]])
+        self.assertCountEqual(plot["data"][0]["cells"]["values"], [[1, 2], [3, 4], [5, 6]])
 
 
 class MyCustomTracker(GeneralTracker):
@@ -536,12 +551,7 @@ class CustomTrackerTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tracker = MyCustomTracker(d)
             accelerator = Accelerator(log_with=tracker)
-            config = {
-                "num_iterations": 12,
-                "learning_rate": 1e-2,
-                "some_boolean": False,
-                "some_string": "some_value",
-            }
+            config = {"num_iterations": 12, "learning_rate": 1e-2, "some_boolean": False, "some_string": "some_value"}
             accelerator.init_trackers("Some name", config)
             accelerator.end_training()
             with open(f"{d}/log.csv") as f:
@@ -594,9 +604,7 @@ class DVCLiveTrackingTest(unittest.TestCase):
                 "some_boolean": False,
                 "some_string": "some_value",
             }
-            init_kwargs = {
-                "dvclive": {"dir": dirpath, "save_dvc_exp": False, "dvcyaml": None}
-            }
+            init_kwargs = {"dvclive": {"dir": dirpath, "save_dvc_exp": False, "dvcyaml": None}}
             accelerator.init_trackers(project_name, config, init_kwargs)
             accelerator.end_training()
             live = accelerator.trackers[0].live
@@ -607,9 +615,7 @@ class DVCLiveTrackingTest(unittest.TestCase):
         project_name = "test_project_with_log"
         with tempfile.TemporaryDirectory() as dirpath:
             accelerator = Accelerator(log_with="dvclive", project_dir=dirpath)
-            init_kwargs = {
-                "dvclive": {"dir": dirpath, "save_dvc_exp": False, "dvcyaml": None}
-            }
+            init_kwargs = {"dvclive": {"dir": dirpath, "save_dvc_exp": False, "dvcyaml": None}}
             accelerator.init_trackers(project_name, init_kwargs=init_kwargs)
             values = {"total_loss": 0.1, "iteration": 1, "my_text": "some_value"}
             # Log step 0

@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 
-# Third Party
-from nlp_example import training_function
 import runhouse as rh
 import torch
+from nlp_example import training_function
 
-# First Party
 from accelerate.utils import PrepareForLaunch, patch_environment
 
 
@@ -27,15 +24,10 @@ def launch_train(*args):
     num_processes = torch.cuda.device_count()
     print(f"Device count: {num_processes}")
     with patch_environment(
-        world_size=num_processes,
-        master_addr="127.0.0.1",
-        master_port="29500",
-        mixed_precision=args[1].mixed_precision,
+        world_size=num_processes, master_addr="127.0.0.1", master_port="29500", mixed_precision=args[1].mixed_precision
     ):
         launcher = PrepareForLaunch(training_function, distributed_type="MULTI_GPU")
-        torch.multiprocessing.start_processes(
-            launcher, args=args, nprocs=num_processes, start_method="spawn"
-        )
+        torch.multiprocessing.start_processes(launcher, args=args, nprocs=num_processes, start_method="spawn")
 
 
 if __name__ == "__main__":
@@ -44,9 +36,7 @@ if __name__ == "__main__":
 
     # on-demand GPU
     # gpu = rh.cluster(name='rh-cluster', instance_type='V100:1', provider='cheapest', use_spot=False)  # single GPU
-    gpu = rh.cluster(
-        name="rh-cluster", instance_type="V100:4", provider="cheapest", use_spot=False
-    )  # multi GPU
+    gpu = rh.cluster(name="rh-cluster", instance_type="V100:4", provider="cheapest", use_spot=False)  # multi GPU
     gpu.up_if_not()
 
     # on-prem GPU
@@ -66,9 +56,7 @@ if __name__ == "__main__":
         "tensorboard",
         "torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu117",
     ]
-    launch_train_gpu = rh.function(
-        fn=launch_train, system=gpu, reqs=reqs, name="train_bert_glue"
-    )
+    launch_train_gpu = rh.function(fn=launch_train, system=gpu, reqs=reqs, name="train_bert_glue")
 
     # Define train args/config, run train function
     train_args = argparse.Namespace(cpu=False, mixed_precision="fp16")

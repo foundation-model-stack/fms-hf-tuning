@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import gc
 import tempfile
 import unittest
 
-# Third Party
 import torch
 import torch.nn as nn
 
-# First Party
 from accelerate import Accelerator, init_empty_weights
 from accelerate.test_utils import (
     require_bnb,
@@ -31,6 +28,7 @@ from accelerate.test_utils import (
     require_non_torch_xla,
     slow,
 )
+from accelerate.test_utils.testing import AccelerateTestCase
 from accelerate.utils.bnb import load_and_quantize_model
 from accelerate.utils.dataclasses import BnbQuantizationConfig
 from accelerate.utils.memory import clear_device_cache
@@ -47,7 +45,7 @@ class BitsAndBytesConfigIntegration(unittest.TestCase):
 @require_cuda_or_xpu
 @require_bnb
 @require_huggingface_suite
-class MixedInt8EmptyModelTest(unittest.TestCase):
+class MixedInt8EmptyModelTest(AccelerateTestCase):
     # We keep the constants inside the init function and model loading inside setUp function
 
     # We need to test on relatively large models (aka >1b parameters otherwise the quantiztion may not work as expected)
@@ -66,10 +64,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         """
         Setup quantized model from empty model
         """
-        # Third Party
         from huggingface_hub import hf_hub_download
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
         # Models and tokenizer
@@ -79,9 +74,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
 
         # create model on meta device
         with init_empty_weights():
-            self.model_8bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            self.model_8bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
         self.model_8bit.tie_weights()
 
         self.weights_location = hf_hub_download(self.model_name, "pytorch_model.bin")
@@ -113,17 +106,13 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         A simple test to check if the model conversion has been done correctly by checking on the
         memory footprint of the converted model and the class type of the linear layers of the converted models
         """
-        # Third Party
         from bitsandbytes.nn import Int8Params
 
         mem_fp16 = self.model_fp16.get_memory_footprint()
         mem_8bit = self.model_8bit.get_memory_footprint()
 
         assert round((mem_fp16 / mem_8bit) - self.EXPECTED_RELATIVE_DIFFERENCE, 7) >= 0
-        assert (
-            self.model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__
-            == Int8Params
-        )
+        assert self.model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
 
     def test_linear_are_8bit(self):
         r"""
@@ -137,8 +126,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         for name, module in self.model_8bit.named_modules():
             if isinstance(module, torch.nn.Linear):
                 modules_not_converted = (
-                    self.bnb_quantization_config.keep_in_fp32_modules
-                    + self.bnb_quantization_config.skip_modules
+                    self.bnb_quantization_config.keep_in_fp32_modules + self.bnb_quantization_config.skip_modules
                 )
                 if name not in modules_not_converted:
                     assert module.weight.dtype == torch.int8
@@ -147,10 +135,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         r"""
         A simple test to check if `llm_int8_skip_modules` works as expected
         """
-        # Third Party
         import bitsandbytes as bnb
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         bnb_quantization_config = BnbQuantizationConfig(
@@ -158,9 +143,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         )
 
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model.tie_weights()
         model = load_and_quantize_model(
@@ -186,14 +169,10 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         encoded_input = self.tokenizer(self.input_text, return_tensors="pt")
 
         # Check the exactness of the results
-        output_parallel = model.generate(
-            input_ids=encoded_input["input_ids"].to(0), max_new_tokens=10
-        )
+        output_parallel = model.generate(input_ids=encoded_input["input_ids"].to(0), max_new_tokens=10)
 
         # Get the generation
-        output_text = self.tokenizer.decode(
-            output_parallel[0], skip_special_tokens=True
-        )
+        output_text = self.tokenizer.decode(output_parallel[0], skip_special_tokens=True)
         assert output_text == self.EXPECTED_OUTPUT
 
     def test_generate_quality(self):
@@ -203,17 +182,12 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         r"""
         Test whether it is possible to mix both `8bit` and `fp32` weights when using `keep_in_fp32_modules` correctly.
         """
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
-        bnb_quantization_config = BnbQuantizationConfig(
-            load_in_8bit=True, keep_in_fp32_modules=["lm_head"]
-        )
+        bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True, keep_in_fp32_modules=["lm_head"])
 
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model.tie_weights()
         model = load_and_quantize_model(
@@ -227,10 +201,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
 
     @require_multi_device
     def test_cpu_gpu_loading_custom_device_map(self):
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -269,9 +240,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
 
         with init_empty_weights():
-            model_8bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_8bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model_8bit.tie_weights()
         model_8bit = load_and_quantize_model(
@@ -281,20 +250,13 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
             device_map=device_map,
             no_split_module_classes=["BloomBlock"],
         )
-        assert (
-            model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
-        )
-        assert (
-            model_8bit.transformer.h[1].mlp.dense_4h_to_h.weight.__class__ == Int8Params
-        )
+        assert model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+        assert model_8bit.transformer.h[1].mlp.dense_4h_to_h.weight.__class__ == Int8Params
         self.check_inference_correctness(model_8bit)
 
     @require_multi_device
     def test_cpu_gpu_loading_custom_device_map_offload_state_dict(self):
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -334,9 +296,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
 
         with init_empty_weights():
-            model_8bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_8bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model_8bit.tie_weights()
         model_8bit = load_and_quantize_model(
@@ -347,20 +307,13 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
             no_split_module_classes=["BloomBlock"],
             offload_state_dict=True,
         )
-        assert (
-            model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
-        )
-        assert (
-            model_8bit.transformer.h[1].mlp.dense_4h_to_h.weight.__class__ == Int8Params
-        )
+        assert model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+        assert model_8bit.transformer.h[1].mlp.dense_4h_to_h.weight.__class__ == Int8Params
         self.check_inference_correctness(model_8bit)
 
     @require_multi_device
     def test_cpu_gpu_disk_loading_custom_device_map_kwargs(self):
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -400,9 +353,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
 
         with init_empty_weights():
-            model_8bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_8bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
         model_8bit.tie_weights()
 
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -415,24 +366,15 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
                 offload_folder=tmpdirname,
                 offload_state_dict=True,
             )
-            assert (
-                model_8bit.transformer.h[4].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
-            assert (
-                model_8bit.transformer.h[5].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
+            assert model_8bit.transformer.h[4].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+            assert model_8bit.transformer.h[5].mlp.dense_4h_to_h.weight.__class__ == Int8Params
             self.check_inference_correctness(model_8bit)
 
     def test_int8_serialization(self):
         r"""
         Test whether it is possible to serialize a model in 8-bit.
         """
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -441,9 +383,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
 
             with init_empty_weights():
                 # let's suppose that we can get the right config
-                model_8bit_from_saved = AutoModelForCausalLM.from_config(
-                    AutoConfig.from_pretrained(self.model_name)
-                )
+                model_8bit_from_saved = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
             model_8bit_from_saved.tie_weights()
 
             bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
@@ -456,18 +396,9 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
                 no_split_module_classes=["BloomBlock"],
             )
 
-            assert (
-                model_8bit_from_saved.transformer.h[
-                    0
-                ].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
-            assert hasattr(
-                model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "SCB"
-            )
-            assert hasattr(
-                model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "CB"
-            )
+            assert model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+            assert hasattr(model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "SCB")
+            assert hasattr(model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "CB")
 
             self.check_inference_correctness(model_8bit_from_saved)
 
@@ -476,10 +407,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
         r"""
         Test whether it is possible to serialize a model in 8-bit and offload weights to cpu/disk
         """
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -488,9 +416,7 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
 
             with init_empty_weights():
                 # let's suppose that we can get the right config
-                model_8bit_from_saved = AutoModelForCausalLM.from_config(
-                    AutoConfig.from_pretrained(self.model_name)
-                )
+                model_8bit_from_saved = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
             model_8bit_from_saved.tie_weights()
             bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
             device_map = {
@@ -533,41 +459,24 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
                 offload_state_dict=True,
             )
 
-            assert (
-                model_8bit_from_saved.transformer.h[
-                    4
-                ].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
-            assert (
-                model_8bit_from_saved.transformer.h[
-                    5
-                ].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
+            assert model_8bit_from_saved.transformer.h[4].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+            assert model_8bit_from_saved.transformer.h[5].mlp.dense_4h_to_h.weight.__class__ == Int8Params
             self.check_inference_correctness(model_8bit_from_saved)
 
     def test_int8_serialization_shard(self):
         r"""
         Test whether it is possible to serialize a model in 8-bit.
         """
-        # Third Party
         from bitsandbytes.nn import Int8Params
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             # saving state dict for now but will save config and other in the future
-            self.accelerate.save_model(
-                self.model_8bit, tmpdirname, max_shard_size="1GB"
-            )
+            self.accelerate.save_model(self.model_8bit, tmpdirname, max_shard_size="1GB")
 
             with init_empty_weights():
                 # let's suppose that we can get the right config
-                model_8bit_from_saved = AutoModelForCausalLM.from_config(
-                    AutoConfig.from_pretrained(self.model_name)
-                )
+                model_8bit_from_saved = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
             model_8bit_from_saved.tie_weights()
 
@@ -581,18 +490,9 @@ class MixedInt8EmptyModelTest(unittest.TestCase):
                 no_split_module_classes=["BloomBlock"],
             )
 
-            assert (
-                model_8bit_from_saved.transformer.h[
-                    0
-                ].mlp.dense_4h_to_h.weight.__class__
-                == Int8Params
-            )
-            assert hasattr(
-                model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "SCB"
-            )
-            assert hasattr(
-                model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "CB"
-            )
+            assert model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
+            assert hasattr(model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "SCB")
+            assert hasattr(model_8bit_from_saved.transformer.h[0].mlp.dense_4h_to_h.weight, "CB")
 
             self.check_inference_correctness(model_8bit_from_saved)
 
@@ -621,7 +521,6 @@ class MixedInt8LoaddedModelTest(unittest.TestCase):
         """
         Setup quantized model from loaded model
         """
-        # First Party
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         # Models and tokenizer
@@ -631,12 +530,8 @@ class MixedInt8LoaddedModelTest(unittest.TestCase):
 
         self.bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True)
 
-        self.model_8bit = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=torch.float16
-        )
-        self.model_8bit = load_and_quantize_model(
-            self.model_8bit, self.bnb_quantization_config
-        )
+        self.model_8bit = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+        self.model_8bit = load_and_quantize_model(self.model_8bit, self.bnb_quantization_config)
 
         self.tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-1b7")
 
@@ -656,17 +551,13 @@ class MixedInt8LoaddedModelTest(unittest.TestCase):
         A simple test to check if the model conversion has been done correctly by checking on the
         memory footprint of the converted model and the class type of the linear layers of the converted models
         """
-        # Third Party
         from bitsandbytes.nn import Int8Params
 
         mem_fp16 = self.model_fp16.get_memory_footprint()
         mem_8bit = self.model_8bit.get_memory_footprint()
 
         assert round((mem_fp16 / mem_8bit) - self.EXPECTED_RELATIVE_DIFFERENCE, 7) >= 0
-        assert (
-            self.model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__
-            == Int8Params
-        )
+        assert self.model_8bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Int8Params
 
     def test_linear_are_8bit(self):
         r"""
@@ -680,8 +571,7 @@ class MixedInt8LoaddedModelTest(unittest.TestCase):
         for name, module in self.model_8bit.named_modules():
             if isinstance(module, torch.nn.Linear):
                 modules_not_converted = (
-                    self.bnb_quantization_config.keep_in_fp32_modules
-                    + self.bnb_quantization_config.skip_modules
+                    self.bnb_quantization_config.keep_in_fp32_modules + self.bnb_quantization_config.skip_modules
                 )
                 if name not in modules_not_converted:
                     assert module.weight.dtype == torch.int8
@@ -695,29 +585,20 @@ class MixedInt8LoaddedModelTest(unittest.TestCase):
         encoded_input = self.tokenizer(self.input_text, return_tensors="pt")
 
         output_sequences = self.model_8bit.generate(
-            input_ids=encoded_input["input_ids"].to(self.model_8bit.device),
-            max_new_tokens=10,
+            input_ids=encoded_input["input_ids"].to(self.model_8bit.device), max_new_tokens=10
         )
 
-        assert (
-            self.tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-            == self.EXPECTED_OUTPUT
-        )
+        assert self.tokenizer.decode(output_sequences[0], skip_special_tokens=True) == self.EXPECTED_OUTPUT
 
     def test_fp32_8bit_conversion(self):
         r"""
         Test whether it is possible to mix both `8bit` and `fp32` weights when using `keep_in_fp32_modules` correctly.
         """
-        # First Party
         from transformers import AutoModelForCausalLM
 
-        bnb_quantization_config = BnbQuantizationConfig(
-            load_in_8bit=True, keep_in_fp32_modules=["lm_head"]
-        )
+        bnb_quantization_config = BnbQuantizationConfig(load_in_8bit=True, keep_in_fp32_modules=["lm_head"])
 
-        model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=torch.float16
-        )
+        model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
         model = load_and_quantize_model(model, bnb_quantization_config)
         assert model.lm_head.weight.dtype == torch.float32
 
@@ -740,17 +621,12 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
 
     input_text = "Hello my name is"
     EXPECTED_OUTPUTS = set()
-    EXPECTED_OUTPUTS.add(
-        "Hello my name is John and I am a professional photographer. I"
-    )
+    EXPECTED_OUTPUTS.add("Hello my name is John and I am a professional photographer. I")
     EXPECTED_OUTPUTS.add("Hello my name is John.\nI am a friend of your father.\n")
     MAX_NEW_TOKENS = 10
 
     def setUp(self):
-        # Third Party
         from huggingface_hub import hf_hub_download
-
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
         super().setUp()
@@ -762,9 +638,7 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
 
         # create model on meta device
         with init_empty_weights():
-            self.model_4bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            self.model_4bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         self.model_4bit.tie_weights()
         self.weights_location = hf_hub_download(self.model_name, "pytorch_model.bin")
@@ -797,17 +671,13 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         A simple test to check if the model conversion has been done correctly by checking on the
         memory footprint of the converted model and the class type of the linear layers of the converted models
         """
-        # Third Party
         from bitsandbytes.nn import Params4bit
 
         mem_fp16 = self.model_fp16.get_memory_footprint()
         mem_4bit = self.model_4bit.get_memory_footprint()
 
         assert round((mem_fp16 / mem_4bit) - self.EXPECTED_RELATIVE_DIFFERENCE, 7) >= 0
-        assert (
-            self.model_4bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__
-            == Params4bit
-        )
+        assert self.model_4bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Params4bit
 
     def check_inference_correctness(self, model):
         r"""
@@ -819,14 +689,9 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         encoded_input = self.tokenizer(self.input_text, return_tensors="pt")
 
         # Check the exactness of the results
-        output_sequences = model.generate(
-            input_ids=encoded_input["input_ids"].to(0), max_new_tokens=10
-        )
+        output_sequences = model.generate(input_ids=encoded_input["input_ids"].to(0), max_new_tokens=10)
 
-        assert (
-            self.tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-            in self.EXPECTED_OUTPUTS
-        )
+        assert self.tokenizer.decode(output_sequences[0], skip_special_tokens=True) in self.EXPECTED_OUTPUTS
 
     def test_generate_quality(self):
         self.check_inference_correctness(self.model_4bit)
@@ -854,17 +719,12 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         r"""
         Test whether it is possible to mix both `4bit` and `fp32` weights when using `keep_in_fp32_modules` correctly.
         """
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
-        bnb_quantization_config = BnbQuantizationConfig(
-            load_in_4bit=True, keep_in_fp32_modules=["lm_head"]
-        )
+        bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True, keep_in_fp32_modules=["lm_head"])
 
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model.tie_weights()
         model = load_and_quantize_model(
@@ -878,7 +738,6 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
 
     @require_multi_device
     def test_cpu_gpu_loading_random_device_map(self):
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -918,9 +777,7 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True)
 
         with init_empty_weights():
-            model_4bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_4bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model_4bit.tie_weights()
         model_4bit = load_and_quantize_model(
@@ -934,7 +791,6 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
 
     @require_multi_device
     def test_cpu_gpu_loading_custom_device_map(self):
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -951,9 +807,7 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True)
 
         with init_empty_weights():
-            model_4bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_4bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model_4bit.tie_weights()
         model_4bit = load_and_quantize_model(
@@ -967,7 +821,6 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
 
     @require_multi_device
     def test_cpu_gpu_disk_loading_custom_device_map_kwargs(self):
-        # First Party
         from transformers import AutoConfig, AutoModelForCausalLM
 
         r"""
@@ -984,9 +837,7 @@ class Bnb4BitEmptyModelTest(unittest.TestCase):
         bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True)
 
         with init_empty_weights():
-            model_4bit = AutoModelForCausalLM.from_config(
-                AutoConfig.from_pretrained(self.model_name)
-            )
+            model_4bit = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(self.model_name))
 
         model_4bit.tie_weights()
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1020,9 +871,7 @@ class Bnb4BitTestLoadedModel(unittest.TestCase):
 
     input_text = "Hello my name is"
     EXPECTED_OUTPUTS = set()
-    EXPECTED_OUTPUTS.add(
-        "Hello my name is John and I am a professional photographer. I"
-    )
+    EXPECTED_OUTPUTS.add("Hello my name is John and I am a professional photographer. I")
     EXPECTED_OUTPUTS.add("Hello my name is John.\nI am a friend of your father.\n")
     MAX_NEW_TOKENS = 10
 
@@ -1030,7 +879,6 @@ class Bnb4BitTestLoadedModel(unittest.TestCase):
         """
         Setup quantized model from loaded model
         """
-        # First Party
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         super().setUp()
@@ -1042,12 +890,8 @@ class Bnb4BitTestLoadedModel(unittest.TestCase):
 
         self.bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True)
 
-        self.model_4bit = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=torch.float16
-        )
-        self.model_4bit = load_and_quantize_model(
-            self.model_4bit, self.bnb_quantization_config
-        )
+        self.model_4bit = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+        self.model_4bit = load_and_quantize_model(self.model_4bit, self.bnb_quantization_config)
 
         self.tokenizer = AutoTokenizer.from_pretrained("bigscience/bloom-1b7")
 
@@ -1067,17 +911,13 @@ class Bnb4BitTestLoadedModel(unittest.TestCase):
         A simple test to check if the model conversion has been done correctly by checking on the
         memory footprint of the converted model and the class type of the linear layers of the converted models
         """
-        # Third Party
         from bitsandbytes.nn import Params4bit
 
         mem_fp16 = self.model_fp16.get_memory_footprint()
         mem_4bit = self.model_4bit.get_memory_footprint()
 
         assert round((mem_fp16 / mem_4bit) - self.EXPECTED_RELATIVE_DIFFERENCE, 7) >= 0
-        assert (
-            self.model_4bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__
-            == Params4bit
-        )
+        assert self.model_4bit.transformer.h[0].mlp.dense_4h_to_h.weight.__class__ == Params4bit
 
     def test_linear_are_4bit(self):
         r"""
@@ -1107,28 +947,19 @@ class Bnb4BitTestLoadedModel(unittest.TestCase):
         encoded_input = self.tokenizer(self.input_text, return_tensors="pt")
 
         output_sequences = self.model_4bit.generate(
-            input_ids=encoded_input["input_ids"].to(self.model_4bit.device),
-            max_new_tokens=10,
+            input_ids=encoded_input["input_ids"].to(self.model_4bit.device), max_new_tokens=10
         )
 
-        assert (
-            self.tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-            in self.EXPECTED_OUTPUTS
-        )
+        assert self.tokenizer.decode(output_sequences[0], skip_special_tokens=True) in self.EXPECTED_OUTPUTS
 
     def test_fp32_4bit_conversion(self):
         r"""
         Test whether it is possible to mix both `4bit` and `fp32` weights when using `keep_in_fp32_modules` correctly.
         """
-        # First Party
         from transformers import AutoModelForCausalLM
 
-        bnb_quantization_config = BnbQuantizationConfig(
-            load_in_4bit=True, keep_in_fp32_modules=["lm_head"]
-        )
+        bnb_quantization_config = BnbQuantizationConfig(load_in_4bit=True, keep_in_fp32_modules=["lm_head"])
 
-        model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, torch_dtype=torch.float16
-        )
+        model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
         model = load_and_quantize_model(model, bnb_quantization_config)
         assert model.lm_head.weight.dtype == torch.float32

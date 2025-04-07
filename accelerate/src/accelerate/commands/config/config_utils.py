@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Local
 from ...utils.dataclasses import (
     ComputeEnvironment,
     DistributedType,
@@ -27,6 +25,7 @@ from ...utils.dataclasses import (
     SageMakerDistributedType,
 )
 from ..menu import BulletMenu
+
 
 DYNAMO_BACKENDS = [
     "EAGER",
@@ -73,16 +72,9 @@ def _convert_compute_environment(value):
 def _convert_distributed_mode(value):
     value = int(value)
     return DistributedType(
-        [
-            "NO",
-            "MULTI_CPU",
-            "MULTI_XPU",
-            "MULTI_GPU",
-            "MULTI_NPU",
-            "MULTI_MLU",
-            "MULTI_MUSA",
-            "XLA",
-        ][value]
+        ["NO", "MULTI_CPU", "MULTI_XPU", "MULTI_GPU", "MULTI_NPU", "MULTI_MLU", "MULTI_SDAA", "MULTI_MUSA", "XLA"][
+            value
+        ]
     )
 
 

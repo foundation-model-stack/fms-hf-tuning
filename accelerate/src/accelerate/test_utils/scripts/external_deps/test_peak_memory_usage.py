@@ -11,33 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 import gc
 import json
 import os
 
-# Third Party
+import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup, set_seed
 
-# First Party
 from accelerate import Accelerator, DistributedType
 from accelerate.utils import (
+    is_hpu_available,
     is_mlu_available,
     is_musa_available,
     is_npu_available,
+    is_sdaa_available,
     is_xpu_available,
 )
 from accelerate.utils.deepspeed import DummyOptim, DummyScheduler
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    get_linear_schedule_with_warmup,
-    set_seed,
-)
+
 
 MAX_GPU_BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 32
@@ -60,6 +55,10 @@ class TorchTracemalloc:
             torch.mlu.empty_cache()
             torch.mlu.reset_max_memory_allocated()  # reset the peak gauge to zero
             self.begin = torch.mlu.memory_allocated()
+        elif is_sdaa_available():
+            torch.sdaa.empty_cache()
+            torch.sdaa.reset_max_memory_allocated()  # reset the peak gauge to zero
+            self.begin = torch.sdaa.memory_allocated()
         elif is_musa_available():
             torch.musa.empty_cache()
             torch.musa.reset_max_memory_allocated()  # reset the peak gauge to zero
@@ -72,6 +71,10 @@ class TorchTracemalloc:
             torch.xpu.empty_cache()
             torch.xpu.reset_max_memory_allocated()  # reset the peak gauge to zero
             self.begin = torch.xpu.memory_allocated()
+        elif is_hpu_available():
+            # torch.hpu.empty_cache() # not available on hpu as it reserves all device memory for the current process
+            torch.hpu.reset_peak_memory_stats()  # reset the peak gauge to zero
+            self.begin = torch.hpu.memory_allocated()
         return self
 
     def __exit__(self, *exc):
@@ -82,11 +85,15 @@ class TorchTracemalloc:
             self.peak = torch.cuda.max_memory_allocated()
         elif is_mlu_available():
             torch.mlu.empty_cache()
-            torch.mlu.memory_allocated()  # reset the peak gauge to zero
+            self.end = torch.mlu.memory_allocated()
             self.begin = torch.mlu.max_memory_allocated()
+        elif is_sdaa_available():
+            torch.sdaa.empty_cache()
+            self.end = torch.sdaa.memory_allocated()
+            self.begin = torch.sdaa.max_memory_allocated()
         elif is_musa_available():
             torch.musa.empty_cache()
-            torch.musa.memory_allocated()  # reset the peak gauge to zero
+            self.end = torch.musa.memory_allocated()
             self.begin = torch.musa.max_memory_allocated()
         elif is_npu_available():
             torch.npu.empty_cache()
@@ -96,6 +103,10 @@ class TorchTracemalloc:
             torch.xpu.empty_cache()
             self.end = torch.xpu.memory_allocated()
             self.peak = torch.xpu.max_memory_allocated()
+        elif is_hpu_available():
+            # torch.hpu.empty_cache() # not available on hpu as it reserves all device memory for the current process
+            self.end = torch.hpu.memory_allocated()
+            self.peak = torch.hpu.max_memory_allocated()
         self.used = b2mb(self.end - self.begin)
         self.peaked = b2mb(self.peak - self.begin)
         # print(f"delta used/peak {self.used:4d}/{self.peaked:4d}")
@@ -125,27 +136,17 @@ def get_dataloaders(
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     datasets = load_dataset(
-        "glue",
-        "mrpc",
-        split={"train": f"train[:{n_train}]", "validation": f"validation[:{n_val}]"},
+        "glue", "mrpc", split={"train": f"train[:{n_train}]", "validation": f"validation[:{n_val}]"}
     )
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
     tokenized_datasets = datasets.map(
-        tokenize_function,
-        batched=True,
-        remove_columns=["idx", "sentence1", "sentence2"],
-        load_from_cache_file=False,
+        tokenize_function, batched=True, remove_columns=["idx", "sentence1", "sentence2"], load_from_cache_file=False
     )
 
     # We also rename the 'label' column to 'labels' which is the expected name for labels by the models of the
@@ -155,23 +156,15 @@ def get_dataloaders(
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
         if accelerator.distributed_type == DistributedType.XLA:
-            return tokenizer.pad(
-                examples, padding="max_length", max_length=128, return_tensors="pt"
-            )
+            return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
         return tokenizer.pad(examples, padding="longest", return_tensors="pt")
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     return train_dataloader, eval_dataloader
@@ -189,14 +182,10 @@ def training_function(config, args):
     model_name = args.model_name_or_path
 
     set_seed(seed)
-    train_dataloader, eval_dataloader = get_dataloaders(
-        accelerator, batch_size, model_name, args.n_train, args.n_val
-    )
+    train_dataloader, eval_dataloader = get_dataloaders(accelerator, batch_size, model_name, args.n_train, args.n_val)
 
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, return_dict=True
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, return_dict=True)
 
     # Instantiate optimizer
     optimizer_cls = (
@@ -208,16 +197,12 @@ def training_function(config, args):
     optimizer = optimizer_cls(params=model.parameters(), lr=lr)
 
     if accelerator.state.deepspeed_plugin is not None:
-        gradient_accumulation_steps = (
-            accelerator.state.deepspeed_plugin.deepspeed_config[
-                "gradient_accumulation_steps"
-            ]
-        )
+        gradient_accumulation_steps = accelerator.state.deepspeed_plugin.deepspeed_config[
+            "gradient_accumulation_steps"
+        ]
     else:
         gradient_accumulation_steps = 1
-    max_training_steps = (
-        len(train_dataloader) * num_epochs
-    ) // gradient_accumulation_steps
+    max_training_steps = (len(train_dataloader) * num_epochs) // gradient_accumulation_steps
 
     # Instantiate scheduler
     if (
@@ -230,20 +215,12 @@ def training_function(config, args):
             num_training_steps=max_training_steps,
         )
     else:
-        lr_scheduler = DummyScheduler(
-            optimizer, total_num_steps=max_training_steps, warmup_num_steps=0
-        )
+        lr_scheduler = DummyScheduler(optimizer, total_num_steps=max_training_steps, warmup_num_steps=0)
 
     # Prepare everything
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = accelerator.prepare(
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
@@ -270,40 +247,27 @@ def training_function(config, args):
                 overall_step += 1
 
         # Printing the GPU memory usage details such as allocated memory, peak memory, and total memory usage
-        accelerator.print(
-            f"Memory before entering the train : {b2mb(tracemalloc.begin)}"
-        )
-        accelerator.print(
-            f"Memory consumed at the end of the train (end-begin): {tracemalloc.used}"
-        )
-        accelerator.print(
-            f"Peak Memory consumed during the train (max-begin): {tracemalloc.peaked}"
-        )
+        accelerator.print(f"Memory before entering the train : {b2mb(tracemalloc.begin)}")
+        accelerator.print(f"Memory consumed at the end of the train (end-begin): {tracemalloc.used}")
+        accelerator.print(f"Peak Memory consumed during the train (max-begin): {tracemalloc.peaked}")
         accelerator.print(
             f"Total Peak Memory consumed during the train (max): {tracemalloc.peaked + b2mb(tracemalloc.begin)}"
         )
-        train_total_peak_memory[f"epoch-{epoch}"] = tracemalloc.peaked + b2mb(
-            tracemalloc.begin
-        )
+        train_total_peak_memory[f"epoch-{epoch}"] = tracemalloc.peaked + b2mb(tracemalloc.begin)
         if args.peak_memory_upper_bound is not None:
-            assert (
-                train_total_peak_memory[f"epoch-{epoch}"]
-                <= args.peak_memory_upper_bound
-            ), "Peak memory usage exceeded the upper bound"
+            assert train_total_peak_memory[f"epoch-{epoch}"] <= args.peak_memory_upper_bound, (
+                "Peak memory usage exceeded the upper bound"
+            )
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
-        with open(
-            os.path.join(args.output_dir, "peak_memory_utilization.json"), "w"
-        ) as f:
+        with open(os.path.join(args.output_dir, "peak_memory_utilization.json"), "w") as f:
             json.dump(train_total_peak_memory, f)
     accelerator.end_training()
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Simple example of training script tracking peak GPU memory usage."
-    )
+    parser = argparse.ArgumentParser(description="Simple example of training script tracking peak GPU memory usage.")
     parser.add_argument(
         "--model_name_or_path",
         type=str,

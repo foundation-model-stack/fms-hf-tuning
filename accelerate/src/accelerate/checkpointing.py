@@ -12,18 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
-from typing import List
 import random
+from pathlib import Path
 
-# Third Party
-from safetensors.torch import load_model
-from torch.cuda.amp import GradScaler
 import numpy as np
 import torch
+from safetensors.torch import load_model
+from torch.cuda.amp import GradScaler
 
-# Local
 from .utils import (
     MODEL_NAME,
     OPTIMIZER_NAME,
@@ -35,27 +31,31 @@ from .utils import (
     SCHEDULER_NAME,
     WEIGHTS_NAME,
     get_pretty_name,
+    is_cuda_available,
+    is_hpu_available,
     is_mlu_available,
     is_musa_available,
+    is_sdaa_available,
     is_torch_xla_available,
     is_xpu_available,
     load,
     save,
 )
 
+
 if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
 
-# Local
 from .logging import get_logger
 from .state import PartialState
+
 
 logger = get_logger(__name__)
 
 
 def save_accelerator_state(
     output_dir: str,
-    model_states: List[dict],
+    model_states: list[dict],
     optimizers: list,
     schedulers: list,
     dataloaders: list,
@@ -104,65 +104,36 @@ def save_accelerator_state(
         if i > 0:
             weights_name = weights_name.replace(".", f"_{i}.")
         output_model_file = output_dir.joinpath(weights_name)
-        save(
-            state,
-            output_model_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=safe_serialization,
-        )
+        save(state, output_model_file, save_on_each_node=save_on_each_node, safe_serialization=safe_serialization)
         logger.info(f"Model weights saved in {output_model_file}")
     # Optimizer states
     for i, opt in enumerate(optimizers):
         state = opt.state_dict()
-        optimizer_name = (
-            f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
-        )
+        optimizer_name = f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
         output_optimizer_file = output_dir.joinpath(optimizer_name)
-        save(
-            state,
-            output_optimizer_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=False,
-        )
+        save(state, output_optimizer_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         logger.info(f"Optimizer state saved in {output_optimizer_file}")
     # Scheduler states
     for i, scheduler in enumerate(schedulers):
         state = scheduler.state_dict()
-        scheduler_name = (
-            f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
-        )
+        scheduler_name = f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
         output_scheduler_file = output_dir.joinpath(scheduler_name)
-        save(
-            state,
-            output_scheduler_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=False,
-        )
+        save(state, output_scheduler_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         logger.info(f"Scheduler state saved in {output_scheduler_file}")
     # DataLoader states
     for i, dataloader in enumerate(dataloaders):
         sampler_name = f"{SAMPLER_NAME}.bin" if i == 0 else f"{SAMPLER_NAME}_{i}.bin"
         output_sampler_file = output_dir.joinpath(sampler_name)
         # Only save if we have our custom sampler
-        # Local
         from .data_loader import IterableDatasetShard, SeedableRandomSampler
 
         if isinstance(dataloader.dataset, IterableDatasetShard):
             sampler = dataloader.get_sampler()
             if isinstance(sampler, SeedableRandomSampler):
-                save(
-                    sampler,
-                    output_sampler_file,
-                    save_on_each_node=save_on_each_node,
-                    safe_serialization=False,
-                )
+                save(sampler, output_sampler_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         if getattr(dataloader, "use_stateful_dataloader", False):
-            dataloader_state_dict_name = (
-                "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
-            )
-            output_dataloader_state_dict_file = output_dir.joinpath(
-                dataloader_state_dict_name
-            )
+            dataloader_state_dict_name = "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
+            output_dataloader_state_dict_file = output_dir.joinpath(dataloader_state_dict_name)
             state_dict = dataloader.state_dict()
             torch.save(state_dict, output_dataloader_state_dict_file)
         logger.info(f"Sampler state for dataloader {i} saved in {output_sampler_file}")
@@ -184,9 +155,13 @@ def save_accelerator_state(
         states["torch_xpu_manual_seed"] = torch.xpu.get_rng_state_all()
     if is_mlu_available():
         states["torch_mlu_manual_seed"] = torch.mlu.get_rng_state_all()
-    if is_musa_available():
+    elif is_sdaa_available():
+        states["torch_sdaa_manual_seed"] = torch.sdaa.get_rng_state_all()
+    elif is_musa_available():
         states["torch_musa_manual_seed"] = torch.musa.get_rng_state_all()
-    else:
+    if is_hpu_available():
+        states["torch_hpu_manual_seed"] = torch.hpu.get_rng_state_all()
+    if is_cuda_available():
         states["torch_cuda_manual_seed"] = torch.cuda.get_rng_state_all()
     if is_torch_xla_available():
         states["xm_seed"] = xm.get_rng_state()
@@ -248,12 +223,7 @@ def load_accelerator_state(
         ending = f"_{i}" if i > 0 else ""
         input_model_file = input_dir.joinpath(f"{SAFE_MODEL_NAME}{ending}.safetensors")
         if input_model_file.exists():
-            load_model(
-                model,
-                input_model_file,
-                device=str(map_location),
-                **load_model_func_kwargs,
-            )
+            load_model(model, input_model_file, device=str(map_location), **load_model_func_kwargs)
         else:
             # Load with torch
             input_model_file = input_dir.joinpath(f"{MODEL_NAME}{ending}.bin")
@@ -263,9 +233,7 @@ def load_accelerator_state(
 
     # Optimizer states
     for i, opt in enumerate(optimizers):
-        optimizer_name = (
-            f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
-        )
+        optimizer_name = f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
         input_optimizer_file = input_dir.joinpath(optimizer_name)
         optimizer_state = load(input_optimizer_file, map_location=map_location)
         optimizers[i].load_state_dict(optimizer_state)
@@ -273,9 +241,7 @@ def load_accelerator_state(
 
     # Scheduler states
     for i, scheduler in enumerate(schedulers):
-        scheduler_name = (
-            f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
-        )
+        scheduler_name = f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
         input_scheduler_file = input_dir.joinpath(scheduler_name)
         scheduler_state = load(input_scheduler_file)
         scheduler.load_state_dict(scheduler_state)
@@ -285,7 +251,6 @@ def load_accelerator_state(
         sampler_name = f"{SAMPLER_NAME}.bin" if i == 0 else f"{SAMPLER_NAME}_{i}.bin"
         input_sampler_file = input_dir.joinpath(sampler_name)
         # Only load if we have our custom sampler
-        # Local
         from .data_loader import IterableDatasetShard, SeedableRandomSampler
 
         if isinstance(dataloader.dataset, IterableDatasetShard):
@@ -293,12 +258,8 @@ def load_accelerator_state(
             if isinstance(sampler, SeedableRandomSampler):
                 sampler = dataloader.set_sampler(load(input_sampler_file))
         if getattr(dataloader, "use_stateful_dataloader", False):
-            dataloader_state_dict_name = (
-                "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
-            )
-            input_dataloader_state_dict_file = input_dir.joinpath(
-                dataloader_state_dict_name
-            )
+            dataloader_state_dict_name = "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
+            input_dataloader_state_dict_file = input_dir.joinpath(dataloader_state_dict_name)
             if input_dataloader_state_dict_file.exists():
                 state_dict = load(input_dataloader_state_dict_file)
                 dataloader.load_state_dict(state_dict)
@@ -323,7 +284,9 @@ def load_accelerator_state(
             torch.xpu.set_rng_state_all(states["torch_xpu_manual_seed"])
         if is_mlu_available():
             torch.mlu.set_rng_state_all(states["torch_mlu_manual_seed"])
-        if is_musa_available():
+        elif is_sdaa_available():
+            torch.sdaa.set_rng_state_all(states["torch_sdaa_manual_seed"])
+        elif is_musa_available():
             torch.musa.set_rng_state_all(states["torch_musa_manual_seed"])
         else:
             torch.cuda.set_rng_state_all(states["torch_cuda_manual_seed"])

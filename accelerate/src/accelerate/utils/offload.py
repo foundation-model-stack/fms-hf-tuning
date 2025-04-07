@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from collections.abc import Mapping
-from typing import Dict, List, Optional, Union
 import json
 import os
+from collections.abc import Mapping
+from typing import Optional, Union
 
-# Third Party
-from safetensors import safe_open
 import numpy as np
 import torch
+from safetensors import safe_open
 
 
 def offload_weight(weight, weight_name, offload_folder, index=None):
@@ -84,9 +82,7 @@ def save_offload_index(index, offload_folder):
         json.dump(current_index, f, indent=2)
 
 
-def offload_state_dict(
-    save_dir: Union[str, os.PathLike], state_dict: Dict[str, torch.Tensor]
-):
+def offload_state_dict(save_dir: Union[str, os.PathLike], state_dict: dict[str, torch.Tensor]):
     """
     Offload a state dict in a given folder.
 
@@ -144,15 +140,13 @@ class OffloadedWeightsLoader(Mapping):
 
     def __init__(
         self,
-        state_dict: Dict[str, torch.Tensor] = None,
+        state_dict: dict[str, torch.Tensor] = None,
         save_folder: Optional[Union[str, os.PathLike]] = None,
         index: Mapping = None,
         device=None,
     ):
         if state_dict is None and save_folder is None and index is None:
-            raise ValueError(
-                "Need either a `state_dict`, a `save_folder` or an `index` containing offloaded weights."
-            )
+            raise ValueError("Need either a `state_dict`, a `save_folder` or an `index` containing offloaded weights.")
 
         self.state_dict = {} if state_dict is None else state_dict
         self.save_folder = save_folder
@@ -173,15 +167,11 @@ class OffloadedWeightsLoader(Mapping):
             device = "cpu" if self.device is None else self.device
             tensor = None
             try:
-                with safe_open(
-                    weight_info["safetensors_file"], framework="pt", device=device
-                ) as f:
+                with safe_open(weight_info["safetensors_file"], framework="pt", device=device) as f:
                     tensor = f.get_tensor(weight_info.get("weight_name", key))
             except TypeError:
                 # if failed to get_tensor on the device, such as bf16 on mps, try to load it on CPU first
-                with safe_open(
-                    weight_info["safetensors_file"], framework="pt", device="cpu"
-                ) as f:
+                with safe_open(weight_info["safetensors_file"], framework="pt", device="cpu") as f:
                     tensor = f.get_tensor(weight_info.get("weight_name", key))
 
             if "dtype" in weight_info:
@@ -201,9 +191,7 @@ class OffloadedWeightsLoader(Mapping):
         return len(self.all_keys)
 
 
-def extract_submodules_state_dict(
-    state_dict: Dict[str, torch.Tensor], submodule_names: List[str]
-):
+def extract_submodules_state_dict(state_dict: dict[str, torch.Tensor], submodule_names: list[str]):
     """
     Extract the sub state-dict corresponding to a list of given submodules.
 

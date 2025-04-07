@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
-from packaging import version
 import numpy as np
+from packaging import version
 
-# First Party
 from accelerate import debug_launcher
 from accelerate.test_utils import (
     DEFAULT_LAUNCH_COMMAND,
@@ -30,25 +27,18 @@ from accelerate.test_utils import (
     require_huggingface_suite,
     require_multi_device,
     require_single_device,
+    run_first,
 )
 from accelerate.utils import patch_environment
 
 
 @require_huggingface_suite
-@unittest.skipIf(
-    version.parse(np.__version__) >= version.parse("2.0"),
-    "Test requires numpy version < 2.0",
-)
+@unittest.skipIf(version.parse(np.__version__) >= version.parse("2.0"), "Test requires numpy version < 2.0")
 class MetricTester(unittest.TestCase):
     def setUp(self):
-        self.test_file_path = path_in_accelerate_package(
-            "test_utils", "scripts", "external_deps", "test_metrics.py"
-        )
+        self.test_file_path = path_in_accelerate_package("test_utils", "scripts", "external_deps", "test_metrics.py")
 
-        # First Party
-        from accelerate.test_utils.scripts.external_deps import (  # noqa: F401
-            test_metrics,
-        )
+        from accelerate.test_utils.scripts.external_deps import test_metrics  # noqa: F401
 
         self.test_metrics = test_metrics
 
@@ -64,6 +54,7 @@ class MetricTester(unittest.TestCase):
     def test_metric_accelerator(self):
         self.test_metrics.main()
 
+    @run_first
     @require_multi_device
     def test_metric_accelerator_multi(self):
         print(f"Found {device_count} devices.")

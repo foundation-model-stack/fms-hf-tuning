@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import warnings
+
 
 warnings.warn(
     "memory_utils has been reorganized to utils.memory. Import `find_executable_batchsize` from the main `__init__`: "

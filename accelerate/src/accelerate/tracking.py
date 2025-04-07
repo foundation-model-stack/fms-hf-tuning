@@ -15,21 +15,20 @@
 # Expectation:
 # Provide a project dir name, then each type of logger gets stored in project/{`logging_dir`}
 
-# Standard
-from functools import wraps
-from typing import Any, Dict, List, Optional, Union
 import json
 import os
 import time
+from functools import wraps
+from typing import Any, Optional, Union
 
-# Third Party
 import yaml
+from packaging import version
 
-# Local
 from .logging import get_logger
 from .state import PartialState
 from .utils import (
     LoggerType,
+    compare_versions,
     is_aim_available,
     is_clearml_available,
     is_comet_ml_available,
@@ -39,6 +38,7 @@ from .utils import (
     is_wandb_available,
     listify,
 )
+
 
 _available_trackers = []
 
@@ -183,18 +183,14 @@ class TensorBoardTracker(GeneralTracker):
     @on_main_process
     def __init__(self, run_name: str, logging_dir: Union[str, os.PathLike], **kwargs):
         try:
-            # Third Party
             from torch.utils import tensorboard
         except ModuleNotFoundError:
-            # Third Party
             import tensorboardX as tensorboard
         super().__init__()
         self.run_name = run_name
         self.logging_dir = os.path.join(logging_dir, run_name)
         self.writer = tensorboard.SummaryWriter(self.logging_dir, **kwargs)
-        logger.debug(
-            f"Initialized TensorBoard project {self.run_name} logging to {self.logging_dir}"
-        )
+        logger.debug(f"Initialized TensorBoard project {self.run_name} logging to {self.logging_dir}")
         logger.debug(
             "Make sure to log any initial configurations with `self.store_init_configuration` before training!"
         )
@@ -225,9 +221,7 @@ class TensorBoardTracker(GeneralTracker):
             except yaml.representer.RepresenterError:
                 logger.error("Serialization to store hyperparameters failed")
                 raise
-        logger.debug(
-            "Stored initial configuration hyperparameters to TensorBoard and hparams yaml file"
-        )
+        logger.debug("Stored initial configuration hyperparameters to TensorBoard and hparams yaml file")
 
     @on_main_process
     def log(self, values: dict, step: Optional[int] = None, **kwargs):
@@ -301,7 +295,6 @@ class WandBTracker(GeneralTracker):
         super().__init__()
         self.run_name = run_name
 
-        # Third Party
         import wandb
 
         self.run = wandb.init(project=self.run_name, **kwargs)
@@ -324,7 +317,6 @@ class WandBTracker(GeneralTracker):
                 Values to be stored as initial hyperparameters as key-value pairs. The values need to have type `bool`,
                 `str`, `float`, `int`, or `None`.
         """
-        # Third Party
         import wandb
 
         wandb.config.update(values, allow_val_change=True)
@@ -360,7 +352,6 @@ class WandBTracker(GeneralTracker):
             kwargs:
                 Additional key word arguments passed along to the `wandb.log` method.
         """
-        # Third Party
         import wandb
 
         for k, v in values.items():
@@ -371,8 +362,8 @@ class WandBTracker(GeneralTracker):
     def log_table(
         self,
         table_name: str,
-        columns: List[str] = None,
-        data: List[List[Any]] = None,
+        columns: list[str] = None,
+        data: list[list[Any]] = None,
         dataframe: Any = None,
         step: Optional[int] = None,
         **kwargs,
@@ -393,12 +384,9 @@ class WandBTracker(GeneralTracker):
             step (`int`, *optional*):
                 The run step. If included, the log will be affiliated with this step.
         """
-        # Third Party
         import wandb
 
-        values = {
-            table_name: wandb.Table(columns=columns, data=data, dataframe=dataframe)
-        }
+        values = {table_name: wandb.Table(columns=columns, data=data, dataframe=dataframe)}
         self.log(values, step=step, **kwargs)
 
     @on_main_process
@@ -416,11 +404,16 @@ class CometMLTracker(GeneralTracker):
 
     API keys must be stored in a Comet config file.
 
+    Note:
+        For `comet_ml` versions < 3.41.0, additional keyword arguments are passed to `comet_ml.Experiment` instead:
+        https://www.comet.com/docs/v2/api-and-sdk/python-sdk/reference/Experiment/#comet_ml.Experiment.__init__
+
     Args:
         run_name (`str`):
             The name of the experiment run.
         **kwargs (additional keyword arguments, *optional*):
-            Additional key word arguments passed along to the `Experiment.__init__` method.
+            Additional key word arguments passed along to the `comet_ml.start` method:
+            https://www.comet.com/docs/v2/api-and-sdk/python-sdk/reference/start/
     """
 
     name = "comet_ml"
@@ -431,10 +424,15 @@ class CometMLTracker(GeneralTracker):
         super().__init__()
         self.run_name = run_name
 
-        # Third Party
-        from comet_ml import Experiment
+        import comet_ml
 
-        self.writer = Experiment(project_name=run_name, **kwargs)
+        comet_version = version.parse(comet_ml.__version__)
+        if compare_versions(comet_version, ">=", "3.41.0"):
+            self.writer = comet_ml.start(project_name=run_name, **kwargs)
+        else:
+            logger.info("Update `comet_ml` (>=3.41.0) for experiment reuse and offline support.")
+            self.writer = comet_ml.Experiment(project_name=run_name, **kwargs)
+
         logger.debug(f"Initialized CometML project {self.run_name}")
         logger.debug(
             "Make sure to log any initial configurations with `self.store_init_configuration` before training!"
@@ -455,7 +453,7 @@ class CometMLTracker(GeneralTracker):
                 `str`, `float`, `int`, or `None`.
         """
         self.writer.log_parameters(values)
-        logger.debug("Stored initial configuration hyperparameters to CometML")
+        logger.debug("Stored initial configuration hyperparameters to Comet")
 
     @on_main_process
     def log(self, values: dict, step: Optional[int] = None, **kwargs):
@@ -481,15 +479,15 @@ class CometMLTracker(GeneralTracker):
                 self.writer.log_other(k, v, **kwargs)
             elif isinstance(v, dict):
                 self.writer.log_metrics(v, step=step, **kwargs)
-        logger.debug("Successfully logged to CometML")
+        logger.debug("Successfully logged to Comet")
 
     @on_main_process
     def finish(self):
         """
-        Closes `comet-ml` writer
+        Flush `comet-ml` writer
         """
         self.writer.end()
-        logger.debug("CometML run closed")
+        logger.debug("Comet run flushed")
 
 
 class AimTracker(GeneralTracker):
@@ -507,15 +505,9 @@ class AimTracker(GeneralTracker):
     requires_logging_directory = True
 
     @on_main_process
-    def __init__(
-        self,
-        run_name: str,
-        logging_dir: Optional[Union[str, os.PathLike]] = ".",
-        **kwargs,
-    ):
+    def __init__(self, run_name: str, logging_dir: Optional[Union[str, os.PathLike]] = ".", **kwargs):
         self.run_name = run_name
 
-        # Third Party
         from aim import Run
 
         self.writer = Run(repo=logging_dir, **kwargs)
@@ -558,12 +550,7 @@ class AimTracker(GeneralTracker):
             self.writer.track(value, name=key, step=step, **kwargs)
 
     @on_main_process
-    def log_images(
-        self,
-        values: dict,
-        step: Optional[int] = None,
-        kwargs: Optional[Dict[str, dict]] = None,
-    ):
+    def log_images(self, values: dict, step: Optional[int] = None, kwargs: Optional[dict[str, dict]] = None):
         """
         Logs `images` to the current run.
 
@@ -577,7 +564,6 @@ class AimTracker(GeneralTracker):
                 Additional key word arguments passed along to the `Run.Image` and `Run.track` method specified by the
                 keys `aim_image` and `track`, respectively.
         """
-        # Third Party
         import aim
 
         aim_image_kw = {}
@@ -640,7 +626,7 @@ class MLflowTracker(GeneralTracker):
         experiment_name: str = None,
         logging_dir: Optional[Union[str, os.PathLike]] = None,
         run_id: Optional[str] = None,
-        tags: Optional[Union[Dict[str, Any], str]] = None,
+        tags: Optional[Union[dict[str, Any], str]] = None,
         nested_run: Optional[bool] = False,
         run_name: Optional[str] = None,
         description: Optional[str] = None,
@@ -653,15 +639,12 @@ class MLflowTracker(GeneralTracker):
 
         nested_run = os.environ.get("MLFLOW_NESTED_RUN", nested_run)
 
-        # Third Party
         import mlflow
 
         exps = mlflow.search_experiments(filter_string=f"name = '{experiment_name}'")
         if len(exps) > 0:
             if len(exps) > 1:
-                logger.warning(
-                    "Multiple experiments with the same name found. Using first one."
-                )
+                logger.warning("Multiple experiments with the same name found. Using first one.")
             experiment_id = exps[0].experiment_id
         else:
             experiment_id = mlflow.create_experiment(
@@ -697,7 +680,6 @@ class MLflowTracker(GeneralTracker):
             values (`dict`):
                 Values to be stored as initial hyperparameters as key-value pairs.
         """
-        # Third Party
         import mlflow
 
         for name, value in list(values.items()):
@@ -712,16 +694,8 @@ class MLflowTracker(GeneralTracker):
         values_list = list(values.items())
 
         # MLflow cannot log more than 100 values in one go, so we have to split it
-        for i in range(
-            0, len(values_list), mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH
-        ):
-            mlflow.log_params(
-                dict(
-                    values_list[
-                        i : i + mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH
-                    ]
-                )
-            )
+        for i in range(0, len(values_list), mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH):
+            mlflow.log_params(dict(values_list[i : i + mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH]))
 
         logger.debug("Stored initial configuration hyperparameters to MLflow")
 
@@ -745,18 +719,69 @@ class MLflowTracker(GeneralTracker):
                     f'MLflowTracker is attempting to log a value of "{v}" of type {type(v)} for key "{k}" as a metric. '
                     "MLflow's log_metric() only accepts float and int types so we dropped this attribute."
                 )
-        # Third Party
         import mlflow
 
         mlflow.log_metrics(metrics, step=step)
         logger.debug("Successfully logged to mlflow")
 
     @on_main_process
+    def log_figure(self, figure: Any, artifact_file: str, **save_kwargs):
+        """
+        Logs an figure to the current run.
+
+        Args:
+            figure (Any):
+            The figure to be logged.
+            artifact_file (`str`, *optional*):
+            The run-relative artifact file path in posixpath format to which the image is saved.
+            If not provided, the image is saved to a default location.
+            **kwargs:
+            Additional keyword arguments passed to the underlying mlflow.log_image function.
+        """
+        import mlflow
+
+        mlflow.log_figure(figure=figure, artifact_file=artifact_file, **save_kwargs)
+        logger.debug("Successfully logged image to mlflow")
+
+    @on_main_process
+    def log_artifacts(self, local_dir: str, artifact_path: Optional[str] = None):
+        """
+        Logs an artifacts (all content of a dir) to the current run.
+
+            local_dir (`str`):
+                Path to the directory to be logged as an artifact.
+            artifact_path (`str`, *optional*):
+                Directory within the run's artifact directory where the artifact will be logged. If omitted, the
+                artifact will be logged to the root of the run's artifact directory. The run step. If included, the
+                artifact will be affiliated with this step.
+        """
+        import mlflow
+
+        mlflow.log_artifacts(local_dir=local_dir, artifact_path=artifact_path)
+        logger.debug("Successfully logged artofact to mlflow")
+
+    @on_main_process
+    def log_artifact(self, local_path: str, artifact_path: Optional[str] = None):
+        """
+        Logs an artifact (file) to the current run.
+
+            local_path (`str`):
+                Path to the file to be logged as an artifact.
+            artifact_path (`str`, *optional*):
+                Directory within the run's artifact directory where the artifact will be logged. If omitted, the
+                artifact will be logged to the root of the run's artifact directory. The run step. If included, the
+                artifact will be affiliated with this step.
+        """
+        import mlflow
+
+        mlflow.log_artifact(local_path=local_path, artifact_path=artifact_path)
+        logger.debug("Successfully logged artofact to mlflow")
+
+    @on_main_process
     def finish(self):
         """
         End the active MLflow run.
         """
-        # Third Party
         import mlflow
 
         mlflow.end_run()
@@ -779,7 +804,6 @@ class ClearMLTracker(GeneralTracker):
 
     @on_main_process
     def __init__(self, run_name: str = None, **kwargs):
-        # Third Party
         from clearml import Task
 
         current_task = Task.current_task()
@@ -809,9 +833,7 @@ class ClearMLTracker(GeneralTracker):
         return self.task.connect_configuration(values)
 
     @on_main_process
-    def log(
-        self, values: Dict[str, Union[int, float]], step: Optional[int] = None, **kwargs
-    ):
+    def log(self, values: dict[str, Union[int, float]], step: Optional[int] = None, **kwargs):
         """
         Logs `values` dictionary to the current run. The dictionary keys must be strings. The dictionary values must be
         ints or floats
@@ -842,9 +864,7 @@ class ClearMLTracker(GeneralTracker):
                 clearml_logger.report_single_value(name=k, value=v, **kwargs)
                 continue
             title, series = ClearMLTracker._get_title_series(k)
-            clearml_logger.report_scalar(
-                title=title, series=series, value=v, iteration=step, **kwargs
-            )
+            clearml_logger.report_scalar(title=title, series=series, value=v, iteration=step, **kwargs)
 
     @on_main_process
     def log_images(self, values: dict, step: Optional[int] = None, **kwargs):
@@ -862,16 +882,14 @@ class ClearMLTracker(GeneralTracker):
         clearml_logger = self.task.get_logger()
         for k, v in values.items():
             title, series = ClearMLTracker._get_title_series(k)
-            clearml_logger.report_image(
-                title=title, series=series, iteration=step, image=v, **kwargs
-            )
+            clearml_logger.report_image(title=title, series=series, iteration=step, image=v, **kwargs)
 
     @on_main_process
     def log_table(
         self,
         table_name: str,
-        columns: List[str] = None,
-        data: List[List[Any]] = None,
+        columns: list[str] = None,
+        data: list[list[Any]] = None,
         dataframe: Any = None,
         step: Optional[int] = None,
         **kwargs,
@@ -902,9 +920,7 @@ class ClearMLTracker(GeneralTracker):
                 )
             to_report = [columns] + data if columns else data
         title, series = ClearMLTracker._get_title_series(table_name)
-        self.task.get_logger().report_table(
-            title=title, series=series, table_plot=to_report, iteration=step, **kwargs
-        )
+        self.task.get_logger().report_table(title=title, series=series, table_plot=to_report, iteration=step, **kwargs)
 
     @on_main_process
     def finish(self):
@@ -947,10 +963,7 @@ class DVCLiveTracker(GeneralTracker):
     requires_logging_directory = False
 
     @on_main_process
-    def __init__(
-        self, run_name: Optional[str] = None, live: Optional[Any] = None, **kwargs
-    ):
-        # Third Party
+    def __init__(self, run_name: Optional[str] = None, live: Optional[Any] = None, **kwargs):
         from dvclive import Live
 
         super().__init__()
@@ -986,7 +999,6 @@ class DVCLiveTracker(GeneralTracker):
             kwargs:
                 Additional key word arguments passed along to `dvclive.Live.log_metric()`.
         """
-        # Third Party
         from dvclive.plots import Metric
 
         if step is not None:
@@ -1023,7 +1035,7 @@ LOGGER_TYPE_TO_CLASS = {
 
 
 def filter_trackers(
-    log_with: List[Union[str, LoggerType, GeneralTracker]],
+    log_with: list[Union[str, LoggerType, GeneralTracker]],
     logging_dir: Union[str, os.PathLike] = None,
 ):
     """
@@ -1053,17 +1065,11 @@ def filter_trackers(
         if not isinstance(log_with, (list, tuple)):
             log_with = [log_with]
         if "all" in log_with or LoggerType.ALL in log_with:
-            loggers = [
-                o for o in log_with if issubclass(type(o), GeneralTracker)
-            ] + get_available_trackers()
+            loggers = [o for o in log_with if issubclass(type(o), GeneralTracker)] + get_available_trackers()
         else:
             for log_type in log_with:
-                if log_type not in LoggerType and not issubclass(
-                    type(log_type), GeneralTracker
-                ):
-                    raise ValueError(
-                        f"Unsupported logging capability: {log_type}. Choose between {LoggerType.list()}"
-                    )
+                if log_type not in LoggerType and not issubclass(type(log_type), GeneralTracker):
+                    raise ValueError(f"Unsupported logging capability: {log_type}. Choose between {LoggerType.list()}")
                 if issubclass(type(log_type), GeneralTracker):
                     loggers.append(log_type)
                 else:
@@ -1078,8 +1084,6 @@ def filter_trackers(
                                     )
                             loggers.append(log_type)
                         else:
-                            logger.debug(
-                                f"Tried adding logger {log_type}, but package is unavailable in the system."
-                            )
+                            logger.debug(f"Tried adding logger {log_type}, but package is unavailable in the system.")
 
     return loggers

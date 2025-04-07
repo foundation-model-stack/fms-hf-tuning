@@ -14,21 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# First Party
 from accelerate.commands.config import get_config_parser
 from accelerate.commands.env import env_command_parser
 from accelerate.commands.estimate import estimate_command_parser
 from accelerate.commands.launch import launch_command_parser
 from accelerate.commands.merge import merge_command_parser
 from accelerate.commands.test import test_command_parser
+from accelerate.commands.to_fsdp2 import to_fsdp2_command_parser
 from accelerate.commands.tpu import tpu_command_parser
 from accelerate.commands.utils import CustomArgumentParser
 
 
 def main():
-    parser = CustomArgumentParser(
-        "Accelerate CLI tool", usage="accelerate <command> [<args>]", allow_abbrev=False
-    )
+    parser = CustomArgumentParser("Accelerate CLI tool", usage="accelerate <command> [<args>]", allow_abbrev=False)
     subparsers = parser.add_subparsers(help="accelerate command helpers")
 
     # Register commands
@@ -39,6 +37,7 @@ def main():
     merge_command_parser(subparsers=subparsers)
     tpu_command_parser(subparsers=subparsers)
     test_command_parser(subparsers=subparsers)
+    to_fsdp2_command_parser(subparsers=subparsers)
 
     # Let's go
     args = parser.parse_args()

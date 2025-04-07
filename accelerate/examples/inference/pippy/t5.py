@@ -11,19 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import time
 
-# Third Party
-from packaging import version
 import torch
-
-# First Party
-from accelerate import PartialState
-from accelerate import __version__ as accelerate_version
-from accelerate import prepare_pippy
-from accelerate.utils import set_seed
+from packaging import version
 from transformers import AutoModelForSeq2SeqLM
+
+from accelerate import PartialState, prepare_pippy
+from accelerate import __version__ as accelerate_version
+from accelerate.utils import set_seed
+
 
 if version.parse(accelerate_version) > version.parse("0.33.0"):
     raise RuntimeError(
@@ -73,10 +70,7 @@ model = prepare_pippy(
 
 # The model expects a tuple during real inference
 # with the data on the first device
-args = (
-    example_inputs["input_ids"].to("cuda:0"),
-    example_inputs["decoder_input_ids"].to("cuda:0"),
-)
+args = (example_inputs["input_ids"].to("cuda:0"), example_inputs["decoder_input_ids"].to("cuda:0"))
 
 # Take an average of 5 times
 # Measure first batch

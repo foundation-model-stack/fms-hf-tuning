@@ -12,35 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
-from unittest import mock, skip
 import ast
 import os
 import re
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
-# Third Party
 import torch
 
-# First Party
 from accelerate.test_utils.examples import compare_against_test
 from accelerate.test_utils.testing import (
     TempDirTestCase,
     get_launch_command,
+    is_hpu_available,
+    require_fp16,
     require_huggingface_suite,
     require_multi_device,
-    require_multi_gpu,
     require_non_xpu,
     require_pippy,
     require_schedulefree,
     require_trackers,
     run_command,
+    run_first,
     slow,
 )
 from accelerate.utils import write_basic_config
+
 
 # DataLoaders built from `test_samples/MRPC` for quick testing
 # Should mock `{script_name}.get_dataloaders` via:
@@ -90,11 +90,7 @@ class ExampleDifferenceTests(unittest.TestCase):
     examples_path = Path("examples").resolve()
 
     def one_complete_example(
-        self,
-        complete_file_name: str,
-        parser_only: bool,
-        secondary_filename: str = None,
-        special_strings: list = None,
+        self, complete_file_name: str, parser_only: bool, secondary_filename: str = None, special_strings: list = None
     ):
         """
         Tests a single `complete` example against all of the implemented `by_feature` scripts
@@ -119,15 +115,10 @@ class ExampleDifferenceTests(unittest.TestCase):
                     with self.subTest(
                         tested_script=complete_file_name,
                         feature_script=item,
-                        tested_section="main()"
-                        if parser_only
-                        else "training_function()",
+                        tested_section="main()" if parser_only else "training_function()",
                     ):
                         diff = compare_against_test(
-                            self.examples_path / complete_file_name,
-                            item_path,
-                            parser_only,
-                            secondary_filename,
+                            self.examples_path / complete_file_name, item_path, parser_only, secondary_filename
                         )
                         diff = "\n".join(diff)
                         if special_strings is not None:
@@ -152,16 +143,13 @@ class ExampleDifferenceTests(unittest.TestCase):
             " " * 12,
             " " * 8 + "for step, batch in enumerate(active_dataloader):\n",
         ]
-        self.one_complete_example(
-            "complete_cv_example.py", True, cv_path, special_strings
-        )
-        self.one_complete_example(
-            "complete_cv_example.py", False, cv_path, special_strings
-        )
+        self.one_complete_example("complete_cv_example.py", True, cv_path, special_strings)
+        self.one_complete_example("complete_cv_example.py", False, cv_path, special_strings)
 
 
 @mock.patch.dict(os.environ, {"TESTING_MOCKED_DATALOADERS": "1"})
 @require_huggingface_suite
+@run_first
 class FeatureExamplesTests(TempDirTestCase):
     clear_on_setup = False
 
@@ -212,10 +200,13 @@ class FeatureExamplesTests(TempDirTestCase):
         --resume_from_checkpoint {self.tmpdir / "step_2"}
         """.split()
         output = run_command(self.launch_args + testargs, return_stdout=True)
-        if torch.cuda.is_available():
+        if is_hpu_available():
+            num_processes = torch.hpu.device_count()
+        elif torch.cuda.is_available():
             num_processes = torch.cuda.device_count()
         else:
             num_processes = 1
+
         if num_processes > 1:
             assert "epoch 0:" not in output
             assert "epoch 1:" in output
@@ -281,34 +272,34 @@ class FeatureExamplesTests(TempDirTestCase):
         testargs = ["examples/by_feature/profiler.py"]
         run_command(self.launch_args + testargs)
 
+    @require_fp16
     @require_multi_device
     def test_ddp_comm_hook(self):
         testargs = ["examples/by_feature/ddp_comm_hook.py", "--ddp_comm_hook", "fp16"]
         run_command(self.launch_args + testargs)
 
-    @skip(
-        reason="stable-diffusion-v1-5 is no longer available. Potentially `Comfy-Org/stable-diffusion-v1-5-archive` once diffusers support is added."
-    )
+    @require_fp16
     @require_multi_device
     def test_distributed_inference_examples_stable_diffusion(self):
         testargs = ["examples/inference/distributed/stable_diffusion.py"]
         run_command(self.launch_args + testargs)
 
+    @require_fp16
     @require_multi_device
     def test_distributed_inference_examples_phi2(self):
         testargs = ["examples/inference/distributed/phi2.py"]
         run_command(self.launch_args + testargs)
 
-    @require_non_xpu
     @require_pippy
-    @require_multi_gpu
+    @require_non_xpu
+    @require_multi_device
     def test_pippy_examples_bert(self):
         testargs = ["examples/inference/pippy/bert.py"]
         run_command(self.launch_args + testargs)
 
-    @require_non_xpu
     @require_pippy
-    @require_multi_gpu
+    @require_non_xpu
+    @require_multi_device
     def test_pippy_examples_gpt2(self):
         testargs = ["examples/inference/pippy/gpt2.py"]
         run_command(self.launch_args + testargs)

@@ -14,36 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 import os
 import subprocess
 
-# Third Party
 from packaging.version import Version, parse
 
-# First Party
-from accelerate.commands.config.config_args import (
-    default_config_file,
-    load_config_from_file,
-)
+from accelerate.commands.config.config_args import default_config_file, load_config_from_file
 
-_description = (
-    "Run commands across TPU VMs for initial setup before running `accelerate launch`."
-)
+
+_description = "Run commands across TPU VMs for initial setup before running `accelerate launch`."
 
 
 def tpu_command_parser(subparsers=None):
     if subparsers is not None:
         parser = subparsers.add_parser("tpu-config", description=_description)
     else:
-        parser = argparse.ArgumentParser(
-            "Accelerate tpu-config command", description=_description
-        )
+        parser = argparse.ArgumentParser("Accelerate tpu-config command", description=_description)
     # Core arguments
     config_args = parser.add_argument_group(
-        "Config Arguments",
-        "Arguments that can be configured through `accelerate config`.",
+        "Config Arguments", "Arguments that can be configured through `accelerate config`."
     )
     config_args.add_argument(
         "--config_file",
@@ -61,9 +51,7 @@ def tpu_command_parser(subparsers=None):
         default=None,
         help="The zone of the TPU to use. If not specified, will use the zone specified in the config file.",
     )
-    pod_args = parser.add_argument_group(
-        "TPU Arguments", "Arguments for options ran inside the TPU."
-    )
+    pod_args = parser.add_argument_group("TPU Arguments", "Arguments for options ran inside the TPU.")
     pod_args.add_argument(
         "--use_alpha",
         action="store_true",
@@ -91,9 +79,7 @@ def tpu_command_parser(subparsers=None):
         help="The version of accelerate to install on the pod. If not specified, will use the latest pypi version. Specify 'dev' to install from GitHub.",
     )
     pod_args.add_argument(
-        "--debug",
-        action="store_true",
-        help="If set, will print the command that would be run instead of running it.",
+        "--debug", action="store_true", help="If set, will print the command that would be run instead of running it."
     )
 
     if subparsers is not None:
@@ -107,11 +93,7 @@ def tpu_command_launcher(args):
     # Get the default from the config file if it exists.
     if args.config_file is not None or os.path.isfile(default_config_file):
         defaults = load_config_from_file(args.config_file)
-        if (
-            not args.command_file
-            and defaults.command_file is not None
-            and not args.command
-        ):
+        if not args.command_file and defaults.command_file is not None and not args.command:
             args.command_file = defaults.command_file
         if not args.command and defaults.commands is not None:
             args.command = defaults.commands
@@ -127,9 +109,7 @@ def tpu_command_launcher(args):
         args.accelerate_version = f"accelerate=={args.accelerate_version}"
 
     if not args.command_file and not args.command:
-        raise ValueError(
-            "You must specify either a command file or a command to run on the pod."
-        )
+        raise ValueError("You must specify either a command file or a command to run on the pod.")
 
     if args.command_file:
         with open(args.command_file) as f:

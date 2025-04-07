@@ -12,23 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from codecs import encode
-from functools import partial, reduce
-from types import MethodType
-from typing import OrderedDict
 import collections
 import platform
 import re
 import socket
+from codecs import encode
+from collections import OrderedDict
+from functools import partial, reduce
+from types import MethodType
 
-# Third Party
-from packaging.version import Version
-from safetensors.torch import save_file as safe_save_file
 import numpy as np
 import torch
+from packaging.version import Version
+from safetensors.torch import save_file as safe_save_file
 
-# Local
 from ..commands.config.default import write_basic_config  # noqa: F401
 from ..logging import get_logger
 from ..state import PartialState
@@ -45,11 +42,11 @@ from .modeling import id_tensor_storage
 from .transformer_engine import convert_model
 from .versions import is_torch_version
 
+
 logger = get_logger(__name__)
 
 
 if is_torch_xla_available():
-    # Third Party
     import torch_xla.core.xla_model as xm
 
 
@@ -63,10 +60,7 @@ def is_compiled_module(module):
 
 
 def extract_model_from_parallel(
-    model,
-    keep_fp32_wrapper: bool = True,
-    keep_torch_compile: bool = True,
-    recursive: bool = False,
+    model, keep_fp32_wrapper: bool = True, keep_torch_compile: bool = True, recursive: bool = False
 ):
     """
     Extract a model from its distributed containers.
@@ -93,19 +87,12 @@ def extract_model_from_parallel(
         model = model._orig_mod
 
     if is_deepspeed_available():
-        # Third Party
         from deepspeed import DeepSpeedEngine
 
         options += (DeepSpeedEngine,)
 
-    if (
-        is_torch_version(">=", FSDP_PYTORCH_VERSION)
-        and is_torch_distributed_available()
-    ):
-        # Third Party
-        from torch.distributed.fsdp.fully_sharded_data_parallel import (
-            FullyShardedDataParallel as FSDP,
-        )
+    if is_torch_version(">=", FSDP_PYTORCH_VERSION) and is_torch_distributed_available():
+        from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
 
         options += (FSDP,)
 
@@ -192,10 +179,7 @@ def clean_state_dict_for_safetensors(state_dict: dict):
         logger.warning(
             f"Removed shared tensor {warn_names} while saving. This should be OK, but check by verifying that you don't receive any warning while reloading",
         )
-    state_dict = {
-        k: v.contiguous() if isinstance(v, torch.Tensor) else v
-        for k, v in state_dict.items()
-    }
+    state_dict = {k: v.contiguous() if isinstance(v, torch.Tensor) else v for k, v in state_dict.items()}
     return state_dict
 
 
@@ -366,3 +350,24 @@ def recursive_getattr(obj, attr: str):
         return getattr(obj, attr)
 
     return reduce(_getattr, [obj] + attr.split("."))
+
+
+def get_module_children_bottom_up(model: torch.nn.Module) -> list[torch.nn.Module]:
+    """Traverse the model in bottom-up order and return the children modules in that order.
+
+    Args:
+        model (`torch.nn.Module`): the model to get the children of
+
+    Returns:
+        `list[torch.nn.Module]`: a list of children modules of `model` in bottom-up order. The last element is the
+        `model` itself.
+    """
+    stack = [model]
+    ordered_modules = []
+    while stack:
+        current_module = stack.pop()
+        for _, attr in current_module.named_children():
+            if isinstance(attr, torch.nn.Module):
+                stack.append(attr)
+        ordered_modules.append(current_module)
+    return ordered_modules[::-1]

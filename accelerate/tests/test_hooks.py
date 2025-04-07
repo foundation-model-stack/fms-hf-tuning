@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import inspect
 import unittest
 
-# Third Party
-from torch.fx import symbolic_trace
 import torch
 import torch.nn as nn
+from torch.fx import symbolic_trace
 
-# First Party
 from accelerate.hooks import (
     AlignDevicesHook,
     ModelHook,
@@ -31,7 +28,8 @@ from accelerate.hooks import (
     remove_hook_from_module,
     remove_hook_from_submodules,
 )
-from accelerate.test_utils import require_multi_device, torch_device
+from accelerate.test_utils import require_multi_device, require_non_hpu, torch_device
+
 
 torch_device = f"{torch_device}:0" if torch_device != "cpu" else "cpu"
 
@@ -155,6 +153,7 @@ class HooksModelTester(unittest.TestCase):
         output1 = test_model(x)
         assert not output1.requires_grad
 
+    @require_non_hpu  # hpu does not support device indexing "hpu:1"
     @require_multi_device
     def test_align_devices_as_model_parallelism(self):
         model = ModelForTest()
@@ -171,9 +170,7 @@ class HooksModelTester(unittest.TestCase):
         assert model.linear1.weight.device == torch.device(torch_device)
         assert model.batchnorm.weight.device == torch.device(torch_device)
         assert model.batchnorm.running_mean.device == torch.device(torch_device)
-        assert model.linear2.weight.device == torch.device(
-            torch_device.replace(":0", ":1")
-        )
+        assert model.linear2.weight.device == torch.device(torch_device.replace(":0", ":1"))
 
         # We can still make a forward pass. The input does not need to be on any particular device
         x = torch.randn(2, 3)
@@ -281,9 +278,7 @@ class HooksModelTester(unittest.TestCase):
         assert model.linear2.weight.device == torch.device("cpu")
 
         # Now test with buffers included in the offload
-        attach_align_device_hook(
-            model, execution_device=execution_device, offload=True, offload_buffers=True
-        )
+        attach_align_device_hook(model, execution_device=execution_device, offload=True, offload_buffers=True)
 
         # Parameters have been offloaded, so on the meta device, buffers included
         assert model.linear1.weight.device == torch.device("meta")
@@ -312,10 +307,7 @@ class HooksModelTester(unittest.TestCase):
         # This will move each submodule on different devices
         execution_device = torch_device
         attach_align_device_hook(
-            model,
-            execution_device=execution_device,
-            offload=True,
-            weights_map=model.state_dict(),
+            model, execution_device=execution_device, offload=True, weights_map=model.state_dict()
         )
 
         # Parameters have been offloaded, so on the meta device
@@ -390,10 +382,7 @@ class HooksModelTester(unittest.TestCase):
 
             graph_model.graph.inserting_after(linear2_node)
             new_node = graph_model.graph.create_node(
-                op="call_function",
-                target=torch.sigmoid,
-                args=(linear2_node,),
-                name="relu",
+                op="call_function", target=torch.sigmoid, args=(linear2_node,), name="relu"
             )
 
             output_node = None

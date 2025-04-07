@@ -16,10 +16,10 @@
 Utilities relating to parsing raw characters from the keyboard, based on https://github.com/bchao1/bullet
 """
 
-# Standard
 import os
 import string
 import sys
+
 
 ARROW_KEY_FLAG = 1 << 8
 
@@ -63,7 +63,6 @@ for i in range(10):
 def get_raw_chars():
     "Gets raw characters from inputs"
     if os.name == "nt":
-        # Standard
         import msvcrt
 
         encoding = "mbcs"
@@ -97,7 +96,6 @@ def get_raw_chars():
         else:
             ch = WIN_CH_BUFFER.pop(0)
     elif os.name == "posix":
-        # Standard
         import termios
         import tty
 
@@ -121,10 +119,7 @@ def get_character():
         combo = get_raw_chars()
         if ord(combo) == KEYMAP["mod_int"]:
             key = get_raw_chars()
-            if (
-                ord(key) >= KEYMAP["arrow_begin"] - ARROW_KEY_FLAG
-                and ord(key) <= KEYMAP["arrow_end"] - ARROW_KEY_FLAG
-            ):
+            if ord(key) >= KEYMAP["arrow_begin"] - ARROW_KEY_FLAG and ord(key) <= KEYMAP["arrow_end"] - ARROW_KEY_FLAG:
                 return chr(ord(key) + ARROW_KEY_FLAG)
             else:
                 return KEYMAP["undefined"]

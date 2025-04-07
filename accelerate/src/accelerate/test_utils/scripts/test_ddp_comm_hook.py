@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
 import torch
 
-# First Party
-from accelerate import (
-    Accelerator,
-    DDPCommunicationHookType,
-    DistributedDataParallelKwargs,
-    PartialState,
-)
+from accelerate import Accelerator, DDPCommunicationHookType, DistributedDataParallelKwargs, PartialState
+from accelerate.utils import is_hpu_available
 
 
 class MockModel(torch.nn.Module):
@@ -58,9 +52,7 @@ def test_ddp_comm_hook(comm_hook, comm_wrapper, comm_state_option):
         device_ids=[accelerator.local_process_index],
         output_device=accelerator.local_process_index,
     )
-    reference_grads = _run_and_get_grads(
-        reference_model, accelerator.local_process_index
-    )
+    reference_grads = _run_and_get_grads(reference_model, accelerator.local_process_index)
 
     torch.testing.assert_close(hook_grads, reference_grads, rtol=1e-2, atol=1e-2)
 
@@ -73,15 +65,17 @@ def main():
         (DDPCommunicationHookType.POWER_SGD, DDPCommunicationHookType.NO, {}),
         (DDPCommunicationHookType.POWER_SGD, DDPCommunicationHookType.FP16, {}),
         (DDPCommunicationHookType.POWER_SGD, DDPCommunicationHookType.BF16, {}),
-        (
-            DDPCommunicationHookType.POWER_SGD,
-            DDPCommunicationHookType.NO,
-            {"matrix_approximation_rank": 2},
-        ),
+        (DDPCommunicationHookType.POWER_SGD, DDPCommunicationHookType.NO, {"matrix_approximation_rank": 2}),
         (DDPCommunicationHookType.BATCHED_POWER_SGD, DDPCommunicationHookType.NO, {}),
         (DDPCommunicationHookType.BATCHED_POWER_SGD, DDPCommunicationHookType.FP16, {}),
         (DDPCommunicationHookType.BATCHED_POWER_SGD, DDPCommunicationHookType.BF16, {}),
     ]:
+        if is_hpu_available():
+            HPU_UNSUPPORTED_COMM_HOOKS = {DDPCommunicationHookType.FP16, DDPCommunicationHookType.BF16}
+            if comm_hook in HPU_UNSUPPORTED_COMM_HOOKS or comm_wrapper in HPU_UNSUPPORTED_COMM_HOOKS:
+                print(f"Skipping test DDP comm hook: {comm_hook}, comm wrapper: {comm_wrapper} on HPU")
+                continue
+
         print(f"Test DDP comm hook: {comm_hook}, comm wrapper: {comm_wrapper}")
         test_ddp_comm_hook(comm_hook, comm_wrapper, comm_state_option)
     PartialState().destroy_process_group()

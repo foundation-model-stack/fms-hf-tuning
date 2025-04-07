@@ -12,27 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
 import gc
 import logging
 import shutil
+from pathlib import Path
 
-# Third Party
-from safetensors.torch import load_file
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-    ShardingStrategy,
-    StateDictType,
-)
-from torch.utils.data import DataLoader
 import torch
+from safetensors.torch import load_file
+from torch.distributed.fsdp.fully_sharded_data_parallel import ShardingStrategy, StateDictType
+from torch.utils.data import DataLoader
 
-# First Party
 from accelerate import Accelerator, FullyShardedDataParallelPlugin
 from accelerate.commands.merge import merge_command, merge_command_parser
 from accelerate.state import AcceleratorState
+from accelerate.test_utils import torch_device
 from accelerate.test_utils.training import RegressionDataset
 from accelerate.utils import merge_fsdp_weights, patch_environment, save_fsdp_model
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,8 +51,7 @@ def setup():
     if AcceleratorState._shared_state != {}:
         AcceleratorState()._reset_state()
     plugin = FullyShardedDataParallelPlugin(
-        sharding_strategy=ShardingStrategy.FULL_SHARD,
-        state_dict_type=StateDictType.SHARDED_STATE_DICT,
+        sharding_strategy=ShardingStrategy.FULL_SHARD, state_dict_type=StateDictType.SHARDED_STATE_DICT
     )
     model = TinyModel()
     with patch_environment(fsdp_auto_wrap_policy="SIZE_BASED_WRAP"):
@@ -84,10 +79,10 @@ def mock_training(accelerator, model):
 
 def check_weights(operation, state_1, state_2):
     for weight_1, weight_2 in zip(state_1.values(), state_2.values()):
-        if str(weight_1.device) != "cuda":
-            weight_1 = weight_1.to("cuda")
-        if str(weight_2.device) != "cuda":
-            weight_2 = weight_2.to("cuda")
+        if str(weight_1.device) != torch_device:
+            weight_1 = weight_1.to(torch_device)
+        if str(weight_2.device) != torch_device:
+            weight_2 = weight_2.to(torch_device)
         if operation == "same":
             assert torch.allclose(weight_1, weight_2)
         else:
@@ -129,9 +124,7 @@ def test_merge_weights_pytorch(model, path):
 
 
 def test_merge_weights_command_pytorch(model, path):
-    args = parser.parse_args(
-        [str(path / "pytorch_model_fsdp_0"), str(path), "--unsafe_serialization"]
-    )
+    args = parser.parse_args([str(path / "pytorch_model_fsdp_0"), str(path), "--unsafe_serialization"])
     merge_command(args)
     check_pytorch_weights(path, model)
 

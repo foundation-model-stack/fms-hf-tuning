@@ -11,17 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import inspect
 import logging
 import os
 
-# Third Party
 import pytest
 
-# First Party
 from accelerate import Accelerator
 from accelerate.logging import get_logger
+from accelerate.state import AcceleratorState
 
 
 def current_lineno() -> int:
@@ -44,7 +42,9 @@ class CustomLogger(logging.LoggerAdapter):
 
 @pytest.fixture(scope="module")
 def accelerator():
-    return Accelerator()
+    accelerator = Accelerator()
+    yield accelerator
+    AcceleratorState._reset_state(True)
 
 
 @pytest.mark.usefixtures("accelerator")

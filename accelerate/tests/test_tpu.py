@@ -12,23 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import sys
 import unittest
 
-# First Party
-from accelerate.test_utils import (
-    execute_subprocess_async,
-    path_in_accelerate_package,
-    require_tpu,
-)
+from accelerate.test_utils import execute_subprocess_async, path_in_accelerate_package, require_tpu
 
 
 class MultiTPUTester(unittest.TestCase):
-    test_file_path = path_in_accelerate_package(
-        "test_utils", "scripts", "test_script.py"
-    )
+    test_file_path = path_in_accelerate_package("test_utils", "scripts", "test_script.py")
     test_dir = os.path.dirname(__file__)
 
     @require_tpu

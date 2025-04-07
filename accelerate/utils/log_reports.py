@@ -11,14 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from datetime import date
-from pathlib import Path
 import json
 import os
+from datetime import date
+from pathlib import Path
 
-# Third Party
 from tabulate import DataRow, TableFormat, tabulate
+
 
 hf_table_format = TableFormat(
     lineabove=None,
@@ -35,10 +34,7 @@ hf_table_format = TableFormat(
 failed = []
 group_info = []
 
-no_error_payload = {
-    "type": "section",
-    "text": {"type": "plain_text", "text": "No failed tests! 🤗", "emoji": True},
-}
+no_error_payload = {"type": "section", "text": {"type": "plain_text", "text": "No failed tests! 🤗", "emoji": True}}
 
 payload = [
     {
@@ -60,7 +56,7 @@ for log in Path().glob("*.log"):
             if line.get("nodeid", "") != "":
                 test = line["nodeid"]
                 if line.get("duration", None) is not None:
-                    duration = f'{line["duration"]:.4f}'
+                    duration = f"{line['duration']:.4f}"
                     if line.get("outcome", "") == "failed":
                         section_num_failed += 1
                         failed.append([test, duration, log.name.split("_")[0]])
@@ -115,7 +111,6 @@ else:
     payload.append(no_error_payload)
 
 if os.environ.get("TEST_TYPE", "") != "":
-    # Third Party
     from slack_sdk import WebClient
 
     client = WebClient(token=os.environ["SLACK_API_TOKEN"])
@@ -141,7 +136,7 @@ if os.environ.get("TEST_TYPE", "") != "":
                     "text": "Check Action results",
                     "emoji": True,
                 },
-                "url": f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
+                "url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
             },
         }
         payload.append(action_button)
@@ -155,9 +150,7 @@ if os.environ.get("TEST_TYPE", "") != "":
             ],
         }
         payload.append(date_report)
-    response = client.chat_postMessage(
-        channel="#accelerate-ci-daily", text=message, blocks=payload
-    )
+    response = client.chat_postMessage(channel="#accelerate-ci-daily", text=message, blocks=payload)
     ts = response.data["ts"]
     for failed_file in all_files2failed:
         for test_location, test_failures in failed_file.items():

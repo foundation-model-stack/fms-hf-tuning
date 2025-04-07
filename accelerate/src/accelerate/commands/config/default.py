@@ -14,30 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from pathlib import Path
 
-# Third Party
 import torch
 
-# Local
 from ...utils import (
+    is_hpu_available,
     is_mlu_available,
     is_musa_available,
     is_npu_available,
+    is_sdaa_available,
     is_xpu_available,
 )
 from .config_args import ClusterConfig, default_json_config_file
 from .config_utils import SubcommandHelpFormatter
 
+
 description = "Create a default config file for Accelerate with only a few flags set."
 
 
-def write_basic_config(
-    mixed_precision="no",
-    save_location: str = default_json_config_file,
-    use_xpu: bool = False,
-):
+def write_basic_config(mixed_precision="no", save_location: str = default_json_config_file):
     """
     Creates and saves a basic cluster config to be used on a local machine with potentially multiple GPUs. Will also
     set CPU if it is a CPU-only machine.
@@ -49,8 +45,6 @@ def write_basic_config(
             Optional custom save location. Should be passed to `--config_file` when using `accelerate launch`. Default
             location is inside the huggingface cache folder (`~/.cache/huggingface`) but can be overriden by setting
             the `HF_HOME` environmental variable, followed by `accelerate/default_config.yaml`.
-        use_xpu (`bool`, *optional*, defaults to `False`):
-            Whether to use XPU if available.
     """
     path = Path(save_location)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -76,12 +70,28 @@ def write_basic_config(
             config["distributed_type"] = "MULTI_MLU"
         else:
             config["distributed_type"] = "NO"
+    if is_sdaa_available():
+        num_sdaas = torch.sdaa.device_count()
+        config["num_processes"] = num_sdaas
+        config["use_cpu"] = False
+        if num_sdaas > 1:
+            config["distributed_type"] = "MULTI_SDAA"
+        else:
+            config["distributed_type"] = "NO"
     elif is_musa_available():
         num_musas = torch.musa.device_count()
         config["num_processes"] = num_musas
         config["use_cpu"] = False
         if num_musas > 1:
             config["distributed_type"] = "MULTI_MUSA"
+        else:
+            config["distributed_type"] = "NO"
+    elif is_hpu_available():
+        num_hpus = torch.hpu.device_count()
+        config["num_processes"] = num_hpus
+        config["use_cpu"] = False
+        if num_hpus > 1:
+            config["distributed_type"] = "MULTI_HPU"
         else:
             config["distributed_type"] = "NO"
     elif torch.cuda.is_available():
@@ -92,7 +102,7 @@ def write_basic_config(
             config["distributed_type"] = "MULTI_GPU"
         else:
             config["distributed_type"] = "NO"
-    elif is_xpu_available() and use_xpu:
+    elif is_xpu_available():
         num_xpus = torch.xpu.device_count()
         config["num_processes"] = num_xpus
         config["use_cpu"] = False
@@ -121,12 +131,7 @@ def write_basic_config(
 
 
 def default_command_parser(parser, parents):
-    parser = parser.add_parser(
-        "default",
-        parents=parents,
-        help=description,
-        formatter_class=SubcommandHelpFormatter,
-    )
+    parser = parser.add_parser("default", parents=parents, help=description, formatter_class=SubcommandHelpFormatter)
     parser.add_argument(
         "--config_file",
         default=default_json_config_file,

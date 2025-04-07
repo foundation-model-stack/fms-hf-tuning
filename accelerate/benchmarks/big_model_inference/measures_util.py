@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import gc
 import threading
 import time
 
-# Third Party
 import psutil
 import torch
 
@@ -30,9 +28,7 @@ class PeakCPUMemory:
         self.cpu_memory_peak = -1
 
         while True:
-            self.cpu_memory_peak = max(
-                self.process.memory_info().rss, self.cpu_memory_peak
-            )
+            self.cpu_memory_peak = max(self.process.memory_info().rss, self.cpu_memory_peak)
 
             # can't sleep or will not catch the peak right (this comment is here on purpose)
             if not self.peak_monitoring:
@@ -80,19 +76,13 @@ def end_measure(start_measures):
     torch.cuda.empty_cache()
 
     # CPU mem
-    measures["cpu"] = (
-        psutil.Process().memory_info().rss - start_measures["cpu"]
-    ) / 2**20
+    measures["cpu"] = (psutil.Process().memory_info().rss - start_measures["cpu"]) / 2**20
     measures["cpu-peak"] = (cpu_peak_tracker.stop() - start_measures["cpu"]) / 2**20
 
     # GPU mem
     for i in range(torch.cuda.device_count()):
-        measures[str(i)] = (
-            torch.cuda.memory_allocated(i) - start_measures[str(i)]
-        ) / 2**20
-        measures[f"{i}-peak"] = (
-            torch.cuda.max_memory_allocated(i) - start_measures[str(i)]
-        ) / 2**20
+        measures[str(i)] = (torch.cuda.memory_allocated(i) - start_measures[str(i)]) / 2**20
+        measures[f"{i}-peak"] = (torch.cuda.max_memory_allocated(i) - start_measures[str(i)]) / 2**20
 
     return measures
 

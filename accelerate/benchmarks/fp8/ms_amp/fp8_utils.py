@@ -11,16 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Third Party
 import torch
 
 
 def get_dataloaders(model_name: str, batch_size: int = 16):
-    # Third Party
     from datasets import load_dataset
     from torch.utils.data import DataLoader
-
-    # First Party
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -28,12 +24,7 @@ def get_dataloaders(model_name: str, batch_size: int = 16):
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
@@ -58,11 +49,7 @@ def get_dataloaders(model_name: str, batch_size: int = 16):
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
-        drop_last=True,
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size, drop_last=True
     )
     eval_dataloader = DataLoader(
         tokenized_datasets["validation"],
@@ -85,15 +72,10 @@ def get_training_utilities(model_name: str, batch_size: int = 16, accelerator=No
         - LR Scheduler
     Suitable for training on the MRPC dataset
     """
-    # Third Party
     from torch.optim import AdamW
+    from transformers import AutoModelForSequenceClassification, get_linear_schedule_with_warmup
 
-    # First Party
     from accelerate import Accelerator
-    from transformers import (
-        AutoModelForSequenceClassification,
-        get_linear_schedule_with_warmup,
-    )
 
     if accelerator is None:
         accelerator = Accelerator()
@@ -105,9 +87,7 @@ def get_training_utilities(model_name: str, batch_size: int = 16, accelerator=No
         num_warmup_steps=100,
         num_training_steps=len(train_dataloader) * 2,
     )
-    train_dataloader, eval_dataloader = accelerator.prepare(
-        train_dataloader, eval_dataloader
-    )
+    train_dataloader, eval_dataloader = accelerator.prepare(train_dataloader, eval_dataloader)
     return model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
 
 
@@ -116,7 +96,6 @@ def get_named_parameters(model):
     Same thing as `Accelerator.get_named_parameters` Returns a list of the named parameters of the model (extracted
     from parallel)
     """
-    # First Party
     from accelerate.utils import extract_model_from_parallel
 
     model = extract_model_from_parallel(model)
@@ -134,8 +113,6 @@ def evaluate_model(model, dataloader, metric, accelerator=None):
         predictions = outputs.logits.argmax(dim=-1)
         references = batch["labels"]
         if accelerator is not None and accelerator.num_processes > 1:
-            predictions, references = accelerator.gather_for_metrics(
-                (predictions, references)
-            )
+            predictions, references = accelerator.gather_for_metrics((predictions, references))
         metric.add_batch(predictions=predictions, references=references)
     return metric.compute()

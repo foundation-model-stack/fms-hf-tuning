@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 HuggingFace Inc..
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +50,7 @@ def get_results(output_dir):
     results = {}
     path = os.path.join(output_dir, "all_results.json")
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             results = json.load(f)
     else:
         raise ValueError(f"can't find {path}")
@@ -252,9 +251,7 @@ class ExamplesTestsNoTrainer(TestCasePlus):
         self.assertGreaterEqual(result["eval_rougeL"], 7)
         self.assertGreaterEqual(result["eval_rougeLsum"], 7)
         self.assertTrue(os.path.exists(os.path.join(tmp_dir, "epoch_0")))
-        self.assertTrue(
-            os.path.exists(os.path.join(tmp_dir, "summarization_no_trainer"))
-        )
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "summarization_no_trainer")))
 
     @slow
     @mock.patch.dict(os.environ, {"WANDB_MODE": "offline", "DVCLIVE_TEST": "true"})
@@ -333,9 +330,7 @@ class ExamplesTestsNoTrainer(TestCasePlus):
         # The base model scores a 25%
         self.assertGreaterEqual(result["eval_accuracy"], 0.4)
         self.assertTrue(os.path.exists(os.path.join(tmp_dir, "step_1")))
-        self.assertTrue(
-            os.path.exists(os.path.join(tmp_dir, "image_classification_no_trainer"))
-        )
+        self.assertTrue(os.path.exists(os.path.join(tmp_dir, "image_classification_no_trainer")))
 
     @slow
     @mock.patch.dict(os.environ, {"WANDB_MODE": "offline", "DVCLIVE_TEST": "true"})

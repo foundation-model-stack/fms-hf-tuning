@@ -19,12 +19,10 @@ A collection of utilities for comparing `examples/complete_*_example.py` scripts
 others are used to either get the code that matters, or to preprocess them (such as stripping comments)
 """
 
-# Standard
-from typing import List
 import os
 
 
-def get_function_contents_by_name(lines: List[str], name: str):
+def get_function_contents_by_name(lines: list[str], name: str):
     """
     Extracts a function from `lines` of segmented source code with the name `name`.
 
@@ -35,9 +33,7 @@ def get_function_contents_by_name(lines: List[str], name: str):
             The name of the function to extract. Should be either `training_function` or `main`
     """
     if name != "training_function" and name != "main":
-        raise ValueError(
-            f"Incorrect function name passed: {name}, choose either 'main' or 'training_function'"
-        )
+        raise ValueError(f"Incorrect function name passed: {name}, choose either 'main' or 'training_function'")
     good_lines, found_start = [], False
     for line in lines:
         if not found_start and f"def {name}" in line:
@@ -52,7 +48,7 @@ def get_function_contents_by_name(lines: List[str], name: str):
             good_lines.append(line)
 
 
-def clean_lines(lines: List[str]):
+def clean_lines(lines: list[str]):
     """
     Filters `lines` and removes any entries that start with a comment ('#') or is just a newline ('\n')
 
@@ -60,17 +56,10 @@ def clean_lines(lines: List[str]):
         lines (`List[str]`):
             Source code of a script seperated by line.
     """
-    return [
-        line for line in lines if not line.lstrip().startswith("#") and line != "\n"
-    ]
+    return [line for line in lines if not line.lstrip().startswith("#") and line != "\n"]
 
 
-def compare_against_test(
-    base_filename: str,
-    feature_filename: str,
-    parser_only: bool,
-    secondary_filename: str = None,
-):
+def compare_against_test(base_filename: str, feature_filename: str, parser_only: bool, secondary_filename: str = None):
     """
     Tests whether the additional code inside of `feature_filename` was implemented in `base_filename`. This should be
     used when testing to see if `complete_*_.py` examples have all of the implementations from each of the
@@ -106,39 +95,21 @@ def compare_against_test(
 
     # This is our base, we remove all the code from here in our `full_filename` and `feature_filename` to find the new content
     if parser_only:
-        base_file_func = clean_lines(
-            get_function_contents_by_name(base_file_contents, "main")
-        )
-        full_file_func = clean_lines(
-            get_function_contents_by_name(full_file_contents, "main")
-        )
-        feature_file_func = clean_lines(
-            get_function_contents_by_name(feature_file_contents, "main")
-        )
+        base_file_func = clean_lines(get_function_contents_by_name(base_file_contents, "main"))
+        full_file_func = clean_lines(get_function_contents_by_name(full_file_contents, "main"))
+        feature_file_func = clean_lines(get_function_contents_by_name(feature_file_contents, "main"))
         if secondary_filename is not None:
-            secondary_file_func = clean_lines(
-                get_function_contents_by_name(secondary_file_contents, "main")
-            )
+            secondary_file_func = clean_lines(get_function_contents_by_name(secondary_file_contents, "main"))
     else:
-        base_file_func = clean_lines(
-            get_function_contents_by_name(base_file_contents, "training_function")
-        )
-        full_file_func = clean_lines(
-            get_function_contents_by_name(full_file_contents, "training_function")
-        )
-        feature_file_func = clean_lines(
-            get_function_contents_by_name(feature_file_contents, "training_function")
-        )
+        base_file_func = clean_lines(get_function_contents_by_name(base_file_contents, "training_function"))
+        full_file_func = clean_lines(get_function_contents_by_name(full_file_contents, "training_function"))
+        feature_file_func = clean_lines(get_function_contents_by_name(feature_file_contents, "training_function"))
         if secondary_filename is not None:
             secondary_file_func = clean_lines(
-                get_function_contents_by_name(
-                    secondary_file_contents, "training_function"
-                )
+                get_function_contents_by_name(secondary_file_contents, "training_function")
             )
 
-    _dl_line = (
-        "train_dataloader, eval_dataloader = get_dataloaders(accelerator, batch_size)\n"
-    )
+    _dl_line = "train_dataloader, eval_dataloader = get_dataloaders(accelerator, batch_size)\n"
 
     # Specific code in our script that differs from the full version, aka what is new
     new_feature_code = []
@@ -166,15 +137,9 @@ def compare_against_test(
                     passed_idxs.append(i)
 
     # Finally, get the overall diff
-    diff_from_example = [
-        line for line in new_feature_code if line not in new_full_example_parts
-    ]
+    diff_from_example = [line for line in new_feature_code if line not in new_full_example_parts]
     if secondary_filename is not None:
-        diff_from_two = [
-            line for line in full_file_contents if line not in secondary_file_func
-        ]
-        diff_from_example = [
-            line for line in diff_from_example if line not in diff_from_two
-        ]
+        diff_from_two = [line for line in full_file_contents if line not in secondary_file_func]
+        diff_from_example = [line for line in diff_from_example if line not in diff_from_two]
 
     return diff_from_example

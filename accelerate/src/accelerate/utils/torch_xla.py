@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import importlib.metadata
 import subprocess
 import sys

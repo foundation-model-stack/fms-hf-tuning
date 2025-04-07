@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
 import torch.distributed
 
-# First Party
 from accelerate.test_utils import require_huggingface_suite, torch_device
 from accelerate.utils import is_transformers_available
 
+
 if is_transformers_available():
-    # First Party
     from transformers import AutoModel, TrainingArguments
 
 
@@ -29,7 +27,13 @@ GPT2_TINY = "sshleifer/tiny-gpt2"
 
 @require_huggingface_suite
 def init_torch_dist_then_launch_deepspeed():
-    backend = "ccl" if torch_device == "xpu" else "nccl"
+    if torch_device == "xpu":
+        backend = "ccl"
+    elif torch_device == "hpu":
+        backend = "hccl"
+    else:
+        backend = "nccl"
+
     torch.distributed.init_process_group(backend=backend)
     deepspeed_config = {
         "zero_optimization": {

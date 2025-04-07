@@ -129,12 +129,8 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
                 return []
 
             # Select ideal number of crops close to the image aspect ratio and such that crop_size > min_crop_size.
-            num_crops_w = int(
-                math.floor(width / height + 0.5)
-            )  # Half round up rounding.
-            num_crops_w = min(
-                int(math.floor(width / pan_and_scan_min_crop_size)), num_crops_w
-            )
+            num_crops_w = int(math.floor(width / height + 0.5))  # Half round up rounding.
+            num_crops_w = min(int(math.floor(width / pan_and_scan_min_crop_size)), num_crops_w)
 
             # Make sure the number of crops is in range [2, pan_and_scan_max_num_crops].
             num_crops_w = max(2, num_crops_w)
@@ -149,9 +145,7 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
 
             # Select ideal number of crops close to the image aspect ratio and such that crop_size > min_crop_size.
             num_crops_h = int(math.floor(height / width + 0.5))
-            num_crops_h = min(
-                int(math.floor(height / pan_and_scan_min_crop_size)), num_crops_h
-            )
+            num_crops_h = min(int(math.floor(height / pan_and_scan_min_crop_size)), num_crops_h)
 
             # Make sure the number of crops is in range [2, pan_and_scan_max_num_crops].
             num_crops_h = max(2, num_crops_h)
@@ -246,10 +240,7 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
                 stacked_images = [stacked_images] + pas_images
                 # Group images by size for batched resizing (this will typically group thumbnails together and cropped patches together)
                 processed_image_patches_grouped = {}
-                (
-                    grouped_image_patches,
-                    grouped_image_patches_index,
-                ) = group_images_by_shape(stacked_images)
+                grouped_image_patches, grouped_image_patches_index = group_images_by_shape(stacked_images)
                 for shape, stacked_image_patches in grouped_image_patches.items():
                     stacked_image_patches = self.resize(
                         image=stacked_image_patches,
@@ -257,15 +248,9 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
                         interpolation=interpolation,
                     )
                     processed_image_patches_grouped[shape] = stacked_image_patches
-                processed_image_patches = reorder_images(
-                    processed_image_patches_grouped, grouped_image_patches_index
-                )
+                processed_image_patches = reorder_images(processed_image_patches_grouped, grouped_image_patches_index)
                 # Transpose to have the thumbnails with their corresponding patches
-                stacked_images = (
-                    torch.stack(processed_image_patches, dim=0)
-                    .transpose(0, 1)
-                    .contiguous()
-                )
+                stacked_images = torch.stack(processed_image_patches, dim=0).transpose(0, 1).contiguous()
             else:
                 num_crops = [0 for _ in stacked_images]
 
@@ -280,9 +265,7 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
         resized_images = reorder_images(processed_images_grouped, grouped_images_index)
         # If pan and scan is enabled, we need to flatten the list of images
         if do_pan_and_scan:
-            resized_images = [
-                image for images_list in resized_images for image in images_list
-            ]
+            resized_images = [image for images_list in resized_images for image in images_list]
         num_crops = reorder_images(num_crops_grouped, grouped_images_index)
 
         # Group images by size for further processing
@@ -292,24 +275,14 @@ class Gemma3ImageProcessorFast(BaseImageProcessorFast):
         for shape, stacked_images in grouped_images.items():
             # Fused rescale and normalize
             stacked_images = self.rescale_and_normalize(
-                stacked_images,
-                do_rescale,
-                rescale_factor,
-                do_normalize,
-                image_mean,
-                image_std,
+                stacked_images, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
             processed_images_grouped[shape] = stacked_images
 
-        processed_images = reorder_images(
-            processed_images_grouped, grouped_images_index
-        )
-        processed_images = (
-            torch.stack(processed_images, dim=0) if return_tensors else processed_images
-        )
+        processed_images = reorder_images(processed_images_grouped, grouped_images_index)
+        processed_images = torch.stack(processed_images, dim=0) if return_tensors else processed_images
         return BatchFeature(
-            data={"pixel_values": processed_images, "num_crops": num_crops},
-            tensor_type=return_tensors,
+            data={"pixel_values": processed_images, "num_crops": num_crops}, tensor_type=return_tensors
         )
 
 

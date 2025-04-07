@@ -16,14 +16,13 @@
 A utility for showing and hiding the terminal cursor on Windows and Linux, based on https://github.com/bchao1/bullet
 """
 
-# Standard
-from contextlib import contextmanager
 import os
 import sys
+from contextlib import contextmanager
+
 
 # Windows only
 if os.name == "nt":
-    # Standard
     import ctypes
     import msvcrt  # noqa
 
