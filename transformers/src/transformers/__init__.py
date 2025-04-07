@@ -1090,7 +1090,9 @@ else:
     _import_structure["models.cpm"].append("CpmTokenizer")
     _import_structure["models.deberta_v2"].append("DebertaV2Tokenizer")
     _import_structure["models.deprecated.ernie_m"].append("ErnieMTokenizer")
-    _import_structure["models.deprecated.xlm_prophetnet"].append("XLMProphetNetTokenizer")
+    _import_structure["models.deprecated.xlm_prophetnet"].append(
+        "XLMProphetNetTokenizer"
+    )
     _import_structure["models.fnet"].append("FNetTokenizer")
     _import_structure["models.gemma"].append("GemmaTokenizer")
     _import_structure["models.gpt_sw3"].append("GPTSw3Tokenizer")
@@ -1207,7 +1209,9 @@ except OptionalDependencyNotAvailable:
     from .utils import dummy_sentencepiece_and_tokenizers_objects
 
     _import_structure["utils.dummy_sentencepiece_and_tokenizers_objects"] = [
-        name for name in dir(dummy_sentencepiece_and_tokenizers_objects) if not name.startswith("_")
+        name
+        for name in dir(dummy_sentencepiece_and_tokenizers_objects)
+        if not name.startswith("_")
     ]
 else:
     _import_structure["convert_slow_tokenizer"] = [
@@ -1256,45 +1260,79 @@ else:
     _import_structure["image_processing_utils"] = ["BaseImageProcessor"]
     _import_structure["image_utils"] = ["ImageFeatureExtractionMixin"]
     _import_structure["models.aria"].extend(["AriaImageProcessor"])
-    _import_structure["models.beit"].extend(["BeitFeatureExtractor", "BeitImageProcessor"])
+    _import_structure["models.beit"].extend(
+        ["BeitFeatureExtractor", "BeitImageProcessor"]
+    )
     _import_structure["models.bit"].extend(["BitImageProcessor"])
     _import_structure["models.blip"].extend(["BlipImageProcessor"])
     _import_structure["models.bridgetower"].append("BridgeTowerImageProcessor")
     _import_structure["models.chameleon"].append("ChameleonImageProcessor")
-    _import_structure["models.chinese_clip"].extend(["ChineseCLIPFeatureExtractor", "ChineseCLIPImageProcessor"])
-    _import_structure["models.clip"].extend(["CLIPFeatureExtractor", "CLIPImageProcessor"])
+    _import_structure["models.chinese_clip"].extend(
+        ["ChineseCLIPFeatureExtractor", "ChineseCLIPImageProcessor"]
+    )
+    _import_structure["models.clip"].extend(
+        ["CLIPFeatureExtractor", "CLIPImageProcessor"]
+    )
     _import_structure["models.conditional_detr"].extend(
         ["ConditionalDetrFeatureExtractor", "ConditionalDetrImageProcessor"]
     )
-    _import_structure["models.convnext"].extend(["ConvNextFeatureExtractor", "ConvNextImageProcessor"])
+    _import_structure["models.convnext"].extend(
+        ["ConvNextFeatureExtractor", "ConvNextImageProcessor"]
+    )
     _import_structure["models.deformable_detr"].extend(
         ["DeformableDetrFeatureExtractor", "DeformableDetrImageProcessor"]
     )
-    _import_structure["models.deit"].extend(["DeiTFeatureExtractor", "DeiTImageProcessor"])
+    _import_structure["models.deit"].extend(
+        ["DeiTFeatureExtractor", "DeiTImageProcessor"]
+    )
     _import_structure["models.deprecated.deta"].append("DetaImageProcessor")
-    _import_structure["models.deprecated.efficientformer"].append("EfficientFormerImageProcessor")
+    _import_structure["models.deprecated.efficientformer"].append(
+        "EfficientFormerImageProcessor"
+    )
     _import_structure["models.deprecated.tvlt"].append("TvltImageProcessor")
-    _import_structure["models.deprecated.vit_hybrid"].extend(["ViTHybridImageProcessor"])
-    _import_structure["models.depth_pro"].extend(["DepthProImageProcessor", "DepthProImageProcessorFast"])
-    _import_structure["models.detr"].extend(["DetrFeatureExtractor", "DetrImageProcessor"])
-    _import_structure["models.donut"].extend(["DonutFeatureExtractor", "DonutImageProcessor"])
+    _import_structure["models.deprecated.vit_hybrid"].extend(
+        ["ViTHybridImageProcessor"]
+    )
+    _import_structure["models.depth_pro"].extend(
+        ["DepthProImageProcessor", "DepthProImageProcessorFast"]
+    )
+    _import_structure["models.detr"].extend(
+        ["DetrFeatureExtractor", "DetrImageProcessor"]
+    )
+    _import_structure["models.donut"].extend(
+        ["DonutFeatureExtractor", "DonutImageProcessor"]
+    )
     _import_structure["models.dpt"].extend(["DPTFeatureExtractor", "DPTImageProcessor"])
     _import_structure["models.efficientnet"].append("EfficientNetImageProcessor")
     _import_structure["models.emu3"].append("Emu3ImageProcessor")
-    _import_structure["models.flava"].extend(["FlavaFeatureExtractor", "FlavaImageProcessor", "FlavaProcessor"])
+    _import_structure["models.flava"].extend(
+        ["FlavaFeatureExtractor", "FlavaImageProcessor", "FlavaProcessor"]
+    )
     _import_structure["models.fuyu"].extend(["FuyuImageProcessor", "FuyuProcessor"])
     _import_structure["models.gemma3"].append("Gemma3ImageProcessor")
-    _import_structure["models.glpn"].extend(["GLPNFeatureExtractor", "GLPNImageProcessor"])
+    _import_structure["models.glpn"].extend(
+        ["GLPNFeatureExtractor", "GLPNImageProcessor"]
+    )
     _import_structure["models.got_ocr2"].extend(["GotOcr2ImageProcessor"])
     _import_structure["models.grounding_dino"].extend(["GroundingDinoImageProcessor"])
     _import_structure["models.idefics"].extend(["IdeficsImageProcessor"])
     _import_structure["models.idefics2"].extend(["Idefics2ImageProcessor"])
     _import_structure["models.idefics3"].extend(["Idefics3ImageProcessor"])
-    _import_structure["models.imagegpt"].extend(["ImageGPTFeatureExtractor", "ImageGPTImageProcessor"])
-    _import_structure["models.instructblipvideo"].extend(["InstructBlipVideoImageProcessor"])
-    _import_structure["models.layoutlmv2"].extend(["LayoutLMv2FeatureExtractor", "LayoutLMv2ImageProcessor"])
-    _import_structure["models.layoutlmv3"].extend(["LayoutLMv3FeatureExtractor", "LayoutLMv3ImageProcessor"])
-    _import_structure["models.levit"].extend(["LevitFeatureExtractor", "LevitImageProcessor"])
+    _import_structure["models.imagegpt"].extend(
+        ["ImageGPTFeatureExtractor", "ImageGPTImageProcessor"]
+    )
+    _import_structure["models.instructblipvideo"].extend(
+        ["InstructBlipVideoImageProcessor"]
+    )
+    _import_structure["models.layoutlmv2"].extend(
+        ["LayoutLMv2FeatureExtractor", "LayoutLMv2ImageProcessor"]
+    )
+    _import_structure["models.layoutlmv3"].extend(
+        ["LayoutLMv3FeatureExtractor", "LayoutLMv3ImageProcessor"]
+    )
+    _import_structure["models.levit"].extend(
+        ["LevitFeatureExtractor", "LevitImageProcessor"]
+    )
     _import_structure["models.llava"].append("LlavaImageProcessor")
     _import_structure["models.llava_next"].append("LlavaNextImageProcessor")
     _import_structure["models.llava_next_video"].append("LlavaNextVideoImageProcessor")
@@ -1302,25 +1340,43 @@ else:
         ["LlavaOnevisionImageProcessor", "LlavaOnevisionVideoProcessor"]
     )
     _import_structure["models.mask2former"].append("Mask2FormerImageProcessor")
-    _import_structure["models.maskformer"].extend(["MaskFormerFeatureExtractor", "MaskFormerImageProcessor"])
+    _import_structure["models.maskformer"].extend(
+        ["MaskFormerFeatureExtractor", "MaskFormerImageProcessor"]
+    )
     _import_structure["models.mllama"].extend(["MllamaImageProcessor"])
-    _import_structure["models.mobilenet_v1"].extend(["MobileNetV1FeatureExtractor", "MobileNetV1ImageProcessor"])
-    _import_structure["models.mobilenet_v2"].extend(["MobileNetV2FeatureExtractor", "MobileNetV2ImageProcessor"])
-    _import_structure["models.mobilevit"].extend(["MobileViTFeatureExtractor", "MobileViTImageProcessor"])
+    _import_structure["models.mobilenet_v1"].extend(
+        ["MobileNetV1FeatureExtractor", "MobileNetV1ImageProcessor"]
+    )
+    _import_structure["models.mobilenet_v2"].extend(
+        ["MobileNetV2FeatureExtractor", "MobileNetV2ImageProcessor"]
+    )
+    _import_structure["models.mobilevit"].extend(
+        ["MobileViTFeatureExtractor", "MobileViTImageProcessor"]
+    )
     _import_structure["models.nougat"].append("NougatImageProcessor")
     _import_structure["models.oneformer"].extend(["OneFormerImageProcessor"])
     _import_structure["models.owlv2"].append("Owlv2ImageProcessor")
-    _import_structure["models.owlvit"].extend(["OwlViTFeatureExtractor", "OwlViTImageProcessor"])
-    _import_structure["models.perceiver"].extend(["PerceiverFeatureExtractor", "PerceiverImageProcessor"])
+    _import_structure["models.owlvit"].extend(
+        ["OwlViTFeatureExtractor", "OwlViTImageProcessor"]
+    )
+    _import_structure["models.perceiver"].extend(
+        ["PerceiverFeatureExtractor", "PerceiverImageProcessor"]
+    )
     _import_structure["models.pix2struct"].extend(["Pix2StructImageProcessor"])
     _import_structure["models.pixtral"].append("PixtralImageProcessor")
-    _import_structure["models.poolformer"].extend(["PoolFormerFeatureExtractor", "PoolFormerImageProcessor"])
-    _import_structure["models.prompt_depth_anything"].extend(["PromptDepthAnythingImageProcessor"])
+    _import_structure["models.poolformer"].extend(
+        ["PoolFormerFeatureExtractor", "PoolFormerImageProcessor"]
+    )
+    _import_structure["models.prompt_depth_anything"].extend(
+        ["PromptDepthAnythingImageProcessor"]
+    )
     _import_structure["models.pvt"].extend(["PvtImageProcessor"])
     _import_structure["models.qwen2_vl"].extend(["Qwen2VLImageProcessor"])
     _import_structure["models.rt_detr"].extend(["RTDetrImageProcessor"])
     _import_structure["models.sam"].extend(["SamImageProcessor"])
-    _import_structure["models.segformer"].extend(["SegformerFeatureExtractor", "SegformerImageProcessor"])
+    _import_structure["models.segformer"].extend(
+        ["SegformerFeatureExtractor", "SegformerImageProcessor"]
+    )
     _import_structure["models.seggpt"].extend(["SegGptImageProcessor"])
     _import_structure["models.siglip"].append("SiglipImageProcessor")
     _import_structure["models.siglip2"].append("Siglip2ImageProcessor")
@@ -1331,13 +1387,19 @@ else:
     _import_structure["models.textnet"].extend(["TextNetImageProcessor"])
     _import_structure["models.tvp"].append("TvpImageProcessor")
     _import_structure["models.video_llava"].append("VideoLlavaImageProcessor")
-    _import_structure["models.videomae"].extend(["VideoMAEFeatureExtractor", "VideoMAEImageProcessor"])
-    _import_structure["models.vilt"].extend(["ViltFeatureExtractor", "ViltImageProcessor", "ViltProcessor"])
+    _import_structure["models.videomae"].extend(
+        ["VideoMAEFeatureExtractor", "VideoMAEImageProcessor"]
+    )
+    _import_structure["models.vilt"].extend(
+        ["ViltFeatureExtractor", "ViltImageProcessor", "ViltProcessor"]
+    )
     _import_structure["models.vit"].extend(["ViTFeatureExtractor", "ViTImageProcessor"])
     _import_structure["models.vitmatte"].append("VitMatteImageProcessor")
     _import_structure["models.vitpose"].append("VitPoseImageProcessor")
     _import_structure["models.vivit"].append("VivitImageProcessor")
-    _import_structure["models.yolos"].extend(["YolosFeatureExtractor", "YolosImageProcessor"])
+    _import_structure["models.yolos"].extend(
+        ["YolosFeatureExtractor", "YolosImageProcessor"]
+    )
     _import_structure["models.zoedepth"].append("ZoeDepthImageProcessor")
 
 try:
@@ -1354,7 +1416,9 @@ else:
     _import_structure["models.blip"].append("BlipImageProcessorFast")
     _import_structure["models.clip"].append("CLIPImageProcessorFast")
     _import_structure["models.convnext"].append("ConvNextImageProcessorFast")
-    _import_structure["models.deformable_detr"].append("DeformableDetrImageProcessorFast")
+    _import_structure["models.deformable_detr"].append(
+        "DeformableDetrImageProcessorFast"
+    )
     _import_structure["models.deit"].append("DeiTImageProcessorFast")
     _import_structure["models.depth_pro"].append("DepthProImageProcessorFast")
     _import_structure["models.detr"].append("DetrImageProcessorFast")
@@ -1363,8 +1427,12 @@ else:
     _import_structure["models.llama4"].append("Llama4ImageProcessorFast")
     _import_structure["models.llava"].append("LlavaImageProcessorFast")
     _import_structure["models.llava_next"].append("LlavaNextImageProcessorFast")
-    _import_structure["models.llava_onevision"].append("LlavaOnevisionImageProcessorFast")
-    _import_structure["models.phi4_multimodal"].append("Phi4MultimodalImageProcessorFast")
+    _import_structure["models.llava_onevision"].append(
+        "LlavaOnevisionImageProcessorFast"
+    )
+    _import_structure["models.phi4_multimodal"].append(
+        "Phi4MultimodalImageProcessorFast"
+    )
     _import_structure["models.pixtral"].append("PixtralImageProcessorFast")
     _import_structure["models.qwen2_vl"].append("Qwen2VLImageProcessorFast")
     _import_structure["models.rt_detr"].append("RTDetrImageProcessorFast")
@@ -1379,7 +1447,9 @@ except OptionalDependencyNotAvailable:
     from .utils import dummy_timm_and_torchvision_objects
 
     _import_structure["utils.dummy_timm_and_torchvision_objects"] = [
-        name for name in dir(dummy_timm_and_torchvision_objects) if not name.startswith("_")
+        name
+        for name in dir(dummy_timm_and_torchvision_objects)
+        if not name.startswith("_")
     ]
 else:
     _import_structure["models.timm_wrapper"].extend(["TimmWrapperImageProcessor"])
@@ -1391,7 +1461,9 @@ try:
 except OptionalDependencyNotAvailable:
     from .utils import dummy_pt_objects
 
-    _import_structure["utils.dummy_pt_objects"] = [name for name in dir(dummy_pt_objects) if not name.startswith("_")]
+    _import_structure["utils.dummy_pt_objects"] = [
+        name for name in dir(dummy_pt_objects) if not name.startswith("_")
+    ]
 else:
     _import_structure["model_debugging_utils"] = [
         "model_addition_debugger",
@@ -1490,7 +1562,10 @@ else:
 
     _import_structure["modeling_flash_attention_utils"] = []
     _import_structure["modeling_outputs"] = []
-    _import_structure["modeling_rope_utils"] = ["ROPE_INIT_FUNCTIONS", "dynamic_rope_update"]
+    _import_structure["modeling_rope_utils"] = [
+        "ROPE_INIT_FUNCTIONS",
+        "dynamic_rope_update",
+    ]
     _import_structure["modeling_utils"] = ["PreTrainedModel", "AttentionInterface"]
 
     # PyTorch models structure
@@ -1635,7 +1710,9 @@ else:
             "AutoformerPreTrainedModel",
         ]
     )
-    _import_structure["models.aya_vision"].extend(["AyaVisionForConditionalGeneration", "AyaVisionPreTrainedModel"])
+    _import_structure["models.aya_vision"].extend(
+        ["AyaVisionForConditionalGeneration", "AyaVisionPreTrainedModel"]
+    )
     _import_structure["models.bamba"].extend(
         [
             "BambaForCausalLM",
@@ -1895,8 +1972,12 @@ else:
             "CodeGenPreTrainedModel",
         ]
     )
-    _import_structure["models.cohere"].extend(["CohereForCausalLM", "CohereModel", "CoherePreTrainedModel"])
-    _import_structure["models.cohere2"].extend(["Cohere2ForCausalLM", "Cohere2Model", "Cohere2PreTrainedModel"])
+    _import_structure["models.cohere"].extend(
+        ["CohereForCausalLM", "CohereModel", "CoherePreTrainedModel"]
+    )
+    _import_structure["models.cohere2"].extend(
+        ["Cohere2ForCausalLM", "Cohere2Model", "Cohere2PreTrainedModel"]
+    )
     _import_structure["models.colpali"].extend(
         [
             "ColPaliForRetrieval",
@@ -2122,7 +2203,9 @@ else:
             "MegaPreTrainedModel",
         ]
     )
-    _import_structure["models.deprecated.mmbt"].extend(["MMBTForClassification", "MMBTModel", "ModalEmbeddings"])
+    _import_structure["models.deprecated.mmbt"].extend(
+        ["MMBTForClassification", "MMBTModel", "ModalEmbeddings"]
+    )
     _import_structure["models.deprecated.nat"].extend(
         [
             "NatBackbone",
@@ -2458,7 +2541,9 @@ else:
             "FocalNetPreTrainedModel",
         ]
     )
-    _import_structure["models.fsmt"].extend(["FSMTForConditionalGeneration", "FSMTModel", "PretrainedFSMTModel"])
+    _import_structure["models.fsmt"].extend(
+        ["FSMTForConditionalGeneration", "FSMTModel", "PretrainedFSMTModel"]
+    )
     _import_structure["models.funnel"].extend(
         [
             "FunnelBaseModel",
@@ -3363,7 +3448,9 @@ else:
             "Pix2StructVisionModel",
         ]
     )
-    _import_structure["models.pixtral"].extend(["PixtralPreTrainedModel", "PixtralVisionModel"])
+    _import_structure["models.pixtral"].extend(
+        ["PixtralPreTrainedModel", "PixtralVisionModel"]
+    )
     _import_structure["models.plbart"].extend(
         [
             "PLBartForCausalLM",
@@ -3664,7 +3751,9 @@ else:
             "SEWDPreTrainedModel",
         ]
     )
-    _import_structure["models.shieldgemma2"].append("ShieldGemma2ForImageClassification")
+    _import_structure["models.shieldgemma2"].append(
+        "ShieldGemma2ForImageClassification"
+    )
     _import_structure["models.siglip"].extend(
         [
             "SiglipForImageClassification",
@@ -3693,7 +3782,9 @@ else:
             "SmolVLMVisionTransformer",
         ]
     )
-    _import_structure["models.speech_encoder_decoder"].extend(["SpeechEncoderDecoderModel"])
+    _import_structure["models.speech_encoder_decoder"].extend(
+        ["SpeechEncoderDecoderModel"]
+    )
     _import_structure["models.speech_to_text"].extend(
         [
             "Speech2TextForConditionalGeneration",
@@ -3855,7 +3946,11 @@ else:
     )
     _import_structure["models.timm_backbone"].extend(["TimmBackbone"])
     _import_structure["models.timm_wrapper"].extend(
-        ["TimmWrapperForImageClassification", "TimmWrapperModel", "TimmWrapperPreTrainedModel"]
+        [
+            "TimmWrapperForImageClassification",
+            "TimmWrapperModel",
+            "TimmWrapperPreTrainedModel",
+        ]
     )
     _import_structure["models.trocr"].extend(
         [
@@ -3952,8 +4047,12 @@ else:
             "VipLlavaPreTrainedModel",
         ]
     )
-    _import_structure["models.vision_encoder_decoder"].extend(["VisionEncoderDecoderModel"])
-    _import_structure["models.vision_text_dual_encoder"].extend(["VisionTextDualEncoderModel"])
+    _import_structure["models.vision_encoder_decoder"].extend(
+        ["VisionEncoderDecoderModel"]
+    )
+    _import_structure["models.vision_text_dual_encoder"].extend(
+        ["VisionTextDualEncoderModel"]
+    )
     _import_structure["models.visual_bert"].extend(
         [
             "VisualBertForMultipleChoice",
@@ -4223,7 +4322,9 @@ try:
 except OptionalDependencyNotAvailable:
     from .utils import dummy_tf_objects
 
-    _import_structure["utils.dummy_tf_objects"] = [name for name in dir(dummy_tf_objects) if not name.startswith("_")]
+    _import_structure["utils.dummy_tf_objects"] = [
+        name for name in dir(dummy_tf_objects) if not name.startswith("_")
+    ]
 else:
     _import_structure["activations_tf"] = []
     _import_structure["generation"].extend(
@@ -4611,7 +4712,9 @@ else:
             "TFLayoutLMv3PreTrainedModel",
         ]
     )
-    _import_structure["models.led"].extend(["TFLEDForConditionalGeneration", "TFLEDModel", "TFLEDPreTrainedModel"])
+    _import_structure["models.led"].extend(
+        ["TFLEDForConditionalGeneration", "TFLEDModel", "TFLEDPreTrainedModel"]
+    )
     _import_structure["models.longformer"].extend(
         [
             "TFLongformerForMaskedLM",
@@ -4632,12 +4735,19 @@ else:
             "TFLxmertVisualFeatureEncoder",
         ]
     )
-    _import_structure["models.marian"].extend(["TFMarianModel", "TFMarianMTModel", "TFMarianPreTrainedModel"])
+    _import_structure["models.marian"].extend(
+        ["TFMarianModel", "TFMarianMTModel", "TFMarianPreTrainedModel"]
+    )
     _import_structure["models.mbart"].extend(
         ["TFMBartForConditionalGeneration", "TFMBartModel", "TFMBartPreTrainedModel"]
     )
     _import_structure["models.mistral"].extend(
-        ["TFMistralForCausalLM", "TFMistralForSequenceClassification", "TFMistralModel", "TFMistralPreTrainedModel"]
+        [
+            "TFMistralForCausalLM",
+            "TFMistralForSequenceClassification",
+            "TFMistralModel",
+            "TFMistralPreTrainedModel",
+        ]
     )
     _import_structure["models.mobilebert"].extend(
         [
@@ -4673,7 +4783,9 @@ else:
             "TFMPNetPreTrainedModel",
         ]
     )
-    _import_structure["models.mt5"].extend(["TFMT5EncoderModel", "TFMT5ForConditionalGeneration", "TFMT5Model"])
+    _import_structure["models.mt5"].extend(
+        ["TFMT5EncoderModel", "TFMT5ForConditionalGeneration", "TFMT5Model"]
+    )
     _import_structure["models.openai"].extend(
         [
             "TFOpenAIGPTDoubleHeadsModel",
@@ -4825,8 +4937,12 @@ else:
             "TFTapasPreTrainedModel",
         ]
     )
-    _import_structure["models.vision_encoder_decoder"].extend(["TFVisionEncoderDecoderModel"])
-    _import_structure["models.vision_text_dual_encoder"].extend(["TFVisionTextDualEncoderModel"])
+    _import_structure["models.vision_encoder_decoder"].extend(
+        ["TFVisionEncoderDecoderModel"]
+    )
+    _import_structure["models.vision_text_dual_encoder"].extend(
+        ["TFVisionTextDualEncoderModel"]
+    )
     _import_structure["models.vit"].extend(
         [
             "TFViTForImageClassification",
@@ -4922,9 +5038,13 @@ except OptionalDependencyNotAvailable:
         dummy_essentia_and_librosa_and_pretty_midi_and_scipy_and_torch_objects,
     )
 
-    _import_structure["utils.dummy_essentia_and_librosa_and_pretty_midi_and_scipy_and_torch_objects"] = [
+    _import_structure[
+        "utils.dummy_essentia_and_librosa_and_pretty_midi_and_scipy_and_torch_objects"
+    ] = [
         name
-        for name in dir(dummy_essentia_and_librosa_and_pretty_midi_and_scipy_and_torch_objects)
+        for name in dir(
+            dummy_essentia_and_librosa_and_pretty_midi_and_scipy_and_torch_objects
+        )
         if not name.startswith("_")
     ]
 else:
@@ -5136,13 +5256,21 @@ else:
         ]
     )
     _import_structure["models.encoder_decoder"].append("FlaxEncoderDecoderModel")
-    _import_structure["models.gpt2"].extend(["FlaxGPT2LMHeadModel", "FlaxGPT2Model", "FlaxGPT2PreTrainedModel"])
+    _import_structure["models.gpt2"].extend(
+        ["FlaxGPT2LMHeadModel", "FlaxGPT2Model", "FlaxGPT2PreTrainedModel"]
+    )
     _import_structure["models.gpt_neo"].extend(
         ["FlaxGPTNeoForCausalLM", "FlaxGPTNeoModel", "FlaxGPTNeoPreTrainedModel"]
     )
-    _import_structure["models.gptj"].extend(["FlaxGPTJForCausalLM", "FlaxGPTJModel", "FlaxGPTJPreTrainedModel"])
-    _import_structure["models.llama"].extend(["FlaxLlamaForCausalLM", "FlaxLlamaModel", "FlaxLlamaPreTrainedModel"])
-    _import_structure["models.gemma"].extend(["FlaxGemmaForCausalLM", "FlaxGemmaModel", "FlaxGemmaPreTrainedModel"])
+    _import_structure["models.gptj"].extend(
+        ["FlaxGPTJForCausalLM", "FlaxGPTJModel", "FlaxGPTJPreTrainedModel"]
+    )
+    _import_structure["models.llama"].extend(
+        ["FlaxLlamaForCausalLM", "FlaxLlamaModel", "FlaxLlamaPreTrainedModel"]
+    )
+    _import_structure["models.gemma"].extend(
+        ["FlaxGemmaForCausalLM", "FlaxGemmaModel", "FlaxGemmaPreTrainedModel"]
+    )
     _import_structure["models.longt5"].extend(
         [
             "FlaxLongT5ForConditionalGeneration",
@@ -5173,7 +5301,9 @@ else:
             "FlaxMistralPreTrainedModel",
         ]
     )
-    _import_structure["models.mt5"].extend(["FlaxMT5EncoderModel", "FlaxMT5ForConditionalGeneration", "FlaxMT5Model"])
+    _import_structure["models.mt5"].extend(
+        ["FlaxMT5EncoderModel", "FlaxMT5ForConditionalGeneration", "FlaxMT5Model"]
+    )
     _import_structure["models.opt"].extend(
         [
             "FlaxOPTForCausalLM",
@@ -5237,7 +5367,9 @@ else:
             "FlaxRoFormerPreTrainedModel",
         ]
     )
-    _import_structure["models.speech_encoder_decoder"].append("FlaxSpeechEncoderDecoderModel")
+    _import_structure["models.speech_encoder_decoder"].append(
+        "FlaxSpeechEncoderDecoderModel"
+    )
     _import_structure["models.t5"].extend(
         [
             "FlaxT5EncoderModel",
@@ -5246,9 +5378,15 @@ else:
             "FlaxT5PreTrainedModel",
         ]
     )
-    _import_structure["models.vision_encoder_decoder"].append("FlaxVisionEncoderDecoderModel")
-    _import_structure["models.vision_text_dual_encoder"].extend(["FlaxVisionTextDualEncoderModel"])
-    _import_structure["models.vit"].extend(["FlaxViTForImageClassification", "FlaxViTModel", "FlaxViTPreTrainedModel"])
+    _import_structure["models.vision_encoder_decoder"].append(
+        "FlaxVisionEncoderDecoderModel"
+    )
+    _import_structure["models.vision_text_dual_encoder"].extend(
+        ["FlaxVisionTextDualEncoderModel"]
+    )
+    _import_structure["models.vit"].extend(
+        ["FlaxViTForImageClassification", "FlaxViTModel", "FlaxViTPreTrainedModel"]
+    )
     _import_structure["models.wav2vec2"].extend(
         [
             "FlaxWav2Vec2ForCTC",
@@ -6561,7 +6699,10 @@ if TYPE_CHECKING:
             ConditionalDetrImageProcessor,
         )
         from .models.convnext import ConvNextFeatureExtractor, ConvNextImageProcessor
-        from .models.deformable_detr import DeformableDetrFeatureExtractor, DeformableDetrImageProcessor
+        from .models.deformable_detr import (
+            DeformableDetrFeatureExtractor,
+            DeformableDetrImageProcessor,
+        )
         from .models.deit import DeiTFeatureExtractor, DeiTImageProcessor
         from .models.deprecated.deta import DetaImageProcessor
         from .models.deprecated.efficientformer import EfficientFormerImageProcessor
@@ -6600,7 +6741,10 @@ if TYPE_CHECKING:
         from .models.llava import LlavaImageProcessor
         from .models.llava_next import LlavaNextImageProcessor
         from .models.llava_next_video import LlavaNextVideoImageProcessor
-        from .models.llava_onevision import LlavaOnevisionImageProcessor, LlavaOnevisionVideoProcessor
+        from .models.llava_onevision import (
+            LlavaOnevisionImageProcessor,
+            LlavaOnevisionVideoProcessor,
+        )
         from .models.mask2former import Mask2FormerImageProcessor
         from .models.maskformer import (
             MaskFormerFeatureExtractor,
@@ -6912,7 +7056,10 @@ if TYPE_CHECKING:
             AutoformerModel,
             AutoformerPreTrainedModel,
         )
-        from .models.aya_vision import AyaVisionForConditionalGeneration, AyaVisionPreTrainedModel
+        from .models.aya_vision import (
+            AyaVisionForConditionalGeneration,
+            AyaVisionPreTrainedModel,
+        )
         from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
         from .models.bark import (
             BarkCausalModel,
@@ -7923,7 +8070,12 @@ if TYPE_CHECKING:
             Mamba2Model,
             Mamba2PreTrainedModel,
         )
-        from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel, MarianPreTrainedModel
+        from .models.marian import (
+            MarianForCausalLM,
+            MarianModel,
+            MarianMTModel,
+            MarianPreTrainedModel,
+        )
         from .models.markuplm import (
             MarkupLMForQuestionAnswering,
             MarkupLMForSequenceClassification,
@@ -8454,7 +8606,11 @@ if TYPE_CHECKING:
             RTDetrResNetBackbone,
             RTDetrResNetPreTrainedModel,
         )
-        from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
+        from .models.rt_detr_v2 import (
+            RTDetrV2ForObjectDetection,
+            RTDetrV2Model,
+            RTDetrV2PreTrainedModel,
+        )
         from .models.rwkv import (
             RwkvForCausalLM,
             RwkvModel,
@@ -8771,7 +8927,10 @@ if TYPE_CHECKING:
             VitPoseForPoseEstimation,
             VitPosePreTrainedModel,
         )
-        from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
+        from .models.vitpose_backbone import (
+            VitPoseBackbone,
+            VitPoseBackbonePreTrainedModel,
+        )
         from .models.vits import (
             VitsModel,
             VitsPreTrainedModel,
@@ -9534,7 +9693,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         from .utils.dummy_torchaudio_objects import *
     else:
-        from .models.musicgen_melody import MusicgenMelodyFeatureExtractor, MusicgenMelodyProcessor
+        from .models.musicgen_melody import (
+            MusicgenMelodyFeatureExtractor,
+            MusicgenMelodyProcessor,
+        )
     try:
         if not is_flax_available():
             raise OptionalDependencyNotAvailable()

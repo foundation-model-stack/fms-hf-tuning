@@ -303,7 +303,9 @@ class Gemma3Config(PretrainedConfig):
     ):
         if text_config is None:
             text_config = Gemma3TextConfig()
-            logger.info("text_config is None, using default Gemma3TextConfig text config.")
+            logger.info(
+                "text_config is None, using default Gemma3TextConfig text config."
+            )
         elif isinstance(text_config, dict):
             text_config = Gemma3TextConfig(**text_config)
 
@@ -311,7 +313,9 @@ class Gemma3Config(PretrainedConfig):
             vision_config = SiglipVisionConfig(**vision_config)
         elif vision_config is None:
             vision_config = SiglipVisionConfig()
-            logger.info("vision_config is None, using default SiglipVisionConfig vision config.")
+            logger.info(
+                "vision_config is None, using default SiglipVisionConfig vision config."
+            )
 
         self.text_config = text_config
         self.vision_config = vision_config

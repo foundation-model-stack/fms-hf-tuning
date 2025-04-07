@@ -28,8 +28,13 @@ if is_torch_npu_available():
 TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE = 2
 DOWN_RIGHT_ALIGNED_CAUSAL_MASK_MODE = 3
 
-SPARSE_MODE = int(os.getenv("NPU_FA2_SPARSE_MODE", default=DOWN_RIGHT_ALIGNED_CAUSAL_MASK_MODE))
-if SPARSE_MODE not in [TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE, DOWN_RIGHT_ALIGNED_CAUSAL_MASK_MODE]:
+SPARSE_MODE = int(
+    os.getenv("NPU_FA2_SPARSE_MODE", default=DOWN_RIGHT_ALIGNED_CAUSAL_MASK_MODE)
+)
+if SPARSE_MODE not in [
+    TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE,
+    DOWN_RIGHT_ALIGNED_CAUSAL_MASK_MODE,
+]:
     raise ValueError(
         "Environment variable `NPU_FA2_SPARSE_MODE` can only be set as 2 (top-left aligned causal mask) "
         "or 3 (down-right aligned causal mask)."
@@ -37,7 +42,11 @@ if SPARSE_MODE not in [TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE, DOWN_RIGHT_ALIGNED_CAU
 
 
 def is_npu_fa2_top_left_aligned_causal_mask():
-    return SPARSE_MODE == TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE if is_torch_npu_available() else False
+    return (
+        SPARSE_MODE == TOP_LEFT_ALIGNED_CAUSAL_MASK_MODE
+        if is_torch_npu_available()
+        else False
+    )
 
 
 # Copied from https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/bert_padding.py
@@ -51,7 +60,9 @@ class IndexFirstAxis(torch.autograd.Function):
         # TD [2022-03-04] For some reason torch.gather is a bit faster than indexing.
         # return input[indices]
         return torch.gather(
-            rearrange(input, "b ... -> b (...)"), 0, repeat(indices, "z -> z d", d=second_dim)
+            rearrange(input, "b ... -> b (...)"),
+            0,
+            repeat(indices, "z -> z d", d=second_dim),
         ).reshape(-1, *other_shape)
 
     @staticmethod
@@ -67,7 +78,9 @@ class IndexFirstAxis(torch.autograd.Function):
         )
         # TD [2022-03-04] For some reason torch.scatter is a bit faster than indexing.
         # grad_input[indices] = grad_output
-        grad_input.scatter_(0, repeat(indices, "z -> z d", d=grad_output.shape[1]), grad_output)
+        grad_input.scatter_(
+            0, repeat(indices, "z -> z d", d=grad_output.shape[1]), grad_output
+        )
         return grad_input.reshape(ctx.first_axis_dim, *other_shape), None
 
 
@@ -81,7 +94,9 @@ class IndexPutFirstAxis(torch.autograd.Function):
         ctx.save_for_backward(indices)
         assert indices.ndim == 1
         assert values.ndim >= 2
-        output = torch.zeros(first_axis_dim, *values.shape[1:], device=values.device, dtype=values.dtype)
+        output = torch.zeros(
+            first_axis_dim, *values.shape[1:], device=values.device, dtype=values.dtype
+        )
         # TD [2022-03-04] For some reason torch.scatter is a bit faster than indexing.
         output[indices] = values
         # output.scatter_(0, repeat(indices, 'z -> z d', d=values.shape[1]), values)
@@ -131,7 +146,9 @@ def unpad_input(hidden_states, attention_mask, unused_mask=None):
         max_seqlen_in_batch: int
         seqused: (batch), returns the number of tokens selected in attention_mask + unused_mask.
     """
-    all_masks = (attention_mask + unused_mask) if unused_mask is not None else attention_mask
+    all_masks = (
+        (attention_mask + unused_mask) if unused_mask is not None else attention_mask
+    )
     seqlens_in_batch = all_masks.sum(dim=-1, dtype=torch.int32)
     used_seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
     indices = torch.nonzero(all_masks.flatten(), as_tuple=False).flatten()
@@ -164,9 +181,13 @@ def npu_flash_attn_func(
 
     if not causal:
         head_num = q.shape[2]
-        output = torch_npu.npu_fusion_attention(q, k, v, head_num, "BSND", keep_prob=keep_prob, scale=softmax_scale)[0]
+        output = torch_npu.npu_fusion_attention(
+            q, k, v, head_num, "BSND", keep_prob=keep_prob, scale=softmax_scale
+        )[0]
     else:
-        attn_mask_npu = torch.triu(torch.ones([2048, 2048]), diagonal=1).bool().to(q.device)
+        attn_mask_npu = (
+            torch.triu(torch.ones([2048, 2048]), diagonal=1).bool().to(q.device)
+        )
         head_num = q.shape[2]
         output = torch_npu.npu_fusion_attention(
             q,
@@ -212,7 +233,9 @@ def npu_flash_attn_varlen_func(
             actual_seq_kvlen=tuple(cu_seqlens_k[1:].cpu().numpy().tolist()),
         )[0]
     else:
-        attn_mask_npu = torch.triu(torch.ones([2048, 2048]), diagonal=1).bool().to(q.device)
+        attn_mask_npu = (
+            torch.triu(torch.ones([2048, 2048]), diagonal=1).bool().to(q.device)
+        )
         head_num = q.shape[1]
         output = torch_npu.npu_fusion_attention(
             q,

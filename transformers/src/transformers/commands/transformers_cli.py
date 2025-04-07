@@ -25,7 +25,9 @@ from transformers.commands.serving import ServeCommand
 
 
 def main():
-    parser = HfArgumentParser(prog="Transformers CLI tool", usage="transformers-cli <command> [<args>]")
+    parser = HfArgumentParser(
+        prog="Transformers CLI tool", usage="transformers-cli <command> [<args>]"
+    )
     commands_parser = parser.add_subparsers(help="transformers-cli command helpers")
 
     # Register commands
