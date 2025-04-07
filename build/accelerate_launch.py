@@ -146,6 +146,7 @@ def main():
                     save_model_dir, save_model_dir, num_added_tokens
                 )
 
+            # In case of ScatterMoE LoRa
             hf_converted_checkpoint = os.path.join(
                 save_model_dir, "hf_converted_checkpoint"
             )
@@ -178,6 +179,8 @@ def main():
                                 checkpoint_dir,
                                 num_added_tokens,
                             )
+
+                        # In case of ScatterMoE LoRa
                         hf_converted_checkpoint = os.path.join(
                             checkpoint_dir, "hf_converted_checkpoint"
                         )

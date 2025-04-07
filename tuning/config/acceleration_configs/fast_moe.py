@@ -14,11 +14,10 @@
 
 # Standard
 from dataclasses import dataclass
-import os
 import json
+import os
 
 # Third Party
-from peft import LoraModel, PeftModel
 from transformers import (
     Trainer,
     TrainerCallback,
@@ -123,14 +122,20 @@ def get_callbacks(**kwargs):
                         if model.peft_config:
                             lora_config = model.peft_config["default"]
                             config_dict = lora_config.to_dict()
-                            config_dict['target_modules'] = sorted(list(config_dict['target_modules']))
-                            with open(os.path.join(hf_converted_output_dir,"adapter_config.json"), "w") as f:
+                            config_dict["target_modules"] = sorted(
+                                list(config_dict["target_modules"])
+                            )
+                            with open(
+                                os.path.join(
+                                    hf_converted_output_dir, "adapter_config.json"
+                                ),
+                                "w",
+                                encoding="utf-8"
+                            ) as f:
                                 json.dump(config_dict, f, indent=2)
 
                         else:
-                            self.trainer.model.config.save_pretrained(
-                                hf_converted_output_dir
-                            )
+                            model.config.save_pretrained(hf_converted_output_dir)
 
                     except Exception as e:
                         raise ValueError(
