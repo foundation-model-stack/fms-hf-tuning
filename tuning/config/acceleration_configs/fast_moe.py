@@ -15,6 +15,7 @@
 # Standard
 from dataclasses import dataclass
 import os
+import json
 
 # Third Party
 from peft import LoraModel, PeftModel
@@ -113,10 +114,18 @@ def get_callbacks(**kwargs):
                             args,
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
-                        # Save model config files
-                        if isinstance(self.trainer.model._fsdp_wrapped_module.base_model, LoraModel):
-                            # Save PEFT adapter configuration
-                            self.trainer.model._fsdp_wrapped_module.base_model.save_pretrained(hf_converted_output_dir)
+
+                        # Unwrap FSDP module
+                        model = self.trainer.model
+                        if hasattr(model, "module"):
+                            model = model.module
+
+                        if model.peft_config:
+                            lora_config = model.peft_config["default"]
+                            config_dict = lora_config.to_dict()
+                            config_dict['target_modules'] = sorted(list(config_dict['target_modules']))
+                            with open(os.path.join(hf_converted_output_dir,"adapter_config.json"), "w") as f:
+                                json.dump(config_dict, f, indent=2)
 
                         else:
                             self.trainer.model.config.save_pretrained(
