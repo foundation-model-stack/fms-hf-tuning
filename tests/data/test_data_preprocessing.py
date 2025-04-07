@@ -35,7 +35,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML,
-    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+    DATA_CONFIG_RENAME_SELECT_COLUMNS,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
     DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
@@ -61,7 +61,11 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
-from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
+from tuning.data.data_config import (
+    DataHandlerConfig,
+    DataPreProcessorConfig,
+    DataSetConfig,
+)
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
@@ -740,19 +744,19 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
     yaml_content["datasets"][0]["data_paths"][0] = data_path
     datasets_name = yaml_content["datasets"][0]["name"]
 
-    # Modify input_field_name and output_field_name according to dataset
+    # Modify input_column_name and output_column_name according to dataset
     if datasets_name == "text_dataset_input_output_masking":
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
+            "input_column_name": "input",
+            "output_column_name": "output",
         }
 
-    # Modify dataset_text_field and template according to dataset
+    # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         }
 
@@ -799,19 +803,19 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     yaml_content["datasets"][0]["data_paths"][0] = data_path
     datasets_name = yaml_content["datasets"][0]["name"]
 
-    # Modify input_field_name and output_field_name according to dataset
+    # Modify input_column_name and output_column_name according to dataset
     if datasets_name == "text_dataset_input_output_masking":
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
+            "input_column_name": "input",
+            "output_column_name": "output",
         }
 
-    # Modify dataset_text_field and template according to dataset
+    # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         }
 
@@ -872,14 +876,14 @@ def test_process_dataconfig_file(data_config_path, data_path):
     yaml_content["datasets"][0]["data_paths"][0] = data_path
     datasets_name = yaml_content["datasets"][0]["name"]
 
-    # Modify input_field_name and output_field_name according to dataset
+    # Modify input_column_name and output_column_name according to dataset
     if datasets_name == "text_dataset_input_output_masking":
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
+            "input_column_name": "input",
+            "output_column_name": "output",
         }
 
-    # Modify dataset_text_field and template according to dataset
+    # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name in (
         "apply_custom_data_template",
@@ -887,7 +891,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
     ):
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         }
 
@@ -952,19 +956,19 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
     yaml_content["datasets"][0]["data_paths"][0] = data_path
     datasets_name = yaml_content["datasets"][0]["name"]
 
-    # Modify input_field_name and output_field_name according to dataset
+    # Modify input_column_name and output_column_name according to dataset
     if datasets_name == "text_dataset_input_output_masking":
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
-            "input_field_name"
+            "input_column_name"
         ] = "input"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
-            "output_field_name"
+            "output_column_name"
         ] = "output"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
             "add_eos_token"
         ] = add_eos_token
 
-    # Modify dataset_text_field and template according to dataset
+    # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name in (
         "apply_custom_data_template",
@@ -972,7 +976,7 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
     ):
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
-            "dataset_text_field"
+            "formatted_text_column_name"
         ] = formatted_dataset_field
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
             "template"
@@ -1111,19 +1115,19 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
     yaml_content["datasets"][0]["data_paths"] = data_path_list
     datasets_name = yaml_content["datasets"][0]["name"]
 
-    # Modify input_field_name and output_field_name according to dataset
+    # Modify input_column_name and output_column_name according to dataset
     if datasets_name == "text_dataset_input_output_masking":
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "input_field_name": "input",
-            "output_field_name": "output",
+            "input_column_name": "input",
+            "output_column_name": "output",
         }
 
-    # Modify dataset_text_field and template according to dataset
+    # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
         template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         }
 
@@ -1632,33 +1636,33 @@ def test_process_dataset_configs_with_sampling_error(
 
 
 @pytest.mark.parametrize(
-    "datafile, rename, retain, final, datasetconfigname",
+    "datafile, rename, select, final, datasetconfigname",
     [
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             {"input": "instruction", "output": "response"},
             None,
             ["ID", "Label", "instruction", "response"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             None,
             ["ID", "input", "output"],
             ["ID", "input", "output"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
         (
             TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
             {"input": "instruction", "output": "response"},
             ["Label", "instruction", "response"],
             ["Label", "instruction", "response"],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
     ],
 )
-def test_rename_and_retain_dataset_columns(
-    datafile, rename, retain, final, datasetconfigname
+def test_rename_and_select_dataset_columns(
+    datafile, rename, select, final, datasetconfigname
 ):
     """Test process_dataset_configs for expected output."""
     dataprocessor_config = DataPreProcessorConfig()
@@ -1667,12 +1671,26 @@ def test_rename_and_retain_dataset_columns(
         processor_config=dataprocessor_config,
         tokenizer=tokenizer,
     )
+
+    handlers = []
+    if rename:
+        handlers.append(
+            DataHandlerConfig(
+                name="rename_columns",
+                arguments={"fn_kwargs": {"column_mapping": rename}},
+            )
+        )
+    if select:
+        handlers.append(
+            DataHandlerConfig(
+                name="select_columns", arguments={"fn_kwargs": {"column_names": select}}
+            )
+        )
+    data_paths = [datafile]
+
     datasetconfig = [
         DataSetConfig(
-            name=datasetconfigname,
-            data_paths=[datafile],
-            rename_columns=rename,
-            retain_columns=retain,
+            name=datasetconfigname, data_paths=data_paths, data_handlers=handlers
         )
     ]
     train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
@@ -1705,14 +1723,14 @@ def test_get_processed_dataset(datafile, datasetconfigname):
     and saves the formatted dataset correctly.
     """
 
-    DATA_ARGS = configs.DataArguments()
-    DATA_ARGS.response_template = "<|assistant|>"
-    DATA_ARGS.instruction_template = "<|user|>"
-    DATA_ARGS.dataset_text_field = "formatted_chat_data"
+    data_args = configs.DataArguments()
+    data_args.response_template = "<|assistant|>"
+    data_args.instruction_template = "<|user|>"
+    data_args.dataset_text_field = "formatted_chat_data"
     MODEL_ARGS = configs.ModelArguments(
         model_name_or_path=MODEL_NAME, use_flash_attn=False
     )
-    columns = [DATA_ARGS.dataset_text_field]
+    columns = [data_args.dataset_text_field]
     num_dataset_shards = 2
 
     with open(datasetconfigname, "r") as f:
@@ -1725,7 +1743,7 @@ def test_get_processed_dataset(datafile, datasetconfigname):
                         "name": "apply_tokenizer_chat_template",
                         "arguments": {
                             "fn_kwargs": {
-                                "dataset_text_field": DATA_ARGS.dataset_text_field
+                                "formatted_text_column_name": data_args.dataset_text_field
                             },
                             "batched": False,
                             "remove_columns": "all",
@@ -1741,14 +1759,14 @@ def test_get_processed_dataset(datafile, datasetconfigname):
     ) as temp_yaml_file:
         yaml.dump(yaml_content, temp_yaml_file)
         temp_yaml_file_path = temp_yaml_file.name
-        DATA_ARGS.data_config_path = temp_yaml_file_path
+        data_args.data_config_path = temp_yaml_file_path
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         TRAIN_ARGS = configs.TrainingArguments(
             output_dir=tmpdirname, max_seq_length=4096
         )
         formatted_train_dataset, _ = get_processed_dataset(
-            model_args=MODEL_ARGS, data_args=DATA_ARGS, train_args=TRAIN_ARGS
+            model_args=MODEL_ARGS, data_args=data_args, train_args=TRAIN_ARGS
         )
 
         assert isinstance(formatted_train_dataset, Dataset)
