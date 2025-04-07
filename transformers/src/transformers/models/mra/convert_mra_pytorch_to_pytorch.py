@@ -14,13 +14,10 @@
 # limitations under the License.
 """Convert MRA checkpoints from the original repository. URL: https://github.com/mlpen/mra-attention"""
 
-# Standard
 import argparse
 
-# Third Party
 import torch
 
-# First Party
 from transformers import MraConfig, MraForMaskedLM
 
 
@@ -35,9 +32,7 @@ def rename_key(orig_key):
         orig_key = orig_key.replace("norm", "LayerNorm")
     if "transformer" in orig_key:
         layer_num = orig_key.split(".")[0].split("_")[-1]
-        orig_key = orig_key.replace(
-            f"transformer_{layer_num}", f"encoder.layer.{layer_num}"
-        )
+        orig_key = orig_key.replace(f"transformer_{layer_num}", f"encoder.layer.{layer_num}")
     if "mha.attn" in orig_key:
         orig_key = orig_key.replace("mha.attn", "attention.self")
     if "mha" in orig_key:
@@ -75,26 +70,18 @@ def convert_checkpoint_helper(max_position_embeddings, orig_state_dict):
         else:
             orig_state_dict[rename_key(key)] = val
 
-    orig_state_dict["cls.predictions.bias"] = orig_state_dict[
-        "cls.predictions.decoder.bias"
-    ]
-    orig_state_dict["mra.embeddings.position_ids"] = (
-        torch.arange(max_position_embeddings).expand((1, -1)) + 2
-    )
+    orig_state_dict["cls.predictions.bias"] = orig_state_dict["cls.predictions.decoder.bias"]
+    orig_state_dict["mra.embeddings.position_ids"] = torch.arange(max_position_embeddings).expand((1, -1)) + 2
 
     return orig_state_dict
 
 
 def convert_mra_checkpoint(checkpoint_path, mra_config_file, pytorch_dump_path):
-    orig_state_dict = torch.load(checkpoint_path, map_location="cpu")[
-        "model_state_dict"
-    ]
+    orig_state_dict = torch.load(checkpoint_path, map_location="cpu")["model_state_dict"]
     config = MraConfig.from_json_file(mra_config_file)
     model = MraForMaskedLM(config)
 
-    new_state_dict = convert_checkpoint_helper(
-        config.max_position_embeddings, orig_state_dict
-    )
+    new_state_dict = convert_checkpoint_helper(config.max_position_embeddings, orig_state_dict)
 
     print(model.load_state_dict(new_state_dict))
     model.eval()
@@ -107,11 +94,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "--pytorch_model_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to Mra pytorch checkpoint.",
+        "--pytorch_model_path", default=None, type=str, required=True, help="Path to Mra pytorch checkpoint."
     )
     parser.add_argument(
         "--config_file",
@@ -121,13 +104,7 @@ if __name__ == "__main__":
         help="The json file for Mra model config.",
     )
     parser.add_argument(
-        "--pytorch_dump_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the output PyTorch model.",
+        "--pytorch_dump_path", default=None, type=str, required=True, help="Path to the output PyTorch model."
     )
     args = parser.parse_args()
-    convert_mra_checkpoint(
-        args.pytorch_model_path, args.config_file, args.pytorch_dump_path
-    )
+    convert_mra_checkpoint(args.pytorch_model_path, args.config_file, args.pytorch_dump_path)

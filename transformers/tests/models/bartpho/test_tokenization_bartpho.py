@@ -13,19 +13,15 @@
 # limitations under the License.
 
 
-# Standard
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
-from transformers.models.bartpho.tokenization_bartpho import (
-    VOCAB_FILES_NAMES,
-    BartphoTokenizer,
-)
+from transformers.models.bartpho.tokenization_bartpho import VOCAB_FILES_NAMES, BartphoTokenizer
 from transformers.testing_utils import get_tests_dir
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
+
 
 SAMPLE_VOCAB = get_tests_dir("fixtures/test_sentencepiece_bpe.model")
 
@@ -36,28 +32,29 @@ class BartphoTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = False
     test_sentencepiece = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         vocab = ["▁This", "▁is", "▁a", "▁t", "est"]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
-        self.special_tokens_map = {"unk_token": "<unk>"}
+        cls.special_tokens_map = {"unk_token": "<unk>"}
 
-        self.monolingual_vocab_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["monolingual_vocab_file"]
-        )
-        with open(self.monolingual_vocab_file, "w", encoding="utf-8") as fp:
+        cls.monolingual_vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["monolingual_vocab_file"])
+        with open(cls.monolingual_vocab_file, "w", encoding="utf-8") as fp:
             for token in vocab_tokens:
                 fp.write(f"{token} {vocab_tokens[token]}\n")
 
-        tokenizer = BartphoTokenizer(
-            SAMPLE_VOCAB, self.monolingual_vocab_file, **self.special_tokens_map
-        )
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer = BartphoTokenizer(SAMPLE_VOCAB, cls.monolingual_vocab_file, **cls.special_tokens_map)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return BartphoTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return BartphoTokenizer.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "This is a là test"
@@ -65,9 +62,7 @@ class BartphoTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
         return input_text, output_text
 
     def test_full_tokenizer(self):
-        tokenizer = BartphoTokenizer(
-            SAMPLE_VOCAB, self.monolingual_vocab_file, **self.special_tokens_map
-        )
+        tokenizer = BartphoTokenizer(SAMPLE_VOCAB, self.monolingual_vocab_file, **self.special_tokens_map)
         text = "This is a là test"
         bpe_tokens = "▁This ▁is ▁a ▁l à ▁t est".split()
         tokens = tokenizer.tokenize(text)
@@ -75,6 +70,4 @@ class BartphoTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + [tokenizer.unk_token]
         input_bpe_tokens = [4, 5, 6, 3, 3, 7, 8, 3]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)

@@ -14,17 +14,15 @@
 # limitations under the License.
 """Longformer configuration"""
 
-# Standard
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Union
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import TensorType, logging
 
+
 if TYPE_CHECKING:
-    # Local
     from ...onnx.config import PatchingSpec
     from ...tokenization_utils_base import PreTrainedTokenizerBase
 
@@ -141,12 +139,7 @@ class LongformerConfig(PretrainedConfig):
 
 
 class LongformerOnnxConfig(OnnxConfig):
-    def __init__(
-        self,
-        config: "PretrainedConfig",
-        task: str = "default",
-        patching_specs: "List[PatchingSpec]" = None,
-    ):
+    def __init__(self, config: "PretrainedConfig", task: str = "default", patching_specs: "List[PatchingSpec]" = None):
         super().__init__(config, task, patching_specs)
         config.onnx_export = True
 
@@ -195,13 +188,8 @@ class LongformerOnnxConfig(OnnxConfig):
         framework: Optional[TensorType] = None,
     ) -> Mapping[str, Any]:
         inputs = super().generate_dummy_inputs(
-            preprocessor=tokenizer,
-            batch_size=batch_size,
-            seq_length=seq_length,
-            is_pair=is_pair,
-            framework=framework,
+            preprocessor=tokenizer, batch_size=batch_size, seq_length=seq_length, is_pair=is_pair, framework=framework
         )
-        # Third Party
         import torch
 
         # for some reason, replacing this code by inputs["global_attention_mask"] = torch.randint(2, inputs["input_ids"].shape, dtype=torch.int64)

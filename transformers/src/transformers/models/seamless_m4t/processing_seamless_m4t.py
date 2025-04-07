@@ -16,7 +16,6 @@
 Audio/Text processor class for SeamlessM4T
 """
 
-# Local
 from ...processing_utils import ProcessorMixin
 
 
@@ -48,7 +47,7 @@ class SeamlessM4TProcessor(ProcessorMixin):
         and `kwargs` arguments to SeamlessM4TTokenizerFast's [`~SeamlessM4TTokenizerFast.__call__`] if `text` is not
         `None` to encode the text. To prepare the audio(s), this method forwards the `audios` and `kwrags` arguments to
         SeamlessM4TFeatureExtractor's [`~SeamlessM4TFeatureExtractor.__call__`] if `audios` is not `None`. Please refer
-        to the doctsring of the above two methods for more information.
+        to the docstring of the above two methods for more information.
 
         Args:
             text (`str`, `List[str]`, `List[List[str]]`):
@@ -79,9 +78,7 @@ class SeamlessM4TProcessor(ProcessorMixin):
         sampling_rate = kwargs.pop("sampling_rate", None)
 
         if text is None and audios is None:
-            raise ValueError(
-                "You have to specify either text or audios. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or audios. Both cannot be none.")
         elif text is not None and audios is not None:
             raise ValueError(
                 "Text and audios are mututally exclusive when passed to `SeamlessM4T`. Specify one or another."
@@ -96,9 +93,7 @@ class SeamlessM4TProcessor(ProcessorMixin):
             return encoding
 
         else:
-            encoding = self.feature_extractor(
-                audios, sampling_rate=sampling_rate, **kwargs
-            )
+            encoding = self.feature_extractor(audios, sampling_rate=sampling_rate, **kwargs)
             return encoding
 
     def batch_decode(self, *args, **kwargs):
@@ -119,9 +114,7 @@ class SeamlessM4TProcessor(ProcessorMixin):
     def model_input_names(self):
         tokenizer_input_names = self.tokenizer.model_input_names
         feature_extractor_input_names = self.feature_extractor.model_input_names
-        return list(
-            dict.fromkeys(tokenizer_input_names + feature_extractor_input_names)
-        )
+        return list(dict.fromkeys(tokenizer_input_names + feature_extractor_input_names))
 
 
 __all__ = ["SeamlessM4TProcessor"]

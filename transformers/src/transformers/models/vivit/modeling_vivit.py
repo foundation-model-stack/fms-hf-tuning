@@ -14,24 +14,16 @@
 # limitations under the License.
 """PyTorch ViViT model."""
 
-# Standard
-from typing import Optional, Set, Tuple, Union
-import math
+from typing import Callable, Optional, Set, Tuple, Union
 
-# Third Party
-from torch import nn
-from torch.nn import CrossEntropyLoss, MSELoss
 import torch
 import torch.utils.checkpoint
+from torch import nn
+from torch.nn import CrossEntropyLoss, MSELoss
 
-# Local
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPooling,
-    ImageClassifierOutput,
-)
-from ...modeling_utils import PreTrainedModel
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...utils import (
     add_start_docstrings,
@@ -41,6 +33,7 @@ from ...utils import (
     torch_int,
 )
 from .configuration_vivit import VivitConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -72,20 +65,14 @@ class VivitTubeletEmbeddings(nn.Module):
         self.embed_dim = config.hidden_size
 
         self.projection = nn.Conv3d(
-            config.num_channels,
-            config.hidden_size,
-            kernel_size=config.tubelet_size,
-            stride=config.tubelet_size,
+            config.num_channels, config.hidden_size, kernel_size=config.tubelet_size, stride=config.tubelet_size
         )
 
     def forward(self, pixel_values, interpolate_pos_encoding: bool = False):
         batch_size, num_frames, num_channels, height, width = pixel_values.shape
-        if not interpolate_pos_encoding and (
-            height != self.image_size or width != self.image_size
-        ):
+        if not interpolate_pos_encoding and (height != self.image_size or width != self.image_size):
             raise ValueError(
-                f"Image image size ({height}*{width}) doesn't match model"
-                f" ({self.image_size[0]}*{self.image_size[1]})."
+                f"Image image size ({height}*{width}) doesn't match model ({self.image_size[0]}*{self.image_size[1]})."
             )
 
         # permute to (batch_size, num_channels, num_frames, height, width)
@@ -119,9 +106,7 @@ class VivitEmbeddings(nn.Module):
         self.config = config
 
     # Adapted from transformers.models.vit.modeling_vit.ViTEmbeddings.interpolate_pos_encoding
-    def interpolate_pos_encoding(
-        self, embeddings: torch.Tensor, height: int, width: int
-    ) -> torch.Tensor:
+    def interpolate_pos_encoding(self, embeddings: torch.Tensor, height: int, width: int) -> torch.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
         images. This method is also adapted to support torch.jit tracing.
@@ -135,11 +120,7 @@ class VivitEmbeddings(nn.Module):
         num_positions = self.position_embeddings.shape[1] - 1
 
         # always interpolate when tracing to ensure the exported model works for dynamic input shapes
-        if (
-            not torch.jit.is_tracing()
-            and num_patches == num_positions
-            and height == width
-        ):
+        if not torch.jit.is_tracing() and num_patches == num_positions and height == width:
             return self.position_embeddings
 
         class_pos_embed = self.position_embeddings[:, :1]
@@ -151,9 +132,7 @@ class VivitEmbeddings(nn.Module):
         new_width = width // self.patch_size[1]
 
         sqrt_num_positions = torch_int(num_positions**0.5)
-        patch_pos_embed = patch_pos_embed.reshape(
-            1, sqrt_num_positions, sqrt_num_positions, dim
-        )
+        patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
         patch_pos_embed = nn.functional.interpolate(
@@ -169,18 +148,14 @@ class VivitEmbeddings(nn.Module):
 
     def forward(self, pixel_values, interpolate_pos_encoding: bool = False):
         batch_size, num_frames, num_channels, height, width = pixel_values.shape
-        embeddings = self.patch_embeddings(
-            pixel_values, interpolate_pos_encoding=interpolate_pos_encoding
-        )
+        embeddings = self.patch_embeddings(pixel_values, interpolate_pos_encoding=interpolate_pos_encoding)
 
         cls_tokens = self.cls_token.tile([batch_size, 1, 1])
         embeddings = torch.cat((cls_tokens, embeddings), dim=1)
 
         # add positional encoding to each token
         if interpolate_pos_encoding:
-            embeddings = embeddings + self.interpolate_pos_encoding(
-                embeddings, height, width
-            )
+            embeddings = embeddings + self.interpolate_pos_encoding(embeddings, height, width)
         else:
             embeddings = embeddings + self.position_embeddings
 
@@ -189,129 +164,98 @@ class VivitEmbeddings(nn.Module):
         return embeddings
 
 
+# Copied from transformers.models.vit.modeling_vit.eager_attention_forward
+def eager_attention_forward(
+    module: nn.Module,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: Optional[torch.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    # Take the dot product between "query" and "key" to get the raw attention scores.
+    attn_weights = torch.matmul(query, key.transpose(-1, -2)) * scaling
+
+    # Normalize the attention scores to probabilities.
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+
+    # This is actually dropping out entire tokens to attend to, which might
+    # seem a bit unusual, but is taken from the original Transformer paper.
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    # Mask heads if we want to
+    if attention_mask is not None:
+        attn_weights = attn_weights * attention_mask
+
+    attn_output = torch.matmul(attn_weights, value)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 # Copied from transformers.models.vit.modeling_vit.ViTSelfAttention with ViT->Vivit
 class VivitSelfAttention(nn.Module):
     def __init__(self, config: VivitConfig) -> None:
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
-            config, "embedding_size"
-        ):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size {config.hidden_size} is not a multiple of the number of attention "
                 f"heads {config.num_attention_heads}."
             )
 
+        self.config = config
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
+        self.dropout_prob = config.attention_probs_dropout_prob
+        self.scaling = self.attention_head_size**-0.5
+        self.is_causal = False
 
-        self.query = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.key = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.value = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-
-        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+        self.query = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.key = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.value = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(
-        self,
-        hidden_states,
-        head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
+        self, hidden_states, head_mask: Optional[torch.Tensor] = None, output_attentions: bool = False
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        mixed_query_layer = self.query(hidden_states)
-
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
-        query_layer = self.transpose_for_scores(mixed_query_layer)
+        query_layer = self.transpose_for_scores(self.query(hidden_states))
 
-        # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and output_attentions:
+                logger.warning_once(
+                    "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-
-        # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attention_probs = attention_probs * head_mask
-
-        context_layer = torch.matmul(attention_probs, value_layer)
-
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(new_context_layer_shape)
-
-        outputs = (
-            (context_layer, attention_probs) if output_attentions else (context_layer,)
-        )
-
-        return outputs
-
-
-# Adapted from transformers.models.vit.modeling_vit.ViTSdpaSelfAttention with ViT->Vivit
-class VivitSdpaSelfAttention(VivitSelfAttention):
-    def __init__(self, config: VivitConfig) -> None:
-        super().__init__(config)
-        self.attention_probs_dropout_prob = config.attention_probs_dropout_prob
-
-    def forward(
-        self,
-        hidden_states,
-        head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
-    ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        if output_attentions or head_mask is not None:
-            logger.warning_once(
-                "VivitSdpaSelfAttention is used but `torch.nn.functional.scaled_dot_product_attention` does not support"
-                " `output_attentions=True` or `head_mask`. Falling back to the manual attention implementation, but specifying"
-                " the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be"
-                ' removed using the argument `attn_implementation="eager"` when loading the model.'
-            )
-            return super().forward(
-                hidden_states,
-                head_mask,
-                output_attentions,
-            )
-
-        mixed_query_layer = self.query(hidden_states)
-
-        key_layer = self.transpose_for_scores(self.key(hidden_states))
-        value_layer = self.transpose_for_scores(self.value(hidden_states))
-        query_layer = self.transpose_for_scores(mixed_query_layer)
-
-        context_layer = torch.nn.functional.scaled_dot_product_attention(
+        context_layer, attention_probs = attention_interface(
+            self,
             query_layer,
             key_layer,
             value_layer,
             head_mask,
-            self.attention_probs_dropout_prob if self.training else 0.0,
-            is_causal=False,
-            scale=None,
+            is_causal=self.is_causal,
+            scaling=self.scaling,
+            dropout=0.0 if not self.training else self.dropout_prob,
         )
 
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(new_context_layer_shape)
+        context_layer = context_layer.reshape(new_context_layer_shape)
 
-        return context_layer, None
+        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
+
+        return outputs
 
 
 # Copied from transformers.models.vit.modeling_vit.ViTSelfOutput with ViT->Vivit
@@ -326,9 +270,7 @@ class VivitSelfOutput(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
@@ -347,10 +289,7 @@ class VivitAttention(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads,
-            self.attention.num_attention_heads,
-            self.attention.attention_head_size,
-            self.pruned_heads,
+            heads, self.attention.num_attention_heads, self.attention.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
@@ -360,12 +299,8 @@ class VivitAttention(nn.Module):
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.attention.num_attention_heads = self.attention.num_attention_heads - len(
-            heads
-        )
-        self.attention.all_head_size = (
-            self.attention.attention_head_size * self.attention.num_attention_heads
-        )
+        self.attention.num_attention_heads = self.attention.num_attention_heads - len(heads)
+        self.attention.all_head_size = self.attention.attention_head_size * self.attention.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -378,17 +313,8 @@ class VivitAttention(nn.Module):
 
         attention_output = self.output(self_outputs[0], hidden_states)
 
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
-
-
-# Copied from transformers.models.vit.modeling_vit.ViTSdpaAttention with ViT->Vivit
-class VivitSdpaAttention(VivitAttention):
-    def __init__(self, config: VivitConfig) -> None:
-        super().__init__(config)
-        self.attention = VivitSdpaSelfAttention(config)
 
 
 class VivitIntermediate(nn.Module):
@@ -425,12 +351,6 @@ class VivitOutput(nn.Module):
         return hidden_states
 
 
-VIVIT_ATTENTION_CLASSES = {
-    "eager": VivitAttention,
-    "sdpa": VivitSdpaAttention,
-}
-
-
 class VivitLayer(nn.Module):
     """This corresponds to the EncoderBlock class in the scenic/vivit implementation."""
 
@@ -438,15 +358,11 @@ class VivitLayer(nn.Module):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
-        self.attention = VIVIT_ATTENTION_CLASSES[config._attn_implementation](config)
+        self.attention = VivitAttention(config)
         self.intermediate = VivitIntermediate(config)
         self.output = VivitOutput(config)
-        self.layernorm_before = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
-        self.layernorm_after = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.layernorm_before = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(self, hidden_states, head_mask=None, output_attentions=False):
         self_attention_outputs = self.attention(
@@ -478,9 +394,7 @@ class VivitEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [VivitLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layer = nn.ModuleList([VivitLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def forward(
@@ -508,9 +422,7 @@ class VivitEncoder(nn.Module):
                     output_attentions,
                 )
             else:
-                layer_outputs = layer_module(
-                    hidden_states, layer_head_mask, output_attentions
-                )
+                layer_outputs = layer_module(hidden_states, layer_head_mask, output_attentions)
 
             hidden_states = layer_outputs[0]
 
@@ -521,11 +433,7 @@ class VivitEncoder(nn.Module):
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, all_hidden_states, all_self_attentions]
-                if v is not None
-            )
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
         return BaseModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
@@ -560,6 +468,7 @@ class VivitPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = []
     _supports_sdpa = True
+    _supports_flash_attn_2 = True
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -576,8 +485,9 @@ class VivitPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-        elif isinstance(module, nn.Parameter):
-            module.data.normal_(mean=0.0, std=self.config.initializer_range)
+        elif isinstance(module, VivitEmbeddings):
+            module.cls_token.data.zero_()
+            module.position_embeddings.data.zero_()
 
 
 VIVIT_START_DOCSTRING = r"""
@@ -649,9 +559,7 @@ class VivitModel(VivitPreTrainedModel):
             self.encoder.layer[layer].attention.prune_heads(heads)
 
     @add_start_docstrings_to_model_forward(VIVIT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         pixel_values: Optional[torch.FloatTensor] = None,
@@ -737,28 +645,18 @@ class VivitModel(VivitPreTrainedModel):
         >>> list(last_hidden_states.shape)
         [1, 3137, 768]
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
 
         head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
 
-        embedding_output = self.embeddings(
-            pixel_values, interpolate_pos_encoding=interpolate_pos_encoding
-        )
+        embedding_output = self.embeddings(pixel_values, interpolate_pos_encoding=interpolate_pos_encoding)
 
         encoder_outputs = self.encoder(
             embedding_output,
@@ -769,9 +667,7 @@ class VivitModel(VivitPreTrainedModel):
         )
         sequence_output = encoder_outputs[0]
         sequence_output = self.layernorm(sequence_output)
-        pooled_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
-        )
+        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
@@ -807,19 +703,13 @@ class VivitForVideoClassification(VivitPreTrainedModel):
         self.vivit = VivitModel(config, add_pooling_layer=False)
 
         # Classifier head
-        self.classifier = (
-            nn.Linear(config.hidden_size, config.num_labels)
-            if config.num_labels > 0
-            else nn.Identity()
-        )
+        self.classifier = nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
 
         # Initialize weights and apply final processing
         self.post_init()
 
     @add_start_docstrings_to_model_forward(VIVIT_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=ImageClassifierOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=ImageClassifierOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         pixel_values: Optional[torch.FloatTensor] = None,
@@ -914,9 +804,7 @@ class VivitForVideoClassification(VivitPreTrainedModel):
         >>> print(model.config.id2label[predicted_label])
         LABEL_116
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.vivit(
             pixel_values,

@@ -1,13 +1,10 @@
-# Standard
 import os
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import pytest
 
-# First Party
 from transformers.models.xlm_roberta.tokenization_xlm_roberta import VOCAB_FILES_NAMES
 from transformers.testing_utils import (
     require_sentencepiece,
@@ -16,11 +13,10 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import TrOCRProcessor, ViTImageProcessor, XLMRobertaTokenizerFast
 
 
@@ -33,17 +29,14 @@ class TrOCRProcessorTest(ProcessorTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.tmpdirname = tempfile.mkdtemp()
+
         vocab_tokens = ["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]", "want", "##want", "##ed", "wa", "un", "runn", "##ing", ",", "low", "lowest"]  # fmt: skip
         self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
         with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
             vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
 
-        image_processor = ViTImageProcessor.from_pretrained(
-            "hf-internal-testing/tiny-random-vit"
-        )
-        tokenizer = XLMRobertaTokenizerFast.from_pretrained(
-            "FacebookAI/xlm-roberta-base"
-        )
+        image_processor = ViTImageProcessor.from_pretrained("hf-internal-testing/tiny-random-vit")
+        tokenizer = XLMRobertaTokenizerFast.from_pretrained("FacebookAI/xlm-roberta-base")
         processor = TrOCRProcessor(image_processor=image_processor, tokenizer=tokenizer)
         processor.save_pretrained(self.tmpdirname)
 
@@ -67,37 +60,22 @@ class TrOCRProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         self.assertIsInstance(processor.tokenizer, XLMRobertaTokenizerFast)
         self.assertEqual(processor.tokenizer.get_vocab(), tokenizer.get_vocab())
         self.assertIsInstance(processor.image_processor, ViTImageProcessor)
-        self.assertEqual(
-            processor.image_processor.to_json_string(), image_processor.to_json_string()
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor.to_json_string())
 
     def test_save_load_pretrained_additional_features(self):
-        processor = TrOCRProcessor(
-            tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor()
-        )
+        processor = TrOCRProcessor(tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor())
         processor.save_pretrained(self.tmpdirname)
         tokenizer_add_kwargs = self.get_tokenizer(bos_token="(BOS)", eos_token="(EOS)")
-        image_processor_add_kwargs = self.get_image_processor(
-            do_normalize=False, padding_value=1.0
-        )
+        image_processor_add_kwargs = self.get_image_processor(do_normalize=False, padding_value=1.0)
 
         processor = TrOCRProcessor.from_pretrained(
-            self.tmpdirname,
-            bos_token="(BOS)",
-            eos_token="(EOS)",
-            do_normalize=False,
-            padding_value=1.0,
+            self.tmpdirname, bos_token="(BOS)", eos_token="(EOS)", do_normalize=False, padding_value=1.0
         )
 
         self.assertIsInstance(processor.tokenizer, XLMRobertaTokenizerFast)
-        self.assertEqual(
-            processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
 
-        self.assertEqual(
-            processor.image_processor.to_json_string(),
-            image_processor_add_kwargs.to_json_string(),
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor_add_kwargs.to_json_string())
         self.assertIsInstance(processor.image_processor, ViTImageProcessor)
 
     def test_image_processor(self):
@@ -110,9 +88,7 @@ class TrOCRProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         input_processor = processor(images=image_input, return_tensors="np")
 
         for key in input_feat_extract.keys():
-            self.assertAlmostEqual(
-                input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_tokenizer(self):
         image_processor = self.get_image_processor()

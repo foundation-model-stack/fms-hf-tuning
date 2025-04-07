@@ -14,17 +14,15 @@
 # limitations under the License.
 """Image processor class for DPT."""
 
-# Standard
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple, Union
 import math
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple, Union
+
 
 if TYPE_CHECKING:
     from ...modeling_outputs import DepthEstimatorOutput
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import pad, resize, to_channel_dimension_format
 from ...image_utils import (
@@ -51,12 +49,11 @@ from ...utils import (
     requires_backends,
 )
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_vision_available():
-    # Third Party
     import PIL
 
 
@@ -81,9 +78,7 @@ def get_resize_output_image_size(
 
         return x
 
-    output_size = (
-        (output_size, output_size) if isinstance(output_size, int) else output_size
-    )
+    output_size = (output_size, output_size) if isinstance(output_size, int) else output_size
 
     input_height, input_width = get_image_size(input_image, input_data_format)
     output_height, output_width = output_size
@@ -101,9 +96,7 @@ def get_resize_output_image_size(
             # fit height
             scale_width = scale_height
 
-    new_height = constrain_to_multiple_of(
-        scale_height * input_height, multiple=multiple
-    )
+    new_height = constrain_to_multiple_of(scale_height * input_height, multiple=multiple)
     new_width = constrain_to_multiple_of(scale_width * input_width, multiple=multiple)
 
     return (new_height, new_width)
@@ -168,7 +161,7 @@ class DPTImageProcessor(BaseImageProcessor):
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
         do_pad: bool = False,
-        size_divisor: int = None,
+        size_divisor: Optional[int] = None,
         do_reduce_labels: bool = False,
         **kwargs,
     ) -> None:
@@ -183,9 +176,7 @@ class DPTImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = (
-            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
-        )
+        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
         self.do_pad = do_pad
         self.size_divisor = size_divisor
@@ -228,9 +219,7 @@ class DPTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(
-                f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}"
-            )
+            raise ValueError(f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}")
 
         output_size = get_resize_output_image_size(
             image,
@@ -291,11 +280,7 @@ class DPTImageProcessor(BaseImageProcessor):
         pad_size_left, pad_size_right = _get_pad(height, size_divisor)
         pad_size_top, pad_size_bottom = _get_pad(width, size_divisor)
 
-        return pad(
-            image,
-            ((pad_size_left, pad_size_right), (pad_size_top, pad_size_bottom)),
-            data_format=data_format,
-        )
+        return pad(image, ((pad_size_left, pad_size_right), (pad_size_top, pad_size_bottom)), data_format=data_format)
 
     # Copied from transformers.models.beit.image_processing_beit.BeitImageProcessor.reduce_label
     def reduce_label(self, label: ImageInput) -> np.ndarray:
@@ -309,19 +294,19 @@ class DPTImageProcessor(BaseImageProcessor):
     def _preprocess(
         self,
         image: ImageInput,
-        do_reduce_labels: bool = None,
-        do_resize: bool = None,
+        do_reduce_labels: Optional[bool] = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        keep_aspect_ratio: bool = None,
-        ensure_multiple_of: int = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        keep_aspect_ratio: Optional[bool] = None,
+        ensure_multiple_of: Optional[int] = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_pad: bool = None,
-        size_divisor: int = None,
+        do_pad: Optional[bool] = None,
+        size_divisor: Optional[int] = None,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
     ):
         if do_reduce_labels:
@@ -338,42 +323,31 @@ class DPTImageProcessor(BaseImageProcessor):
             )
 
         if do_rescale:
-            image = self.rescale(
-                image=image, scale=rescale_factor, input_data_format=input_data_format
-            )
+            image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
 
         if do_normalize:
-            image = self.normalize(
-                image=image,
-                mean=image_mean,
-                std=image_std,
-                input_data_format=input_data_format,
-            )
+            image = self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
 
         if do_pad:
-            image = self.pad_image(
-                image=image,
-                size_divisor=size_divisor,
-                input_data_format=input_data_format,
-            )
+            image = self.pad_image(image=image, size_divisor=size_divisor, input_data_format=input_data_format)
 
         return image
 
     def _preprocess_image(
         self,
         image: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        keep_aspect_ratio: bool = None,
-        ensure_multiple_of: int = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        keep_aspect_ratio: Optional[bool] = None,
+        ensure_multiple_of: Optional[int] = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_pad: bool = None,
-        size_divisor: int = None,
+        do_pad: Optional[bool] = None,
+        size_divisor: Optional[int] = None,
         data_format: Optional[Union[str, ChannelDimension]] = None,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
     ) -> np.ndarray:
@@ -407,20 +381,18 @@ class DPTImageProcessor(BaseImageProcessor):
             input_data_format=input_data_format,
         )
         if data_format is not None:
-            image = to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
+            image = to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
         return image
 
     def _preprocess_segmentation_map(
         self,
         segmentation_map: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        keep_aspect_ratio: bool = None,
-        ensure_multiple_of: int = None,
-        do_reduce_labels: bool = None,
+        keep_aspect_ratio: Optional[bool] = None,
+        ensure_multiple_of: Optional[int] = None,
+        do_reduce_labels: Optional[bool] = None,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
     ):
         """Preprocesses a single segmentation map."""
@@ -434,9 +406,7 @@ class DPTImageProcessor(BaseImageProcessor):
         else:
             added_dimension = False
             if input_data_format is None:
-                input_data_format = infer_channel_dimension_format(
-                    segmentation_map, num_channels=1
-                )
+                input_data_format = infer_channel_dimension_format(segmentation_map, num_channels=1)
         segmentation_map = self._preprocess(
             image=segmentation_map,
             do_reduce_labels=do_reduce_labels,
@@ -466,18 +436,18 @@ class DPTImageProcessor(BaseImageProcessor):
         self,
         images: ImageInput,
         segmentation_maps: Optional[ImageInput] = None,
-        do_resize: bool = None,
-        size: int = None,
-        keep_aspect_ratio: bool = None,
-        ensure_multiple_of: int = None,
+        do_resize: Optional[bool] = None,
+        size: Optional[int] = None,
+        keep_aspect_ratio: Optional[bool] = None,
+        ensure_multiple_of: Optional[int] = None,
         resample: PILImageResampling = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_pad: bool = None,
-        size_divisor: int = None,
+        do_pad: Optional[bool] = None,
+        size_divisor: Optional[int] = None,
         do_reduce_labels: Optional[bool] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         data_format: ChannelDimension = ChannelDimension.FIRST,
@@ -541,29 +511,17 @@ class DPTImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         size = size if size is not None else self.size
         size = get_size_dict(size)
-        keep_aspect_ratio = (
-            keep_aspect_ratio
-            if keep_aspect_ratio is not None
-            else self.keep_aspect_ratio
-        )
-        ensure_multiple_of = (
-            ensure_multiple_of
-            if ensure_multiple_of is not None
-            else self.ensure_multiple_of
-        )
+        keep_aspect_ratio = keep_aspect_ratio if keep_aspect_ratio is not None else self.keep_aspect_ratio
+        ensure_multiple_of = ensure_multiple_of if ensure_multiple_of is not None else self.ensure_multiple_of
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
         do_pad = do_pad if do_pad is not None else self.do_pad
         size_divisor = size_divisor if size_divisor is not None else self.size_divisor
-        do_reduce_labels = (
-            do_reduce_labels if do_reduce_labels is not None else self.do_reduce_labels
-        )
+        do_reduce_labels = do_reduce_labels if do_reduce_labels is not None else self.do_reduce_labels
 
         images = make_list_of_images(images)
 
@@ -631,9 +589,7 @@ class DPTImageProcessor(BaseImageProcessor):
         return BatchFeature(data=data, tensor_type=return_tensors)
 
     # Copied from transformers.models.beit.image_processing_beit.BeitImageProcessor.post_process_semantic_segmentation with Beit->DPT
-    def post_process_semantic_segmentation(
-        self, outputs, target_sizes: List[Tuple] = None
-    ):
+    def post_process_semantic_segmentation(self, outputs, target_sizes: List[Tuple] = None):
         """
         Converts the output of [`DPTForSemanticSegmentation`] into semantic segmentation maps. Only supports PyTorch.
 
@@ -666,18 +622,13 @@ class DPTImageProcessor(BaseImageProcessor):
 
             for idx in range(len(logits)):
                 resized_logits = torch.nn.functional.interpolate(
-                    logits[idx].unsqueeze(dim=0),
-                    size=target_sizes[idx],
-                    mode="bilinear",
-                    align_corners=False,
+                    logits[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
                 )
                 semantic_map = resized_logits[0].argmax(dim=0)
                 semantic_segmentation.append(semantic_map)
         else:
             semantic_segmentation = logits.argmax(dim=1)
-            semantic_segmentation = [
-                semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])
-            ]
+            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
 
         return semantic_segmentation
 
@@ -711,16 +662,11 @@ class DPTImageProcessor(BaseImageProcessor):
             )
 
         results = []
-        target_sizes = (
-            [None] * len(predicted_depth) if target_sizes is None else target_sizes
-        )
+        target_sizes = [None] * len(predicted_depth) if target_sizes is None else target_sizes
         for depth, target_size in zip(predicted_depth, target_sizes):
             if target_size is not None:
                 depth = torch.nn.functional.interpolate(
-                    depth.unsqueeze(0).unsqueeze(1),
-                    size=target_size,
-                    mode="bicubic",
-                    align_corners=False,
+                    depth.unsqueeze(0).unsqueeze(1), size=target_size, mode="bicubic", align_corners=False
                 ).squeeze()
 
             results.append({"predicted_depth": depth})

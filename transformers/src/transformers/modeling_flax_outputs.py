@@ -11,14 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import Dict, Optional, Tuple
 
-# Third Party
 import flax
 import jax.numpy as jnp
 
-# Local
 from .utils import ModelOutput
 
 
@@ -43,7 +40,7 @@ class FlaxBaseModelOutput(ModelOutput):
             heads.
     """
 
-    last_hidden_state: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -62,7 +59,7 @@ class FlaxBaseModelOutputWithNoAttention(ModelOutput):
             model at the output of each layer plus the optional initial embedding outputs.
     """
 
-    last_hidden_state: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
 
 
@@ -82,8 +79,8 @@ class FlaxBaseModelOutputWithPoolingAndNoAttention(ModelOutput):
             model at the output of each layer plus the optional initial embedding outputs.
     """
 
-    last_hidden_state: jnp.ndarray = None
-    pooler_output: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
+    pooler_output: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
 
 
@@ -102,7 +99,7 @@ class FlaxImageClassifierOutputWithNoAttention(ModelOutput):
             called feature maps) of the model at the output of each stage.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
 
 
@@ -130,7 +127,7 @@ class FlaxBaseModelOutputWithPast(ModelOutput):
             heads.
     """
 
-    last_hidden_state: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
     past_key_values: Optional[Dict[str, jnp.ndarray]] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -161,8 +158,8 @@ class FlaxBaseModelOutputWithPooling(ModelOutput):
             heads.
     """
 
-    last_hidden_state: jnp.ndarray = None
-    pooler_output: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
+    pooler_output: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -208,8 +205,8 @@ class FlaxBaseModelOutputWithPoolingAndCrossAttentions(ModelOutput):
             input) to speed up sequential decoding.
     """
 
-    last_hidden_state: jnp.ndarray = None
-    pooler_output: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
+    pooler_output: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -255,7 +252,7 @@ class FlaxBaseModelOutputWithPastAndCrossAttentions(ModelOutput):
             weighted average in the cross-attention heads.
     """
 
-    last_hidden_state: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -313,7 +310,7 @@ class FlaxSeq2SeqModelOutput(ModelOutput):
             self-attention heads.
     """
 
-    last_hidden_state: jnp.ndarray = None
+    last_hidden_state: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     decoder_hidden_states: Optional[Tuple[jnp.ndarray]] = None
     decoder_attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -357,7 +354,7 @@ class FlaxCausalLMOutputWithCrossAttentions(ModelOutput):
             `past_key_values` input) to speed up sequential decoding.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -385,7 +382,7 @@ class FlaxMaskedLMOutput(ModelOutput):
             heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -440,7 +437,7 @@ class FlaxSeq2SeqLMOutput(ModelOutput):
             self-attention heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     decoder_hidden_states: Optional[Tuple[jnp.ndarray]] = None
     decoder_attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -472,7 +469,7 @@ class FlaxNextSentencePredictorOutput(ModelOutput):
             heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -498,7 +495,7 @@ class FlaxSequenceClassifierOutput(ModelOutput):
             heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -550,7 +547,7 @@ class FlaxSeq2SeqSequenceClassifierOutput(ModelOutput):
             self-attention heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     decoder_hidden_states: Optional[Tuple[jnp.ndarray]] = None
     decoder_attentions: Optional[Tuple[jnp.ndarray]] = None
@@ -583,7 +580,7 @@ class FlaxMultipleChoiceModelOutput(ModelOutput):
             heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -609,7 +606,7 @@ class FlaxTokenClassifierOutput(ModelOutput):
             heads.
     """
 
-    logits: jnp.ndarray = None
+    logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -637,8 +634,8 @@ class FlaxQuestionAnsweringModelOutput(ModelOutput):
             heads.
     """
 
-    start_logits: jnp.ndarray = None
-    end_logits: jnp.ndarray = None
+    start_logits: Optional[jnp.ndarray] = None
+    end_logits: Optional[jnp.ndarray] = None
     hidden_states: Optional[Tuple[jnp.ndarray]] = None
     attentions: Optional[Tuple[jnp.ndarray]] = None
 
@@ -692,8 +689,8 @@ class FlaxSeq2SeqQuestionAnsweringModelOutput(ModelOutput):
             self-attention heads.
     """
 
-    start_logits: jnp.ndarray = None
-    end_logits: jnp.ndarray = None
+    start_logits: Optional[jnp.ndarray] = None
+    end_logits: Optional[jnp.ndarray] = None
     past_key_values: Optional[Tuple[Tuple[jnp.ndarray]]] = None
     decoder_hidden_states: Optional[Tuple[jnp.ndarray]] = None
     decoder_attentions: Optional[Tuple[jnp.ndarray]] = None

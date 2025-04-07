@@ -14,9 +14,9 @@
 # limitations under the License.
 """FSMT configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -132,10 +132,7 @@ class FSMTConfig(PretrainedConfig):
     ```"""
 
     model_type = "fsmt"
-    attribute_map = {
-        "num_attention_heads": "encoder_attention_heads",
-        "hidden_size": "d_model",
-    }
+    attribute_map = {"num_attention_heads": "encoder_attention_heads", "hidden_size": "d_model"}
 
     # update the defaults from config file
     def __init__(
@@ -190,15 +187,11 @@ class FSMTConfig(PretrainedConfig):
         self.init_std = init_std  # Normal(0, this parameter)
         self.activation_function = activation_function
 
-        self.decoder = DecoderConfig(
-            vocab_size=tgt_vocab_size, bos_token_id=eos_token_id
-        )
+        self.decoder = DecoderConfig(vocab_size=tgt_vocab_size, bos_token_id=eos_token_id)
         if "decoder" in common_kwargs:
             del common_kwargs["decoder"]
 
-        self.scale_embedding = (
-            scale_embedding  # scale factor will be sqrt(d_model) if True
-        )
+        self.scale_embedding = scale_embedding  # scale factor will be sqrt(d_model) if True
 
         # 3 Types of Dropout
         self.attention_dropout = attention_dropout

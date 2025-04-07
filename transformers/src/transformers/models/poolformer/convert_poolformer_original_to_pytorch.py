@@ -14,25 +14,19 @@
 # limitations under the License.
 """Convert PoolFormer checkpoints from the original repository. URL: https://github.com/sail-sg/poolformer"""
 
-# Standard
-from collections import OrderedDict
-from pathlib import Path
 import argparse
 import json
+from collections import OrderedDict
+from pathlib import Path
 
-# Third Party
-from huggingface_hub import hf_hub_download
-from PIL import Image
 import requests
 import torch
+from huggingface_hub import hf_hub_download
+from PIL import Image
 
-# First Party
-from transformers import (
-    PoolFormerConfig,
-    PoolFormerForImageClassification,
-    PoolFormerImageProcessor,
-)
+from transformers import PoolFormerConfig, PoolFormerForImageClassification, PoolFormerImageProcessor
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -48,10 +42,7 @@ def replace_key_with_offset(key, offset, original_name, new_name):
     layer_num = int(key_list[key_list.index(to_find) - 1])
     new_block_num = orig_block_num - offset
 
-    key = key.replace(
-        f"{orig_block_num}.{layer_num}.{original_name}",
-        f"block.{new_block_num}.{layer_num}.{new_name}",
-    )
+    key = key.replace(f"{orig_block_num}.{layer_num}.{original_name}", f"block.{new_block_num}.{layer_num}.{new_name}")
     return key
 
 
@@ -73,25 +64,17 @@ def rename_keys(state_dict):
         if "patch_embeddings" in key:
             key = "poolformer.encoder." + key
         if "mlp.fc1" in key:
-            key = replace_key_with_offset(
-                key, patch_emb_offset, "mlp.fc1", "output.conv1"
-            )
+            key = replace_key_with_offset(key, patch_emb_offset, "mlp.fc1", "output.conv1")
         if "mlp.fc2" in key:
-            key = replace_key_with_offset(
-                key, patch_emb_offset, "mlp.fc2", "output.conv2"
-            )
+            key = replace_key_with_offset(key, patch_emb_offset, "mlp.fc2", "output.conv2")
         if "norm1" in key:
             key = replace_key_with_offset(key, patch_emb_offset, "norm1", "before_norm")
         if "norm2" in key:
             key = replace_key_with_offset(key, patch_emb_offset, "norm2", "after_norm")
         if "layer_scale_1" in key:
-            key = replace_key_with_offset(
-                key, patch_emb_offset, "layer_scale_1", "layer_scale_1"
-            )
+            key = replace_key_with_offset(key, patch_emb_offset, "layer_scale_1", "layer_scale_1")
         if "layer_scale_2" in key:
-            key = replace_key_with_offset(
-                key, patch_emb_offset, "layer_scale_2", "layer_scale_2"
-            )
+            key = replace_key_with_offset(key, patch_emb_offset, "layer_scale_2", "layer_scale_2")
         if "head" in key:
             key = key.replace("head", "classifier")
         new_state_dict[key] = value
@@ -107,9 +90,7 @@ def prepare_img():
 
 
 @torch.no_grad()
-def convert_poolformer_checkpoint(
-    model_name, checkpoint_path, pytorch_dump_folder_path
-):
+def convert_poolformer_checkpoint(model_name, checkpoint_path, pytorch_dump_folder_path):
     """
     Copy/paste/tweak model's weights to our PoolFormer structure.
     """
@@ -125,9 +106,7 @@ def convert_poolformer_checkpoint(
     expected_shape = (1, 1000)
 
     # set config attributes
-    id2label = json.load(
-        open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r")
-    )
+    id2label = json.load(open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r"))
     id2label = {int(k): v for k, v in id2label.items()}
     config.id2label = id2label
     config.label2id = {v: k for k, v in id2label.items()}
@@ -184,9 +163,7 @@ def convert_poolformer_checkpoint(
 
     # Define image processor
     image_processor = PoolFormerImageProcessor(crop_pct=crop_pct)
-    pixel_values = image_processor(
-        images=prepare_img(), return_tensors="pt"
-    ).pixel_values
+    pixel_values = image_processor(images=prepare_img(), return_tensors="pt").pixel_values
 
     # forward pass
     outputs = model(pixel_values)
@@ -211,9 +188,7 @@ def convert_poolformer_checkpoint(
     assert torch.allclose(logits[0, :3], expected_slice, atol=1e-2)
 
     # finally, save model and image processor
-    logger.info(
-        f"Saving PyTorch model and image processor to {pytorch_dump_folder_path}..."
-    )
+    logger.info(f"Saving PyTorch model and image processor to {pytorch_dump_folder_path}...")
     Path(pytorch_dump_folder_path).mkdir(exist_ok=True)
     model.save_pretrained(pytorch_dump_folder_path)
     print(f"Saving image processor to {pytorch_dump_folder_path}")
@@ -230,18 +205,10 @@ if __name__ == "__main__":
         help="Name of the model you'd like to convert.",
     )
     parser.add_argument(
-        "--checkpoint_path",
-        default=None,
-        type=str,
-        help="Path to the original PyTorch checkpoint (.pth file).",
+        "--checkpoint_path", default=None, type=str, help="Path to the original PyTorch checkpoint (.pth file)."
     )
     parser.add_argument(
-        "--pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the folder to output PyTorch model.",
+        "--pytorch_dump_folder_path", default=None, type=str, help="Path to the folder to output PyTorch model."
     )
     args = parser.parse_args()
-    convert_poolformer_checkpoint(
-        args.model_name, args.checkpoint_path, args.pytorch_dump_folder_path
-    )
+    convert_poolformer_checkpoint(args.model_name, args.checkpoint_path, args.pytorch_dump_folder_path)

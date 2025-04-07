@@ -14,43 +14,25 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
-from transformers.testing_utils import (
-    require_torch,
-    require_torchvision,
-    require_vision,
-)
-from transformers.utils import (
-    is_torch_available,
-    is_torchvision_available,
-    is_vision_available,
-)
+from transformers.testing_utils import require_torch, require_torchvision, require_vision
+from transformers.utils import is_torch_available, is_torchvision_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_torchvision_available():
-    # Third Party
-    import torchvision.transforms as transforms
+    from torchvision import transforms
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import IdeficsImageProcessor
 
 
@@ -131,9 +113,7 @@ class IdeficsImageProcessingTester:
         height, width = self.get_expected_values(images, batched=True)
         return (self.num_channels, height, width)
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -165,14 +145,10 @@ class IdeficsImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         self.assertTrue(hasattr(image_processing, "image_size"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertNotEqual(image_processor.image_size, 30)
 
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict, image_size=42
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict, image_size=42)
         self.assertEqual(image_processor.image_size, 42)
 
     @require_torchvision
@@ -180,12 +156,8 @@ class IdeficsImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         # as we had to reimplement the torchvision transforms using transformers utils we must check
         # they both do the same
 
-        image_inputs = self.image_processor_tester.prepare_image_inputs(
-            equal_resolution=False
-        )
-        image_processor = self.image_processing_class(
-            **self.image_processor_dict, return_tensors="pt"
-        )
+        image_inputs = self.image_processor_tester.prepare_image_inputs(equal_resolution=False)
+        image_processor = self.image_processing_class(**self.image_processor_dict, return_tensors="pt")
 
         print(image_inputs)
 
@@ -208,28 +180,16 @@ class IdeficsImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         transform = transforms.Compose(
             [
                 convert_to_rgb,
-                transforms.Resize(
-                    (image_size, image_size),
-                    interpolation=transforms.InterpolationMode.BICUBIC,
-                ),
+                transforms.Resize((image_size, image_size), interpolation=transforms.InterpolationMode.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=image_mean, std=image_std),
             ]
         )
 
-        pixel_values_transform_implied = image_processor(
-            image_inputs, transform=None, return_tensors="pt"
-        )
-        pixel_values_transform_supplied = image_processor(
-            image_inputs, transform=transform, return_tensors="pt"
-        )
+        pixel_values_transform_implied = image_processor(image_inputs, transform=None, return_tensors="pt")
+        pixel_values_transform_supplied = image_processor(image_inputs, transform=transform, return_tensors="pt")
 
-        torch.testing.assert_close(
-            pixel_values_transform_implied,
-            pixel_values_transform_supplied,
-            rtol=0.0,
-            atol=0.0,
-        )
+        torch.testing.assert_close(pixel_values_transform_implied, pixel_values_transform_supplied, rtol=0.0, atol=0.0)
 
     @unittest.skip(reason="not supported")
     def test_call_numpy(self):

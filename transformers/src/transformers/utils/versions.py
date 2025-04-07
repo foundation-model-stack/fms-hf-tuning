@@ -15,15 +15,14 @@
 Utilities for working with package versions
 """
 
-# Standard
-from typing import Optional
 import importlib.metadata
 import operator
 import re
 import sys
+from typing import Optional
 
-# Third Party
 from packaging import version
+
 
 ops = {
     "<": operator.lt,
@@ -89,9 +88,7 @@ def require_version(requirement: str, hint: Optional[str] = None) -> None:
             op, want_ver = match[0]
             wanted[op] = want_ver
             if op not in ops:
-                raise ValueError(
-                    f"{requirement}: need one of {list(ops.keys())}, but got {op}"
-                )
+                raise ValueError(f"{requirement}: need one of {list(ops.keys())}, but got {op}")
 
     # special case
     if pkg == "python":

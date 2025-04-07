@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Third Party
-from torch import nn
 import torch
+from torch import nn
 
-# First Party
 from transformers import Speech2TextConfig, Speech2TextForConditionalGeneration
 
 
@@ -118,16 +115,7 @@ def convert_fairseq_s2t_checkpoint_to_tfms(checkpoint_path, pytorch_dump_folder_
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
-    parser.add_argument(
-        "--fairseq_path", type=str, help="Path to the fairseq model (.pt) file."
-    )
-    parser.add_argument(
-        "--pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
+    parser.add_argument("--fairseq_path", type=str, help="Path to the fairseq model (.pt) file.")
+    parser.add_argument("--pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
     args = parser.parse_args()
-    convert_fairseq_s2t_checkpoint_to_tfms(
-        args.fairseq_path, args.pytorch_dump_folder_path
-    )
+    convert_fairseq_s2t_checkpoint_to_tfms(args.fairseq_path, args.pytorch_dump_folder_path)

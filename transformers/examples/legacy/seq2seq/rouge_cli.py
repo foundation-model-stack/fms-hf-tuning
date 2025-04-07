@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
-from utils import calculate_rouge, save_json
 import fire
+
+from utils import calculate_rouge, save_json
 
 
 def calculate_rouge_path(pred_path, tgt_path, save_path=None, **kwargs):

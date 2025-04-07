@@ -14,23 +14,16 @@
 # limitations under the License.
 """Convert DPT 3.1 checkpoints from the MiDaS repository. URL: https://github.com/isl-org/MiDaS"""
 
-# Standard
-from pathlib import Path
 import argparse
+from pathlib import Path
 
-# Third Party
-from PIL import Image
 import requests
 import torch
+from PIL import Image
 
-# First Party
-from transformers import (
-    DPTConfig,
-    DPTForDepthEstimation,
-    DPTImageProcessor,
-    Swinv2Config,
-)
+from transformers import DPTConfig, DPTForDepthEstimation, DPTImageProcessor, Swinv2Config
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -231,7 +224,6 @@ def convert_dpt_checkpoint(model_name, pytorch_dump_folder_path, verify_logits, 
     processor(image, return_tensors="pt")
 
     if verify_logits:
-        # Third Party
         from torchvision import transforms
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"

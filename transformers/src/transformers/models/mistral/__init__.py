@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
@@ -22,6 +20,7 @@ from ...utils import (
     is_tf_available,
     is_torch_available,
 )
+
 
 _import_structure = {
     "configuration_mistral": ["MistralConfig"],
@@ -70,7 +69,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_mistral import MistralConfig
 
     try:
@@ -79,7 +77,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_mistral import (
             MistralForCausalLM,
             MistralForQuestionAnswering,
@@ -95,7 +92,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_flax_mistral import (
             FlaxMistralForCausalLM,
             FlaxMistralModel,
@@ -108,7 +104,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_tf_mistral import (
             TFMistralForCausalLM,
             TFMistralForSequenceClassification,
@@ -118,9 +113,6 @@ if TYPE_CHECKING:
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

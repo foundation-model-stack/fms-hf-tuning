@@ -14,13 +14,12 @@
 # limitations under the License.
 """Jukebox configuration"""
 
-# Standard
-from typing import List, Union
 import os
+from typing import List, Union
 
-# Local
 from ....configuration_utils import PretrainedConfig
 from ....utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -106,11 +105,7 @@ _LARGE_ATTENTION = [
     "prev_block_attn",
     "cross_attention",
 ]
-_RawColumnPreviousRowAttention = [
-    "block_attn",
-    "transpose_block_attn",
-    "prev_block_attn",
-]
+_RawColumnPreviousRowAttention = ["block_attn", "transpose_block_attn", "prev_block_attn"]
 _FullDenseAttention = ["dense_attention"]
 _PrimePrimeDenseAttention = ["prime_attn", "prime_attn", "dense_attn"]
 
@@ -355,19 +350,13 @@ class JukeboxPriorConfig(PretrainedConfig):
     ) -> "PretrainedConfig":
         cls._set_token_in_kwargs(kwargs)
 
-        config_dict, kwargs = cls.get_config_dict(
-            pretrained_model_name_or_path, **kwargs
-        )
+        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
 
         # get the prior config dict if we are loading from JukeboxConfig
         if config_dict.get("model_type") == "jukebox":
             config_dict = config_dict[f"prior_{level}"]
 
-        if (
-            "model_type" in config_dict
-            and hasattr(cls, "model_type")
-            and config_dict["model_type"] != cls.model_type
-        ):
+        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -481,24 +470,16 @@ class JukeboxVQVAEConfig(PretrainedConfig):
         self.zero_out = zero_out
 
     @classmethod
-    def from_pretrained(
-        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
-    ) -> "PretrainedConfig":
+    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
         cls._set_token_in_kwargs(kwargs)
 
-        config_dict, kwargs = cls.get_config_dict(
-            pretrained_model_name_or_path, **kwargs
-        )
+        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
 
         # get the text config dict if we are loading from CLIPConfig
         if config_dict.get("model_type") == "jukebox":
             config_dict = config_dict["vqvae_config"]
 
-        if (
-            "model_type" in config_dict
-            and hasattr(cls, "model_type")
-            and config_dict["model_type"] != cls.model_type
-        ):
+        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
             logger.warning(
                 f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
                 f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
@@ -579,15 +560,11 @@ class JukeboxConfig(PretrainedConfig):
     ):
         if vqvae_config is None:
             vqvae_config = {}
-            logger.info(
-                "vqvae_config is None. initializing the JukeboxVQVAE with default values."
-            )
+            logger.info("vqvae_config is None. initializing the JukeboxVQVAE with default values.")
 
         self.vqvae_config = JukeboxVQVAEConfig(**vqvae_config)
         if prior_config_list is not None:
-            self.prior_configs = [
-                JukeboxPriorConfig(**prior_config) for prior_config in prior_config_list
-            ]
+            self.prior_configs = [JukeboxPriorConfig(**prior_config) for prior_config in prior_config_list]
         else:
             self.prior_configs = []
             for prior_idx in range(nb_priors):
@@ -615,12 +592,7 @@ class JukeboxConfig(PretrainedConfig):
         super().__init__(**kwargs)
 
     @classmethod
-    def from_configs(
-        cls,
-        prior_configs: List[JukeboxPriorConfig],
-        vqvae_config: JukeboxVQVAEConfig,
-        **kwargs,
-    ):
+    def from_configs(cls, prior_configs: List[JukeboxPriorConfig], vqvae_config: JukeboxVQVAEConfig, **kwargs):
         r"""
         Instantiate a [`JukeboxConfig`] (or a derived class) from clip text model configuration and clip vision model
         configuration.
@@ -629,16 +601,10 @@ class JukeboxConfig(PretrainedConfig):
             [`JukeboxConfig`]: An instance of a configuration object
         """
         prior_config_list = [config.to_dict() for config in prior_configs]
-        return cls(
-            prior_config_list=prior_config_list,
-            vqvae_config_dict=vqvae_config.to_dict(),
-            **kwargs,
-        )
+        return cls(prior_config_list=prior_config_list, vqvae_config_dict=vqvae_config.to_dict(), **kwargs)
 
     def to_dict(self):
         # Override the default to_dict to apply to_dict to the list of prior configs.
         result = super().to_dict()
-        result["prior_config_list"] = [
-            config.to_dict() for config in result.pop("prior_configs")
-        ]
+        result["prior_config_list"] = [config.to_dict() for config in result.pop("prior_configs")]
         return result

@@ -14,18 +14,14 @@
 # limitations under the License.
 """PyTorch ColPali model"""
 
-# Standard
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-# Third Party
-from torch import nn
 import torch
+from torch import nn
 
-# First Party
 from transformers import AutoModelForImageTextToText
 
-# Local
 from ...cache_utils import Cache
 from ...modeling_utils import PreTrainedModel
 from ...utils import (
@@ -35,6 +31,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_colpali import ColPaliConfig
+
 
 _CONFIG_FOR_DOC = "ColPaliConfig"
 
@@ -114,7 +111,7 @@ class ColPaliForRetrievalOutput(ModelOutput):
     """
 
     loss: Optional[torch.FloatTensor] = None
-    embeddings: torch.Tensor = None
+    embeddings: Optional[torch.Tensor] = None
     past_key_values: Optional[Union[List[torch.FloatTensor], Cache]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
@@ -179,9 +176,7 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
 
         vlm = AutoModelForImageTextToText.from_config(config.vlm_config)
         if vlm.language_model._tied_weights_keys is not None:
-            self._tied_weights_keys = [
-                f"vlm.language_model.{k}" for k in vlm.language_model._tied_weights_keys
-            ]
+            self._tied_weights_keys = [f"vlm.language_model.{k}" for k in vlm.language_model._tied_weights_keys]
         self.vlm = vlm
 
         self.embedding_dim = self.config.embedding_dim
@@ -193,13 +188,11 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
         self.post_init()
 
     @add_start_docstrings_to_model_forward(COLPALI_FOR_RETRIEVAL_INPUT_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=ColPaliForRetrievalOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=ColPaliForRetrievalOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
-        input_ids: torch.LongTensor = None,
-        pixel_values: torch.FloatTensor = None,
+        input_ids: Optional[torch.LongTensor] = None,
+        pixel_values: Optional[torch.FloatTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -211,20 +204,12 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
         """
         if "pixel_values" in kwargs:
             kwargs["pixel_values"] = kwargs["pixel_values"].to(dtype=self.dtype)
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
 
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.vlm(
             input_ids=input_ids,
@@ -236,29 +221,19 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
             **kwargs,
         )
 
-        last_hidden_states = outputs.hidden_states[
-            -1
-        ]  # (batch_size, sequence_length, hidden_size)
-        embeddings = self.embedding_proj_layer(
-            last_hidden_states
-        )  # (batch_size, sequence_length, dim)
+        last_hidden_states = outputs.hidden_states[-1]  # (batch_size, sequence_length, hidden_size)
+        embeddings = self.embedding_proj_layer(last_hidden_states)  # (batch_size, sequence_length, dim)
 
         # L2 normalization
-        embeddings = embeddings / embeddings.norm(
-            dim=-1, keepdim=True
-        )  # (batch_size, sequence_length, dim)
+        embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)  # (batch_size, sequence_length, dim)
 
-        embeddings = embeddings * attention_mask.unsqueeze(
-            -1
-        )  # (batch_size, sequence_length, dim)
+        embeddings = embeddings * attention_mask.unsqueeze(-1)  # (batch_size, sequence_length, dim)
 
         loss = None
         if not return_dict:
             output = (embeddings,) + outputs[2:]
             output[2] = output[2] if output_hidden_states is not None else None
-            output[-1] = (
-                outputs.image_hidden_states if pixel_values is not None else None,
-            )
+            output[-1] = (outputs.image_hidden_states if pixel_values is not None else None,)
             return (loss,) + output if loss is not None else output
 
         return ColPaliForRetrievalOutput(
@@ -267,9 +242,7 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states if output_hidden_states else None,
             attentions=outputs.attentions,
-            image_hidden_states=outputs.image_hidden_states
-            if pixel_values is not None
-            else None,
+            image_hidden_states=outputs.image_hidden_states if pixel_values is not None else None,
         )
 
     def get_input_embeddings(self):

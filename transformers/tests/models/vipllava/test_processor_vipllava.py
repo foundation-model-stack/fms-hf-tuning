@@ -11,15 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_vision
 from transformers.utils import is_vision_available
 
+
 if is_vision_available():
-    # First Party
     from transformers import AutoProcessor
 
 
@@ -39,7 +37,5 @@ class LlavaProcessorTest(unittest.TestCase):
             },
         ]
 
-        formatted_prompt = processor.apply_chat_template(
-            messages, add_generation_prompt=True
-        )
+        formatted_prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
         self.assertEqual(expected_prompt, formatted_prompt)

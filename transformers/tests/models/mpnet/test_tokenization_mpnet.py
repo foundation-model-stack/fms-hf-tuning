@@ -14,19 +14,13 @@
 # limitations under the License.
 
 
-# Standard
 import os
 import unittest
 
-# First Party
 from transformers import MPNetTokenizerFast
-from transformers.models.mpnet.tokenization_mpnet import (
-    VOCAB_FILES_NAMES,
-    MPNetTokenizer,
-)
+from transformers.models.mpnet.tokenization_mpnet import VOCAB_FILES_NAMES, MPNetTokenizer
 from transformers.testing_utils import require_tokenizers, slow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
@@ -38,8 +32,9 @@ class MPNetTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = True
     space_between_special_tokens = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         vocab_tokens = [
             "[UNK]",
@@ -58,8 +53,8 @@ class MPNetTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
             "low",
             "lowest",
         ]
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as vocab_writer:
             vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
 
     def get_input_output_texts(self, tokenizer):
@@ -72,9 +67,7 @@ class MPNetTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
 
         tokens = tokenizer.tokenize("UNwant\u00e9d,running")
         self.assertListEqual(tokens, ["un", "##want", "##ed", ",", "runn", "##ing"])
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(tokens), [9, 6, 7, 12, 10, 11]
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(tokens), [9, 6, 7, 12, 10, 11])
 
     @slow
     def test_sequence_builders(self):

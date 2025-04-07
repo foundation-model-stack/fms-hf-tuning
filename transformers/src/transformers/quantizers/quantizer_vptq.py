@@ -11,26 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING, List, Optional
 
-# Local
 from .base import HfQuantizer
+
 
 if TYPE_CHECKING:
     from ..modeling_utils import PreTrainedModel
 
-# Local
-from ..utils import (
-    is_accelerate_available,
-    is_torch_available,
-    is_vptq_available,
-    logging,
-)
+from ..utils import is_accelerate_available, is_torch_available, is_vptq_available, logging
 from ..utils.quantization_config import QuantizationConfigMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 logger = logging.get_logger(__name__)
@@ -50,14 +43,10 @@ class VptqHfQuantizer(HfQuantizer):
 
     def validate_environment(self, *args, **kwargs):
         if not is_accelerate_available():
-            raise ImportError(
-                "Using `vptq` quantization requires Accelerate: `pip install accelerate`"
-            )
+            raise ImportError("Using `vptq` quantization requires Accelerate: `pip install accelerate`")
 
         if not is_vptq_available():
-            raise ImportError(
-                "Using `vptq` quantization requires VPTQ>=0.0.4: `pip install -U vptq`"
-            )
+            raise ImportError("Using `vptq` quantization requires VPTQ>=0.0.4: `pip install -U vptq`")
 
     def update_torch_dtype(self, torch_dtype: "torch.dtype") -> "torch.dtype":
         if torch_dtype is None:
@@ -67,20 +56,13 @@ class VptqHfQuantizer(HfQuantizer):
                     "CUDA available. Assuming VPTQ inference on GPU and loading the model in `torch.float16`. To overwrite it, set `torch_dtype` manually."
                 )
             else:
-                # Third Party
                 import vptq
 
-                device_availability = getattr(
-                    vptq, "device_availability", lambda device: False
-                )
+                device_availability = getattr(vptq, "device_availability", lambda device: False)
                 if device_availability("cpu") is True:
-                    raise RuntimeError(
-                        "No GPU found. Please wait for the next release of VPTQ to use CPU inference"
-                    )
+                    raise RuntimeError("No GPU found. Please wait for the next release of VPTQ to use CPU inference")
                 torch_dtype = torch.float32
-                logger.info(
-                    "No GPU found. Assuming VPTQ inference on CPU and loading the model in `torch.float32`."
-                )
+                logger.info("No GPU found. Assuming VPTQ inference on CPU and loading the model in `torch.float32`.")
         return torch_dtype
 
     def _process_model_before_weight_loading(
@@ -93,7 +75,6 @@ class VptqHfQuantizer(HfQuantizer):
         we don't have param like modules_to_not_convert to indicate which layers should not be quantized
         because `quantization_config` include the layers that should be quantized
         """
-        # Local
         from ..integrations import replace_with_vptq_linear
 
         self.modules_to_not_convert = self.get_modules_to_not_convert(

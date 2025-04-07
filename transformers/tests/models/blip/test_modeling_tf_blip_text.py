@@ -14,33 +14,23 @@
 # limitations under the License.
 """Testing suite for the TensorFlow Blip model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import BlipTextConfig
 from transformers.testing_utils import require_tf, slow
 from transformers.utils import is_tf_available
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_tf_common import (
-    TFModelTesterMixin,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_tf_common import TFModelTesterMixin, ids_tensor, random_attention_mask
+
 
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers import TFBlipTextModel
 
 
@@ -123,13 +113,8 @@ class BlipTextModelTester:
         model = TFBlipTextModel(config=config)
         result = model(input_ids, attention_mask=input_mask, training=False)
         result = model(input_ids, training=False)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -147,9 +132,7 @@ class BlipTextModelTest(TFModelTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = BlipTextModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=BlipTextConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=BlipTextConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -178,18 +161,6 @@ class BlipTextModelTest(TFModelTesterMixin, unittest.TestCase):
 
     @unittest.skip(reason="Blip does not use inputs_embeds")
     def test_inputs_embeds(self):
-        pass
-
-    @unittest.skip(
-        reason="BlipTextModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="BlipTextModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_to_base(self):
         pass
 
     @slow

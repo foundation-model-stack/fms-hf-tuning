@@ -13,12 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import copy
 import inspect
 import tempfile
 
-# First Party
 from transformers.testing_utils import require_torch, torch_device
 from transformers.utils.backbone_utils import BackboneType
 
@@ -34,14 +32,8 @@ class BackboneTesterMixin:
         # test default config
         config = config_class()
         self.assertIsNotNone(config)
-        num_stages = (
-            len(config.depths)
-            if hasattr(config, "depths")
-            else config.num_hidden_layers
-        )
-        expected_stage_names = ["stem"] + [
-            f"stage{idx}" for idx in range(1, num_stages + 1)
-        ]
+        num_stages = len(config.depths) if hasattr(config, "depths") else config.num_hidden_layers
+        expected_stage_names = ["stem"] + [f"stage{idx}" for idx in range(1, num_stages + 1)]
         self.assertEqual(config.stage_names, expected_stage_names)
         self.assertTrue(set(config.out_features).issubset(set(config.stage_names)))
 
@@ -63,9 +55,7 @@ class BackboneTesterMixin:
 
         # Only out_indices set
         config = config_class(out_indices=[0, 2])
-        self.assertEqual(
-            config.out_features, [config.stage_names[0], config.stage_names[2]]
-        )
+        self.assertEqual(config.out_features, [config.stage_names[0], config.stage_names[2]])
         self.assertEqual(config.out_indices, [0, 2])
 
         # Error raised when out_indices do not correspond to out_features
@@ -100,9 +90,7 @@ class BackboneTesterMixin:
             model = model_class(config)
             self.assertEqual(len(model.channels), len(config.out_features))
             num_features = model.num_features
-            out_indices = [
-                config.stage_names.index(feat) for feat in config.out_features
-            ]
+            out_indices = [config.stage_names.index(feat) for feat in config.out_features]
             out_channels = [num_features[idx] for idx in out_indices]
             self.assertListEqual(model.channels, out_channels)
 
@@ -181,9 +169,7 @@ class BackboneTesterMixin:
             self.assertTrue(len(backbone.channels) == len(backbone.out_indices))
             self.assertTrue(len(backbone.stage_names) == len(backbone.num_features))
             self.assertTrue(len(backbone.channels) <= len(backbone.num_features))
-            self.assertTrue(
-                len(backbone.out_feature_channels) == len(backbone.stage_names)
-            )
+            self.assertTrue(len(backbone.out_feature_channels) == len(backbone.stage_names))
 
     def test_backbone_outputs(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -208,9 +194,7 @@ class BackboneTesterMixin:
             outputs = backbone(**inputs_dict, output_hidden_states=True)
             self.assertIsNotNone(outputs.hidden_states)
             self.assertTrue(len(outputs.hidden_states), len(backbone.stage_names))
-            for hidden_state, n_channels in zip(
-                outputs.hidden_states, backbone.channels
-            ):
+            for hidden_state, n_channels in zip(outputs.hidden_states, backbone.channels):
                 self.assertTrue(hidden_state.shape[:2], (batch_size, n_channels))
 
             # Test output_attentions=True
@@ -236,9 +220,7 @@ class BackboneTesterMixin:
 
             # Order of channels returned is same as order of channels iterating over stage names
             channels_from_stage_names = [
-                backbone.out_feature_channels[name]
-                for name in backbone.stage_names
-                if name in backbone.out_features
+                backbone.out_feature_channels[name] for name in backbone.stage_names if name in backbone.out_features
             ]
             self.assertEqual(backbone.channels, channels_from_stage_names)
             for feature_map, n_channels in zip(outputs.feature_maps, backbone.channels):

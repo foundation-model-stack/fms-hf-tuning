@@ -1,4 +1,3 @@
-# First Party
 from transformers.models.clip.modeling_clip import CLIPEncoderLayer
 
 

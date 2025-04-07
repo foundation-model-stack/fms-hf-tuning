@@ -1,13 +1,9 @@
-# Standard
 from typing import List, Optional, Tuple, Union
 
-# Third Party
 import torch
 
-# First Party
 from transformers.models.bert.modeling_bert import BertModel
 
-# Local
 from ...modeling_outputs import BaseModelOutputWithPoolingAndCrossAttentions
 
 

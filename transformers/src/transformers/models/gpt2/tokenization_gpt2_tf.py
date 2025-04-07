@@ -1,13 +1,10 @@
-# Standard
-from typing import Dict, List, Union
 import os
+from typing import Dict, List, Optional, Union
 
-# Third Party
+import tensorflow as tf
 from keras_nlp.tokenizers import BytePairTokenizer
 from tensorflow_text import pad_model_inputs
-import tensorflow as tf
 
-# Local
 from ...modeling_tf_utils import keras
 from .tokenization_gpt2 import GPT2Tokenizer
 
@@ -32,8 +29,8 @@ class TFGPT2Tokenizer(keras.layers.Layer):
         self,
         vocab: Dict[str, int],
         merges: List[str],
-        max_length: int = None,
-        pad_token_id: int = None,
+        max_length: Optional[int] = None,
+        pad_token_id: Optional[int] = None,
     ):
         super().__init__()
         self.pad_token_id = pad_token_id
@@ -63,12 +60,7 @@ class TFGPT2Tokenizer(keras.layers.Layer):
         return cls(vocab, merges, *args, **kwargs)
 
     @classmethod
-    def from_pretrained(
-        cls,
-        pretrained_model_name_or_path: Union[str, os.PathLike],
-        *init_inputs,
-        **kwargs
-    ):
+    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], *init_inputs, **kwargs):
         """Creates TFGPT2Tokenizer from pretrained GPT2Tokenizer
 
         Args:
@@ -82,9 +74,7 @@ class TFGPT2Tokenizer(keras.layers.Layer):
         tf_tokenizer = TFGPT2Tokenizer.from_pretrained("openai-community/gpt2")
         ```
         """
-        tokenizer = GPT2Tokenizer.from_pretrained(
-            pretrained_model_name_or_path, *init_inputs, **kwargs
-        )
+        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model_name_or_path, *init_inputs, **kwargs)
         return cls.from_tokenizer(tokenizer, *init_inputs, **kwargs)
 
     @classmethod
@@ -104,7 +94,7 @@ class TFGPT2Tokenizer(keras.layers.Layer):
             "pad_token_id": self.pad_token_id,
         }
 
-    def call(self, x, max_length: int = None):
+    def call(self, x, max_length: Optional[int] = None):
         input_ids = self.tf_tokenizer(x)
         attention_mask = tf.ones_like(input_ids)
 

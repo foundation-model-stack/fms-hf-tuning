@@ -14,17 +14,15 @@
 # limitations under the License.
 """Tokenization class for model DeBERTa."""
 
-# Standard
-from typing import Any, Dict, List, Optional, Tuple
 import os
 import unicodedata
+from typing import Any, Dict, List, Optional, Tuple
 
-# Third Party
 import sentencepiece as sp
 
-# Local
 from ...tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -109,16 +107,9 @@ class DebertaV2Tokenizer(PreTrainedTokenizer):
         self.split_by_punct = split_by_punct
         self.vocab_file = vocab_file
         self._tokenizer = SPMTokenizer(
-            vocab_file,
-            None,
-            split_by_punct=split_by_punct,
-            sp_model_kwargs=self.sp_model_kwargs,
+            vocab_file, None, split_by_punct=split_by_punct, sp_model_kwargs=self.sp_model_kwargs
         )
-        unk_token = (
-            AddedToken(unk_token, normalized=True, special=True)
-            if isinstance(unk_token, str)
-            else unk_token
-        )
+        unk_token = AddedToken(unk_token, normalized=True, special=True) if isinstance(unk_token, str) else unk_token
         super().__init__(
             do_lower_case=do_lower_case,
             bos_token=bos_token,
@@ -159,11 +150,7 @@ class DebertaV2Tokenizer(PreTrainedTokenizer):
 
     def _convert_id_to_token(self, index):
         """Converts an index (integer) in a token (str) using the vocab."""
-        return (
-            self._tokenizer.spm.IdToPiece(index)
-            if index < self.vocab_size
-            else self.unk_token
-        )
+        return self._tokenizer.spm.IdToPiece(index) if index < self.vocab_size else self.unk_token
 
     def convert_tokens_to_string(self, tokens):
         """Converts a sequence of tokens (string) in a single string."""
@@ -193,9 +180,7 @@ class DebertaV2Tokenizer(PreTrainedTokenizer):
         sep = [self.sep_token_id]
         return cls + token_ids_0 + sep + token_ids_1 + sep
 
-    def get_special_tokens_mask(
-        self, token_ids_0, token_ids_1=None, already_has_special_tokens=False
-    ):
+    def get_special_tokens_mask(self, token_ids_0, token_ids_1=None, already_has_special_tokens=False):
         """
         Retrieves sequence ids from a token list that has no special tokens added. This method is called when adding
         special tokens using the tokenizer `prepare_for_model` or `encode_plus` methods.
@@ -214,9 +199,7 @@ class DebertaV2Tokenizer(PreTrainedTokenizer):
 
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=True,
+                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
             )
 
         if token_ids_1 is not None:
@@ -256,12 +239,8 @@ class DebertaV2Tokenizer(PreTrainedTokenizer):
             text = " " + text
         return (text, kwargs)
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
-        return self._tokenizer.save_pretrained(
-            save_directory, filename_prefix=filename_prefix
-        )
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+        return self._tokenizer.save_pretrained(save_directory, filename_prefix=filename_prefix)
 
 
 class SPMTokenizer:
@@ -290,11 +269,7 @@ class SPMTokenizer:
     """
 
     def __init__(
-        self,
-        vocab_file,
-        special_tokens,
-        split_by_punct=False,
-        sp_model_kwargs: Optional[Dict[str, Any]] = None,
+        self, vocab_file, special_tokens, split_by_punct=False, sp_model_kwargs: Optional[Dict[str, Any]] = None
     ):
         self.split_by_punct = split_by_punct
         self.vocab_file = vocab_file
@@ -391,11 +366,7 @@ class SPMTokenizer:
             return True
         if (
             len(token) == 1
-            and (
-                _is_whitespace(list(token)[0])
-                or _is_control(list(token)[0])
-                or _is_punctuation(list(token)[0])
-            )
+            and (_is_whitespace(list(token)[0]) or _is_control(list(token)[0]) or _is_punctuation(list(token)[0]))
         ) or token in self.special_tokens:
             return False
 
@@ -491,7 +462,7 @@ class SPMTokenizer:
 
         return ["".join(x) for x in output]
 
-    def save_pretrained(self, path: str, filename_prefix: str = None):
+    def save_pretrained(self, path: str, filename_prefix: Optional[str] = None):
         filename = VOCAB_FILES_NAMES[list(VOCAB_FILES_NAMES.keys())[0]]
         if filename_prefix is not None:
             filename = filename_prefix + "-" + filename
@@ -532,12 +503,7 @@ def _is_punctuation(char):
     # Characters such as "^", "$", and "`" are not in the Unicode
     # Punctuation class but we treat them as punctuation anyways, for
     # consistency.
-    if (
-        (cp >= 33 and cp <= 47)
-        or (cp >= 58 and cp <= 64)
-        or (cp >= 91 and cp <= 96)
-        or (cp >= 123 and cp <= 126)
-    ):
+    if (cp >= 33 and cp <= 47) or (cp >= 58 and cp <= 64) or (cp >= 91 and cp <= 96) or (cp >= 123 and cp <= 126):
         return True
     cat = unicodedata.category(char)
     if cat.startswith("P"):

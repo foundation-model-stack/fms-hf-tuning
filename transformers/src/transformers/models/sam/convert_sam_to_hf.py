@@ -20,18 +20,15 @@ URL: https://github.com/facebookresearch/segment-anything.
 Also supports converting the SlimSAM checkpoints from https://github.com/czg1225/SlimSAM/tree/master.
 """
 
-# Standard
 import argparse
 import re
 
-# Third Party
-from huggingface_hub import hf_hub_download
-from PIL import Image
 import numpy as np
 import requests
 import torch
+from huggingface_hub import hf_hub_download
+from PIL import Image
 
-# First Party
 from transformers import (
     SamConfig,
     SamImageProcessor,
@@ -112,9 +109,7 @@ def replace_keys(state_dict):
     state_dict.pop("pixel_mean", None)
     state_dict.pop("pixel_std", None)
 
-    output_hypernetworks_mlps_pattern = (
-        r".*.output_hypernetworks_mlps.(\d+).layers.(\d+).*"
-    )
+    output_hypernetworks_mlps_pattern = r".*.output_hypernetworks_mlps.(\d+).layers.(\d+).*"
 
     for key, value in state_dict.items():
         for key_to_modify, new_key in KEYS_TO_MODIFY_MAPPING.items():
@@ -139,9 +134,7 @@ def replace_keys(state_dict):
     return model_state_dict
 
 
-def convert_sam_checkpoint(
-    model_name, checkpoint_path, pytorch_dump_folder, push_to_hub
-):
+def convert_sam_checkpoint(model_name, checkpoint_path, pytorch_dump_folder, push_to_hub):
     config = get_config(model_name)
 
     state_dict = torch.load(checkpoint_path, map_location="cpu")
@@ -157,9 +150,7 @@ def convert_sam_checkpoint(
     hf_model.load_state_dict(state_dict)
     hf_model = hf_model.to(device)
 
-    img_url = (
-        "https://huggingface.co/ybelkada/segment-anything/resolve/main/assets/car.png"
-    )
+    img_url = "https://huggingface.co/ybelkada/segment-anything/resolve/main/assets/car.png"
     raw_image = Image.open(requests.get(img_url, stream=True).raw).convert("RGB")
 
     input_points = [[[500, 375]]]
@@ -173,10 +164,7 @@ def convert_sam_checkpoint(
 
     if model_name == "sam_vit_b_01ec64":
         inputs = processor(
-            images=np.array(raw_image),
-            input_points=input_points,
-            input_labels=input_labels,
-            return_tensors="pt",
+            images=np.array(raw_image), input_points=input_points, input_labels=input_labels, return_tensors="pt"
         ).to(device)
 
         with torch.no_grad():
@@ -185,10 +173,7 @@ def convert_sam_checkpoint(
 
     elif model_name == "sam_vit_h_4b8939":
         inputs = processor(
-            images=np.array(raw_image),
-            input_points=input_points,
-            input_labels=input_labels,
-            return_tensors="pt",
+            images=np.array(raw_image), input_points=input_points, input_labels=input_labels, return_tensors="pt"
         ).to(device)
 
         with torch.no_grad():
@@ -199,9 +184,7 @@ def convert_sam_checkpoint(
 
         input_boxes = ((75, 275, 1725, 850),)
 
-        inputs = processor(
-            images=np.array(raw_image), input_boxes=input_boxes, return_tensors="pt"
-        ).to(device)
+        inputs = processor(images=np.array(raw_image), input_boxes=input_boxes, return_tensors="pt").to(device)
 
         with torch.no_grad():
             output = hf_model(**inputs)
@@ -214,10 +197,7 @@ def convert_sam_checkpoint(
         input_labels = [[1, 1]]
 
         inputs = processor(
-            images=np.array(raw_image),
-            input_points=input_points,
-            input_labels=input_labels,
-            return_tensors="pt",
+            images=np.array(raw_image), input_points=input_points, input_labels=input_labels, return_tensors="pt"
         ).to(device)
 
         with torch.no_grad():
@@ -231,22 +211,14 @@ def convert_sam_checkpoint(
         hf_model.save_pretrained(pytorch_dump_folder)
 
     if push_to_hub:
-        repo_id = (
-            f"nielsr/{model_name}" if "slimsam" in model_name else f"meta/{model_name}"
-        )
+        repo_id = f"nielsr/{model_name}" if "slimsam" in model_name else f"meta/{model_name}"
         processor.push_to_hub(repo_id)
         hf_model.push_to_hub(repo_id)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    choices = [
-        "sam_vit_b_01ec64",
-        "sam_vit_h_4b8939",
-        "sam_vit_l_0b3195",
-        "slimsam-50-uniform",
-        "slimsam-77-uniform",
-    ]
+    choices = ["sam_vit_b_01ec64", "sam_vit_h_4b8939", "sam_vit_l_0b3195", "slimsam-50-uniform", "slimsam-77-uniform"]
     parser.add_argument(
         "--model_name",
         default="sam_vit_h_4b8939",
@@ -260,12 +232,7 @@ if __name__ == "__main__":
         required=False,
         help="Path to the original checkpoint",
     )
-    parser.add_argument(
-        "--pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
+    parser.add_argument("--pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
     parser.add_argument(
         "--push_to_hub",
         action="store_true",
@@ -277,17 +244,8 @@ if __name__ == "__main__":
     if "slimsam" in args.model_name:
         checkpoint_path = args.checkpoint_path
         if checkpoint_path is None:
-            raise ValueError(
-                "You need to provide a checkpoint path for SlimSAM models."
-            )
+            raise ValueError("You need to provide a checkpoint path for SlimSAM models.")
     else:
-        checkpoint_path = hf_hub_download(
-            "ybelkada/segment-anything", f"checkpoints/{args.model_name}.pth"
-        )
+        checkpoint_path = hf_hub_download("ybelkada/segment-anything", f"checkpoints/{args.model_name}.pth")
 
-    convert_sam_checkpoint(
-        args.model_name,
-        checkpoint_path,
-        args.pytorch_dump_folder_path,
-        args.push_to_hub,
-    )
+    convert_sam_checkpoint(args.model_name, checkpoint_path, args.pytorch_dump_folder_path, args.push_to_hub)

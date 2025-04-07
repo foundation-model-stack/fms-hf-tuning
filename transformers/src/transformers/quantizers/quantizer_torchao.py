@@ -11,33 +11,46 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import TYPE_CHECKING, Optional, Union
 import importlib
+import re
 import types
+from typing import TYPE_CHECKING, Optional, Union
 
-# Third Party
 from packaging import version
 
-# Local
 from .base import HfQuantizer
 from .quantizers_utils import get_module_from_name
+
 
 if TYPE_CHECKING:
     from ..modeling_utils import PreTrainedModel
 
-# Standard
 from typing import Any, Dict, List
 
-# Local
 from ..utils import is_torch_available, is_torchao_available, logging
+from ..utils.quantization_config import TorchAoConfig
+
 
 if is_torch_available():
-    # Third Party
     import torch
     import torch.nn as nn
 
 logger = logging.get_logger(__name__)
+
+
+def fuzzy_match_size(config_name: str) -> Optional[str]:
+    """
+    Extract the size digit from strings like "4weight", "8weight".
+    Returns the digit as an integer if found, otherwise None.
+    """
+    config_name = config_name.lower()
+
+    str_match = re.search(r"(\d)weight", config_name)
+
+    if str_match:
+        return str_match.group(1)
+
+    return None
 
 
 # Finds the parent of a node module named "name"
@@ -50,11 +63,8 @@ def find_parent(model, name):
 
 
 def _quantization_type(weight):
-    # Third Party
     from torchao.dtypes import AffineQuantizedTensor
-    from torchao.quantization.linear_activation_quantized_tensor import (
-        LinearActivationQuantizedTensor,
-    )
+    from torchao.quantization.linear_activation_quantized_tensor import LinearActivationQuantizedTensor
 
     if isinstance(weight, AffineQuantizedTensor):
         return f"{weight.__class__.__name__}({weight._quantization_type()})"
@@ -85,9 +95,7 @@ class TorchAoHfQuantizer(HfQuantizer):
 
     def validate_environment(self, *args, **kwargs):
         if not is_torchao_available():
-            raise ImportError(
-                "Loading an torchao quantized model requires torchao library (`pip install torchao`)"
-            )
+            raise ImportError("Loading an torchao quantized model requires torchao library (`pip install torchao`)")
 
         self.offload = False
         device_map = kwargs.get("device_map", None)
@@ -130,13 +138,28 @@ class TorchAoHfQuantizer(HfQuantizer):
                 torch_dtype = torch.float32
         return torch_dtype
 
-    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype":
-        if version.parse(importlib.metadata.version("accelerate")) > version.parse(
-            "0.19.0"
-        ):
-            # First Party
+    def adjust_target_dtype(self, torch_dtype: "torch.dtype") -> "torch.dtype":
+        if version.parse(importlib.metadata.version("accelerate")) > version.parse("0.19.0"):
             from accelerate.utils import CustomDtype
 
+            # Import AOBaseConfig directly since we know we have the right version
+            if self.quantization_config._get_ao_version() > version.Version("0.9.0"):
+                from torchao.core.config import AOBaseConfig
+
+                quant_type = self.quantization_config.quant_type
+                if isinstance(quant_type, AOBaseConfig):
+                    # Extract size digit using fuzzy match on the class name
+                    config_name = quant_type.__class__.__name__
+                    size_digit = fuzzy_match_size(config_name)
+
+                    # Map the extracted digit to appropriate dtype
+                    if size_digit == "4":
+                        return CustomDtype.INT4
+                    else:
+                        # Default to int8
+                        return torch.int8
+
+            # Original mapping for non-AOBaseConfig types
             map_to_target_dtype = {
                 "int4_weight_only": CustomDtype.INT4,
                 "int8_weight_only": torch.int8,
@@ -151,18 +174,13 @@ class TorchAoHfQuantizer(HfQuantizer):
                 "`pip install --upgrade accelerate`"
             )
 
-    def adjust_max_memory(
-        self, max_memory: Dict[str, Union[int, str]]
-    ) -> Dict[str, Union[int, str]]:
+    def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
         # need more space for the quantization parameters (e.g. scale). Tested with int4 wo and group size = 128
         max_memory = {key: val * 0.9 for key, val in max_memory.items()}
         return max_memory
 
     def _process_model_before_weight_loading(
-        self,
-        model: "PreTrainedModel",
-        keep_in_fp32_modules: Optional[List[str]] = None,
-        **kwargs,
+        self, model: "PreTrainedModel", keep_in_fp32_modules: Optional[List[str]] = None, **kwargs
     ):
         self.modules_to_not_convert = self.get_modules_to_not_convert(
             model, self.quantization_config.modules_to_not_convert, keep_in_fp32_modules
@@ -182,10 +200,7 @@ class TorchAoHfQuantizer(HfQuantizer):
 
         param_device = kwargs.pop("param_device", None)
         # check if the param_name is not in self.modules_to_not_convert
-        if any(
-            (key + "." in param_name) or (key == param_name)
-            for key in self.modules_to_not_convert
-        ):
+        if any((key + "." in param_name) or (key == param_name) for key in self.modules_to_not_convert):
             return False
         elif param_device == "cpu" and self.offload:
             # We don't quantize weights that we offload
@@ -211,27 +226,21 @@ class TorchAoHfQuantizer(HfQuantizer):
         if self.quantization_config.quant_type == "autoquant":
             return
 
-        # Third Party
         from torchao.quantization import quantize_
 
         module, tensor_name = get_module_from_name(model, param_name)
-
         if self.pre_quantized:
-            module._parameters[tensor_name] = torch.nn.Parameter(
-                param_value.to(device=target_device)
-            )
+            module._parameters[tensor_name] = torch.nn.Parameter(param_value.to(device=target_device))
             if isinstance(module, nn.Linear):
                 module.extra_repr = types.MethodType(_linear_extra_repr, module)
         else:
-            module._parameters[tensor_name] = torch.nn.Parameter(param_value).to(
-                device=target_device
-            )
+            assert isinstance(self.quantization_config, TorchAoConfig)
+            module._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device)
             quantize_(module, self.quantization_config.get_apply_tensor_subclass())
 
     def _process_model_after_weight_loading(self, model, **kwargs):
         """No process required for torchao quantized model"""
         if self.quantization_config.quant_type == "autoquant":
-            # Third Party
             from torchao import autoquant
             from torchao.quantization import ALL_AUTOQUANT_CLASS_LIST
 
@@ -239,25 +248,23 @@ class TorchAoHfQuantizer(HfQuantizer):
             model = autoquant(
                 model,
                 qtensor_class_list=ALL_AUTOQUANT_CLASS_LIST,
+                set_inductor_config=False,
                 **self.quantization_config.quant_type_kwargs,
             )
             return model
         return
 
-    def is_serializable(self, safe_serialization=None):
+    def is_serializable(self, safe_serialization=None) -> bool:
         if safe_serialization:
             logger.warning(
-                "torchao quantized model does not support safe serialization, "
-                "please set `safe_serialization` to False"
+                "torchao quantized model does not support safe serialization, please set `safe_serialization` to False"
             )
             return False
-        _is_torchao_serializable = version.parse(
-            importlib.metadata.version("huggingface_hub")
-        ) >= version.parse("0.25.0")
+        _is_torchao_serializable = version.parse(importlib.metadata.version("huggingface_hub")) >= version.parse(
+            "0.25.0"
+        )
         if not _is_torchao_serializable:
-            logger.warning(
-                "torchao quantized model is only serializable after huggingface_hub >= 0.25.0 "
-            )
+            logger.warning("torchao quantized model is only serializable after huggingface_hub >= 0.25.0 ")
         if self.offload and self.quantization_config.modules_to_not_convert is None:
             logger.warning(
                 "The model contains offloaded modules and these modules are not quantized. We don't recommend saving the model as we won't be able to reload them."
@@ -267,7 +274,7 @@ class TorchAoHfQuantizer(HfQuantizer):
         return _is_torchao_serializable
 
     @property
-    def is_trainable(self):
+    def is_trainable(self) -> bool:
         supported_quant_types_for_training = [
             "int8_weight_only",
             "int8_dynamic_activation_int8_weight",

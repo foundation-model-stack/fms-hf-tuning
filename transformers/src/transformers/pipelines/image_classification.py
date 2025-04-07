@@ -11,13 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import List, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ..utils import (
     ExplicitEnum,
     add_end_docstrings,
@@ -29,24 +26,18 @@ from ..utils import (
 )
 from .base import Pipeline, build_pipeline_init_args
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # Local
     from ..image_utils import load_image
 
 if is_tf_available():
-    # Local
-    from ..models.auto.modeling_tf_auto import (
-        TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES,
-    )
+    from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # Local
     from ..models.auto.modeling_auto import MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
@@ -131,11 +122,7 @@ class ImageClassificationPipeline(Pipeline):
             postprocess_params["function_to_apply"] = function_to_apply
         return preprocess_params, {}, postprocess_params
 
-    def __call__(
-        self,
-        inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None,
-        **kwargs,
-    ):
+    def __call__(self, inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None, **kwargs):
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -186,9 +173,7 @@ class ImageClassificationPipeline(Pipeline):
         if "images" in kwargs:
             inputs = kwargs.pop("images")
         if inputs is None:
-            raise ValueError(
-                "Cannot call the image-classification pipeline without an inputs argument!"
-            )
+            raise ValueError("Cannot call the image-classification pipeline without an inputs argument!")
         return super().__call__(inputs, **kwargs)
 
     def preprocess(self, image, timeout=None):
@@ -204,20 +189,11 @@ class ImageClassificationPipeline(Pipeline):
 
     def postprocess(self, model_outputs, function_to_apply=None, top_k=5):
         if function_to_apply is None:
-            if (
-                self.model.config.problem_type == "multi_label_classification"
-                or self.model.config.num_labels == 1
-            ):
+            if self.model.config.problem_type == "multi_label_classification" or self.model.config.num_labels == 1:
                 function_to_apply = ClassificationFunction.SIGMOID
-            elif (
-                self.model.config.problem_type == "single_label_classification"
-                or self.model.config.num_labels > 1
-            ):
+            elif self.model.config.problem_type == "single_label_classification" or self.model.config.num_labels > 1:
                 function_to_apply = ClassificationFunction.SOFTMAX
-            elif (
-                hasattr(self.model.config, "function_to_apply")
-                and function_to_apply is None
-            ):
+            elif hasattr(self.model.config, "function_to_apply") and function_to_apply is None:
                 function_to_apply = self.model.config.function_to_apply
             else:
                 function_to_apply = ClassificationFunction.NONE
@@ -238,13 +214,10 @@ class ImageClassificationPipeline(Pipeline):
         elif function_to_apply == ClassificationFunction.NONE:
             scores = outputs
         else:
-            raise ValueError(
-                f"Unrecognized `function_to_apply` argument: {function_to_apply}"
-            )
+            raise ValueError(f"Unrecognized `function_to_apply` argument: {function_to_apply}")
 
         dict_scores = [
-            {"label": self.model.config.id2label[i], "score": score.item()}
-            for i, score in enumerate(scores)
+            {"label": self.model.config.id2label[i], "score": score.item()} for i, score in enumerate(scores)
         ]
         dict_scores.sort(key=lambda x: x["score"], reverse=True)
         if top_k is not None:

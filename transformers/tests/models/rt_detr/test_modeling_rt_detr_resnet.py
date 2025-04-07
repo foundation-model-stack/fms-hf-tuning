@@ -13,20 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import RTDetrResNetConfig
-from transformers.testing_utils import require_torch, torch_device
+from transformers.testing_utils import require_torch
 from transformers.utils.import_utils import is_torch_available
 
-# Local
 from ...test_backbone_common import BackboneTesterMixin
 from ...test_modeling_common import floats_tensor, ids_tensor
 
+
 if is_torch_available():
-    # First Party
     from transformers import RTDetrResNetBackbone
 
 
@@ -65,9 +62,7 @@ class RTDetrResNetModelTester:
         self.out_indices = out_indices
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -88,41 +83,6 @@ class RTDetrResNetModelTester:
             out_features=self.out_features,
             out_indices=self.out_indices,
         )
-
-    def create_and_check_backbone(self, config, pixel_values, labels):
-        model = RTDetrResNetBackbone(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(pixel_values)
-
-        # verify feature maps
-        self.parent.assertEqual(len(result.feature_maps), len(config.out_features))
-        self.parent.assertListEqual(
-            list(result.feature_maps[0].shape),
-            [self.batch_size, self.hidden_sizes[1], 4, 4],
-        )
-
-        # verify channels
-        self.parent.assertEqual(len(model.channels), len(config.out_features))
-        self.parent.assertListEqual(model.channels, config.hidden_sizes[1:])
-
-        # verify backbone works with out_features=None
-        config.out_features = None
-        model = RTDetrResNetBackbone(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(pixel_values)
-
-        # verify feature maps
-        self.parent.assertEqual(len(result.feature_maps), 1)
-        self.parent.assertListEqual(
-            list(result.feature_maps[0].shape),
-            [self.batch_size, self.hidden_sizes[-1], 1, 1],
-        )
-
-        # verify channels
-        self.parent.assertEqual(len(model.channels), 1)
-        self.parent.assertListEqual(model.channels, [config.hidden_sizes[-1]])
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()

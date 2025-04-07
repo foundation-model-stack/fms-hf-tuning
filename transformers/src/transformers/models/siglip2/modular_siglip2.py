@@ -12,22 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import Optional, Tuple, Union
+from typing import Optional
 
-# Third Party
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-# First Party
-from transformers.models.siglip.configuration_siglip import (
-    SiglipConfig,
-    SiglipTextConfig,
-    SiglipVisionConfig,
-)
+from transformers.models.siglip.configuration_siglip import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
 from transformers.models.siglip.modeling_siglip import (
+    BaseModelOutput,
     BaseModelOutputWithPooling,
     ImageClassifierOutput,
     SiglipForImageClassification,
@@ -42,7 +36,6 @@ from transformers.models.siglip.modeling_siglip import (
     SiglipVisionTransformer,
 )
 
-# Local
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 
 
@@ -201,9 +194,7 @@ class Siglip2VisionEmbeddings(nn.Module):
             )
 
             # (1, dim, target_height, target_width) -> (target_height * target_width, dim)
-            resized_embeddings = resized_embeddings.reshape(
-                embed_dim, height * width
-            ).transpose(0, 1)
+            resized_embeddings = resized_embeddings.reshape(embed_dim, height * width).transpose(0, 1)
 
             # Cast to original dtype
             resized_embeddings = resized_embeddings.to(source_dtype)
@@ -213,9 +204,7 @@ class Siglip2VisionEmbeddings(nn.Module):
 
         return resulted_positional_embeddings
 
-    def forward(
-        self, pixel_values: torch.FloatTensor, spatial_shapes: torch.LongTensor
-    ) -> torch.Tensor:
+    def forward(self, pixel_values: torch.FloatTensor, spatial_shapes: torch.LongTensor) -> torch.Tensor:
         """
         Args:
             pixel_values (`torch.FloatTensor`):
@@ -254,52 +243,35 @@ class Siglip2VisionTransformer(SiglipVisionTransformer):
         spatial_shapes: torch.LongTensor,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
+    ) -> BaseModelOutputWithPooling:
         r"""
         Returns:
 
         """
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
         hidden_states = self.embeddings(pixel_values, spatial_shapes)
 
         if attention_mask is not None and not self._use_flash_attention_2:
             # [batch_size, seq_len] -> [batch_size, 1, tgt_seq_len, src_seq_len]
-            encoder_attention_mask = _prepare_4d_attention_mask(
-                attention_mask, hidden_states.dtype
-            )
+            encoder_attention_mask = _prepare_4d_attention_mask(attention_mask, hidden_states.dtype)
         else:
             encoder_attention_mask = attention_mask
 
-        encoder_outputs = self.encoder(
+        encoder_outputs: BaseModelOutput = self.encoder(
             inputs_embeds=hidden_states,
             attention_mask=encoder_attention_mask,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
-        last_hidden_state = encoder_outputs[0]
+        last_hidden_state = encoder_outputs.last_hidden_state
         last_hidden_state = self.post_layernorm(last_hidden_state)
 
-        pooler_output = (
-            self.head(last_hidden_state, attention_mask) if self.use_head else None
-        )
-        if not return_dict:
-            return (last_hidden_state, pooler_output) + encoder_outputs[1:]
+        pooler_output = self.head(last_hidden_state, attention_mask) if self.use_head else None
 
         return BaseModelOutputWithPooling(
             last_hidden_state=last_hidden_state,
@@ -322,23 +294,17 @@ class Siglip2MultiheadAttentionPoolingHead(SiglipMultiheadAttentionPoolingHead):
         super().__init__(config)
         self.num_heads = config.num_attention_heads
 
-    def forward(
-        self, hidden_state: torch.Tensor, attention_mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, hidden_state: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         batch_size = hidden_state.shape[0]
         probe = self.probe.repeat(batch_size, 1, 1)
 
         if attention_mask is not None:
             target_len, source_len = probe.shape[1], hidden_state.shape[1]
-            attention_mask = _prepare_4d_attention_mask(
-                attention_mask, hidden_state.dtype, target_len
-            )
+            attention_mask = _prepare_4d_attention_mask(attention_mask, hidden_state.dtype, target_len)
             attention_mask = attention_mask.repeat(1, self.num_heads, target_len, 1)
             attention_mask = attention_mask.reshape(-1, target_len, source_len)
 
-        hidden_state = self.attention(
-            probe, hidden_state, hidden_state, attn_mask=attention_mask
-        )[0]
+        hidden_state = self.attention(probe, hidden_state, hidden_state, attn_mask=attention_mask)[0]
 
         residual = hidden_state
         hidden_state = self.layernorm(hidden_state)
@@ -356,19 +322,13 @@ class Siglip2VisionModel(SiglipVisionModel):
         spatial_shapes: torch.LongTensor,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
-
+    ) -> BaseModelOutputWithPooling:
         return self.vision_model(
             pixel_values=pixel_values,
             attention_mask=pixel_attention_mask,
             spatial_shapes=spatial_shapes,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
 
@@ -381,33 +341,22 @@ class Siglip2Model(SiglipModel):
         spatial_shapes: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
     ) -> torch.FloatTensor:
         # Use Siglip2Model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
-        vision_outputs = self.vision_model(
+        vision_outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values=pixel_values,
             attention_mask=pixel_attention_mask,
             spatial_shapes=spatial_shapes,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
-        pooled_output = vision_outputs[1]
+        pooled_output = vision_outputs.pooler_output
 
         return pooled_output
 
@@ -423,56 +372,40 @@ class Siglip2Model(SiglipModel):
         return_loss: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Siglip2Output]:
+    ) -> Siglip2Output:
         # Use Siglip2 model's config for some fields (if specified) instead of those of vision & text components.
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
-        vision_outputs = self.vision_model(
+        vision_outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values=pixel_values,
             attention_mask=pixel_attention_mask,
             spatial_shapes=spatial_shapes,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
-        text_outputs = self.text_model(
+        text_outputs: BaseModelOutputWithPooling = self.text_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
-        image_embeds = vision_outputs[1]
-        text_embeds = text_outputs[1]
+        image_embeds = vision_outputs.pooler_output
+        text_embeds = text_outputs.pooler_output
 
         # normalized features
         image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
         text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)
 
         # cosine similarity as logits
-        logits_per_text = torch.matmul(
-            text_embeds, image_embeds.t().to(text_embeds.device)
-        )
+        logits_per_text = torch.matmul(text_embeds, image_embeds.t().to(text_embeds.device))
 
-        logit_scale, logit_bias = self.logit_scale.to(
-            text_embeds.device
-        ), self.logit_bias.to(text_embeds.device)
+        logit_scale, logit_bias = self.logit_scale.to(text_embeds.device), self.logit_bias.to(text_embeds.device)
         logits_per_text = logits_per_text * logit_scale.exp() + logit_bias
 
         logits_per_image = logits_per_text.t()
@@ -485,17 +418,6 @@ class Siglip2Model(SiglipModel):
             loglik = torch.nn.functional.logsigmoid(m1_diag1 * logits_per_text)
             nll = -torch.sum(loglik, dim=-1)
             loss = nll.mean()
-
-        if not return_dict:
-            output = (
-                logits_per_image,
-                logits_per_text,
-                text_embeds,
-                image_embeds,
-                text_outputs,
-                vision_outputs,
-            )
-            return ((loss,) + output) if loss is not None else output
 
         return Siglip2Output(
             loss=loss,
@@ -518,39 +440,26 @@ class Siglip2ForImageClassification(SiglipForImageClassification):
         labels: Optional[torch.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[tuple, ImageClassifierOutput]:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+    ) -> ImageClassifierOutput:
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
-        outputs = self.vision_model(
+        outputs: BaseModelOutputWithPooling = self.vision_model(
             pixel_values,
             attention_mask=pixel_attention_mask,
             spatial_shapes=spatial_shapes,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
-        sequence_output = outputs[0]
+        sequence_output = outputs.last_hidden_state
 
         # average pool the patch tokens
         if pixel_attention_mask is not None:
             pool_mask = pixel_attention_mask[..., None].to(sequence_output.device)
-            sequence_output = torch.sum(sequence_output * pool_mask, dim=1) / torch.sum(
-                pool_mask, dim=1
-            )
+            sequence_output = torch.sum(sequence_output * pool_mask, dim=1) / torch.sum(pool_mask, dim=1)
         else:
             sequence_output = torch.mean(sequence_output, dim=1)
 
@@ -564,9 +473,7 @@ class Siglip2ForImageClassification(SiglipForImageClassification):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -583,10 +490,6 @@ class Siglip2ForImageClassification(SiglipForImageClassification):
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
-
-        if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
 
         return ImageClassifierOutput(
             loss=loss,

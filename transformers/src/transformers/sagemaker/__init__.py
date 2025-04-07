@@ -12,6 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Local
 from .trainer_sm import SageMakerTrainer
 from .training_args_sm import SageMakerTrainingArguments, is_sagemaker_dp_enabled

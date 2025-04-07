@@ -14,13 +14,11 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import tempfile
 import unittest
 
-# First Party
 from transformers.modelcard import ModelCard, TrainingSummary
 
 
@@ -35,10 +33,7 @@ class ModelCardTester(unittest.TestCase):
             },
             "metrics": "BLEU and ROUGE-1",
             "evaluation_data": {
-                "Datasets": {
-                    "BLEU": "My-great-dataset-v1",
-                    "ROUGE-1": "My-short-dataset-v2.1",
-                },
+                "Datasets": {"BLEU": "My-great-dataset-v1", "ROUGE-1": "My-short-dataset-v2.1"},
                 "Preprocessing": "See details on https://arxiv.org/pdf/1810.03993.pdf",
             },
             "training_data": {

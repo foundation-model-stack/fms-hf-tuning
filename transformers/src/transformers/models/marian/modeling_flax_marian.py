@@ -14,25 +14,22 @@
 # limitations under the License.
 """Flax Marian model."""
 
-# Standard
-from functools import partial
-from typing import Callable, Optional, Tuple
 import math
 import random
+from functools import partial
+from typing import Callable, Optional, Tuple
 
-# Third Party
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
+import numpy as np
 from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from jax import lax
 from jax.random import PRNGKey
-import flax.linen as nn
-import jax
-import jax.numpy as jnp
-import numpy as np
 
-# Local
 from ...modeling_flax_outputs import (
     FlaxBaseModelOutput,
     FlaxBaseModelOutputWithPastAndCrossAttentions,
@@ -47,13 +44,9 @@ from ...modeling_flax_utils import (
     append_replace_return_docstrings,
     overwrite_call_docstring,
 )
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from .configuration_marian import MarianConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -224,12 +217,7 @@ MARIAN_DECODE_INPUTS_DOCSTRING = r"""
 
 
 def create_sinusoidal_positions(n_pos, dim):
-    position_enc = np.array(
-        [
-            [pos / np.power(10000, 2 * (j // 2) / dim) for j in range(dim)]
-            for pos in range(n_pos)
-        ]
-    )
+    position_enc = np.array([[pos / np.power(10000, 2 * (j // 2) / dim) for j in range(dim)] for pos in range(n_pos)])
     sentinel = dim // 2 + dim % 2
     out = np.zeros_like(position_enc)
     out[:, 0:sentinel] = np.sin(position_enc[:, 0::2])
@@ -239,9 +227,7 @@ def create_sinusoidal_positions(n_pos, dim):
 
 
 # Copied from transformers.models.bart.modeling_flax_bart.shift_tokens_right
-def shift_tokens_right(
-    input_ids: jnp.ndarray, pad_token_id: int, decoder_start_token_id: int
-) -> jnp.ndarray:
+def shift_tokens_right(input_ids: jnp.ndarray, pad_token_id: int, decoder_start_token_id: int) -> jnp.ndarray:
     """
     Shift input ids one token to the right.
     """
@@ -249,9 +235,7 @@ def shift_tokens_right(
     shifted_input_ids = shifted_input_ids.at[:, 1:].set(input_ids[:, :-1])
     shifted_input_ids = shifted_input_ids.at[:, 0].set(decoder_start_token_id)
 
-    shifted_input_ids = jnp.where(
-        shifted_input_ids == -100, pad_token_id, shifted_input_ids
-    )
+    shifted_input_ids = jnp.where(shifted_input_ids == -100, pad_token_id, shifted_input_ids)
     return shifted_input_ids
 
 
@@ -288,14 +272,11 @@ class FlaxMarianAttention(nn.Module):
 
         if self.causal:
             self.causal_mask = make_causal_mask(
-                jnp.ones((1, self.config.max_position_embeddings), dtype="bool"),
-                dtype="bool",
+                jnp.ones((1, self.config.max_position_embeddings), dtype="bool"), dtype="bool"
             )
 
     def _split_heads(self, hidden_states):
-        return hidden_states.reshape(
-            hidden_states.shape[:2] + (self.num_heads, self.head_dim)
-        )
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
 
     def _merge_heads(self, hidden_states):
         return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
@@ -309,15 +290,9 @@ class FlaxMarianAttention(nn.Module):
         """
         # detect if we're initializing by absence of existing cache data.
         is_initialized = self.has_variable("cache", "cached_key")
-        cached_key = self.variable(
-            "cache", "cached_key", jnp.zeros, key.shape, key.dtype
-        )
-        cached_value = self.variable(
-            "cache", "cached_value", jnp.zeros, value.shape, value.dtype
-        )
-        cache_index = self.variable(
-            "cache", "cache_index", lambda: jnp.array(0, dtype=jnp.int32)
-        )
+        cached_key = self.variable("cache", "cached_key", jnp.zeros, key.shape, key.dtype)
+        cached_value = self.variable("cache", "cached_value", jnp.zeros, value.shape, value.dtype)
+        cache_index = self.variable("cache", "cache_index", lambda: jnp.array(0, dtype=jnp.int32))
 
         if is_initialized:
             *batch_dims, max_length, num_heads, depth_per_head = cached_key.value.shape
@@ -376,21 +351,15 @@ class FlaxMarianAttention(nn.Module):
                 mask_shift = self.variables["cache"]["cache_index"]
                 max_decoder_length = self.variables["cache"]["cached_key"].shape[1]
                 causal_mask = lax.dynamic_slice(
-                    self.causal_mask,
-                    (0, 0, mask_shift, 0),
-                    (1, 1, query_length, max_decoder_length),
+                    self.causal_mask, (0, 0, mask_shift, 0), (1, 1, query_length, max_decoder_length)
                 )
             else:
                 causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-            causal_mask = jnp.broadcast_to(
-                causal_mask, (batch_size,) + causal_mask.shape[1:]
-            )
+            causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
 
         # combine masks if needed
         if attention_mask is not None and self.causal:
-            attention_mask = jnp.broadcast_to(
-                jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape
-            )
+            attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
             attention_mask = combine_masks(attention_mask, causal_mask)
         elif self.causal:
             attention_mask = causal_mask
@@ -410,9 +379,7 @@ class FlaxMarianAttention(nn.Module):
             attention_bias = lax.select(
                 attention_mask > 0,
                 jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(
-                    self.dtype
-                ),
+                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
         else:
             attention_bias = None
@@ -464,9 +431,7 @@ class FlaxMarianEncoderLayer(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
         self.fc2 = nn.Dense(
-            self.embed_dim,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.embed_dim, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
         self.final_layer_norm = nn.LayerNorm(dtype=self.dtype, epsilon=1e-05)
 
@@ -478,9 +443,7 @@ class FlaxMarianEncoderLayer(nn.Module):
         deterministic: bool = True,
     ) -> Tuple[jnp.ndarray]:
         residual = hidden_states
-        hidden_states, attn_weights = self.self_attn(
-            hidden_states=hidden_states, attention_mask=attention_mask
-        )
+        hidden_states, attn_weights = self.self_attn(hidden_states=hidden_states, attention_mask=attention_mask)
 
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -488,9 +451,7 @@ class FlaxMarianEncoderLayer(nn.Module):
 
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = self.activation_dropout_layer(
-            hidden_states, deterministic=deterministic
-        )
+        hidden_states = self.activation_dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -533,9 +494,7 @@ class FlaxMarianEncoderLayerCollection(nn.Module):
                 all_hidden_states = all_hidden_states + (hidden_states,)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
-            if not deterministic and (
-                dropout_probability < self.layerdrop
-            ):  # skip the layer
+            if not deterministic and (dropout_probability < self.layerdrop):  # skip the layer
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
@@ -557,9 +516,7 @@ class FlaxMarianEncoderLayerCollection(nn.Module):
             return tuple(v for v in outputs if v is not None)
 
         return FlaxBaseModelOutput(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
-            attentions=all_attentions,
+            last_hidden_state=hidden_states, hidden_states=all_hidden_states, attentions=all_attentions
         )
 
 
@@ -597,9 +554,7 @@ class FlaxMarianDecoderLayer(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
         self.fc2 = nn.Dense(
-            self.embed_dim,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.embed_dim, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
         self.final_layer_norm = nn.LayerNorm(dtype=self.dtype, epsilon=1e-05)
 
@@ -617,9 +572,7 @@ class FlaxMarianDecoderLayer(nn.Module):
 
         # Self Attention
         hidden_states, self_attn_weights = self.self_attn(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            init_cache=init_cache,
+            hidden_states=hidden_states, attention_mask=attention_mask, init_cache=init_cache
         )
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -635,18 +588,14 @@ class FlaxMarianDecoderLayer(nn.Module):
                 key_value_states=encoder_hidden_states,
                 attention_mask=encoder_attention_mask,
             )
-            hidden_states = self.dropout_layer(
-                hidden_states, deterministic=deterministic
-            )
+            hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = self.activation_dropout_layer(
-            hidden_states, deterministic=deterministic
-        )
+        hidden_states = self.activation_dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -687,9 +636,7 @@ class FlaxMarianDecoderLayerCollection(nn.Module):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        all_cross_attentions = (
-            () if (output_attentions and encoder_hidden_states is not None) else None
-        )
+        all_cross_attentions = () if (output_attentions and encoder_hidden_states is not None) else None
 
         for decoder_layer in self.layers:
             if output_hidden_states:
@@ -720,12 +667,7 @@ class FlaxMarianDecoderLayerCollection(nn.Module):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        outputs = [
-            hidden_states,
-            all_hidden_states,
-            all_self_attns,
-            all_cross_attentions,
-        ]
+        outputs = [hidden_states, all_hidden_states, all_self_attns, all_cross_attentions]
 
         if not return_dict:
             return tuple(v for v in outputs if v is not None)
@@ -750,9 +692,7 @@ class FlaxMarianEncoder(nn.Module):
         self.max_source_positions = self.config.max_position_embeddings
         self.embed_scale = math.sqrt(embed_dim) if self.config.scale_embedding else 1.0
 
-        self.embed_positions = create_sinusoidal_positions(
-            self.config.max_position_embeddings, embed_dim
-        )
+        self.embed_positions = create_sinusoidal_positions(self.config.max_position_embeddings, embed_dim)
         self.layers = FlaxMarianEncoderLayerCollection(self.config, self.dtype)
 
     def __call__(
@@ -806,13 +746,9 @@ class FlaxMarianDecoder(nn.Module):
 
         embed_dim = self.config.d_model
         self.max_target_positions = self.config.max_position_embeddings
-        self.embed_scale = (
-            math.sqrt(self.config.d_model) if self.config.scale_embedding else 1.0
-        )
+        self.embed_scale = math.sqrt(self.config.d_model) if self.config.scale_embedding else 1.0
 
-        self.embed_positions = create_sinusoidal_positions(
-            self.config.max_position_embeddings, embed_dim
-        )
+        self.embed_positions = create_sinusoidal_positions(self.config.max_position_embeddings, embed_dim)
         self.layers = FlaxMarianDecoderLayerCollection(self.config, self.dtype)
 
     def __call__(
@@ -876,12 +812,8 @@ class FlaxMarianModule(nn.Module):
             embedding_init=jax.nn.initializers.normal(self.config.init_std),
         )
 
-        self.encoder = FlaxMarianEncoder(
-            self.config, dtype=self.dtype, embed_tokens=self.shared
-        )
-        self.decoder = FlaxMarianDecoder(
-            self.config, dtype=self.dtype, embed_tokens=self.shared
-        )
+        self.encoder = FlaxMarianEncoder(self.config, dtype=self.dtype, embed_tokens=self.shared)
+        self.decoder = FlaxMarianDecoder(self.config, dtype=self.dtype, embed_tokens=self.shared)
 
     def _get_encoder_module(self):
         return self.encoder
@@ -953,18 +885,9 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         **kwargs,
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
-        super().__init__(
-            config,
-            module,
-            input_shape=input_shape,
-            seed=seed,
-            dtype=dtype,
-            _do_init=_do_init,
-        )
+        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(
-        self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None
-    ) -> FrozenDict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
         # init input tensors
         input_ids = jnp.zeros(input_shape, dtype="i4")
         # make sure initialization pass will work for FlaxMarianForSequenceClassificationModule
@@ -974,12 +897,8 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         decoder_attention_mask = jnp.ones_like(input_ids)
 
         batch_size, sequence_length = input_ids.shape
-        position_ids = jnp.broadcast_to(
-            jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-        )
-        decoder_position_ids = jnp.broadcast_to(
-            jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-        )
+        position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
+        decoder_position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         params_rng, dropout_rng = jax.random.split(rng)
         rngs = {"params": params_rng, "dropout": dropout_rng}
@@ -1022,24 +941,12 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         decoder_input_ids = jnp.ones((batch_size, max_length), dtype="i4")
         decoder_attention_mask = jnp.ones_like(decoder_input_ids)
         decoder_position_ids = jnp.broadcast_to(
-            jnp.arange(jnp.atleast_2d(decoder_input_ids).shape[-1]),
-            decoder_input_ids.shape,
+            jnp.arange(jnp.atleast_2d(decoder_input_ids).shape[-1]), decoder_input_ids.shape
         )
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
-            return decoder_module(
-                decoder_input_ids,
-                decoder_attention_mask,
-                decoder_position_ids,
-                **kwargs,
-            )
+            return decoder_module(decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs)
 
         init_variables = self.module.init(
             jax.random.PRNGKey(0),
@@ -1053,9 +960,7 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         return unfreeze(init_variables["cache"])
 
     @add_start_docstrings(MARIAN_ENCODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxBaseModelOutput, config_class=MarianConfig
-    )
+    @replace_return_docstrings(output_type=FlaxBaseModelOutput, config_class=MarianConfig)
     def encode(
         self,
         input_ids: jnp.ndarray,
@@ -1084,27 +989,17 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         >>> encoder_outputs = model.encode(**inputs)
         ```"""
 
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         if attention_mask is None:
             attention_mask = jnp.ones_like(input_ids)
         if position_ids is None:
             batch_size, sequence_length = input_ids.shape
-            position_ids = jnp.broadcast_to(
-                jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         # Handle any PRNG if needed
         rngs = {}
@@ -1129,10 +1024,7 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         )
 
     @add_start_docstrings(MARIAN_DECODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxBaseModelOutputWithPastAndCrossAttentions,
-        config_class=MarianConfig,
-    )
+    @replace_return_docstrings(output_type=FlaxBaseModelOutputWithPastAndCrossAttentions, config_class=MarianConfig)
     def decode(
         self,
         decoder_input_ids,
@@ -1170,19 +1062,11 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         >>> outputs = model.decode(decoder_input_ids, encoder_outputs)
         >>> last_decoder_hidden_states = outputs.last_hidden_state
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         encoder_hidden_states = encoder_outputs[0]
         if encoder_attention_mask is None:
@@ -1195,9 +1079,7 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
 
         if decoder_position_ids is None:
             if past_key_values is not None:
-                raise ValueError(
-                    "Make sure to provide `decoder_position_ids` when passing `past_key_values`."
-                )
+                raise ValueError("Make sure to provide `decoder_position_ids` when passing `past_key_values`.")
 
             decoder_position_ids = jnp.broadcast_to(
                 jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
@@ -1219,13 +1101,7 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         else:
             mutable = False
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
             return decoder_module(
                 decoder_input_ids,
@@ -1277,35 +1153,23 @@ class FlaxMarianPreTrainedModel(FlaxPreTrainedModel):
         params: dict = None,
         dropout_rng: PRNGKey = None,
     ):
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         # prepare encoder inputs
         if attention_mask is None:
             attention_mask = jnp.ones_like(input_ids)
         if position_ids is None:
             batch_size, sequence_length = input_ids.shape
-            position_ids = jnp.broadcast_to(
-                jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         # prepare decoder inputs
         if decoder_input_ids is None:
             decoder_input_ids = shift_tokens_right(
-                input_ids,
-                self.config.pad_token_id,
-                decoder_start_token_id=self.config.decoder_start_token_id,
+                input_ids, self.config.pad_token_id, decoder_start_token_id=self.config.decoder_start_token_id
             )
         if decoder_attention_mask is None:
             decoder_attention_mask = jnp.ones_like(decoder_input_ids)
@@ -1344,9 +1208,7 @@ class FlaxMarianModel(FlaxMarianPreTrainedModel):
     module_class = FlaxMarianModule
 
 
-append_call_sample_docstring(
-    FlaxMarianModel, _CHECKPOINT_FOR_DOC, FlaxSeq2SeqModelOutput, _CONFIG_FOR_DOC
-)
+append_call_sample_docstring(FlaxMarianModel, _CHECKPOINT_FOR_DOC, FlaxSeq2SeqModelOutput, _CONFIG_FOR_DOC)
 
 
 class FlaxMarianMTModule(nn.Module):
@@ -1362,9 +1224,7 @@ class FlaxMarianMTModule(nn.Module):
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
-        self.final_logits_bias = self.param(
-            "final_logits_bias", self.bias_init, (1, self.model.shared.num_embeddings)
-        )
+        self.final_logits_bias = self.param("final_logits_bias", self.bias_init, (1, self.model.shared.num_embeddings))
 
     def _get_encoder_module(self):
         return self.model.encoder
@@ -1402,9 +1262,7 @@ class FlaxMarianMTModule(nn.Module):
 
         if self.config.tie_word_embeddings:
             shared_embedding = self.model.variables["params"]["shared"]["embedding"]
-            lm_logits = self.lm_head.apply(
-                {"params": {"kernel": shared_embedding.T}}, hidden_states
-            )
+            lm_logits = self.lm_head.apply({"params": {"kernel": shared_embedding.T}}, hidden_states)
         else:
             lm_logits = self.lm_head(hidden_states)
 
@@ -1426,17 +1284,14 @@ class FlaxMarianMTModule(nn.Module):
 
 
 @add_start_docstrings(
-    "The MARIAN Model with a language modeling head. Can be used for translation.",
-    MARIAN_START_DOCSTRING,
+    "The MARIAN Model with a language modeling head. Can be used for translation.", MARIAN_START_DOCSTRING
 )
 class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
     module_class = FlaxMarianMTModule
     dtype: jnp.dtype = jnp.float32
 
     @add_start_docstrings(MARIAN_DECODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxCausalLMOutputWithCrossAttentions, config_class=MarianConfig
-    )
+    @replace_return_docstrings(output_type=FlaxCausalLMOutputWithCrossAttentions, config_class=MarianConfig)
     def decode(
         self,
         decoder_input_ids,
@@ -1474,19 +1329,11 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
         >>> outputs = model.decode(decoder_input_ids, encoder_outputs)
         >>> logits = outputs.logits
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         encoder_hidden_states = encoder_outputs[0]
         if encoder_attention_mask is None:
@@ -1499,9 +1346,7 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
 
         if decoder_position_ids is None:
             if past_key_values is not None:
-                raise ValueError(
-                    "Make sure to provide `decoder_position_ids` when passing `past_key_values`."
-                )
+                raise ValueError("Make sure to provide `decoder_position_ids` when passing `past_key_values`.")
 
             decoder_position_ids = jnp.broadcast_to(
                 jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
@@ -1523,13 +1368,7 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
         else:
             mutable = False
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
             outputs = decoder_module(
                 decoder_input_ids,
@@ -1540,12 +1379,8 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
             hidden_states = outputs[0]
 
             if self.config.tie_word_embeddings:
-                shared_embedding = module.model.variables["params"]["shared"][
-                    "embedding"
-                ]
-                lm_logits = module.lm_head.apply(
-                    {"params": {"kernel": shared_embedding.T}}, hidden_states
-                )
+                shared_embedding = module.model.variables["params"]["shared"]["embedding"]
+                lm_logits = module.lm_head.apply({"params": {"kernel": shared_embedding.T}}, hidden_states)
             else:
                 lm_logits = module.lm_head(hidden_states)
             lm_logits += module.final_logits_bias.astype(self.dtype)
@@ -1616,13 +1451,9 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
         extended_attention_mask = jnp.ones((batch_size, max_length), dtype="i4")
         if decoder_attention_mask is not None:
             position_ids = decoder_attention_mask.cumsum(axis=-1) - 1
-            extended_attention_mask = lax.dynamic_update_slice(
-                extended_attention_mask, decoder_attention_mask, (0, 0)
-            )
+            extended_attention_mask = lax.dynamic_update_slice(extended_attention_mask, decoder_attention_mask, (0, 0))
         else:
-            position_ids = jnp.broadcast_to(
-                jnp.arange(seq_length, dtype="i4")[None, :], (batch_size, seq_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(seq_length, dtype="i4")[None, :], (batch_size, seq_length))
 
         return {
             "past_key_values": past_key_values,
@@ -1634,9 +1465,7 @@ class FlaxMarianMTModel(FlaxMarianPreTrainedModel):
 
     def update_inputs_for_generation(self, model_outputs, model_kwargs):
         model_kwargs["past_key_values"] = model_outputs.past_key_values
-        model_kwargs["decoder_position_ids"] = (
-            model_kwargs["decoder_position_ids"][:, -1:] + 1
-        )
+        model_kwargs["decoder_position_ids"] = model_kwargs["decoder_position_ids"][:, -1:] + 1
         return model_kwargs
 
 
@@ -1665,9 +1494,7 @@ overwrite_call_docstring(
     FlaxMarianMTModel,
     MARIAN_INPUTS_DOCSTRING + FLAX_MARIAN_MT_DOCSTRING,
 )
-append_replace_return_docstrings(
-    FlaxMarianMTModel, output_type=FlaxSeq2SeqLMOutput, config_class=_CONFIG_FOR_DOC
-)
+append_replace_return_docstrings(FlaxMarianMTModel, output_type=FlaxSeq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
 
 
 __all__ = ["FlaxMarianModel", "FlaxMarianMTModel", "FlaxMarianPreTrainedModel"]

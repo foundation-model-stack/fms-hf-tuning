@@ -12,19 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import Dict
 
-# Third Party
 import numpy as np
 
-# First Party
-from transformers import (
-    EvalPrediction,
-    HfArgumentParser,
-    TrainingArguments,
-    is_torch_available,
-)
+from transformers import EvalPrediction, HfArgumentParser, TrainingArguments, is_torch_available
 from transformers.testing_utils import (
     TestCasePlus,
     backend_device_count,
@@ -36,16 +28,15 @@ from transformers.testing_utils import (
 from transformers.training_args import ParallelMode
 from transformers.utils import logging
 
+
 logger = logging.get_logger(__name__)
 
 
 if is_torch_available():
-    # Third Party
+    import torch
     from torch import nn
     from torch.utils.data import Dataset, IterableDataset
-    import torch
 
-    # First Party
     from transformers import Trainer
 
     class DummyDataset(Dataset):
@@ -60,10 +51,7 @@ if is_torch_available():
 
     class DummyDataCollator:
         def __call__(self, features):
-            return {
-                "input_ids": torch.tensor(features),
-                "labels": torch.tensor(features),
-            }
+            return {"input_ids": torch.tensor(features), "labels": torch.tensor(features)}
 
     class DummyModel(nn.Module):
         def __init__(self):
@@ -94,9 +82,7 @@ if is_torch_available():
 
     class SampleIterableDataset(IterableDataset):
         def __init__(self, a=2, b=3, length=64, seed=42, label_names=None):
-            self.dataset = RegressionDataset(
-                a=a, b=b, length=length, seed=seed, label_names=label_names
-            )
+            self.dataset = RegressionDataset(a=a, b=b, length=length, seed=seed, label_names=label_names)
 
         def __iter__(self):
             for i in range(len(self.dataset)):
@@ -118,10 +104,7 @@ if is_torch_available():
             self.label_names = ["labels"] if label_names is None else label_names
             self.length = length
             self.x = np.random.normal(size=(length,)).astype(np.float32)
-            self.ys = [
-                a * self.x + b + np.random.normal(scale=0.1, size=(length,))
-                for _ in self.label_names
-            ]
+            self.ys = [a * self.x + b + np.random.normal(scale=0.1, size=(length,)) for _ in self.label_names]
             self.ys = [y.astype(np.float32) for y in self.ys]
 
         def __len__(self):
@@ -167,10 +150,7 @@ if __name__ == "__main__":
 
         def compute_metrics(p: EvalPrediction) -> Dict:
             sequential = list(range(len(dataset)))
-            success = (
-                p.predictions.tolist() == sequential
-                and p.label_ids.tolist() == sequential
-            )
+            success = p.predictions.tolist() == sequential and p.label_ids.tolist() == sequential
             if not success and training_args.local_rank == 0:
                 logger.warning(
                     "Predictions and/or labels do not match expected results:\n  - predictions: "
@@ -220,6 +200,8 @@ if __name__ == "__main__":
     model = RegressionModel()
     training_args.per_device_train_batch_size = 1
     training_args.max_steps = 1
-    training_args.dispatch_batches = False
+    training_args.accelerator_config = {
+        "dispatch_batches": False,
+    }
     trainer = Trainer(model, training_args, train_dataset=train_dataset)
     trainer.train()

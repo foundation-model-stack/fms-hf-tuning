@@ -13,24 +13,21 @@
 # limitations under the License.
 """Tests for the SpeechT5 processors."""
 
-# Standard
 import json
 import os
 import shutil
 import tempfile
 import unittest
 
-# First Party
 from transformers import is_speech_available, is_torch_available
 from transformers.models.speecht5 import SpeechT5Tokenizer
 from transformers.testing_utils import get_tests_dir, require_torch
 from transformers.utils import FEATURE_EXTRACTOR_NAME
 
+
 if is_speech_available() and is_torch_available():
-    # First Party
     from transformers import SpeechT5FeatureExtractor, SpeechT5Processor
 
-    # Local
     from .test_feature_extraction_speecht5 import floats_list
 
 
@@ -61,9 +58,7 @@ class SpeechT5ProcessorTest(unittest.TestCase):
             "return_attention_mask": True,
         }
 
-        self.feature_extraction_file = os.path.join(
-            self.tmpdirname, FEATURE_EXTRACTOR_NAME
-        )
+        self.feature_extraction_file = os.path.join(self.tmpdirname, FEATURE_EXTRACTOR_NAME)
         with open(self.feature_extraction_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(feature_extractor_map) + "\n")
 
@@ -80,9 +75,7 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         tokenizer = self.get_tokenizer()
         feature_extractor = self.get_feature_extractor()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         processor.save_pretrained(self.tmpdirname)
         processor = SpeechT5Processor.from_pretrained(self.tmpdirname)
@@ -90,50 +83,31 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         self.assertEqual(processor.tokenizer.get_vocab(), tokenizer.get_vocab())
         self.assertIsInstance(processor.tokenizer, SpeechT5Tokenizer)
 
-        self.assertEqual(
-            processor.feature_extractor.to_json_string(),
-            feature_extractor.to_json_string(),
-        )
+        self.assertEqual(processor.feature_extractor.to_json_string(), feature_extractor.to_json_string())
         self.assertIsInstance(processor.feature_extractor, SpeechT5FeatureExtractor)
 
     def test_save_load_pretrained_additional_features(self):
-        processor = SpeechT5Processor(
-            tokenizer=self.get_tokenizer(),
-            feature_extractor=self.get_feature_extractor(),
-        )
+        processor = SpeechT5Processor(tokenizer=self.get_tokenizer(), feature_extractor=self.get_feature_extractor())
         processor.save_pretrained(self.tmpdirname)
 
         tokenizer_add_kwargs = self.get_tokenizer(bos_token="(BOS)", eos_token="(EOS)")
-        feature_extractor_add_kwargs = self.get_feature_extractor(
-            do_normalize=False, padding_value=1.0
-        )
+        feature_extractor_add_kwargs = self.get_feature_extractor(do_normalize=False, padding_value=1.0)
 
         processor = SpeechT5Processor.from_pretrained(
-            self.tmpdirname,
-            bos_token="(BOS)",
-            eos_token="(EOS)",
-            do_normalize=False,
-            padding_value=1.0,
+            self.tmpdirname, bos_token="(BOS)", eos_token="(EOS)", do_normalize=False, padding_value=1.0
         )
 
-        self.assertEqual(
-            processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
         self.assertIsInstance(processor.tokenizer, SpeechT5Tokenizer)
 
-        self.assertEqual(
-            processor.feature_extractor.to_json_string(),
-            feature_extractor_add_kwargs.to_json_string(),
-        )
+        self.assertEqual(processor.feature_extractor.to_json_string(), feature_extractor_add_kwargs.to_json_string())
         self.assertIsInstance(processor.feature_extractor, SpeechT5FeatureExtractor)
 
     def test_feature_extractor(self):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         raw_speech = floats_list((3, 1000))
 
@@ -141,37 +115,27 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         input_processor = processor(audio=raw_speech, return_tensors="np")
 
         for key in input_feat_extract.keys():
-            self.assertAlmostEqual(
-                input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_feature_extractor_target(self):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         raw_speech = floats_list((3, 1000))
 
-        input_feat_extract = feature_extractor(
-            audio_target=raw_speech, return_tensors="np"
-        )
+        input_feat_extract = feature_extractor(audio_target=raw_speech, return_tensors="np")
         input_processor = processor(audio_target=raw_speech, return_tensors="np")
 
         for key in input_feat_extract.keys():
-            self.assertAlmostEqual(
-                input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_tokenizer(self):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         input_str = "This is a test string"
 
@@ -185,9 +149,7 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         input_str = "This is a test string"
 
@@ -201,9 +163,7 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         predicted_ids = [[1, 4, 5, 8, 1, 0, 8], [3, 4, 3, 1, 1, 8, 9]]
 
@@ -216,9 +176,7 @@ class SpeechT5ProcessorTest(unittest.TestCase):
         feature_extractor = self.get_feature_extractor()
         tokenizer = self.get_tokenizer()
 
-        processor = SpeechT5Processor(
-            tokenizer=tokenizer, feature_extractor=feature_extractor
-        )
+        processor = SpeechT5Processor(tokenizer=tokenizer, feature_extractor=feature_extractor)
 
         self.assertListEqual(
             processor.model_input_names,

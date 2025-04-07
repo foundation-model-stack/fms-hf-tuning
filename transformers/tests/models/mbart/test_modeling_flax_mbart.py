@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 import timeout_decorator  # noqa
 
-# First Party
 from transformers import MBartConfig, is_flax_available
-from transformers.testing_utils import (
-    require_flax,
-    require_sentencepiece,
-    require_tokenizers,
-    slow,
-)
+from transformers.testing_utils import require_flax, require_sentencepiece, require_tokenizers, slow
 from transformers.utils import cached_property
 
-# Local
 from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor
 
+
 if is_flax_available():
-    # Standard
     import os
 
     # The slow tests are often failing with OOM error on GPU
@@ -41,11 +32,9 @@ if is_flax_available():
     # but will be slower as stated here https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 
-    # Third Party
     import jax
     import jax.numpy as jnp
 
-    # First Party
     from transformers import AutoTokenizer
     from transformers.models.mbart.modeling_flax_mbart import (
         FlaxMBartForConditionalGeneration,
@@ -69,19 +58,13 @@ def prepare_mbart_inputs_dict(
     if attention_mask is None:
         attention_mask = np.where(input_ids != config.pad_token_id, 1, 0)
     if decoder_attention_mask is None:
-        decoder_attention_mask = np.where(
-            decoder_input_ids != config.pad_token_id, 1, 0
-        )
+        decoder_attention_mask = np.where(decoder_input_ids != config.pad_token_id, 1, 0)
     if head_mask is None:
         head_mask = np.ones((config.encoder_layers, config.encoder_attention_heads))
     if decoder_head_mask is None:
-        decoder_head_mask = np.ones(
-            (config.decoder_layers, config.decoder_attention_heads)
-        )
+        decoder_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     if cross_attn_head_mask is None:
-        cross_attn_head_mask = np.ones(
-            (config.decoder_layers, config.decoder_attention_heads)
-        )
+        cross_attn_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     return {
         "input_ids": input_ids,
         "decoder_input_ids": decoder_input_ids,
@@ -134,14 +117,8 @@ class FlaxMBartModelTester:
         self.initializer_range = initializer_range
 
     def prepare_config_and_inputs(self):
-        input_ids = np.clip(
-            ids_tensor([self.batch_size, self.seq_length - 1], self.vocab_size),
-            3,
-            self.vocab_size,
-        )
-        input_ids = np.concatenate(
-            (input_ids, 2 * np.ones((self.batch_size, 1), dtype=np.int64)), -1
-        )
+        input_ids = np.clip(ids_tensor([self.batch_size, self.seq_length - 1], self.vocab_size), 3, self.vocab_size)
+        input_ids = np.concatenate((input_ids, 2 * np.ones((self.batch_size, 1), dtype=np.int64)), -1)
 
         decoder_input_ids = shift_tokens_right(input_ids, 1)
 
@@ -182,12 +159,8 @@ class FlaxMBartModelTester:
             inputs_dict["decoder_attention_mask"],
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
-        decoder_attention_mask = jnp.ones(
-            (decoder_input_ids.shape[0], max_decoder_length), dtype="i4"
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
+        decoder_attention_mask = jnp.ones((decoder_input_ids.shape[0], max_decoder_length), dtype="i4")
 
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
@@ -201,9 +174,7 @@ class FlaxMBartModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -214,14 +185,10 @@ class FlaxMBartModelTester:
 
         outputs = model.decode(decoder_input_ids, encoder_outputs)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
-    def check_use_cache_forward_with_attn_mask(
-        self, model_class_name, config, inputs_dict
-    ):
+    def check_use_cache_forward_with_attn_mask(self, model_class_name, config, inputs_dict):
         max_decoder_length = 20
         model = model_class_name(config)
 
@@ -235,19 +202,12 @@ class FlaxMBartModelTester:
         decoder_attention_mask_cache = jnp.concatenate(
             [
                 decoder_attention_mask,
-                jnp.zeros(
-                    (
-                        decoder_attention_mask.shape[0],
-                        max_decoder_length - decoder_attention_mask.shape[1],
-                    )
-                ),
+                jnp.zeros((decoder_attention_mask.shape[0], max_decoder_length - decoder_attention_mask.shape[1])),
             ],
             axis=-1,
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
             (decoder_input_ids.shape[0], decoder_input_ids.shape[-1] - 1),
@@ -260,9 +220,7 @@ class FlaxMBartModelTester:
             past_key_values=past_key_values,
             decoder_position_ids=decoder_position_ids,
         )
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -271,15 +229,9 @@ class FlaxMBartModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        outputs = model.decode(
-            decoder_input_ids,
-            encoder_outputs,
-            decoder_attention_mask=decoder_attention_mask,
-        )
+        outputs = model.decode(decoder_input_ids, encoder_outputs, decoder_attention_mask=decoder_attention_mask)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
 
@@ -360,18 +312,14 @@ class MBartHeadTests(unittest.TestCase):
             max_position_embeddings=48,
         )
         lm_model = FlaxMBartForConditionalGeneration(config)
-        context = np.array(
-            [[71, 82, 18, 33, 46, 91, 2], [68, 34, 26, 58, 30, 2, 1]], dtype=np.int64
-        )
+        context = np.array([[71, 82, 18, 33, 46, 91, 2], [68, 34, 26, 58, 30, 2, 1]], dtype=np.int64)
         summary = np.array([[82, 71, 82, 18, 2], [58, 68, 2, 1, 1]], dtype=np.int64)
         outputs = lm_model(input_ids=context, decoder_input_ids=summary)
         expected_shape = (*summary.shape, config.vocab_size)
         self.assertEqual(outputs["logits"].shape, expected_shape)
 
     def test_shift_tokens_right(self):
-        input_ids = np.array(
-            [[71, 82, 18, 33, 2, 1, 1], [68, 34, 26, 58, 30, 82, 2]], dtype=np.int64
-        )
+        input_ids = np.array([[71, 82, 18, 33, 2, 1, 1], [68, 34, 26, 58, 30, 82, 2]], dtype=np.int64)
         shifted = shift_tokens_right(input_ids, 1)
         n_pad_before = np.equal(input_ids, 1).astype(np.float32).sum()
         n_pad_after = np.equal(shifted, 1).astype(np.float32).sum()
@@ -405,9 +353,7 @@ class FlaxMBartModelTest(FlaxModelTesterMixin, unittest.TestCase):
     def test_use_cache_forward_with_attn_mask(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs()
         for model_class in self.all_model_classes:
-            self.model_tester.check_use_cache_forward_with_attn_mask(
-                model_class, config, inputs_dict
-            )
+            self.model_tester.check_use_cache_forward_with_attn_mask(model_class, config, inputs_dict)
 
     def test_encode(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -419,9 +365,7 @@ class FlaxMBartModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
                 @jax.jit
                 def encode_jitted(input_ids, attention_mask=None, **kwargs):
-                    return model.encode(
-                        input_ids=input_ids, attention_mask=attention_mask
-                    )
+                    return model.encode(input_ids=input_ids, attention_mask=attention_mask)
 
                 with self.subTest("JIT Enabled"):
                     jitted_outputs = encode_jitted(**prepared_inputs_dict).to_tuple()
@@ -440,9 +384,7 @@ class FlaxMBartModelTest(FlaxModelTesterMixin, unittest.TestCase):
         for model_class in self.all_model_classes:
             with self.subTest(model_class.__name__):
                 model = model_class(config)
-                encoder_outputs = model.encode(
-                    inputs_dict["input_ids"], inputs_dict["attention_mask"]
-                )
+                encoder_outputs = model.encode(inputs_dict["input_ids"], inputs_dict["attention_mask"])
 
                 prepared_inputs_dict = {
                     "decoder_input_ids": inputs_dict["decoder_input_ids"],
@@ -451,9 +393,7 @@ class FlaxMBartModelTest(FlaxModelTesterMixin, unittest.TestCase):
                 }
 
                 @jax.jit
-                def decode_jitted(
-                    decoder_input_ids, decoder_attention_mask, encoder_outputs
-                ):
+                def decode_jitted(decoder_input_ids, decoder_attention_mask, encoder_outputs):
                     return model.decode(
                         decoder_input_ids=decoder_input_ids,
                         decoder_attention_mask=decoder_attention_mask,
@@ -474,9 +414,7 @@ class FlaxMBartModelTest(FlaxModelTesterMixin, unittest.TestCase):
     @slow
     def test_model_from_pretrained(self):
         for model_class_name in self.all_model_classes:
-            model = model_class_name.from_pretrained(
-                "facebook/mbart-large-cc25", from_pt=True
-            )
+            model = model_class_name.from_pretrained("facebook/mbart-large-cc25", from_pt=True)
             # FlaxMBartForSequenceClassification expects eos token in input_ids
             input_ids = np.ones((1, 1)) * model.config.eos_token_id
             outputs = model(input_ids)
@@ -501,9 +439,7 @@ class FlaxMBartModelIntegrationTest(unittest.TestCase):
 
     @cached_property
     def model(self):
-        model = FlaxMBartForConditionalGeneration.from_pretrained(
-            self.model_name, from_pt=True
-        )
+        model = FlaxMBartForConditionalGeneration.from_pretrained(self.model_name, from_pt=True)
         return model
 
     def _assert_generated_batch_equal_expected(self, **tokenizer_kwargs):
@@ -511,9 +447,7 @@ class FlaxMBartModelIntegrationTest(unittest.TestCase):
         self.assertListEqual(self.expected_text, generated_words)
 
     def translate_src_text(self, **tokenizer_kwargs):
-        model_inputs = self.tokenizer(
-            self.src_text, **tokenizer_kwargs, return_tensors="np"
-        )
+        model_inputs = self.tokenizer(self.src_text, **tokenizer_kwargs, return_tensors="np")
         generated_ids = self.model.generate(
             model_inputs.input_ids,
             attention_mask=model_inputs.attention_mask,
@@ -521,9 +455,7 @@ class FlaxMBartModelIntegrationTest(unittest.TestCase):
             early_stopping=True,
             num_beams=2,
         ).sequences
-        generated_words = self.tokenizer.batch_decode(
-            generated_ids, skip_special_tokens=True
-        )
+        generated_words = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         return generated_words
 
     @slow

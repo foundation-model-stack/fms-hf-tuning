@@ -17,12 +17,11 @@
 
 # this script dumps information about the environment
 
-# Standard
 import os
 import sys
 
-# First Party
 import transformers
+
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -30,7 +29,6 @@ print("Python version:", sys.version)
 print("transformers version:", transformers.__version__)
 
 try:
-    # Third Party
     import torch
 
     print("Torch version:", torch.__version__)
@@ -43,7 +41,6 @@ except ImportError:
     print("Torch version:", None)
 
 try:
-    # Third Party
     import deepspeed
 
     print("DeepSpeed version:", deepspeed.__version__)
@@ -51,7 +48,6 @@ except ImportError:
     print("DeepSpeed version:", None)
 
 try:
-    # Third Party
     import tensorflow as tf
 
     print("TensorFlow version:", tf.__version__)

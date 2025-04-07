@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import inspect
 import random
 import unittest
 
-# Third Party
 from datasets import Audio, load_dataset
 
-# First Party
 from transformers import UnivNetConfig, UnivNetFeatureExtractor
 from transformers.testing_utils import (
     cleanup,
@@ -31,15 +28,16 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_common import ModelTesterMixin, floats_tensor
+from ...test_modeling_common import (
+    ModelTesterMixin,
+    floats_tensor,
+)
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import UnivNetModel
 
 
@@ -70,15 +68,11 @@ class UnivNetModelTester:
         generator = torch.manual_seed(self.seed)
         noise_shape = (self.batch_size, self.seq_length, self.in_channels)
         # Create noise on CPU for reproducibility
-        noise_sequence = torch.randn(
-            noise_shape, generator=generator, dtype=torch.float
-        )
+        noise_sequence = torch.randn(noise_shape, generator=generator, dtype=torch.float)
         return noise_sequence
 
     def prepare_config_and_inputs(self):
-        spectrogram = floats_tensor(
-            [self.batch_size, self.seq_length, self.num_mel_bins], scale=1.0
-        )
+        spectrogram = floats_tensor([self.batch_size, self.seq_length, self.num_mel_bins], scale=1.0)
         noise_sequence = self.prepare_noise_sequence()
         noise_sequence = noise_sequence.to(spectrogram.device)
         config = self.get_config()
@@ -126,10 +120,7 @@ class UnivNetModelTest(ModelTesterMixin, unittest.TestCase):
     def setUp(self):
         self.model_tester = UnivNetModelTester(self)
         self.config_tester = ConfigTester(
-            self,
-            config_class=UnivNetConfig,
-            has_text_modality=False,
-            common_properties=["num_mel_bins"],
+            self, config_class=UnivNetConfig, has_text_modality=False, common_properties=["num_mel_bins"]
         )
 
     @unittest.skip(reason="fix this once it gets more usage")
@@ -155,29 +146,21 @@ class UnivNetModelTest(ModelTesterMixin, unittest.TestCase):
             expected_arg_names = [
                 "input_features",
             ]
-            self.assertListEqual(
-                arg_names[: len(expected_arg_names)], expected_arg_names
-            )
+            self.assertListEqual(arg_names[: len(expected_arg_names)], expected_arg_names)
 
     @unittest.skip(reason="UnivNetModel does not output hidden_states.")
     def test_hidden_states_output(self):
         pass
 
-    @unittest.skip(
-        reason="UnivNetModel.forward does not accept an inputs_embeds argument."
-    )
+    @unittest.skip(reason="UnivNetModel.forward does not accept an inputs_embeds argument.")
     def test_inputs_embeds(self):
         pass
 
-    @unittest.skip(
-        reason="UnivNetModel does not use input embeddings and thus has no get_input_embeddings method."
-    )
+    @unittest.skip(reason="UnivNetModel does not use input embeddings and thus has no get_input_embeddings method.")
     def test_model_get_set_embeddings(self):
         pass
 
-    @unittest.skip(
-        reason="UnivNetModel does not support all arguments tested, such as output_hidden_states."
-    )
+    @unittest.skip(reason="UnivNetModel does not support all arguments tested, such as output_hidden_states.")
     def test_model_outputs_equivalence(self):
         pass
 
@@ -217,13 +200,9 @@ class UnivNetModelTest(ModelTesterMixin, unittest.TestCase):
 
             with torch.no_grad():
                 outputs = model(
-                    inputs["input_features"][:1].to(torch_device),
-                    inputs["noise_sequence"][:1].to(torch_device),
+                    inputs["input_features"][:1].to(torch_device), inputs["noise_sequence"][:1].to(torch_device)
                 )[0]
-            self.assertTrue(
-                outputs.shape[0] == 1,
-                msg="Unbatched input should create batched output with bsz = 1",
-            )
+            self.assertTrue(outputs.shape[0] == 1, msg="Unbatched input should create batched output with bsz = 1")
 
 
 @require_torch_accelerator
@@ -234,30 +213,22 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
         cleanup(torch_device, gc_collect=True)
 
     def _load_datasamples(self, num_samples, sampling_rate=24000):
-        ds = load_dataset(
-            "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
-        )
+        ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
         ds = ds.cast_column("audio", Audio(sampling_rate=sampling_rate))
         # automatic decoding with librispeech
         speech_samples = ds.sort("id").select(range(num_samples))[:num_samples]["audio"]
 
-        return [x["array"] for x in speech_samples], [
-            x["sampling_rate"] for x in speech_samples
-        ]
+        return [x["array"] for x in speech_samples], [x["sampling_rate"] for x in speech_samples]
 
-    def get_inputs(
-        self, device, num_samples: int = 3, noise_length: int = 10, seed: int = 0
-    ):
+    def get_inputs(self, device, num_samples: int = 3, noise_length: int = 10, seed: int = 0):
         generator = torch.manual_seed(seed)
         # Note: hardcode model_in_channels -> 64
         if num_samples == 1:
             noise_sequence_shape = (64, noise_length)
         else:
             noise_sequence_shape = (num_samples, 64, noise_length)
-        # Explicity generate noise_sequence on CPU for consistency.
-        noise_sequence = torch.randn(
-            noise_sequence_shape, generator=generator, dtype=torch.float32, device="cpu"
-        )
+        # Explicitly generate noise_sequence on CPU for consistency.
+        noise_sequence = torch.randn(noise_sequence_shape, generator=generator, dtype=torch.float32, device="cpu")
         # Put noise_sequence on the desired device.
         noise_sequence = noise_sequence.to(device)
 
@@ -266,9 +237,7 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
             spectrogram_shape = [100, noise_length]
         else:
             spectrogram_shape = [num_samples, 100, noise_length]
-        spectrogram = floats_tensor(
-            spectrogram_shape, scale=1.0, rng=random.Random(seed)
-        )
+        spectrogram = floats_tensor(spectrogram_shape, scale=1.0, rng=random.Random(seed))
         # Note: spectrogram should already be on torch_device
 
         # Permute to match diffusers implementation
@@ -305,24 +274,10 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
 
         EXPECTED_MEAN = torch.tensor(-0.19989729)
         EXPECTED_STDDEV = torch.tensor(0.35230172)
-        EXPECTED_SLICE = torch.tensor(
-            [
-                -0.3408,
-                -0.6045,
-                -0.5052,
-                0.1160,
-                -0.1556,
-                -0.0405,
-                -0.3024,
-                -0.5290,
-                -0.5019,
-            ]
-        )
+        EXPECTED_SLICE = torch.tensor([-0.3408, -0.6045, -0.5052, 0.1160, -0.1556, -0.0405, -0.3024, -0.5290, -0.5019])
 
         torch.testing.assert_close(waveform_mean, EXPECTED_MEAN, rtol=1e-4, atol=1e-4)
-        torch.testing.assert_close(
-            waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4)
         torch.testing.assert_close(waveform_slice, EXPECTED_SLICE, rtol=5e-4, atol=5e-4)
 
     def test_model_inference_unbatched(self):
@@ -343,24 +298,10 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
 
         EXPECTED_MEAN = torch.tensor(-0.22895093)
         EXPECTED_STDDEV = torch.tensor(0.33986747)
-        EXPECTED_SLICE = torch.tensor(
-            [
-                -0.3276,
-                -0.5504,
-                -0.3484,
-                0.3574,
-                -0.0373,
-                -0.1826,
-                -0.4880,
-                -0.6431,
-                -0.5162,
-            ]
-        )
+        EXPECTED_SLICE = torch.tensor([-0.3276, -0.5504, -0.3484, 0.3574, -0.0373, -0.1826, -0.4880, -0.6431, -0.5162])
 
         torch.testing.assert_close(waveform_mean, EXPECTED_MEAN, rtol=1e-4, atol=1e-4)
-        torch.testing.assert_close(
-            waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4)
         torch.testing.assert_close(waveform_slice, EXPECTED_SLICE, rtol=1e-3, atol=1e-3)
 
     def test_integration(self):
@@ -368,18 +309,12 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
         model = UnivNetModel.from_pretrained("dg845/univnet-dev")
         model.eval().to(torch_device)
 
-        audio, sr = self._load_datasamples(
-            1, sampling_rate=feature_extractor.sampling_rate
-        )
+        audio, sr = self._load_datasamples(1, sampling_rate=feature_extractor.sampling_rate)
 
-        input_features = feature_extractor(
-            audio, sampling_rate=sr[0], return_tensors="pt"
-        ).input_features
+        input_features = feature_extractor(audio, sampling_rate=sr[0], return_tensors="pt").input_features
         input_features = input_features.to(device=torch_device)
 
-        input_speech = self.get_inputs(
-            torch_device, num_samples=1, noise_length=input_features.shape[1]
-        )
+        input_speech = self.get_inputs(torch_device, num_samples=1, noise_length=input_features.shape[1])
         input_speech["input_features"] = input_features
 
         with torch.no_grad():
@@ -397,7 +332,5 @@ class UnivNetModelIntegrationTests(unittest.TestCase):
         # fmt: on
 
         torch.testing.assert_close(waveform_mean, EXPECTED_MEAN, rtol=5e-6, atol=5e-6)
-        torch.testing.assert_close(
-            waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(waveform_stddev, EXPECTED_STDDEV, rtol=1e-4, atol=1e-4)
         torch.testing.assert_close(waveform_slice, EXPECTED_SLICE, rtol=5e-6, atol=5e-6)

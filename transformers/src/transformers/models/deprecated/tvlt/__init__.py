@@ -2,7 +2,6 @@
 # There's no way to ignore "F401 '...' imported but unused" warnings in this
 # module, but to preserve other warnings. So, don't check this module at all.
 
-# Standard
 # Copyright 2023 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +17,13 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-# Local
 from ....utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
     is_torch_available,
     is_vision_available,
 )
+
 
 _import_structure = {
     "configuration_tvlt": ["TvltConfig"],
@@ -55,10 +54,9 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_tvlt import TvltConfig
-    from .feature_extraction_tvlt import TvltFeatureExtractor
     from .processing_tvlt import TvltProcessor
+    from .feature_extraction_tvlt import TvltFeatureExtractor
 
     try:
         if not is_torch_available():
@@ -66,7 +64,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_tvlt import (
             TvltForAudioVisualClassification,
             TvltForPreTraining,
@@ -80,14 +77,10 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .image_processing_tvlt import TvltImageProcessor
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

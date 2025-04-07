@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
-from ..utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_torch_greater_or_equal,
-)
+from ..utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_torch_greater_or_equal
+
 
 _import_structure = {
     "aqlm": ["replace_with_aqlm_linear"],
@@ -59,7 +53,7 @@ _import_structure = {
         "unset_hf_deepspeed_config",
     ],
     "eetq": ["replace_with_eetq_linear"],
-    "fbgemm_fp8": ["FbgemmFp8Linear", "replace_with_fbgemm_fp8_linear"],
+    "fbgemm_fp8": ["FbgemmFp8Linear", "FbgemmFp8Llama4TextExperts", "replace_with_fbgemm_fp8_linear"],
     "finegrained_fp8": ["FP8Linear", "replace_with_fp8_linear"],
     "fsdp": ["is_fsdp_managed_module"],
     "ggml": [
@@ -76,6 +70,12 @@ _import_structure = {
         "replace_with_higgs_linear",
     ],
     "hqq": ["prepare_for_hqq_linear"],
+    "hub_kernels": [
+        "LayerRepository",
+        "register_kernel_mapping",
+        "replace_kernel_forward_from_hub",
+        "use_kernel_forward_from_hub",
+    ],
     "integration_utils": [
         "INTEGRATION_TO_CALLBACK",
         "AzureMLCallback",
@@ -156,7 +156,6 @@ else:
     ]
 
 if TYPE_CHECKING:
-    # Local
     from .aqlm import replace_with_aqlm_linear
     from .awq import (
         fuse_awq_modules,
@@ -193,7 +192,7 @@ if TYPE_CHECKING:
         unset_hf_deepspeed_config,
     )
     from .eetq import replace_with_eetq_linear
-    from .fbgemm_fp8 import FbgemmFp8Linear, replace_with_fbgemm_fp8_linear
+    from .fbgemm_fp8 import FbgemmFp8Linear, FbgemmFp8Llama4TextExperts, replace_with_fbgemm_fp8_linear
     from .finegrained_fp8 import FP8Linear, replace_with_fp8_linear
     from .fsdp import is_fsdp_managed_module
     from .ggml import (
@@ -203,13 +202,14 @@ if TYPE_CHECKING:
         load_dequant_gguf_tensor,
         load_gguf,
     )
-    from .higgs import (
-        HiggsLinear,
-        dequantize_higgs,
-        quantize_with_higgs,
-        replace_with_higgs_linear,
-    )
+    from .higgs import HiggsLinear, dequantize_higgs, quantize_with_higgs, replace_with_higgs_linear
     from .hqq import prepare_for_hqq_linear
+    from .hub_kernels import (
+        LayerRepository,
+        register_kernel_mapping,
+        replace_kernel_forward_from_hub,
+        use_kernel_forward_from_hub,
+    )
     from .integration_utils import (
         INTEGRATION_TO_CALLBACK,
         AzureMLCallback,
@@ -262,11 +262,7 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
-        from .executorch import (
-            TorchExportableModuleWithStaticCache,
-            convert_and_export_with_cache,
-        )
+        from .executorch import TorchExportableModuleWithStaticCache, convert_and_export_with_cache
 
     try:
         if not is_torch_greater_or_equal("2.3"):
@@ -274,7 +270,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .tensor_parallel import (
             SUPPORTED_TP_STYLES,
             shard_and_distribute_module,
@@ -287,12 +282,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .flex_attention import make_flex_block_causal_mask
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

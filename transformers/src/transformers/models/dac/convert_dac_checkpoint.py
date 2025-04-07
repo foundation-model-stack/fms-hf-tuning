@@ -12,16 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 import fnmatch
 import re
 
-# Third Party
 import torch
 
-# First Party
-from transformers import DacConfig, DacFeatureExtractor, DacModel, logging
+from transformers import (
+    DacConfig,
+    DacFeatureExtractor,
+    DacModel,
+    logging,
+)
+
 
 # checkpoints downloaded using:
 # pip install descript-audio-codec
@@ -50,9 +53,7 @@ def match_pattern(string, pattern):
         if part.startswith("block"):
             string_block_count += 1
 
-    return (
-        fnmatch.fnmatch(string, pattern) and string_block_count == pattern_block_count
-    )
+    return fnmatch.fnmatch(string, pattern) and string_block_count == pattern_block_count
 
 
 TOP_LEVEL_KEYS = []
@@ -63,26 +64,10 @@ MAPPING_ENCODER = {
     "encoder.block.0": ["encoder.conv1"],
     "encoder.block.5": ["encoder.snake1"],
     "encoder.block.6": ["encoder.conv2"],
-    "encoder.block.*.block.*.block.0".replace("*", r"\d+"): [
-        "encoder.block",
-        "res_unit",
-        "snake1",
-    ],
-    "encoder.block.*.block.*.block.1".replace("*", r"\d+"): [
-        "encoder.block",
-        "res_unit",
-        "conv1",
-    ],
-    "encoder.block.*.block.*.block.2".replace("*", r"\d+"): [
-        "encoder.block",
-        "res_unit",
-        "snake2",
-    ],
-    "encoder.block.*.block.*.block.3".replace("*", r"\d+"): [
-        "encoder.block",
-        "res_unit",
-        "conv2",
-    ],
+    "encoder.block.*.block.*.block.0".replace("*", r"\d+"): ["encoder.block", "res_unit", "snake1"],
+    "encoder.block.*.block.*.block.1".replace("*", r"\d+"): ["encoder.block", "res_unit", "conv1"],
+    "encoder.block.*.block.*.block.2".replace("*", r"\d+"): ["encoder.block", "res_unit", "snake2"],
+    "encoder.block.*.block.*.block.3".replace("*", r"\d+"): ["encoder.block", "res_unit", "conv2"],
     "encoder.block.*.block.3".replace("*", r"\d+"): ["encoder.block", "snake1"],
     "encoder.block.*.block.4".replace("*", r"\d+"): ["encoder.block", "conv1"],
 }
@@ -97,26 +82,10 @@ MAPPING_DECODER = {
     "decoder.model.6": ["decoder.conv2"],
     "decoder.model.*.block.0".replace("*", r"\d+"): ["decoder.block", "snake1"],
     "decoder.model.*.block.1".replace("*", r"\d+"): ["decoder.block", "conv_t1"],
-    "decoder.model.*.block.*.block.0".replace("*", r"\d+"): [
-        "decoder.block",
-        "res_unit",
-        "snake1",
-    ],
-    "decoder.model.*.block.*.block.1".replace("*", r"\d+"): [
-        "decoder.block",
-        "res_unit",
-        "conv1",
-    ],
-    "decoder.model.*.block.*.block.2".replace("*", r"\d+"): [
-        "decoder.block",
-        "res_unit",
-        "snake2",
-    ],
-    "decoder.model.*.block.*.block.3".replace("*", r"\d+"): [
-        "decoder.block",
-        "res_unit",
-        "conv2",
-    ],
+    "decoder.model.*.block.*.block.0".replace("*", r"\d+"): ["decoder.block", "res_unit", "snake1"],
+    "decoder.model.*.block.*.block.1".replace("*", r"\d+"): ["decoder.block", "res_unit", "conv1"],
+    "decoder.model.*.block.*.block.2".replace("*", r"\d+"): ["decoder.block", "res_unit", "snake2"],
+    "decoder.model.*.block.*.block.3".replace("*", r"\d+"): ["decoder.block", "res_unit", "conv2"],
 }
 
 
@@ -152,9 +121,7 @@ def set_recursively(hf_pointer, key, value, full_name, weight_type):
         hf_pointer.bias.data = value
     elif weight_type == "alpha":
         hf_pointer.alpha.data = value
-    logger.info(
-        f"{key + ('.' + weight_type if weight_type is not None else '')} was initialized from {full_name}."
-    )
+    logger.info(f"{key + ('.' + weight_type if weight_type is not None else '')} was initialized from {full_name}.")
 
 
 def should_ignore(name, ignore_keys):
@@ -207,9 +174,7 @@ def recursively_load_weights(orig_dict, hf_model, model_name):
                         )
                 elif len(mapped_key) == 2:
                     integers = re.findall(r"\b\d+\b", name)
-                    mapped_key = "{}.{}.{}".format(
-                        mapped_key[0], str(int(integers[0]) - 1), mapped_key[1]
-                    )
+                    mapped_key = "{}.{}.{}".format(mapped_key[0], str(int(integers[0]) - 1), mapped_key[1])
 
                 is_used = True
                 if "weight_g" in name:
@@ -281,38 +246,16 @@ if __name__ == "__main__":
         type=str,
         help="The model to convert. Should be one of 'dac_16khz', 'dac_24khz', 'dac_44khz'.",
     )
+    parser.add_argument("--checkpoint_path", required=True, default=None, type=str, help="Path to original checkpoint")
     parser.add_argument(
-        "--checkpoint_path",
-        required=True,
-        default=None,
-        type=str,
-        help="Path to original checkpoint",
+        "--pytorch_dump_folder_path", required=True, default=None, type=str, help="Path to the output PyTorch model."
     )
     parser.add_argument(
-        "--pytorch_dump_folder_path",
-        required=True,
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
+        "--push_to_hub", default=None, type=str, help="Where to upload the converted model on the 🤗 hub."
     )
-    parser.add_argument(
-        "--push_to_hub",
-        default=None,
-        type=str,
-        help="Where to upload the converted model on the 🤗 hub.",
-    )
-    parser.add_argument(
-        "--sample_rate",
-        default=None,
-        type=str,
-        help="Sample rate used by DacFeatureExtractor",
-    )
+    parser.add_argument("--sample_rate", default=None, type=str, help="Sample rate used by DacFeatureExtractor")
     args = parser.parse_args()
 
     convert_checkpoint(
-        args.model,
-        args.checkpoint_path,
-        args.pytorch_dump_folder_path,
-        args.sample_rate,
-        args.push_to_hub,
+        args.model, args.checkpoint_path, args.pytorch_dump_folder_path, args.sample_rate, args.push_to_hub
     )

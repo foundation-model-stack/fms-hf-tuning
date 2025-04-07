@@ -14,18 +14,16 @@
 # limitations under the License
 """Tokenization classes for XLM-RoBERTa model."""
 
-# Standard
+import os
 from shutil import copyfile
 from typing import List, Optional, Tuple
-import os
 
-# Local
 from ...tokenization_utils import AddedToken
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import is_sentencepiece_available, logging
 
+
 if is_sentencepiece_available():
-    # Local
     from .tokenization_xlm_roberta import XLMRobertaTokenizer
 else:
     XLMRobertaTokenizer = None
@@ -33,10 +31,7 @@ else:
 
 logger = logging.get_logger(__name__)
 
-VOCAB_FILES_NAMES = {
-    "vocab_file": "sentencepiece.bpe.model",
-    "tokenizer_file": "tokenizer.json",
-}
+VOCAB_FILES_NAMES = {"vocab_file": "sentencepiece.bpe.model", "tokenizer_file": "tokenizer.json"}
 
 
 class XLMRobertaTokenizerFast(PreTrainedTokenizerFast):
@@ -108,11 +103,7 @@ class XLMRobertaTokenizerFast(PreTrainedTokenizerFast):
         **kwargs,
     ):
         # Mask token behave like a normal word, i.e. include the space before it
-        mask_token = (
-            AddedToken(mask_token, lstrip=True, rstrip=False)
-            if isinstance(mask_token, str)
-            else mask_token
-        )
+        mask_token = AddedToken(mask_token, lstrip=True, rstrip=False) if isinstance(mask_token, str) else mask_token
 
         super().__init__(
             vocab_file,
@@ -184,9 +175,7 @@ class XLMRobertaTokenizerFast(PreTrainedTokenizerFast):
             return len(cls + token_ids_0 + sep) * [0]
         return len(cls + token_ids_0 + sep + sep + token_ids_1 + sep) * [0]
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not self.can_save_slow_tokenizer:
             raise ValueError(
                 "Your fast tokenizer does not have the necessary information to save the vocabulary for a slow "
@@ -197,9 +186,7 @@ class XLMRobertaTokenizerFast(PreTrainedTokenizerFast):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory.")
             return
         out_vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
 
         if os.path.abspath(self.vocab_file) != os.path.abspath(out_vocab_file):

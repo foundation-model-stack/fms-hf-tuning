@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ....utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
@@ -23,6 +21,7 @@ from ....utils import (
     is_tf_available,
     is_torch_available,
 )
+
 
 _import_structure = {
     "configuration_gptsan_japanese": ["GPTSanJapaneseConfig"],
@@ -46,7 +45,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_gptsan_japanese import GPTSanJapaneseConfig
     from .tokenization_gptsan_japanese import GPTSanJapaneseTokenizer
 
@@ -56,7 +54,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_gptsan_japanese import (
             GPTSanJapaneseForConditionalGeneration,
             GPTSanJapaneseModel,
@@ -66,9 +63,6 @@ if TYPE_CHECKING:
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

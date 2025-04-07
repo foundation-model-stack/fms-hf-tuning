@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import Dict
 
-# First Party
 from transformers import is_torch_available
 from transformers.testing_utils import (
     TestCasePlus,
@@ -30,13 +28,12 @@ from transformers.testing_utils import (
     torch_device,
 )
 
+
 if is_torch_available():
-    # Third Party
     import torch
     import torch.distributed
     import torch.utils.data
 
-    # First Party
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
@@ -56,12 +53,7 @@ if is_torch_available():
                 "The quick brown fox jumps over the lazy dog.",
             ]
             self.data = [
-                {
-                    k: v.squeeze(0)
-                    for k, v in tokenizer(
-                        item, return_tensors="pt", return_attention_mask=True
-                    ).items()
-                }
+                {k: v.squeeze(0) for k, v in tokenizer(item, return_tensors="pt", return_attention_mask=True).items()}
                 for item in data
             ]
             for item in self.data:

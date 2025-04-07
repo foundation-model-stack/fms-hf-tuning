@@ -14,14 +14,11 @@
 # limitations under the License.
 """Processor class for Pop2Piano."""
 
-# Standard
-from typing import List, Optional, Union
 import os
+from typing import List, Optional, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...processing_utils import ProcessorMixin
 from ...tokenization_utils import BatchEncoding, PaddingStrategy, TruncationStrategy
@@ -121,32 +118,24 @@ class Pop2PianoProcessor(ProcessorMixin):
         """
 
         return self.tokenizer.batch_decode(
-            token_ids=token_ids,
-            feature_extractor_output=feature_extractor_output,
-            return_midi=return_midi,
+            token_ids=token_ids, feature_extractor_output=feature_extractor_output, return_midi=return_midi
         )
 
     @property
     def model_input_names(self):
         tokenizer_input_names = self.tokenizer.model_input_names
         feature_extractor_input_names = self.feature_extractor.model_input_names
-        return list(
-            dict.fromkeys(tokenizer_input_names + feature_extractor_input_names)
-        )
+        return list(dict.fromkeys(tokenizer_input_names + feature_extractor_input_names))
 
     def save_pretrained(self, save_directory, **kwargs):
         if os.path.isfile(save_directory):
-            raise ValueError(
-                f"Provided path ({save_directory}) should be a directory, not a file"
-            )
+            raise ValueError(f"Provided path ({save_directory}) should be a directory, not a file")
         os.makedirs(save_directory, exist_ok=True)
         return super().save_pretrained(save_directory, **kwargs)
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
-        args = cls._get_arguments_from_pretrained(
-            pretrained_model_name_or_path, **kwargs
-        )
+        args = cls._get_arguments_from_pretrained(pretrained_model_name_or_path, **kwargs)
         return cls(*args)
 
 

@@ -14,30 +14,21 @@
 # limitations under the License.
 
 
-# Future
 from __future__ import annotations
 
-# Standard
 import unittest
 
-# First Party
 from transformers import MPNetConfig, is_tf_available
 from transformers.testing_utils import require_tf, slow
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_tf_common import (
-    TFModelTesterMixin,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_tf_common import TFModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers.models.mpnet.modeling_tf_mpnet import (
         TFMPNetForMaskedLM,
         TFMPNetForMultipleChoice,
@@ -108,12 +99,8 @@ class TFMPNetModelTester:
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = MPNetConfig(
@@ -128,58 +115,28 @@ class TFMPNetModelTester:
             max_position_embeddings=self.max_position_embeddings,
             initializer_range=self.initializer_range,
         )
-        return (
-            config,
-            input_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def create_and_check_mpnet_model(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = TFMPNetModel(config=config)
         inputs = {"input_ids": input_ids, "attention_mask": input_mask}
         result = model(inputs)
         inputs = [input_ids, input_mask]
         result = model(inputs)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_mpnet_for_masked_lm(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = TFMPNetForMaskedLM(config=config)
         inputs = {"input_ids": input_ids, "attention_mask": input_mask}
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
     def create_and_check_mpnet_for_question_answering(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = TFMPNetForQuestionAnswering(config=config)
         inputs = {
@@ -187,21 +144,11 @@ class TFMPNetModelTester:
             "attention_mask": input_mask,
         }
         result = model(inputs)
-        self.parent.assertEqual(
-            result.start_logits.shape, (self.batch_size, self.seq_length)
-        )
-        self.parent.assertEqual(
-            result.end_logits.shape, (self.batch_size, self.seq_length)
-        )
+        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
+        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def create_and_check_mpnet_for_sequence_classification(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = TFMPNetForSequenceClassification(config)
@@ -210,58 +157,31 @@ class TFMPNetModelTester:
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
     def create_and_check_mpnet_for_multiple_choice(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_choices = self.num_choices
         model = TFMPNetForMultipleChoice(config)
-        multiple_choice_inputs_ids = tf.tile(
-            tf.expand_dims(input_ids, 1), (1, self.num_choices, 1)
-        )
-        multiple_choice_input_mask = tf.tile(
-            tf.expand_dims(input_mask, 1), (1, self.num_choices, 1)
-        )
+        multiple_choice_inputs_ids = tf.tile(tf.expand_dims(input_ids, 1), (1, self.num_choices, 1))
+        multiple_choice_input_mask = tf.tile(tf.expand_dims(input_mask, 1), (1, self.num_choices, 1))
         inputs = {
             "input_ids": multiple_choice_inputs_ids,
             "attention_mask": multiple_choice_input_mask,
         }
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.num_choices)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_choices))
 
     def create_and_check_mpnet_for_token_classification(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = TFMPNetForTokenClassification(config)
         inputs = {"input_ids": input_ids, "attention_mask": input_mask}
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        (
-            config,
-            input_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        ) = config_and_inputs
+        (config, input_ids, input_mask, sequence_labels, token_labels, choice_labels) = config_and_inputs
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
@@ -297,9 +217,7 @@ class TFMPNetModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
     def setUp(self):
         self.model_tester = TFMPNetModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=MPNetConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=MPNetConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -314,15 +232,11 @@ class TFMPNetModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
     def test_for_question_answering(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_question_answering(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_question_answering(*config_and_inputs)
 
     def test_for_sequence_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_sequence_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_sequence_classification(*config_and_inputs)
 
     def test_for_multiple_choice(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -330,9 +244,7 @@ class TFMPNetModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
     def test_for_token_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_token_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_token_classification(*config_and_inputs)
 
     @slow
     def test_model_from_pretrained(self):

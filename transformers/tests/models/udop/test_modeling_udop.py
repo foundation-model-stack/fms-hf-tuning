@@ -13,15 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import copy
 import inspect
 import unittest
 
-# Third Party
 from huggingface_hub import hf_hub_download
 
-# First Party
 from transformers import UdopConfig, is_torch_available, is_vision_available
 from transformers.testing_utils import (
     require_sentencepiece,
@@ -33,28 +30,20 @@ from transformers.testing_utils import (
 )
 from transformers.utils import cached_property
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
     import torch.nn.functional as F
 
-    # First Party
-    from transformers import (
-        UdopEncoderModel,
-        UdopForConditionalGeneration,
-        UdopModel,
-        UdopProcessor,
-    )
+    from transformers import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopProcessor
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 
@@ -109,12 +98,8 @@ class UdopModelTester:
         self.decoder_start_token_id = decoder_start_token_id
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_tensor(
-            [self.batch_size, self.encoder_seq_length], self.vocab_size
-        )
-        bbox = ids_tensor(
-            [self.batch_size, self.encoder_seq_length, 4], self.range_bbox
-        ).float()
+        input_ids = ids_tensor([self.batch_size, self.encoder_seq_length], self.vocab_size)
+        bbox = ids_tensor([self.batch_size, self.encoder_seq_length, 4], self.range_bbox).float()
         # Ensure that bbox is legal
         for i in range(bbox.shape[0]):
             for j in range(bbox.shape[1]):
@@ -126,25 +111,17 @@ class UdopModelTester:
                     t = bbox[i, j, 2]
                     bbox[i, j, 2] = bbox[i, j, 0]
                     bbox[i, j, 0] = t
-        decoder_input_ids = ids_tensor(
-            [self.batch_size, self.decoder_seq_length], self.vocab_size
-        )
+        decoder_input_ids = ids_tensor([self.batch_size, self.decoder_seq_length], self.vocab_size)
 
         attention_mask = None
         decoder_attention_mask = None
         if self.use_attention_mask:
-            attention_mask = ids_tensor(
-                [self.batch_size, self.encoder_seq_length], vocab_size=2
-            )
-            decoder_attention_mask = ids_tensor(
-                [self.batch_size, self.decoder_seq_length], vocab_size=2
-            )
+            attention_mask = ids_tensor([self.batch_size, self.encoder_seq_length], vocab_size=2)
+            decoder_attention_mask = ids_tensor([self.batch_size, self.decoder_seq_length], vocab_size=2)
 
         lm_labels = None
         if self.use_labels:
-            lm_labels = ids_tensor(
-                [self.batch_size, self.decoder_seq_length], self.vocab_size
-            )
+            lm_labels = ids_tensor([self.batch_size, self.decoder_seq_length], self.vocab_size)
 
         config = self.get_config()
 
@@ -196,21 +173,13 @@ class UdopModelTester:
             attention_mask=attention_mask,
             decoder_attention_mask=decoder_attention_mask,
         )
-        result = model(
-            input_ids=input_ids, bbox=bbox, decoder_input_ids=decoder_input_ids
-        )
+        result = model(input_ids=input_ids, bbox=bbox, decoder_input_ids=decoder_input_ids)
         decoder_output = result.last_hidden_state
         decoder_past = result.past_key_values
         encoder_output = result.encoder_last_hidden_state
 
-        self.parent.assertEqual(
-            encoder_output.size(),
-            (self.batch_size, self.encoder_seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            decoder_output.size(),
-            (self.batch_size, self.decoder_seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(encoder_output.size(), (self.batch_size, self.encoder_seq_length, self.hidden_size))
+        self.parent.assertEqual(decoder_output.size(), (self.batch_size, self.decoder_seq_length, self.hidden_size))
         # There should be `num_layers` key value embeddings stored in decoder_past
         self.parent.assertEqual(len(decoder_past), config.num_layers)
         # There should be a self attn key, a self attn value, a cross attn key and a cross attn value stored in each decoder_past tuple
@@ -235,10 +204,7 @@ class UdopModelTester:
             labels=lm_labels,
         )
         self.parent.assertEqual(len(outputs), 4)
-        self.parent.assertEqual(
-            outputs["logits"].size(),
-            (self.batch_size, self.decoder_seq_length, self.vocab_size),
-        )
+        self.parent.assertEqual(outputs["logits"].size(), (self.batch_size, self.decoder_seq_length, self.vocab_size))
         self.parent.assertEqual(outputs["loss"].size(), ())
 
     def create_and_check_generate_with_past_key_values(
@@ -254,24 +220,13 @@ class UdopModelTester:
         model = UdopForConditionalGeneration(config=config).to(torch_device).eval()
         torch.manual_seed(0)
         output_without_past_cache = model.generate(
-            input_ids[:1],
-            bbox=bbox[:1, :, :],
-            num_beams=2,
-            max_length=5,
-            do_sample=True,
-            use_cache=False,
+            input_ids[:1], bbox=bbox[:1, :, :], num_beams=2, max_length=5, do_sample=True, use_cache=False
         )
         torch.manual_seed(0)
         output_with_past_cache = model.generate(
-            input_ids[:1],
-            bbox=bbox[:1, :, :],
-            num_beams=2,
-            max_length=5,
-            do_sample=True,
+            input_ids[:1], bbox=bbox[:1, :, :], num_beams=2, max_length=5, do_sample=True
         )
-        self.parent.assertTrue(
-            torch.all(output_with_past_cache == output_without_past_cache)
-        )
+        self.parent.assertTrue(torch.all(output_with_past_cache == output_without_past_cache))
 
     def create_and_check_model_fp16_forward(
         self,
@@ -283,15 +238,8 @@ class UdopModelTester:
         decoder_attention_mask,
         lm_labels,
     ):
-        model = (
-            UdopForConditionalGeneration(config=config).to(torch_device).half().eval()
-        )
-        output = model(
-            input_ids,
-            bbox=bbox,
-            attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-        ).logits
+        model = UdopForConditionalGeneration(config=config).to(torch_device).half().eval()
+        output = model(input_ids, bbox=bbox, attention_mask=attention_mask, decoder_input_ids=decoder_input_ids).logits
         self.parent.assertFalse(torch.isnan(output).any().item())
 
     def prepare_config_and_inputs_for_common(self):
@@ -318,9 +266,7 @@ class UdopModelTester:
 
 
 @require_torch
-class UdopModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class UdopModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (
         (
             UdopModel,
@@ -330,10 +276,7 @@ class UdopModelTest(
         else ()
     )
     pipeline_model_mapping = (
-        {
-            "feature-extraction": UdopModel,
-            "image-text-to-text": UdopForConditionalGeneration,
-        }
+        {"feature-extraction": UdopModel, "image-text-to-text": UdopForConditionalGeneration}
         if is_torch_available()
         else {}
     )
@@ -357,9 +300,7 @@ class UdopModelTest(
         if model_class.__name__ == "UdopForConditionalGeneration":
             if return_labels:
                 inputs_dict["labels"] = torch.zeros(
-                    (self.model_tester.batch_size, self.model_tester.seq_length),
-                    dtype=torch.long,
-                    device=torch_device,
+                    (self.model_tester.batch_size, self.model_tester.seq_length), dtype=torch.long, device=torch_device
                 )
 
         return inputs_dict
@@ -377,9 +318,7 @@ class UdopModelTest(
 
     def test_generate_with_past_key_values(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_generate_with_past_key_values(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_generate_with_past_key_values(*config_and_inputs)
 
     @unittest.skipIf(torch_device == "cpu", "Cant do half precision")
     def test_model_fp16_forward(self):
@@ -430,17 +369,12 @@ class UdopModelTest(
                     "labels",
                 )
                 expected_arg_names = sorted(expected_arg_names)
-            self.assertListEqual(
-                sorted(arg_names[: len(expected_arg_names)]), expected_arg_names
-            )
+            self.assertListEqual(sorted(arg_names[: len(expected_arg_names)]), expected_arg_names)
 
     # overwrite because T5 doesn't accept position ids as input and expects `decoder_input_ids`
     def test_custom_4d_attention_mask(self):
         for model_class in self.all_generative_model_classes:
-            (
-                config,
-                input_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
             model = model_class(config).to(device=torch_device, dtype=torch.float32)
 
             (
@@ -467,9 +401,7 @@ class UdopModelTest(
             # logits_shared_prefix.shape == torch.Size([1, 6, ...])
 
             out_last_tokens = logits[:, -1, :]  # last tokens in each batch line
-            out_shared_prefix_last_tokens = logits_shared_prefix[
-                0, -3:, :
-            ]  # last three tokens
+            out_shared_prefix_last_tokens = logits_shared_prefix[0, -3:, :]  # last three tokens
 
             # comparing softmax-normalized logits:
             normalized_0 = F.softmax(out_last_tokens)
@@ -560,9 +492,7 @@ class UdopEncoderOnlyModelTester:
 
     def prepare_config_and_inputs(self):
         input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
-        bbox = ids_tensor(
-            [self.batch_size, self.seq_length, 4], self.range_bbox
-        ).float()
+        bbox = ids_tensor([self.batch_size, self.seq_length, 4], self.range_bbox).float()
         # Ensure that bbox is legal
         for i in range(bbox.shape[0]):
             for j in range(bbox.shape[1]):
@@ -577,9 +507,7 @@ class UdopEncoderOnlyModelTester:
 
         attention_mask = None
         if self.use_attention_mask:
-            attention_mask = ids_tensor(
-                [self.batch_size, self.seq_length], vocab_size=2
-            )
+            attention_mask = ids_tensor([self.batch_size, self.seq_length], vocab_size=2)
 
         config = self.get_config()
 
@@ -623,9 +551,7 @@ class UdopEncoderOnlyModelTester:
         )
         encoder_output = result.last_hidden_state
 
-        self.parent.assertEqual(
-            encoder_output.size(), (self.batch_size, self.seq_length, self.hidden_size)
-        )
+        self.parent.assertEqual(encoder_output.size(), (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_model_fp16_forward(
         self,
@@ -635,9 +561,7 @@ class UdopEncoderOnlyModelTester:
         attention_mask,
     ):
         model = UdopEncoderModel(config=config).to(torch_device).half().eval()
-        output = model(input_ids, bbox=bbox, attention_mask=attention_mask)[
-            "last_hidden_state"
-        ]
+        output = model(input_ids, bbox=bbox, attention_mask=attention_mask)["last_hidden_state"]
         self.parent.assertFalse(torch.isnan(output).any().item())
 
 
@@ -648,9 +572,7 @@ class UdopEncoderOnlyModelTest(ModelTesterMixin, unittest.TestCase):
     test_head_masking = False
     test_resize_embeddings = False
     test_model_parallel = False
-    all_parallelizable_model_classes = (
-        (UdopEncoderModel,) if is_torch_available() else ()
-    )
+    all_parallelizable_model_classes = (UdopEncoderModel,) if is_torch_available() else ()
 
     def setUp(self):
         self.model_tester = UdopEncoderOnlyModelTester(self)
@@ -666,10 +588,7 @@ class UdopEncoderOnlyModelTest(ModelTesterMixin, unittest.TestCase):
     # overwrite because T5 doesn't accept position ids as input and expects `decoder_input_ids`
     def test_custom_4d_attention_mask(self):
         for model_class in self.all_generative_model_classes:
-            (
-                config,
-                input_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
             model = model_class(config).to(device=torch_device, dtype=torch.float32)
 
             (
@@ -694,9 +613,7 @@ class UdopEncoderOnlyModelTest(ModelTesterMixin, unittest.TestCase):
             # logits_shared_prefix.shape == torch.Size([1, 6, ...])
 
             out_last_tokens = logits[:, -1, :]  # last tokens in each batch line
-            out_shared_prefix_last_tokens = logits_shared_prefix[
-                0, -3:, :
-            ]  # last three tokens
+            out_shared_prefix_last_tokens = logits_shared_prefix[0, -3:, :]  # last three tokens
 
             # comparing softmax-normalized logits:
             normalized_0 = F.softmax(out_last_tokens)
@@ -719,9 +636,7 @@ class UdopModelIntegrationTests(unittest.TestCase):
     @cached_property
     def image(self):
         filepath = hf_hub_download(
-            repo_id="hf-internal-testing/fixtures_docvqa",
-            filename="document_2.png",
-            repo_type="dataset",
+            repo_id="hf-internal-testing/fixtures_docvqa", filename="document_2.png", repo_type="dataset"
         )
         image = Image.open(filepath).convert("RGB")
 
@@ -733,22 +648,16 @@ class UdopModelIntegrationTests(unittest.TestCase):
 
     @cached_property
     def model(self):
-        return UdopForConditionalGeneration.from_pretrained("microsoft/udop-large").to(
-            torch_device
-        )
+        return UdopForConditionalGeneration.from_pretrained("microsoft/udop-large").to(torch_device)
 
     def test_conditional_generation(self):
         processor = self.processor
         model = self.model
 
         prompt = "Question answering. In which year is the report made?"
-        encoding = processor(images=self.image, text=prompt, return_tensors="pt").to(
-            torch_device
-        )
+        encoding = processor(images=self.image, text=prompt, return_tensors="pt").to(torch_device)
 
         predicted_ids = model.generate(**encoding)
 
-        predicted_text = processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )[0]
+        predicted_text = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
         self.assertEqual(predicted_text, "2013")

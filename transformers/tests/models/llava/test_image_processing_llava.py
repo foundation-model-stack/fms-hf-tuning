@@ -14,35 +14,25 @@
 # limitations under the License.
 
 
-# Standard
-from typing import Tuple, Union
 import unittest
+from typing import Tuple, Union
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_torchvision_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import LlavaImageProcessor
 
     if is_torchvision_available():
-        # Third Party
         from torchvision.transforms import functional as F
 
-        # First Party
         from transformers import LlavaImageProcessorFast
 
 
@@ -102,9 +92,7 @@ class LlavaImageProcessingTester:
         return self.num_channels, self.crop_size["height"], self.crop_size["width"]
 
     # Copied from tests.models.clip.test_image_processing_clip.CLIPImageProcessingTester.prepare_image_inputs
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -121,9 +109,7 @@ class LlavaImageProcessingTester:
 # Copied from tests.models.clip.test_image_processing_clip.CLIPImageProcessingTest with CLIP->Llava
 class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
     image_processing_class = LlavaImageProcessor if is_vision_available() else None
-    fast_image_processing_class = (
-        LlavaImageProcessorFast if is_torchvision_available() else None
-    )
+    fast_image_processing_class = LlavaImageProcessorFast if is_torchvision_available() else None
 
     def setUp(self):
         super().setUp()
@@ -149,15 +135,11 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
 
     def test_image_processor_from_dict_with_kwargs(self):
         for image_processing_class in self.image_processor_list:
-            image_processor = image_processing_class.from_dict(
-                self.image_processor_dict
-            )
+            image_processor = image_processing_class.from_dict(self.image_processor_dict)
             self.assertEqual(image_processor.size, {"shortest_edge": 20})
             self.assertEqual(image_processor.crop_size, {"height": 18, "width": 18})
 
-            image_processor = image_processing_class.from_dict(
-                self.image_processor_dict, size=42, crop_size=84
-            )
+            image_processor = image_processing_class.from_dict(self.image_processor_dict, size=42, crop_size=84)
             self.assertEqual(image_processor.size, {"shortest_edge": 42})
             self.assertEqual(image_processor.crop_size, {"height": 84, "width": 84})
 
@@ -185,9 +167,7 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
                 return result
 
         for i, image_processing_class in enumerate(self.image_processor_list):
-            image_processor = image_processing_class.from_dict(
-                self.image_processor_dict
-            )
+            image_processor = image_processing_class.from_dict(self.image_processor_dict)
             numpify = i == 0
             torchify = i == 1
             image_inputs = self.image_processor_tester.prepare_image_inputs(
@@ -198,9 +178,7 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
             for image in image_inputs:
                 padded_image = image_processor.pad_to_square(image)
                 if i == 0:
-                    padded_image_original = pad_to_square_original(
-                        Image.fromarray(image)
-                    )
+                    padded_image_original = pad_to_square_original(Image.fromarray(image))
                     padded_image_original = np.array(padded_image_original)
 
                     np.testing.assert_allclose(padded_image, padded_image_original)
@@ -212,18 +190,14 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
 
                     np.testing.assert_allclose(padded_image, padded_image_original)
                 else:
-                    padded_image_original = pad_to_square_original(
-                        F.to_pil_image(image)
-                    )
+                    padded_image_original = pad_to_square_original(F.to_pil_image(image))
                     padded_image = padded_image.permute(1, 2, 0)
                     np.testing.assert_allclose(padded_image, padded_image_original)
 
             # test background color
             background_color = (122, 116, 104)
             for image in image_inputs:
-                padded_image = image_processor.pad_to_square(
-                    image, background_color=background_color
-                )
+                padded_image = image_processor.pad_to_square(image, background_color=background_color)
                 if i == 0:
                     padded_image_original = pad_to_square_original(
                         Image.fromarray(image), background_color=background_color
@@ -239,9 +213,7 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
 
             background_color = 122
             for image in image_inputs:
-                padded_image = image_processor.pad_to_square(
-                    image, background_color=background_color
-                )
+                padded_image = image_processor.pad_to_square(image, background_color=background_color)
                 if i == 0:
                     padded_image_original = pad_to_square_original(
                         Image.fromarray(image), background_color=background_color
@@ -256,14 +228,10 @@ class LlavaImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
 
             # background color length should match channel length
             with self.assertRaises(ValueError):
-                padded_image = image_processor.pad_to_square(
-                    image_inputs[0], background_color=(122, 104)
-                )
+                padded_image = image_processor.pad_to_square(image_inputs[0], background_color=(122, 104))
 
             with self.assertRaises(ValueError):
-                padded_image = image_processor.pad_to_square(
-                    image_inputs[0], background_color=(122, 104, 0, 0)
-                )
+                padded_image = image_processor.pad_to_square(image_inputs[0], background_color=(122, 104, 0, 0))
 
     @unittest.skip(reason="LLaVa does not support 4 channel images yet")
     # Ignore copy

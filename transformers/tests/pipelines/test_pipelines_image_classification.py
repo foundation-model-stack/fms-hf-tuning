@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
+import datasets
 from huggingface_hub import ImageClassificationOutputElement
 
-# First Party
 from transformers import (
     MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
     TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
@@ -38,15 +36,13 @@ from transformers.testing_utils import (
     slow,
 )
 
-# Local
 from .test_pipelines_common import ANY
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 else:
 
@@ -62,6 +58,17 @@ else:
 class ImageClassificationPipelineTests(unittest.TestCase):
     model_mapping = MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING
     tf_model_mapping = TF_MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING
+    _dataset = None
+
+    @classmethod
+    def _load_dataset(cls):
+        # Lazy loading of the dataset. Because it is a class method, it will only be loaded once per pytest process.
+        if cls._dataset is None:
+            # we use revision="refs/pr/1" until the PR is merged
+            # https://hf.co/datasets/hf-internal-testing/fixtures_image_utils/discussions/1
+            cls._dataset = datasets.load_dataset(
+                "hf-internal-testing/fixtures_image_utils", split="test", revision="refs/pr/1"
+            )
 
     def get_test_pipeline(
         self,
@@ -88,9 +95,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         return image_classifier, examples
 
     def run_pipeline_test(self, image_classifier, examples):
-        outputs = image_classifier(
-            "./tests/fixtures/tests_samples/COCO/000000039769.png"
-        )
+        self._load_dataset()
+        outputs = image_classifier("./tests/fixtures/tests_samples/COCO/000000039769.png")
 
         self.assertEqual(
             outputs,
@@ -100,28 +106,17 @@ class ImageClassificationPipelineTests(unittest.TestCase):
             ],
         )
 
-        # Third Party
-        import datasets
-
-        # we use revision="refs/pr/1" until the PR is merged
-        # https://hf.co/datasets/hf-internal-testing/fixtures_image_utils/discussions/1
-        dataset = datasets.load_dataset(
-            "hf-internal-testing/fixtures_image_utils",
-            split="test",
-            revision="refs/pr/1",
-        )
-
         # Accepts URL + PIL.Image + lists
         outputs = image_classifier(
             [
                 Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
                 "http://images.cocodataset.org/val2017/000000039769.jpg",
                 # RGBA
-                dataset[0]["image"],
+                self._dataset[0]["image"],
                 # LA
-                dataset[1]["image"],
+                self._dataset[1]["image"],
                 # L
-                dataset[2]["image"],
+                self._dataset[2]["image"],
             ]
         )
         self.assertEqual(
@@ -152,24 +147,17 @@ class ImageClassificationPipelineTests(unittest.TestCase):
 
         for single_output in outputs:
             for output_element in single_output:
-                compare_pipeline_output_to_hub_spec(
-                    output_element, ImageClassificationOutputElement
-                )
+                compare_pipeline_output_to_hub_spec(output_element, ImageClassificationOutputElement)
 
     @require_torch
     def test_small_model_pt(self):
         small_model = "hf-internal-testing/tiny-random-vit"
         image_classifier = pipeline("image-classification", model=small_model)
 
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
-            [
-                {"label": "LABEL_1", "score": 0.574},
-                {"label": "LABEL_0", "score": 0.426},
-            ],
+            [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
         )
 
         outputs = image_classifier(
@@ -182,33 +170,20 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
-                [
-                    {"label": "LABEL_1", "score": 0.574},
-                    {"label": "LABEL_0", "score": 0.426},
-                ],
-                [
-                    {"label": "LABEL_1", "score": 0.574},
-                    {"label": "LABEL_0", "score": 0.426},
-                ],
+                [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
+                [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
             ],
         )
 
     @require_tf
     def test_small_model_tf(self):
         small_model = "hf-internal-testing/tiny-random-vit"
-        image_classifier = pipeline(
-            "image-classification", model=small_model, framework="tf"
-        )
+        image_classifier = pipeline("image-classification", model=small_model, framework="tf")
 
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
-            [
-                {"label": "LABEL_1", "score": 0.574},
-                {"label": "LABEL_0", "score": 0.426},
-            ],
+            [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
         )
 
         outputs = image_classifier(
@@ -221,14 +196,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
-                [
-                    {"label": "LABEL_1", "score": 0.574},
-                    {"label": "LABEL_0", "score": 0.426},
-                ],
-                [
-                    {"label": "LABEL_1", "score": 0.574},
-                    {"label": "LABEL_0", "score": 0.426},
-                ],
+                [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
+                [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
             ],
         )
 
@@ -237,9 +206,7 @@ class ImageClassificationPipelineTests(unittest.TestCase):
 
         # Assert that the pipeline can be initialized with a feature extractor that is not in any mapping
         image_classifier = pipeline(
-            "image-classification",
-            model="hf-internal-testing/tiny-random-vit",
-            tokenizer=tokenizer,
+            "image-classification", model="hf-internal-testing/tiny-random-vit", tokenizer=tokenizer
         )
 
         self.assertIs(image_classifier.tokenizer, tokenizer)
@@ -247,39 +214,25 @@ class ImageClassificationPipelineTests(unittest.TestCase):
     @require_torch
     def test_torch_float16_pipeline(self):
         image_classifier = pipeline(
-            "image-classification",
-            model="hf-internal-testing/tiny-random-vit",
-            torch_dtype=torch.float16,
+            "image-classification", model="hf-internal-testing/tiny-random-vit", torch_dtype=torch.float16
         )
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
 
         self.assertEqual(
             nested_simplify(outputs, decimals=3),
-            [
-                {"label": "LABEL_1", "score": 0.574},
-                {"label": "LABEL_0", "score": 0.426},
-            ],
+            [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
         )
 
     @require_torch
     def test_torch_bfloat16_pipeline(self):
         image_classifier = pipeline(
-            "image-classification",
-            model="hf-internal-testing/tiny-random-vit",
-            torch_dtype=torch.bfloat16,
+            "image-classification", model="hf-internal-testing/tiny-random-vit", torch_dtype=torch.bfloat16
         )
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
 
         self.assertEqual(
             nested_simplify(outputs, decimals=3),
-            [
-                {"label": "LABEL_1", "score": 0.574},
-                {"label": "LABEL_0", "score": 0.426},
-            ],
+            [{"label": "LABEL_1", "score": 0.574}, {"label": "LABEL_0", "score": 0.426}],
         )
 
     @slow
@@ -288,12 +241,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         # Perceiver is not tested by `run_pipeline_test` properly.
         # That is because the type of feature_extractor and model preprocessor need to be kept
         # in sync, which is not the case in the current design
-        image_classifier = pipeline(
-            "image-classification", model="deepmind/vision-perceiver-conv"
-        )
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        image_classifier = pipeline("image-classification", model="deepmind/vision-perceiver-conv")
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
@@ -305,12 +254,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
             ],
         )
 
-        image_classifier = pipeline(
-            "image-classification", model="deepmind/vision-perceiver-fourier"
-        )
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        image_classifier = pipeline("image-classification", model="deepmind/vision-perceiver-fourier")
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
@@ -322,12 +267,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
             ],
         )
 
-        image_classifier = pipeline(
-            "image-classification", model="deepmind/vision-perceiver-learned"
-        )
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        image_classifier = pipeline("image-classification", model="deepmind/vision-perceiver-learned")
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
@@ -348,15 +289,10 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         image_classifier = pipeline("image-classification", model=small_model)
         image_classifier.model.config.problem_type = "multi_label_classification"
 
-        outputs = image_classifier(
-            "http://images.cocodataset.org/val2017/000000039769.jpg"
-        )
+        outputs = image_classifier("http://images.cocodataset.org/val2017/000000039769.jpg")
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
-            [
-                {"label": "LABEL_1", "score": 0.5356},
-                {"label": "LABEL_0", "score": 0.4612},
-            ],
+            [{"label": "LABEL_1", "score": 0.5356}, {"label": "LABEL_0", "score": 0.4612}],
         )
 
         outputs = image_classifier(
@@ -368,14 +304,8 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
-                [
-                    {"label": "LABEL_1", "score": 0.5356},
-                    {"label": "LABEL_0", "score": 0.4612},
-                ],
-                [
-                    {"label": "LABEL_1", "score": 0.5356},
-                    {"label": "LABEL_0", "score": 0.4612},
-                ],
+                [{"label": "LABEL_1", "score": 0.5356}, {"label": "LABEL_0", "score": 0.4612}],
+                [{"label": "LABEL_1", "score": 0.5356}, {"label": "LABEL_0", "score": 0.4612}],
             ],
         )
 
@@ -393,8 +323,5 @@ class ImageClassificationPipelineTests(unittest.TestCase):
         )
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
-            [
-                {"label": "LABEL_1", "score": 0.5356},
-                {"label": "LABEL_0", "score": 0.4612},
-            ],
+            [{"label": "LABEL_1", "score": 0.5356}, {"label": "LABEL_0", "score": 0.4612}],
         )

@@ -14,16 +14,13 @@
 # limitations under the License.
 """Testing suite for the PyTorch Qwen2Audio model."""
 
-# Standard
-from io import BytesIO
-from urllib.request import urlopen
 import tempfile
 import unittest
+from io import BytesIO
+from urllib.request import urlopen
 
-# Third Party
 import librosa
 
-# First Party
 from transformers import (
     AutoProcessor,
     Qwen2AudioConfig,
@@ -38,12 +35,11 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -114,9 +110,7 @@ class Qwen2AudioModelTester:
             ]
         )
         config = self.get_config()
-        feature_attention_mask = torch.ones(
-            [self.batch_size, self.feat_seq_length], dtype=torch.long
-        ).to(torch_device)
+        feature_attention_mask = torch.ones([self.batch_size, self.feat_seq_length], dtype=torch.long).to(torch_device)
         return config, input_features_values, feature_attention_mask
 
     def prepare_config_and_inputs_for_common(self):
@@ -124,12 +118,7 @@ class Qwen2AudioModelTester:
         config, input_features_values, feature_attention_mask = config_and_inputs
         input_length = (input_features_values.shape[-1] - 1) // 2 + 1
         num_audio_tokens = (input_length - 2) // 2 + 1
-        input_ids = (
-            ids_tensor(
-                [self.batch_size, self.seq_length], config.text_config.vocab_size - 1
-            )
-            + 1
-        )
+        input_ids = ids_tensor([self.batch_size, self.seq_length], config.text_config.vocab_size - 1) + 1
         attention_mask = torch.ones(input_ids.shape, dtype=torch.long).to(torch_device)
         attention_mask[:, :1] = 0
         # we are giving 3 audios let's make sure we pass in 3 audios tokens
@@ -142,21 +131,6 @@ class Qwen2AudioModelTester:
         }
         return config, inputs_dict
 
-    def create_and_check_qwen2audio_model_fp16_forward(
-        self, config, input_ids, pixel_values, attention_mask
-    ):
-        model = Qwen2AudioForConditionalGeneration(config=config)
-        model.to(torch_device)
-        model.eval()
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            logits = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                pixel_values=pixel_values.to(torch.bfloat16),
-                return_dict=True,
-            )["logits"]
-        self.parent.assertFalse(torch.isnan(logits).any().item())
-
 
 @require_torch
 class Qwen2AudioForConditionalGenerationModelTest(ModelTesterMixin, unittest.TestCase):
@@ -164,9 +138,7 @@ class Qwen2AudioForConditionalGenerationModelTest(ModelTesterMixin, unittest.Tes
     Model tester for `Qwen2AudioForConditionalGeneration`.
     """
 
-    all_model_classes = (
-        (Qwen2AudioForConditionalGeneration,) if is_torch_available() else ()
-    )
+    all_model_classes = (Qwen2AudioForConditionalGeneration,) if is_torch_available() else ()
     # Doesn't run generation tests. TODO eustache/joao: some generation tests are broken, the errors seem cache-related
     all_generative_model_classes = ()
     test_pruning = False
@@ -175,9 +147,7 @@ class Qwen2AudioForConditionalGenerationModelTest(ModelTesterMixin, unittest.Tes
 
     def setUp(self):
         self.model_tester = Qwen2AudioModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=Qwen2AudioConfig, has_text_modality=False
-        )
+        self.config_tester = ConfigTester(self, config_class=Qwen2AudioConfig, has_text_modality=False)
 
     @unittest.skip(reason="Compile not yet supported because in Qwen2Audio models")
     def test_sdpa_can_compile_dynamic(self):
@@ -197,10 +167,7 @@ class Qwen2AudioForConditionalGenerationModelTest(ModelTesterMixin, unittest.Tes
             self.skipTest(f"{self.all_model_classes[0].__name__} does not support SDPA")
 
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
             model = model_class(config)
 
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -214,34 +181,19 @@ class Qwen2AudioForConditionalGenerationModelTest(ModelTesterMixin, unittest.Tes
                 # `None` as it is the requested one which will be assigned to each sub-config
                 # Sub-model will dispatch to SDPA if it can (checked below that `SDPA` layers are present)
                 self.assertTrue(model_sdpa.config._attn_implementation == "sdpa")
-                self.assertTrue(
-                    model.language_model.config._attn_implementation == text_attn
-                )
-                self.assertTrue(
-                    model.audio_tower.config._attn_implementation == vision_attn
-                )
+                self.assertTrue(model.language_model.config._attn_implementation == text_attn)
+                self.assertTrue(model.audio_tower.config._attn_implementation == vision_attn)
 
-                model_eager = model_class.from_pretrained(
-                    tmpdirname, attn_implementation="eager"
-                )
+                model_eager = model_class.from_pretrained(tmpdirname, attn_implementation="eager")
                 model_eager = model_eager.eval().to(torch_device)
                 self.assertTrue(model_eager.config._attn_implementation == "eager")
-                self.assertTrue(
-                    model_eager.language_model.config._attn_implementation == "eager"
-                )
-                self.assertTrue(
-                    model_eager.audio_tower.config._attn_implementation == "eager"
-                )
+                self.assertTrue(model_eager.language_model.config._attn_implementation == "eager")
+                self.assertTrue(model_eager.audio_tower.config._attn_implementation == "eager")
 
                 for name, submodule in model_eager.named_modules():
                     class_name = submodule.__class__.__name__
-                    if (
-                        "SdpaAttention" in class_name
-                        or "SdpaSelfAttention" in class_name
-                    ):
-                        raise ValueError(
-                            "The eager model should not have SDPA attention layers"
-                        )
+                    if "SdpaAttention" in class_name or "SdpaSelfAttention" in class_name:
+                        raise ValueError("The eager model should not have SDPA attention layers")
 
 
 @require_torch
@@ -255,9 +207,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_single(self):
         # Let' s make sure we test the preprocessing to replace what is used
-        model = Qwen2AudioForConditionalGeneration.from_pretrained(
-            "Qwen/Qwen2-Audio-7B-Instruct"
-        )
+        model = Qwen2AudioForConditionalGeneration.from_pretrained("Qwen/Qwen2-Audio-7B-Instruct")
 
         url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-Audio/audio/glass-breaking-151256.mp3"
         messages = [
@@ -270,18 +220,11 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
             }
         ]
 
-        raw_audio, _ = librosa.load(
-            BytesIO(urlopen(url).read()),
-            sr=self.processor.feature_extractor.sampling_rate,
-        )
+        raw_audio, _ = librosa.load(BytesIO(urlopen(url).read()), sr=self.processor.feature_extractor.sampling_rate)
 
-        formatted_prompt = self.processor.apply_chat_template(
-            messages, add_generation_prompt=True
-        )
+        formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
 
-        inputs = self.processor(
-            text=formatted_prompt, audios=[raw_audio], return_tensors="pt", padding=True
-        )
+        inputs = self.processor(text=formatted_prompt, audios=[raw_audio], return_tensors="pt", padding=True)
 
         output = model.generate(**inputs, max_new_tokens=32)
 
@@ -314,17 +257,14 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
         ]])
         # fmt: on
         with self.assertRaisesRegex(
-            ValueError,
-            "Audio features and audio tokens do not match: tokens: 200, features 101",
+            ValueError, "Audio features and audio tokens do not match: tokens: 200, features 101"
         ):
             model.generate(**inputs, max_new_tokens=32)
 
     @slow
     def test_small_model_integration_test_batch(self):
         # Let' s make sure we test the preprocessing to replace what is used
-        model = Qwen2AudioForConditionalGeneration.from_pretrained(
-            "Qwen/Qwen2-Audio-7B-Instruct"
-        )
+        model = Qwen2AudioForConditionalGeneration.from_pretrained("Qwen/Qwen2-Audio-7B-Instruct")
 
         conversation1 = [
             {
@@ -366,9 +306,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
         conversations = [conversation1, conversation2]
 
         text = [
-            self.processor.apply_chat_template(
-                conversation, add_generation_prompt=True, tokenize=False
-            )
+            self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
             for conversation in conversations
         ]
 
@@ -385,9 +323,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
                                 )[0]
                             )
 
-        inputs = self.processor(
-            text=text, audios=audios, return_tensors="pt", padding=True
-        )
+        inputs = self.processor(text=text, audios=audios, return_tensors="pt", padding=True)
 
         output = model.generate(**inputs, max_new_tokens=32)
 
@@ -403,9 +339,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_multiturn(self):
         # Let' s make sure we test the preprocessing to replace what is used
-        model = Qwen2AudioForConditionalGeneration.from_pretrained(
-            "Qwen/Qwen2-Audio-7B-Instruct"
-        )
+        model = Qwen2AudioForConditionalGeneration.from_pretrained("Qwen/Qwen2-Audio-7B-Instruct")
 
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -432,9 +366,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
             },
         ]
 
-        formatted_prompt = self.processor.apply_chat_template(
-            messages, add_generation_prompt=True
-        )
+        formatted_prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
 
         audios = []
         for message in messages:
@@ -448,9 +380,7 @@ class Qwen2AudioForConditionalGenerationIntegrationTest(unittest.TestCase):
                             )[0]
                         )
 
-        inputs = self.processor(
-            text=formatted_prompt, audios=audios, return_tensors="pt", padding=True
-        )
+        inputs = self.processor(text=formatted_prompt, audios=audios, return_tensors="pt", padding=True)
 
         output = model.generate(**inputs, max_new_tokens=32, top_k=1)
 

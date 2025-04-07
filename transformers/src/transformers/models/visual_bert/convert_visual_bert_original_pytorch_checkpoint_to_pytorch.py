@@ -14,15 +14,12 @@
 # limitations under the License.
 """Convert VisualBert checkpoint."""
 
-# Standard
+import argparse
 from collections import OrderedDict
 from pathlib import Path
-import argparse
 
-# Third Party
 import torch
 
-# First Party
 from transformers import (
     VisualBertConfig,
     VisualBertForMultipleChoice,
@@ -31,6 +28,7 @@ from transformers import (
     VisualBertForVisualReasoning,
 )
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -64,9 +62,7 @@ def load_state_dict(checkpoint_path):
 
 def get_new_dict(d, config, rename_keys_prefix=rename_keys_prefix):
     new_d = OrderedDict()
-    new_d["visual_bert.embeddings.position_ids"] = torch.arange(
-        config.max_position_embeddings
-    ).expand((1, -1))
+    new_d["visual_bert.embeddings.position_ids"] = torch.arange(config.max_position_embeddings).expand((1, -1))
     # detector_d = OrderedDict()
     for key in d:
         if "detector" in key:
@@ -88,9 +84,9 @@ def convert_visual_bert_checkpoint(checkpoint_path, pytorch_dump_folder_path):
     Copy/paste/tweak model's weights to our VisualBERT structure.
     """
 
-    assert (
-        checkpoint_path.split("/")[-1] in ACCEPTABLE_CHECKPOINTS
-    ), f"The checkpoint provided must be in {ACCEPTABLE_CHECKPOINTS}."
+    assert checkpoint_path.split("/")[-1] in ACCEPTABLE_CHECKPOINTS, (
+        f"The checkpoint provided must be in {ACCEPTABLE_CHECKPOINTS}."
+    )
 
     # Get Config
     if "pre" in checkpoint_path:
@@ -104,9 +100,7 @@ def convert_visual_bert_checkpoint(checkpoint_path, pytorch_dump_folder_path):
         elif "nlvr" in checkpoint_path:
             config_params = {"visual_embedding_dim": 1024}
         else:
-            raise NotImplementedError(
-                f"No implementation found for `{checkpoint_path}`."
-            )
+            raise NotImplementedError(f"No implementation found for `{checkpoint_path}`.")
     else:
         if "vcr" in checkpoint_path:
             config_params = {"visual_embedding_dim": 512}
@@ -149,13 +143,7 @@ def convert_visual_bert_checkpoint(checkpoint_path, pytorch_dump_folder_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
-    parser.add_argument(
-        "orig_checkpoint_path", type=str, help="A path to .th on local filesystem."
-    )
-    parser.add_argument(
-        "pytorch_dump_folder_path", type=str, help="Path to the output PyTorch model."
-    )
+    parser.add_argument("orig_checkpoint_path", type=str, help="A path to .th on local filesystem.")
+    parser.add_argument("pytorch_dump_folder_path", type=str, help="Path to the output PyTorch model.")
     args = parser.parse_args()
-    convert_visual_bert_checkpoint(
-        args.orig_checkpoint_path, args.pytorch_dump_folder_path
-    )
+    convert_visual_bert_checkpoint(args.orig_checkpoint_path, args.pytorch_dump_folder_path)

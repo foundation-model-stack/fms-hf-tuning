@@ -1,6 +1,5 @@
 # Example where we only want to overwrite the defaults of an init
 
-# First Party
 from transformers.models.gemma.configuration_gemma import GemmaConfig
 
 

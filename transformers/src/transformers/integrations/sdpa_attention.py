@@ -1,7 +1,5 @@
-# Standard
 from typing import Optional, Tuple
 
-# Third Party
 import torch
 
 
@@ -13,9 +11,7 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(
-        batch, num_key_value_heads, n_rep, slen, head_dim
-    )
+    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -35,7 +31,7 @@ def sdpa_attention_forward(
         value = repeat_kv(value, module.num_key_value_groups)
 
     causal_mask = attention_mask
-    if attention_mask is not None:
+    if attention_mask is not None and causal_mask.ndim == 4:
         causal_mask = causal_mask[:, :, :, : key.shape[-2]]
 
     # SDPA with memory-efficient backend is bugged with non-contiguous inputs and custom attn_mask for some torch versions

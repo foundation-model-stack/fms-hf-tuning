@@ -14,16 +14,15 @@
 # limitations under the License.
 """LayoutLMv2 model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import is_detectron2_available, logging
+
 
 logger = logging.get_logger(__name__)
 
 
 # soft dependency
 if is_detectron2_available():
-    # Third Party
     import detectron2
 
 
@@ -174,9 +173,7 @@ class LayoutLMv2Config(PretrainedConfig):
         self.has_spatial_attention_bias = has_spatial_attention_bias
         self.has_visual_segment_embedding = has_visual_segment_embedding
         self.detectron2_config_args = (
-            detectron2_config_args
-            if detectron2_config_args is not None
-            else self.get_default_detectron2_config()
+            detectron2_config_args if detectron2_config_args is not None else self.get_default_detectron2_config()
         )
 
     @classmethod

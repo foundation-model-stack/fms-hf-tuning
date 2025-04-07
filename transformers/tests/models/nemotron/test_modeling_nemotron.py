@@ -15,14 +15,11 @@
 # limitations under the License.
 """Testing suite for the PyTorch Nemotron model."""
 
-# Standard
 import tempfile
 import unittest
 
-# Third Party
 import pytest
 
-# First Party
 from transformers import NemotronConfig, is_torch_available
 from transformers.testing_utils import (
     is_flaky,
@@ -36,15 +33,13 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...models.gemma.test_modeling_gemma import GemmaModelTest, GemmaModelTester
 from ...test_configuration_common import ConfigTester
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         AutoTokenizer,
         NemotronForCausalLM,
@@ -101,13 +96,9 @@ class NemotronModelTest(GemmaModelTest):
 
     def setUp(self):
         self.model_tester = NemotronModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=NemotronConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=NemotronConfig, hidden_size=37)
 
-    @unittest.skip(
-        "Eager and SDPA do not produce the same outputs, thus this test fails"
-    )
+    @unittest.skip("Eager and SDPA do not produce the same outputs, thus this test fails")
     def test_model_outputs_equivalence(self, **kwargs):
         pass
 
@@ -119,10 +110,7 @@ class NemotronModelTest(GemmaModelTest):
             if not model_class._supports_sdpa:
                 self.skipTest(reason="Model does not support SDPA")
 
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
             model = model_class(config)
 
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -132,9 +120,7 @@ class NemotronModelTest(GemmaModelTest):
                 )
                 model_sdpa.to(torch_device)
 
-                model = model_class.from_pretrained(
-                    tmpdirname, torch_dtype=torch.float16, attn_implementation="eager"
-                )
+                model = model_class.from_pretrained(tmpdirname, torch_dtype=torch.float16, attn_implementation="eager")
                 model.to(torch_device)
 
                 dummy_input = inputs_dict[model_class.main_input_name]
@@ -158,24 +144,17 @@ class NemotronModelTest(GemmaModelTest):
             if not model_class._supports_flash_attn_2:
                 self.skipTest(reason="Model does not support Flash Attention 2")
 
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
             model = model_class(config)
 
             with tempfile.TemporaryDirectory() as tmpdirname:
                 model.save_pretrained(tmpdirname)
                 model_fa = model_class.from_pretrained(
-                    tmpdirname,
-                    torch_dtype=torch.float16,
-                    attn_implementation="flash_attention_2",
+                    tmpdirname, torch_dtype=torch.float16, attn_implementation="flash_attention_2"
                 )
                 model_fa.to(torch_device)
 
-                model = model_class.from_pretrained(
-                    tmpdirname, torch_dtype=torch.float16, attn_implementation="eager"
-                )
+                model = model_class.from_pretrained(tmpdirname, torch_dtype=torch.float16, attn_implementation="eager")
                 model.to(torch_device)
 
                 dummy_input = inputs_dict[model_class.main_input_name]
@@ -200,9 +179,7 @@ class NemotronIntegrationTest(unittest.TestCase):
     def setUpClass(cls):
         if is_torch_available() and torch.cuda.is_available():
             # 8 is for A100 / A10 and 7 for T4
-            cls.cuda_compute_capability_major_version = (
-                torch.cuda.get_device_capability()[0]
-            )
+            cls.cuda_compute_capability_major_version = torch.cuda.get_device_capability()[0]
 
     @slow
     @require_read_token
@@ -213,10 +190,7 @@ class NemotronIntegrationTest(unittest.TestCase):
         ]
         model_id = "thhaus/nemotron3-8b"
         model = NemotronForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            attn_implementation="sdpa",
+            model_id, torch_dtype=torch.float16, device_map="auto", attn_implementation="sdpa"
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         inputs = tokenizer(text, return_tensors="pt").to(torch_device)
@@ -234,10 +208,7 @@ class NemotronIntegrationTest(unittest.TestCase):
         ]
         model_id = "thhaus/nemotron3-8b"
         model = NemotronForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            attn_implementation="eager",
+            model_id, torch_dtype=torch.float16, device_map="auto", attn_implementation="eager"
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         inputs = tokenizer(text, return_tensors="pt").to(torch_device)
@@ -255,10 +226,7 @@ class NemotronIntegrationTest(unittest.TestCase):
         ]
         model_id = "thhaus/nemotron3-8b"
         model = NemotronForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            attn_implementation="flash_attention_2",
+            model_id, torch_dtype=torch.float16, device_map="auto", attn_implementation="flash_attention_2"
         )
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         inputs = tokenizer(text, return_tensors="pt").to(torch_device)

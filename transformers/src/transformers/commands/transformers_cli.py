@@ -13,24 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# First Party
 from transformers import HfArgumentParser
-
-# Local
-from .add_fast_image_processor import AddFastImageProcessorCommand
-from .add_new_model_like import AddNewModelLikeCommand
-from .chat import ChatCommand
-from .convert import ConvertCommand
-from .download import DownloadCommand
-from .env import EnvironmentCommand
-from .run import RunCommand
-from .serving import ServeCommand
+from transformers.commands.add_fast_image_processor import AddFastImageProcessorCommand
+from transformers.commands.add_new_model_like import AddNewModelLikeCommand
+from transformers.commands.chat import ChatCommand
+from transformers.commands.convert import ConvertCommand
+from transformers.commands.download import DownloadCommand
+from transformers.commands.env import EnvironmentCommand
+from transformers.commands.run import RunCommand
+from transformers.commands.serving import ServeCommand
 
 
 def main():
-    parser = HfArgumentParser(
-        prog="Transformers CLI tool", usage="transformers-cli <command> [<args>]"
-    )
+    parser = HfArgumentParser(prog="Transformers CLI tool", usage="transformers-cli <command> [<args>]")
     commands_parser = parser.add_subparsers(help="transformers-cli command helpers")
 
     # Register commands

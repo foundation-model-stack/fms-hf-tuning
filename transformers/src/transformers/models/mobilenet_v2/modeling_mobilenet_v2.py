@@ -14,15 +14,12 @@
 # limitations under the License.
 """PyTorch MobileNetV2 model."""
 
-# Standard
 from typing import Optional, Union
 
-# Third Party
+import torch
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-import torch
 
-# Local
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutputWithPoolingAndNoAttention,
@@ -38,6 +35,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_mobilenet_v2 import MobileNetV2Config
+
 
 logger = logging.get_logger(__name__)
 
@@ -61,71 +59,35 @@ def _build_tf_to_pytorch_map(model, config, tf_weights=None):
 
     tf_to_pt_map = {}
 
-    if isinstance(
-        model, (MobileNetV2ForImageClassification, MobileNetV2ForSemanticSegmentation)
-    ):
+    if isinstance(model, (MobileNetV2ForImageClassification, MobileNetV2ForSemanticSegmentation)):
         backbone = model.mobilenet_v2
     else:
         backbone = model
 
     # Use the EMA weights if available
     def ema(x):
-        return (
-            x + "/ExponentialMovingAverage"
-            if x + "/ExponentialMovingAverage" in tf_weights
-            else x
-        )
+        return x + "/ExponentialMovingAverage" if x + "/ExponentialMovingAverage" in tf_weights else x
 
     prefix = "MobilenetV2/Conv/"
-    tf_to_pt_map[
-        ema(prefix + "weights")
-    ] = backbone.conv_stem.first_conv.convolution.weight
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/beta")
-    ] = backbone.conv_stem.first_conv.normalization.bias
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/gamma")
-    ] = backbone.conv_stem.first_conv.normalization.weight
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_mean"
-    ] = backbone.conv_stem.first_conv.normalization.running_mean
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_variance"
-    ] = backbone.conv_stem.first_conv.normalization.running_var
+    tf_to_pt_map[ema(prefix + "weights")] = backbone.conv_stem.first_conv.convolution.weight
+    tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = backbone.conv_stem.first_conv.normalization.bias
+    tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = backbone.conv_stem.first_conv.normalization.weight
+    tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = backbone.conv_stem.first_conv.normalization.running_mean
+    tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = backbone.conv_stem.first_conv.normalization.running_var
 
     prefix = "MobilenetV2/expanded_conv/depthwise/"
-    tf_to_pt_map[
-        ema(prefix + "depthwise_weights")
-    ] = backbone.conv_stem.conv_3x3.convolution.weight
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/beta")
-    ] = backbone.conv_stem.conv_3x3.normalization.bias
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/gamma")
-    ] = backbone.conv_stem.conv_3x3.normalization.weight
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_mean"
-    ] = backbone.conv_stem.conv_3x3.normalization.running_mean
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_variance"
-    ] = backbone.conv_stem.conv_3x3.normalization.running_var
+    tf_to_pt_map[ema(prefix + "depthwise_weights")] = backbone.conv_stem.conv_3x3.convolution.weight
+    tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = backbone.conv_stem.conv_3x3.normalization.bias
+    tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = backbone.conv_stem.conv_3x3.normalization.weight
+    tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = backbone.conv_stem.conv_3x3.normalization.running_mean
+    tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = backbone.conv_stem.conv_3x3.normalization.running_var
 
     prefix = "MobilenetV2/expanded_conv/project/"
-    tf_to_pt_map[
-        ema(prefix + "weights")
-    ] = backbone.conv_stem.reduce_1x1.convolution.weight
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/beta")
-    ] = backbone.conv_stem.reduce_1x1.normalization.bias
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/gamma")
-    ] = backbone.conv_stem.reduce_1x1.normalization.weight
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_mean"
-    ] = backbone.conv_stem.reduce_1x1.normalization.running_mean
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_variance"
-    ] = backbone.conv_stem.reduce_1x1.normalization.running_var
+    tf_to_pt_map[ema(prefix + "weights")] = backbone.conv_stem.reduce_1x1.convolution.weight
+    tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = backbone.conv_stem.reduce_1x1.normalization.bias
+    tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = backbone.conv_stem.reduce_1x1.normalization.weight
+    tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = backbone.conv_stem.reduce_1x1.normalization.running_mean
+    tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = backbone.conv_stem.reduce_1x1.normalization.running_var
 
     for i in range(16):
         tf_index = i + 1
@@ -134,63 +96,31 @@ def _build_tf_to_pytorch_map(model, config, tf_weights=None):
 
         prefix = f"MobilenetV2/expanded_conv_{tf_index}/expand/"
         tf_to_pt_map[ema(prefix + "weights")] = pointer.expand_1x1.convolution.weight
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/beta")
-        ] = pointer.expand_1x1.normalization.bias
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/gamma")
-        ] = pointer.expand_1x1.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = pointer.expand_1x1.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = pointer.expand_1x1.normalization.running_var
+        tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = pointer.expand_1x1.normalization.bias
+        tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = pointer.expand_1x1.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = pointer.expand_1x1.normalization.running_mean
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = pointer.expand_1x1.normalization.running_var
 
         prefix = f"MobilenetV2/expanded_conv_{tf_index}/depthwise/"
-        tf_to_pt_map[
-            ema(prefix + "depthwise_weights")
-        ] = pointer.conv_3x3.convolution.weight
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/beta")
-        ] = pointer.conv_3x3.normalization.bias
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/gamma")
-        ] = pointer.conv_3x3.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = pointer.conv_3x3.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = pointer.conv_3x3.normalization.running_var
+        tf_to_pt_map[ema(prefix + "depthwise_weights")] = pointer.conv_3x3.convolution.weight
+        tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = pointer.conv_3x3.normalization.bias
+        tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = pointer.conv_3x3.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = pointer.conv_3x3.normalization.running_mean
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = pointer.conv_3x3.normalization.running_var
 
         prefix = f"MobilenetV2/expanded_conv_{tf_index}/project/"
         tf_to_pt_map[ema(prefix + "weights")] = pointer.reduce_1x1.convolution.weight
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/beta")
-        ] = pointer.reduce_1x1.normalization.bias
-        tf_to_pt_map[
-            ema(prefix + "BatchNorm/gamma")
-        ] = pointer.reduce_1x1.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = pointer.reduce_1x1.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = pointer.reduce_1x1.normalization.running_var
+        tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = pointer.reduce_1x1.normalization.bias
+        tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = pointer.reduce_1x1.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = pointer.reduce_1x1.normalization.running_mean
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = pointer.reduce_1x1.normalization.running_var
 
     prefix = "MobilenetV2/Conv_1/"
     tf_to_pt_map[ema(prefix + "weights")] = backbone.conv_1x1.convolution.weight
     tf_to_pt_map[ema(prefix + "BatchNorm/beta")] = backbone.conv_1x1.normalization.bias
-    tf_to_pt_map[
-        ema(prefix + "BatchNorm/gamma")
-    ] = backbone.conv_1x1.normalization.weight
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_mean"
-    ] = backbone.conv_1x1.normalization.running_mean
-    tf_to_pt_map[
-        prefix + "BatchNorm/moving_variance"
-    ] = backbone.conv_1x1.normalization.running_var
+    tf_to_pt_map[ema(prefix + "BatchNorm/gamma")] = backbone.conv_1x1.normalization.weight
+    tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = backbone.conv_1x1.normalization.running_mean
+    tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = backbone.conv_1x1.normalization.running_var
 
     if isinstance(model, MobileNetV2ForImageClassification):
         prefix = "MobilenetV2/Logits/Conv2d_1c_1x1/"
@@ -199,63 +129,37 @@ def _build_tf_to_pytorch_map(model, config, tf_weights=None):
 
     if isinstance(model, MobileNetV2ForSemanticSegmentation):
         prefix = "image_pooling/"
-        tf_to_pt_map[
-            prefix + "weights"
-        ] = model.segmentation_head.conv_pool.convolution.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/beta"
-        ] = model.segmentation_head.conv_pool.normalization.bias
-        tf_to_pt_map[
-            prefix + "BatchNorm/gamma"
-        ] = model.segmentation_head.conv_pool.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = model.segmentation_head.conv_pool.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = model.segmentation_head.conv_pool.normalization.running_var
+        tf_to_pt_map[prefix + "weights"] = model.segmentation_head.conv_pool.convolution.weight
+        tf_to_pt_map[prefix + "BatchNorm/beta"] = model.segmentation_head.conv_pool.normalization.bias
+        tf_to_pt_map[prefix + "BatchNorm/gamma"] = model.segmentation_head.conv_pool.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = model.segmentation_head.conv_pool.normalization.running_mean
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = (
+            model.segmentation_head.conv_pool.normalization.running_var
+        )
 
         prefix = "aspp0/"
-        tf_to_pt_map[
-            prefix + "weights"
-        ] = model.segmentation_head.conv_aspp.convolution.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/beta"
-        ] = model.segmentation_head.conv_aspp.normalization.bias
-        tf_to_pt_map[
-            prefix + "BatchNorm/gamma"
-        ] = model.segmentation_head.conv_aspp.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = model.segmentation_head.conv_aspp.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = model.segmentation_head.conv_aspp.normalization.running_var
+        tf_to_pt_map[prefix + "weights"] = model.segmentation_head.conv_aspp.convolution.weight
+        tf_to_pt_map[prefix + "BatchNorm/beta"] = model.segmentation_head.conv_aspp.normalization.bias
+        tf_to_pt_map[prefix + "BatchNorm/gamma"] = model.segmentation_head.conv_aspp.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = model.segmentation_head.conv_aspp.normalization.running_mean
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = (
+            model.segmentation_head.conv_aspp.normalization.running_var
+        )
 
         prefix = "concat_projection/"
-        tf_to_pt_map[
-            prefix + "weights"
-        ] = model.segmentation_head.conv_projection.convolution.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/beta"
-        ] = model.segmentation_head.conv_projection.normalization.bias
-        tf_to_pt_map[
-            prefix + "BatchNorm/gamma"
-        ] = model.segmentation_head.conv_projection.normalization.weight
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_mean"
-        ] = model.segmentation_head.conv_projection.normalization.running_mean
-        tf_to_pt_map[
-            prefix + "BatchNorm/moving_variance"
-        ] = model.segmentation_head.conv_projection.normalization.running_var
+        tf_to_pt_map[prefix + "weights"] = model.segmentation_head.conv_projection.convolution.weight
+        tf_to_pt_map[prefix + "BatchNorm/beta"] = model.segmentation_head.conv_projection.normalization.bias
+        tf_to_pt_map[prefix + "BatchNorm/gamma"] = model.segmentation_head.conv_projection.normalization.weight
+        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = (
+            model.segmentation_head.conv_projection.normalization.running_mean
+        )
+        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = (
+            model.segmentation_head.conv_projection.normalization.running_var
+        )
 
         prefix = "logits/semantic/"
-        tf_to_pt_map[
-            ema(prefix + "weights")
-        ] = model.segmentation_head.classifier.convolution.weight
-        tf_to_pt_map[
-            ema(prefix + "biases")
-        ] = model.segmentation_head.classifier.convolution.bias
+        tf_to_pt_map[ema(prefix + "weights")] = model.segmentation_head.classifier.convolution.weight
+        tf_to_pt_map[ema(prefix + "biases")] = model.segmentation_head.classifier.convolution.bias
 
     return tf_to_pt_map
 
@@ -263,7 +167,6 @@ def _build_tf_to_pytorch_map(model, config, tf_weights=None):
 def load_tf_weights_in_mobilenet_v2(model, config, tf_checkpoint_path):
     """Load TensorFlow checkpoints in a PyTorch model."""
     try:
-        # Third Party
         import numpy as np
         import tensorflow as tf
     except ImportError:
@@ -303,9 +206,7 @@ def load_tf_weights_in_mobilenet_v2(model, config, tf_checkpoint_path):
                 array = np.transpose(array, (3, 2, 0, 1))
 
         if pointer.shape != array.shape:
-            raise ValueError(
-                f"Pointer shape {pointer.shape} and array shape {array.shape} mismatched"
-            )
+            raise ValueError(f"Pointer shape {pointer.shape} and array shape {array.shape} mismatched")
 
         logger.info(f"Initialize PyTorch weight {name} {array.shape}")
         pointer.data = torch.from_numpy(array)
@@ -320,9 +221,7 @@ def load_tf_weights_in_mobilenet_v2(model, config, tf_checkpoint_path):
     return model
 
 
-def make_divisible(
-    value: int, divisor: int = 8, min_value: Optional[int] = None
-) -> int:
+def make_divisible(value: int, divisor: int = 8, min_value: Optional[int] = None) -> int:
     """
     Ensure that all layers have a channel count that is divisible by `divisor`. This function is taken from the
     original TensorFlow repo. It can be seen here:
@@ -338,11 +237,7 @@ def make_divisible(
 
 
 def apply_depth_multiplier(config: MobileNetV2Config, channels: int) -> int:
-    return make_divisible(
-        int(round(channels * config.depth_multiplier)),
-        config.depth_divisible_by,
-        config.min_depth,
-    )
+    return make_divisible(int(round(channels * config.depth_multiplier)), config.depth_divisible_by, config.min_depth)
 
 
 def apply_tf_padding(features: torch.Tensor, conv_layer: nn.Conv2d) -> torch.Tensor:
@@ -399,13 +294,9 @@ class MobileNetV2ConvLayer(nn.Module):
         self.config = config
 
         if in_channels % groups != 0:
-            raise ValueError(
-                f"Input channels ({in_channels}) are not divisible by {groups} groups."
-            )
+            raise ValueError(f"Input channels ({in_channels}) are not divisible by {groups} groups.")
         if out_channels % groups != 0:
-            raise ValueError(
-                f"Output channels ({out_channels}) are not divisible by {groups} groups."
-            )
+            raise ValueError(f"Output channels ({out_channels}) are not divisible by {groups} groups.")
 
         padding = 0 if config.tf_padding else int((kernel_size - 1) / 2) * dilation
 
@@ -455,19 +346,12 @@ class MobileNetV2ConvLayer(nn.Module):
 
 class MobileNetV2InvertedResidual(nn.Module):
     def __init__(
-        self,
-        config: MobileNetV2Config,
-        in_channels: int,
-        out_channels: int,
-        stride: int,
-        dilation: int = 1,
+        self, config: MobileNetV2Config, in_channels: int, out_channels: int, stride: int, dilation: int = 1
     ) -> None:
         super().__init__()
 
         expanded_channels = make_divisible(
-            int(round(in_channels * config.expand_ratio)),
-            config.depth_divisible_by,
-            config.min_depth,
+            int(round(in_channels * config.expand_ratio)), config.depth_divisible_by, config.min_depth
         )
 
         if stride not in [1, 2]:
@@ -476,10 +360,7 @@ class MobileNetV2InvertedResidual(nn.Module):
         self.use_residual = (stride == 1) and (in_channels == out_channels)
 
         self.expand_1x1 = MobileNetV2ConvLayer(
-            config,
-            in_channels=in_channels,
-            out_channels=expanded_channels,
-            kernel_size=1,
+            config, in_channels=in_channels, out_channels=expanded_channels, kernel_size=1
         )
 
         self.conv_3x3 = MobileNetV2ConvLayer(
@@ -511,13 +392,7 @@ class MobileNetV2InvertedResidual(nn.Module):
 
 
 class MobileNetV2Stem(nn.Module):
-    def __init__(
-        self,
-        config: MobileNetV2Config,
-        in_channels: int,
-        expanded_channels: int,
-        out_channels: int,
-    ) -> None:
+    def __init__(self, config: MobileNetV2Config, in_channels: int, expanded_channels: int, out_channels: int) -> None:
         super().__init__()
 
         # The very first layer is a regular 3x3 convolution with stride 2 that expands to 32 channels.
@@ -534,10 +409,7 @@ class MobileNetV2Stem(nn.Module):
             self.expand_1x1 = None
         else:
             self.expand_1x1 = MobileNetV2ConvLayer(
-                config,
-                in_channels=expanded_channels,
-                out_channels=expanded_channels,
-                kernel_size=1,
+                config, in_channels=expanded_channels, out_channels=expanded_channels, kernel_size=1
             )
 
         self.conv_3x3 = MobileNetV2ConvLayer(
@@ -624,25 +496,7 @@ class MobileNetV2Model(MobileNetV2PreTrainedModel):
         self.config = config
 
         # Output channels for the projection layers
-        channels = [
-            16,
-            24,
-            24,
-            32,
-            32,
-            32,
-            64,
-            64,
-            64,
-            64,
-            96,
-            96,
-            96,
-            160,
-            160,
-            160,
-            320,
-        ]
+        channels = [16, 24, 24, 32, 32, 32, 64, 64, 64, 64, 96, 96, 96, 160, 160, 160, 320]
         channels = [apply_depth_multiplier(config, x) for x in channels]
 
         # Strides for the depthwise layers
@@ -715,13 +569,9 @@ class MobileNetV2Model(MobileNetV2PreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[tuple, BaseModelOutputWithPoolingAndNoAttention]:
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
@@ -744,11 +594,7 @@ class MobileNetV2Model(MobileNetV2PreTrainedModel):
             pooled_output = None
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [last_hidden_state, pooled_output, all_hidden_states]
-                if v is not None
-            )
+            return tuple(v for v in [last_hidden_state, pooled_output, all_hidden_states] if v is not None)
 
         return BaseModelOutputWithPoolingAndNoAttention(
             last_hidden_state=last_hidden_state,
@@ -775,11 +621,7 @@ class MobileNetV2ForImageClassification(MobileNetV2PreTrainedModel):
 
         # Classifier head
         self.dropout = nn.Dropout(config.classifier_dropout_prob, inplace=True)
-        self.classifier = (
-            nn.Linear(last_hidden_size, config.num_labels)
-            if config.num_labels > 0
-            else nn.Identity()
-        )
+        self.classifier = nn.Linear(last_hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -804,15 +646,9 @@ class MobileNetV2ForImageClassification(MobileNetV2PreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss). If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.mobilenet_v2(
-            pixel_values,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
+        outputs = self.mobilenet_v2(pixel_values, output_hidden_states=output_hidden_states, return_dict=return_dict)
 
         pooled_output = outputs.pooler_output if return_dict else outputs[1]
 
@@ -823,9 +659,7 @@ class MobileNetV2ForImageClassification(MobileNetV2PreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -947,9 +781,7 @@ class MobileNetV2ForSemanticSegmentation(MobileNetV2PreTrainedModel):
         self.post_init()
 
     @add_start_docstrings_to_model_forward(MOBILENET_V2_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=SemanticSegmenterOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=SemanticSegmenterOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         pixel_values: Optional[torch.Tensor] = None,
@@ -986,13 +818,9 @@ class MobileNetV2ForSemanticSegmentation(MobileNetV2PreTrainedModel):
         >>> logits = outputs.logits
         ```"""
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if labels is not None and self.config.num_labels == 1:
             raise ValueError("The number of labels should be greater than one")
@@ -1013,9 +841,7 @@ class MobileNetV2ForSemanticSegmentation(MobileNetV2PreTrainedModel):
             upsampled_logits = nn.functional.interpolate(
                 logits, size=labels.shape[-2:], mode="bilinear", align_corners=False
             )
-            loss_fct = CrossEntropyLoss(
-                ignore_index=self.config.semantic_loss_ignore_index
-            )
+            loss_fct = CrossEntropyLoss(ignore_index=self.config.semantic_loss_ignore_index)
             loss = loss_fct(upsampled_logits, labels)
 
         if not return_dict:

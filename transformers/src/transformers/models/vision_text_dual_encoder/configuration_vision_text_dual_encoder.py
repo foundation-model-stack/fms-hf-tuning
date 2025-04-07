@@ -14,13 +14,13 @@
 # limitations under the License.
 """VisionTextDualEncoder model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ..auto.configuration_auto import AutoConfig
 from ..chinese_clip.configuration_chinese_clip import ChineseCLIPVisionConfig
 from ..clip.configuration_clip import CLIPVisionConfig
 from ..siglip.configuration_siglip import SiglipVisionConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -97,9 +97,7 @@ class VisionTextDualEncoderConfig(PretrainedConfig):
         if vision_config_class is not None:
             self.vision_config = vision_config_class(**vision_config)
         else:
-            self.vision_config = AutoConfig.for_model(
-                vision_model_type, **vision_config
-            )
+            self.vision_config = AutoConfig.for_model(vision_model_type, **vision_config)
             if hasattr(self.vision_config, "vision_config"):
                 self.vision_config = self.vision_config.vision_config
 
@@ -109,9 +107,7 @@ class VisionTextDualEncoderConfig(PretrainedConfig):
         self.logit_scale_init_value = logit_scale_init_value
 
     @classmethod
-    def from_vision_text_configs(
-        cls, vision_config: PretrainedConfig, text_config: PretrainedConfig, **kwargs
-    ):
+    def from_vision_text_configs(cls, vision_config: PretrainedConfig, text_config: PretrainedConfig, **kwargs):
         r"""
         Instantiate a [`VisionTextDualEncoderConfig`] (or a derived class) from text model configuration and vision
         model configuration.
@@ -120,11 +116,7 @@ class VisionTextDualEncoderConfig(PretrainedConfig):
             [`VisionTextDualEncoderConfig`]: An instance of a configuration object
         """
 
-        return cls(
-            vision_config=vision_config.to_dict(),
-            text_config=text_config.to_dict(),
-            **kwargs
-        )
+        return cls(vision_config=vision_config.to_dict(), text_config=text_config.to_dict(), **kwargs)
 
 
 __all__ = ["VisionTextDualEncoderConfig"]

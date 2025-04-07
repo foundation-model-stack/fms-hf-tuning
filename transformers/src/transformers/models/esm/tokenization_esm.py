@@ -14,13 +14,12 @@
 # limitations under the License.
 """Tokenization classes for ESM."""
 
-# Standard
-from typing import List, Optional
 import os
+from typing import List, Optional
 
-# Local
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -100,18 +99,11 @@ class EsmTokenizer(PreTrainedTokenizer):
             else:
                 return cls + token_ids_0 + sep
         elif self.eos_token_id is None:
-            raise ValueError(
-                "Cannot tokenize multiple sequences when EOS token is not set!"
-            )
-        return (
-            cls + token_ids_0 + sep + token_ids_1 + sep
-        )  # Multiple inputs always have an EOS token
+            raise ValueError("Cannot tokenize multiple sequences when EOS token is not set!")
+        return cls + token_ids_0 + sep + token_ids_1 + sep  # Multiple inputs always have an EOS token
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List,
-        token_ids_1: Optional[List] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List, token_ids_1: Optional[List] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """
         Retrieves sequence ids from a token list that has no special tokens added. This method is called when adding
@@ -142,10 +134,7 @@ class EsmTokenizer(PreTrainedTokenizer):
         return mask
 
     def save_vocabulary(self, save_directory, filename_prefix):
-        vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "") + "vocab.txt",
-        )
+        vocab_file = os.path.join(save_directory, (filename_prefix + "-" if filename_prefix else "") + "vocab.txt")
         with open(vocab_file, "w") as f:
             f.write("\n".join(self.all_tokens))
         return (vocab_file,)

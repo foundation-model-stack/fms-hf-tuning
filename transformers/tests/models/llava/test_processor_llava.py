@@ -11,27 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import json
 import shutil
 import tempfile
 import unittest
 
-# First Party
-from transformers import (
-    AutoProcessor,
-    AutoTokenizer,
-    LlamaTokenizerFast,
-    LlavaProcessor,
-)
+from transformers import AutoProcessor, AutoTokenizer, LlamaTokenizerFast, LlavaProcessor
 from transformers.testing_utils import require_vision
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import CLIPImageProcessor
 
 if is_torch_available:
@@ -84,9 +76,7 @@ class LlavaProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         # they have to be saved as separate file and loaded back from that file
         # so we check if the same template is loaded
         processor_dict = self.prepare_processor_dict()
-        self.assertTrue(
-            processor_loaded.chat_template == processor_dict.get("chat_template", None)
-        )
+        self.assertTrue(processor_loaded.chat_template == processor_dict.get("chat_template", None))
 
     def test_can_load_various_tokenizers(self):
         for checkpoint in ["Intel/llava-gemma-2b", "llava-hf/llava-1.5-7b-hf"]:
@@ -108,9 +98,7 @@ class LlavaProcessorTest(ProcessorTesterMixin, unittest.TestCase):
             },
         ]
 
-        formatted_prompt = processor.apply_chat_template(
-            messages, add_generation_prompt=True
-        )
+        formatted_prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
         self.assertEqual(expected_prompt, formatted_prompt)
 
     def test_chat_template_dict(self):
@@ -125,35 +113,23 @@ class LlavaProcessorTest(ProcessorTesterMixin, unittest.TestCase):
             },
         ]
 
-        formatted_prompt_tokenized = processor.apply_chat_template(
-            messages, add_generation_prompt=True, tokenize=True
-        )
+        formatted_prompt_tokenized = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True)
         expected_output = [[1, 3148, 1001, 29901, 29871, 32000, 29871, 13, 5618, 338, 4318, 297, 445, 1967, 29973, 319, 1799, 9047, 13566, 29901]]  # fmt: skip
         self.assertListEqual(expected_output, formatted_prompt_tokenized)
 
-        out_dict = processor.apply_chat_template(
-            messages, add_generation_prompt=True, tokenize=True, return_dict=True
-        )
+        out_dict = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True)
         self.assertListEqual(list(out_dict.keys()), ["input_ids", "attention_mask"])
 
         # add image URL for return dict
-        messages[0]["content"][0] = {
-            "type": "image",
-            "url": "https://www.ilankelman.org/stopsigns/australia.jpg",
-        }
+        messages[0]["content"][0] = {"type": "image", "url": "https://www.ilankelman.org/stopsigns/australia.jpg"}
         out_dict_with_image = processor.apply_chat_template(
             messages, add_generation_prompt=True, tokenize=True, return_dict=True
         )
-        self.assertListEqual(
-            list(out_dict_with_image.keys()),
-            ["input_ids", "attention_mask", "pixel_values"],
-        )
+        self.assertListEqual(list(out_dict_with_image.keys()), ["input_ids", "attention_mask", "pixel_values"])
 
     def test_chat_template_with_continue_final_message(self):
         processor = LlavaProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
-        expected_prompt = (
-            "USER: <image>\nDescribe this image. ASSISTANT: There is a dog and"
-        )
+        expected_prompt = "USER: <image>\nDescribe this image. ASSISTANT: There is a dog and"
         messages = [
             {
                 "role": "user",

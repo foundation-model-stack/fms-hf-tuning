@@ -14,17 +14,15 @@
 # limitations under the License
 """Tokenization classes for XLM-RoBERTa model."""
 
-# Standard
+import os
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Tuple
-import os
 
-# Third Party
 import sentencepiece as spm
 
-# Local
 from ...tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -117,11 +115,7 @@ class XLMRobertaTokenizer(PreTrainedTokenizer):
         **kwargs,
     ) -> None:
         # Mask token behave like a normal word, i.e. include the space before it
-        mask_token = (
-            AddedToken(mask_token, lstrip=True, special=True)
-            if isinstance(mask_token, str)
-            else mask_token
-        )
+        mask_token = AddedToken(mask_token, lstrip=True, special=True) if isinstance(mask_token, str) else mask_token
 
         self.sp_model_kwargs = {} if sp_model_kwargs is None else sp_model_kwargs
 
@@ -142,9 +136,7 @@ class XLMRobertaTokenizer(PreTrainedTokenizer):
         self.fairseq_offset = 1
 
         self.fairseq_tokens_to_ids["<mask>"] = len(self.sp_model) + self.fairseq_offset
-        self.fairseq_ids_to_tokens = {
-            v: k for k, v in self.fairseq_tokens_to_ids.items()
-        }
+        self.fairseq_ids_to_tokens = {v: k for k, v in self.fairseq_tokens_to_ids.items()}
 
         super().__init__(
             bos_token=bos_token,
@@ -201,10 +193,7 @@ class XLMRobertaTokenizer(PreTrainedTokenizer):
         return cls + token_ids_0 + sep + sep + token_ids_1 + sep
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """
         Retrieve sequence ids from a token list that has no special tokens added. This method is called when adding
@@ -224,9 +213,7 @@ class XLMRobertaTokenizer(PreTrainedTokenizer):
 
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=True,
+                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
             )
 
         if token_ids_1 is None:
@@ -291,21 +278,15 @@ class XLMRobertaTokenizer(PreTrainedTokenizer):
         out_string = "".join(tokens).replace(SPIECE_UNDERLINE, " ").strip()
         return out_string
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         out_vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
 
-        if os.path.abspath(self.vocab_file) != os.path.abspath(
-            out_vocab_file
-        ) and os.path.isfile(self.vocab_file):
+        if os.path.abspath(self.vocab_file) != os.path.abspath(out_vocab_file) and os.path.isfile(self.vocab_file):
             copyfile(self.vocab_file, out_vocab_file)
         elif not os.path.isfile(self.vocab_file):
             with open(out_vocab_file, "wb") as fi:

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Standard
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,29 +16,18 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-# Local
-from ..utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
+from ..utils import (
+    OptionalDependencyNotAvailable,
+    _LazyModule,
+    is_torch_available,
+)
+
 
 _import_structure = {
-    "agents": [
-        "Agent",
-        "CodeAgent",
-        "ManagedAgent",
-        "ReactAgent",
-        "ReactCodeAgent",
-        "ReactJsonAgent",
-        "Toolbox",
-    ],
+    "agents": ["Agent", "CodeAgent", "ManagedAgent", "ReactAgent", "ReactCodeAgent", "ReactJsonAgent", "Toolbox"],
     "llm_engine": ["HfApiEngine", "TransformersEngine"],
     "monitoring": ["stream_to_gradio"],
-    "tools": [
-        "PipelineTool",
-        "Tool",
-        "ToolCollection",
-        "launch_gradio_demo",
-        "load_tool",
-        "tool",
-    ],
+    "tools": ["PipelineTool", "Tool", "ToolCollection", "launch_gradio_demo", "load_tool", "tool"],
 }
 
 try:
@@ -57,26 +45,10 @@ else:
     _import_structure["translation"] = ["TranslationTool"]
 
 if TYPE_CHECKING:
-    # Local
-    from .agents import (
-        Agent,
-        CodeAgent,
-        ManagedAgent,
-        ReactAgent,
-        ReactCodeAgent,
-        ReactJsonAgent,
-        Toolbox,
-    )
+    from .agents import Agent, CodeAgent, ManagedAgent, ReactAgent, ReactCodeAgent, ReactJsonAgent, Toolbox
     from .llm_engine import HfApiEngine, TransformersEngine
     from .monitoring import stream_to_gradio
-    from .tools import (
-        PipelineTool,
-        Tool,
-        ToolCollection,
-        launch_gradio_demo,
-        load_tool,
-        tool,
-    )
+    from .tools import PipelineTool, Tool, ToolCollection, launch_gradio_demo, load_tool, tool
 
     try:
         if not is_torch_available():
@@ -84,7 +56,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .default_tools import FinalAnswerTool, PythonInterpreterTool
         from .document_question_answering import DocumentQuestionAnsweringTool
         from .image_question_answering import ImageQuestionAnsweringTool
@@ -93,9 +64,6 @@ if TYPE_CHECKING:
         from .text_to_speech import TextToSpeechTool
         from .translation import TranslationTool
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

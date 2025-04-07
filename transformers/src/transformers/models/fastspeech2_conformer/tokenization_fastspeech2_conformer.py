@@ -14,17 +14,15 @@
 # limitations under the License.
 """Tokenization classes for FastSpeech2Conformer."""
 
-# Standard
-from typing import Optional, Tuple
 import json
 import os
+from typing import Optional, Tuple
 
-# Third Party
 import regex
 
-# Local
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging, requires_backends
+
 
 logger = logging.get_logger(__name__)
 
@@ -69,7 +67,6 @@ class FastSpeech2ConformerTokenizer(PreTrainedTokenizer):
         with open(vocab_file, encoding="utf-8") as vocab_handle:
             self.encoder = json.load(vocab_handle)
 
-        # Third Party
         import g2p_en
 
         self.g2p = g2p_en.G2p()
@@ -146,9 +143,7 @@ class FastSpeech2ConformerTokenizer(PreTrainedTokenizer):
         )
         return tokens
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         """
         Save the vocabulary and special tokens file to a directory.
 
@@ -163,9 +158,7 @@ class FastSpeech2ConformerTokenizer(PreTrainedTokenizer):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
@@ -182,7 +175,6 @@ class FastSpeech2ConformerTokenizer(PreTrainedTokenizer):
         self.__dict__ = d
 
         try:
-            # Third Party
             import g2p_en
 
             self.g2p = g2p_en.G2p()

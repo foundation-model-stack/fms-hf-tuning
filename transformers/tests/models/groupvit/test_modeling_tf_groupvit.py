@@ -14,21 +14,17 @@
 # limitations under the License.
 """Testing suite for the TensorFlow GroupViT model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
-from importlib import import_module
 import inspect
 import os
 import random
 import tempfile
 import unittest
+from importlib import import_module
 
-# Third Party
 import requests
 
-# First Party
 from transformers import GroupViTConfig, GroupViTTextConfig, GroupViTVisionConfig
 from transformers.testing_utils import (
     require_tensorflow_probability,
@@ -38,35 +34,21 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_tf_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_tf_common import (
-    TFModelTesterMixin,
-    floats_tensor,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_tf_common import TFModelTesterMixin, floats_tensor, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
-    from transformers import (
-        TFGroupViTModel,
-        TFGroupViTTextModel,
-        TFGroupViTVisionModel,
-        TFSharedEmbeddings,
-    )
+    from transformers import TFGroupViTModel, TFGroupViTTextModel, TFGroupViTVisionModel, TFSharedEmbeddings
     from transformers.modeling_tf_utils import keras
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import CLIPProcessor
 
 
@@ -115,10 +97,7 @@ class TFGroupViTVisionModelTester:
 
     def prepare_config_and_inputs(self):
         rng = random.Random(0)
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size],
-            rng=rng,
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size], rng=rng)
         config = self.get_config()
 
         return config, pixel_values
@@ -143,12 +122,9 @@ class TFGroupViTVisionModelTester:
         model = TFGroupViTVisionModel(config=config)
         result = model(pixel_values, training=False)
         self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.num_output_groups[-1], self.hidden_size),
+            result.last_hidden_state.shape, (self.batch_size, self.num_output_groups[-1], self.hidden_size)
         )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -174,10 +150,7 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
     def setUp(self):
         self.model_tester = TFGroupViTVisionModelTester(self)
         self.config_tester = ConfigTester(
-            self,
-            config_class=GroupViTVisionConfig,
-            has_text_modality=False,
-            hidden_size=37,
+            self, config_class=GroupViTVisionConfig, has_text_modality=False, hidden_size=37
         )
 
     def test_config(self):
@@ -232,31 +205,23 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
 
         seq_len = getattr(self.model_tester, "seq_length", None)
 
-        expected_num_attention_outputs = sum(
-            g > 0 for g in self.model_tester.num_group_tokens
-        )
+        expected_num_attention_outputs = sum(g > 0 for g in self.model_tester.num_group_tokens)
 
         for model_class in self.all_model_classes:
             inputs_dict["output_attentions"] = True
             inputs_dict["output_hidden_states"] = False
             config.return_dict = True
             model = model_class(config)
-            outputs = model(
-                **self._prepare_for_class(inputs_dict, model_class), training=False
-            )
+            outputs = model(**self._prepare_for_class(inputs_dict, model_class), training=False)
             attentions = outputs.attentions
             # GroupViT returns attention grouping of each stage
-            self.assertEqual(
-                len(attentions), sum(g > 0 for g in self.model_tester.num_group_tokens)
-            )
+            self.assertEqual(len(attentions), sum(g > 0 for g in self.model_tester.num_group_tokens))
 
             # check that output_attentions also work using config
             del inputs_dict["output_attentions"]
             config.output_attentions = True
             model = model_class(config)
-            outputs = model(
-                **self._prepare_for_class(inputs_dict, model_class), training=False
-            )
+            outputs = model(**self._prepare_for_class(inputs_dict, model_class), training=False)
             attentions = outputs.attentions
             # GroupViT returns attention grouping of each stage
             self.assertEqual(len(attentions), expected_num_attention_outputs)
@@ -267,9 +232,7 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
             inputs_dict["output_attentions"] = True
             inputs_dict["output_hidden_states"] = True
             model = model_class(config)
-            outputs = model(
-                **self._prepare_for_class(inputs_dict, model_class), training=False
-            )
+            outputs = model(**self._prepare_for_class(inputs_dict, model_class), training=False)
 
             added_hidden_states = 1
             self.assertEqual(out_len + added_hidden_states, len(outputs))
@@ -286,9 +249,7 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
                     list(self_attentions[i].shape[-2:]),
                     [
                         self.model_tester.num_output_groups[i],
-                        self.model_tester.num_output_groups[i - 1]
-                        if i > 0
-                        else seq_len,
+                        self.model_tester.num_output_groups[i - 1] if i > 0 else seq_len,
                     ],
                 )
 
@@ -296,20 +257,12 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
         def check_hidden_states_output(inputs_dict, config, model_class):
             model = model_class(config)
 
-            outputs = model(
-                **self._prepare_for_class(inputs_dict, model_class), training=False
-            )
+            outputs = model(**self._prepare_for_class(inputs_dict, model_class), training=False)
 
-            hidden_states = (
-                outputs.encoder_hidden_states
-                if config.is_encoder_decoder
-                else outputs.hidden_states
-            )
+            hidden_states = outputs.encoder_hidden_states if config.is_encoder_decoder else outputs.hidden_states
 
             expected_num_layers = getattr(
-                self.model_tester,
-                "expected_num_hidden_layers",
-                self.model_tester.num_hidden_layers + 1,
+                self.model_tester, "expected_num_hidden_layers", self.model_tester.num_hidden_layers + 1
             )
             self.assertEqual(len(hidden_states), expected_num_layers)
 
@@ -371,28 +324,16 @@ class TFGroupViTVisionModelTest(TFModelTesterMixin, unittest.TestCase):
 
                 # Check num layers
                 expected_num_layers = getattr(
-                    self.model_tester,
-                    "expected_num_hidden_layers",
-                    self.model_tester.num_hidden_layers + 1,
+                    self.model_tester, "expected_num_hidden_layers", self.model_tester.num_hidden_layers + 1
                 )
 
                 self.assertEqual(len(output_hidden_states), expected_num_layers)
-                self.assertEqual(
-                    len(output_attentions), self.model_tester.num_hidden_layers
-                )
+                self.assertEqual(len(output_attentions), self.model_tester.num_hidden_layers)
 
                 # Check attention outputs
-                image_size = (
-                    self.model_tester.image_size,
-                    self.model_tester.image_size,
-                )
-                patch_size = (
-                    self.model_tester.patch_size,
-                    self.model_tester.patch_size,
-                )
-                num_patches = (image_size[1] // patch_size[1]) * (
-                    image_size[0] // patch_size[0]
-                )
+                image_size = (self.model_tester.image_size, self.model_tester.image_size)
+                patch_size = (self.model_tester.patch_size, self.model_tester.patch_size)
+                num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
                 seq_len = num_patches + 1
 
                 self.assertListEqual(
@@ -446,9 +387,7 @@ class TFGroupViTTextModelTester:
 
     def prepare_config_and_inputs(self):
         rng = random.Random(0)
-        input_ids = ids_tensor(
-            [self.batch_size, self.seq_length], self.vocab_size, rng=rng
-        )
+        input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size, rng=rng)
 
         input_mask = None
         if self.use_input_mask:
@@ -457,11 +396,7 @@ class TFGroupViTTextModelTester:
             # is still at least one token being attended to for each batch.
             # TODO: Change `random_attention_mask` in PT/TF/Flax common test file, after a discussion with the team.
             input_mask = tf.concat(
-                [
-                    tf.ones_like(input_mask[:, :1], dtype=input_mask.dtype),
-                    input_mask[:, 1:],
-                ],
-                axis=-1,
+                [tf.ones_like(input_mask[:, :1], dtype=input_mask.dtype), input_mask[:, 1:]], axis=-1
             )
 
         config = self.get_config()
@@ -485,13 +420,8 @@ class TFGroupViTTextModelTester:
         model = TFGroupViTTextModel(config=config)
         result = model(input_ids, attention_mask=input_mask, training=False)
         result = model(input_ids, training=False)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -509,9 +439,7 @@ class TFGroupViTTextModelTest(TFModelTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = TFGroupViTTextModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=GroupViTTextConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=GroupViTTextConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -557,9 +485,7 @@ class TFGroupViTTextModelTest(TFModelTesterMixin, unittest.TestCase):
 
                 # Check number of layers
                 expected_num_layers = getattr(
-                    self.model_tester,
-                    "expected_num_hidden_layers",
-                    self.model_tester.num_hidden_layers + 1,
+                    self.model_tester, "expected_num_hidden_layers", self.model_tester.num_hidden_layers + 1
                 )
 
                 # Check hidden states
@@ -570,9 +496,7 @@ class TFGroupViTTextModelTest(TFModelTesterMixin, unittest.TestCase):
                 )
 
                 # Check attention outputs
-                self.assertEqual(
-                    len(output_attentions), self.model_tester.num_hidden_layers
-                )
+                self.assertEqual(len(output_attentions), self.model_tester.num_hidden_layers)
 
                 seq_length = self.model_tester.seq_length
                 key_length = getattr(self.model_tester, "key_length", seq_length)
@@ -591,15 +515,8 @@ class TFGroupViTModelTester:
         self.is_training = is_training
 
     def prepare_config_and_inputs(self):
-        (
-            text_config,
-            input_ids,
-            attention_mask,
-        ) = self.text_model_tester.prepare_config_and_inputs()
-        (
-            vision_config,
-            pixel_values,
-        ) = self.vision_model_tester.prepare_config_and_inputs()
+        text_config, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        vision_config, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
 
         config = self.get_config()
 
@@ -607,21 +524,17 @@ class TFGroupViTModelTester:
 
     def get_config(self):
         return GroupViTConfig.from_text_vision_configs(
-            self.text_model_tester.get_config(),
-            self.vision_model_tester.get_config(),
-            projection_dim=64,
+            self.text_model_tester.get_config(), self.vision_model_tester.get_config(), projection_dim=64
         )
 
     def create_and_check_model(self, config, input_ids, attention_mask, pixel_values):
         model = TFGroupViTModel(config)
         result = model(input_ids, pixel_values, attention_mask, training=False)
         self.parent.assertEqual(
-            result.logits_per_image.shape,
-            (self.vision_model_tester.batch_size, self.text_model_tester.batch_size),
+            result.logits_per_image.shape, (self.vision_model_tester.batch_size, self.text_model_tester.batch_size)
         )
         self.parent.assertEqual(
-            result.logits_per_text.shape,
-            (self.text_model_tester.batch_size, self.vision_model_tester.batch_size),
+            result.logits_per_text.shape, (self.text_model_tester.batch_size, self.vision_model_tester.batch_size)
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -639,9 +552,7 @@ class TFGroupViTModelTester:
 @require_tf
 class TFGroupViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (TFGroupViTModel,) if is_tf_available() else ()
-    pipeline_model_mapping = (
-        {"feature-extraction": TFGroupViTModel} if is_tf_available() else {}
-    )
+    pipeline_model_mapping = {"feature-extraction": TFGroupViTModel} if is_tf_available() else {}
     test_head_masking = False
     test_pruning = False
     test_resize_embeddings = False
@@ -688,8 +599,7 @@ class TFGroupViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Test
             for module_member_name in dir(module)
             if module_member_name.endswith("MainLayer")
             # This condition is required, since `modeling_tf_clip.py` has 3 classes whose names end with `MainLayer`.
-            and module_member_name[: -len("MainLayer")]
-            == model_class.__name__[: -len("Model")]
+            and module_member_name[: -len("MainLayer")] == model_class.__name__[: -len("Model")]
             for module_member in (getattr(module, module_member_name),)
             if isinstance(module_member, type)
             and keras.layers.Layer in module_member.__bases__
@@ -706,8 +616,7 @@ class TFGroupViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Test
                 main_layer = main_layer_class(config)
 
             symbolic_inputs = {
-                name: keras.Input(tensor.shape[1:], dtype=tensor.dtype)
-                for name, tensor in inputs_dict.items()
+                name: keras.Input(tensor.shape[1:], dtype=tensor.dtype) for name, tensor in inputs_dict.items()
             }
 
             model = keras.Model(symbolic_inputs, outputs=main_layer(symbolic_inputs))
@@ -726,8 +635,7 @@ class TFGroupViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Test
                     )
                 else:
                     model = keras.models.load_model(
-                        filepath,
-                        custom_objects={main_layer_class.__name__: main_layer_class},
+                        filepath, custom_objects={main_layer_class.__name__: main_layer_class}
                     )
                 assert isinstance(model, keras.Model)
                 after_outputs = model(inputs_dict)
@@ -744,9 +652,7 @@ class TFGroupViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Test
     def test_saved_model_creation(self):
         pass
 
-    @unittest.skip(
-        reason="`saved_model` doesn't work with nested outputs so no preparation happens."
-    )
+    @unittest.skip(reason="`saved_model` doesn't work with nested outputs so no preparation happens.")
     @slow
     def test_prepare_serving_output(self):
         pass
@@ -770,10 +676,7 @@ class TFGroupViTModelIntegrationTest(unittest.TestCase):
 
         image = prepare_img()
         inputs = processor(
-            text=["a photo of a cat", "a photo of a dog"],
-            images=image,
-            padding=True,
-            return_tensors="tf",
+            text=["a photo of a cat", "a photo of a dog"], images=image, padding=True, return_tensors="tf"
         )
 
         outputs = model(**inputs, training=False)

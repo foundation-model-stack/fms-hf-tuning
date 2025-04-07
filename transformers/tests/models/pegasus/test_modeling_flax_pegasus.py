@@ -14,31 +14,26 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers import PegasusConfig, PegasusTokenizer, is_flax_available
 from transformers.testing_utils import require_flax, slow
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor
 
+
 if is_flax_available():
-    # Standard
     import os
 
     # The slow tests are often failing with OOM error on GPU
     # This makes JAX allocate exactly what is needed on demand, and deallocate memory that is no longer needed
     # but will be slower as stated here https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
-    # Third Party
     import jax
     import jax.numpy as jnp
     import numpy as np
 
-    # First Party
     from transformers import FlaxPegasusForConditionalGeneration, FlaxPegasusModel
 
 
@@ -86,15 +81,11 @@ class FlaxPegasusModelTester:
         self.bos_token_id = bos_token_id
 
     def prepare_config_and_inputs_for_common(self):
-        input_ids = ids_tensor(
-            [self.batch_size, self.seq_length - 1], self.vocab_size
-        ).clip(3, self.vocab_size)
+        input_ids = ids_tensor([self.batch_size, self.seq_length - 1], self.vocab_size).clip(3, self.vocab_size)
         eos_tensor = np.expand_dims(np.array([self.eos_token_id] * self.batch_size), 1)
         input_ids = np.concatenate([input_ids, eos_tensor], axis=1)
 
-        decoder_input_ids = ids_tensor(
-            [self.batch_size, self.seq_length], self.vocab_size
-        )
+        decoder_input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
 
         config = self.config_cls(
             vocab_size=self.vocab_size,
@@ -128,12 +119,8 @@ class FlaxPegasusModelTester:
             inputs_dict["decoder_attention_mask"],
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
-        decoder_attention_mask = jnp.ones(
-            (decoder_input_ids.shape[0], max_decoder_length), dtype="i4"
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
+        decoder_attention_mask = jnp.ones((decoder_input_ids.shape[0], max_decoder_length), dtype="i4")
 
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
@@ -147,9 +134,7 @@ class FlaxPegasusModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -160,14 +145,10 @@ class FlaxPegasusModelTester:
 
         outputs = model.decode(decoder_input_ids, encoder_outputs)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
-    def check_use_cache_forward_with_attn_mask(
-        self, model_class_name, config, inputs_dict
-    ):
+    def check_use_cache_forward_with_attn_mask(self, model_class_name, config, inputs_dict):
         max_decoder_length = 20
         model = model_class_name(config)
 
@@ -181,19 +162,12 @@ class FlaxPegasusModelTester:
         decoder_attention_mask_cache = jnp.concatenate(
             [
                 decoder_attention_mask,
-                jnp.zeros(
-                    (
-                        decoder_attention_mask.shape[0],
-                        max_decoder_length - decoder_attention_mask.shape[1],
-                    )
-                ),
+                jnp.zeros((decoder_attention_mask.shape[0], max_decoder_length - decoder_attention_mask.shape[1])),
             ],
             axis=-1,
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
             (decoder_input_ids.shape[0], decoder_input_ids.shape[-1] - 1),
@@ -206,9 +180,7 @@ class FlaxPegasusModelTester:
             past_key_values=past_key_values,
             decoder_position_ids=decoder_position_ids,
         )
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -217,15 +189,9 @@ class FlaxPegasusModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        outputs = model.decode(
-            decoder_input_ids,
-            encoder_outputs,
-            decoder_attention_mask=decoder_attention_mask,
-        )
+        outputs = model.decode(decoder_input_ids, encoder_outputs, decoder_attention_mask=decoder_attention_mask)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
 
@@ -242,9 +208,7 @@ def prepare_pegasus_inputs_dict(
         decoder_attention_mask = np.concatenate(
             [
                 np.ones(decoder_input_ids[:, :1].shape, dtype=np.int8),
-                np.not_equal(decoder_input_ids[:, 1:], config.pad_token_id).astype(
-                    np.int8
-                ),
+                np.not_equal(decoder_input_ids[:, 1:], config.pad_token_id).astype(np.int8),
             ],
             axis=-1,
         )
@@ -286,9 +250,7 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
     def test_use_cache_forward_with_attn_mask(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
         for model_class in self.all_model_classes:
-            self.model_tester.check_use_cache_forward_with_attn_mask(
-                model_class, config, inputs_dict
-            )
+            self.model_tester.check_use_cache_forward_with_attn_mask(model_class, config, inputs_dict)
 
     def test_encode(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -300,9 +262,7 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
                 @jax.jit
                 def encode_jitted(input_ids, attention_mask=None, **kwargs):
-                    return model.encode(
-                        input_ids=input_ids, attention_mask=attention_mask
-                    )
+                    return model.encode(input_ids=input_ids, attention_mask=attention_mask)
 
                 with self.subTest("JIT Enabled"):
                     jitted_outputs = encode_jitted(**prepared_inputs_dict).to_tuple()
@@ -321,9 +281,7 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
         for model_class in self.all_model_classes:
             with self.subTest(model_class.__name__):
                 model = model_class(config)
-                encoder_outputs = model.encode(
-                    inputs_dict["input_ids"], inputs_dict["attention_mask"]
-                )
+                encoder_outputs = model.encode(inputs_dict["input_ids"], inputs_dict["attention_mask"])
 
                 prepared_inputs_dict = {
                     "decoder_input_ids": inputs_dict["decoder_input_ids"],
@@ -332,9 +290,7 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
                 }
 
                 @jax.jit
-                def decode_jitted(
-                    decoder_input_ids, decoder_attention_mask, encoder_outputs
-                ):
+                def decode_jitted(decoder_input_ids, decoder_attention_mask, encoder_outputs):
                     return model.decode(
                         decoder_input_ids=decoder_input_ids,
                         decoder_attention_mask=decoder_attention_mask,
@@ -355,18 +311,14 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
     @slow
     def test_model_from_pretrained(self):
         for model_class_name in self.all_model_classes:
-            model = model_class_name.from_pretrained(
-                "google/pegasus-large", from_pt=True
-            )
+            model = model_class_name.from_pretrained("google/pegasus-large", from_pt=True)
             input_ids = np.ones((1, 1))
             outputs = model(input_ids)
             self.assertIsNotNone(outputs)
 
     @slow
     def test_pegasus_xsum_summary(self):
-        model = FlaxPegasusForConditionalGeneration.from_pretrained(
-            "google/pegasus-xsum"
-        )
+        model = FlaxPegasusForConditionalGeneration.from_pretrained("google/pegasus-xsum")
         tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-xsum")
 
         src_text = [
@@ -379,9 +331,7 @@ class FlaxPegasusModelTest(FlaxModelTesterMixin, unittest.TestCase):
             "Pop group N-Dubz have revealed they were surprised to get four nominations for this year's Mobo Awards.",
         ]
 
-        inputs = tokenizer(
-            src_text, return_tensors="np", truncation=True, max_length=512, padding=True
-        )
+        inputs = tokenizer(src_text, return_tensors="np", truncation=True, max_length=512, padding=True)
         translated_tokens = model.generate(**inputs, num_beams=2).sequences
         decoded = tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)
         assert tgt_text == decoded

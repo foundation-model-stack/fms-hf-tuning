@@ -16,10 +16,8 @@
 Image/Text processor class for CLIPSeg
 """
 
-# Standard
 import warnings
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...tokenization_utils_base import BatchEncoding
 
@@ -52,9 +50,7 @@ class CLIPSegProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -62,14 +58,12 @@ class CLIPSegProcessor(ProcessorMixin):
 
         super().__init__(image_processor, tokenizer)
 
-    def __call__(
-        self, text=None, images=None, visual_prompt=None, return_tensors=None, **kwargs
-    ):
+    def __call__(self, text=None, images=None, visual_prompt=None, return_tensors=None, **kwargs):
         """
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to CLIPTokenizerFast's [`~CLIPTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        ViTImageProcessor's [`~ViTImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring of
+        ViTImageProcessor's [`~ViTImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring of
         the above two methods for more information.
 
         Args:
@@ -103,27 +97,19 @@ class CLIPSegProcessor(ProcessorMixin):
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
         if text is None and visual_prompt is None and images is None:
-            raise ValueError(
-                "You have to specify either text, visual prompt or images."
-            )
+            raise ValueError("You have to specify either text, visual prompt or images.")
 
         if text is not None and visual_prompt is not None:
-            raise ValueError(
-                "You have to specify exactly one type of prompt. Either text or visual prompt."
-            )
+            raise ValueError("You have to specify exactly one type of prompt. Either text or visual prompt.")
 
         if text is not None:
             encoding = self.tokenizer(text, return_tensors=return_tensors, **kwargs)
 
         if visual_prompt is not None:
-            prompt_features = self.image_processor(
-                visual_prompt, return_tensors=return_tensors, **kwargs
-            )
+            prompt_features = self.image_processor(visual_prompt, return_tensors=return_tensors, **kwargs)
 
         if images is not None:
-            image_features = self.image_processor(
-                images, return_tensors=return_tensors, **kwargs
-            )
+            image_features = self.image_processor(images, return_tensors=return_tensors, **kwargs)
 
         if visual_prompt is not None and images is not None:
             encoding = {
@@ -142,9 +128,7 @@ class CLIPSegProcessor(ProcessorMixin):
             }
             return encoding
         else:
-            return BatchEncoding(
-                data=dict(**image_features), tensor_type=return_tensors
-            )
+            return BatchEncoding(data=dict(**image_features), tensor_type=return_tensors)
 
     def batch_decode(self, *args, **kwargs):
         """

@@ -14,14 +14,13 @@
 # limitations under the License.
 """LayoutLM model configuration"""
 
-# Standard
 from collections import OrderedDict
 from typing import Any, List, Mapping, Optional
 
-# Local
 from ... import PretrainedConfig, PreTrainedTokenizer
 from ...onnx import OnnxConfig, PatchingSpec
 from ...utils import TensorType, is_torch_available, logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -179,24 +178,17 @@ class LayoutLMOnnxConfig(OnnxConfig):
         """
 
         input_dict = super().generate_dummy_inputs(
-            tokenizer,
-            batch_size=batch_size,
-            seq_length=seq_length,
-            is_pair=is_pair,
-            framework=framework,
+            tokenizer, batch_size=batch_size, seq_length=seq_length, is_pair=is_pair, framework=framework
         )
 
         # Generate a dummy bbox
         box = [48, 84, 73, 128]
 
         if not framework == TensorType.PYTORCH:
-            raise NotImplementedError(
-                "Exporting LayoutLM to ONNX is currently only supported for PyTorch."
-            )
+            raise NotImplementedError("Exporting LayoutLM to ONNX is currently only supported for PyTorch.")
 
         if not is_torch_available():
             raise ValueError("Cannot generate dummy inputs without PyTorch installed.")
-        # Third Party
         import torch
 
         batch_size, seq_length = input_dict["input_ids"].shape

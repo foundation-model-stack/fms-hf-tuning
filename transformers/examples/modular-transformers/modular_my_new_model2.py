@@ -1,4 +1,3 @@
-# First Party
 from transformers.models.gemma.modeling_gemma import GemmaForSequenceClassification
 from transformers.models.llama.configuration_llama import LlamaConfig
 

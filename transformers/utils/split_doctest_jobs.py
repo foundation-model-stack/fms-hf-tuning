@@ -31,13 +31,12 @@ python utils/split_doctest_jobs.py --only_return_keys --num_splits 4
 (this is used to allow GitHub Actions to generate more than 256 jobs using matrix)
 """
 
-# Standard
+import argparse
 from collections import defaultdict
 from pathlib import Path
-import argparse
 
-# Third Party
 from tests_fetcher import get_all_doctest_files
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -68,9 +67,7 @@ if __name__ == "__main__":
             for file in raw_test_collection_map[file_dir]:
                 refined_test_collection_map[file] = file
         else:
-            refined_test_collection_map[file_dir] = " ".join(
-                sorted(raw_test_collection_map[file_dir])
-            )
+            refined_test_collection_map[file_dir] = " ".join(sorted(raw_test_collection_map[file_dir]))
 
     sorted_file_dirs = sorted(refined_test_collection_map.keys())
 
@@ -85,9 +82,7 @@ if __name__ == "__main__":
     end = 0
     for idx in range(args.num_splits):
         start = end
-        end = (
-            start + num_jobs_per_splits + (1 if idx < num_jobs % args.num_splits else 0)
-        )
+        end = start + num_jobs_per_splits + (1 if idx < num_jobs % args.num_splits else 0)
         file_directory_splits.append(sorted_file_dirs[start:end])
 
     if args.only_return_keys:

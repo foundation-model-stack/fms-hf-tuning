@@ -14,28 +14,21 @@
 # limitations under the License.
 """Classes to support Speech-Encoder-Text-Decoder architectures"""
 
-# Standard
 from typing import Optional, Tuple, Union
 
-# Third Party
+import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
-import torch
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, Seq2SeqLMOutput
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from ..auto.configuration_auto import AutoConfig
 from ..auto.modeling_auto import AutoModel, AutoModelForCausalLM
 from .configuration_speech_encoder_decoder import SpeechEncoderDecoderConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -158,24 +151,18 @@ SPEECH_ENCODER_DECODER_INPUTS_DOCSTRING = r"""
 
 
 # Copied from transformers.models.encoder_decoder.modeling_encoder_decoder.shift_tokens_right
-def shift_tokens_right(
-    input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int
-):
+def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int):
     """
     Shift input ids one token to the right.
     """
     shifted_input_ids = input_ids.new_zeros(input_ids.shape)
     shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
     if decoder_start_token_id is None:
-        raise ValueError(
-            "Make sure to set the decoder_start_token_id attribute of the model's configuration."
-        )
+        raise ValueError("Make sure to set the decoder_start_token_id attribute of the model's configuration.")
     shifted_input_ids[:, 0] = decoder_start_token_id
 
     if pad_token_id is None:
-        raise ValueError(
-            "Make sure to set the pad_token_id attribute of the model's configuration."
-        )
+        raise ValueError("Make sure to set the pad_token_id attribute of the model's configuration.")
     # replace possible -100 values in labels by `pad_token_id`
     shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
 
@@ -206,18 +193,12 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         decoder: Optional[PreTrainedModel] = None,
     ):
         if config is None and (encoder is None or decoder is None):
-            raise ValueError(
-                "Either a configuration or an encoder and a decoder has to be provided."
-            )
+            raise ValueError("Either a configuration or an encoder and a decoder has to be provided.")
         if config is None:
-            config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(
-                encoder.config, decoder.config
-            )
+            config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(encoder.config, decoder.config)
         else:
             if not isinstance(config, self.config_class):
-                raise ValueError(
-                    f"Config: {config} has to be of type {self.config_class}"
-                )
+                raise ValueError(f"Config: {config} has to be of type {self.config_class}")
 
         if config.decoder.cross_attention_hidden_size is not None:
             if config.decoder.cross_attention_hidden_size != config.encoder.hidden_size:
@@ -255,27 +236,19 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
         # make sure that the individual model's config refers to the shared config
         # so that the updates to the config will be synced
-        self.config.encoder._attn_implementation = (
-            self.encoder.config._attn_implementation
-        )
-        self.config.decoder._attn_implementation = (
-            self.decoder.config._attn_implementation
-        )
+        self.config.encoder._attn_implementation = self.encoder.config._attn_implementation
+        self.config.decoder._attn_implementation = self.decoder.config._attn_implementation
         self.encoder.config = self.config.encoder
         self.decoder.config = self.config.decoder
 
         # get encoder output hidden size
-        self.encoder_output_dim = getattr(
-            config.encoder, "output_hidden_size", config.encoder.hidden_size
-        )
+        self.encoder_output_dim = getattr(config.encoder, "output_hidden_size", config.encoder.hidden_size)
         if (
             self.encoder_output_dim != self.decoder.config.hidden_size
             and self.decoder.config.cross_attention_hidden_size is None
         ):
             # encoder outputs might need to be projected to different dimension for decoder
-            self.enc_to_dec_proj = nn.Linear(
-                self.encoder.config.hidden_size, self.decoder.config.hidden_size
-            )
+            self.enc_to_dec_proj = nn.Linear(self.encoder.config.hidden_size, self.decoder.config.hidden_size)
 
         if self.encoder.get_output_embeddings() is not None:
             raise ValueError(
@@ -305,21 +278,10 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         self.encoder.freeze_feature_encoder()
 
     @classmethod
-    def from_pretrained(cls, *args, **kwargs):
-        # At the moment fast initialization is not supported for composite models
-        if kwargs.get("_fast_init", False):
-            logger.warning(
-                "Fast initialization is currently not supported for SpeechEncoderDecoderModel. "
-                "Falling back to slow initialization..."
-            )
-        kwargs["_fast_init"] = False
-        return super().from_pretrained(*args, **kwargs)
-
-    @classmethod
     def from_encoder_decoder_pretrained(
         cls,
-        encoder_pretrained_model_name_or_path: str = None,
-        decoder_pretrained_model_name_or_path: str = None,
+        encoder_pretrained_model_name_or_path: Optional[str] = None,
+        decoder_pretrained_model_name_or_path: Optional[str] = None,
         *model_args,
         **kwargs,
     ) -> PreTrainedModel:
@@ -383,15 +345,11 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         ```"""
 
         kwargs_encoder = {
-            argument[len("encoder_") :]: value
-            for argument, value in kwargs.items()
-            if argument.startswith("encoder_")
+            argument[len("encoder_") :]: value for argument, value in kwargs.items() if argument.startswith("encoder_")
         }
 
         kwargs_decoder = {
-            argument[len("decoder_") :]: value
-            for argument, value in kwargs.items()
-            if argument.startswith("decoder_")
+            argument[len("decoder_") :]: value for argument, value in kwargs.items() if argument.startswith("decoder_")
         }
 
         # remove encoder, decoder kwargs from kwargs
@@ -413,15 +371,10 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
             if "config" not in kwargs_encoder:
                 encoder_config, kwargs_encoder = AutoConfig.from_pretrained(
-                    encoder_pretrained_model_name_or_path,
-                    **kwargs_encoder,
-                    return_unused_kwargs=True,
+                    encoder_pretrained_model_name_or_path, **kwargs_encoder, return_unused_kwargs=True
                 )
 
-                if (
-                    encoder_config.is_decoder is True
-                    or encoder_config.add_cross_attention is True
-                ):
+                if encoder_config.is_decoder is True or encoder_config.add_cross_attention is True:
                     logger.info(
                         f"Initializing {encoder_pretrained_model_name_or_path} as a encoder model "
                         "from a decoder model. Cross-attention and casual mask are disabled."
@@ -431,9 +384,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
                 kwargs_encoder["config"] = encoder_config
 
-            encoder = AutoModel.from_pretrained(
-                encoder_pretrained_model_name_or_path, *model_args, **kwargs_encoder
-            )
+            encoder = AutoModel.from_pretrained(encoder_pretrained_model_name_or_path, *model_args, **kwargs_encoder)
 
         decoder = kwargs_decoder.pop("model", None)
         if decoder is None:
@@ -445,15 +396,10 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
             if "config" not in kwargs_decoder:
                 decoder_config, kwargs_decoder = AutoConfig.from_pretrained(
-                    decoder_pretrained_model_name_or_path,
-                    **kwargs_decoder,
-                    return_unused_kwargs=True,
+                    decoder_pretrained_model_name_or_path, **kwargs_decoder, return_unused_kwargs=True
                 )
 
-                if (
-                    decoder_config.is_decoder is False
-                    or decoder_config.add_cross_attention is False
-                ):
+                if decoder_config.is_decoder is False or decoder_config.add_cross_attention is False:
                     logger.info(
                         f"Initializing {decoder_pretrained_model_name_or_path} as a decoder model. Cross attention"
                         f" layers are added to {decoder_pretrained_model_name_or_path} and randomly initialized if"
@@ -464,10 +410,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
                 kwargs_decoder["config"] = decoder_config
 
-            if (
-                kwargs_decoder["config"].is_decoder is False
-                or kwargs_decoder["config"].add_cross_attention is False
-            ):
+            if kwargs_decoder["config"].is_decoder is False or kwargs_decoder["config"].add_cross_attention is False:
                 logger.warning(
                     f"Decoder model {decoder_pretrained_model_name_or_path} is not initialized as a decoder. "
                     f"In order to initialize {decoder_pretrained_model_name_or_path} as a decoder, "
@@ -476,23 +419,17 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
                     "`decoder_config` to `.from_encoder_decoder_pretrained(...)`"
                 )
 
-            decoder = AutoModelForCausalLM.from_pretrained(
-                decoder_pretrained_model_name_or_path, **kwargs_decoder
-            )
+            decoder = AutoModelForCausalLM.from_pretrained(decoder_pretrained_model_name_or_path, **kwargs_decoder)
 
         # instantiate config with corresponding kwargs
-        config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(
-            encoder.config, decoder.config, **kwargs
-        )
+        config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(encoder.config, decoder.config, **kwargs)
 
         # make sure input & output embeddings is not tied
         config.tie_word_embeddings = False
         return cls(encoder=encoder, decoder=decoder, config=config)
 
     @add_start_docstrings_to_model_forward(SPEECH_ENCODER_DECODER_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         inputs: Optional[torch.FloatTensor] = None,
@@ -539,40 +476,26 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         >>> loss = model(input_values, labels=labels).loss
         >>> loss.backward()
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        kwargs_encoder = {
-            argument: value
-            for argument, value in kwargs.items()
-            if not argument.startswith("decoder_")
-        }
+        kwargs_encoder = {argument: value for argument, value in kwargs.items() if not argument.startswith("decoder_")}
 
         kwargs_decoder = {
-            argument[len("decoder_") :]: value
-            for argument, value in kwargs.items()
-            if argument.startswith("decoder_")
+            argument[len("decoder_") :]: value for argument, value in kwargs.items() if argument.startswith("decoder_")
         }
         if "num_items_in_batch" in kwargs_encoder:
-            kwargs_decoder["num_items_in_batch"] = kwargs_encoder.pop(
-                "num_items_in_batch", None
-            )
+            kwargs_decoder["num_items_in_batch"] = kwargs_encoder.pop("num_items_in_batch", None)
 
         if encoder_outputs is None:
             if inputs is None:
                 if input_values is not None and input_features is not None:
-                    raise ValueError(
-                        "You cannot specify both input_values and input_features at the same time"
-                    )
+                    raise ValueError("You cannot specify both input_values and input_features at the same time")
                 elif input_values is not None:
                     inputs = input_values
                 elif input_features is not None:
                     inputs = input_features
                 else:
-                    raise ValueError(
-                        "You have to specify either input_values or input_features"
-                    )
+                    raise ValueError("You have to specify either input_values or input_features")
 
             encoder_outputs = self.encoder(
                 inputs,
@@ -602,9 +525,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         else:
             encoder_attention_mask = None
 
-        if (labels is not None) and (
-            decoder_input_ids is None and decoder_inputs_embeds is None
-        ):
+        if (labels is not None) and (decoder_input_ids is None and decoder_inputs_embeds is None):
             decoder_input_ids = shift_tokens_right(
                 labels, self.config.pad_token_id, self.config.decoder_start_token_id
             )
@@ -629,9 +550,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         if labels is not None:
             logits = decoder_outputs.logits if return_dict else decoder_outputs[0]
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                logits.reshape(-1, self.decoder.config.vocab_size), labels.reshape(-1)
-            )
+            loss = loss_fct(logits.reshape(-1, self.decoder.config.vocab_size), labels.reshape(-1))
 
         if not return_dict:
             if loss is not None:
@@ -652,9 +571,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         )
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
-        return shift_tokens_right(
-            labels, self.config.pad_token_id, self.config.decoder_start_token_id
-        )
+        return shift_tokens_right(labels, self.config.pad_token_id, self.config.decoder_start_token_id)
 
     def resize_token_embeddings(self, *args, **kwargs):
         raise NotImplementedError(

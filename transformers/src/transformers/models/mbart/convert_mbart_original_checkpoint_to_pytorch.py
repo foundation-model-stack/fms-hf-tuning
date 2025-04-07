@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Third Party
-from torch import nn
 import torch
+from torch import nn
 
-# First Party
 from transformers import MBartConfig, MBartForConditionalGeneration
 
 
@@ -44,10 +41,7 @@ def make_linear_from_emb(emb):
 
 
 def convert_fairseq_mbart_checkpoint_from_disk(
-    checkpoint_path,
-    hf_config_path="facebook/mbart-large-en-ro",
-    finetuned=False,
-    mbart_50=False,
+    checkpoint_path, hf_config_path="facebook/mbart-large-en-ro", finetuned=False, mbart_50=False
 ):
     state_dict = torch.load(checkpoint_path, map_location="cpu")["model"]
     remove_ignore_keys_(state_dict)
@@ -71,37 +65,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "fairseq_path",
-        type=str,
-        help="bart.large, bart.large.cnn or a path to a model.pt on local filesystem.",
+        "fairseq_path", type=str, help="bart.large, bart.large.cnn or a path to a model.pt on local filesystem."
     )
-    parser.add_argument(
-        "pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
+    parser.add_argument("pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
     parser.add_argument(
         "--hf_config",
         default="facebook/mbart-large-cc25",
         type=str,
         help="Which huggingface architecture to use: mbart-large",
     )
-    parser.add_argument(
-        "--mbart_50",
-        action="store_true",
-        help="whether the model is mMART-50 checkpoint",
-    )
-    parser.add_argument(
-        "--finetuned",
-        action="store_true",
-        help="whether the model is a fine-tuned checkpoint",
-    )
+    parser.add_argument("--mbart_50", action="store_true", help="whether the model is mMART-50 checkpoint")
+    parser.add_argument("--finetuned", action="store_true", help="whether the model is a fine-tuned checkpoint")
     args = parser.parse_args()
     model = convert_fairseq_mbart_checkpoint_from_disk(
-        args.fairseq_path,
-        hf_config_path=args.hf_config,
-        finetuned=args.finetuned,
-        mbart_50=args.mbart_50,
+        args.fairseq_path, hf_config_path=args.hf_config, finetuned=args.finetuned, mbart_50=args.mbart_50
     )
     model.save_pretrained(args.pytorch_dump_folder_path)

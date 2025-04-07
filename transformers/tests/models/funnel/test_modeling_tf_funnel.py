@@ -14,30 +14,21 @@
 # limitations under the License.
 
 
-# Future
 from __future__ import annotations
 
-# Standard
 import unittest
 
-# First Party
 from transformers import FunnelConfig, is_tf_available
 from transformers.testing_utils import require_tf
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_tf_common import (
-    TFModelTesterMixin,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_tf_common import TFModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers import (
         TFFunnelBaseModel,
         TFFunnelForMaskedLM,
@@ -112,9 +103,7 @@ class TFFunnelModelTester:
         # Used in the tests to check the size of the first hidden state
         self.hidden_size = self.d_model
         # Used in the tests to check the number of output hidden states/attentions
-        self.num_hidden_layers = sum(self.block_sizes) + (
-            0 if base else self.num_decoder_layers
-        )
+        self.num_hidden_layers = sum(self.block_sizes) + (0 if base else self.num_decoder_layers)
         # FunnelModel adds two hidden layers: input embeddings and the sum of the upsampled encoder hidden state with
         # the last hidden state of the first block (which is the first hidden state of the decoder).
         if not base:
@@ -129,20 +118,14 @@ class TFFunnelModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = FunnelConfig(
@@ -183,37 +166,24 @@ class TFFunnelModelTester:
         choice_labels,
     ):
         model = TFFunnelModel(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
 
         inputs = [input_ids, input_mask]
         result = model(inputs)
 
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.d_model),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.d_model))
 
         config.truncate_seq = False
         model = TFFunnelModel(config=config)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.d_model),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.d_model))
 
         config.separate_cls = False
         model = TFFunnelModel(config=config)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.d_model),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.d_model))
 
     def create_and_check_base_model(
         self,
@@ -226,34 +196,24 @@ class TFFunnelModelTester:
         choice_labels,
     ):
         model = TFFunnelBaseModel(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
 
         inputs = [input_ids, input_mask]
         result = model(inputs)
 
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape, (self.batch_size, 2, self.d_model)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, 2, self.d_model))
 
         config.truncate_seq = False
         model = TFFunnelBaseModel(config=config)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape, (self.batch_size, 3, self.d_model)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, 3, self.d_model))
 
         config.separate_cls = False
         model = TFFunnelBaseModel(config=config)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape, (self.batch_size, 2, self.d_model)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, 2, self.d_model))
 
     def create_and_check_for_pretraining(
         self,
@@ -266,11 +226,7 @@ class TFFunnelModelTester:
         choice_labels,
     ):
         model = TFFunnelForPreTraining(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length))
 
@@ -285,15 +241,9 @@ class TFFunnelModelTester:
         choice_labels,
     ):
         model = TFFunnelForMaskedLM(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
     def create_and_check_for_sequence_classification(
         self,
@@ -307,11 +257,7 @@ class TFFunnelModelTester:
     ):
         config.num_labels = self.num_labels
         model = TFFunnelForSequenceClassification(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
@@ -327,24 +273,16 @@ class TFFunnelModelTester:
     ):
         config.num_choices = self.num_choices
         model = TFFunnelForMultipleChoice(config=config)
-        multiple_choice_inputs_ids = tf.tile(
-            tf.expand_dims(input_ids, 1), (1, self.num_choices, 1)
-        )
-        multiple_choice_input_mask = tf.tile(
-            tf.expand_dims(input_mask, 1), (1, self.num_choices, 1)
-        )
-        multiple_choice_token_type_ids = tf.tile(
-            tf.expand_dims(token_type_ids, 1), (1, self.num_choices, 1)
-        )
+        multiple_choice_inputs_ids = tf.tile(tf.expand_dims(input_ids, 1), (1, self.num_choices, 1))
+        multiple_choice_input_mask = tf.tile(tf.expand_dims(input_mask, 1), (1, self.num_choices, 1))
+        multiple_choice_token_type_ids = tf.tile(tf.expand_dims(token_type_ids, 1), (1, self.num_choices, 1))
         inputs = {
             "input_ids": multiple_choice_inputs_ids,
             "attention_mask": multiple_choice_input_mask,
             "token_type_ids": multiple_choice_token_type_ids,
         }
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.num_choices)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_choices))
 
     def create_and_check_for_token_classification(
         self,
@@ -358,15 +296,9 @@ class TFFunnelModelTester:
     ):
         config.num_labels = self.num_labels
         model = TFFunnelForTokenClassification(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def create_and_check_for_question_answering(
         self,
@@ -379,18 +311,10 @@ class TFFunnelModelTester:
         choice_labels,
     ):
         model = TFFunnelForQuestionAnswering(config=config)
-        inputs = {
-            "input_ids": input_ids,
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        }
+        inputs = {"input_ids": input_ids, "attention_mask": input_mask, "token_type_ids": token_type_ids}
         result = model(inputs)
-        self.parent.assertEqual(
-            result.start_logits.shape, (self.batch_size, self.seq_length)
-        )
-        self.parent.assertEqual(
-            result.end_logits.shape, (self.batch_size, self.seq_length)
-        )
+        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
+        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -403,11 +327,7 @@ class TFFunnelModelTester:
             token_labels,
             choice_labels,
         ) = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "token_type_ids": token_type_ids,
-            "attention_mask": input_mask,
-        }
+        inputs_dict = {"input_ids": input_ids, "token_type_ids": token_type_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
 
@@ -470,13 +390,7 @@ class TFFunnelModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 @require_tf
 class TFFunnelBaseModelTest(TFModelTesterMixin, unittest.TestCase):
     all_model_classes = (
-        (
-            TFFunnelBaseModel,
-            TFFunnelForMultipleChoice,
-            TFFunnelForSequenceClassification,
-        )
-        if is_tf_available()
-        else ()
+        (TFFunnelBaseModel, TFFunnelForMultipleChoice, TFFunnelForSequenceClassification) if is_tf_available() else ()
     )
     test_head_masking = False
     test_onnx = False
@@ -494,9 +408,7 @@ class TFFunnelBaseModelTest(TFModelTesterMixin, unittest.TestCase):
 
     def test_for_sequence_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_for_sequence_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_sequence_classification(*config_and_inputs)
 
     def test_for_multiple_choice(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()

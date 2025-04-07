@@ -14,13 +14,10 @@
 # limitations under the License.
 """Image processor class for TVP."""
 
-# Standard
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import (
     PaddingMode,
@@ -41,15 +38,10 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_vision_available,
-    logging,
-)
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+
 
 if is_vision_available():
-    # Third Party
     import PIL
 
 
@@ -58,11 +50,7 @@ logger = logging.get_logger(__name__)
 
 # Copied from transformers.models.vivit.image_processing_vivit.make_batched
 def make_batched(videos) -> List[List[ImageInput]]:
-    if (
-        isinstance(videos, (list, tuple))
-        and isinstance(videos[0], (list, tuple))
-        and is_valid_image(videos[0][0])
-    ):
+    if isinstance(videos, (list, tuple)) and isinstance(videos[0], (list, tuple)) and is_valid_image(videos[0][0]):
         return videos
 
     elif isinstance(videos, (list, tuple)) and is_valid_image(videos[0]):
@@ -166,9 +154,7 @@ class TvpImageProcessor(BaseImageProcessor):
     ) -> None:
         super().__init__(**kwargs)
         size = size if size is not None else {"longest_edge": 448}
-        crop_size = (
-            crop_size if crop_size is not None else {"height": 448, "width": 448}
-        )
+        crop_size = crop_size if crop_size is not None else {"height": 448, "width": 448}
         pad_size = pad_size if pad_size is not None else {"height": 448, "width": 448}
 
         self.do_resize = do_resize
@@ -184,9 +170,7 @@ class TvpImageProcessor(BaseImageProcessor):
         self.pad_mode = pad_mode
         self.do_normalize = do_normalize
         self.do_flip_channel_order = do_flip_channel_order
-        self.image_mean = (
-            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
-        )
+        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def resize(
@@ -219,13 +203,9 @@ class TvpImageProcessor(BaseImageProcessor):
         if "height" in size and "width" in size:
             output_size = (size["height"], size["width"])
         elif "longest_edge" in size:
-            output_size = get_resize_output_image_size(
-                image, size["longest_edge"], input_data_format
-            )
+            output_size = get_resize_output_image_size(image, size["longest_edge"], input_data_format)
         else:
-            raise ValueError(
-                f"Size must have 'height' and 'width' or 'longest_edge' as keys. Got {size.keys()}"
-            )
+            raise ValueError(f"Size must have 'height' and 'width' or 'longest_edge' as keys. Got {size.keys()}")
 
         return resize(
             image,
@@ -286,19 +266,19 @@ class TvpImageProcessor(BaseImageProcessor):
     def _preprocess_image(
         self,
         image: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_center_crop: bool = None,
+        do_center_crop: Optional[bool] = None,
         crop_size: Dict[str, int] = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
         do_pad: bool = True,
         pad_size: Dict[str, int] = None,
         constant_values: Union[float, Iterable[float]] = None,
         pad_mode: PaddingMode = None,
-        do_normalize: bool = None,
-        do_flip_channel_order: bool = None,
+        do_normalize: Optional[bool] = None,
+        do_flip_channel_order: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
         data_format: Optional[ChannelDimension] = ChannelDimension.FIRST,
@@ -326,29 +306,17 @@ class TvpImageProcessor(BaseImageProcessor):
         image = to_numpy_array(image)
 
         if do_resize:
-            image = self.resize(
-                image=image,
-                size=size,
-                resample=resample,
-                input_data_format=input_data_format,
-            )
+            image = self.resize(image=image, size=size, resample=resample, input_data_format=input_data_format)
 
         if do_center_crop:
-            image = self.center_crop(
-                image, size=crop_size, input_data_format=input_data_format
-            )
+            image = self.center_crop(image, size=crop_size, input_data_format=input_data_format)
 
         if do_rescale:
-            image = self.rescale(
-                image=image, scale=rescale_factor, input_data_format=input_data_format
-            )
+            image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
 
         if do_normalize:
             image = self.normalize(
-                image=image.astype(np.float32),
-                mean=image_mean,
-                std=image_std,
-                input_data_format=input_data_format,
+                image=image.astype(np.float32), mean=image_mean, std=image_std, input_data_format=input_data_format
             )
 
         if do_pad:
@@ -364,9 +332,7 @@ class TvpImageProcessor(BaseImageProcessor):
         if do_flip_channel_order:
             image = flip_channel_order(image=image, input_data_format=input_data_format)
 
-        image = to_channel_dimension_format(
-            image, data_format, input_channel_dim=input_data_format
-        )
+        image = to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
 
         return image
 
@@ -374,19 +340,19 @@ class TvpImageProcessor(BaseImageProcessor):
     def preprocess(
         self,
         videos: Union[ImageInput, List[ImageInput], List[List[ImageInput]]],
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_center_crop: bool = None,
+        do_center_crop: Optional[bool] = None,
         crop_size: Dict[str, int] = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_pad: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_pad: Optional[bool] = None,
         pad_size: Dict[str, int] = None,
         constant_values: Union[float, Iterable[float]] = None,
         pad_mode: PaddingMode = None,
-        do_normalize: bool = None,
-        do_flip_channel_order: bool = None,
+        do_normalize: Optional[bool] = None,
+        do_flip_channel_order: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
@@ -452,24 +418,16 @@ class TvpImageProcessor(BaseImageProcessor):
         """
         do_resize = do_resize if do_resize is not None else self.do_resize
         resample = resample if resample is not None else self.resample
-        do_center_crop = (
-            do_center_crop if do_center_crop is not None else self.do_center_crop
-        )
+        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_pad = do_pad if do_pad is not None else self.do_pad
         pad_size = pad_size if pad_size is not None else self.pad_size
-        constant_values = (
-            constant_values if constant_values is not None else self.constant_values
-        )
+        constant_values = constant_values if constant_values is not None else self.constant_values
         pad_mode = pad_mode if pad_mode else self.pad_mode
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         do_flip_channel_order = (
-            do_flip_channel_order
-            if do_flip_channel_order is not None
-            else self.do_flip_channel_order
+            do_flip_channel_order if do_flip_channel_order is not None else self.do_flip_channel_order
         )
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std

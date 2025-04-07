@@ -12,31 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import TYPE_CHECKING, Any, Dict, List
 
-# Local
 from ..integrations import prepare_for_hqq_linear
-from ..utils import (
-    is_accelerate_available,
-    is_hqq_available,
-    is_torch_available,
-    logging,
-)
+from ..utils import is_accelerate_available, is_hqq_available, is_torch_available, logging
 from .base import HfQuantizer
 from .quantizers_utils import get_module_from_name
 
+
 if TYPE_CHECKING:
-    # Local
     from ..modeling_utils import PreTrainedModel
 
 
 if is_accelerate_available():
-    # First Party
     from accelerate.hooks import remove_hook_from_module
 
 if is_torch_available():
-    # Third Party
     import torch
 
 logger = logging.get_logger(__name__)
@@ -88,9 +79,7 @@ class HqqHfQuantizer(HfQuantizer):
                 self.torch_dtype = kwargs["torch_dtype"]
             else:
                 self.torch_dtype = torch.float32
-                logger.info(
-                    "Setting torch_dtype to torch.float32 as the default value since it was not specified."
-                )
+                logger.info("Setting torch_dtype to torch.float32 as the default value since it was not specified.")
 
         device_map = kwargs.get("device_map", None)
         if isinstance(device_map, dict):
@@ -126,7 +115,6 @@ class HqqHfQuantizer(HfQuantizer):
 
         new_keys = set(expected_keys)
         if is_hqq_available():
-            # Third Party
             from hqq.core.quantize import HQQLinear
 
             # Name modules
@@ -136,14 +124,18 @@ class HqqHfQuantizer(HfQuantizer):
             # valid modules are Linear layers that have HQQLinear state_dict. We ignore skip_modules and any layers with Linear state_dict() params
             _valid_modules = set()
             _find_hqq_quantizable_layers(model, _valid_modules)
-            _valid_modules -= set(model.config.quantization_config["skip_modules"])
+
+            # Remove skipped modules
+            _skipped_modules = set()
+            for _module in _valid_modules:
+                for _skip_module in model.config.quantization_config["skip_modules"]:
+                    if _skip_module in _module:
+                        _skipped_modules.add(_module)
+            _valid_modules -= _skipped_modules
 
             # Append new expected layers based on _ref_keys
             _ref_keys = HQQLinear(
-                linear_layer=None,
-                quant_config=None,
-                compute_dtype=torch.float16,
-                device="cpu",
+                linear_layer=None, quant_config=None, compute_dtype=torch.float16, device="cpu"
             ).state_dict_keys() - {"bias"}
 
             # Clean-up
@@ -159,9 +151,7 @@ class HqqHfQuantizer(HfQuantizer):
                 if _module + ".weight" in loaded_keys:
                     new_keys.add(_module + ".weight")
                 else:
-                    new_keys.update(
-                        {_module + "." + _ref_key for _ref_key in _ref_keys}
-                    )
+                    new_keys.update({_module + "." + _ref_key for _ref_key in _ref_keys})
                 if _module + ".bias" in loaded_keys:
                     new_keys.add(_module + ".bias")
 
@@ -176,7 +166,6 @@ class HqqHfQuantizer(HfQuantizer):
         **kwargs,
     ) -> bool:
         if is_hqq_available():
-            # Third Party
             from hqq.core.quantize import HQQLinear
         module, tensor_name = get_module_from_name(model, param_name)
 
@@ -204,13 +193,12 @@ class HqqHfQuantizer(HfQuantizer):
         unexpected_keys: List[str],
     ):
         """
-        Each nn.Linear layer is processsed here.
+        Each nn.Linear layer is processed here.
         We first check if the corresponding module state_dict contains already HQQ quantized parameters.
         If not, we create a temp linear layer with the module state_dict params and use it for quantization
         """
 
         if is_hqq_available():
-            # Third Party
             from hqq.core.quantize import HQQLinear
 
         module, tensor_name = get_module_from_name(model, param_name)
@@ -262,10 +250,24 @@ class HqqHfQuantizer(HfQuantizer):
 
         # Step 2: Replace module with either HQQLinear or move it to device. We do this via setattr on the parent as doing on it on the module
         # directly doesn't work.
-        if hasattr(module, "quant_config"):
+        quant_config = model.config.quantization_config["quant_config"]
+        skip_modules = model.config.quantization_config["skip_modules"]
+        module_tag = ".".join(module.name.split(".")[-2:])
+        module_quant_config = None
+        if "weight_quant_params" in quant_config:
+            module_quant_config = quant_config
+        elif module_tag in quant_config:
+            module_quant_config = quant_config[module_tag]
+
+        for skip_module in skip_modules:
+            if skip_module in module.name:
+                module_quant_config = None
+                break
+
+        if module_quant_config is not None:
             hqq_layer = HQQLinear(
                 module,
-                module.quant_config,
+                quant_config=module_quant_config,
                 compute_dtype=self.torch_dtype,
                 device=target_device,
                 del_orig=True,
@@ -305,9 +307,7 @@ class HqqHfQuantizer(HfQuantizer):
     ):
         # Add the corresponding quant_config to each valid module. This allows us to do the actual nn.Linear -> HQQLinear conversion in create_quantized_param().
         # prepare_for_hqq_linear() also sets the right quantization config inside the model (model.config.quantization_config) and the layers (hqq_layer.quant_config)
-        model = prepare_for_hqq_linear(
-            model, quantization_config=self.quantization_config
-        )
+        model = prepare_for_hqq_linear(model, quantization_config=self.quantization_config)
 
     def _process_model_after_weight_loading(self, model: "PreTrainedModel", **kwargs):
         model.is_hqq_quantized = True

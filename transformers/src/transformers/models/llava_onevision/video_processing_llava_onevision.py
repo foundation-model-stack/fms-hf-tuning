@@ -14,15 +14,16 @@
 # limitations under the License.
 """Video processor class for LLaVa-Onevision."""
 
-# Standard
 from typing import Dict, List, Optional, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import convert_to_rgb, resize, to_channel_dimension_format
+from ...image_transforms import (
+    convert_to_rgb,
+    resize,
+    to_channel_dimension_format,
+)
 from ...image_utils import (
     OPENAI_CLIP_MEAN,
     OPENAI_CLIP_STD,
@@ -38,6 +39,7 @@ from ...image_utils import (
     validate_preprocess_arguments,
 )
 from ...utils import TensorType, logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -107,15 +109,15 @@ class LlavaOnevisionVideoProcessor(BaseImageProcessor):
     def _preprocess(
         self,
         images: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_convert_rgb: bool = None,
+        do_convert_rgb: Optional[bool] = None,
         data_format: Optional[ChannelDimension] = ChannelDimension.FIRST,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
     ) -> list[np.ndarray]:
@@ -173,41 +175,24 @@ class LlavaOnevisionVideoProcessor(BaseImageProcessor):
 
         if do_resize:
             images = [
-                resize(
-                    image=image,
-                    size=size,
-                    resample=resample,
-                    input_data_format=input_data_format,
-                )
+                resize(image=image, size=size, resample=resample, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_rescale:
             images = [
-                self.rescale(
-                    image=image,
-                    scale=rescale_factor,
-                    input_data_format=input_data_format,
-                )
+                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_normalize:
             images = [
-                self.normalize(
-                    image=image,
-                    mean=image_mean,
-                    std=image_std,
-                    input_data_format=input_data_format,
-                )
+                self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
                 for image in images
             ]
 
         images = [
-            to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
-            for image in images
+            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format) for image in images
         ]
 
         return images
@@ -215,15 +200,15 @@ class LlavaOnevisionVideoProcessor(BaseImageProcessor):
     def preprocess(
         self,
         videos: VideoInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_convert_rgb: bool = None,
+        do_convert_rgb: Optional[bool] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         data_format: Optional[ChannelDimension] = ChannelDimension.FIRST,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
@@ -277,15 +262,11 @@ class LlavaOnevisionVideoProcessor(BaseImageProcessor):
         size = size if size is not None else self.size
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
-        do_convert_rgb = (
-            do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
-        )
+        do_convert_rgb = do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
 
         videos = make_batched_videos(videos)
 

@@ -12,25 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import is_flax_available
-from transformers.testing_utils import (
-    require_flax,
-    require_sentencepiece,
-    require_tokenizers,
-    require_torch,
-    slow,
-)
+from transformers.testing_utils import require_flax, require_sentencepiece, require_tokenizers, require_torch, slow
+
 
 if is_flax_available():
-    # Third Party
-    from flax.training.common_utils import onehot
     import optax
+    from flax.training.common_utils import onehot
 
-    # First Party
     from transformers import AutoTokenizer, FlaxMT5ForConditionalGeneration
     from transformers.models.t5.modeling_flax_t5 import shift_tokens_right
 
@@ -60,14 +51,10 @@ class MT5IntegrationTest(unittest.TestCase):
         input_ids = tokenizer("Hello there", return_tensors="np").input_ids
         labels = tokenizer("Hi I am", return_tensors="np").input_ids
 
-        decoder_input_ids = shift_tokens_right(
-            labels, model.config.pad_token_id, model.config.decoder_start_token_id
-        )
+        decoder_input_ids = shift_tokens_right(labels, model.config.pad_token_id, model.config.decoder_start_token_id)
 
         logits = model(input_ids, decoder_input_ids=decoder_input_ids).logits
-        loss = optax.softmax_cross_entropy(
-            logits, onehot(labels, logits.shape[-1])
-        ).mean()
+        loss = optax.softmax_cross_entropy(logits, onehot(labels, logits.shape[-1])).mean()
 
         mtf_score = -(labels.shape[-1] * loss.item())
 

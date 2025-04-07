@@ -14,24 +14,21 @@
 # limitations under the License.
 """Flax MBart model."""
 
-# Standard
-from functools import partial
-from typing import Callable, Optional, Tuple
 import math
 import random
+from functools import partial
+from typing import Callable, Optional, Tuple
 
-# Third Party
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
 from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from jax import lax
 from jax.random import PRNGKey
-import flax.linen as nn
-import jax
-import jax.numpy as jnp
 
-# Local
 from ...modeling_flax_outputs import (
     FlaxBaseModelOutput,
     FlaxBaseModelOutputWithPastAndCrossAttentions,
@@ -48,13 +45,9 @@ from ...modeling_flax_utils import (
     append_replace_return_docstrings,
     overwrite_call_docstring,
 )
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from .configuration_mbart import MBartConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -236,12 +229,9 @@ def shift_tokens_right(input_ids: jnp.ndarray, pad_token_id: int) -> jnp.ndarray
 
     # replace possible -100 values in labels by `pad_token_id`
     prev_output_tokens = jnp.where(prev_output_tokens == -100, pad_token_id, input_ids)
-    index_of_eos = (
-        jnp.where(prev_output_tokens != pad_token_id, 1, 0).sum(axis=-1) - 1
-    ).reshape(-1, 1)
+    index_of_eos = (jnp.where(prev_output_tokens != pad_token_id, 1, 0).sum(axis=-1) - 1).reshape(-1, 1)
     decoder_start_tokens = jnp.array(
-        [prev_output_tokens[i, eos_idx] for i, eos_idx in enumerate(index_of_eos)],
-        dtype=jnp.int32,
+        [prev_output_tokens[i, eos_idx] for i, eos_idx in enumerate(index_of_eos)], dtype=jnp.int32
     ).squeeze()
 
     prev_output_tokens = prev_output_tokens.at[:, 1:].set(prev_output_tokens[:, :-1])
@@ -283,14 +273,11 @@ class FlaxMBartAttention(nn.Module):
 
         if self.causal:
             self.causal_mask = make_causal_mask(
-                jnp.ones((1, self.config.max_position_embeddings), dtype="bool"),
-                dtype="bool",
+                jnp.ones((1, self.config.max_position_embeddings), dtype="bool"), dtype="bool"
             )
 
     def _split_heads(self, hidden_states):
-        return hidden_states.reshape(
-            hidden_states.shape[:2] + (self.num_heads, self.head_dim)
-        )
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
 
     def _merge_heads(self, hidden_states):
         return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
@@ -304,15 +291,9 @@ class FlaxMBartAttention(nn.Module):
         """
         # detect if we're initializing by absence of existing cache data.
         is_initialized = self.has_variable("cache", "cached_key")
-        cached_key = self.variable(
-            "cache", "cached_key", jnp.zeros, key.shape, key.dtype
-        )
-        cached_value = self.variable(
-            "cache", "cached_value", jnp.zeros, value.shape, value.dtype
-        )
-        cache_index = self.variable(
-            "cache", "cache_index", lambda: jnp.array(0, dtype=jnp.int32)
-        )
+        cached_key = self.variable("cache", "cached_key", jnp.zeros, key.shape, key.dtype)
+        cached_value = self.variable("cache", "cached_value", jnp.zeros, value.shape, value.dtype)
+        cache_index = self.variable("cache", "cache_index", lambda: jnp.array(0, dtype=jnp.int32))
 
         if is_initialized:
             *batch_dims, max_length, num_heads, depth_per_head = cached_key.value.shape
@@ -371,21 +352,15 @@ class FlaxMBartAttention(nn.Module):
                 mask_shift = self.variables["cache"]["cache_index"]
                 max_decoder_length = self.variables["cache"]["cached_key"].shape[1]
                 causal_mask = lax.dynamic_slice(
-                    self.causal_mask,
-                    (0, 0, mask_shift, 0),
-                    (1, 1, query_length, max_decoder_length),
+                    self.causal_mask, (0, 0, mask_shift, 0), (1, 1, query_length, max_decoder_length)
                 )
             else:
                 causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-            causal_mask = jnp.broadcast_to(
-                causal_mask, (batch_size,) + causal_mask.shape[1:]
-            )
+            causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
 
         # combine masks if needed
         if attention_mask is not None and self.causal:
-            attention_mask = jnp.broadcast_to(
-                jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape
-            )
+            attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
             attention_mask = combine_masks(attention_mask, causal_mask)
         elif self.causal:
             attention_mask = causal_mask
@@ -405,9 +380,7 @@ class FlaxMBartAttention(nn.Module):
             attention_bias = lax.select(
                 attention_mask > 0,
                 jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(
-                    self.dtype
-                ),
+                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
         else:
             attention_bias = None
@@ -458,9 +431,7 @@ class FlaxMBartEncoderLayer(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
         self.fc2 = nn.Dense(
-            self.embed_dim,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.embed_dim, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
         self.final_layer_norm = nn.LayerNorm(dtype=self.dtype, epsilon=1e-05)
 
@@ -473,18 +444,14 @@ class FlaxMBartEncoderLayer(nn.Module):
     ) -> Tuple[jnp.ndarray]:
         residual = hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
-        hidden_states, attn_weights = self.self_attn(
-            hidden_states=hidden_states, attention_mask=attention_mask
-        )
+        hidden_states, attn_weights = self.self_attn(hidden_states=hidden_states, attention_mask=attention_mask)
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
 
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = self.activation_dropout_layer(
-            hidden_states, deterministic=deterministic
-        )
+        hidden_states = self.activation_dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -526,9 +493,7 @@ class FlaxMBartEncoderLayerCollection(nn.Module):
                 all_hidden_states = all_hidden_states + (hidden_states,)
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
-            if not deterministic and (
-                dropout_probability < self.layerdrop
-            ):  # skip the layer
+            if not deterministic and (dropout_probability < self.layerdrop):  # skip the layer
                 layer_outputs = (None, None)
             else:
                 layer_outputs = encoder_layer(
@@ -550,9 +515,7 @@ class FlaxMBartEncoderLayerCollection(nn.Module):
             return tuple(v for v in outputs if v is not None)
 
         return FlaxBaseModelOutput(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
-            attentions=all_attentions,
+            last_hidden_state=hidden_states, hidden_states=all_hidden_states, attentions=all_attentions
         )
 
 
@@ -589,9 +552,7 @@ class FlaxMBartDecoderLayer(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
         self.fc2 = nn.Dense(
-            self.embed_dim,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.embed_dim, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
         self.final_layer_norm = nn.LayerNorm(dtype=self.dtype, epsilon=1e-05)
 
@@ -610,9 +571,7 @@ class FlaxMBartDecoderLayer(nn.Module):
 
         # Self Attention
         hidden_states, self_attn_weights = self.self_attn(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            init_cache=init_cache,
+            hidden_states=hidden_states, attention_mask=attention_mask, init_cache=init_cache
         )
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -628,18 +587,14 @@ class FlaxMBartDecoderLayer(nn.Module):
                 key_value_states=encoder_hidden_states,
                 attention_mask=encoder_attention_mask,
             )
-            hidden_states = self.dropout_layer(
-                hidden_states, deterministic=deterministic
-            )
+            hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
             hidden_states = residual + hidden_states
 
         # Fully Connected
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = self.activation_dropout_layer(
-            hidden_states, deterministic=deterministic
-        )
+        hidden_states = self.activation_dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = self.fc2(hidden_states)
         hidden_states = self.dropout_layer(hidden_states, deterministic=deterministic)
         hidden_states = residual + hidden_states
@@ -679,9 +634,7 @@ class FlaxMBartDecoderLayerCollection(nn.Module):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        all_cross_attentions = (
-            () if (output_attentions and encoder_hidden_states is not None) else None
-        )
+        all_cross_attentions = () if (output_attentions and encoder_hidden_states is not None) else None
 
         for decoder_layer in self.layers:
             if output_hidden_states:
@@ -712,12 +665,7 @@ class FlaxMBartDecoderLayerCollection(nn.Module):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        outputs = [
-            hidden_states,
-            all_hidden_states,
-            all_self_attns,
-            all_cross_attentions,
-        ]
+        outputs = [hidden_states, all_hidden_states, all_self_attns, all_cross_attentions]
 
         if not return_dict:
             return tuple(v for v in outputs if v is not None)
@@ -742,9 +690,7 @@ class FlaxMBartClassificationHead(nn.Module):
 
     def setup(self):
         self.dense = nn.Dense(
-            self.inner_dim,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.inner_dim, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
         self.dropout = nn.Dropout(rate=self.pooler_dropout)
         self.out_proj = nn.Dense(
@@ -827,9 +773,7 @@ class FlaxMBartEncoder(nn.Module):
             hidden_states = hidden_states[:-1] + (last_hidden_states,)
 
         if not return_dict:
-            outputs = (last_hidden_states, hidden_states) + (
-                outputs[2:] if output_hidden_states else outputs[1:]
-            )
+            outputs = (last_hidden_states, hidden_states) + (outputs[2:] if output_hidden_states else outputs[1:])
             return tuple(v for v in outputs if v is not None)
 
         return FlaxBaseModelOutput(
@@ -850,9 +794,7 @@ class FlaxMBartDecoder(nn.Module):
         embed_dim = self.config.d_model
         self.padding_idx = self.config.pad_token_id
         self.max_target_positions = self.config.max_position_embeddings
-        self.embed_scale = (
-            math.sqrt(self.config.d_model) if self.config.scale_embedding else 1.0
-        )
+        self.embed_scale = math.sqrt(self.config.d_model) if self.config.scale_embedding else 1.0
 
         # MBart is set up so that if padding_idx is specified then offset the embedding ids by 2
         # and adjust num_embeddings appropriately. Other models don't have this hack
@@ -915,9 +857,7 @@ class FlaxMBartDecoder(nn.Module):
             hidden_states = hidden_states[:-1] + (last_hidden_states,)
 
         if not return_dict:
-            outputs = (last_hidden_states, hidden_states) + (
-                outputs[2:] if output_hidden_states else outputs[1:]
-            )
+            outputs = (last_hidden_states, hidden_states) + (outputs[2:] if output_hidden_states else outputs[1:])
             return tuple(v for v in outputs if v is not None)
 
         return FlaxBaseModelOutputWithPastAndCrossAttentions(
@@ -941,12 +881,8 @@ class FlaxMBartModule(nn.Module):
             dtype=self.dtype,
         )
 
-        self.encoder = FlaxMBartEncoder(
-            self.config, dtype=self.dtype, embed_tokens=self.shared
-        )
-        self.decoder = FlaxMBartDecoder(
-            self.config, dtype=self.dtype, embed_tokens=self.shared
-        )
+        self.encoder = FlaxMBartEncoder(self.config, dtype=self.dtype, embed_tokens=self.shared)
+        self.decoder = FlaxMBartDecoder(self.config, dtype=self.dtype, embed_tokens=self.shared)
 
     def _get_encoder_module(self):
         return self.encoder
@@ -1018,18 +954,9 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         **kwargs,
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
-        super().__init__(
-            config,
-            module,
-            input_shape=input_shape,
-            seed=seed,
-            dtype=dtype,
-            _do_init=_do_init,
-        )
+        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(
-        self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None
-    ) -> FrozenDict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
         # init input tensors
         input_ids = jnp.zeros(input_shape, dtype="i4")
         # make sure initialization pass will work for FlaxMBartForSequenceClassificationModule
@@ -1039,12 +966,8 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         decoder_attention_mask = jnp.ones_like(input_ids)
 
         batch_size, sequence_length = input_ids.shape
-        position_ids = jnp.broadcast_to(
-            jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-        )
-        decoder_position_ids = jnp.broadcast_to(
-            jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-        )
+        position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
+        decoder_position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         params_rng, dropout_rng = jax.random.split(rng)
         rngs = {"params": params_rng, "dropout": dropout_rng}
@@ -1088,17 +1011,10 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         decoder_input_ids = jnp.ones((batch_size, max_length), dtype="i4")
         decoder_attention_mask = jnp.ones_like(decoder_input_ids)
         decoder_position_ids = jnp.broadcast_to(
-            jnp.arange(jnp.atleast_2d(decoder_input_ids).shape[-1]),
-            decoder_input_ids.shape,
+            jnp.arange(jnp.atleast_2d(decoder_input_ids).shape[-1]), decoder_input_ids.shape
         )
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
             return decoder_module(
                 decoder_input_ids,
@@ -1119,9 +1035,7 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         return unfreeze(init_variables["cache"])
 
     @add_start_docstrings(MBART_ENCODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxBaseModelOutput, config_class=MBartConfig
-    )
+    @replace_return_docstrings(output_type=FlaxBaseModelOutput, config_class=MBartConfig)
     def encode(
         self,
         input_ids: jnp.ndarray,
@@ -1149,27 +1063,17 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         >>> inputs = tokenizer(text, max_length=1024, return_tensors="jax")
         >>> encoder_outputs = model.encode(**inputs)
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         if attention_mask is None:
             attention_mask = jnp.ones_like(input_ids)
         if position_ids is None:
             batch_size, sequence_length = input_ids.shape
-            position_ids = jnp.broadcast_to(
-                jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         # Handle any PRNG if needed
         rngs = {}
@@ -1194,10 +1098,7 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         )
 
     @add_start_docstrings(MBART_DECODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxBaseModelOutputWithPastAndCrossAttentions,
-        config_class=MBartConfig,
-    )
+    @replace_return_docstrings(output_type=FlaxBaseModelOutputWithPastAndCrossAttentions, config_class=MBartConfig)
     def decode(
         self,
         decoder_input_ids,
@@ -1234,19 +1135,11 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         >>> outputs = model.decode(decoder_input_ids, encoder_outputs)
         >>> last_decoder_hidden_states = outputs.last_hidden_state
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         encoder_hidden_states = encoder_outputs[0]
         if encoder_attention_mask is None:
@@ -1259,9 +1152,7 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
 
         if decoder_position_ids is None:
             if past_key_values is not None:
-                raise ValueError(
-                    "Make sure to provide `decoder_position_ids` when passing `past_key_values`."
-                )
+                raise ValueError("Make sure to provide `decoder_position_ids` when passing `past_key_values`.")
 
             decoder_position_ids = jnp.broadcast_to(
                 jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
@@ -1283,13 +1174,7 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         else:
             mutable = False
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
             return decoder_module(
                 decoder_input_ids,
@@ -1341,28 +1226,18 @@ class FlaxMBartPreTrainedModel(FlaxPreTrainedModel):
         params: dict = None,
         dropout_rng: PRNGKey = None,
     ):
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         # prepare encoder inputs
         if attention_mask is None:
             attention_mask = jnp.ones_like(input_ids)
         if position_ids is None:
             batch_size, sequence_length = input_ids.shape
-            position_ids = jnp.broadcast_to(
-                jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
 
         # prepare decoder inputs
         if decoder_input_ids is None:
@@ -1404,9 +1279,7 @@ class FlaxMBartModel(FlaxMBartPreTrainedModel):
     module_class = FlaxMBartModule
 
 
-append_call_sample_docstring(
-    FlaxMBartModel, _CHECKPOINT_FOR_DOC, FlaxSeq2SeqModelOutput, _CONFIG_FOR_DOC
-)
+append_call_sample_docstring(FlaxMBartModel, _CHECKPOINT_FOR_DOC, FlaxSeq2SeqModelOutput, _CONFIG_FOR_DOC)
 
 
 # Copied from transformers.models.bart.modeling_flax_bart.FlaxBartForConditionalGenerationModule with Bart->MBart
@@ -1423,9 +1296,7 @@ class FlaxMBartForConditionalGenerationModule(nn.Module):
             dtype=self.dtype,
             kernel_init=jax.nn.initializers.normal(self.config.init_std),
         )
-        self.final_logits_bias = self.param(
-            "final_logits_bias", self.bias_init, (1, self.model.shared.num_embeddings)
-        )
+        self.final_logits_bias = self.param("final_logits_bias", self.bias_init, (1, self.model.shared.num_embeddings))
 
     def _get_encoder_module(self):
         return self.model.encoder
@@ -1463,9 +1334,7 @@ class FlaxMBartForConditionalGenerationModule(nn.Module):
 
         if self.config.tie_word_embeddings:
             shared_embedding = self.model.variables["params"]["shared"]["embedding"]
-            lm_logits = self.lm_head.apply(
-                {"params": {"kernel": shared_embedding.T}}, hidden_states
-            )
+            lm_logits = self.lm_head.apply({"params": {"kernel": shared_embedding.T}}, hidden_states)
         else:
             lm_logits = self.lm_head(hidden_states)
 
@@ -1487,17 +1356,14 @@ class FlaxMBartForConditionalGenerationModule(nn.Module):
 
 
 @add_start_docstrings(
-    "The MMBart Model with a language modeling head. Can be used for summarization.",
-    MBART_START_DOCSTRING,
+    "The MMBart Model with a language modeling head. Can be used for summarization.", MBART_START_DOCSTRING
 )
 class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
     module_class = FlaxMBartForConditionalGenerationModule
     dtype: jnp.dtype = jnp.float32
 
     @add_start_docstrings(MBART_DECODE_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=FlaxCausalLMOutputWithCrossAttentions, config_class=MBartConfig
-    )
+    @replace_return_docstrings(output_type=FlaxCausalLMOutputWithCrossAttentions, config_class=MBartConfig)
     def decode(
         self,
         decoder_input_ids,
@@ -1534,19 +1400,11 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
         >>> outputs = model.decode(decoder_input_ids, encoder_outputs)
         >>> logits = outputs.logits
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         encoder_hidden_states = encoder_outputs[0]
         if encoder_attention_mask is None:
@@ -1559,9 +1417,7 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
 
         if decoder_position_ids is None:
             if past_key_values is not None:
-                raise ValueError(
-                    "Make sure to provide `decoder_position_ids` when passing `past_key_values`."
-                )
+                raise ValueError("Make sure to provide `decoder_position_ids` when passing `past_key_values`.")
 
             decoder_position_ids = jnp.broadcast_to(
                 jnp.arange(sequence_length)[None, :], (batch_size, sequence_length)
@@ -1583,13 +1439,7 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
         else:
             mutable = False
 
-        def _decoder_forward(
-            module,
-            decoder_input_ids,
-            decoder_attention_mask,
-            decoder_position_ids,
-            **kwargs,
-        ):
+        def _decoder_forward(module, decoder_input_ids, decoder_attention_mask, decoder_position_ids, **kwargs):
             decoder_module = module._get_decoder_module()
             outputs = decoder_module(
                 decoder_input_ids,
@@ -1600,12 +1450,8 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
             hidden_states = outputs[0]
 
             if self.config.tie_word_embeddings:
-                shared_embedding = module.model.variables["params"]["shared"][
-                    "embedding"
-                ]
-                lm_logits = module.lm_head.apply(
-                    {"params": {"kernel": shared_embedding.T}}, hidden_states
-                )
+                shared_embedding = module.model.variables["params"]["shared"]["embedding"]
+                lm_logits = module.lm_head.apply({"params": {"kernel": shared_embedding.T}}, hidden_states)
             else:
                 lm_logits = module.lm_head(hidden_states)
 
@@ -1671,13 +1517,9 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
         extended_attention_mask = jnp.ones((batch_size, max_length), dtype="i4")
         if decoder_attention_mask is not None:
             position_ids = decoder_attention_mask.cumsum(axis=-1) - 1
-            extended_attention_mask = lax.dynamic_update_slice(
-                extended_attention_mask, decoder_attention_mask, (0, 0)
-            )
+            extended_attention_mask = lax.dynamic_update_slice(extended_attention_mask, decoder_attention_mask, (0, 0))
         else:
-            position_ids = jnp.broadcast_to(
-                jnp.arange(seq_length, dtype="i4")[None, :], (batch_size, seq_length)
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(seq_length, dtype="i4")[None, :], (batch_size, seq_length))
 
         return {
             "past_key_values": past_key_values,
@@ -1689,9 +1531,7 @@ class FlaxMBartForConditionalGeneration(FlaxMBartPreTrainedModel):
 
     def update_inputs_for_generation(self, model_outputs, model_kwargs):
         model_kwargs["past_key_values"] = model_outputs.past_key_values
-        model_kwargs["decoder_position_ids"] = (
-            model_kwargs["decoder_position_ids"][:, -1:] + 1
-        )
+        model_kwargs["decoder_position_ids"] = model_kwargs["decoder_position_ids"][:, -1:] + 1
         return model_kwargs
 
 
@@ -1736,13 +1576,10 @@ FLAX_MBART_CONDITIONAL_GENERATION_DOCSTRING = r"""
 """
 
 overwrite_call_docstring(
-    FlaxMBartForConditionalGeneration,
-    MBART_INPUTS_DOCSTRING + FLAX_MBART_CONDITIONAL_GENERATION_DOCSTRING,
+    FlaxMBartForConditionalGeneration, MBART_INPUTS_DOCSTRING + FLAX_MBART_CONDITIONAL_GENERATION_DOCSTRING
 )
 append_replace_return_docstrings(
-    FlaxMBartForConditionalGeneration,
-    output_type=FlaxSeq2SeqLMOutput,
-    config_class=_CONFIG_FOR_DOC,
+    FlaxMBartForConditionalGeneration, output_type=FlaxSeq2SeqLMOutput, config_class=_CONFIG_FOR_DOC
 )
 
 
@@ -1757,9 +1594,7 @@ class FlaxMBartForSequenceClassificationModule(nn.Module):
         self.classification_head = FlaxMBartClassificationHead(
             config=self.config,
             inner_dim=self.config.d_model,
-            num_classes=self.num_labels
-            if self.num_labels is not None
-            else self.config.num_labels,
+            num_classes=self.num_labels if self.num_labels is not None else self.config.num_labels,
             pooler_dropout=self.config.classifier_dropout,
         )
 
@@ -1802,25 +1637,17 @@ class FlaxMBartForSequenceClassificationModule(nn.Module):
         # The first condition is necessary to overcome jax._src.errors.ConcretizationTypeError during JIT compilation
         if not isinstance(eos_mask, jax.interpreters.partial_eval.DynamicJaxprTracer):
             if len(jnp.unique(eos_mask.sum(1))) > 1:
-                raise ValueError(
-                    "All examples must have the same number of <eos> tokens."
-                )
+                raise ValueError("All examples must have the same number of <eos> tokens.")
 
             if any(eos_mask.sum(1) == 0):
                 raise ValueError("There are missing <eos> tokens in input_ids")
 
             # Ensure to keep 1 only for the last <eos> token for each example
             eos_mask_noised = eos_mask + jnp.arange(eos_mask.shape[1]) * 1e-6
-            eos_mask = jnp.where(
-                eos_mask_noised == eos_mask_noised.max(1).reshape(-1, 1), 1, 0
-            )
+            eos_mask = jnp.where(eos_mask_noised == eos_mask_noised.max(1).reshape(-1, 1), 1, 0)
 
-        sentence_representation = jnp.einsum(
-            "ijk, ij -> ijk", hidden_states, eos_mask
-        ).sum(1)
-        logits = self.classification_head(
-            sentence_representation, deterministic=deterministic
-        )
+        sentence_representation = jnp.einsum("ijk, ij -> ijk", hidden_states, eos_mask).sum(1)
+        logits = self.classification_head(sentence_representation, deterministic=deterministic)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -1866,9 +1693,7 @@ class FlaxMBartForQuestionAnsweringModule(nn.Module):
     def setup(self):
         self.model = FlaxMBartModule(config=self.config, dtype=self.dtype)
         self.qa_outputs = nn.Dense(
-            self.num_labels,
-            dtype=self.dtype,
-            kernel_init=jax.nn.initializers.normal(self.config.init_std),
+            self.num_labels, dtype=self.dtype, kernel_init=jax.nn.initializers.normal(self.config.init_std)
         )
 
     def _get_encoder_module(self):

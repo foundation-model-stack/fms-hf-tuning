@@ -1,8 +1,7 @@
-# Standard
 import sys
 
-# First Party
 from transformers import AutoTokenizer
+
 
 dataset = sys.argv[1]
 model_name_or_path = sys.argv[2]

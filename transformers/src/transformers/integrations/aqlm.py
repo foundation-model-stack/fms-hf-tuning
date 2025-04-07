@@ -13,16 +13,10 @@
 # limitations under the License.
 "AQLM (Additive Quantization of Language Model) integration file"
 
-# Local
-from ..utils import (
-    ACCELERATE_MIN_VERSION,
-    is_accelerate_available,
-    is_aqlm_available,
-    is_torch_available,
-)
+from ..utils import ACCELERATE_MIN_VERSION, is_accelerate_available, is_aqlm_available, is_torch_available
+
 
 if is_torch_available():
-    # Third Party
     import torch.nn as nn
 
 
@@ -53,9 +47,7 @@ def replace_with_aqlm_linear(
             should not be passed by the user.
     """
     if not is_aqlm_available():
-        raise ValueError(
-            "AQLM is not available. Please install it with `pip install aqlm[cpu,gpu]`"
-        )
+        raise ValueError("AQLM is not available. Please install it with `pip install aqlm[cpu,gpu]`")
 
     if not is_accelerate_available():
         raise ValueError(
@@ -65,11 +57,8 @@ def replace_with_aqlm_linear(
     if linear_weights_not_to_quantize is None:
         linear_weights_not_to_quantize = []
 
-    # Third Party
-    from aqlm import QuantizedLinear
-
-    # First Party
     from accelerate import init_empty_weights
+    from aqlm import QuantizedLinear
 
     for name, module in model.named_children():
         if current_key_name is None:
@@ -78,10 +67,7 @@ def replace_with_aqlm_linear(
 
         if isinstance(module, nn.Linear):
             # Check if the current key is not in the `linear_weights_not_to_quantize`
-            if (
-                ".".join(current_key_name) + ".weight"
-                not in linear_weights_not_to_quantize
-            ):
+            if ".".join(current_key_name) + ".weight" not in linear_weights_not_to_quantize:
                 with init_empty_weights():
                     in_features = module.in_features
                     out_features = module.out_features

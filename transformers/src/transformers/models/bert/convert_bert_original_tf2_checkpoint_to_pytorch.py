@@ -25,18 +25,16 @@ Note: This script is only working with an older version of the TensorFlow models
       Models trained with never versions are not compatible with this script.
 """
 
-# Standard
 import argparse
 import os
 import re
 
-# Third Party
 import tensorflow as tf
 import torch
 
-# First Party
 from transformers import BertConfig, BertModel
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -53,10 +51,7 @@ def load_tf2_weights_in_bert(model, tf_checkpoint_path, config):
     for full_name, shape in init_vars:
         # logger.info(f"Loading TF weight {name} with shape {shape}")
         name = full_name.split("/")
-        if full_name == "_CHECKPOINTABLE_OBJECT_GRAPH" or name[0] in [
-            "global_step",
-            "save_counter",
-        ]:
+        if full_name == "_CHECKPOINTABLE_OBJECT_GRAPH" or name[0] in ["global_step", "save_counter"]:
             logger.info(f"Skipping non-model layer {full_name}")
             continue
         if "optimizer" in full_name:
@@ -81,9 +76,7 @@ def load_tf2_weights_in_bert(model, tf_checkpoint_path, config):
 
     # Sanity check
     if len(set(layer_depth)) != 1:
-        raise ValueError(
-            f"Found layer names with different depths (layer depth {list(set(layer_depth))})"
-        )
+        raise ValueError(f"Found layer names with different depths (layer depth {list(set(layer_depth))})")
     layer_depth = list(set(layer_depth))[0]
     if layer_depth != 1:
         raise ValueError(
@@ -200,9 +193,9 @@ def load_tf2_weights_in_bert(model, tf_checkpoint_path, config):
                 logger.warning(f"Ignored {m_name}")
         # for certain layers reshape is necessary
         trace = ".".join(trace)
-        if re.match(
-            r"(\S+)\.attention\.self\.(key|value|query)\.(bias|weight)", trace
-        ) or re.match(r"(\S+)\.attention\.output\.dense\.weight", trace):
+        if re.match(r"(\S+)\.attention\.self\.(key|value|query)\.(bias|weight)", trace) or re.match(
+            r"(\S+)\.attention\.output\.dense\.weight", trace
+        ):
             array = array.reshape(pointer.data.shape)
         if "kernel" in full_name:
             array = array.transpose()
@@ -217,9 +210,7 @@ def load_tf2_weights_in_bert(model, tf_checkpoint_path, config):
     return model
 
 
-def convert_tf2_checkpoint_to_pytorch(
-    tf_checkpoint_path, config_path, pytorch_dump_path
-):
+def convert_tf2_checkpoint_to_pytorch(tf_checkpoint_path, config_path, pytorch_dump_path):
     # Instantiate model
     logger.info(f"Loading model based on config from {config_path}...")
     config = BertConfig.from_json_file(config_path)
@@ -237,10 +228,7 @@ def convert_tf2_checkpoint_to_pytorch(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--tf_checkpoint_path",
-        type=str,
-        required=True,
-        help="Path to the TensorFlow 2.x checkpoint path.",
+        "--tf_checkpoint_path", type=str, required=True, help="Path to the TensorFlow 2.x checkpoint path."
     )
     parser.add_argument(
         "--bert_config_file",
@@ -255,6 +243,4 @@ if __name__ == "__main__":
         help="Path to the output PyTorch model (must include filename).",
     )
     args = parser.parse_args()
-    convert_tf2_checkpoint_to_pytorch(
-        args.tf_checkpoint_path, args.bert_config_file, args.pytorch_dump_path
-    )
+    convert_tf2_checkpoint_to_pytorch(args.tf_checkpoint_path, args.bert_config_file, args.pytorch_dump_path)

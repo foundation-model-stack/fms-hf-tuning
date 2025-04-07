@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Third Party
-from torch import nn
 import torch
+from torch import nn
 
-# First Party
 from transformers import M2M100Config, M2M100ForConditionalGeneration
 
 
@@ -81,15 +78,8 @@ def convert_fairseq_m2m100_checkpoint_from_disk(checkpoint_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
-    parser.add_argument(
-        "fairseq_path", type=str, help="path to a model.pt on local filesystem."
-    )
-    parser.add_argument(
-        "pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
+    parser.add_argument("fairseq_path", type=str, help="path to a model.pt on local filesystem.")
+    parser.add_argument("pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
     args = parser.parse_args()
     model = convert_fairseq_m2m100_checkpoint_from_disk(args.fairseq_pathß)
     model.save_pretrained(args.pytorch_dump_folder_path)

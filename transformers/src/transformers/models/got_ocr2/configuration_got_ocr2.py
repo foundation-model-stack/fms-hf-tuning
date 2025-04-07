@@ -20,7 +20,6 @@
 # limitations under the License.
 
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ..auto import CONFIG_MAPPING, AutoConfig
 
@@ -177,9 +176,7 @@ class GotOcr2Config(PretrainedConfig):
             self.vision_config = vision_config
 
         if isinstance(text_config, dict):
-            text_config["model_type"] = (
-                text_config["model_type"] if "model_type" in text_config else "qwen2"
-            )
+            text_config["model_type"] = text_config["model_type"] if "model_type" in text_config else "qwen2"
             text_config = CONFIG_MAPPING[text_config["model_type"]](**text_config)
         elif text_config is None:
             text_config = CONFIG_MAPPING["qwen2"](

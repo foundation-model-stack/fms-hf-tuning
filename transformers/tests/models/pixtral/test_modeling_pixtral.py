@@ -14,19 +14,23 @@
 # limitations under the License.
 """Testing suite for the PyTorch Pixtral model."""
 
-# Standard
 import unittest
 
-# First Party
-from transformers import PixtralVisionConfig, PixtralVisionModel, is_torch_available
-from transformers.testing_utils import require_torch, torch_device
+from transformers import (
+    PixtralVisionConfig,
+    PixtralVisionModel,
+    is_torch_available,
+)
+from transformers.testing_utils import (
+    require_torch,
+    torch_device,
+)
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -69,13 +73,9 @@ class PixtralVisionModelTester:
         self.seq_length = (image_size // patch_size) ** 2 * batch_size
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
         image_sizes = torch.tensor(
-            [[self.image_size, self.image_size]] * self.batch_size,
-            dtype=torch.long,
-            device=torch_device,
+            [[self.image_size, self.image_size]] * self.batch_size, dtype=torch.long, device=torch_device
         )
         config = self.get_config()
 
@@ -94,46 +94,6 @@ class PixtralVisionModelTester:
             dropout=self.dropout,
             attention_dropout=self.attention_dropout,
             initializer_range=self.initializer_range,
-        )
-
-    def create_and_check_model(self, config, pixel_values):
-        model = PixtralVisionModel(config=config)
-        model.to(torch_device)
-        model.eval()
-        with torch.no_grad():
-            result = model(pixel_values)
-        # expected sequence length = num_patches + 1 (we add 1 for the [CLS] token)
-        image_size = (self.image_size, self.image_size)
-        patch_size = (self.patch_size, self.patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, num_patches + 1, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
-
-    def create_and_check_model_with_projection(self, config, pixel_values):
-        model = PixtralVisionModel(config=config)
-        model.to(torch_device)
-        model.eval()
-        with torch.no_grad():
-            result = model(pixel_values)
-        # expected sequence length = num_patches + 1 (we add 1 for the [CLS] token)
-        image_size = (self.image_size, self.image_size)
-        patch_size = (self.patch_size, self.patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, num_patches + 1, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.image_embeds.shape, (self.batch_size, self.projection_dim)
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -157,9 +117,7 @@ class PixtralVisionModelModelTest(ModelTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = PixtralVisionModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=PixtralVisionConfig, has_text_modality=False
-        )
+        self.config_tester = ConfigTester(self, config_class=PixtralVisionConfig, has_text_modality=False)
 
     def test_model_get_set_embeddings(self):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()

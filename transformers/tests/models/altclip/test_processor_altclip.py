@@ -14,20 +14,12 @@
 # limitations under the License.
 
 
-# Standard
 import tempfile
 import unittest
 
-# First Party
-from transformers import (
-    AltCLIPProcessor,
-    CLIPImageProcessor,
-    XLMRobertaTokenizer,
-    XLMRobertaTokenizerFast,
-)
+from transformers import AltCLIPProcessor, CLIPImageProcessor, XLMRobertaTokenizer, XLMRobertaTokenizerFast
 from transformers.testing_utils import require_vision
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
 

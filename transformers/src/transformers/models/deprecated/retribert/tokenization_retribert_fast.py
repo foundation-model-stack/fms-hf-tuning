@@ -14,17 +14,15 @@
 # limitations under the License.
 """Tokenization classes for RetriBERT."""
 
-# Standard
-from typing import List, Optional, Tuple
 import json
+from typing import List, Optional, Tuple
 
-# Third Party
 from tokenizers import normalizers
 
-# Local
 from ....tokenization_utils_fast import PreTrainedTokenizerFast
 from ....utils import logging
 from .tokenization_retribert import RetriBertTokenizer
+
 
 logger = logging.get_logger(__name__)
 
@@ -110,8 +108,7 @@ class RetriBertTokenizerFast(PreTrainedTokenizerFast):
         if (
             normalizer_state.get("lowercase", do_lower_case) != do_lower_case
             or normalizer_state.get("strip_accents", strip_accents) != strip_accents
-            or normalizer_state.get("handle_chinese_chars", tokenize_chinese_chars)
-            != tokenize_chinese_chars
+            or normalizer_state.get("handle_chinese_chars", tokenize_chinese_chars) != tokenize_chinese_chars
         ):
             normalizer_class = getattr(normalizers, normalizer_state.pop("type"))
             normalizer_state["lowercase"] = do_lower_case
@@ -174,8 +171,6 @@ class RetriBertTokenizerFast(PreTrainedTokenizerFast):
             return len(cls + token_ids_0 + sep) * [0]
         return len(cls + token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
         return tuple(files)

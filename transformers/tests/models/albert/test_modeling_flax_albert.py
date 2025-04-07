@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import AlbertConfig, is_flax_available
 from transformers.testing_utils import require_flax, slow
 
-# Local
-from ...test_modeling_flax_common import (
-    FlaxModelTesterMixin,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor, random_attention_mask
+
 
 if is_flax_available():
-    # Third Party
     import jax.numpy as jnp
 
-    # First Party
     from transformers.models.albert.modeling_flax_albert import (
         FlaxAlbertForMaskedLM,
         FlaxAlbertForMultipleChoice,
@@ -99,9 +90,7 @@ class FlaxAlbertModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         config = AlbertConfig(
             vocab_size=self.vocab_size,
@@ -123,11 +112,7 @@ class FlaxAlbertModelTester:
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, input_ids, token_type_ids, attention_mask = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "token_type_ids": token_type_ids,
-            "attention_mask": attention_mask,
-        }
+        inputs_dict = {"input_ids": input_ids, "token_type_ids": token_type_ids, "attention_mask": attention_mask}
         return config, inputs_dict
 
 
@@ -170,13 +155,7 @@ class FlaxAlbertModelIntegrationTest(unittest.TestCase):
         expected_shape = (1, 11, 768)
         self.assertEqual(output.shape, expected_shape)
         expected_slice = np.array(
-            [
-                [
-                    [-0.6513, 1.5035, -0.2766],
-                    [-0.6515, 1.5046, -0.2780],
-                    [-0.6512, 1.5049, -0.2784],
-                ]
-            ]
+            [[[-0.6513, 1.5035, -0.2766], [-0.6515, 1.5046, -0.2780], [-0.6512, 1.5049, -0.2784]]]
         )
 
         self.assertTrue(jnp.allclose(output[:, 1:4, 1:4], expected_slice, atol=1e-4))

@@ -16,12 +16,10 @@
 Processor class for TrOCR.
 """
 
-# Standard
+import warnings
 from contextlib import contextmanager
 from typing import List, Union
-import warnings
 
-# Local
 from ...image_processing_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
@@ -61,9 +59,7 @@ class TrOCRProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -76,9 +72,7 @@ class TrOCRProcessor(ProcessorMixin):
     def __call__(
         self,
         images: ImageInput = None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[TrOCRProcessorKwargs],
@@ -87,16 +81,14 @@ class TrOCRProcessor(ProcessorMixin):
         When used in normal mode, this method forwards all its arguments to AutoImageProcessor's
         [`~AutoImageProcessor.__call__`] and returns its output. If used in the context
         [`~TrOCRProcessor.as_target_processor`] this method forwards all its arguments to TrOCRTokenizer's
-        [`~TrOCRTokenizer.__call__`]. Please refer to the doctsring of the above two methods for more information.
+        [`~TrOCRTokenizer.__call__`]. Please refer to the docstring of the above two methods for more information.
         """
         # For backward compatibility
         if self._in_target_context_manager:
             return self.current_processor(images, **kwargs)
 
         if images is None and text is None:
-            raise ValueError(
-                "You need to specify either an `images` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `images` or `text` input to process.")
 
         output_kwargs = self._merge_kwargs(
             TrOCRProcessorKwargs,

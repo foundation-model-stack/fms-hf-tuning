@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import math
 
-# Third Party
-from packaging.version import parse
 import tensorflow as tf
+from packaging.version import parse
+
 
 try:
-    # Third Party
     import tf_keras as keras
 except (ModuleNotFoundError, ImportError):
-    # Third Party
     import keras
 
     if parse(keras.__version__).major > 2:
@@ -147,6 +144,4 @@ def get_tf_activation(activation_string):
     if activation_string in ACT2FN:
         return ACT2FN[activation_string]
     else:
-        raise KeyError(
-            f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}"
-        )
+        raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")

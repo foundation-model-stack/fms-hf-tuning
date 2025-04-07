@@ -13,19 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import gc
 import tempfile
 import unittest
 
-# First Party
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    FineGrainedFP8Config,
-    OPTForCausalLM,
-)
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, FineGrainedFP8Config, OPTForCausalLM
 from transformers.testing_utils import (
     require_accelerate,
     require_read_token,
@@ -35,12 +27,11 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_accelerate_available, is_torch_available
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_accelerate_available():
-    # First Party
     from accelerate import init_empty_weights
 
 
@@ -63,9 +54,7 @@ class FineGrainedFP8ConfigTest(unittest.TestCase):
         dict = {"modules_to_not_convert": ["lm_head.weight"], "quant_method": "fp8"}
         quantization_config = FineGrainedFP8Config.from_dict(dict)
 
-        self.assertEqual(
-            dict["modules_to_not_convert"], quantization_config.modules_to_not_convert
-        )
+        self.assertEqual(dict["modules_to_not_convert"], quantization_config.modules_to_not_convert)
         self.assertEqual(dict["quant_method"], quantization_config.quant_method)
 
 
@@ -110,9 +99,7 @@ class FP8QuantizerTest(unittest.TestCase):
         cls.quantization_config = FineGrainedFP8Config()
         cls.tokenizer = AutoTokenizer.from_pretrained(cls.model_name)
         cls.quantized_model = AutoModelForCausalLM.from_pretrained(
-            cls.model_name,
-            device_map=cls.device_map,
-            quantization_config=cls.quantization_config,
+            cls.model_name, device_map=cls.device_map, quantization_config=cls.quantization_config
         )
 
     def tearDown(self):
@@ -125,13 +112,10 @@ class FP8QuantizerTest(unittest.TestCase):
         Simple test that checks if the quantized model has been converted properly
         """
 
-        # First Party
         from transformers.integrations import FP8Linear, replace_with_fp8_linear
 
         model_id = "facebook/opt-350m"
-        config = AutoConfig.from_pretrained(
-            model_id, revision="cb32f77e905cccbca1d970436fb0f5e6b58ee3c5"
-        )
+        config = AutoConfig.from_pretrained(model_id, revision="cb32f77e905cccbca1d970436fb0f5e6b58ee3c5")
         quantization_config = FineGrainedFP8Config()
 
         with init_empty_weights():
@@ -165,17 +149,10 @@ class FP8QuantizerTest(unittest.TestCase):
         """
         Simple test that checks if the quantized model is working properly
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            self.device_map
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(self.device_map)
 
-        output = self.quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens, do_sample=False
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        output = self.quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens, do_sample=False)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_save_pretrained(self):
         """
@@ -184,77 +161,49 @@ class FP8QuantizerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.quantized_model.save_pretrained(tmpdirname)
 
-            model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname, device_map=self.device_map
-            )
+            model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map=self.device_map)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                self.device_map
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(self.device_map)
 
-            output = model.generate(
-                **input_ids, max_new_tokens=self.max_new_tokens, do_sample=False
-            )
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens, do_sample=False)
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_weight_and_weight_scale_inv(self):
         """
         Simple test that checks if the weight and weight_scale_inv are working properly
         """
         weight = self.quantized_model.model.layers[0].self_attn.q_proj.weight
-        weight_scale_inv = self.quantized_model.model.layers[
-            0
-        ].self_attn.q_proj.weight_scale_inv
+        weight_scale_inv = self.quantized_model.model.layers[0].self_attn.q_proj.weight_scale_inv
         self.assertEqual(weight.dtype, torch.float8_e4m3fn)
         self.assertEqual(weight_scale_inv.dtype, torch.float32)
-        self.assertEqual(
-            weight.shape,
-            (weight_scale_inv.shape[0] * 128, weight_scale_inv.shape[1] * 128),
-        )
+        self.assertEqual(weight.shape, (weight_scale_inv.shape[0] * 128, weight_scale_inv.shape[1] * 128))
 
     def test_block_size(self):
         """
         Simple test that checks if the block size is working properly
         """
-        self.assertEqual(
-            self.quantized_model.config.quantization_config.weight_block_size,
-            (128, 128),
-        )
+        self.assertEqual(self.quantized_model.config.quantization_config.weight_block_size, (128, 128))
         quantization_config = FineGrainedFP8Config(weight_block_size=(32, 32))
         quantized_model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            device_map=self.device_map,
-            quantization_config=quantization_config,
+            self.model_name, device_map=self.device_map, quantization_config=quantization_config
         )
-        self.assertEqual(
-            quantized_model.config.quantization_config.weight_block_size, (32, 32)
-        )
+        self.assertEqual(quantized_model.config.quantization_config.weight_block_size, (32, 32))
 
     @require_torch_multi_gpu
     def test_quantized_model_multi_gpu(self):
         """
         Simple test that checks if the quantized model is working properly with multiple GPUs
-        set CUDA_VISIBLE_DEVICES=0,1 if you have more than 2 GPUS
+        set CUDA_VISIBLE_DEVICES=0,1 if you have more than 2 GPUs
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            self.device_map
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(self.device_map)
         quantization_config = FineGrainedFP8Config()
         quantized_model = AutoModelForCausalLM.from_pretrained(
             self.model_name, device_map="auto", quantization_config=quantization_config
         )
         self.assertTrue(set(quantized_model.hf_device_map.values()) == {0, 1})
 
-        output = quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens, do_sample=False
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        output = quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens, do_sample=False)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     @require_torch_multi_gpu
     def test_save_pretrained_multi_gpu(self):
@@ -267,30 +216,20 @@ class FP8QuantizerTest(unittest.TestCase):
             model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map="auto")
             self.assertTrue(set(model.hf_device_map.values()) == {0, 1})
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                self.device_map
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(self.device_map)
 
-            output = model.generate(
-                **input_ids, max_new_tokens=self.max_new_tokens, do_sample=False
-            )
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens, do_sample=False)
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_quantized_model_offload(self):
         """
         Simple test that checks if the quantized model returns an error when loading with cpu/disk offloaded
         """
         with self.assertRaisesRegex(
-            ValueError,
-            "You are attempting to load an FP8 model with a device_map that contains a cpu/disk device.",
+            ValueError, "You are attempting to load an FP8 model with a device_map that contains a cpu/disk device."
         ):
             AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                device_map=self.offload_device_map,
-                quantization_config=self.quantization_config,
+                self.model_name, device_map=self.offload_device_map, quantization_config=self.quantization_config
             )
 
     def test_save_pretrained_offload(self):
@@ -300,31 +239,25 @@ class FP8QuantizerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.quantized_model.save_pretrained(tmpdirname)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                self.device_map
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(self.device_map)
 
-            quantized_model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname, device_map=self.offload_device_map
-            )
-            output = quantized_model.generate(
-                **input_ids, max_new_tokens=self.max_new_tokens, do_sample=False
-            )
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            quantized_model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map=self.offload_device_map)
+            output = quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens, do_sample=False)
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
 
 @require_torch_gpu
 class FP8LinearTest(unittest.TestCase):
     device = "cuda"
 
+    @unittest.skipIf(
+        torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 9,
+        "Skipping FP8LinearTest because it is not supported on GPU with capability < 9.0",
+    )
     def test_linear_preserves_shape(self):
         """
         Test that FP8Linear preserves shape when in_features == out_features.
         """
-        # First Party
         from transformers.integrations import FP8Linear
 
         linear = FP8Linear(256, 256, block_size=(128, 128), device=self.device)
@@ -333,11 +266,14 @@ class FP8LinearTest(unittest.TestCase):
         x_ = linear(x)
         self.assertEqual(x_.shape, x.shape)
 
+    @unittest.skipIf(
+        torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 9,
+        "Skipping FP8LinearTest because it is not supported on GPU with capability < 9.0",
+    )
     def test_linear_with_diff_feature_size_preserves_shape(self):
         """
         Test that FP8Linear generates the correct shape when in_features != out_features.
         """
-        # First Party
         from transformers.integrations import FP8Linear
 
         linear = FP8Linear(128, 256, block_size=(128, 128), device=self.device)

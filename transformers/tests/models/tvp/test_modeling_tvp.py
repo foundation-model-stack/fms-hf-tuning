@@ -14,20 +14,12 @@
 # limitations under the License.
 """Testing suite for the PyTorch TVP model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers import ResNetConfig, TimmBackboneConfig, TvpConfig
-from transformers.testing_utils import (
-    require_timm,
-    require_torch,
-    require_vision,
-    torch_device,
-)
+from transformers.testing_utils import require_timm, require_torch, require_vision, torch_device
 from transformers.utils import cached_property, is_torch_available, is_vision_available
 
-# Local
 from ...test_modeling_common import (
     ModelTesterMixin,
     _config_zero_init,
@@ -37,18 +29,15 @@ from ...test_modeling_common import (
 )
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import TvpForVideoGrounding, TvpModel
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import TvpImageProcessor
 
 
@@ -85,9 +74,7 @@ class TVPModelTester:
         self.parent = parent
         self.batch_size = batch_size
         self.input_id_length = seq_length
-        self.seq_length = (
-            seq_length + 10 + 784
-        )  # include text prompt length and visual input length
+        self.seq_length = seq_length + 10 + 784  # include text prompt length and visual input length
         self.alpha = alpha
         self.beta = beta
         self.visual_prompter_type = visual_prompter_type
@@ -117,13 +104,7 @@ class TVPModelTester:
         input_ids = ids_tensor([self.batch_size, self.input_id_length], self.vocab_size)
         attention_mask = random_attention_mask([self.batch_size, self.input_id_length])
         pixel_values = floats_tensor(
-            [
-                self.batch_size,
-                self.num_frames,
-                self.num_channels,
-                self.max_img_size,
-                self.max_img_size,
-            ]
+            [self.batch_size, self.num_frames, self.num_channels, self.max_img_size, self.max_img_size]
         )
 
         config = self.get_config()
@@ -172,19 +153,12 @@ class TVPModelTester:
         model.to(torch_device)
         model.eval()
         result = model(input_ids, pixel_values, attention_mask)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, input_ids, pixel_values, attention_mask = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "pixel_values": pixel_values,
-            "attention_mask": attention_mask,
-        }
+        inputs_dict = {"input_ids": input_ids, "pixel_values": pixel_values, "attention_mask": attention_mask}
         return config, inputs_dict
 
 
@@ -197,10 +171,7 @@ class TVPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     all_model_classes = (TvpModel, TvpForVideoGrounding) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {
-            "feature-extraction": TvpModel,
-            "temporal-video-grounding": TvpForVideoGrounding,
-        }
+        {"feature-extraction": TvpModel, "temporal-video-grounding": TvpForVideoGrounding}
         if is_torch_available()
         else {}
     )
@@ -223,7 +194,7 @@ class TVPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     def test_model_get_set_embeddings(self):
         pass
 
-    # override as the `logit_scale` parameter initilization is different for TVP
+    # override as the `logit_scale` parameter initialization is different for TVP
     def test_initialization(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
 
@@ -248,13 +219,11 @@ class TVPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
                 model.to(torch_device)
                 model.eval()
 
-                # Confirm out_indices propogated to backbone
+                # Confirm out_indices propagated to backbone
                 if model.__class__.__name__ == "TvpModel":
                     self.assertEqual(len(model.vision_model.backbone.out_indices), 2)
                 elif model.__class__.__name__ == "TvpForVideoGrounding":
-                    self.assertEqual(
-                        len(model.model.vision_model.backbone.out_indices), 2
-                    )
+                    self.assertEqual(len(model.model.vision_model.backbone.out_indices), 2)
 
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
         # Force load_backbone path
@@ -266,16 +235,12 @@ class TVPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
         # Load a timm backbone
         # We hack adding hidden_sizes to the config to test the backbone loading
-        backbone_config = TimmBackboneConfig(
-            "resnet18", out_indices=[-2, -1], hidden_sizes=[64, 128]
-        )
+        backbone_config = TimmBackboneConfig("resnet18", out_indices=[-2, -1], hidden_sizes=[64, 128])
         config.backbone_config = backbone_config
         _validate_backbone_init()
 
         # Load a HF backbone
-        backbone_config = ResNetConfig.from_pretrained(
-            "facebook/dinov2-small", out_indices=[-2, -1]
-        )
+        backbone_config = ResNetConfig.from_pretrained("facebook/dinov2-small", out_indices=[-2, -1])
         config.backbone_config = backbone_config
         _validate_backbone_init()
 
@@ -310,20 +275,12 @@ class TvpModelIntegrationTests(unittest.TestCase):
         expected_shape = torch.Size((1, 796, 128))
         assert outputs.last_hidden_state.shape == expected_shape
         expected_slice = torch.tensor(
-            [
-                [-0.4902, -0.4121, -1.7872],
-                [-0.2184, 2.1211, -0.9371],
-                [0.1180, 0.5003, -0.1727],
-            ]
+            [[-0.4902, -0.4121, -1.7872], [-0.2184, 2.1211, -0.9371], [0.1180, 0.5003, -0.1727]]
         ).to(torch_device)
-        torch.testing.assert_close(
-            outputs.last_hidden_state[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.last_hidden_state[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
     def test_inference_with_head(self):
-        model = TvpForVideoGrounding.from_pretrained("Jiqing/tiny-random-tvp").to(
-            torch_device
-        )
+        model = TvpForVideoGrounding.from_pretrained("Jiqing/tiny-random-tvp").to(torch_device)
 
         image_processor = self.default_image_processor
         image = prepare_img()
@@ -347,11 +304,7 @@ class TvpModelIntegrationTests(unittest.TestCase):
         image_processor = self.default_image_processor
         image = prepare_img()  # 480X640
         encoding = image_processor(
-            images=image,
-            return_tensors="pt",
-            do_resize=False,
-            do_pad=False,
-            do_center_crop=False,
+            images=image, return_tensors="pt", do_resize=False, do_pad=False, do_center_crop=False
         )
         input_ids = torch.tensor([[1, 2]])
         attention_mask = torch.tensor([[1, 1]])
@@ -365,18 +318,12 @@ class TvpModelIntegrationTests(unittest.TestCase):
         assert outputs.last_hidden_state.shape == expected_shape
 
     def test_interpolate_inference_with_head(self):
-        model = TvpForVideoGrounding.from_pretrained("Jiqing/tiny-random-tvp").to(
-            torch_device
-        )
+        model = TvpForVideoGrounding.from_pretrained("Jiqing/tiny-random-tvp").to(torch_device)
 
         image_processor = self.default_image_processor
         image = prepare_img()  # 480X640
         encoding = image_processor(
-            images=image,
-            return_tensors="pt",
-            do_resize=False,
-            do_pad=False,
-            do_center_crop=False,
+            images=image, return_tensors="pt", do_resize=False, do_pad=False, do_center_crop=False
         )
         input_ids = torch.tensor([[1, 2]])
         attention_mask = torch.tensor([[1, 1]])
@@ -384,9 +331,7 @@ class TvpModelIntegrationTests(unittest.TestCase):
         encoding.to(torch_device)
 
         with torch.no_grad():
-            outputs = model(
-                **encoding, interpolate_pos_encoding=True, output_hidden_states=True
-            )
+            outputs = model(**encoding, interpolate_pos_encoding=True, output_hidden_states=True)
 
         expected_shape = torch.Size((1, 1212, 128))
         assert outputs.hidden_states[-1].shape == expected_shape

@@ -13,16 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-# Third Party
-from torch import nn
 import sentencepiece as spm
 import torch
 import torch.utils.checkpoint
+from torch import nn
 
-# Local
 from ...cache_utils import Cache, DynamicCache
 from ...configuration_utils import PretrainedConfig
 from ...modeling_outputs import BaseModelOutputWithPast
@@ -37,8 +34,8 @@ from ..llama.modeling_llama import (
 )
 from ..llama.tokenization_llama import LlamaTokenizer
 
+
 if TYPE_CHECKING:
-    # Local
     from ...tokenization_utils_base import TextInput
 
 VOCAB_FILES_NAMES = {"vocab_file": "tokenizer.model"}
@@ -248,26 +245,10 @@ class GemmaTokenizer(LlamaTokenizer, PreTrainedTokenizer):
         **kwargs,
     ):
         self.sp_model_kwargs = {} if sp_model_kwargs is None else sp_model_kwargs
-        bos_token = (
-            AddedToken(bos_token, normalized=False, special=True)
-            if isinstance(bos_token, str)
-            else bos_token
-        )
-        eos_token = (
-            AddedToken(eos_token, normalized=False, special=True)
-            if isinstance(eos_token, str)
-            else eos_token
-        )
-        unk_token = (
-            AddedToken(unk_token, normalized=False, special=True)
-            if isinstance(unk_token, str)
-            else unk_token
-        )
-        pad_token = (
-            AddedToken(pad_token, normalized=False, special=True)
-            if isinstance(pad_token, str)
-            else pad_token
-        )
+        bos_token = AddedToken(bos_token, normalized=False, special=True) if isinstance(bos_token, str) else bos_token
+        eos_token = AddedToken(eos_token, normalized=False, special=True) if isinstance(eos_token, str) else eos_token
+        unk_token = AddedToken(unk_token, normalized=False, special=True) if isinstance(unk_token, str) else unk_token
+        pad_token = AddedToken(pad_token, normalized=False, special=True) if isinstance(pad_token, str) else pad_token
 
         self.vocab_file = vocab_file
         self.add_bos_token = add_bos_token
@@ -388,7 +369,7 @@ class GemmaMLP(LlamaMLP):
 class GemmaModel(LlamaModel):
     def forward(
         self,
-        input_ids: torch.LongTensor = None,
+        input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Union[Cache, List[torch.FloatTensor]]] = None,
@@ -396,29 +377,17 @@ class GemmaModel(LlamaModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
         **kwargs,  # NOOP kwarg for now
-    ) -> Union[Tuple, BaseModelOutputWithPast]:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+    ) -> BaseModelOutputWithPast:
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
 
         if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError(
-                "You must specify exactly one of input_ids or inputs_embeds"
-            )
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.gradient_checkpointing and self.training and use_cache:
             logger.warning_once(
@@ -433,24 +402,16 @@ class GemmaModel(LlamaModel):
             past_key_values = DynamicCache()
 
         if cache_position is None:
-            past_seen_tokens = (
-                past_key_values.get_seq_length() if past_key_values is not None else 0
-            )
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = torch.arange(
-                past_seen_tokens,
-                past_seen_tokens + inputs_embeds.shape[1],
-                device=inputs_embeds.device,
+                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device
             )
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
         causal_mask = self._update_causal_mask(
-            attention_mask,
-            inputs_embeds,
-            cache_position,
-            past_key_values,
-            output_attentions,
+            attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
 
         # embed positions
@@ -462,9 +423,7 @@ class GemmaModel(LlamaModel):
         # normalized
         # Gemma downcasts the below to float16, causing sqrt(3072)=55.4256 to become 55.5
         # See https://github.com/huggingface/transformers/pull/29402
-        normalizer = torch.tensor(
-            self.config.hidden_size**0.5, dtype=hidden_states.dtype
-        )
+        normalizer = torch.tensor(self.config.hidden_size**0.5, dtype=hidden_states.dtype)
         hidden_states = hidden_states * normalizer
 
         # decoder layers
@@ -510,13 +469,12 @@ class GemmaModel(LlamaModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        output = BaseModelOutputWithPast(
+        return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values if use_cache else None,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
-        return output if return_dict else output.to_tuple()
 
 
 class GemmaForCausalLM(LlamaForCausalLM):

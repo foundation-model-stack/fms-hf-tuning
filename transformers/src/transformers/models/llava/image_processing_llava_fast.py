@@ -14,11 +14,11 @@
 # limitations under the License.
 """Fast Image processor class for LLaVa."""
 
-# Standard
 from typing import List, Optional, Tuple, Union
 
-# Local
-from ...image_processing_utils import BatchFeature
+from ...image_processing_utils import (
+    BatchFeature,
+)
 from ...image_processing_utils_fast import (
     BASE_IMAGE_PROCESSOR_FAST_DOCSTRING,
     BASE_IMAGE_PROCESSOR_FAST_DOCSTRING_PREPROCESS,
@@ -46,20 +46,17 @@ from ...utils import (
     is_vision_available,
 )
 
+
 if is_vision_available():
-    # Local
     from ...image_utils import PILImageResampling
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_torchvision_available():
     if is_torchvision_v2_available():
-        # Third Party
         from torchvision.transforms.v2 import functional as F
     else:
-        # Third Party
         from torchvision.transforms import functional as F
 
 
@@ -100,9 +97,7 @@ class LlavaImageProcessorFast(BaseImageProcessorFast):
                 Whether to pad the image to a square based on the longest edge. Can be overridden by the `do_pad` parameter
         """,
     )
-    def preprocess(
-        self, images: ImageInput, **kwargs: Unpack[LlavaFastImageProcessorKwargs]
-    ) -> BatchFeature:
+    def preprocess(self, images: ImageInput, **kwargs: Unpack[LlavaFastImageProcessorKwargs]) -> BatchFeature:
         return super().preprocess(images, **kwargs)
 
     def pad_to_square(
@@ -142,9 +137,7 @@ class LlavaImageProcessorFast(BaseImageProcessorFast):
         paste_x_right = max_dim - width - paste_x_left
         paste_y_right = max_dim - height - paste_y_left
         padded_images = F.pad(
-            images,
-            padding=[paste_x_left, paste_y_left, paste_x_right, paste_y_right],
-            fill=background_color,
+            images, padding=[paste_x_left, paste_y_left, paste_x_right, paste_y_right], fill=background_color
         )
 
         return padded_images
@@ -171,8 +164,7 @@ class LlavaImageProcessorFast(BaseImageProcessorFast):
         for shape, stacked_images in grouped_images.items():
             if do_pad:
                 stacked_images = self.pad_to_square(
-                    images=stacked_images,
-                    background_color=tuple(int(x * 255) for x in self.image_mean),
+                    images=stacked_images, background_color=tuple(int(x * 255) for x in self.image_mean)
                 )
             resized_images_grouped[shape] = stacked_images
         padded_images = reorder_images(resized_images_grouped, grouped_images_index)
@@ -183,9 +175,7 @@ class LlavaImageProcessorFast(BaseImageProcessorFast):
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
-                stacked_images = self.resize(
-                    image=stacked_images, size=size, interpolation=interpolation
-                )
+                stacked_images = self.resize(image=stacked_images, size=size, interpolation=interpolation)
             resized_images_grouped[shape] = stacked_images
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
@@ -198,25 +188,14 @@ class LlavaImageProcessorFast(BaseImageProcessorFast):
                 stacked_images = self.center_crop(stacked_images, crop_size)
             # Fused rescale and normalize
             stacked_images = self.rescale_and_normalize(
-                stacked_images,
-                do_rescale,
-                rescale_factor,
-                do_normalize,
-                image_mean,
-                image_std,
+                stacked_images, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
             processed_images_grouped[shape] = stacked_images
 
-        processed_images = reorder_images(
-            processed_images_grouped, grouped_images_index
-        )
-        processed_images = (
-            torch.stack(processed_images, dim=0) if return_tensors else processed_images
-        )
+        processed_images = reorder_images(processed_images_grouped, grouped_images_index)
+        processed_images = torch.stack(processed_images, dim=0) if return_tensors else processed_images
 
-        return BatchFeature(
-            data={"pixel_values": processed_images}, tensor_type=return_tensors
-        )
+        return BatchFeature(data={"pixel_values": processed_images}, tensor_type=return_tensors)
 
 
 __all__ = ["LlavaImageProcessorFast"]

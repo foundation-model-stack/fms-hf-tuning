@@ -16,11 +16,9 @@
 Image/Text processor class for Chinese-CLIP
 """
 
-# Standard
-from typing import List, Union
 import warnings
+from typing import List, Union
 
-# Local
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
@@ -59,9 +57,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -72,9 +68,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
 
     def __call__(
         self,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         images: ImageInput = None,
         audio=None,
         videos=None,
@@ -84,7 +78,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to BertTokenizerFast's [`~BertTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -113,9 +107,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
         """
 
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
         output_kwargs = self._merge_kwargs(
             ChineseClipProcessorKwargs,
             tokenizer_init_kwargs=self.tokenizer.init_kwargs,
@@ -125,9 +117,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
         if text is not None:
             encoding = self.tokenizer(text, **output_kwargs["text_kwargs"])
         if images is not None:
-            image_features = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_features = self.image_processor(images, **output_kwargs["images_kwargs"])
 
         # BC for explicit return_tensors
         if "return_tensors" in output_kwargs["common_kwargs"]:
@@ -139,9 +129,7 @@ class ChineseCLIPProcessor(ProcessorMixin):
         elif text is not None:
             return encoding
         else:
-            return BatchEncoding(
-                data=dict(**image_features), tensor_type=return_tensors
-            )
+            return BatchEncoding(data=dict(**image_features), tensor_type=return_tensors)
 
     def batch_decode(self, *args, **kwargs):
         """

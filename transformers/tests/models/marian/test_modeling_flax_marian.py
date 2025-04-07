@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 import timeout_decorator  # noqa
 
-# First Party
 from transformers import MarianConfig, is_flax_available
-from transformers.testing_utils import (
-    require_flax,
-    require_sentencepiece,
-    require_tokenizers,
-    slow,
-)
+from transformers.testing_utils import require_flax, require_sentencepiece, require_tokenizers, slow
 from transformers.utils import cached_property
 
-# Local
 from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor
 
+
 if is_flax_available():
-    # Standard
     import os
 
     # The slow tests are often failing with OOM error on GPU
@@ -41,17 +32,11 @@ if is_flax_available():
     # but will be slower as stated here https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 
-    # Third Party
     import jax
     import jax.numpy as jnp
 
-    # First Party
     from transformers import MarianTokenizer
-    from transformers.models.marian.modeling_flax_marian import (
-        FlaxMarianModel,
-        FlaxMarianMTModel,
-        shift_tokens_right,
-    )
+    from transformers.models.marian.modeling_flax_marian import FlaxMarianModel, FlaxMarianMTModel, shift_tokens_right
 
 
 def prepare_marian_inputs_dict(
@@ -67,19 +52,13 @@ def prepare_marian_inputs_dict(
     if attention_mask is None:
         attention_mask = np.where(input_ids != config.pad_token_id, 1, 0)
     if decoder_attention_mask is None:
-        decoder_attention_mask = np.where(
-            decoder_input_ids != config.pad_token_id, 1, 0
-        )
+        decoder_attention_mask = np.where(decoder_input_ids != config.pad_token_id, 1, 0)
     if head_mask is None:
         head_mask = np.ones((config.encoder_layers, config.encoder_attention_heads))
     if decoder_head_mask is None:
-        decoder_head_mask = np.ones(
-            (config.decoder_layers, config.decoder_attention_heads)
-        )
+        decoder_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     if cross_attn_head_mask is None:
-        cross_attn_head_mask = np.ones(
-            (config.decoder_layers, config.decoder_attention_heads)
-        )
+        cross_attn_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     return {
         "input_ids": input_ids,
         "decoder_input_ids": decoder_input_ids,
@@ -130,14 +109,8 @@ class FlaxMarianModelTester:
         self.initializer_range = initializer_range
 
     def prepare_config_and_inputs(self):
-        input_ids = np.clip(
-            ids_tensor([self.batch_size, self.seq_length - 1], self.vocab_size),
-            3,
-            self.vocab_size,
-        )
-        input_ids = np.concatenate(
-            (input_ids, 2 * np.ones((self.batch_size, 1), dtype=np.int64)), -1
-        )
+        input_ids = np.clip(ids_tensor([self.batch_size, self.seq_length - 1], self.vocab_size), 3, self.vocab_size)
+        input_ids = np.concatenate((input_ids, 2 * np.ones((self.batch_size, 1), dtype=np.int64)), -1)
 
         decoder_input_ids = shift_tokens_right(input_ids, 1, 2)
 
@@ -177,12 +150,8 @@ class FlaxMarianModelTester:
             inputs_dict["decoder_attention_mask"],
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
-        decoder_attention_mask = jnp.ones(
-            (decoder_input_ids.shape[0], max_decoder_length), dtype="i4"
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
+        decoder_attention_mask = jnp.ones((decoder_input_ids.shape[0], max_decoder_length), dtype="i4")
 
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
@@ -196,9 +165,7 @@ class FlaxMarianModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -209,14 +176,10 @@ class FlaxMarianModelTester:
 
         outputs = model.decode(decoder_input_ids, encoder_outputs)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
-    def check_use_cache_forward_with_attn_mask(
-        self, model_class_name, config, inputs_dict
-    ):
+    def check_use_cache_forward_with_attn_mask(self, model_class_name, config, inputs_dict):
         max_decoder_length = 20
         model = model_class_name(config)
 
@@ -230,19 +193,12 @@ class FlaxMarianModelTester:
         decoder_attention_mask_cache = jnp.concatenate(
             [
                 decoder_attention_mask,
-                jnp.zeros(
-                    (
-                        decoder_attention_mask.shape[0],
-                        max_decoder_length - decoder_attention_mask.shape[1],
-                    )
-                ),
+                jnp.zeros((decoder_attention_mask.shape[0], max_decoder_length - decoder_attention_mask.shape[1])),
             ],
             axis=-1,
         )
 
-        past_key_values = model.init_cache(
-            decoder_input_ids.shape[0], max_decoder_length, encoder_outputs
-        )
+        past_key_values = model.init_cache(decoder_input_ids.shape[0], max_decoder_length, encoder_outputs)
         decoder_position_ids = jnp.broadcast_to(
             jnp.arange(decoder_input_ids.shape[-1] - 1)[None, :],
             (decoder_input_ids.shape[0], decoder_input_ids.shape[-1] - 1),
@@ -255,9 +211,7 @@ class FlaxMarianModelTester:
             past_key_values=past_key_values,
             decoder_position_ids=decoder_position_ids,
         )
-        decoder_position_ids = jnp.array(
-            decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        decoder_position_ids = jnp.array(decoder_input_ids.shape[0] * [[decoder_input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model.decode(
             decoder_input_ids[:, -1:],
             encoder_outputs,
@@ -266,24 +220,16 @@ class FlaxMarianModelTester:
             decoder_position_ids=decoder_position_ids,
         )
 
-        outputs = model.decode(
-            decoder_input_ids,
-            encoder_outputs,
-            decoder_attention_mask=decoder_attention_mask,
-        )
+        outputs = model.decode(decoder_input_ids, encoder_outputs, decoder_attention_mask=decoder_attention_mask)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
 
 @require_flax
 class FlaxMarianModelTest(FlaxModelTesterMixin, unittest.TestCase):
     is_encoder_decoder = True
-    all_model_classes = (
-        (FlaxMarianModel, FlaxMarianMTModel) if is_flax_available() else ()
-    )
+    all_model_classes = (FlaxMarianModel, FlaxMarianMTModel) if is_flax_available() else ()
 
     def setUp(self):
         self.model_tester = FlaxMarianModelTester(self)
@@ -296,9 +242,7 @@ class FlaxMarianModelTest(FlaxModelTesterMixin, unittest.TestCase):
     def test_use_cache_forward_with_attn_mask(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs()
         for model_class in self.all_model_classes:
-            self.model_tester.check_use_cache_forward_with_attn_mask(
-                model_class, config, inputs_dict
-            )
+            self.model_tester.check_use_cache_forward_with_attn_mask(model_class, config, inputs_dict)
 
     def test_encode(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -310,9 +254,7 @@ class FlaxMarianModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
                 @jax.jit
                 def encode_jitted(input_ids, attention_mask=None, **kwargs):
-                    return model.encode(
-                        input_ids=input_ids, attention_mask=attention_mask
-                    )
+                    return model.encode(input_ids=input_ids, attention_mask=attention_mask)
 
                 with self.subTest("JIT Enabled"):
                     jitted_outputs = encode_jitted(**prepared_inputs_dict).to_tuple()
@@ -331,9 +273,7 @@ class FlaxMarianModelTest(FlaxModelTesterMixin, unittest.TestCase):
         for model_class in self.all_model_classes:
             with self.subTest(model_class.__name__):
                 model = model_class(config)
-                encoder_outputs = model.encode(
-                    inputs_dict["input_ids"], inputs_dict["attention_mask"]
-                )
+                encoder_outputs = model.encode(inputs_dict["input_ids"], inputs_dict["attention_mask"])
 
                 prepared_inputs_dict = {
                     "decoder_input_ids": inputs_dict["decoder_input_ids"],
@@ -342,9 +282,7 @@ class FlaxMarianModelTest(FlaxModelTesterMixin, unittest.TestCase):
                 }
 
                 @jax.jit
-                def decode_jitted(
-                    decoder_input_ids, decoder_attention_mask, encoder_outputs
-                ):
+                def decode_jitted(decoder_input_ids, decoder_attention_mask, encoder_outputs):
                     return model.decode(
                         decoder_input_ids=decoder_input_ids,
                         decoder_attention_mask=decoder_attention_mask,
@@ -403,18 +341,14 @@ class MarianIntegrationTest(unittest.TestCase):
         self.assertListEqual(self.expected_text, generated_words)
 
     def translate_src_text(self, **tokenizer_kwargs):
-        model_inputs = self.tokenizer(
-            self.src_text, padding=True, return_tensors="np", **tokenizer_kwargs
-        )
+        model_inputs = self.tokenizer(self.src_text, padding=True, return_tensors="np", **tokenizer_kwargs)
         generated_ids = self.model.generate(
             model_inputs.input_ids,
             attention_mask=model_inputs.attention_mask,
             num_beams=2,
             max_length=128,
         ).sequences
-        generated_words = self.tokenizer.batch_decode(
-            generated_ids, skip_special_tokens=True
-        )
+        generated_words = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         return generated_words
 
 
@@ -466,12 +400,8 @@ class TestMarian_MT_EN(MarianIntegrationTest):
 
     src = "mt"
     tgt = "en"
-    src_text = [
-        "Billi messu b'mod ġentili, Ġesù fejjaq raġel li kien milqut bil - marda kerha tal - ġdiem."
-    ]
-    expected_text = [
-        "Touching gently, Jesus healed a man who was affected by the sad disease of leprosy."
-    ]
+    src_text = ["Billi messu b'mod ġentili, Ġesù fejjaq raġel li kien milqut bil - marda kerha tal - ġdiem."]
+    expected_text = ["Touching gently, Jesus healed a man who was affected by the sad disease of leprosy."]
 
     @slow
     def test_batch_generation_mt_en(self):

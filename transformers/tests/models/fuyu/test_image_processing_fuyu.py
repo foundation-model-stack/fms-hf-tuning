@@ -1,10 +1,7 @@
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import is_torch_available, is_vision_available
 from transformers.testing_utils import (
     require_torch,
@@ -12,15 +9,13 @@ from transformers.testing_utils import (
     require_vision,
 )
 
+
 if is_torch_available() and is_vision_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import FuyuImageProcessor
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 
@@ -36,9 +31,7 @@ class TestFuyuImageProcessor(unittest.TestCase):
         self.height = 300
         self.width = 300
 
-        self.image_input = torch.rand(
-            self.batch_size, self.channels, self.height, self.width
-        )
+        self.image_input = torch.rand(self.batch_size, self.channels, self.height, self.width)
 
         self.image_patch_dim_h = 30
         self.image_patch_dim_w = 30
@@ -46,14 +39,12 @@ class TestFuyuImageProcessor(unittest.TestCase):
         self.sample_image_pil = Image.fromarray(self.sample_image)
 
     def test_patches(self):
-        expected_num_patches = self.processor.get_num_patches(
-            image_height=self.height, image_width=self.width
-        )
+        expected_num_patches = self.processor.get_num_patches(image_height=self.height, image_width=self.width)
 
         patches_final = self.processor.patchify_image(image=self.image_input)
-        assert (
-            patches_final.shape[1] == expected_num_patches
-        ), f"Expected {expected_num_patches} patches, got {patches_final.shape[1]}."
+        assert patches_final.shape[1] == expected_num_patches, (
+            f"Expected {expected_num_patches} patches, got {patches_final.shape[1]}."
+        )
 
     def test_scale_to_target_aspect_ratio(self):
         # (h:450, w:210) fitting (160, 320) -> (160, 210*160/450)
@@ -67,8 +58,6 @@ class TestFuyuImageProcessor(unittest.TestCase):
         self.assertEqual(transformed_image.shape[2], 320)
 
     def test_apply_transformation_pil(self):
-        transformed_image = self.processor.preprocess(self.sample_image_pil).images[0][
-            0
-        ]
+        transformed_image = self.processor.preprocess(self.sample_image_pil).images[0][0]
         self.assertEqual(transformed_image.shape[1], 160)
         self.assertEqual(transformed_image.shape[2], 320)

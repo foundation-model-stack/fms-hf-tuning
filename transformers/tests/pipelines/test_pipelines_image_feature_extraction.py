@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 import pytest
 
-# First Party
 from transformers import (
     MODEL_MAPPING,
     TF_MODEL_MAPPING,
@@ -30,23 +27,16 @@ from transformers import (
     is_vision_available,
     pipeline,
 )
-from transformers.testing_utils import (
-    is_pipeline_test,
-    nested_simplify,
-    require_tf,
-    require_torch,
-)
+from transformers.testing_utils import is_pipeline_test, nested_simplify, require_tf, require_torch
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 
@@ -64,9 +54,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_pt(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit",
-            framework="pt",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit", framework="pt"
         )
         img = prepare_img()
         outputs = feature_extractor(img)
@@ -77,9 +65,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_w_pooler_pt(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit-w-pooler",
-            framework="pt",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit-w-pooler", framework="pt"
         )
         img = prepare_img()
         outputs = feature_extractor(img, pool=True)
@@ -90,9 +76,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_small_model_tf(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit-w-pooler",
-            framework="tf",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit-w-pooler", framework="tf"
         )
         img = prepare_img()
         outputs = feature_extractor(img)
@@ -103,9 +87,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_small_model_w_pooler_tf(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit-w-pooler",
-            framework="tf",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit-w-pooler", framework="tf"
         )
         img = prepare_img()
         outputs = feature_extractor(img, pool=True)
@@ -116,9 +98,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_image_processing_small_model_pt(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit",
-            framework="pt",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit", framework="pt"
         )
 
         # test with image processor parameters
@@ -140,9 +120,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_image_processing_small_model_tf(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit",
-            framework="tf",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit", framework="tf"
         )
 
         # test with image processor parameters
@@ -164,9 +142,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_return_tensors_pt(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit",
-            framework="pt",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit", framework="pt"
         )
         img = prepare_img()
         outputs = feature_extractor(img, return_tensors=True)
@@ -175,9 +151,7 @@ class ImageFeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_return_tensors_tf(self):
         feature_extractor = pipeline(
-            task="image-feature-extraction",
-            model="hf-internal-testing/tiny-random-vit",
-            framework="tf",
+            task="image-feature-extraction", model="hf-internal-testing/tiny-random-vit", framework="tf"
         )
         img = prepare_img()
         outputs = feature_extractor(img, return_tensors=True)

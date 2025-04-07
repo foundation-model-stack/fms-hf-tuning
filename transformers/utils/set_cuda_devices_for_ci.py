@@ -1,8 +1,8 @@
 """A simple script to set flexibly CUDA_VISIBLE_DEVICES in GitHub Actions CI workflow files."""
 
-# Standard
 import argparse
 import os
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

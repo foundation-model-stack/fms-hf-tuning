@@ -13,19 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import BarthezTokenizer, BarthezTokenizerFast, BatchEncoding
-from transformers.testing_utils import (
-    require_sentencepiece,
-    require_tokenizers,
-    require_torch,
-    slow,
-)
+from transformers.testing_utils import require_sentencepiece, require_tokenizers, require_torch, slow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
@@ -39,13 +31,14 @@ class BarthezTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = True
     test_sentencepiece = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         tokenizer = BarthezTokenizerFast.from_pretrained("moussaKam/mbarthez")
-        tokenizer.save_pretrained(self.tmpdirname)
-        tokenizer.save_pretrained(self.tmpdirname, legacy_format=False)
-        self.tokenizer = tokenizer
+        tokenizer.save_pretrained(cls.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname, legacy_format=False)
+        cls.tokenizer = tokenizer
 
     def test_convert_token_and_id(self):
         """Test ``_convert_token_to_id`` and ``_convert_id_to_token``."""
@@ -68,18 +61,11 @@ class BarthezTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     @require_torch
     def test_prepare_batch(self):
-        src_text = [
-            "A long paragraph for summarization.",
-            "Another paragraph for summarization.",
-        ]
+        src_text = ["A long paragraph for summarization.", "Another paragraph for summarization."]
         expected_src_tokens = [0, 57, 3018, 70307, 91, 2]
 
         batch = self.tokenizer(
-            src_text,
-            max_length=len(expected_src_tokens),
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
+            src_text, max_length=len(expected_src_tokens), padding=True, truncation=True, return_tensors="pt"
         )
         self.assertIsInstance(batch, BatchEncoding)
 

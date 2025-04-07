@@ -14,33 +14,27 @@
 # limitations under the License.
 """Testing suite for the PyTorch Depth Anything model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers import DepthAnythingConfig, Dinov2Config
 from transformers.file_utils import is_torch_available, is_vision_available
 from transformers.pytorch_utils import is_torch_greater_or_equal_than_2_4
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import DepthAnythingForDepthEstimation
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import DPTImageProcessor
 
 
@@ -88,15 +82,11 @@ class DepthAnythingModelTester:
 
     # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.prepare_config_and_inputs
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
-            labels = ids_tensor(
-                [self.batch_size, self.image_size, self.image_size], self.num_labels
-            )
+            labels = ids_tensor([self.batch_size, self.image_size, self.image_size], self.num_labels)
 
         config = self.get_config()
 
@@ -133,10 +123,7 @@ class DepthAnythingModelTester:
         model.to(torch_device)
         model.eval()
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.predicted_depth.shape,
-            (self.batch_size, self.image_size, self.image_size),
-        )
+        self.parent.assertEqual(result.predicted_depth.shape, (self.batch_size, self.image_size, self.image_size))
 
     # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.prepare_config_and_inputs_for_common
     def prepare_config_and_inputs_for_common(self):
@@ -153,14 +140,8 @@ class DepthAnythingModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Tes
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (DepthAnythingForDepthEstimation,) if is_torch_available() else ()
-    )
-    pipeline_model_mapping = (
-        {"depth-estimation": DepthAnythingForDepthEstimation}
-        if is_torch_available()
-        else {}
-    )
+    all_model_classes = (DepthAnythingForDepthEstimation,) if is_torch_available() else ()
+    pipeline_model_mapping = {"depth-estimation": DepthAnythingForDepthEstimation} if is_torch_available() else {}
 
     test_pruning = False
     test_resize_embeddings = False
@@ -180,9 +161,7 @@ class DepthAnythingModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Tes
     def test_config(self):
         self.config_tester.run_common_tests()
 
-    @unittest.skip(
-        reason="Depth Anything with AutoBackbone does not have a base model and hence no input_embeddings"
-    )
+    @unittest.skip(reason="Depth Anything with AutoBackbone does not have a base model and hence no input_embeddings")
     def test_inputs_embeds(self):
         pass
 
@@ -198,18 +177,8 @@ class DepthAnythingModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Tes
     def test_training_gradient_checkpointing(self):
         pass
 
-    @unittest.skip(
-        reason="Depth Anything with AutoBackbone does not have a base model and hence no input_embeddings"
-    )
+    @unittest.skip(reason="Depth Anything with AutoBackbone does not have a base model and hence no input_embeddings")
     def test_model_get_set_embeddings(self):
-        pass
-
-    @unittest.skip(reason="Depth Anything with AutoBackbone does not have a base model")
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(reason="Depth Anything with AutoBackbone does not have a base model")
-    def test_save_load_fast_init_to_base(self):
         pass
 
     @unittest.skip(
@@ -237,7 +206,7 @@ class DepthAnythingModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Tes
                 model.to(torch_device)
                 model.eval()
 
-                # Confirm out_indices propogated to backbone
+                # Confirm out_indices propagated to backbone
                 self.assertEqual(len(model.backbone.out_indices), 2)
 
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -272,12 +241,8 @@ def prepare_img():
 class DepthAnythingModelIntegrationTest(unittest.TestCase):
     def test_inference(self):
         # -- `relative` depth model --
-        image_processor = DPTImageProcessor.from_pretrained(
-            "LiheYoung/depth-anything-small-hf"
-        )
-        model = DepthAnythingForDepthEstimation.from_pretrained(
-            "LiheYoung/depth-anything-small-hf"
-        ).to(torch_device)
+        image_processor = DPTImageProcessor.from_pretrained("LiheYoung/depth-anything-small-hf")
+        model = DepthAnythingForDepthEstimation.from_pretrained("LiheYoung/depth-anything-small-hf").to(torch_device)
 
         image = prepare_img()
         inputs = image_processor(images=image, return_tensors="pt").to(torch_device)
@@ -292,21 +257,13 @@ class DepthAnythingModelIntegrationTest(unittest.TestCase):
         self.assertEqual(predicted_depth.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [8.8223, 8.6483, 8.6216],
-                [8.3332, 8.6047, 8.7545],
-                [8.6547, 8.6885, 8.7472],
-            ],
+            [[8.8223, 8.6483, 8.6216], [8.3332, 8.6047, 8.7545], [8.6547, 8.6885, 8.7472]],
         ).to(torch_device)
 
-        torch.testing.assert_close(
-            predicted_depth[0, :3, :3], expected_slice, rtol=1e-6, atol=1e-6
-        )
+        torch.testing.assert_close(predicted_depth[0, :3, :3], expected_slice, rtol=1e-6, atol=1e-6)
 
         # -- `metric` depth model --
-        image_processor = DPTImageProcessor.from_pretrained(
-            "depth-anything/depth-anything-V2-metric-indoor-small-hf"
-        )
+        image_processor = DPTImageProcessor.from_pretrained("depth-anything/depth-anything-V2-metric-indoor-small-hf")
         model = DepthAnythingForDepthEstimation.from_pretrained(
             "depth-anything/depth-anything-V2-metric-indoor-small-hf"
         ).to(torch_device)
@@ -323,16 +280,10 @@ class DepthAnythingModelIntegrationTest(unittest.TestCase):
         self.assertEqual(predicted_depth.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [1.3349, 1.2947, 1.2802],
-                [1.2794, 1.2338, 1.2901],
-                [1.2630, 1.2219, 1.2478],
-            ],
+            [[1.3349, 1.2947, 1.2802], [1.2794, 1.2338, 1.2901], [1.2630, 1.2219, 1.2478]],
         ).to(torch_device)
 
-        torch.testing.assert_close(
-            predicted_depth[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(predicted_depth[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
     def test_export(self):
         for strict in [True, False]:
@@ -340,19 +291,13 @@ class DepthAnythingModelIntegrationTest(unittest.TestCase):
                 if not is_torch_greater_or_equal_than_2_4:
                     self.skipTest(reason="This test requires torch >= 2.4 to run.")
                 model = (
-                    DepthAnythingForDepthEstimation.from_pretrained(
-                        "LiheYoung/depth-anything-small-hf"
-                    )
+                    DepthAnythingForDepthEstimation.from_pretrained("LiheYoung/depth-anything-small-hf")
                     .to(torch_device)
                     .eval()
                 )
-                image_processor = DPTImageProcessor.from_pretrained(
-                    "LiheYoung/depth-anything-small-hf"
-                )
+                image_processor = DPTImageProcessor.from_pretrained("LiheYoung/depth-anything-small-hf")
                 image = prepare_img()
-                inputs = image_processor(images=image, return_tensors="pt").to(
-                    torch_device
-                )
+                inputs = image_processor(images=image, return_tensors="pt").to(torch_device)
 
                 exported_program = torch.export.export(
                     model,
@@ -361,17 +306,8 @@ class DepthAnythingModelIntegrationTest(unittest.TestCase):
                 )
                 with torch.no_grad():
                     eager_outputs = model(**inputs)
-                    exported_outputs = exported_program.module().forward(
-                        inputs["pixel_values"]
-                    )
-                self.assertEqual(
-                    eager_outputs.predicted_depth.shape,
-                    exported_outputs.predicted_depth.shape,
-                )
+                    exported_outputs = exported_program.module().forward(inputs["pixel_values"])
+                self.assertEqual(eager_outputs.predicted_depth.shape, exported_outputs.predicted_depth.shape)
                 self.assertTrue(
-                    torch.allclose(
-                        eager_outputs.predicted_depth,
-                        exported_outputs.predicted_depth,
-                        atol=1e-4,
-                    )
+                    torch.allclose(eager_outputs.predicted_depth, exported_outputs.predicted_depth, atol=1e-4)
                 )

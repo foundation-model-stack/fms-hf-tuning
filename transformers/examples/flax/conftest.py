@@ -15,10 +15,10 @@
 # tests directory-specific settings - this file is run automatically
 # by pytest before any tests are run
 
-# Standard
-from os.path import abspath, dirname, join
 import sys
 import warnings
+from os.path import abspath, dirname, join
+
 
 # allow having multiple repository checkouts and not needing to remember to rerun
 # `pip install -e '.[dev]'` when switching between checkouts and running tests.
@@ -32,14 +32,12 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def pytest_addoption(parser):
-    # First Party
     from transformers.testing_utils import pytest_addoption_shared
 
     pytest_addoption_shared(parser)
 
 
 def pytest_terminal_summary(terminalreporter):
-    # First Party
     from transformers.testing_utils import pytest_terminal_summary_main
 
     make_reports = terminalreporter.config.getoption("--make-reports")

@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
-from ...utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
+from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_vision_available
+
 
 _import_structure = {
     "configuration_instructblipvideo": [
@@ -38,9 +32,7 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["image_processing_instructblipvideo"] = [
-        "InstructBlipVideoImageProcessor"
-    ]
+    _import_structure["image_processing_instructblipvideo"] = ["InstructBlipVideoImageProcessor"]
 
 
 try:
@@ -57,7 +49,6 @@ else:
     ]
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_instructblipvideo import (
         InstructBlipVideoConfig,
         InstructBlipVideoQFormerConfig,
@@ -71,7 +62,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .image_processing_instructblipvideo import InstructBlipVideoImageProcessor
 
     try:
@@ -80,7 +70,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_instructblipvideo import (
             InstructBlipVideoForConditionalGeneration,
             InstructBlipVideoPreTrainedModel,
@@ -89,9 +78,6 @@ if TYPE_CHECKING:
         )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

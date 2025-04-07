@@ -14,10 +14,8 @@
 # limitations under the License.
 """Tokenization utils for RoFormer."""
 
-# Standard
 from typing import List
 
-# Third Party
 from tokenizers import NormalizedString, PreTokenizedString, normalizers
 
 
@@ -31,7 +29,6 @@ class JiebaPreTokenizer:
             lowercase=False,
         )
         try:
-            # Third Party
             import rjieba
         except ImportError:
             raise ImportError(
@@ -40,9 +37,7 @@ class JiebaPreTokenizer:
             )
         self.jieba = rjieba
 
-    def jieba_split(
-        self, i: int, normalized_string: NormalizedString
-    ) -> List[NormalizedString]:
+    def jieba_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
         splits = []
 
         # this code slice normalized_string is too slow (6s) but test_alignment_methods can pass

@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import is_tf_available
 from transformers.testing_utils import require_tf
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers.activations_tf import get_tf_activation
 
 

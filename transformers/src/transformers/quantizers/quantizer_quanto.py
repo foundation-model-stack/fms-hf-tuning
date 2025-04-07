@@ -11,21 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import importlib
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-# Third Party
 from packaging import version
 
-# Local
 from .base import HfQuantizer
 from .quantizers_utils import get_module_from_name
+
 
 if TYPE_CHECKING:
     from ..modeling_utils import PreTrainedModel
 
-# Local
 from ..utils import (
     is_accelerate_available,
     is_optimum_quanto_available,
@@ -34,8 +31,8 @@ from ..utils import (
 )
 from ..utils.quantization_config import QuantoConfig
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 logger = logging.get_logger(__name__)
@@ -86,17 +83,12 @@ class QuantoHfQuantizer(HfQuantizer):
 
     def update_torch_dtype(self, torch_dtype: "torch.dtype") -> "torch.dtype":
         if torch_dtype is None:
-            logger.info(
-                "You did not specify `torch_dtype` in `from_pretrained`. Setting it to `torch.float32`."
-            )
+            logger.info("You did not specify `torch_dtype` in `from_pretrained`. Setting it to `torch.float32`.")
             torch_dtype = torch.float32
         return torch_dtype
 
-    def update_missing_keys(
-        self, model, missing_keys: List[str], prefix: str
-    ) -> List[str]:
+    def update_missing_keys(self, model, missing_keys: List[str], prefix: str) -> List[str]:
         if is_optimum_quanto_available():
-            # Third Party
             from optimum.quanto import QModuleMixin
 
         not_missing_keys = []
@@ -123,7 +115,6 @@ class QuantoHfQuantizer(HfQuantizer):
         Check if a parameter needs to be quantized.
         """
         if is_optimum_quanto_available():
-            # Third Party
             from optimum.quanto import QModuleMixin
 
         device_map = kwargs.get("device_map", None)
@@ -132,9 +123,7 @@ class QuantoHfQuantizer(HfQuantizer):
         if device_map is not None and param_device is not None:
             device_map_values = set(device_map.values())
             if param_device == "cpu" and len(device_map_values) > 1:
-                if not (
-                    device_map_values == {"cpu"} or device_map_values == {"cpu", "disk"}
-                ):
+                if not (device_map_values == {"cpu"} or device_map_values == {"cpu", "disk"}):
                     return False
 
         module, tensor_name = get_module_from_name(model, param_name)
@@ -145,9 +134,7 @@ class QuantoHfQuantizer(HfQuantizer):
         else:
             return False
 
-    def adjust_max_memory(
-        self, max_memory: Dict[str, Union[int, str]]
-    ) -> Dict[str, Union[int, str]]:
+    def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
         max_memory = {key: val * 0.90 for key, val in max_memory.items()}
         return max_memory
 
@@ -163,7 +150,6 @@ class QuantoHfQuantizer(HfQuantizer):
         """
         Create the quantized parameter by calling .freeze() after setting it to the module.
         """
-        # First Party
         from accelerate.utils import set_module_tensor_to_device
 
         set_module_tensor_to_device(model, param_name, target_device, param_value)
@@ -172,10 +158,7 @@ class QuantoHfQuantizer(HfQuantizer):
         module.weight.requires_grad = False
 
     def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype":
-        if version.parse(importlib.metadata.version("accelerate")) > version.parse(
-            "0.27.0"
-        ):
-            # First Party
+        if version.parse(importlib.metadata.version("accelerate")) > version.parse("0.27.0"):
             from accelerate.utils import CustomDtype
 
             mapping = {
@@ -194,12 +177,8 @@ class QuantoHfQuantizer(HfQuantizer):
             )
 
     def _process_model_before_weight_loading(
-        self,
-        model: "PreTrainedModel",
-        keep_in_fp32_modules: Optional[List[str]] = None,
-        **kwargs,
+        self, model: "PreTrainedModel", keep_in_fp32_modules: Optional[List[str]] = None, **kwargs
     ):
-        # Local
         from ..integrations import replace_with_quanto_layers
 
         self.modules_to_not_convert = self.get_modules_to_not_convert(
@@ -207,9 +186,7 @@ class QuantoHfQuantizer(HfQuantizer):
         )
 
         model, _ = replace_with_quanto_layers(
-            model,
-            modules_to_not_convert=self.modules_to_not_convert,
-            quantization_config=self.quantization_config,
+            model, modules_to_not_convert=self.modules_to_not_convert, quantization_config=self.quantization_config
         )
         model.config.quantization_config = self.quantization_config
 

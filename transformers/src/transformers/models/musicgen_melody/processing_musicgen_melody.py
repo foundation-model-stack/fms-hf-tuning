@@ -16,13 +16,10 @@
 Text/audio processor class for MusicGen Melody
 """
 
-# Standard
 from typing import List, Optional
 
-# Third Party
 import numpy as np
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...utils import to_numpy
 
@@ -50,16 +47,14 @@ class MusicgenMelodyProcessor(ProcessorMixin):
 
     # Copied from transformers.models.musicgen.processing_musicgen.MusicgenProcessor.get_decoder_prompt_ids
     def get_decoder_prompt_ids(self, task=None, language=None, no_timestamps=True):
-        return self.tokenizer.get_decoder_prompt_ids(
-            task=task, language=language, no_timestamps=no_timestamps
-        )
+        return self.tokenizer.get_decoder_prompt_ids(task=task, language=language, no_timestamps=no_timestamps)
 
     def __call__(self, audio=None, text=None, **kwargs):
         """
         Main method to prepare for the model one or several sequences(s) and audio(s). This method forwards the `audio`
         and `kwargs` arguments to MusicgenMelodyFeatureExtractor's [`~MusicgenMelodyFeatureExtractor.__call__`] if `audio` is not
         `None` to pre-process the audio. It also forwards the `text` and `kwargs` arguments to
-        PreTrainedTokenizer's [`~PreTrainedTokenizer.__call__`] if `text` is not `None`. Please refer to the doctsring of the above two methods for more information.
+        PreTrainedTokenizer's [`~PreTrainedTokenizer.__call__`] if `text` is not `None`. Please refer to the docstring of the above two methods for more information.
 
         Args:
             audio (`np.ndarray`, `torch.Tensor`, `List[np.ndarray]`, `List[torch.Tensor]`):
@@ -83,16 +78,12 @@ class MusicgenMelodyProcessor(ProcessorMixin):
         sampling_rate = kwargs.pop("sampling_rate", None)
 
         if audio is None and text is None:
-            raise ValueError(
-                "You need to specify either an `audio` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `audio` or `text` input to process.")
 
         if text is not None:
             inputs = self.tokenizer(text, **kwargs)
         if audio is not None:
-            audio_inputs = self.feature_extractor(
-                audio, sampling_rate=sampling_rate, **kwargs
-            )
+            audio_inputs = self.feature_extractor(audio, sampling_rate=sampling_rate, **kwargs)
 
         if text is None:
             return audio_inputs
@@ -130,9 +121,7 @@ class MusicgenMelodyProcessor(ProcessorMixin):
         return self.tokenizer.decode(*args, **kwargs)
 
     # Copied from transformers.models.musicgen.processing_musicgen.MusicgenProcessor._decode_audio with padding_mask->attention_mask
-    def _decode_audio(
-        self, audio_values, attention_mask: Optional = None
-    ) -> List[np.ndarray]:
+    def _decode_audio(self, audio_values, attention_mask: Optional = None) -> List[np.ndarray]:
         """
         This method strips any padding from the audio values to return a list of numpy audio arrays.
         """
@@ -148,12 +137,7 @@ class MusicgenMelodyProcessor(ProcessorMixin):
         # token (so that the generated audio values are **not** treated as padded tokens)
         difference = seq_len - attention_mask.shape[-1]
         padding_value = 1 - self.feature_extractor.padding_value
-        attention_mask = np.pad(
-            attention_mask,
-            ((0, 0), (0, difference)),
-            "constant",
-            constant_values=padding_value,
-        )
+        attention_mask = np.pad(attention_mask, ((0, 0), (0, difference)), "constant", constant_values=padding_value)
 
         audio_values = audio_values.tolist()
         for i in range(bsz):
@@ -185,11 +169,7 @@ class MusicgenMelodyProcessor(ProcessorMixin):
 
         >>> audio_samples = model.generate(**unconditional_inputs, max_new_tokens=256)
         ```"""
-        inputs = self.tokenizer(
-            [""] * num_samples,
-            return_tensors=return_tensors,
-            return_attention_mask=True,
-        )
+        inputs = self.tokenizer([""] * num_samples, return_tensors=return_tensors, return_attention_mask=True)
         inputs["attention_mask"][:] = 0
 
         return inputs

@@ -13,19 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import gc
 import tempfile
 import unittest
 
-# First Party
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    SpQRConfig,
-    StaticCache,
-)
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, SpQRConfig, StaticCache
 from transformers.testing_utils import (
     require_accelerate,
     require_spqr,
@@ -36,12 +28,11 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_accelerate_available, is_torch_available
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_accelerate_available():
-    # First Party
     from accelerate import init_empty_weights
 
 
@@ -73,9 +64,7 @@ class SpQRConfigTest(unittest.TestCase):
         self.assertEqual(dict["beta1"], quantization_config.beta1)
         self.assertEqual(dict["beta2"], quantization_config.beta2)
         self.assertEqual(dict["bits"], quantization_config.bits)
-        self.assertEqual(
-            dict["modules_to_not_convert"], quantization_config.modules_to_not_convert
-        )
+        self.assertEqual(dict["modules_to_not_convert"], quantization_config.modules_to_not_convert)
         self.assertEqual(dict["shapes"], quantization_config.shapes)
 
 
@@ -89,7 +78,9 @@ class SpQRTest(unittest.TestCase):
     input_text = "Hello my name is"
     max_new_tokens = 32
 
-    EXPECTED_OUTPUT = "Hello my name is Jesse. (I'm also known as Jesse) I'm a 25 year old male from United States. I'm looking for"
+    EXPECTED_OUTPUT = (
+        "Hello my name is Jesse. (I'm also known as Jesse) I'm a 25 year old male from United States. I'm looking for"
+    )
     EXPECTED_OUTPUT_COMPILE = "Hello my name is Jake and I am a 20 year old student at the University of North Texas. (Go Mean Green!) I am a huge fan of the Dallas"
 
     device_map = "cuda"
@@ -115,23 +106,17 @@ class SpQRTest(unittest.TestCase):
         """
         Simple test that checks if the quantized model has been converted properly
         """
-        # Third Party
         from spqr_quant import QuantizedLinear
 
-        # First Party
         from transformers.integrations import replace_with_spqr_linear
 
         model_id = "meta-llama/Llama-2-7b-hf"
         config = AutoConfig.from_pretrained(model_id)
-        quantization_config = AutoConfig.from_pretrained(
-            self.model_name, return_dict=False
-        ).quantization_config
+        quantization_config = AutoConfig.from_pretrained(self.model_name, return_dict=False).quantization_config
         quantization_config = SpQRConfig.from_dict(quantization_config)
 
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_pretrained(
-                pretrained_model_name_or_path=model_id, config=config
-            )
+            model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=model_id, config=config)
 
         nb_linears = 0
         for module in model.modules():
@@ -155,26 +140,17 @@ class SpQRTest(unittest.TestCase):
         """
         Simple test that checks if the quantized model is working properly
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            torch_device
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
-        output = self.quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        output = self.quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_raise_if_non_quantized(self):
         model_id = "meta-llama/Llama-2-7b-hf"
         quantization_config = SpQRConfig()
 
         with self.assertRaises(ValueError):
-            _ = AutoModelForCausalLM.from_pretrained(
-                model_id, quantization_config=quantization_config
-            )
+            _ = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config)
 
     @unittest.skip
     def test_save_pretrained(self):
@@ -183,43 +159,27 @@ class SpQRTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.quantized_model.save_pretrained(tmpdirname)
-            model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname, device_map=self.device_map
-            )
+            model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map=self.device_map)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                torch_device
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
             output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     @require_torch_multi_gpu
     def test_quantized_model_multi_gpu(self):
         """
         Simple test that checks if the quantized model is working properly with multiple GPUs
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            torch_device
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
-        quantized_model = AutoModelForCausalLM.from_pretrained(
-            self.model_name, device_map="auto"
-        )
+        quantized_model = AutoModelForCausalLM.from_pretrained(self.model_name, device_map="auto")
 
         self.assertTrue(set(quantized_model.hf_device_map.values()) == {0, 1})
 
-        output = quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens
-        )
+        output = quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
 
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_quantized_model_compile(self):
         """
@@ -227,9 +187,7 @@ class SpQRTest(unittest.TestCase):
         """
 
         # Sample tokens greedily
-        def decode_one_tokens(
-            model, cur_token, input_pos, cache_position, past_key_values
-        ):
+        def decode_one_tokens(model, cur_token, input_pos, cache_position, past_key_values):
             logits = model(
                 cur_token,
                 position_ids=input_pos,
@@ -243,15 +201,13 @@ class SpQRTest(unittest.TestCase):
             return new_token
 
         # Tokenize the test input
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            torch_device
-        )["input_ids"]
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)["input_ids"]
         seq_length = input_ids.shape[1]
 
         # Setup static KV cache for generation
         past_key_values = StaticCache(
             config=self.quantized_model.config,
-            batch_size=1,
+            max_batch_size=1,
             max_cache_len=seq_length + self.max_new_tokens + 1,
             device=torch_device,
             dtype=self.quantized_model.config._pre_quantization_dtype,
@@ -259,9 +215,7 @@ class SpQRTest(unittest.TestCase):
 
         # Allocate token ids to be generated and copy prefix ids
         cache_position = torch.arange(seq_length, device=torch_device)
-        generated_ids = torch.zeros(
-            1, seq_length + self.max_new_tokens, dtype=torch.int, device=torch_device
-        )
+        generated_ids = torch.zeros(1, seq_length + self.max_new_tokens, dtype=torch.int, device=torch_device)
         generated_ids[:, cache_position] = input_ids.to(torch_device).to(torch.int)
 
         # Do a forward pass to fill the prefix cache and compile the kernels if necessary
@@ -277,28 +231,19 @@ class SpQRTest(unittest.TestCase):
 
         with torch.no_grad():
             # Compile the CUDA graph
-            decode_one_tokens = torch.compile(
-                decode_one_tokens, mode="default", backend="inductor", fullgraph=True
-            )
+            decode_one_tokens = torch.compile(decode_one_tokens, mode="default", backend="inductor", fullgraph=True)
 
             # Generate tokens one by one
             cache_position = torch.tensor([seq_length + 1], device=torch_device)
             for _ in range(1, self.max_new_tokens):
-                with torch.backends.cuda.sdp_kernel(
-                    enable_flash=False, enable_mem_efficient=False, enable_math=True
-                ):
+                with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_mem_efficient=False, enable_math=True):
                     next_token = decode_one_tokens(
-                        self.quantized_model,
-                        next_token.clone(),
-                        None,
-                        cache_position,
-                        past_key_values,
+                        self.quantized_model, next_token.clone(), None, cache_position, past_key_values
                     )
                     generated_ids.index_copy_(1, cache_position, next_token)
                 cache_position += 1
 
         # Check generated text
         self.assertEqual(
-            self.tokenizer.decode(generated_ids[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT_COMPILE,
+            self.tokenizer.decode(generated_ids[0], skip_special_tokens=True), self.EXPECTED_OUTPUT_COMPILE
         )

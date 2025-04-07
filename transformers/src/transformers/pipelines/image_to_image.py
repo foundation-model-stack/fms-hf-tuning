@@ -11,13 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import List, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ..utils import (
     add_end_docstrings,
     is_torch_available,
@@ -27,15 +24,13 @@ from ..utils import (
 )
 from .base import Pipeline, build_pipeline_init_args
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # Local
     from ..image_utils import load_image
 
 if is_torch_available():
-    # Local
     from ..models.auto.modeling_auto import MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
@@ -90,9 +85,7 @@ class ImageToImagePipeline(Pipeline):
         return preprocess_params, forward_params, postprocess_params
 
     def __call__(
-        self,
-        images: Union[str, List[str], "Image.Image", List["Image.Image"]],
-        **kwargs
+        self, images: Union[str, List[str], "Image.Image", List["Image.Image"]], **kwargs
     ) -> Union["Image.Image", List["Image.Image"]]:
         """
         Transform the image(s) passed as inputs.

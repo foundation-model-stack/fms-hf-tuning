@@ -14,31 +14,36 @@
 # limitations under the License.
 """Testing suite for the PyTorch VideoMAE model."""
 
-# Standard
 import copy
+import tempfile
 import unittest
 
-# Third Party
-from huggingface_hub import hf_hub_download
 import numpy as np
+from huggingface_hub import hf_hub_download
+from pytest import mark
 
-# First Party
 from transformers import VideoMAEConfig
 from transformers.models.auto import get_values
-from transformers.testing_utils import require_torch, require_vision, slow, torch_device
+from transformers.testing_utils import (
+    is_flaky,
+    require_flash_attn,
+    require_torch,
+    require_torch_gpu,
+    require_vision,
+    slow,
+    torch_device,
+)
 from transformers.utils import cached_property, is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import (
         MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING,
         VideoMAEForPreTraining,
@@ -48,7 +53,6 @@ if is_torch_available():
 
 
 if is_vision_available():
-    # First Party
     from transformers import VideoMAEImageProcessor
 
 
@@ -108,13 +112,7 @@ class VideoMAEModelTester:
 
     def prepare_config_and_inputs(self):
         pixel_values = floats_tensor(
-            [
-                self.batch_size,
-                self.num_frames,
-                self.num_channels,
-                self.image_size,
-                self.image_size,
-            ]
+            [self.batch_size, self.num_frames, self.num_channels, self.image_size, self.image_size]
         )
 
         labels = None
@@ -153,10 +151,7 @@ class VideoMAEModelTester:
         model.to(torch_device)
         model.eval()
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_for_pretraining(self, config, pixel_values, labels):
         model = VideoMAEForPreTraining(config)
@@ -172,10 +167,7 @@ class VideoMAEModelTester:
         # model only returns predictions for masked patches
         num_masked_patches = mask.sum().item()
         decoder_num_labels = 3 * self.tubelet_size * self.patch_size**2
-        self.parent.assertEqual(
-            result.logits.shape,
-            (self.batch_size, num_masked_patches, decoder_num_labels),
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, num_masked_patches, decoder_num_labels))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -192,15 +184,10 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
     """
 
     all_model_classes = (
-        (VideoMAEModel, VideoMAEForPreTraining, VideoMAEForVideoClassification)
-        if is_torch_available()
-        else ()
+        (VideoMAEModel, VideoMAEForPreTraining, VideoMAEForVideoClassification) if is_torch_available() else ()
     )
     pipeline_model_mapping = (
-        {
-            "feature-extraction": VideoMAEModel,
-            "video-classification": VideoMAEForVideoClassification,
-        }
+        {"feature-extraction": VideoMAEModel, "video-classification": VideoMAEForVideoClassification}
         if is_torch_available()
         else {}
     )
@@ -213,9 +200,7 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
     def setUp(self):
         self.model_tester = VideoMAEModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=VideoMAEConfig, has_text_modality=False, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=VideoMAEConfig, has_text_modality=False, hidden_size=37)
 
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
         inputs_dict = copy.deepcopy(inputs_dict)
@@ -224,9 +209,7 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
             # important: each video needs to have the same number of masked patches
             # hence we define a single mask, which we then repeat for each example in the batch
             mask = torch.ones((self.model_tester.num_masks,))
-            mask = torch.cat(
-                [mask, torch.zeros(self.model_tester.seq_length - mask.size(0))]
-            )
+            mask = torch.cat([mask, torch.zeros(self.model_tester.seq_length - mask.size(0))])
             batch_size = inputs_dict["pixel_values"].shape[0]
             bool_masked_pos = mask.expand(batch_size, -1).bool()
             inputs_dict["bool_masked_pos"] = bool_masked_pos.to(torch_device)
@@ -276,20 +259,13 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
             self.skipTest(reason="Model does not have attentions")
 
         else:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_common()
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
             config.return_dict = True
 
             for model_class in self.all_model_classes:
-                num_visible_patches = (
-                    self.model_tester.seq_length - self.model_tester.num_masks
-                )
+                num_visible_patches = self.model_tester.seq_length - self.model_tester.num_masks
                 seq_len = (
-                    num_visible_patches
-                    if model_class == VideoMAEForPreTraining
-                    else self.model_tester.seq_length
+                    num_visible_patches if model_class == VideoMAEForPreTraining else self.model_tester.seq_length
                 )
 
                 inputs_dict["output_attentions"] = True
@@ -333,9 +309,7 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
                 self_attentions = outputs.attentions
 
-                self.assertEqual(
-                    len(self_attentions), self.model_tester.num_hidden_layers
-                )
+                self.assertEqual(len(self_attentions), self.model_tester.num_hidden_layers)
                 self.assertListEqual(
                     list(self_attentions[0].shape[-3:]),
                     [self.model_tester.num_attention_heads, seq_len, seq_len],
@@ -354,14 +328,8 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
             expected_num_layers = self.model_tester.num_hidden_layers + 1
             self.assertEqual(len(hidden_states), expected_num_layers)
 
-            num_visible_patches = (
-                self.model_tester.seq_length - self.model_tester.num_masks
-            )
-            seq_length = (
-                num_visible_patches
-                if model_class == VideoMAEForPreTraining
-                else self.model_tester.seq_length
-            )
+            num_visible_patches = self.model_tester.seq_length - self.model_tester.num_masks
+            seq_length = num_visible_patches if model_class == VideoMAEForPreTraining else self.model_tester.seq_length
 
             self.assertListEqual(
                 list(hidden_states[0].shape[-2:]),
@@ -380,14 +348,65 @@ class VideoMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
             check_hidden_states_output(inputs_dict, config, model_class)
 
+    @require_flash_attn
+    @require_torch_gpu
+    @mark.flash_attn_test
+    @slow
+    @is_flaky()
+    def test_flash_attn_2_inference_equivalence(self):
+        if not self.has_attentions:
+            self.skipTest(reason="Model architecture does not support attentions")
+
+        for model_class in self.all_model_classes:
+            if not model_class._supports_flash_attn_2:
+                self.skipTest(f"{model_class.__name__} does not support Flash Attention 2")
+
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
+            inputs_dict = self._prepare_for_class(inputs_dict, model_class)
+            inputs_dict["pixel_values"] = inputs_dict["pixel_values"].to(torch.bfloat16)
+
+            model = model_class(config)
+
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                model.save_pretrained(tmpdirname)
+                model_fa = model_class.from_pretrained(
+                    tmpdirname, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2"
+                )
+                model_fa.to(torch_device)
+
+                model = model_class.from_pretrained(tmpdirname, torch_dtype=torch.bfloat16)
+                model.to(torch_device)
+
+                outputs = model(**inputs_dict, output_hidden_states=True)
+                outputs_fa = model_fa(**inputs_dict, output_hidden_states=True)
+
+                logits = (
+                    outputs.hidden_states[-1]
+                    if not model.config.is_encoder_decoder
+                    else outputs.decoder_hidden_states[-1]
+                )
+                logits_fa = (
+                    outputs_fa.hidden_states[-1]
+                    if not model.config.is_encoder_decoder
+                    else outputs_fa.decoder_hidden_states[-1]
+                )
+
+                assert torch.allclose(logits_fa, logits, atol=4e-2, rtol=4e-2)
+
+                # check with inference + dropout
+                model.train()
+                _ = model_fa(**inputs_dict)
+
+    @unittest.skip("Not applicable for VideoMAE")
+    def test_flash_attn_2_inference_equivalence_right_padding(self):
+        pass
+
 
 # We will verify our results on a video of eating spaghetti
 # Frame indices used: [164 168 172 176 181 185 189 193 198 202 206 210 215 219 223 227]
 def prepare_video():
     file = hf_hub_download(
-        repo_id="hf-internal-testing/spaghetti-video",
-        filename="eating_spaghetti.npy",
-        repo_type="dataset",
+        repo_id="hf-internal-testing/spaghetti-video", filename="eating_spaghetti.npy", repo_type="dataset"
     )
     video = np.load(file)
     return list(video)
@@ -400,18 +419,16 @@ class VideoMAEModelIntegrationTest(unittest.TestCase):
     def default_image_processor(self):
         # logits were tested with a different mean and std, so we use the same here
         return (
-            VideoMAEImageProcessor(
-                image_mean=[0.5, 0.5, 0.5], image_std=[0.5, 0.5, 0.5]
-            )
+            VideoMAEImageProcessor(image_mean=[0.5, 0.5, 0.5], image_std=[0.5, 0.5, 0.5])
             if is_vision_available()
             else None
         )
 
     @slow
     def test_inference_for_video_classification(self):
-        model = VideoMAEForVideoClassification.from_pretrained(
-            "MCG-NJU/videomae-base-finetuned-kinetics"
-        ).to(torch_device)
+        model = VideoMAEForVideoClassification.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics").to(
+            torch_device
+        )
 
         image_processor = self.default_image_processor
         video = prepare_video()
@@ -427,25 +444,19 @@ class VideoMAEModelIntegrationTest(unittest.TestCase):
 
         expected_slice = torch.tensor([0.3669, -0.0688, -0.2421]).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
     @slow
     def test_inference_for_pretraining(self):
-        model = VideoMAEForPreTraining.from_pretrained(
-            "MCG-NJU/videomae-base-short"
-        ).to(torch_device)
+        model = VideoMAEForPreTraining.from_pretrained("MCG-NJU/videomae-base-short").to(torch_device)
 
         image_processor = self.default_image_processor
         video = prepare_video()
         inputs = image_processor(video, return_tensors="pt").to(torch_device)
 
         # add boolean mask, indicating which patches to mask
-        local_path = hf_hub_download(
-            repo_id="hf-internal-testing/bool-masked-pos", filename="bool_masked_pos.pt"
-        )
-        inputs["bool_masked_pos"] = torch.load(local_path)
+        local_path = hf_hub_download(repo_id="hf-internal-testing/bool-masked-pos", filename="bool_masked_pos.pt")
+        inputs["bool_masked_pos"] = torch.load(local_path, weights_only=True)
 
         # forward pass
         with torch.no_grad():
@@ -454,26 +465,19 @@ class VideoMAEModelIntegrationTest(unittest.TestCase):
         # verify the logits
         expected_shape = torch.Size([1, 1408, 1536])
         expected_slice = torch.tensor(
-            [
-                [0.7994, 0.9612, 0.8508],
-                [0.7401, 0.8958, 0.8302],
-                [0.5862, 0.7468, 0.7325],
-            ],
-            device=torch_device,
+            [[0.7994, 0.9612, 0.8508], [0.7401, 0.8958, 0.8302], [0.5862, 0.7468, 0.7325]], device=torch_device
         )
         self.assertEqual(outputs.logits.shape, expected_shape)
-        torch.testing.assert_close(
-            outputs.logits[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
         # verify the loss (`config.norm_pix_loss` = `True`)
         expected_loss = torch.tensor([0.5142], device=torch_device)
         torch.testing.assert_close(outputs.loss, expected_loss, rtol=1e-4, atol=1e-4)
 
         # verify the loss (`config.norm_pix_loss` = `False`)
-        model = VideoMAEForPreTraining.from_pretrained(
-            "MCG-NJU/videomae-base-short", norm_pix_loss=False
-        ).to(torch_device)
+        model = VideoMAEForPreTraining.from_pretrained("MCG-NJU/videomae-base-short", norm_pix_loss=False).to(
+            torch_device
+        )
 
         with torch.no_grad():
             outputs = model(**inputs)

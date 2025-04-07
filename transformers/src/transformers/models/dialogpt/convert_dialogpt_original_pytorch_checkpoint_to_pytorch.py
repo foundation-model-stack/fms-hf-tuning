@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 import os
 
-# Third Party
 import torch
 
-# First Party
 from transformers.utils import WEIGHTS_NAME
+
 
 DIALOGPT_MODELS = ["small", "medium", "large"]
 

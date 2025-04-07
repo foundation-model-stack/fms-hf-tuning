@@ -11,24 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ....utils import _LazyModule
+
 
 _import_structure = {"tokenization_tapex": ["TapexTokenizer"]}
 
 
 if TYPE_CHECKING:
-    # Local
     from .tokenization_tapex import TapexTokenizer
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)

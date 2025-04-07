@@ -14,16 +14,14 @@
 # limitations under the License.
 """Convert Bros checkpoints."""
 
-# Standard
 import argparse
 
-# Third Party
 import bros  # original repo
 import torch
 
-# First Party
 from transformers import BrosConfig, BrosModel, BrosProcessor
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -67,9 +65,7 @@ def convert_state_dict(orig_state_dict, model):
     return orig_state_dict
 
 
-def convert_bros_checkpoint(
-    model_name, pytorch_dump_folder_path=None, push_to_hub=False
-):
+def convert_bros_checkpoint(model_name, pytorch_dump_folder_path=None, push_to_hub=False):
     # load original model
     original_model = bros.BrosModel.from_pretrained(model_name).eval()
 
@@ -117,12 +113,8 @@ def convert_bros_checkpoint(
         processor.save_pretrained(pytorch_dump_folder_path)
 
     if push_to_hub:
-        model.push_to_hub(
-            "jinho8345/" + model_name.split("/")[-1], commit_message="Update model"
-        )
-        processor.push_to_hub(
-            "jinho8345/" + model_name.split("/")[-1], commit_message="Update model"
-        )
+        model.push_to_hub("jinho8345/" + model_name.split("/")[-1], commit_message="Update model")
+        processor.push_to_hub("jinho8345/" + model_name.split("/")[-1], commit_message="Update model")
 
 
 if __name__ == "__main__":
@@ -150,6 +142,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    convert_bros_checkpoint(
-        args.model_name, args.pytorch_dump_folder_path, args.push_to_hub
-    )
+    convert_bros_checkpoint(args.model_name, args.pytorch_dump_folder_path, args.push_to_hub)

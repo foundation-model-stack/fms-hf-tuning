@@ -14,24 +14,12 @@
 # limitations under the License.
 """Number Normalizer class for SpeechT5."""
 
-# Standard
 import re
 
 
 class EnglishNumberNormalizer:
     def __init__(self):
-        self.ones = [
-            "",
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-            "six",
-            "seven",
-            "eight",
-            "nine",
-        ]
+        self.ones = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
         self.teens = [
             "",
             "eleven",
@@ -44,18 +32,7 @@ class EnglishNumberNormalizer:
             "eighteen",
             "nineteen",
         ]
-        self.tens = [
-            "",
-            "ten",
-            "twenty",
-            "thirty",
-            "forty",
-            "fifty",
-            "sixty",
-            "seventy",
-            "eighty",
-            "ninety",
-        ]
+        self.tens = ["", "ten", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
         self.thousands = [
             "",
             "thousand",
@@ -191,9 +168,7 @@ class EnglishNumberNormalizer:
                 else f"{spelled_integer}{percent_suffix}"
             )
         else:
-            spelled_decimal = " ".join(
-                [self.spell_number(int(digit)) for digit in decimal_part]
-            )
+            spelled_decimal = " ".join([self.spell_number(int(digit)) for digit in decimal_part])
             return (
                 f"{minus_prefix}{spelled_integer} point {spelled_decimal}{percent_suffix}{currency_symbol}"
                 if minus_prefix or currency_symbol
@@ -211,9 +186,7 @@ class EnglishNumberNormalizer:
         text = re.sub(r"(\d+,\d+)", lambda match: match.group(1).replace(",", ""), text)
 
         # Use regex to find and replace numbers in the text
-        converted_text = re.sub(
-            pattern, lambda match: self.convert(match.group(1)), text
-        )
+        converted_text = re.sub(pattern, lambda match: self.convert(match.group(1)), text)
         converted_text = re.sub(" +", " ", converted_text)
 
         return converted_text

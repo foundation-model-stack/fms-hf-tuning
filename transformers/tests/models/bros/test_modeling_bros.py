@@ -14,29 +14,20 @@
 # limitations under the License.
 """Testing suite for the PyTorch Bros model."""
 
-# Standard
 import copy
 import unittest
 
-# First Party
-from transformers.testing_utils import (
-    require_torch,
-    require_torch_multi_gpu,
-    slow,
-    torch_device,
-)
+from transformers.testing_utils import require_torch, require_torch_multi_gpu, slow, torch_device
 from transformers.utils import is_torch_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         BrosConfig,
         BrosForTokenClassification,
@@ -117,27 +108,17 @@ class BrosModelTester:
 
         bbox_first_token_mask = None
         if self.use_bbox_first_token_mask:
-            bbox_first_token_mask = torch.ones(
-                [self.batch_size, self.seq_length], dtype=torch.bool
-            ).to(torch_device)
+            bbox_first_token_mask = torch.ones([self.batch_size, self.seq_length], dtype=torch.bool).to(torch_device)
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         token_labels = None
         if self.use_labels:
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
-            initial_token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
-            subsequent_token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
+            initial_token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
+            subsequent_token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
 
         config = self.get_config()
 
@@ -184,18 +165,10 @@ class BrosModelTester:
         model = BrosModel(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids,
-            bbox=bbox,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-        )
+        result = model(input_ids, bbox=bbox, attention_mask=input_mask, token_type_ids=token_type_ids)
         result = model(input_ids, bbox=bbox, token_type_ids=token_type_ids)
         result = model(input_ids, bbox=bbox)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_for_token_classification(
         self,
@@ -214,15 +187,9 @@ class BrosModelTester:
         model.to(torch_device)
         model.eval()
         result = model(
-            input_ids,
-            bbox=bbox,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-            labels=token_labels,
+            input_ids, bbox=bbox, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels
         )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def create_and_check_for_spade_ee_token_classification(
         self,
@@ -249,13 +216,9 @@ class BrosModelTester:
             initial_token_labels=token_labels,
             subsequent_token_labels=token_labels,
         )
+        self.parent.assertEqual(result.initial_token_logits.shape, (self.batch_size, self.seq_length, self.num_labels))
         self.parent.assertEqual(
-            result.initial_token_logits.shape,
-            (self.batch_size, self.seq_length, self.num_labels),
-        )
-        self.parent.assertEqual(
-            result.subsequent_token_logits.shape,
-            (self.batch_size, self.seq_length, self.seq_length + 1),
+            result.subsequent_token_logits.shape, (self.batch_size, self.seq_length, self.seq_length + 1)
         )
 
     def create_and_check_for_spade_el_token_classification(
@@ -282,9 +245,7 @@ class BrosModelTester:
             token_type_ids=token_type_ids,
             labels=token_labels,
         )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.seq_length + 1)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.seq_length + 1))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -325,10 +286,7 @@ class BrosModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         else ()
     )
     pipeline_model_mapping = (
-        {
-            "feature-extraction": BrosModel,
-            "token-classification": BrosForTokenClassification,
-        }
+        {"feature-extraction": BrosModel, "token-classification": BrosForTokenClassification}
         if is_torch_available()
         else {}
     )
@@ -355,10 +313,7 @@ class BrosModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         inputs_dict = copy.deepcopy(inputs_dict)
 
         if return_labels:
-            if model_class.__name__ in [
-                "BrosForTokenClassification",
-                "BrosSpadeELForTokenClassification",
-            ]:
+            if model_class.__name__ in ["BrosForTokenClassification", "BrosSpadeELForTokenClassification"]:
                 inputs_dict["labels"] = torch.zeros(
                     (self.model_tester.batch_size, self.model_tester.seq_length),
                     dtype=torch.long,
@@ -411,15 +366,11 @@ class BrosModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def test_for_spade_ee_token_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_for_spade_ee_token_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_spade_ee_token_classification(*config_and_inputs)
 
     def test_for_spade_el_token_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_for_spade_el_token_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_spade_el_token_classification(*config_and_inputs)
 
     @slow
     def test_model_from_pretrained(self):
@@ -429,12 +380,7 @@ class BrosModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
 
 def prepare_bros_batch_inputs():
-    attention_mask = torch.tensor(
-        [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ]
-    )
+    attention_mask = torch.tensor([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
     bbox = torch.tensor(
         [
@@ -472,36 +418,8 @@ def prepare_bros_batch_inputs():
     )
     input_ids = torch.tensor(
         [
-            [
-                101,
-                1055,
-                8910,
-                1012,
-                5719,
-                3296,
-                5366,
-                3378,
-                2146,
-                2846,
-                10807,
-                13494,
-                102,
-            ],
-            [
-                101,
-                2112,
-                1997,
-                3671,
-                6364,
-                1019,
-                1012,
-                5057,
-                1011,
-                4646,
-                2030,
-                2974,
-                102,
-            ],
+            [101, 1055, 8910, 1012, 5719, 3296, 5366, 3378, 2146, 2846, 10807, 13494, 102],
+            [101, 2112, 1997, 3671, 6364, 1019, 1012, 5057, 1011, 4646, 2030, 2974, 102],
         ]
     )
 
@@ -512,9 +430,7 @@ def prepare_bros_batch_inputs():
 class BrosModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_no_head(self):
-        model = BrosModel.from_pretrained("jinho8345/bros-base-uncased").to(
-            torch_device
-        )
+        model = BrosModel.from_pretrained("jinho8345/bros-base-uncased").to(torch_device)
 
         input_ids, bbox, attention_mask = prepare_bros_batch_inputs()
 
@@ -531,14 +447,8 @@ class BrosModelIntegrationTest(unittest.TestCase):
         self.assertEqual(outputs.last_hidden_state.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [-0.3074, 0.1363, 0.3143],
-                [0.0925, -0.1155, 0.1050],
-                [0.0221, 0.0003, 0.1285],
-            ]
+            [[-0.3074, 0.1363, 0.3143], [0.0925, -0.1155, 0.1050], [0.0221, 0.0003, 0.1285]]
         ).to(torch_device)
         torch.set_printoptions(sci_mode=False)
 
-        torch.testing.assert_close(
-            outputs.last_hidden_state[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.last_hidden_state[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

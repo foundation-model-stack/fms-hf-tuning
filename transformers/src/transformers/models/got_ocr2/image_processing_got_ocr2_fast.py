@@ -14,10 +14,8 @@
 # limitations under the License.
 """Fast Image processor class for Got-OCR-2."""
 
-# Standard
 from typing import List, Optional, Tuple, Union
 
-# Local
 from ...image_processing_utils import BatchFeature
 from ...image_processing_utils_fast import (
     BASE_IMAGE_PROCESSOR_FAST_DOCSTRING,
@@ -44,16 +42,14 @@ from ...utils import (
 )
 from .image_processing_got_ocr2 import get_optimal_tiled_canvas
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_torchvision_available():
     if is_torchvision_v2_available():
-        # Third Party
         from torchvision.transforms.v2 import functional as F
     else:
-        # Third Party
         from torchvision.transforms import functional as F
 
 
@@ -109,9 +105,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
                 set to `True`. Can be overridden by the `max_patches` parameter in the `preprocess` method.
         """,
     )
-    def preprocess(
-        self, images: ImageInput, **kwargs: Unpack[valid_kwargs]
-    ) -> BatchFeature:
+    def preprocess(self, images: ImageInput, **kwargs: Unpack[valid_kwargs]) -> BatchFeature:
         return super().preprocess(images, **kwargs)
 
     def crop_image_to_patches(
@@ -149,10 +143,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         original_height, original_width = images.shape[-2:]
         # find the closest aspect ratio to the target
         num_columns, num_rows = get_optimal_tiled_canvas(
-            (original_height, original_width),
-            (patch_size_height, patch_size_width),
-            min_patches,
-            max_patches,
+            (original_height, original_width), (patch_size_height, patch_size_width), min_patches, max_patches
         )
 
         # calculate the target width and height
@@ -162,9 +153,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
 
         # resize the image so that each patch is of patch_size
         resized_image = self.resize(
-            images,
-            SizeDict(height=target_height, width=target_width),
-            interpolation=interpolation,
+            images, SizeDict(height=target_height, width=target_width), interpolation=interpolation
         )
         # split the image into patches
         processed_images = []
@@ -185,9 +174,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
             thumbnail_img = self.resize(images, patch_size, interpolation=interpolation)
             processed_images.append(thumbnail_img)
 
-        processed_images = (
-            torch.stack(processed_images, dim=0).transpose(0, 1).contiguous()
-        )
+        processed_images = torch.stack(processed_images, dim=0).transpose(0, 1).contiguous()
 
         return processed_images
 
@@ -234,9 +221,7 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
-                stacked_images = self.resize(
-                    image=stacked_images, size=size, interpolation=interpolation
-                )
+                stacked_images = self.resize(image=stacked_images, size=size, interpolation=interpolation)
             resized_images_grouped[shape] = stacked_images
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
@@ -249,25 +234,15 @@ class GotOcr2ImageProcessorFast(BaseImageProcessorFast):
                 stacked_images = self.center_crop(stacked_images, crop_size)
             # Fused rescale and normalize
             stacked_images = self.rescale_and_normalize(
-                stacked_images,
-                do_rescale,
-                rescale_factor,
-                do_normalize,
-                image_mean,
-                image_std,
+                stacked_images, do_rescale, rescale_factor, do_normalize, image_mean, image_std
             )
             processed_images_grouped[shape] = stacked_images
 
-        processed_images = reorder_images(
-            processed_images_grouped, grouped_images_index
-        )
-        processed_images = (
-            torch.stack(processed_images, dim=0) if return_tensors else processed_images
-        )
+        processed_images = reorder_images(processed_images_grouped, grouped_images_index)
+        processed_images = torch.stack(processed_images, dim=0) if return_tensors else processed_images
 
         return BatchFeature(
-            data={"pixel_values": processed_images, "num_patches": num_patches},
-            tensor_type=return_tensors,
+            data={"pixel_values": processed_images, "num_patches": num_patches}, tensor_type=return_tensors
         )
 
 

@@ -14,13 +14,12 @@
 # limitations under the License.
 """BARK model generation configuration"""
 
-# Standard
-from typing import Dict
 import copy
+from typing import Dict
 
-# Local
 from ...generation.configuration_utils import GenerationConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -277,26 +276,18 @@ class BarkGenerationConfig(GenerationConfig):
         """
         if semantic_config is None:
             semantic_config = {}
-            logger.info(
-                "semantic_config is None. initializing the semantic model with default values."
-            )
+            logger.info("semantic_config is None. initializing the semantic model with default values.")
 
         if coarse_acoustics_config is None:
             coarse_acoustics_config = {}
-            logger.info(
-                "coarse_acoustics_config is None. initializing the coarse model with default values."
-            )
+            logger.info("coarse_acoustics_config is None. initializing the coarse model with default values.")
 
         if fine_acoustics_config is None:
             fine_acoustics_config = {}
-            logger.info(
-                "fine_acoustics_config is None. initializing the fine model with default values."
-            )
+            logger.info("fine_acoustics_config is None. initializing the fine model with default values.")
 
         self.semantic_config = BarkSemanticGenerationConfig(**semantic_config)
-        self.coarse_acoustics_config = BarkCoarseGenerationConfig(
-            **coarse_acoustics_config
-        )
+        self.coarse_acoustics_config = BarkCoarseGenerationConfig(**coarse_acoustics_config)
         self.fine_acoustics_config = BarkFineGenerationConfig(**fine_acoustics_config)
 
         self.sample_rate = sample_rate

@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
 import fire
 
-# First Party
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoTokenizer
 
 

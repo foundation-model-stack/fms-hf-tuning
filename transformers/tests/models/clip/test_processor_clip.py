@@ -12,27 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import json
 import os
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import pytest
 
-# First Party
 from transformers import CLIPTokenizer, CLIPTokenizerFast
 from transformers.models.clip.tokenization_clip import VOCAB_FILES_NAMES
 from transformers.testing_utils import require_vision
 from transformers.utils import IMAGE_PROCESSOR_NAME, is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import CLIPImageProcessor, CLIPProcessor
 
 
@@ -42,15 +38,14 @@ class CLIPProcessorTest(ProcessorTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.tmpdirname = tempfile.mkdtemp()
+
         vocab = ["l", "o", "w", "e", "r", "s", "t", "i", "d", "n", "lo", "l</w>", "w</w>", "r</w>", "t</w>", "low</w>", "er</w>", "lowest</w>", "newer</w>", "wider", "<unk>", "<|startoftext|>", "<|endoftext|>"]  # fmt: skip
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["#version: 0.2", "l o", "lo w</w>", "e r</w>", ""]
         self.special_tokens_map = {"unk_token": "<unk>"}
 
         self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
+        self.merges_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
         with open(self.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
         with open(self.merges_file, "w", encoding="utf-8") as fp:
@@ -86,67 +81,40 @@ class CLIPProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         tokenizer_fast = self.get_rust_tokenizer()
         image_processor = self.get_image_processor()
 
-        processor_slow = CLIPProcessor(
-            tokenizer=tokenizer_slow, image_processor=image_processor
-        )
+        processor_slow = CLIPProcessor(tokenizer=tokenizer_slow, image_processor=image_processor)
         processor_slow.save_pretrained(self.tmpdirname)
         processor_slow = CLIPProcessor.from_pretrained(self.tmpdirname, use_fast=False)
 
-        processor_fast = CLIPProcessor(
-            tokenizer=tokenizer_fast, image_processor=image_processor
-        )
+        processor_fast = CLIPProcessor(tokenizer=tokenizer_fast, image_processor=image_processor)
         processor_fast.save_pretrained(self.tmpdirname)
         processor_fast = CLIPProcessor.from_pretrained(self.tmpdirname)
 
-        self.assertEqual(
-            processor_slow.tokenizer.get_vocab(), tokenizer_slow.get_vocab()
-        )
-        self.assertEqual(
-            processor_fast.tokenizer.get_vocab(), tokenizer_fast.get_vocab()
-        )
+        self.assertEqual(processor_slow.tokenizer.get_vocab(), tokenizer_slow.get_vocab())
+        self.assertEqual(processor_fast.tokenizer.get_vocab(), tokenizer_fast.get_vocab())
         self.assertEqual(tokenizer_slow.get_vocab(), tokenizer_fast.get_vocab())
         self.assertIsInstance(processor_slow.tokenizer, CLIPTokenizer)
         self.assertIsInstance(processor_fast.tokenizer, CLIPTokenizerFast)
 
-        self.assertEqual(
-            processor_slow.image_processor.to_json_string(),
-            image_processor.to_json_string(),
-        )
-        self.assertEqual(
-            processor_fast.image_processor.to_json_string(),
-            image_processor.to_json_string(),
-        )
+        self.assertEqual(processor_slow.image_processor.to_json_string(), image_processor.to_json_string())
+        self.assertEqual(processor_fast.image_processor.to_json_string(), image_processor.to_json_string())
         self.assertIsInstance(processor_slow.image_processor, CLIPImageProcessor)
         self.assertIsInstance(processor_fast.image_processor, CLIPImageProcessor)
 
     def test_save_load_pretrained_additional_features(self):
-        processor = CLIPProcessor(
-            tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor()
-        )
+        processor = CLIPProcessor(tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor())
         processor.save_pretrained(self.tmpdirname)
 
         tokenizer_add_kwargs = self.get_tokenizer(bos_token="(BOS)", eos_token="(EOS)")
-        image_processor_add_kwargs = self.get_image_processor(
-            do_normalize=False, padding_value=1.0
-        )
+        image_processor_add_kwargs = self.get_image_processor(do_normalize=False, padding_value=1.0)
 
         processor = CLIPProcessor.from_pretrained(
-            self.tmpdirname,
-            bos_token="(BOS)",
-            eos_token="(EOS)",
-            do_normalize=False,
-            padding_value=1.0,
+            self.tmpdirname, bos_token="(BOS)", eos_token="(EOS)", do_normalize=False, padding_value=1.0
         )
 
-        self.assertEqual(
-            processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
         self.assertIsInstance(processor.tokenizer, CLIPTokenizerFast)
 
-        self.assertEqual(
-            processor.image_processor.to_json_string(),
-            image_processor_add_kwargs.to_json_string(),
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor_add_kwargs.to_json_string())
         self.assertIsInstance(processor.image_processor, CLIPImageProcessor)
 
     def test_image_processor(self):
@@ -161,9 +129,7 @@ class CLIPProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         input_processor = processor(images=image_input, return_tensors="np")
 
         for key in input_image_proc.keys():
-            self.assertAlmostEqual(
-                input_image_proc[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_image_proc[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_tokenizer(self):
         image_processor = self.get_image_processor()
@@ -191,9 +157,7 @@ class CLIPProcessorTest(ProcessorTesterMixin, unittest.TestCase):
 
         inputs = processor(text=input_str, images=image_input)
 
-        self.assertListEqual(
-            list(inputs.keys()), ["input_ids", "attention_mask", "pixel_values"]
-        )
+        self.assertListEqual(list(inputs.keys()), ["input_ids", "attention_mask", "pixel_values"])
 
         # test if it raises when no input is passed
         with pytest.raises(ValueError):

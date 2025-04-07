@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for Chinese-CLIP."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_chinese_clip import ChineseCLIPImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

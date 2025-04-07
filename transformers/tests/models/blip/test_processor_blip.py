@@ -11,30 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import pytest
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
-    from transformers import (
-        AutoProcessor,
-        BertTokenizer,
-        BlipImageProcessor,
-        BlipProcessor,
-        PreTrainedTokenizerFast,
-    )
+    from transformers import AutoProcessor, BertTokenizer, BlipImageProcessor, BlipProcessor, PreTrainedTokenizerFast
 
 
 @require_vision
@@ -45,9 +35,7 @@ class BlipProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         self.tmpdirname = tempfile.mkdtemp()
 
         image_processor = BlipImageProcessor()
-        tokenizer = BertTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-BertModel"
-        )
+        tokenizer = BertTokenizer.from_pretrained("hf-internal-testing/tiny-random-BertModel")
 
         processor = BlipProcessor(image_processor, tokenizer)
 
@@ -63,33 +51,20 @@ class BlipProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         shutil.rmtree(self.tmpdirname)
 
     def test_save_load_pretrained_additional_features(self):
-        processor = BlipProcessor(
-            tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor()
-        )
+        processor = BlipProcessor(tokenizer=self.get_tokenizer(), image_processor=self.get_image_processor())
         processor.save_pretrained(self.tmpdirname)
 
         tokenizer_add_kwargs = self.get_tokenizer(bos_token="(BOS)", eos_token="(EOS)")
-        image_processor_add_kwargs = self.get_image_processor(
-            do_normalize=False, padding_value=1.0
-        )
+        image_processor_add_kwargs = self.get_image_processor(do_normalize=False, padding_value=1.0)
 
         processor = BlipProcessor.from_pretrained(
-            self.tmpdirname,
-            bos_token="(BOS)",
-            eos_token="(EOS)",
-            do_normalize=False,
-            padding_value=1.0,
+            self.tmpdirname, bos_token="(BOS)", eos_token="(EOS)", do_normalize=False, padding_value=1.0
         )
 
-        self.assertEqual(
-            processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
         self.assertIsInstance(processor.tokenizer, PreTrainedTokenizerFast)
 
-        self.assertEqual(
-            processor.image_processor.to_json_string(),
-            image_processor_add_kwargs.to_json_string(),
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor_add_kwargs.to_json_string())
         self.assertIsInstance(processor.image_processor, BlipImageProcessor)
 
     def test_image_processor(self):
@@ -104,9 +79,7 @@ class BlipProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         input_processor = processor(images=image_input, return_tensors="np")
 
         for key in input_feat_extract.keys():
-            self.assertAlmostEqual(
-                input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_feat_extract[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_tokenizer(self):
         image_processor = self.get_image_processor()
@@ -134,9 +107,7 @@ class BlipProcessorTest(ProcessorTesterMixin, unittest.TestCase):
 
         inputs = processor(text=input_str, images=image_input)
 
-        self.assertListEqual(
-            list(inputs.keys()), ["pixel_values", "input_ids", "attention_mask"]
-        )
+        self.assertListEqual(list(inputs.keys()), ["pixel_values", "input_ids", "attention_mask"])
 
         # test if it raises when no input is passed
         with pytest.raises(ValueError):
@@ -167,23 +138,17 @@ class BlipProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         inputs = processor(text=input_str, images=image_input)
 
         # For now the processor supports only ['pixel_values', 'input_ids', 'attention_mask']
-        self.assertListEqual(
-            list(inputs.keys()), ["pixel_values", "input_ids", "attention_mask"]
-        )
+        self.assertListEqual(list(inputs.keys()), ["pixel_values", "input_ids", "attention_mask"])
 
     @require_torch
     @require_vision
     def test_unstructured_kwargs_batched(self):
         if "image_processor" not in self.processor_class.attributes:
-            self.skipTest(
-                f"image_processor attribute not present in {self.processor_class}"
-            )
+            self.skipTest(f"image_processor attribute not present in {self.processor_class}")
         image_processor = self.get_component("image_processor")
         tokenizer = self.get_component("tokenizer")
 
-        processor = self.processor_class(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = self.processor_class(tokenizer=tokenizer, image_processor=image_processor)
         self.skip_processor_without_typed_kwargs(processor)
 
         input_str = ["lower newer", "upper older longer string"]

@@ -14,18 +14,16 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import MgpstrTokenizer
 from transformers.models.mgp_str.tokenization_mgp_str import VOCAB_FILES_NAMES
 from transformers.testing_utils import require_tokenizers
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 @require_tokenizers
@@ -36,17 +34,23 @@ class MgpstrTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     from_pretrained_kwargs = {}
     test_seq2seq = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
         vocab = ['[GO]', '[s]', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']  # fmt: skip
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
 
-    def get_tokenizer(self, **kwargs):
-        return MgpstrTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return MgpstrTokenizer.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "tester"
@@ -64,14 +68,10 @@ class MgpstrTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 special_token = "[SPECIAL_TOKEN]"
 
                 tokenizer.add_special_tokens({"cls_token": special_token})
-                encoded_special_token = tokenizer.encode(
-                    [special_token], add_special_tokens=False
-                )
+                encoded_special_token = tokenizer.encode([special_token], add_special_tokens=False)
                 self.assertEqual(len(encoded_special_token), 1)
 
-                decoded = tokenizer.decode(
-                    encoded_special_token, skip_special_tokens=True
-                )
+                decoded = tokenizer.decode(encoded_special_token, skip_special_tokens=True)
                 self.assertTrue(special_token not in decoded)
 
     def test_internal_consistency(self):

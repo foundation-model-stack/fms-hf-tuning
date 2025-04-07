@@ -16,16 +16,15 @@
 Post-processing utilities for question answering.
 """
 
-# Standard
-from typing import Optional, Tuple
 import collections
 import json
 import logging
 import os
+from typing import Optional, Tuple
 
-# Third Party
-from tqdm.auto import tqdm
 import numpy as np
+from tqdm.auto import tqdm
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,15 +75,11 @@ def postprocess_qa_predictions(
             ``logging`` log level (e.g., ``logging.WARNING``)
     """
     if len(predictions) != 2:
-        raise ValueError(
-            "`predictions` should be a tuple with two elements (start_logits, end_logits)."
-        )
+        raise ValueError("`predictions` should be a tuple with two elements (start_logits, end_logits).")
     all_start_logits, all_end_logits = predictions
 
     if len(predictions[0]) != len(features):
-        raise ValueError(
-            f"Got {len(predictions[0])} predictions and {len(features)} features."
-        )
+        raise ValueError(f"Got {len(predictions[0])} predictions and {len(features)} features.")
 
     # Build a map example to its corresponding features.
     example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
@@ -100,9 +95,7 @@ def postprocess_qa_predictions(
 
     # Logging.
     logger.setLevel(log_level)
-    logger.info(
-        f"Post-processing {len(examples)} example predictions split into {len(features)} features."
-    )
+    logger.info(f"Post-processing {len(examples)} example predictions split into {len(features)} features.")
 
     # Let's loop over all the examples!
     for example_index, example in enumerate(tqdm(examples)):
@@ -122,16 +115,11 @@ def postprocess_qa_predictions(
             offset_mapping = features[feature_index]["offset_mapping"]
             # Optional `token_is_max_context`, if provided we will remove answers that do not have the maximum context
             # available in the current feature.
-            token_is_max_context = features[feature_index].get(
-                "token_is_max_context", None
-            )
+            token_is_max_context = features[feature_index].get("token_is_max_context", None)
 
             # Update minimum null prediction.
             feature_null_score = start_logits[0] + end_logits[0]
-            if (
-                min_null_prediction is None
-                or min_null_prediction["score"] > feature_null_score
-            ):
+            if min_null_prediction is None or min_null_prediction["score"] > feature_null_score:
                 min_null_prediction = {
                     "offsets": (0, 0),
                     "score": feature_null_score,
@@ -140,9 +128,7 @@ def postprocess_qa_predictions(
                 }
 
             # Go through all possibilities for the `n_best_size` greater start and end logits.
-            start_indexes = np.argsort(start_logits)[
-                -1 : -n_best_size - 1 : -1
-            ].tolist()
+            start_indexes = np.argsort(start_logits)[-1 : -n_best_size - 1 : -1].tolist()
             end_indexes = np.argsort(end_logits)[-1 : -n_best_size - 1 : -1].tolist()
             for start_index in start_indexes:
                 for end_index in end_indexes:
@@ -158,25 +144,16 @@ def postprocess_qa_predictions(
                     ):
                         continue
                     # Don't consider answers with a length that is either < 0 or > max_answer_length.
-                    if (
-                        end_index < start_index
-                        or end_index - start_index + 1 > max_answer_length
-                    ):
+                    if end_index < start_index or end_index - start_index + 1 > max_answer_length:
                         continue
                     # Don't consider answer that don't have the maximum context available (if such information is
                     # provided).
-                    if (
-                        token_is_max_context is not None
-                        and not token_is_max_context.get(str(start_index), False)
-                    ):
+                    if token_is_max_context is not None and not token_is_max_context.get(str(start_index), False):
                         continue
 
                     prelim_predictions.append(
                         {
-                            "offsets": (
-                                offset_mapping[start_index][0],
-                                offset_mapping[end_index][1],
-                            ),
+                            "offsets": (offset_mapping[start_index][0], offset_mapping[end_index][1]),
                             "score": start_logits[start_index] + end_logits[end_index],
                             "start_logit": start_logits[start_index],
                             "end_logit": end_logits[end_index],
@@ -188,9 +165,7 @@ def postprocess_qa_predictions(
             null_score = min_null_prediction["score"]
 
         # Only keep the best `n_best_size` predictions.
-        predictions = sorted(
-            prelim_predictions, key=lambda x: x["score"], reverse=True
-        )[:n_best_size]
+        predictions = sorted(prelim_predictions, key=lambda x: x["score"], reverse=True)[:n_best_size]
 
         # Add back the minimum null prediction if it was removed because of its low score.
         if (
@@ -208,12 +183,8 @@ def postprocess_qa_predictions(
 
         # In the very rare edge case we have not a single non-null prediction, we create a fake prediction to avoid
         # failure.
-        if len(predictions) == 0 or (
-            len(predictions) == 1 and predictions[0]["text"] == ""
-        ):
-            predictions.insert(
-                0, {"text": "empty", "start_logit": 0.0, "end_logit": 0.0, "score": 0.0}
-            )
+        if len(predictions) == 0 or (len(predictions) == 1 and predictions[0]["text"] == ""):
+            predictions.insert(0, {"text": "empty", "start_logit": 0.0, "end_logit": 0.0, "score": 0.0})
 
         # Compute the softmax of all scores (we do it with numpy to stay independent from torch/tf in this file, using
         # the LogSumExp trick).
@@ -236,14 +207,8 @@ def postprocess_qa_predictions(
             best_non_null_pred = predictions[i]
 
             # Then we compare to the null prediction using the threshold.
-            score_diff = (
-                null_score
-                - best_non_null_pred["start_logit"]
-                - best_non_null_pred["end_logit"]
-            )
-            scores_diff_json[example["id"]] = float(
-                score_diff
-            )  # To be JSON-serializable.
+            score_diff = null_score - best_non_null_pred["start_logit"] - best_non_null_pred["end_logit"]
+            scores_diff_json[example["id"]] = float(score_diff)  # To be JSON-serializable.
             if score_diff > null_score_diff_threshold:
                 all_predictions[example["id"]] = ""
             else:
@@ -251,14 +216,7 @@ def postprocess_qa_predictions(
 
         # Make `predictions` JSON-serializable by casting np.float back to float.
         all_nbest_json[example["id"]] = [
-            {
-                k: (
-                    float(v)
-                    if isinstance(v, (np.float16, np.float32, np.float64))
-                    else v
-                )
-                for k, v in pred.items()
-            }
+            {k: (float(v) if isinstance(v, (np.float16, np.float32, np.float64)) else v) for k, v in pred.items()}
             for pred in predictions
         ]
 
@@ -268,19 +226,14 @@ def postprocess_qa_predictions(
             raise EnvironmentError(f"{output_dir} is not a directory.")
 
         prediction_file = os.path.join(
-            output_dir,
-            "predictions.json" if prefix is None else f"{prefix}_predictions.json",
+            output_dir, "predictions.json" if prefix is None else f"{prefix}_predictions.json"
         )
         nbest_file = os.path.join(
-            output_dir,
-            "nbest_predictions.json"
-            if prefix is None
-            else f"{prefix}_nbest_predictions.json",
+            output_dir, "nbest_predictions.json" if prefix is None else f"{prefix}_nbest_predictions.json"
         )
         if version_2_with_negative:
             null_odds_file = os.path.join(
-                output_dir,
-                "null_odds.json" if prefix is None else f"{prefix}_null_odds.json",
+                output_dir, "null_odds.json" if prefix is None else f"{prefix}_null_odds.json"
             )
 
         logger.info(f"Saving predictions to {prediction_file}.")
@@ -343,18 +296,10 @@ def postprocess_qa_predictions_with_beam_search(
     """
     if len(predictions) != 5:
         raise ValueError("`predictions` should be a tuple with five elements.")
-    (
-        start_top_log_probs,
-        start_top_index,
-        end_top_log_probs,
-        end_top_index,
-        cls_logits,
-    ) = predictions
+    start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits = predictions
 
     if len(predictions[0]) != len(features):
-        raise ValueError(
-            f"Got {len(predictions[0])} predictions and {len(features)} features."
-        )
+        raise ValueError(f"Got {len(predictions[0])} predictions and {len(features)} features.")
 
     # Build a map example to its corresponding features.
     example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
@@ -369,9 +314,7 @@ def postprocess_qa_predictions_with_beam_search(
 
     # Logging.
     logger.setLevel(log_level)
-    logger.info(
-        f"Post-processing {len(examples)} example predictions split into {len(features)} features."
-    )
+    logger.info(f"Post-processing {len(examples)} example predictions split into {len(features)} features.")
 
     # Let's loop over all the examples!
     for example_index, example in enumerate(tqdm(examples)):
@@ -394,9 +337,7 @@ def postprocess_qa_predictions_with_beam_search(
             offset_mapping = features[feature_index]["offset_mapping"]
             # Optional `token_is_max_context`, if provided we will remove answers that do not have the maximum context
             # available in the current feature.
-            token_is_max_context = features[feature_index].get(
-                "token_is_max_context", None
-            )
+            token_is_max_context = features[feature_index].get("token_is_max_context", None)
 
             # Update minimum null prediction
             if min_null_score is None or feature_null_score < min_null_score:
@@ -421,24 +362,15 @@ def postprocess_qa_predictions_with_beam_search(
                         continue
 
                     # Don't consider answers with a length negative or > max_answer_length.
-                    if (
-                        end_index < start_index
-                        or end_index - start_index + 1 > max_answer_length
-                    ):
+                    if end_index < start_index or end_index - start_index + 1 > max_answer_length:
                         continue
                     # Don't consider answer that don't have the maximum context available (if such information is
                     # provided).
-                    if (
-                        token_is_max_context is not None
-                        and not token_is_max_context.get(str(start_index), False)
-                    ):
+                    if token_is_max_context is not None and not token_is_max_context.get(str(start_index), False):
                         continue
                     prelim_predictions.append(
                         {
-                            "offsets": (
-                                offset_mapping[start_index][0],
-                                offset_mapping[end_index][1],
-                            ),
+                            "offsets": (offset_mapping[start_index][0], offset_mapping[end_index][1]),
                             "score": start_log_prob[i] + end_log_prob[j_index],
                             "start_log_prob": start_log_prob[i],
                             "end_log_prob": end_log_prob[j_index],
@@ -446,9 +378,7 @@ def postprocess_qa_predictions_with_beam_search(
                     )
 
         # Only keep the best `n_best_size` predictions.
-        predictions = sorted(
-            prelim_predictions, key=lambda x: x["score"], reverse=True
-        )[:n_best_size]
+        predictions = sorted(prelim_predictions, key=lambda x: x["score"], reverse=True)[:n_best_size]
 
         # Use the offsets to gather the answer text in the original context.
         context = example["context"]
@@ -461,15 +391,7 @@ def postprocess_qa_predictions_with_beam_search(
         if len(predictions) == 0:
             # Without predictions min_null_score is going to be None and None will cause an exception later
             min_null_score = -2e-6
-            predictions.insert(
-                0,
-                {
-                    "text": "",
-                    "start_logit": -1e-6,
-                    "end_logit": -1e-6,
-                    "score": min_null_score,
-                },
-            )
+            predictions.insert(0, {"text": "", "start_logit": -1e-6, "end_logit": -1e-6, "score": min_null_score})
 
         # Compute the softmax of all scores (we do it with numpy to stay independent from torch/tf in this file, using
         # the LogSumExp trick).
@@ -488,14 +410,7 @@ def postprocess_qa_predictions_with_beam_search(
 
         # Make `predictions` JSON-serializable by casting np.float back to float.
         all_nbest_json[example["id"]] = [
-            {
-                k: (
-                    float(v)
-                    if isinstance(v, (np.float16, np.float32, np.float64))
-                    else v
-                )
-                for k, v in pred.items()
-            }
+            {k: (float(v) if isinstance(v, (np.float16, np.float32, np.float64)) else v) for k, v in pred.items()}
             for pred in predictions
         ]
 
@@ -505,19 +420,14 @@ def postprocess_qa_predictions_with_beam_search(
             raise EnvironmentError(f"{output_dir} is not a directory.")
 
         prediction_file = os.path.join(
-            output_dir,
-            "predictions.json" if prefix is None else f"{prefix}_predictions.json",
+            output_dir, "predictions.json" if prefix is None else f"{prefix}_predictions.json"
         )
         nbest_file = os.path.join(
-            output_dir,
-            "nbest_predictions.json"
-            if prefix is None
-            else f"{prefix}_nbest_predictions.json",
+            output_dir, "nbest_predictions.json" if prefix is None else f"{prefix}_nbest_predictions.json"
         )
         if version_2_with_negative:
             null_odds_file = os.path.join(
-                output_dir,
-                "null_odds.json" if prefix is None else f"{prefix}_null_odds.json",
+                output_dir, "null_odds.json" if prefix is None else f"{prefix}_null_odds.json"
             )
 
         logger.info(f"Saving predictions to {prediction_file}.")

@@ -11,17 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Future
 from __future__ import annotations
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ..utils import is_torch_available
 
+
 if TYPE_CHECKING:
-    # Third Party
     from torch import nn
 
 
@@ -29,15 +26,13 @@ def is_fsdp_managed_module(module: nn.Module) -> bool:
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     if not torch.distributed.is_available():
         return False
 
-    # Third Party
     import torch.distributed.fsdp
 
-    return isinstance(
-        module, torch.distributed.fsdp.FullyShardedDataParallel
-    ) or getattr(module, "_is_fsdp_managed_module", False)
+    return isinstance(module, torch.distributed.fsdp.FullyShardedDataParallel) or getattr(
+        module, "_is_fsdp_managed_module", False
+    )

@@ -1,38 +1,21 @@
-# Future
 from __future__ import annotations
 
-# Standard
-from unittest.mock import patch
 import json
 import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import BartTokenizer
-from transformers.models.bert.tokenization_bert import (
-    VOCAB_FILES_NAMES as DPR_VOCAB_FILES_NAMES,
-)
+from transformers.models.bert.tokenization_bert import VOCAB_FILES_NAMES as DPR_VOCAB_FILES_NAMES
 from transformers.models.dpr.tokenization_dpr import DPRQuestionEncoderTokenizer
-from transformers.models.roberta.tokenization_roberta import (
-    VOCAB_FILES_NAMES as BART_VOCAB_FILES_NAMES,
-)
-from transformers.testing_utils import (
-    require_sentencepiece,
-    require_tf,
-    require_tokenizers,
-    slow,
-)
-from transformers.utils import (
-    cached_property,
-    is_datasets_available,
-    is_faiss_available,
-    is_tf_available,
-)
+from transformers.models.roberta.tokenization_roberta import VOCAB_FILES_NAMES as BART_VOCAB_FILES_NAMES
+from transformers.testing_utils import require_sentencepiece, require_tf, require_tokenizers, slow
+from transformers.utils import cached_property, is_datasets_available, is_faiss_available, is_tf_available
+
 
 if is_tf_available() and is_datasets_available() and is_faiss_available():
     import faiss
@@ -52,9 +35,9 @@ if is_tf_available() and is_datasets_available() and is_faiss_available():
     )
     from transformers.modeling_tf_outputs import TFBaseModelOutput
 
-# Local
 from ..bart.test_modeling_tf_bart import TFBartModelTester
 from ..dpr.test_modeling_tf_dpr import TFDPRModelTester
+
 
 TOLERANCE = 1e-3
 
@@ -68,9 +51,7 @@ def require_retrieval(test_case):
 
     """
     if not (is_tf_available() and is_datasets_available() and is_faiss_available()):
-        test_case = unittest.skip("test requires tensorflow, datasets and faiss")(
-            test_case
-        )
+        test_case = unittest.skip("test requires tensorflow, datasets and faiss")(test_case)
     return test_case
 
 
@@ -116,9 +97,7 @@ class TFRagTestMixin:
         ]
         dpr_tokenizer_path = os.path.join(self.tmpdirname, "dpr_tokenizer")
         os.makedirs(dpr_tokenizer_path, exist_ok=True)
-        self.vocab_file = os.path.join(
-            dpr_tokenizer_path, DPR_VOCAB_FILES_NAMES["vocab_file"]
-        )
+        self.vocab_file = os.path.join(dpr_tokenizer_path, DPR_VOCAB_FILES_NAMES["vocab_file"])
         with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
             vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
 
@@ -151,12 +130,8 @@ class TFRagTestMixin:
 
         bart_tokenizer_path = os.path.join(self.tmpdirname, "bart_tokenizer")
         os.makedirs(bart_tokenizer_path, exist_ok=True)
-        self.vocab_file = os.path.join(
-            bart_tokenizer_path, BART_VOCAB_FILES_NAMES["vocab_file"]
-        )
-        self.merges_file = os.path.join(
-            bart_tokenizer_path, BART_VOCAB_FILES_NAMES["merges_file"]
-        )
+        self.vocab_file = os.path.join(bart_tokenizer_path, BART_VOCAB_FILES_NAMES["vocab_file"])
+        self.merges_file = os.path.join(bart_tokenizer_path, BART_VOCAB_FILES_NAMES["merges_file"])
         with open(self.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
         with open(self.merges_file, "w", encoding="utf-8") as fp:
@@ -164,15 +139,11 @@ class TFRagTestMixin:
 
     @cached_property
     def dpr_tokenizer(self) -> DPRQuestionEncoderTokenizer:
-        return DPRQuestionEncoderTokenizer.from_pretrained(
-            os.path.join(self.tmpdirname, "dpr_tokenizer")
-        )
+        return DPRQuestionEncoderTokenizer.from_pretrained(os.path.join(self.tmpdirname, "dpr_tokenizer"))
 
     @cached_property
     def bart_tokenizer(self) -> BartTokenizer:
-        return BartTokenizer.from_pretrained(
-            os.path.join(self.tmpdirname, "bart_tokenizer")
-        )
+        return BartTokenizer.from_pretrained(os.path.join(self.tmpdirname, "bart_tokenizer"))
 
     def tearDown(self):
         shutil.rmtree(self.tmpdirname)
@@ -190,13 +161,9 @@ class TFRagTestMixin:
                 ],
             }
         )
-        dataset.add_faiss_index(
-            "embeddings", string_factory="Flat", metric_type=faiss.METRIC_INNER_PRODUCT
-        )
+        dataset.add_faiss_index("embeddings", string_factory="Flat", metric_type=faiss.METRIC_INNER_PRODUCT)
         tokenizer = self.bart_tokenizer
-        with patch(
-            "transformers.models.rag.retrieval_rag.load_dataset"
-        ) as mock_load_dataset:
+        with patch("transformers.models.rag.retrieval_rag.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = dataset
             retriever = RagRetriever(
                 config,
@@ -206,13 +173,7 @@ class TFRagTestMixin:
         return retriever
 
     def check_model_with_retriever(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -232,34 +193,18 @@ class TFRagTestMixin:
             # logits
             self.assertEqual(
                 outputs.logits.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    decoder_input_ids.shape[1],
-                    config.generator.vocab_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], decoder_input_ids.shape[1], config.generator.vocab_size),
             )
             # generator encoder last hidden states
             self.assertEqual(
                 outputs.generator_enc_last_hidden_state.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    self.max_combined_length,
-                    config.generator.hidden_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], self.max_combined_length, config.generator.hidden_size),
             )
             # doc scores
-            self.assertEqual(
-                outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs)
-            )
+            self.assertEqual(outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs))
 
     def check_model_generate_from_context_input_ids(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -270,9 +215,7 @@ class TFRagTestMixin:
             model = model_class(config)
             self.assertTrue(model.config.is_encoder_decoder)
 
-            question_hidden_states = model.question_encoder(
-                input_ids, attention_mask=attention_mask
-            )[0]
+            question_hidden_states = model.question_encoder(input_ids, attention_mask=attention_mask)[0]
 
             out = retriever(
                 input_ids,
@@ -290,11 +233,7 @@ class TFRagTestMixin:
 
             # compute doc_scores
             doc_scores = tf.squeeze(
-                tf.matmul(
-                    tf.expand_dims(question_hidden_states, axis=[1]),
-                    retrieved_doc_embeds,
-                    transpose_b=True,
-                ),
+                tf.matmul(tf.expand_dims(question_hidden_states, axis=[1]), retrieved_doc_embeds, transpose_b=True),
                 axis=[1],
             )
 
@@ -307,13 +246,7 @@ class TFRagTestMixin:
             self.assertIsNotNone(outputs)
 
     def check_model_generate(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -335,13 +268,7 @@ class TFRagTestMixin:
             self.assertIsNotNone(outputs)
 
     def check_model_without_retriever(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -352,9 +279,7 @@ class TFRagTestMixin:
             model = model_class(config)
             self.assertTrue(model.config.is_encoder_decoder)
 
-            question_hidden_states = model.question_encoder(
-                input_ids, attention_mask=attention_mask
-            )[0]
+            question_hidden_states = model.question_encoder(input_ids, attention_mask=attention_mask)[0]
 
             out = retriever(
                 input_ids,
@@ -373,11 +298,7 @@ class TFRagTestMixin:
 
             # compute doc_scores
             doc_scores = tf.squeeze(
-                tf.matmul(
-                    tf.expand_dims(question_hidden_states, axis=[1]),
-                    retrieved_doc_embeds,
-                    transpose_b=True,
-                ),
+                tf.matmul(tf.expand_dims(question_hidden_states, axis=[1]), retrieved_doc_embeds, transpose_b=True),
                 axis=[1],
             )
 
@@ -393,36 +314,19 @@ class TFRagTestMixin:
             # logits
             self.assertEqual(
                 outputs.logits.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    decoder_input_ids.shape[1],
-                    config.generator.vocab_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], decoder_input_ids.shape[1], config.generator.vocab_size),
             )
 
             # generator encoder last hidden states
             self.assertEqual(
                 outputs.generator_enc_last_hidden_state.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    self.max_combined_length,
-                    config.generator.hidden_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], self.max_combined_length, config.generator.hidden_size),
             )
             # doc scores
-            self.assertEqual(
-                outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs)
-            )
+            self.assertEqual(outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs))
 
     def check_model_custom_n_docs(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        n_docs,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, n_docs, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -433,9 +337,7 @@ class TFRagTestMixin:
             model = model_class(config)
             self.assertTrue(model.config.is_encoder_decoder)
 
-            question_hidden_states = model.question_encoder(
-                input_ids, attention_mask=attention_mask
-            )[0]
+            question_hidden_states = model.question_encoder(input_ids, attention_mask=attention_mask)[0]
 
             out = retriever(
                 input_ids,
@@ -455,11 +357,7 @@ class TFRagTestMixin:
 
             # compute doc_scores
             doc_scores = tf.squeeze(
-                tf.matmul(
-                    tf.expand_dims(question_hidden_states, axis=[1]),
-                    retrieved_doc_embeds,
-                    transpose_b=True,
-                ),
+                tf.matmul(tf.expand_dims(question_hidden_states, axis=[1]), retrieved_doc_embeds, transpose_b=True),
                 axis=[1],
             )
 
@@ -476,20 +374,12 @@ class TFRagTestMixin:
             # logits
             self.assertEqual(
                 outputs.logits.shape,
-                (
-                    n_docs * decoder_input_ids.shape[0],
-                    decoder_input_ids.shape[1],
-                    config.generator.vocab_size,
-                ),
+                (n_docs * decoder_input_ids.shape[0], decoder_input_ids.shape[1], config.generator.vocab_size),
             )
             # generator encoder last hidden states
             self.assertEqual(
                 outputs.generator_enc_last_hidden_state.shape,
-                (
-                    n_docs * decoder_input_ids.shape[0],
-                    self.max_combined_length,
-                    config.generator.hidden_size,
-                ),
+                (n_docs * decoder_input_ids.shape[0], self.max_combined_length, config.generator.hidden_size),
             )
             # doc scores
             self.assertEqual(outputs.doc_scores.shape, (input_ids.shape[0], n_docs))
@@ -514,9 +404,7 @@ class TFRagTestMixin:
             model = model_class(config)
             self.assertTrue(model.config.is_encoder_decoder)
 
-            question_hidden_states = model.question_encoder(
-                input_ids, attention_mask=attention_mask
-            )[0]
+            question_hidden_states = model.question_encoder(input_ids, attention_mask=attention_mask)[0]
 
             out = retriever(
                 input_ids,
@@ -536,11 +424,7 @@ class TFRagTestMixin:
 
             # compute doc_scores
             doc_scores = tf.squeeze(
-                tf.matmul(
-                    tf.expand_dims(question_hidden_states, axis=[1]),
-                    retrieved_doc_embeds,
-                    transpose_b=True,
-                ),
+                tf.matmul(tf.expand_dims(question_hidden_states, axis=[1]), retrieved_doc_embeds, transpose_b=True),
                 axis=[1],
             )
 
@@ -557,13 +441,7 @@ class TFRagTestMixin:
             )
 
     def check_model_with_encoder_outputs(
-        self,
-        config,
-        input_ids,
-        attention_mask,
-        decoder_input_ids,
-        decoder_attention_mask,
-        **kwargs,
+        self, config, input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, **kwargs
     ):
         self.assertIsNotNone(config.question_encoder)
         self.assertIsNotNone(config.generator)
@@ -594,25 +472,15 @@ class TFRagTestMixin:
             # logits
             self.assertEqual(
                 outputs.logits.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    decoder_input_ids.shape[1],
-                    config.generator.vocab_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], decoder_input_ids.shape[1], config.generator.vocab_size),
             )
             # generator encoder last hidden states
             self.assertEqual(
                 outputs.generator_enc_last_hidden_state.shape,
-                (
-                    self.n_docs * decoder_input_ids.shape[0],
-                    self.max_combined_length,
-                    config.generator.hidden_size,
-                ),
+                (self.n_docs * decoder_input_ids.shape[0], self.max_combined_length, config.generator.hidden_size),
             )
             # doc scores
-            self.assertEqual(
-                outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs)
-            )
+            self.assertEqual(outputs.doc_scores.shape, (input_ids.shape[0], self.n_docs))
 
     def test_model_with_retriever(self):
         inputs_dict = self.config_and_inputs
@@ -658,20 +526,9 @@ class TFRagDPRBartTest(TFRagTestMixin, unittest.TestCase):
         generator_tester = TFBartModelTester(self)
         bart_config_and_inputs = generator_tester.prepare_config_and_inputs_for_common()
 
-        (
-            question_encoder_config,
-            input_ids,
-            _,
-            input_mask,
-            _,
-            _,
-            _,
-        ) = dpr_config_and_inputs
+        (question_encoder_config, input_ids, _, input_mask, _, _, _) = dpr_config_and_inputs
         (generator_config, bart_inputs_dict) = bart_config_and_inputs
-        decoder_input_ids, decoder_attention_mask = (
-            bart_inputs_dict["input_ids"],
-            bart_inputs_dict["attention_mask"],
-        )
+        decoder_input_ids, decoder_attention_mask = bart_inputs_dict["input_ids"], bart_inputs_dict["attention_mask"]
 
         config = RagConfig.from_question_encoder_generator_configs(
             question_encoder_config,
@@ -708,14 +565,10 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         )
 
     def token_model_nq_checkpoint(self, retriever):
-        return TFRagTokenForGeneration.from_pretrained(
-            "facebook/rag-token-nq", retriever=retriever
-        )
+        return TFRagTokenForGeneration.from_pretrained("facebook/rag-token-nq", retriever=retriever)
 
     def get_rag_config(self):
-        question_encoder_config = AutoConfig.from_pretrained(
-            "facebook/dpr-question_encoder-single-nq-base"
-        )
+        question_encoder_config = AutoConfig.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
         generator_config = AutoConfig.from_pretrained("facebook/bart-large-cnn")
         return RagConfig.from_question_encoder_generator_configs(
             question_encoder_config,
@@ -759,9 +612,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         output = rag_sequence(
             input_ids,
@@ -771,9 +622,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         expected_shape = tf.TensorShape([5, 5, 50264])
         self.assertEqual(output.logits.shape, expected_shape)
 
-        expected_doc_scores = tf.convert_to_tensor(
-            [[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]]
-        )
+        expected_doc_scores = tf.convert_to_tensor([[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]])
         expected_loss = tf.convert_to_tensor([36.7368])
 
         tf.debugging.assert_near(output.loss, expected_loss, atol=1e-3)
@@ -798,9 +647,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         output = rag_token(
             input_ids,
@@ -810,9 +657,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         expected_shape = tf.TensorShape([5, 5, 50264])
         self.assertEqual(output.logits.shape, expected_shape)
 
-        expected_doc_scores = tf.convert_to_tensor(
-            [[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]]
-        )
+        expected_doc_scores = tf.convert_to_tensor([[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]])
         expected_loss = tf.convert_to_tensor([36.3557])
 
         tf.debugging.assert_near(output.loss, expected_loss, atol=1e-3)
@@ -836,16 +681,12 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         # check that outputs after saving and loading are equal
         with tempfile.TemporaryDirectory() as tmpdirname:
             rag_token.save_pretrained(tmpdirname)
-            rag_token = TFRagTokenForGeneration.from_pretrained(
-                tmpdirname, retriever=rag_retriever
-            )
+            rag_token = TFRagTokenForGeneration.from_pretrained(tmpdirname, retriever=rag_retriever)
 
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         output = rag_token(
             input_ids,
@@ -855,9 +696,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         expected_shape = tf.TensorShape([5, 5, 50265])
         self.assertEqual(output.logits.shape, expected_shape)
 
-        expected_doc_scores = tf.convert_to_tensor(
-            [[62.9402, 62.7107, 62.2382, 62.1194, 61.8578]]
-        )
+        expected_doc_scores = tf.convert_to_tensor([[62.9402, 62.7107, 62.2382, 62.1194, 61.8578]])
         expected_loss = tf.convert_to_tensor([32.521812])
 
         tf.debugging.assert_near(output.loss, expected_loss, atol=1e-3)
@@ -882,9 +721,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         # model must run once to be functional before loading/saving works
         rag_token(
@@ -895,9 +732,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         # check that outputs after saving and loading are equal
         with tempfile.TemporaryDirectory() as tmpdirname:
             rag_token.save_pretrained(tmpdirname)
-            rag_token = TFRagTokenForGeneration.from_pretrained(
-                tmpdirname, retriever=rag_retriever
-            )
+            rag_token = TFRagTokenForGeneration.from_pretrained(tmpdirname, retriever=rag_retriever)
 
         output = rag_token(
             input_ids,
@@ -907,9 +742,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         expected_shape = tf.TensorShape([5, 5, 50264])
         self.assertEqual(output.logits.shape, expected_shape)
 
-        expected_doc_scores = tf.convert_to_tensor(
-            [[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]]
-        )
+        expected_doc_scores = tf.convert_to_tensor([[75.0286, 74.4998, 74.0804, 74.0306, 73.9504]])
         expected_loss = tf.convert_to_tensor([36.3557])
 
         tf.debugging.assert_near(output.loss, expected_loss, atol=1e-3)
@@ -934,9 +767,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         rag(
             input_ids,
@@ -946,9 +777,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         # this should not give any warnings
         with tempfile.TemporaryDirectory() as tmpdirname:
             rag.save_pretrained(tmpdirname)
-            rag = TFRagTokenForGeneration.from_pretrained(
-                tmpdirname, retriever=rag_retriever
-            )
+            rag = TFRagTokenForGeneration.from_pretrained(tmpdirname, retriever=rag_retriever)
 
     @property
     def test_data_questions(self):
@@ -967,14 +796,9 @@ class TFRagModelIntegrationTests(unittest.TestCase):
     def test_rag_token_greedy_search(self):
         tokenizer = RagTokenizer.from_pretrained("facebook/rag-token-nq")
         retriever = RagRetriever.from_pretrained(
-            "facebook/rag-token-nq",
-            index_name="exact",
-            use_dummy_dataset=True,
-            dataset_revision="b24a417",
+            "facebook/rag-token-nq", index_name="exact", use_dummy_dataset=True, dataset_revision="b24a417"
         )
-        rag_token = TFRagTokenForGeneration.from_pretrained(
-            "facebook/rag-token-nq", retriever=retriever
-        )
+        rag_token = TFRagTokenForGeneration.from_pretrained("facebook/rag-token-nq", retriever=retriever)
 
         # check first two questions
         input_dict = tokenizer(
@@ -1008,14 +832,9 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         # NOTE: gold labels comes from num_beam=4, so this is effectively beam-search test
         tokenizer = RagTokenizer.from_pretrained("facebook/rag-token-nq")
         retriever = RagRetriever.from_pretrained(
-            "facebook/rag-token-nq",
-            index_name="exact",
-            use_dummy_dataset=True,
-            dataset_revision="b24a417",
+            "facebook/rag-token-nq", index_name="exact", use_dummy_dataset=True, dataset_revision="b24a417"
         )
-        rag_token = TFRagTokenForGeneration.from_pretrained(
-            "facebook/rag-token-nq", retriever=retriever
-        )
+        rag_token = TFRagTokenForGeneration.from_pretrained("facebook/rag-token-nq", retriever=retriever)
 
         input_dict = tokenizer(
             self.test_data_questions,
@@ -1062,9 +881,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
             use_dummy_dataset=True,
             dataset_revision="b24a417",
         )
-        rag_sequence = TFRagSequenceForGeneration.from_pretrained(
-            "facebook/rag-sequence-nq", retriever=retriever
-        )
+        rag_sequence = TFRagSequenceForGeneration.from_pretrained("facebook/rag-sequence-nq", retriever=retriever)
 
         input_dict = tokenizer(
             self.test_data_questions,
@@ -1099,14 +916,9 @@ class TFRagModelIntegrationTests(unittest.TestCase):
     def test_rag_sequence_generate_batch_from_context_input_ids(self):
         tokenizer = RagTokenizer.from_pretrained("facebook/rag-sequence-nq")
         retriever = RagRetriever.from_pretrained(
-            "facebook/rag-sequence-nq",
-            index_name="exact",
-            use_dummy_dataset=True,
-            dataset_revision="b24a417",
+            "facebook/rag-sequence-nq", index_name="exact", use_dummy_dataset=True, dataset_revision="b24a417"
         )
-        rag_sequence = TFRagSequenceForGeneration.from_pretrained(
-            "facebook/rag-sequence-nq", retriever=retriever
-        )
+        rag_sequence = TFRagSequenceForGeneration.from_pretrained("facebook/rag-sequence-nq", retriever=retriever)
         input_dict = tokenizer(
             self.test_data_questions,
             return_tensors="tf",
@@ -1117,14 +929,10 @@ class TFRagModelIntegrationTests(unittest.TestCase):
         input_ids = input_dict.input_ids
 
         question_hidden_states = rag_sequence.question_encoder(input_ids)[0]
-        docs_dict = retriever(
-            input_ids.numpy(), question_hidden_states.numpy(), return_tensors="tf"
-        )
+        docs_dict = retriever(input_ids.numpy(), question_hidden_states.numpy(), return_tensors="tf")
         doc_scores = tf.squeeze(
             tf.matmul(
-                tf.expand_dims(question_hidden_states, axis=[1]),
-                docs_dict["retrieved_doc_embeds"],
-                transpose_b=True,
+                tf.expand_dims(question_hidden_states, axis=[1]), docs_dict["retrieved_doc_embeds"], transpose_b=True
             ),
             axis=[1],
         )
@@ -1154,9 +962,7 @@ class TFRagModelIntegrationTests(unittest.TestCase):
 @require_retrieval
 class TFRagModelSaveLoadTests(unittest.TestCase):
     def get_rag_config(self):
-        question_encoder_config = AutoConfig.from_pretrained(
-            "facebook/dpr-question_encoder-single-nq-base"
-        )
+        question_encoder_config = AutoConfig.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
         generator_config = AutoConfig.from_pretrained("facebook/bart-large-cnn")
         return RagConfig.from_question_encoder_generator_configs(
             question_encoder_config,
@@ -1199,18 +1005,14 @@ class TFRagModelSaveLoadTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         with tempfile.TemporaryDirectory() as tmp_dirname:
-            rag_sequence = (
-                TFRagSequenceForGeneration.from_pretrained_question_encoder_generator(
-                    "facebook/dpr-question_encoder-single-nq-base",
-                    "facebook/bart-large-cnn",
-                    retriever=rag_retriever,
-                    config=rag_config,
-                )
+            rag_sequence = TFRagSequenceForGeneration.from_pretrained_question_encoder_generator(
+                "facebook/dpr-question_encoder-single-nq-base",
+                "facebook/bart-large-cnn",
+                retriever=rag_retriever,
+                config=rag_config,
             )
             rag_sequence.build_in_name_scope()
             # check that the from pretrained methods work
@@ -1222,20 +1024,13 @@ class TFRagModelSaveLoadTests(unittest.TestCase):
             loss_pretrained = output.loss
             del rag_sequence
 
-        question_encoder = TFAutoModel.from_pretrained(
-            "facebook/dpr-question_encoder-single-nq-base"
-        )
+        question_encoder = TFAutoModel.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
         generator = TFAutoModelForSeq2SeqLM.from_pretrained(
-            "facebook/bart-large-cnn",
-            load_weight_prefix=load_weight_prefix,
-            name="generator",
+            "facebook/bart-large-cnn", load_weight_prefix=load_weight_prefix, name="generator"
         )
 
         rag_sequence = TFRagSequenceForGeneration(
-            config=rag_config,
-            question_encoder=question_encoder,
-            generator=generator,
-            retriever=rag_retriever,
+            config=rag_config, question_encoder=question_encoder, generator=generator, retriever=rag_retriever
         )
 
         output = rag_sequence(input_ids, labels=decoder_input_ids)
@@ -1262,18 +1057,14 @@ class TFRagModelSaveLoadTests(unittest.TestCase):
         input_ids = rag_question_encoder_tokenizer(
             "who sings does he love me with reba", return_tensors="tf"
         ).input_ids
-        decoder_input_ids = rag_decoder_tokenizer(
-            "Linda Davis", return_tensors="tf"
-        ).input_ids
+        decoder_input_ids = rag_decoder_tokenizer("Linda Davis", return_tensors="tf").input_ids
 
         with tempfile.TemporaryDirectory() as tmp_dirname:
-            rag_token = (
-                TFRagTokenForGeneration.from_pretrained_question_encoder_generator(
-                    "facebook/dpr-question_encoder-single-nq-base",
-                    "facebook/bart-large-cnn",
-                    retriever=rag_retriever,
-                    config=rag_config,
-                )
+            rag_token = TFRagTokenForGeneration.from_pretrained_question_encoder_generator(
+                "facebook/dpr-question_encoder-single-nq-base",
+                "facebook/bart-large-cnn",
+                retriever=rag_retriever,
+                config=rag_config,
             )
             rag_token.build_in_name_scope()
             # check that the from pretrained methods work
@@ -1285,19 +1076,12 @@ class TFRagModelSaveLoadTests(unittest.TestCase):
             loss_pretrained = output.loss
             del rag_token
 
-        question_encoder = TFAutoModel.from_pretrained(
-            "facebook/dpr-question_encoder-single-nq-base"
-        )
+        question_encoder = TFAutoModel.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
         generator = TFAutoModelForSeq2SeqLM.from_pretrained(
-            "facebook/bart-large-cnn",
-            load_weight_prefix=load_weight_prefix,
-            name="generator",
+            "facebook/bart-large-cnn", load_weight_prefix=load_weight_prefix, name="generator"
         )
         rag_token = TFRagTokenForGeneration(
-            config=rag_config,
-            question_encoder=question_encoder,
-            generator=generator,
-            retriever=rag_retriever,
+            config=rag_config, question_encoder=question_encoder, generator=generator, retriever=rag_retriever
         )
 
         output = rag_token(input_ids, labels=decoder_input_ids)

@@ -1,8 +1,6 @@
-# Third Party
 from tokenizers import Regex, Tokenizer, decoders, pre_tokenizers, processors
 from tokenizers.models import BPE
 
-# First Party
 from transformers import LlamaTokenizerFast
 from transformers.convert_slow_tokenizer import bytes_to_unicode
 
@@ -44,25 +42,14 @@ class MistralConverter:
                 local = []
                 for index in range(1, len(token)):
                     piece_l, piece_r = token[:index], token[index:]
-                    if (
-                        piece_l in bpe_ranks
-                        and piece_r in bpe_ranks
-                        and (piece_l + piece_r) in bpe_ranks
-                    ):
+                    if piece_l in bpe_ranks and piece_r in bpe_ranks and (piece_l + piece_r) in bpe_ranks:
                         local.append((piece_l, piece_r, rank))
-                local = sorted(
-                    local,
-                    key=lambda x: (bpe_ranks[x[0]], bpe_ranks[x[1]]),
-                    reverse=False,
-                )
+                local = sorted(local, key=lambda x: (bpe_ranks[x[0]], bpe_ranks[x[1]]), reverse=False)
                 merges.extend(local)
             else:
                 vocab[token] = idx
         merges = sorted(merges, key=lambda val: val[2], reverse=False)
-        merges = [
-            (token_bytes_to_string(val[0]), token_bytes_to_string(val[1]))
-            for val in merges
-        ]
+        merges = [(token_bytes_to_string(val[0]), token_bytes_to_string(val[1])) for val in merges]
         return vocab, merges
 
     def tokenizer(self):
@@ -76,12 +63,8 @@ class MistralConverter:
         tokenizer = self.tokenizer()
         tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
             [
-                pre_tokenizers.Split(
-                    Regex(self.pattern), behavior="isolated", invert=False
-                ),
-                pre_tokenizers.ByteLevel(
-                    add_prefix_space=self.add_prefix_space, use_regex=False
-                ),
+                pre_tokenizers.Split(Regex(self.pattern), behavior="isolated", invert=False),
+                pre_tokenizers.ByteLevel(add_prefix_space=self.add_prefix_space, use_regex=False),
             ]
         )
         tokenizer.decoder = decoders.ByteLevel()
@@ -96,7 +79,6 @@ def convert_tekken_tokenizer(tokenizer_file: str):
     """Convert a "tekken" tokenizer to a fast Tokenizer."""
     # Tekken format -- need to use the Converter
 
-    # Third Party
     from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 
     # Load directly using their lib
@@ -114,9 +96,7 @@ def convert_tekken_tokenizer(tokenizer_file: str):
 
     # Convert
     tokenizer = LlamaTokenizerFast(
-        tokenizer_object=MistralConverter(
-            vocab=vocab, additional_special_tokens=all_special
-        ).converted(),
+        tokenizer_object=MistralConverter(vocab=vocab, additional_special_tokens=all_special).converted(),
     )
 
     # Post-process

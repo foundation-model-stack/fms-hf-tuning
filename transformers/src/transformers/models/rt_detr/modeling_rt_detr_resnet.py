@@ -17,16 +17,16 @@ PyTorch RTDetr specific ResNet model. The main difference between hugginface Res
 See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/presnet.py#L126 for details.
 """
 
-# Standard
-from typing import Optional
 import math
+from typing import Optional
 
-# Third Party
 from torch import Tensor, nn
 
-# Local
 from ...activations import ACT2FN
-from ...modeling_outputs import BackboneOutput, BaseModelOutputWithNoAttention
+from ...modeling_outputs import (
+    BackboneOutput,
+    BaseModelOutputWithNoAttention,
+)
 from ...modeling_utils import PreTrainedModel
 from ...utils import (
     add_start_docstrings,
@@ -36,6 +36,7 @@ from ...utils import (
 )
 from ...utils.backbone_utils import BackboneMixin
 from .configuration_rt_detr_resnet import RTDetrResNetConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -50,26 +51,14 @@ _EXPECTED_OUTPUT_SHAPE = [1, 2048, 7, 7]
 # Copied from transformers.models.resnet.modeling_resnet.ResNetConvLayer -> RTDetrResNetConvLayer
 class RTDetrResNetConvLayer(nn.Module):
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        activation: str = "relu",
+        self, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, activation: str = "relu"
     ):
         super().__init__()
         self.convolution = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=kernel_size // 2,
-            bias=False,
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=kernel_size // 2, bias=False
         )
         self.normalization = nn.BatchNorm2d(out_channels)
-        self.activation = (
-            ACT2FN[activation] if activation is not None else nn.Identity()
-        )
+        self.activation = ACT2FN[activation] if activation is not None else nn.Identity()
 
     def forward(self, input: Tensor) -> Tensor:
         hidden_state = self.convolution(input)
@@ -133,9 +122,7 @@ class RTDetrResNetShortCut(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int, stride: int = 2):
         super().__init__()
-        self.convolution = nn.Conv2d(
-            in_channels, out_channels, kernel_size=1, stride=stride, bias=False
-        )
+        self.convolution = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False)
         self.normalization = nn.BatchNorm2d(out_channels)
 
     def forward(self, input: Tensor) -> Tensor:
@@ -162,10 +149,7 @@ class RTDetrResNetBasicLayer(nn.Module):
         if in_channels != out_channels:
             self.shortcut = (
                 nn.Sequential(
-                    *[
-                        nn.AvgPool2d(2, 2, 0, ceil_mode=True),
-                        RTDetrResNetShortCut(in_channels, out_channels, stride=1),
-                    ]
+                    *[nn.AvgPool2d(2, 2, 0, ceil_mode=True), RTDetrResNetShortCut(in_channels, out_channels, stride=1)]
                 )
                 if should_apply_shortcut
                 else nn.Identity()
@@ -228,19 +212,12 @@ class RTDetrResNetBottleNeckLayer(nn.Module):
             )
         self.layer = nn.Sequential(
             RTDetrResNetConvLayer(
-                in_channels,
-                reduces_channels,
-                kernel_size=1,
-                stride=stride if config.downsample_in_bottleneck else 1,
+                in_channels, reduces_channels, kernel_size=1, stride=stride if config.downsample_in_bottleneck else 1
             ),
             RTDetrResNetConvLayer(
-                reduces_channels,
-                reduces_channels,
-                stride=stride if not config.downsample_in_bottleneck else 1,
+                reduces_channels, reduces_channels, stride=stride if not config.downsample_in_bottleneck else 1
             ),
-            RTDetrResNetConvLayer(
-                reduces_channels, out_channels, kernel_size=1, activation=None
-            ),
+            RTDetrResNetConvLayer(reduces_channels, out_channels, kernel_size=1, activation=None),
         )
         self.activation = ACT2FN[config.hidden_act]
 
@@ -268,11 +245,7 @@ class RTDetrResNetStage(nn.Module):
     ):
         super().__init__()
 
-        layer = (
-            RTDetrResNetBottleNeckLayer
-            if config.layer_type == "bottleneck"
-            else RTDetrResNetBasicLayer
-        )
+        layer = RTDetrResNetBottleNeckLayer if config.layer_type == "bottleneck" else RTDetrResNetBasicLayer
 
         if config.layer_type == "bottleneck":
             first_layer = layer(
@@ -282,16 +255,9 @@ class RTDetrResNetStage(nn.Module):
                 stride=stride,
             )
         else:
-            first_layer = layer(
-                config,
-                in_channels,
-                out_channels,
-                stride=stride,
-                should_apply_shortcut=True,
-            )
+            first_layer = layer(config, in_channels, out_channels, stride=stride, should_apply_shortcut=True)
         self.layers = nn.Sequential(
-            first_layer,
-            *[layer(config, out_channels, out_channels) for _ in range(depth - 1)]
+            first_layer, *[layer(config, out_channels, out_channels) for _ in range(depth - 1)]
         )
 
     def forward(self, input: Tensor) -> Tensor:
@@ -317,18 +283,11 @@ class RTDetrResNetEncoder(nn.Module):
             )
         )
         in_out_channels = zip(config.hidden_sizes, config.hidden_sizes[1:])
-        for (in_channels, out_channels), depth in zip(
-            in_out_channels, config.depths[1:]
-        ):
-            self.stages.append(
-                RTDetrResNetStage(config, in_channels, out_channels, depth=depth)
-            )
+        for (in_channels, out_channels), depth in zip(in_out_channels, config.depths[1:]):
+            self.stages.append(RTDetrResNetStage(config, in_channels, out_channels, depth=depth))
 
     def forward(
-        self,
-        hidden_state: Tensor,
-        output_hidden_states: bool = False,
-        return_dict: bool = True,
+        self, hidden_state: Tensor, output_hidden_states: bool = False, return_dict: bool = True
     ) -> BaseModelOutputWithNoAttention:
         hidden_states = () if output_hidden_states else None
 
@@ -423,10 +382,7 @@ class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
     @add_start_docstrings_to_model_forward(RTDETR_RESNET_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=BackboneOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
-        self,
-        pixel_values: Tensor,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        self, pixel_values: Tensor, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None
     ) -> BackboneOutput:
         """
         Returns:
@@ -449,20 +405,14 @@ class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
         >>> list(feature_maps[-1].shape)
         [1, 2048, 7, 7]
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
         embedding_output = self.embedder(pixel_values)
 
-        outputs = self.encoder(
-            embedding_output, output_hidden_states=True, return_dict=True
-        )
+        outputs = self.encoder(embedding_output, output_hidden_states=True, return_dict=True)
 
         hidden_states = outputs.hidden_states
 

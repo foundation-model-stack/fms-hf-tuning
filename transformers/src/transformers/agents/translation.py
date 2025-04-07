@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Local
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +16,7 @@
 # limitations under the License.
 from ..models.auto import AutoModelForSeq2SeqLM, AutoTokenizer
 from .tools import PipelineTool
+
 
 LANGUAGE_CODES = {
     "Acehnese Arabic": "ace_Arab",

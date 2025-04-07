@@ -15,18 +15,16 @@
 
 # This file is based on the tokenization_llama_fast.py file in transformers
 
-# Standard
-from typing import Dict, List, Literal, Union
 import pickle
+from typing import Dict, List, Literal, Union
 
-# Third Party
 from tokenizers import processors
 
-# Local
 from ...tokenization_utils_base import BatchEncoding
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from ...utils.versions import require_version
+
 
 require_version("tokenizers>=0.13.3")
 
@@ -149,9 +147,7 @@ class CohereTokenizerFast(PreTrainedTokenizerFast):
         self.update_post_processor()
         self.use_default_system_prompt = use_default_system_prompt
         self.vocab_file = vocab_file
-        self.grounded_generation_template = kwargs.pop(
-            "grounded_generation_template", None
-        )
+        self.grounded_generation_template = kwargs.pop("grounded_generation_template", None)
         self.tool_use_template = kwargs.pop("tool_use_template", None)
 
         # TODO @ArthurZucker this can only work one way for now, to update later-on. Tests should also properly
@@ -160,12 +156,8 @@ class CohereTokenizerFast(PreTrainedTokenizerFast):
         decoder_state = pickle.dumps(self.backend_tokenizer.decoder)
 
         if add_prefix_space:
-            pre_tok_state = pre_tok_state.replace(
-                b'"add_prefix_space":false', b'"add_prefix_space": true'
-            )
-            decoder_state = decoder_state.replace(
-                b'"add_prefix_space":false', b'"add_prefix_space": true'
-            )
+            pre_tok_state = pre_tok_state.replace(b'"add_prefix_space":false', b'"add_prefix_space": true')
+            decoder_state = decoder_state.replace(b'"add_prefix_space":false', b'"add_prefix_space": true')
         self.backend_tokenizer.pre_tokenizer = pickle.loads(pre_tok_state)
         self.backend_tokenizer.decoder = pickle.loads(decoder_state)
 
@@ -206,8 +198,8 @@ class CohereTokenizerFast(PreTrainedTokenizerFast):
         if eos is None and self.add_eos_token:
             raise ValueError("add_eos_token = True but eos_token = None")
 
-        single = f"{(bos+':0 ') if self.add_bos_token else ''}$A:0{(' '+eos+':0') if self.add_eos_token else ''}"
-        pair = f"{single}{(' '+bos+':1') if self.add_bos_token else ''} $B:1{(' '+eos+':1') if self.add_eos_token else ''}"
+        single = f"{(bos + ':0 ') if self.add_bos_token else ''}$A:0{(' ' + eos + ':0') if self.add_eos_token else ''}"
+        pair = f"{single}{(' ' + bos + ':1') if self.add_bos_token else ''} $B:1{(' ' + eos + ':1') if self.add_eos_token else ''}"
 
         special_tokens = []
         if self.add_bos_token:

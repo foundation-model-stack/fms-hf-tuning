@@ -15,28 +15,28 @@
 
 """Testing suite for the PyTorch Phi-3 model."""
 
-# Standard
-from typing import List
 import unittest
+from typing import List
 
-# Third Party
 from parameterized import parameterized
 
-# First Party
 from transformers import Phi3Config, StaticCache, is_torch_available, set_seed
-from transformers.testing_utils import require_torch, slow, torch_device
+from transformers.models.auto.configuration_auto import AutoConfig
+from transformers.testing_utils import (
+    require_torch,
+    slow,
+    torch_device,
+)
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         AutoTokenizer,
         Phi3ForCausalLM,
@@ -53,7 +53,7 @@ if is_torch_available():
             self.model = model
             self.cache = StaticCache(
                 config=model.config,
-                batch_size=batch_size,
+                max_batch_size=batch_size,
                 max_cache_len=max_seq_len,
                 device=self.model.device,
                 dtype=self.model.dtype,
@@ -71,12 +71,8 @@ if is_torch_available():
             ).logits
 
         @staticmethod
-        def generate(
-            model: Phi3ForCausalLM, prompt_tokens: torch.LongTensor, max_seq_len: int
-        ) -> List[int]:
-            model = Phi3MiniWithStaticCache(
-                model, 1, max_seq_len + prompt_tokens.shape[-1]
-            )
+        def generate(model: Phi3ForCausalLM, prompt_tokens: torch.LongTensor, max_seq_len: int) -> List[int]:
+            model = Phi3MiniWithStaticCache(model, 1, max_seq_len + prompt_tokens.shape[-1])
 
             response_tokens = []
 
@@ -89,10 +85,7 @@ if is_torch_available():
             current_token = torch.argmax(result[:, -1, :], dim=-1).item()
             response_tokens.append(current_token)
 
-            while (
-                current_token != end_of_text_token
-                and len(response_tokens) < max_seq_len
-            ):
+            while current_token != end_of_text_token and len(response_tokens) < max_seq_len:
                 result = model.forward(
                     input_ids=torch.tensor([[current_token]], dtype=torch.long),
                 )
@@ -163,33 +156,19 @@ class Phi3ModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return Phi3Config(
@@ -210,146 +189,14 @@ class Phi3ModelTester:
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_model with Llama->Phi3
     def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = Phi3Model(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=input_mask)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_model_as_decoder with Llama->Phi3
-    def create_and_check_model_as_decoder(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.add_cross_attention = True
-        model = Phi3Model(config)
-        model.to(torch_device)
-        model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-        )
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-        )
-        result = model(input_ids, attention_mask=input_mask)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_for_causal_lm with Llama->Phi3
-    def create_and_check_for_causal_lm(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = Phi3ForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_decoder_model_past_large_inputs with Llama->Phi3
-    def create_and_check_decoder_model_past_large_inputs(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.is_decoder = True
-        config.add_cross_attention = True
-        model = Phi3ForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-
-        # first forward pass
-        outputs = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            use_cache=True,
-        )
-        past_key_values = outputs.past_key_values
-
-        # create hypothetical multiple next token and extent to next_input_ids
-        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size)
-        next_mask = ids_tensor((self.batch_size, 3), vocab_size=2)
-
-        # append to next input_ids and
-        next_input_ids = torch.cat([input_ids, next_tokens], dim=-1)
-        next_attention_mask = torch.cat([input_mask, next_mask], dim=-1)
-
-        output_from_no_past = model(
-            next_input_ids,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-        output_from_past = model(
-            next_tokens,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            past_key_values=past_key_values,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-
-        # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
-        output_from_no_past_slice = output_from_no_past[
-            :, -3:, random_slice_idx
-        ].detach()
-        output_from_past_slice = output_from_past[:, :, random_slice_idx].detach()
-
-        self.parent.assertTrue(output_from_past_slice.shape[1] == next_tokens.shape[1])
-
-        # test that outputs are equal for slice
-        self.parent.assertTrue(
-            torch.allclose(output_from_past_slice, output_from_no_past_slice, atol=1e-3)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.prepare_config_and_inputs_for_common
     def prepare_config_and_inputs_for_common(self):
@@ -368,16 +215,9 @@ class Phi3ModelTester:
 
 
 @require_torch
-class Phi3ModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class Phi3ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (
-        (
-            Phi3Model,
-            Phi3ForCausalLM,
-            Phi3ForSequenceClassification,
-            Phi3ForTokenClassification,
-        )
+        (Phi3Model, Phi3ForCausalLM, Phi3ForSequenceClassification, Phi3ForTokenClassification)
         if is_torch_available()
         else ()
     )
@@ -429,17 +269,12 @@ class Phi3ModelTest(
         config.num_labels = 3
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = Phi3ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTest.test_llama_sequence_classification_model_for_single_label with Llama->Phi3,llama->phi3
     def test_phi3_sequence_classification_model_for_single_label(self):
@@ -448,17 +283,12 @@ class Phi3ModelTest(
         config.problem_type = "single_label_classification"
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = Phi3ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTest.test_llama_sequence_classification_model_for_multi_label with Llama->Phi3,llama->phi3
     def test_phi3_sequence_classification_model_for_multi_label(self):
@@ -468,38 +298,28 @@ class Phi3ModelTest(
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
         sequence_labels = ids_tensor(
-            [self.model_tester.batch_size, config.num_labels],
-            self.model_tester.type_sequence_label_size,
+            [self.model_tester.batch_size, config.num_labels], self.model_tester.type_sequence_label_size
         ).to(torch.float)
         model = Phi3ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     @parameterized.expand([("longrope",)])
     def test_model_rope_scaling_from_config(self, scaling_type):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()
         short_input = ids_tensor([1, 10], config.vocab_size)
-        long_input = ids_tensor(
-            [1, int(config.max_position_embeddings * 1.5)], config.vocab_size
-        )
+        long_input = ids_tensor([1, int(config.max_position_embeddings * 1.5)], config.vocab_size)
 
-        set_seed(
-            42
-        )  # Fixed seed at init time so the two models get the same random weights
+        set_seed(42)  # Fixed seed at init time so the two models get the same random weights
         original_model = Phi3Model(config)
         original_model.to(torch_device)
         original_model.eval()
         original_short_output = original_model(short_input).last_hidden_state
         original_long_output = original_model(long_input).last_hidden_state
 
-        set_seed(
-            42
-        )  # Fixed seed at init time so the two models get the same random weights
+        set_seed(42)  # Fixed seed at init time so the two models get the same random weights
         n_factors = config.hidden_size // config.num_attention_heads // 2
         config.rope_scaling = {
             "type": scaling_type,
@@ -513,12 +333,8 @@ class Phi3ModelTest(
         scaled_long_output = scaled_model(long_input).last_hidden_state
 
         # Scaling changes the RoPE embeddings, both for the short and long outputs
-        self.assertFalse(
-            torch.allclose(original_short_output, scaled_short_output, atol=1e-5)
-        )
-        self.assertFalse(
-            torch.allclose(original_long_output, scaled_long_output, atol=1e-5)
-        )
+        self.assertFalse(torch.allclose(original_short_output, scaled_short_output, atol=1e-5))
+        self.assertFalse(torch.allclose(original_long_output, scaled_long_output, atol=1e-5))
 
     @parameterized.expand([("longrope",)])
     def test_model_rope_scaling_short_long_factor(self, scaling_type):
@@ -556,23 +372,13 @@ class Phi3ModelTest(
         output_with_long_factor = model.generate(input_tensor, **generation_args_long)
         keys_with_long_factor = output_with_long_factor.past_key_values[0][0]
         last_token_logits = output_with_long_factor.logits[-1][-1]
-        regenerated_last_token_logits = model(
-            output_with_long_factor.sequences[:, :-1]
-        ).logits[0][-1]
-        keys_with_long_factor = keys_with_long_factor[
-            :, :, : config.original_max_position_embeddings - 1, :
-        ]
+        regenerated_last_token_logits = model(output_with_long_factor.sequences[:, :-1]).logits[0][-1]
+        keys_with_long_factor = keys_with_long_factor[:, :, : config.original_max_position_embeddings - 1, :]
 
         # KV cache is re-computed after reaching the (`config.original_max_position_embeddings`+1)th token position
-        self.assertFalse(
-            torch.allclose(
-                keys_with_short_factor, keys_with_long_factor, atol=1e-2, rtol=1e-2
-            )
-        )
+        self.assertFalse(torch.allclose(keys_with_short_factor, keys_with_long_factor, atol=1e-2, rtol=1e-2))
         # Last token generated using long factor
-        torch.testing.assert_close(
-            last_token_logits, regenerated_last_token_logits, rtol=1e-2, atol=1e-2
-        )
+        torch.testing.assert_close(last_token_logits, regenerated_last_token_logits, rtol=1e-2, atol=1e-2)
 
 
 @slow
@@ -581,23 +387,18 @@ class Phi3IntegrationTest(unittest.TestCase):
     def test_model_phi3_mini_4k_instruct_logits(self):
         input_ids = {
             "input_ids": torch.tensor(
-                [[1212, 318, 281, 1672, 2643, 290, 428, 318, 257, 1332]],
-                dtype=torch.long,
-                device=torch_device,
+                [[1212, 318, 281, 1672, 2643, 290, 428, 318, 257, 1332]], dtype=torch.long, device=torch_device
             )
         }
 
-        model = Phi3ForCausalLM.from_pretrained("microsoft/phi-3-mini-4k-instruct").to(
-            torch_device
-        )
+        model = Phi3ForCausalLM.from_pretrained("microsoft/phi-3-mini-4k-instruct").to(torch_device)
         model.eval()
 
         output = model(**input_ids).logits
+
         EXPECTED_OUTPUT = torch.tensor([[ 0.9979, -1.9449, -2.5613, -2.2110, -0.9323, -2.2726, -3.2468, -2.0122,-1.0021, -1.2764, -1.0876, -1.2358,  3.9385,  6.2152, -0.3695, -2.3285,-1.2907, -1.8238, -1.9941, -2.2098, -0.6923, -1.6793, -1.1660, -2.0469,-0.7369, -1.4101, -1.4091, -3.1694, -1.8383, -1.1952],[ 3.0525,  1.9178,  3.7016,  0.9263,  0.3397,  1.9584,  2.1347,  0.3482, 1.3773,  0.2153,  0.2798,  0.8360,  9.0936, 11.4944, -0.3575, -0.9442,-0.1246,  1.3869,  0.9846,  1.7243,  0.9150,  1.0823,  0.4313,  1.5742, 0.2566, -0.1401, -1.3019,  0.4967,  0.6941,  0.7214]]).to(torch_device)  # fmt: skip
 
-        torch.testing.assert_close(
-            EXPECTED_OUTPUT, output[0, :2, :30], rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(EXPECTED_OUTPUT, output[0, :2, :30], rtol=1e-4, atol=1e-4)
 
     def test_phi3_mini_4k_instruct_generation(self):
         model = Phi3ForCausalLM.from_pretrained("microsoft/phi-3-mini-4k-instruct")
@@ -608,14 +409,9 @@ class Phi3IntegrationTest(unittest.TestCase):
                 "role": "system",
                 "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.",
             },
-            {
-                "role": "user",
-                "content": "Can you provide ways to eat combinations of bananas and dragonfruits?",
-            },
+            {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
         ]
-        inputs = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
-        )
+        inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
 
         outputs = model.generate(inputs, max_new_tokens=32)
         output_text = tokenizer.batch_decode(outputs)
@@ -635,20 +431,13 @@ class Phi3IntegrationTest(unittest.TestCase):
                 "role": "system",
                 "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.",
             },
-            {
-                "role": "user",
-                "content": "Can you provide ways to eat combinations of bananas and dragonfruits?",
-            },
+            {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
         ]
-        inputs = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
-        )
+        inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
 
         response_tokens = Phi3MiniWithStaticCache.generate(model, inputs, 64)
 
-        output_text = tokenizer.batch_decode(
-            torch.tensor([response_tokens], dtype=torch.long, device=torch_device)
-        )
+        output_text = tokenizer.batch_decode(torch.tensor([response_tokens], dtype=torch.long, device=torch_device))
 
         EXPECTED_OUTPUT = [
             "<|system|> You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.<|end|><|user|> Can you provide ways to eat combinations of bananas and dragonfruits?<|end|><|assistant|> Certainly! Bananas and dragonfruits can be combined in various delicious ways. Here are some"
@@ -659,23 +448,18 @@ class Phi3IntegrationTest(unittest.TestCase):
     def test_model_phi3_mini_128k_instruct_logits(self):
         input_ids = {
             "input_ids": torch.tensor(
-                [[1212, 318, 281, 1672, 2643, 290, 428, 318, 257, 1332]],
-                dtype=torch.long,
-                device=torch_device,
+                [[1212, 318, 281, 1672, 2643, 290, 428, 318, 257, 1332]], dtype=torch.long, device=torch_device
             )
         }
 
-        model = Phi3ForCausalLM.from_pretrained(
-            "microsoft/phi-3-mini-128k-instruct"
-        ).to(torch_device)
+        model = Phi3ForCausalLM.from_pretrained("microsoft/phi-3-mini-128k-instruct").to(torch_device)
         model.eval()
 
         output = model(**input_ids).logits
+
         EXPECTED_OUTPUT = torch.tensor([[ 1.8478, -0.5709, -1.6792, -1.2133, -0.7809, -0.8817, -2.0969, -1.1191,-0.7731, -1.0483, -0.5961, -1.3067,  3.1325,  6.9442, -0.4803, -0.9154,-1.3085, -1.0822, -1.1433, -0.7660, -0.8531, -0.9150, -0.6179, -1.6153,-0.2239, -1.3207, -1.1187, -2.4795, -1.4733, -0.4931],[ 3.5839,  2.4722,  3.7130,  1.2032,  0.7356,  2.7777,  2.5256,  0.9157, 1.6431,  0.3533,  0.5100,  1.3512,  8.9873, 10.9815,  0.3530,  0.1473, 0.2051,  1.8553,  1.5988,  2.2268,  1.1897,  1.2829,  0.7894,  1.8895, 0.7666,  0.4122, -0.9316,  0.9936,  1.2722,  0.8263]]).to(torch_device)  # fmt: skip
 
-        torch.testing.assert_close(
-            EXPECTED_OUTPUT, output[0, :2, :30], rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(EXPECTED_OUTPUT, output[0, :2, :30], rtol=1e-4, atol=1e-4)
 
     def test_phi3_mini_128k_instruct_generation(self):
         model = Phi3ForCausalLM.from_pretrained("microsoft/phi-3-mini-128k-instruct")
@@ -686,14 +470,9 @@ class Phi3IntegrationTest(unittest.TestCase):
                 "role": "system",
                 "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.",
             },
-            {
-                "role": "user",
-                "content": "Can you provide ways to eat combinations of bananas and dragonfruits?",
-            },
+            {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
         ]
-        inputs = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
-        )
+        inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
 
         outputs = model.generate(inputs, max_new_tokens=32)
         output_text = tokenizer.batch_decode(outputs)
@@ -713,20 +492,13 @@ class Phi3IntegrationTest(unittest.TestCase):
                 "role": "system",
                 "content": "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.",
             },
-            {
-                "role": "user",
-                "content": "Can you provide ways to eat combinations of bananas and dragonfruits?",
-            },
+            {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
         ]
-        inputs = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
-        )
+        inputs = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
 
         response_tokens = Phi3MiniWithStaticCache.generate(model, inputs, 64)
 
-        output_text = tokenizer.batch_decode(
-            torch.tensor([response_tokens], dtype=torch.long, device=torch_device)
-        )
+        output_text = tokenizer.batch_decode(torch.tensor([response_tokens], dtype=torch.long, device=torch_device))
 
         EXPECTED_OUTPUT = [
             "<|system|> You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user.<|end|><|user|> Can you provide ways to eat combinations of bananas and dragonfruits?<|end|><|assistant|> Certainly! Bananas and dragonfruits can be combined in various delicious and nutritious ways"
@@ -741,9 +513,7 @@ class Phi3IntegrationTest(unittest.TestCase):
         See #33586 for more
         """
         model = Phi3ForCausalLM.from_pretrained(
-            "microsoft/Phi-3-mini-4k-instruct",
-            device_map=torch_device,
-            torch_dtype=torch.bfloat16,
+            "microsoft/Phi-3-mini-4k-instruct", device_map=torch_device, torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
 
@@ -819,11 +589,78 @@ class Phi3IntegrationTest(unittest.TestCase):
 
         inputs = tokenizer(input_text, return_tensors="pt").to(device=torch_device)
         outputs = model.generate(**inputs, max_new_tokens=100)
-        output_text = tokenizer.batch_decode(
-            outputs[:, inputs.input_ids.shape[1] :], skip_special_tokens=True
-        )
+        output_text = tokenizer.batch_decode(outputs[:, inputs.input_ids.shape[1] :], skip_special_tokens=True)
         EXPECTED_OUTPUT = [
             '1. Coq au Vin: Coq au Vin is a classic French dish that translates to "rooster in wine." The dish consists of chicken braised with wine, lardons, mushrooms, and garlic. It is a hearty and flavorful dish that is often served with potatoes or rice.\n\n            2. Boeuf Bourguignon: Boeuf Bourguignon is a traditional French beef stew that'
         ]
 
         self.assertListEqual(output_text, EXPECTED_OUTPUT)
+
+    @slow
+    def test_export_static_cache(self):
+        from transformers.pytorch_utils import is_torch_greater_or_equal_than_2_4
+
+        if not is_torch_greater_or_equal_than_2_4:
+            self.skipTest(reason="This test requires torch >= 2.4 to run.")
+
+        from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
+        from transformers.integrations.executorch import (
+            TorchExportableModuleWithStaticCache,
+            convert_and_export_with_cache,
+        )
+
+        model_id = "microsoft/Phi-4-mini-instruct"
+
+        tokenizer = AutoTokenizer.from_pretrained(model_id, pad_token="</s>", padding_side="right")
+        EXPECTED_TEXT_COMPLETION = [
+            "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user. A 45-year-old patient with a 10-year history of type 2 diabetes mellitus, who is currently on metformin and a SGLT2 inhibitor, presents with a 2-year history"
+        ]
+        max_generation_length = tokenizer(EXPECTED_TEXT_COMPLETION, return_tensors="pt", padding=True)[
+            "input_ids"
+        ].shape[-1]
+
+        # Load config
+        config = AutoConfig.from_pretrained(model_id)
+        # NOTE: To make the model exportable we need to set the rope scaling to default to avoid hitting
+        # the data-dependent control flow in _longrope_frequency_update. Alternatively, we can rewrite
+        # that function to avoid the data-dependent control flow.
+        if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
+            config.rope_scaling["type"] = "default"
+
+        # Load model
+        device = "cpu"
+        dtype = torch.bfloat16
+        cache_implementation = "static"
+        attn_implementation = "sdpa"
+        batch_size = 1
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            config=config,
+            device_map=device,
+            torch_dtype=dtype,
+            attn_implementation=attn_implementation,
+            generation_config=GenerationConfig(
+                use_cache=True,
+                cache_implementation=cache_implementation,
+                max_length=max_generation_length,
+                cache_config={
+                    "batch_size": batch_size,
+                    "max_cache_len": max_generation_length,
+                },
+            ),
+        )
+
+        prompt = [
+            "You are a helpful digital assistant. Please provide safe, ethical and accurate information to the user."
+        ]
+        prompt_tokens = tokenizer(prompt, return_tensors="pt", padding=True).to(model.device)
+        prompt_token_ids = prompt_tokens["input_ids"]
+        max_new_tokens = max_generation_length - prompt_token_ids.shape[-1]
+
+        # Static Cache + export
+        exported_program = convert_and_export_with_cache(model)
+        ep_generated_ids = TorchExportableModuleWithStaticCache.generate(
+            exported_program=exported_program, prompt_token_ids=prompt_token_ids, max_new_tokens=max_new_tokens
+        )
+        ep_generated_text = tokenizer.batch_decode(ep_generated_ids, skip_special_tokens=True)
+        self.assertEqual(EXPECTED_TEXT_COMPLETION, ep_generated_text)

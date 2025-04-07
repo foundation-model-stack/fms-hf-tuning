@@ -13,22 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import is_torch_available, is_vision_available
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import AutoModelForImageClassification
 
 if is_vision_available():
-    # First Party
     from transformers import AutoImageProcessor
 
 
@@ -37,15 +33,10 @@ if is_vision_available():
 class DiTIntegrationTest(unittest.TestCase):
     @slow
     def test_for_image_classification(self):
-        image_processor = AutoImageProcessor.from_pretrained(
-            "microsoft/dit-base-finetuned-rvlcdip"
-        )
-        model = AutoModelForImageClassification.from_pretrained(
-            "microsoft/dit-base-finetuned-rvlcdip"
-        )
+        image_processor = AutoImageProcessor.from_pretrained("microsoft/dit-base-finetuned-rvlcdip")
+        model = AutoModelForImageClassification.from_pretrained("microsoft/dit-base-finetuned-rvlcdip")
         model.to(torch_device)
 
-        # Third Party
         from datasets import load_dataset
 
         dataset = load_dataset("nielsr/rvlcdip-demo")

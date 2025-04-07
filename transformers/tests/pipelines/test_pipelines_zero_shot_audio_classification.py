@@ -12,20 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 from datasets import load_dataset
 
-# First Party
 from transformers.pipelines import pipeline
-from transformers.testing_utils import (
-    is_pipeline_test,
-    nested_simplify,
-    require_torch,
-    slow,
-)
+from transformers.testing_utils import is_pipeline_test, nested_simplify, require_torch, slow
 
 
 @is_pipeline_test
@@ -44,15 +36,10 @@ class ZeroShotAudioClassificationPipelineTests(unittest.TestCase):
         )
         dataset = load_dataset("hf-internal-testing/ashraq-esc50-1-dog-example")
         audio = dataset["train"]["audio"][-1]["array"]
-        output = audio_classifier(
-            audio, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"]
-        )
+        output = audio_classifier(audio, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"])
         self.assertEqual(
             nested_simplify(output),
-            [
-                {"score": 0.501, "label": "Sound of a dog"},
-                {"score": 0.499, "label": "Sound of vaccum cleaner"},
-            ],
+            [{"score": 0.501, "label": "Sound of a dog"}, {"score": 0.499, "label": "Sound of vaccum cleaner"}],
         )
 
     @require_torch
@@ -73,9 +60,7 @@ class ZeroShotAudioClassificationPipelineTests(unittest.TestCase):
         # This is an audio of a dog
         dataset = load_dataset("hf-internal-testing/ashraq-esc50-1-dog-example")
         audio = dataset["train"]["audio"][-1]["array"]
-        output = audio_classifier(
-            audio, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"]
-        )
+        output = audio_classifier(audio, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"])
 
         self.assertEqual(
             nested_simplify(output),
@@ -85,9 +70,7 @@ class ZeroShotAudioClassificationPipelineTests(unittest.TestCase):
             ],
         )
 
-        output = audio_classifier(
-            [audio] * 5, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"]
-        )
+        output = audio_classifier([audio] * 5, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"])
         self.assertEqual(
             nested_simplify(output),
             [
@@ -99,9 +82,7 @@ class ZeroShotAudioClassificationPipelineTests(unittest.TestCase):
             * 5,
         )
         output = audio_classifier(
-            [audio] * 5,
-            candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"],
-            batch_size=5,
+            [audio] * 5, candidate_labels=["Sound of a dog", "Sound of vaccum cleaner"], batch_size=5
         )
         self.assertEqual(
             nested_simplify(output),

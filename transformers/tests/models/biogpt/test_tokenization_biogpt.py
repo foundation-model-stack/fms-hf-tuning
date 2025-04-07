@@ -14,19 +14,13 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
 
-# First Party
-from transformers.models.biogpt.tokenization_biogpt import (
-    VOCAB_FILES_NAMES,
-    BioGptTokenizer,
-)
+from transformers.models.biogpt.tokenization_biogpt import VOCAB_FILES_NAMES, BioGptTokenizer
 from transformers.testing_utils import require_sacremoses, slow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
@@ -36,8 +30,9 @@ class BioGptTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     tokenizer_class = BioGptTokenizer
     test_rust_tokenizer = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = [
@@ -66,13 +61,11 @@ class BioGptTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["l o 123", "lo w 1456", "e r</w> 1789", ""]
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
-        with open(self.vocab_file, "w") as fp:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        cls.merges_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
+        with open(cls.vocab_file, "w") as fp:
             fp.write(json.dumps(vocab_tokens))
-        with open(self.merges_file, "w") as fp:
+        with open(cls.merges_file, "w") as fp:
             fp.write("\n".join(merges))
 
     def get_input_output_texts(self, tokenizer):
@@ -91,9 +84,7 @@ class BioGptTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + ["<unk>"]
         input_bpe_tokens = [14, 15, 20]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     @slow
     def test_sequence_builders(self):

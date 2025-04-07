@@ -12,41 +12,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import os
 import pathlib
 import tempfile
 import uuid
 
-# Third Party
 import numpy as np
 
-# Local
-from ..utils import (
-    is_soundfile_available,
-    is_torch_available,
-    is_vision_available,
-    logging,
-)
+from ..utils import is_soundfile_available, is_torch_available, is_vision_available, logging
+
 
 logger = logging.get_logger(__name__)
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
     from PIL.Image import Image as ImageType
 else:
     ImageType = object
 
 if is_torch_available():
-    # Third Party
-    from torch import Tensor
     import torch
+    from torch import Tensor
 else:
     Tensor = object
 
 if is_soundfile_available():
-    # Third Party
     import soundfile as sf
 
 
@@ -117,15 +107,12 @@ class AgentImage(AgentType, ImageType):
         elif isinstance(value, np.ndarray):
             self._tensor = torch.from_numpy(value)
         else:
-            raise TypeError(
-                f"Unsupported type for {self.__class__.__name__}: {type(value)}"
-            )
+            raise TypeError(f"Unsupported type for {self.__class__.__name__}: {type(value)}")
 
     def _ipython_display_(self, include=None, exclude=None):
         """
         Displays correctly this type in an ipython notebook (ipython, colab, jupyter, ...)
         """
-        # Third Party
         from IPython.display import Image, display
 
         display(Image(self.to_string()))
@@ -142,7 +129,7 @@ class AgentImage(AgentType, ImageType):
             return self._raw
 
         if self._tensor is not None:
-            array = self._tensor.cpu().detach().numpy()
+            array = self._tensor.detach().cpu().numpy()
             return Image.fromarray((255 - array * 255).astype(np.uint8))
 
     def to_string(self):
@@ -160,7 +147,7 @@ class AgentImage(AgentType, ImageType):
             return self._path
 
         if self._tensor is not None:
-            array = self._tensor.cpu().detach().numpy()
+            array = self._tensor.detach().cpu().numpy()
 
             # There is likely simpler than load into image into save
             img = Image.fromarray((255 - array * 255).astype(np.uint8))
@@ -216,7 +203,6 @@ class AgentAudio(AgentType, str):
         """
         Displays correctly this type in an ipython notebook (ipython, colab, jupyter, ...)
         """
-        # Third Party
         from IPython.display import Audio, display
 
         display(Audio(self.to_string(), rate=self.samplerate))
@@ -257,9 +243,7 @@ if is_torch_available():
 
 def handle_agent_inputs(*args, **kwargs):
     args = [(arg.to_raw() if isinstance(arg, AgentType) else arg) for arg in args]
-    kwargs = {
-        k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()
-    }
+    kwargs = {k: (v.to_raw() if isinstance(v, AgentType) else v) for k, v in kwargs.items()}
     return args, kwargs
 
 

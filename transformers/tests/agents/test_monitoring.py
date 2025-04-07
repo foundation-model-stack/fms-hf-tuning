@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers.agents.agent_types import AgentImage
 from transformers.agents.agents import AgentError, ReactCodeAgent, ReactJsonAgent
 from transformers.agents.monitoring import stream_to_gradio
@@ -131,9 +129,7 @@ final_answer('This is the final answer.')
 
     def test_streaming_agent_image_output(self):
         def dummy_llm_engine(prompt, **kwargs):
-            return (
-                'Action:{"action": "final_answer", "action_input": {"answer": "image"}}'
-            )
+            return 'Action:{"action": "final_answer", "action_input": {"answer": "image"}}'
 
         agent = ReactJsonAgent(
             tools=[],
@@ -142,14 +138,7 @@ final_answer('This is the final answer.')
         )
 
         # Use stream_to_gradio to capture the output
-        outputs = list(
-            stream_to_gradio(
-                agent,
-                task="Test task",
-                image=AgentImage(value="path.png"),
-                test_mode=True,
-            )
-        )
+        outputs = list(stream_to_gradio(agent, task="Test task", image=AgentImage(value="path.png"), test_mode=True))
 
         self.assertEqual(len(outputs), 2)
         final_message = outputs[-1]

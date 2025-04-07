@@ -14,31 +14,22 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# Third Party
 from datasets import load_dataset
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import BeitImageProcessor
 
 
@@ -92,9 +83,7 @@ class BeitImageProcessingTester:
     def expected_output_image_shape(self, images):
         return self.num_channels, self.crop_size["height"], self.crop_size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -107,9 +96,7 @@ class BeitImageProcessingTester:
 
 
 def prepare_semantic_single_inputs():
-    dataset = load_dataset(
-        "hf-internal-testing/fixtures_ade20k", split="test", trust_remote_code=True
-    )
+    dataset = load_dataset("hf-internal-testing/fixtures_ade20k", split="test", trust_remote_code=True)
 
     image = Image.open(dataset[0]["file"])
     map = Image.open(dataset[1]["file"])
@@ -118,9 +105,7 @@ def prepare_semantic_single_inputs():
 
 
 def prepare_semantic_batch_inputs():
-    ds = load_dataset(
-        "hf-internal-testing/fixtures_ade20k", split="test", trust_remote_code=True
-    )
+    ds = load_dataset("hf-internal-testing/fixtures_ade20k", split="test", trust_remote_code=True)
 
     image1 = Image.open(ds[0]["file"])
     map1 = Image.open(ds[1]["file"])
@@ -155,9 +140,7 @@ class BeitImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         self.assertTrue(hasattr(image_processing, "do_reduce_labels"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertEqual(image_processor.size, {"height": 20, "width": 20})
         self.assertEqual(image_processor.crop_size, {"height": 18, "width": 18})
         self.assertEqual(image_processor.do_reduce_labels, False)
@@ -173,9 +156,7 @@ class BeitImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         # Initialize image_processing
         image_processing = self.image_processing_class(**self.image_processor_dict)
         # create random PyTorch tensors
-        image_inputs = self.image_processor_tester.prepare_image_inputs(
-            equal_resolution=False, torchify=True
-        )
+        image_inputs = self.image_processor_tester.prepare_image_inputs(equal_resolution=False, torchify=True)
         maps = []
         for image in image_inputs:
             self.assertIsInstance(image, torch.Tensor)

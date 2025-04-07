@@ -19,20 +19,16 @@ This code is the same as the original Vision Transformer (ViT) with 2 modificati
 - addition of a mixture-of-experts MLP layer
 """
 
-# Standard
-from typing import Optional, Set, Tuple, Union
 import collections.abc
-import math
+from typing import Callable, Optional, Set, Tuple, Union
 
-# Third Party
-from torch import nn
 import torch
 import torch.utils.checkpoint
+from torch import nn
 
-# Local
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput, BaseModelOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...utils import (
     add_start_docstrings,
@@ -42,6 +38,7 @@ from ...utils import (
 )
 from ...utils.backbone_utils import BackboneMixin
 from .configuration_vitpose_backbone import VitPoseBackboneConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -60,30 +57,14 @@ class VitPoseBackbonePatchEmbeddings(nn.Module):
         num_channels = config.num_channels
         embed_dim = config.hidden_size
 
-        image_size = (
-            image_size
-            if isinstance(image_size, collections.abc.Iterable)
-            else (image_size, image_size)
-        )
-        patch_size = (
-            patch_size
-            if isinstance(patch_size, collections.abc.Iterable)
-            else (patch_size, patch_size)
-        )
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
+        image_size = image_size if isinstance(image_size, collections.abc.Iterable) else (image_size, image_size)
+        patch_size = patch_size if isinstance(patch_size, collections.abc.Iterable) else (patch_size, patch_size)
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
         self.image_size = image_size
         self.patch_size = patch_size
         self.num_patches = num_patches
 
-        self.projection = nn.Conv2d(
-            num_channels,
-            embed_dim,
-            kernel_size=patch_size,
-            stride=patch_size,
-            padding=2,
-        )
+        self.projection = nn.Conv2d(num_channels, embed_dim, kernel_size=patch_size, stride=patch_size, padding=2)
 
     def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
         height, width = pixel_values.shape[-2:]
@@ -107,99 +88,110 @@ class VitPoseBackboneEmbeddings(nn.Module):
 
         self.patch_embeddings = VitPoseBackbonePatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
-        self.position_embeddings = nn.Parameter(
-            torch.zeros(1, num_patches + 1, config.hidden_size)
-        )
+        self.position_embeddings = nn.Parameter(torch.zeros(1, num_patches + 1, config.hidden_size))
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
         embeddings = self.patch_embeddings(pixel_values)
 
         # add positional encoding to each token
-        embeddings = (
-            embeddings
-            + self.position_embeddings[:, 1:]
-            + self.position_embeddings[:, :1]
-        )
+        embeddings = embeddings + self.position_embeddings[:, 1:] + self.position_embeddings[:, :1]
 
         embeddings = self.dropout(embeddings)
 
         return embeddings
 
 
+# Copied from transformers.models.vit.modeling_vit.eager_attention_forward
+def eager_attention_forward(
+    module: nn.Module,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: Optional[torch.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    # Take the dot product between "query" and "key" to get the raw attention scores.
+    attn_weights = torch.matmul(query, key.transpose(-1, -2)) * scaling
+
+    # Normalize the attention scores to probabilities.
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+
+    # This is actually dropping out entire tokens to attend to, which might
+    # seem a bit unusual, but is taken from the original Transformer paper.
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    # Mask heads if we want to
+    if attention_mask is not None:
+        attn_weights = attn_weights * attention_mask
+
+    attn_output = torch.matmul(attn_weights, value)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 # Copied from transformers.models.vit.modeling_vit.ViTSelfAttention with ViT->VitPoseBackbone
 class VitPoseBackboneSelfAttention(nn.Module):
     def __init__(self, config: VitPoseBackboneConfig) -> None:
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
-            config, "embedding_size"
-        ):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size {config.hidden_size} is not a multiple of the number of attention "
                 f"heads {config.num_attention_heads}."
             )
 
+        self.config = config
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
+        self.dropout_prob = config.attention_probs_dropout_prob
+        self.scaling = self.attention_head_size**-0.5
+        self.is_causal = False
 
-        self.query = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.key = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.value = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-
-        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+        self.query = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.key = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.value = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(
-        self,
-        hidden_states,
-        head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
+        self, hidden_states, head_mask: Optional[torch.Tensor] = None, output_attentions: bool = False
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        mixed_query_layer = self.query(hidden_states)
-
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
-        query_layer = self.transpose_for_scores(mixed_query_layer)
+        query_layer = self.transpose_for_scores(self.query(hidden_states))
 
-        # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and output_attentions:
+                logger.warning_once(
+                    "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-
-        # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attention_probs = attention_probs * head_mask
-
-        context_layer = torch.matmul(attention_probs, value_layer)
-
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(new_context_layer_shape)
-
-        outputs = (
-            (context_layer, attention_probs) if output_attentions else (context_layer,)
+        context_layer, attention_probs = attention_interface(
+            self,
+            query_layer,
+            key_layer,
+            value_layer,
+            head_mask,
+            is_causal=self.is_causal,
+            scaling=self.scaling,
+            dropout=0.0 if not self.training else self.dropout_prob,
         )
+
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        context_layer = context_layer.reshape(new_context_layer_shape)
+
+        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         return outputs
 
@@ -216,9 +208,7 @@ class VitPoseBackboneSelfOutput(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
@@ -237,10 +227,7 @@ class VitPoseBackboneAttention(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads,
-            self.attention.num_attention_heads,
-            self.attention.attention_head_size,
-            self.pruned_heads,
+            heads, self.attention.num_attention_heads, self.attention.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
@@ -250,12 +237,8 @@ class VitPoseBackboneAttention(nn.Module):
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.attention.num_attention_heads = self.attention.num_attention_heads - len(
-            heads
-        )
-        self.attention.all_head_size = (
-            self.attention.attention_head_size * self.attention.num_attention_heads
-        )
+        self.attention.num_attention_heads = self.attention.num_attention_heads - len(heads)
+        self.attention.all_head_size = self.attention.attention_head_size * self.attention.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -268,9 +251,7 @@ class VitPoseBackboneAttention(nn.Module):
 
         attention_output = self.output(self_outputs[0], hidden_states)
 
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
 
@@ -291,17 +272,11 @@ class VitPoseBackboneMoeMLP(nn.Module):
         self.drop = nn.Dropout(config.hidden_dropout_prob)
 
         self.num_experts = num_experts
-        experts = [
-            nn.Linear(hidden_features, part_features) for _ in range(num_experts)
-        ]
+        experts = [nn.Linear(hidden_features, part_features) for _ in range(num_experts)]
         self.experts = nn.ModuleList(experts)
 
-    def forward(
-        self, hidden_state: torch.Tensor, indices: torch.Tensor
-    ) -> torch.Tensor:
-        expert_hidden_state = torch.zeros_like(
-            hidden_state[:, :, -self.part_features :]
-        )
+    def forward(self, hidden_state: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+        expert_hidden_state = torch.zeros_like(hidden_state[:, :, -self.part_features :])
 
         hidden_state = self.fc1(hidden_state)
         hidden_state = self.act(hidden_state)
@@ -340,17 +315,9 @@ class VitPoseBackboneLayer(nn.Module):
         super().__init__()
         self.num_experts = config.num_experts
         self.attention = VitPoseBackboneAttention(config)
-        self.mlp = (
-            VitPoseBackboneMLP(config)
-            if self.num_experts == 1
-            else VitPoseBackboneMoeMLP(config)
-        )
-        self.layernorm_before = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
-        self.layernorm_after = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.mlp = VitPoseBackboneMLP(config) if self.num_experts == 1 else VitPoseBackboneMoeMLP(config)
+        self.layernorm_before = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(
         self,
@@ -367,16 +334,12 @@ class VitPoseBackboneLayer(nn.Module):
                 "to the forward pass."
             )
         self_attention_outputs = self.attention(
-            self.layernorm_before(
-                hidden_states
-            ),  # in VitPoseBackbone, layernorm is applied before self-attention
+            self.layernorm_before(hidden_states),  # in VitPoseBackbone, layernorm is applied before self-attention
             head_mask,
             output_attentions=output_attentions,
         )
         attention_output = self_attention_outputs[0]
-        outputs = self_attention_outputs[
-            1:
-        ]  # add self attentions if we output attention weights
+        outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
 
         # first residual connection
         hidden_states = attention_output + hidden_states
@@ -400,9 +363,7 @@ class VitPoseBackboneEncoder(nn.Module):
     def __init__(self, config: VitPoseBackboneConfig) -> None:
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [VitPoseBackboneLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layer = nn.ModuleList([VitPoseBackboneLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     # Ignore copy
@@ -433,9 +394,7 @@ class VitPoseBackboneEncoder(nn.Module):
                     output_attentions,
                 )
             else:
-                layer_outputs = layer_module(
-                    hidden_states, dataset_index, layer_head_mask, output_attentions
-                )
+                layer_outputs = layer_module(hidden_states, dataset_index, layer_head_mask, output_attentions)
 
             hidden_states = layer_outputs[0]
 
@@ -446,11 +405,7 @@ class VitPoseBackboneEncoder(nn.Module):
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, all_hidden_states, all_self_attentions]
-                if v is not None
-            )
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
         return BaseModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
@@ -469,19 +424,16 @@ class VitPoseBackbonePreTrainedModel(PreTrainedModel):
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
     _no_split_modules = ["VitPoseBackboneEmbeddings", "VitPoseBackboneLayer"]
+    _supports_sdpa = True
+    _supports_flash_attn_2 = True
 
-    def _init_weights(
-        self,
-        module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm, VitPoseBackboneEmbeddings],
-    ) -> None:
+    def _init_weights(self, module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm, VitPoseBackboneEmbeddings]) -> None:
         """Initialize the weights"""
         if isinstance(module, (nn.Linear, nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
             module.weight.data = nn.init.trunc_normal_(
-                module.weight.data.to(torch.float32),
-                mean=0.0,
-                std=self.config.initializer_range,
+                module.weight.data.to(torch.float32), mean=0.0, std=self.config.initializer_range
             ).to(module.weight.dtype)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -543,9 +495,7 @@ class VitPoseBackbone(VitPoseBackbonePreTrainedModel, BackboneMixin):
         super().__init__(config)
         super()._init_backbone(config)
 
-        self.num_features = [
-            config.hidden_size for _ in range(config.num_hidden_layers + 1)
-        ]
+        self.num_features = [config.hidden_size for _ in range(config.num_hidden_layers + 1)]
         self.embeddings = VitPoseBackboneEmbeddings(config)
         self.encoder = VitPoseBackboneEncoder(config)
 
@@ -581,19 +531,11 @@ class VitPoseBackbone(VitPoseBackbonePreTrainedModel, BackboneMixin):
         >>> dataset_index = torch.tensor([1])
         >>> outputs = model(pixel_values, dataset_index)
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head

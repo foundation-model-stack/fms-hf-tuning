@@ -17,7 +17,6 @@
 Processor class for CLVP
 """
 
-# Local
 from ...processing_utils import ProcessorMixin
 
 
@@ -49,7 +48,7 @@ class ClvpProcessor(ProcessorMixin):
     def __call__(self, *args, **kwargs):
         """
         Forwards the `audio` and `sampling_rate` arguments to [`~ClvpFeatureExtractor.__call__`] and the `text`
-        argument to [`~ClvpTokenizer.__call__`]. Please refer to the doctsring of the above two methods for more
+        argument to [`~ClvpTokenizer.__call__`]. Please refer to the docstring of the above two methods for more
         information.
         """
 
@@ -58,14 +57,10 @@ class ClvpProcessor(ProcessorMixin):
         text = kwargs.pop("text", None)
 
         if raw_speech is None and text is None:
-            raise ValueError(
-                "You need to specify either an `raw_speech` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `raw_speech` or `text` input to process.")
 
         if raw_speech is not None:
-            inputs = self.feature_extractor(
-                raw_speech, sampling_rate=sampling_rate, **kwargs
-            )
+            inputs = self.feature_extractor(raw_speech, sampling_rate=sampling_rate, **kwargs)
         if text is not None:
             encodings = self.tokenizer(text, **kwargs)
 

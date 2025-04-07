@@ -14,25 +14,22 @@
 # limitations under the License.
 """PyTorch FNet model."""
 
-# Standard
+import warnings
 from dataclasses import dataclass
 from functools import partial
 from typing import Optional, Tuple, Union
-import warnings
 
-# Third Party
-from torch import nn
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 import torch
 import torch.utils.checkpoint
+from torch import nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-# Local
 from ...utils import is_scipy_available
+
 
 if is_scipy_available():
     from scipy import linalg
 
-# Local
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -55,6 +52,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_fnet import FNetConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -98,15 +96,9 @@ class FNetEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(
-            config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
-        )
-        self.position_embeddings = nn.Embedding(
-            config.max_position_embeddings, config.hidden_size
-        )
-        self.token_type_embeddings = nn.Embedding(
-            config.type_vocab_size, config.hidden_size
-        )
+        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -117,20 +109,14 @@ class FNetEmbeddings(nn.Module):
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.register_buffer(
-            "position_ids",
-            torch.arange(config.max_position_embeddings).expand((1, -1)),
-            persistent=False,
+            "position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         )
 
         self.register_buffer(
-            "token_type_ids",
-            torch.zeros(self.position_ids.size(), dtype=torch.long),
-            persistent=False,
+            "token_type_ids", torch.zeros(self.position_ids.size(), dtype=torch.long), persistent=False
         )
 
-    def forward(
-        self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None
-    ):
+    def forward(self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None):
         if input_ids is not None:
             input_shape = input_ids.size()
         else:
@@ -147,14 +133,10 @@ class FNetEmbeddings(nn.Module):
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 buffered_token_type_ids = self.token_type_ids[:, :seq_length]
-                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(
-                    input_shape[0], seq_length
-                )
+                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(input_shape[0], seq_length)
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = torch.zeros(
-                    input_shape, dtype=torch.long, device=self.position_ids.device
-                )
+                token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=self.position_ids.device)
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -181,19 +163,13 @@ class FNetBasicFourierTransform(nn.Module):
         elif config.max_position_embeddings <= 4096:
             if is_scipy_available():
                 self.register_buffer(
-                    "dft_mat_hidden",
-                    torch.tensor(linalg.dft(config.hidden_size), dtype=torch.complex64),
+                    "dft_mat_hidden", torch.tensor(linalg.dft(config.hidden_size), dtype=torch.complex64)
                 )
                 self.register_buffer(
-                    "dft_mat_seq",
-                    torch.tensor(
-                        linalg.dft(config.tpu_short_seq_length), dtype=torch.complex64
-                    ),
+                    "dft_mat_seq", torch.tensor(linalg.dft(config.tpu_short_seq_length), dtype=torch.complex64)
                 )
                 self.fourier_transform = partial(
-                    two_dim_matmul,
-                    matrix_dim_one=self.dft_mat_seq,
-                    matrix_dim_two=self.dft_mat_hidden,
+                    two_dim_matmul, matrix_dim_one=self.dft_mat_seq, matrix_dim_two=self.dft_mat_hidden
                 )
             else:
                 logging.warning(
@@ -261,9 +237,7 @@ class FNetOutput(nn.Module):
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
@@ -284,10 +258,7 @@ class FNetLayer(nn.Module):
         fourier_output = self_fourier_outputs[0]
 
         layer_output = apply_chunking_to_forward(
-            self.feed_forward_chunk,
-            self.chunk_size_feed_forward,
-            self.seq_len_dim,
-            fourier_output,
+            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, fourier_output
         )
 
         outputs = (layer_output,)
@@ -304,9 +275,7 @@ class FNetEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [FNetLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layer = nn.ModuleList([FNetLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def forward(self, hidden_states, output_hidden_states=False, return_dict=True):
@@ -317,9 +286,7 @@ class FNetEncoder(nn.Module):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    layer_module.__call__, hidden_states
-                )
+                layer_outputs = self._gradient_checkpointing_func(layer_module.__call__, hidden_states)
             else:
                 layer_outputs = layer_module(hidden_states)
 
@@ -331,9 +298,7 @@ class FNetEncoder(nn.Module):
         if not return_dict:
             return tuple(v for v in [hidden_states, all_hidden_states] if v is not None)
 
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=all_hidden_states
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=all_hidden_states)
 
 
 # Copied from transformers.models.bert.modeling_bert.BertPooler with Bert->FNet
@@ -479,8 +444,8 @@ class FNetForPreTrainingOutput(ModelOutput):
     """
 
     loss: Optional[torch.FloatTensor] = None
-    prediction_logits: torch.FloatTensor = None
-    seq_relationship_logits: torch.FloatTensor = None
+    prediction_logits: Optional[torch.FloatTensor] = None
+    seq_relationship_logits: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
 
 
@@ -560,9 +525,7 @@ class FNetModel(FNetPreTrainedModel):
     def set_input_embeddings(self, value):
         self.embeddings.word_embeddings = value
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=BaseModelOutput,
@@ -578,18 +541,12 @@ class FNetModel(FNetPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[tuple, BaseModelOutput]:
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time"
-            )
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             input_shape = input_ids.size()
             batch_size, seq_length = input_shape
@@ -614,14 +571,10 @@ class FNetModel(FNetPreTrainedModel):
         if token_type_ids is None:
             if hasattr(self.embeddings, "token_type_ids"):
                 buffered_token_type_ids = self.embeddings.token_type_ids[:, :seq_length]
-                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(
-                    batch_size, seq_length
-                )
+                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(batch_size, seq_length)
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = torch.zeros(
-                    input_shape, dtype=torch.long, device=device
-                )
+                token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
 
         embedding_output = self.embeddings(
             input_ids=input_ids,
@@ -636,9 +589,7 @@ class FNetModel(FNetPreTrainedModel):
         )
         sequence_output = encoder_outputs[0]
 
-        pooler_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
-        )
+        pooler_output = self.pooler(sequence_output) if self.pooler is not None else None
 
         if not return_dict:
             return (sequence_output, pooler_output) + encoder_outputs[1:]
@@ -658,10 +609,7 @@ class FNetModel(FNetPreTrainedModel):
     FNET_START_DOCSTRING,
 )
 class FNetForPreTraining(FNetPreTrainedModel):
-    _tied_weights_keys = [
-        "cls.predictions.decoder.bias",
-        "cls.predictions.decoder.weight",
-    ]
+    _tied_weights_keys = ["cls.predictions.decoder.bias", "cls.predictions.decoder.weight"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -679,12 +627,8 @@ class FNetForPreTraining(FNetPreTrainedModel):
         self.cls.predictions.decoder = new_embeddings
         self.cls.predictions.bias = new_embeddings.bias
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
-    @replace_return_docstrings(
-        output_type=FNetForPreTrainingOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @replace_return_docstrings(output_type=FNetForPreTrainingOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -725,9 +669,7 @@ class FNetForPreTraining(FNetPreTrainedModel):
         >>> prediction_logits = outputs.prediction_logits
         >>> seq_relationship_logits = outputs.seq_relationship_logits
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -739,19 +681,13 @@ class FNetForPreTraining(FNetPreTrainedModel):
         )
 
         sequence_output, pooled_output = outputs[:2]
-        prediction_scores, seq_relationship_score = self.cls(
-            sequence_output, pooled_output
-        )
+        prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
 
         total_loss = None
         if labels is not None and next_sentence_label is not None:
             loss_fct = CrossEntropyLoss()
-            masked_lm_loss = loss_fct(
-                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1)
-            )
-            next_sentence_loss = loss_fct(
-                seq_relationship_score.view(-1, 2), next_sentence_label.view(-1)
-            )
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+            next_sentence_loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_label.view(-1))
             total_loss = masked_lm_loss + next_sentence_loss
 
         if not return_dict:
@@ -766,14 +702,9 @@ class FNetForPreTraining(FNetPreTrainedModel):
         )
 
 
-@add_start_docstrings(
-    """FNet Model with a `language modeling` head on top.""", FNET_START_DOCSTRING
-)
+@add_start_docstrings("""FNet Model with a `language modeling` head on top.""", FNET_START_DOCSTRING)
 class FNetForMaskedLM(FNetPreTrainedModel):
-    _tied_weights_keys = [
-        "cls.predictions.decoder.bias",
-        "cls.predictions.decoder.weight",
-    ]
+    _tied_weights_keys = ["cls.predictions.decoder.bias", "cls.predictions.decoder.weight"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -791,9 +722,7 @@ class FNetForMaskedLM(FNetPreTrainedModel):
         self.cls.predictions.decoder = new_embeddings
         self.cls.predictions.bias = new_embeddings.bias
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=MaskedLMOutput,
@@ -815,9 +744,7 @@ class FNetForMaskedLM(FNetPreTrainedModel):
             config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -834,21 +761,13 @@ class FNetForMaskedLM(FNetPreTrainedModel):
         masked_lm_loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()  # -100 index = padding token
-            masked_lm_loss = loss_fct(
-                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1)
-            )
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
 
         if not return_dict:
             output = (prediction_scores,) + outputs[2:]
-            return (
-                ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
-            )
+            return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
 
-        return MaskedLMOutput(
-            loss=masked_lm_loss,
-            logits=prediction_scores,
-            hidden_states=outputs.hidden_states,
-        )
+        return MaskedLMOutput(loss=masked_lm_loss, logits=prediction_scores, hidden_states=outputs.hidden_states)
 
 
 @add_start_docstrings(
@@ -865,12 +784,8 @@ class FNetForNextSentencePrediction(FNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
-    @replace_return_docstrings(
-        output_type=NextSentencePredictorOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @replace_return_docstrings(output_type=NextSentencePredictorOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -916,9 +831,7 @@ class FNetForNextSentencePrediction(FNetPreTrainedModel):
             )
             labels = kwargs.pop("next_sentence_label")
 
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -936,17 +849,11 @@ class FNetForNextSentencePrediction(FNetPreTrainedModel):
         next_sentence_loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            next_sentence_loss = loss_fct(
-                seq_relationship_scores.view(-1, 2), labels.view(-1)
-            )
+            next_sentence_loss = loss_fct(seq_relationship_scores.view(-1, 2), labels.view(-1))
 
         if not return_dict:
             output = (seq_relationship_scores,) + outputs[2:]
-            return (
-                ((next_sentence_loss,) + output)
-                if next_sentence_loss is not None
-                else output
-            )
+            return ((next_sentence_loss,) + output) if next_sentence_loss is not None else output
 
         return NextSentencePredictorOutput(
             loss=next_sentence_loss,
@@ -974,9 +881,7 @@ class FNetForSequenceClassification(FNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=SequenceClassifierOutput,
@@ -998,9 +903,7 @@ class FNetForSequenceClassification(FNetPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -1020,9 +923,7 @@ class FNetForSequenceClassification(FNetPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -1043,9 +944,7 @@ class FNetForSequenceClassification(FNetPreTrainedModel):
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return SequenceClassifierOutput(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states
-        )
+        return SequenceClassifierOutput(loss=loss, logits=logits, hidden_states=outputs.hidden_states)
 
 
 @add_start_docstrings(
@@ -1066,9 +965,7 @@ class FNetForMultipleChoice(FNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=MultipleChoiceModelOutput,
@@ -1090,26 +987,12 @@ class FNetForMultipleChoice(FNetPreTrainedModel):
             num_choices-1]` where `num_choices` is the size of the second dimension of the input tensors. (See
             `input_ids` above)
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
-        num_choices = (
-            input_ids.shape[1] if input_ids is not None else inputs_embeds.shape[1]
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        num_choices = input_ids.shape[1] if input_ids is not None else inputs_embeds.shape[1]
 
-        input_ids = (
-            input_ids.view(-1, input_ids.size(-1)) if input_ids is not None else None
-        )
-        token_type_ids = (
-            token_type_ids.view(-1, token_type_ids.size(-1))
-            if token_type_ids is not None
-            else None
-        )
-        position_ids = (
-            position_ids.view(-1, position_ids.size(-1))
-            if position_ids is not None
-            else None
-        )
+        input_ids = input_ids.view(-1, input_ids.size(-1)) if input_ids is not None else None
+        token_type_ids = token_type_ids.view(-1, token_type_ids.size(-1)) if token_type_ids is not None else None
+        position_ids = position_ids.view(-1, position_ids.size(-1)) if position_ids is not None else None
         inputs_embeds = (
             inputs_embeds.view(-1, inputs_embeds.size(-2), inputs_embeds.size(-1))
             if inputs_embeds is not None
@@ -1140,9 +1023,7 @@ class FNetForMultipleChoice(FNetPreTrainedModel):
             output = (reshaped_logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return MultipleChoiceModelOutput(
-            loss=loss, logits=reshaped_logits, hidden_states=outputs.hidden_states
-        )
+        return MultipleChoiceModelOutput(loss=loss, logits=reshaped_logits, hidden_states=outputs.hidden_states)
 
 
 @add_start_docstrings(
@@ -1165,9 +1046,7 @@ class FNetForTokenClassification(FNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=TokenClassifierOutput,
@@ -1187,9 +1066,7 @@ class FNetForTokenClassification(FNetPreTrainedModel):
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the token classification loss. Indices should be in `[0, ..., config.num_labels - 1]`.
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -1215,9 +1092,7 @@ class FNetForTokenClassification(FNetPreTrainedModel):
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return TokenClassifierOutput(
-            loss=loss, logits=logits, hidden_states=outputs.hidden_states
-        )
+        return TokenClassifierOutput(loss=loss, logits=logits, hidden_states=outputs.hidden_states)
 
 
 @add_start_docstrings(
@@ -1239,9 +1114,7 @@ class FNetForQuestionAnswering(FNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(FNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=QuestionAnsweringModelOutput,
@@ -1268,9 +1141,7 @@ class FNetForQuestionAnswering(FNetPreTrainedModel):
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.fnet(
             input_ids,
@@ -1310,10 +1181,7 @@ class FNetForQuestionAnswering(FNetPreTrainedModel):
             return ((total_loss,) + output) if total_loss is not None else output
 
         return QuestionAnsweringModelOutput(
-            loss=total_loss,
-            start_logits=start_logits,
-            end_logits=end_logits,
-            hidden_states=outputs.hidden_states,
+            loss=total_loss, start_logits=start_logits, end_logits=end_logits, hidden_states=outputs.hidden_states
         )
 
 

@@ -13,12 +13,9 @@
 # limitations under the License.
 "VPTQ (Vector Post-Training Quantization) integration file"
 
-# Third Party
-from vptq import VQuantLinear
 import torch.nn as nn
-
-# First Party
 from accelerate import init_empty_weights
+from vptq import VQuantLinear
 
 
 def replace_with_vptq_linear(
@@ -48,9 +45,7 @@ def replace_with_vptq_linear(
             should not be passed by the user.
     """
 
-    modules_to_not_convert = (
-        ["lm_head"] if not modules_to_not_convert else modules_to_not_convert
-    )
+    modules_to_not_convert = ["lm_head"] if not modules_to_not_convert else modules_to_not_convert
 
     for name, module in model.named_children():
         if current_key_name is None:
@@ -63,14 +58,11 @@ def replace_with_vptq_linear(
         if (
             isinstance(module, nn.Linear)
             and layer_name not in modules_to_not_convert
-            and (
-                (layer_name in config_for_layers)
-                or (current_key_name[-1] in shared_layer_config)
-            )
+            and ((layer_name in config_for_layers) or (current_key_name[-1] in shared_layer_config))
         ):
-            layer_params = config_for_layers.get(
-                layer_name, None
-            ) or shared_layer_config.get(current_key_name[-1], None)
+            layer_params = config_for_layers.get(layer_name, None) or shared_layer_config.get(
+                current_key_name[-1], None
+            )
 
             with init_empty_weights():
                 in_features = module.in_features

@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-# Standard
-from argparse import ArgumentParser
 import time
+from argparse import ArgumentParser
 
-# Third Party
 import jax
 import numpy as np
 
-# First Party
 from transformers import BertConfig, FlaxBertModel
 
+
 parser = ArgumentParser()
-parser.add_argument(
-    "--precision", type=str, choices=["float32", "bfloat16"], default="float32"
-)
+parser.add_argument("--precision", type=str, choices=["float32", "bfloat16"], default="float32")
 args = parser.parse_args()
 
 dtype = jax.numpy.float32
@@ -30,11 +26,7 @@ def get_input_data(batch_size=1, seq_length=384):
     input_ids = np.random.randint(1, VOCAB_SIZE, size=shape).astype(np.int32)
     token_type_ids = np.ones(shape).astype(np.int32)
     attention_mask = np.ones(shape).astype(np.int32)
-    return {
-        "input_ids": input_ids,
-        "token_type_ids": token_type_ids,
-        "attention_mask": attention_mask,
-    }
+    return {"input_ids": input_ids, "token_type_ids": token_type_ids, "attention_mask": attention_mask}
 
 
 inputs = get_input_data(BS, SEQ_LEN)
@@ -61,4 +53,4 @@ for _ in range(nbenchmark):
     func()
 end = time.time()
 print(end - start)
-print(f"Throughput: {((nbenchmark * BS)/(end-start)):.3f} examples/sec")
+print(f"Throughput: {((nbenchmark * BS) / (end - start)):.3f} examples/sec")

@@ -12,22 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from dataclasses import dataclass, field
-from typing import Optional, Tuple
 import warnings
+from dataclasses import dataclass, field
+from typing import Optional
 
-# Local
 from .training_args import TrainingArguments
 from .utils import cached_property, is_tf_available, logging, requires_backends
+
 
 logger = logging.get_logger(__name__)
 
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # Local
     from .modeling_tf_utils import keras
 
 
@@ -189,13 +186,10 @@ class TFTrainingArguments(TrainingArguments):
         metadata={"help": "Power for the Polynomial decay LR scheduler."},
     )
 
-    xla: bool = field(
-        default=False,
-        metadata={"help": "Whether to activate the XLA compilation or not"},
-    )
+    xla: bool = field(default=False, metadata={"help": "Whether to activate the XLA compilation or not"})
 
     @cached_property
-    def _setup_strategy(self) -> Tuple["tf.distribute.Strategy", int]:
+    def _setup_strategy(self) -> tuple["tf.distribute.Strategy", int]:
         requires_backends(self, ["tf"])
         logger.info("Tensorflow: setting up strategy")
 
@@ -239,9 +233,7 @@ class TFTrainingArguments(TrainingArguments):
                 # If you only want to use a specific subset of GPUs use `CUDA_VISIBLE_DEVICES=0`
                 strategy = tf.distribute.MirroredStrategy()
             else:
-                raise ValueError(
-                    "Cannot find the proper strategy, please check your environment properties."
-                )
+                raise ValueError("Cannot find the proper strategy, please check your environment properties.")
 
         return strategy
 
@@ -278,9 +270,7 @@ class TFTrainingArguments(TrainingArguments):
                 "Using deprecated `--per_gpu_train_batch_size` argument which will be removed in a future "
                 "version. Using `--per_device_train_batch_size` is preferred."
             )
-        per_device_batch_size = (
-            self.per_gpu_train_batch_size or self.per_device_train_batch_size
-        )
+        per_device_batch_size = self.per_gpu_train_batch_size or self.per_device_train_batch_size
         return per_device_batch_size * self.n_replicas
 
     @property
@@ -293,9 +283,7 @@ class TFTrainingArguments(TrainingArguments):
                 "Using deprecated `--per_gpu_eval_batch_size` argument which will be removed in a future "
                 "version. Using `--per_device_eval_batch_size` is preferred."
             )
-        per_device_batch_size = (
-            self.per_gpu_eval_batch_size or self.per_device_eval_batch_size
-        )
+        per_device_batch_size = self.per_gpu_eval_batch_size or self.per_device_eval_batch_size
         return per_device_batch_size * self.n_replicas
 
     @property

@@ -14,29 +14,22 @@
 # limitations under the License.
 """PyTorch CPMAnt"""
 
-# Standard
-from typing import List, Optional, Tuple, Union
 import math
+from typing import List, Optional, Tuple, Union
 
-# Third Party
-from torch import nn
-from torch.nn import CrossEntropyLoss
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
+from torch import nn
+from torch.nn import CrossEntropyLoss
 
-# Local
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
+from ...utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
 from .configuration_cpmant import CpmAntConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -65,9 +58,7 @@ class CpmAntLayerNorm(nn.Module):
             raise AssertionError("hidden_states.size(-1) != self.dim_norm")
         old_dtype = hidden_states.dtype
         variance = hidden_states.to(torch.float32).pow(2).mean(dim=-1, keepdim=True)
-        hidden_states = (hidden_states * torch.rsqrt(variance + self.eps)).to(
-            old_dtype
-        ) * self.weight
+        hidden_states = (hidden_states * torch.rsqrt(variance + self.eps)).to(old_dtype) * self.weight
         return hidden_states
 
 
@@ -78,19 +69,11 @@ class CpmAntAttention(nn.Module):
         self.num_heads = config.num_attention_heads
         self.dim_head = config.dim_head
 
-        self.project_q = nn.Linear(
-            self.dim_model, self.num_heads * self.dim_head, bias=False
-        )
-        self.project_k = nn.Linear(
-            self.dim_model, self.num_heads * self.dim_head, bias=False
-        )
-        self.project_v = nn.Linear(
-            self.dim_model, self.num_heads * self.dim_head, bias=False
-        )
+        self.project_q = nn.Linear(self.dim_model, self.num_heads * self.dim_head, bias=False)
+        self.project_k = nn.Linear(self.dim_model, self.num_heads * self.dim_head, bias=False)
+        self.project_v = nn.Linear(self.dim_model, self.num_heads * self.dim_head, bias=False)
 
-        self.attention_out = nn.Linear(
-            self.num_heads * self.dim_head, self.dim_model, bias=False
-        )
+        self.attention_out = nn.Linear(self.num_heads * self.dim_head, self.dim_model, bias=False)
 
         self.softmax = torch.nn.Softmax(dim=-1)
 
@@ -135,15 +118,9 @@ class CpmAntAttention(nn.Module):
         key = self.project_k(hidden_kv)
         value = self.project_v(hidden_kv)
 
-        query = query.view(batch_size, len_q, self.num_heads, self.dim_head).permute(
-            0, 2, 1, 3
-        )
-        key = key.view(batch_size, len_k, self.num_heads, self.dim_head).permute(
-            0, 2, 1, 3
-        )
-        value = value.view(batch_size, len_k, self.num_heads, self.dim_head).permute(
-            0, 2, 1, 3
-        )
+        query = query.view(batch_size, len_q, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
+        key = key.view(batch_size, len_k, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
+        value = value.view(batch_size, len_k, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
 
         if past_key_values is not None:
             key = torch.cat([past_key_values[0], key], dim=-2)
@@ -177,12 +154,8 @@ class CpmAntAttention(nn.Module):
         # (batch_size, num_heads, len_q, len_k) @ (batch_size, num_heads, len_k, dim_head) -> (batch_size, num_heads, len_q, dim_head)
         score = torch.matmul(score, value)
 
-        score = score.view(batch_size, self.num_heads, len_q, self.dim_head).permute(
-            0, 2, 1, 3
-        )
-        score = score.contiguous().view(
-            batch_size, len_q, self.num_heads * self.dim_head
-        )
+        score = score.view(batch_size, self.num_heads, len_q, self.dim_head).permute(0, 2, 1, 3)
+        score = score.contiguous().view(batch_size, len_q, self.num_heads * self.dim_head)
 
         score = self.attention_out(score)
 
@@ -230,13 +203,7 @@ class CpmAntSelfAttentionBlock(nn.Module):
         """
         outputs = self.layernorm_before_attention(hidden_states)
         outputs = self.self_attention(
-            outputs,
-            outputs,
-            attention_mask,
-            position_bias,
-            output_attentions,
-            past_key_values,
-            use_cache,
+            outputs, outputs, attention_mask, position_bias, output_attentions, past_key_values, use_cache
         )
 
         outputs, attn_weights, current_key_value = outputs
@@ -372,9 +339,7 @@ class CpmAntEncoder(nn.Module):
     def __init__(self, config: CpmAntConfig):
         super().__init__()
         self.num_layers = config.num_hidden_layers
-        self.layers = nn.ModuleList(
-            [CpmAntTransformerBlock(config) for ith in range(self.num_layers)]
-        )
+        self.layers = nn.ModuleList([CpmAntTransformerBlock(config) for ith in range(self.num_layers)])
 
         self.output_layernorm = CpmAntLayerNorm(config)
 
@@ -462,8 +427,7 @@ class CpmAntSegmentPositionEmbedding(nn.Module):
 
         self.relative_attention_bias = nn.Parameter(
             torch.empty(
-                config.segment_types * config.segment_types
-                + config.position_bias_num_buckets,
+                config.segment_types * config.segment_types + config.position_bias_num_buckets,
                 config.num_attention_heads,
             )
         )
@@ -498,19 +462,13 @@ class CpmAntSegmentPositionEmbedding(nn.Module):
             key_segment = key_segment.view(batch, -1, keylen)
             query_segment = query_segment.view(batch, querylen, -1)
 
-            relative_position_bucket = self._segment_relative_position_bucket(
-                query_segment, key_segment
-            )
+            relative_position_bucket = self._segment_relative_position_bucket(query_segment, key_segment)
             relative_position_bucket = relative_position_bucket + self.num_buckets
 
             # (batch, len_q, len_k)
             absolute_position_bucket = self._position_bucket(
-                torch.arange(
-                    keylen, dtype=torch.int32, device=relative_position_bucket.device
-                )[None, :]
-                - torch.arange(
-                    querylen, dtype=torch.int32, device=relative_position_bucket.device
-                )[:, None],
+                torch.arange(keylen, dtype=torch.int32, device=relative_position_bucket.device)[None, :]
+                - torch.arange(querylen, dtype=torch.int32, device=relative_position_bucket.device)[:, None],
                 num_buckets=self.num_buckets,
                 max_distance=self.max_distance,
             )
@@ -546,9 +504,7 @@ class CpmAntSegmentPositionEmbedding(nn.Module):
             relative_postion_if_large,
             torch.full_like(relative_postion_if_large, num_buckets - 1),
         )
-        relative_buckets += torch.where(
-            is_small, relative_position.to(torch.int32), relative_postion_if_large
-        )
+        relative_buckets += torch.where(is_small, relative_position.to(torch.int32), relative_postion_if_large)
         return relative_buckets
 
 
@@ -560,9 +516,7 @@ class CpmAntOutput(nn.Module):
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
@@ -594,9 +548,7 @@ class CpmAntPreTrainedModel(PreTrainedModel):
         elif isinstance(module, CpmAntLayerNorm):
             module.weight.data.fill_(1.0)
         elif isinstance(module, CpmAntSegmentPositionEmbedding):
-            module.relative_attention_bias.data.normal_(
-                mean=0.0, std=self.config.init_std
-            )
+            module.relative_attention_bias.data.normal_(mean=0.0, std=self.config.init_std)
 
 
 CPMANT_START_DOCSTRING = r"""
@@ -644,8 +596,7 @@ class CpmAntModel(CpmAntPreTrainedModel):
         self.encoder = CpmAntEncoder(config)
         self.segment_embedding = nn.Embedding(config.segment_types, config.hidden_size)
         self.input_embedding = nn.Embedding(
-            config.vocab_size + config.prompt_types * config.prompt_length,
-            config.hidden_size,
+            config.vocab_size + config.prompt_types * config.prompt_length, config.hidden_size
         )
         self.position_bias = CpmAntSegmentPositionEmbedding(config)
         self.prompt_length = config.prompt_length
@@ -663,30 +614,18 @@ class CpmAntModel(CpmAntPreTrainedModel):
         batch = input_ids.size(0)
         seqlen = input_ids.size(1)
         device = input_ids.device
-        directional_mask_2d = torch.arange(seqlen, device=device) <= torch.arange(
-            seqlen, device=device
-        ).view(-1, 1)
+        directional_mask_2d = torch.arange(seqlen, device=device) <= torch.arange(seqlen, device=device).view(-1, 1)
         attention_mask = context[:, None, :] | (
-            context[:, :, None].logical_not()
-            & directional_mask_2d.view(1, seqlen, seqlen)
+            context[:, :, None].logical_not() & directional_mask_2d.view(1, seqlen, seqlen)
         )
         attention_mask = attention_mask & (span[:, None, :] == span[:, :, None])
         # mask for left padding
         mask_1d = (
-            torch.tensor(list(range(seqlen - self.prompt_length))[::-1], device=device)[
-                None, :
-            ].repeat(batch, 1)
+            torch.tensor(list(range(seqlen - self.prompt_length))[::-1], device=device)[None, :].repeat(batch, 1)
             < length[:, None]
         )
-        mask_1d = torch.cat(
-            (torch.ones(batch, self.prompt_length, device=device).bool(), mask_1d),
-            dim=1,
-        )
-        attention_mask = (
-            mask_1d.view(batch, seqlen, 1)
-            & mask_1d.view(batch, 1, seqlen)
-            & attention_mask
-        )
+        mask_1d = torch.cat((torch.ones(batch, self.prompt_length, device=device).bool(), mask_1d), dim=1)
+        attention_mask = mask_1d.view(batch, seqlen, 1) & mask_1d.view(batch, 1, seqlen) & attention_mask
         return attention_mask
 
     @add_start_docstrings_to_model_forward(CPMANT_INPUTS_DOCSTRING)
@@ -705,19 +644,11 @@ class CpmAntModel(CpmAntPreTrainedModel):
         return_dict: Optional[bool] = None,
         **kwargs,
     ) -> Union[Tuple[torch.Tensor], BaseModelOutputWithPast]:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
         # add prompts ahead
@@ -739,13 +670,7 @@ class CpmAntModel(CpmAntPreTrainedModel):
             dim=1,
         )
         batch, seq_length = input_ids.size()
-        segment = torch.cat(
-            (
-                torch.zeros(batch, self.prompt_length, dtype=dtype, device=device),
-                segment,
-            ),
-            dim=1,
-        )
+        segment = torch.cat((torch.zeros(batch, self.prompt_length, dtype=dtype, device=device), segment), dim=1)
         context = torch.full((batch, seq_length), 1, dtype=dtype, device=device)
         position = torch.arange(seq_length, dtype=dtype, device=device).repeat(batch, 1)
         span = torch.full((batch, seq_length), 0, dtype=dtype, device=device)
@@ -769,12 +694,7 @@ class CpmAntModel(CpmAntPreTrainedModel):
         position_bias = position_bias[:, :, past_length:, :]
         hidden_states = hidden_states[:, past_length:, :]
 
-        (
-            hidden_states,
-            present_key_values,
-            all_hidden_states,
-            all_attentions,
-        ) = self.encoder(
+        hidden_states, present_key_values, all_hidden_states, all_attentions = self.encoder(
             hidden_states,
             attention_mask,
             position_bias,
@@ -790,9 +710,7 @@ class CpmAntModel(CpmAntPreTrainedModel):
             if all_attentions is not None:
                 new_attentions = ()
                 for attention in all_attentions:
-                    new_attentions += (
-                        attention[:, :, self.prompt_length :, self.prompt_length :],
-                    )
+                    new_attentions += (attention[:, :, self.prompt_length :, self.prompt_length :],)
                 all_attentions = new_attentions
             if all_hidden_states is not None:
                 new_hidden_states = ()
@@ -802,14 +720,7 @@ class CpmAntModel(CpmAntPreTrainedModel):
 
         if not return_dict:
             return tuple(
-                v
-                for v in [
-                    hidden_states,
-                    present_key_values,
-                    all_hidden_states,
-                    all_attentions,
-                ]
-                if v is not None
+                v for v in [hidden_states, present_key_values, all_hidden_states, all_attentions] if v is not None
             )
 
         return BaseModelOutputWithPast(
@@ -835,9 +746,7 @@ class CpmAntForCausalLM(CpmAntPreTrainedModel, GenerationMixin):
 
         # lm_head.weight is tied to cpmant.input_embedding.weight
         self.lm_head = nn.Linear(
-            config.hidden_size,
-            config.vocab_size + config.prompt_types * config.prompt_length,
-            bias=False,
+            config.hidden_size, config.vocab_size + config.prompt_types * config.prompt_length, bias=False
         )
         self.post_init()
 
@@ -856,9 +765,7 @@ class CpmAntForCausalLM(CpmAntPreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         labels: Optional[torch.Tensor] = None,
         return_dict: Optional[bool] = None,
-        attention_mask: Optional[
-            torch.Tensor
-        ] = None,  # dummy parameter for text-generation pipeline
+        attention_mask: Optional[torch.Tensor] = None,  # dummy parameter for text-generation pipeline
         **kwargs,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
@@ -904,21 +811,12 @@ class CpmAntForCausalLM(CpmAntPreTrainedModel, GenerationMixin):
         ['今天天气不错，阳光明媚，我和妈妈一起去超市买东西。\n在超市里，我看到了一个很好玩的玩具，它的名字叫“机器人”。它有一个圆圆的脑袋，两只圆圆的眼睛，还有一个圆圆的']
         ```
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         model_output = self.cpmant(
-            input_ids,
-            output_attentions,
-            output_hidden_states,
-            past_key_values,
-            use_cache,
-            return_dict,
+            input_ids, output_attentions, output_hidden_states, past_key_values, use_cache, return_dict
         )
-        hidden_states = (
-            model_output.last_hidden_state if return_dict else model_output[0]
-        )
+        hidden_states = model_output.last_hidden_state if return_dict else model_output[0]
 
         logits = self.lm_head(hidden_states)
 
@@ -952,9 +850,7 @@ class CpmAntForCausalLM(CpmAntPreTrainedModel, GenerationMixin):
         self.lm_head = new_embeddings
 
     def _reorder_cache(self, past_key_values, beam_idx):
-        past_key_values = [
-            list(each) if each is not None else each for each in past_key_values
-        ]
+        past_key_values = [list(each) if each is not None else each for each in past_key_values]
         for key_value_layer in past_key_values:
             key_value_layer[0] = key_value_layer[0][beam_idx]
             key_value_layer[1] = key_value_layer[1][beam_idx]

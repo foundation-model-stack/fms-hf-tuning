@@ -14,18 +14,16 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import DebertaTokenizer, DebertaTokenizerFast
 from transformers.models.deberta.tokenization_deberta import VOCAB_FILES_NAMES
 from transformers.testing_utils import slow
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
@@ -34,8 +32,9 @@ class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = True
     rust_tokenizer_class = DebertaTokenizerFast
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = [
@@ -62,20 +61,22 @@ class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         ]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["#version: 0.2", "\u0120 l", "\u0120l o", "\u0120lo w", "e r", ""]
-        self.special_tokens_map = {"unk_token": "[UNK]"}
+        cls.special_tokens_map = {"unk_token": "[UNK]"}
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        cls.merges_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
-        with open(self.merges_file, "w", encoding="utf-8") as fp:
+        with open(cls.merges_file, "w", encoding="utf-8") as fp:
             fp.write("\n".join(merges))
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return self.tokenizer_class.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return cls.tokenizer_class.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "lower newer"
@@ -91,9 +92,7 @@ class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + [tokenizer.unk_token]
         input_bpe_tokens = [0, 1, 2, 15, 10, 9, 3, 2, 15, 19]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     def test_token_type_ids(self):
         tokenizer = self.get_tokenizer()
@@ -112,10 +111,7 @@ class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             "sequence builders", add_special_tokens=True, add_prefix_space=False
         )
         encoded_pair_from_decode = tokenizer.encode(
-            "sequence builders",
-            "multi-sequence build",
-            add_special_tokens=True,
-            add_prefix_space=False,
+            "sequence builders", "multi-sequence build", add_special_tokens=True, add_prefix_space=False
         )
 
         encoded_sentence = tokenizer.build_inputs_with_special_tokens(text)
@@ -142,10 +138,7 @@ class DebertaTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             ]
 
             encoding = tokenizer(sequences, padding=True)
-            decoded_sequences = [
-                tokenizer.decode(seq, skip_special_tokens=True)
-                for seq in encoding["input_ids"]
-            ]
+            decoded_sequences = [tokenizer.decode(seq, skip_special_tokens=True) for seq in encoding["input_ids"]]
 
             # fmt: off
             expected_encoding = {

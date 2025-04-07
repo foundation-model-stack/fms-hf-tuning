@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
-from ....utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_vision_available,
-)
+from ....utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_vision_available
+
 
 _import_structure = {"configuration_van": ["VanConfig"]}
 
@@ -38,7 +32,6 @@ else:
     ]
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_van import VanConfig
 
     try:
@@ -47,7 +40,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_van import (
             VanForImageClassification,
             VanModel,
@@ -55,9 +47,6 @@ if TYPE_CHECKING:
         )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)

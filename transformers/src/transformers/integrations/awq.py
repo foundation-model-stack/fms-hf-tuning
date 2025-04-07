@@ -13,21 +13,13 @@
 # limitations under the License.
 "AWQ (Activation aware Weight Quantization) integration file"
 
-# Standard
 import importlib
 
-# Third Party
 from packaging import version
 
-# Local
 from ..activations import ACT2FN
 from ..modeling_utils import PreTrainedModel
-from ..utils import (
-    is_auto_awq_available,
-    is_ipex_available,
-    is_torch_available,
-    logging,
-)
+from ..utils import is_auto_awq_available, is_ipex_available, is_torch_available, logging
 from ..utils.quantization_config import (
     AwqBackendPackingMethod,
     AwqConfig,
@@ -35,8 +27,8 @@ from ..utils.quantization_config import (
     ExllamaVersion,
 )
 
+
 if is_torch_available():
-    # Third Party
     import torch
     import torch.nn as nn
 
@@ -83,7 +75,6 @@ AWQ_SCALES_MAPPINGS = {
 
 
 def replace_quantization_scales(model, model_type):
-    # Third Party
     from awq.modules.act import ScaledActivation
 
     if model_type not in AWQ_SCALES_MAPPINGS:
@@ -92,9 +83,7 @@ def replace_quantization_scales(model, model_type):
         act_name = AWQ_SCALES_MAPPINGS[model_type]["act"]
         layer_before_act_name = AWQ_SCALES_MAPPINGS[model_type]["layer_before_act"]
         if name == act_name and hasattr(model, layer_before_act_name):
-            layer_before_act = getattr(
-                model, AWQ_SCALES_MAPPINGS[model_type]["layer_before_act"]
-            )
+            layer_before_act = getattr(model, AWQ_SCALES_MAPPINGS[model_type]["layer_before_act"])
             size = layer_before_act.out_features
             scale_like = torch.ones(size)
             model._modules[name] = ScaledActivation(module, scale_like)
@@ -142,39 +131,31 @@ def replace_with_awq_linear(
 
     if backend == AwqBackendPackingMethod.AUTOAWQ:
         if quantization_config.version == AWQLinearVersion.GEMM:
-            # Third Party
             from awq.modules.linear.gemm import WQLinear_GEMM
 
             target_cls = WQLinear_GEMM
         elif quantization_config.version == AWQLinearVersion.GEMV:
-            # Third Party
             from awq.modules.linear.gemv import WQLinear_GEMV
 
             target_cls = WQLinear_GEMV
         elif quantization_config.version == AWQLinearVersion.EXLLAMA:
             if quantization_config.exllama_config["version"] == ExllamaVersion.ONE:
-                # Third Party
                 from awq.modules.linear.exllama import WQLinear_Exllama
 
                 target_cls = WQLinear_Exllama
             elif quantization_config.exllama_config["version"] == ExllamaVersion.TWO:
-                # Third Party
                 from awq.modules.linear.exllamav2 import WQLinear_ExllamaV2
 
                 target_cls = WQLinear_ExllamaV2
             else:
-                raise ValueError(
-                    f"Unrecognized Exllama version: {quantization_config.exllama_config['version']}"
-                )
+                raise ValueError(f"Unrecognized Exllama version: {quantization_config.exllama_config['version']}")
         elif quantization_config.version == AWQLinearVersion.IPEX:
-            # Third Party
             from awq.modules.linear.gemm_ipex import WQLinear_IPEX
 
             target_cls = WQLinear_IPEX
         else:
             raise ValueError(f"Unrecognized AWQ version: {quantization_config.version}")
     else:
-        # Third Party
         from awq.quantize.qmodule import WQLinear
 
         target_cls = WQLinear
@@ -186,9 +167,7 @@ def replace_with_awq_linear(
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             # Check if the current key is not in the `modules_to_not_convert`
-            if not any(
-                key in ".".join(current_key_name) for key in modules_to_not_convert
-            ):
+            if not any(key in ".".join(current_key_name) for key in modules_to_not_convert):
                 in_features = module.in_features
                 out_features = module.out_features
 
@@ -228,9 +207,7 @@ def get_modules_to_fuse(model, quantization_config):
             The quantization configuration to use.
     """
     if not isinstance(model, PreTrainedModel):
-        raise TypeError(
-            f"The model should be an instance of `PreTrainedModel`, got {model.__class__.__name__}"
-        )
+        raise TypeError(f"The model should be an instance of `PreTrainedModel`, got {model.__class__.__name__}")
 
     # Always default to `quantization_config.modules_to_fuse`
     if quantization_config.modules_to_fuse is not None:
@@ -245,9 +222,7 @@ def get_modules_to_fuse(model, quantization_config):
         # Handle hidden_size, num_attention_heads, num_key_value_heads on our own.
         hidden_size = config.hidden_size
         num_attention_heads = config.num_attention_heads
-        num_key_value_heads = getattr(
-            config, "num_key_value_heads", num_attention_heads
-        )
+        num_key_value_heads = getattr(config, "num_key_value_heads", num_attention_heads)
 
         # Fill `current_fused_mapping` with the expected values
         current_fused_mapping["hidden_size"] = hidden_size
@@ -280,12 +255,9 @@ def fuse_awq_modules(model, quantization_config):
     backend = quantization_config.backend
 
     modules_to_fuse = get_modules_to_fuse(model, quantization_config)
-    modules_to_not_convert = getattr(
-        quantization_config, "modules_to_not_convert", None
-    )
+    modules_to_not_convert = getattr(quantization_config, "modules_to_not_convert", None)
 
     if backend == AwqBackendPackingMethod.AUTOAWQ:
-        # Third Party
         from awq.modules.fused.attn import QuantAttentionFused
         from awq.modules.fused.mlp import QuantFusedMLP
         from awq.modules.fused.norm import FasterTransformerRMSNorm
@@ -296,16 +268,11 @@ def fuse_awq_modules(model, quantization_config):
 
     for name, module in model.named_modules():
         if modules_to_not_convert is not None:
-            if any(
-                module_name_to_not_convert in name
-                for module_name_to_not_convert in modules_to_not_convert
-            ):
+            if any(module_name_to_not_convert in name for module_name_to_not_convert in modules_to_not_convert):
                 continue
 
         # Replace layer norms
-        _fuse_awq_layernorm(
-            modules_to_fuse["layernorm"], module, FasterTransformerRMSNorm
-        )
+        _fuse_awq_layernorm(modules_to_fuse["layernorm"], module, FasterTransformerRMSNorm)
 
         # Replace MLP layers if awq version is not ipex.
         if quantization_config.version != "ipex":
@@ -327,12 +294,9 @@ def fuse_awq_modules(model, quantization_config):
     if len(fused_attention_modules) > 0:
         for module_name, module in model.named_modules():
             if any(
-                module_name in fused_attention_modules
-                for fused_attention_parent_module in fused_attention_modules
+                module_name in fused_attention_modules for fused_attention_parent_module in fused_attention_modules
             ):
-                if hasattr(module, "config") and hasattr(
-                    module.config, "_attn_implementation"
-                ):
+                if hasattr(module, "config") and hasattr(module.config, "_attn_implementation"):
                     module.config._attn_implementation = "custom"
     return model
 
@@ -401,9 +365,7 @@ def _fuse_awq_mlp(model, current_module_name, fuse_module_names, module, target_
         del gate_proj, up_proj, down_proj
 
 
-def _fuse_awq_attention_layers(
-    model, module, modules_to_fuse, current_module_name, target_cls
-):
+def _fuse_awq_attention_layers(model, module, modules_to_fuse, current_module_name, target_cls):
     """
     Fuse the Attention layers into a target class using autoawq
 
@@ -421,7 +383,6 @@ def _fuse_awq_attention_layers(
             The `QuantAttentionFused` class as it only supports that class
             for now.
     """
-    # Third Party
     from awq.modules.linear import WQLinear_GEMM, WQLinear_GEMV
 
     module_has_been_fused = False
@@ -439,10 +400,7 @@ def _fuse_awq_attention_layers(
         elif isinstance(q_proj, WQLinear_GEMM):
             linear_target_cls = WQLinear_GEMM
             cat_dim = 1
-        elif is_ipex_available() and version.parse(
-            importlib.metadata.version("autoawq")
-        ) > version.parse("0.2.6"):
-            # Third Party
+        elif is_ipex_available() and version.parse(importlib.metadata.version("autoawq")) > version.parse("0.2.6"):
             from awq.modules.linear import WQLinear_IPEX
 
             if isinstance(q_proj, WQLinear_IPEX):
@@ -457,11 +415,7 @@ def _fuse_awq_attention_layers(
         v_proj = getattr(module, modules_to_fuse["attention"][2])
         o_proj = getattr(module, modules_to_fuse["attention"][3])
 
-        bias = (
-            torch.cat([q_proj.bias, k_proj.bias, v_proj.bias], dim=0)
-            if q_proj.bias is not None
-            else None
-        )
+        bias = torch.cat([q_proj.bias, k_proj.bias, v_proj.bias], dim=0) if q_proj.bias is not None else None
 
         qkv_layer = linear_target_cls(
             q_proj.w_bit,
@@ -472,15 +426,9 @@ def _fuse_awq_attention_layers(
             next(iter(module.state_dict().values())).device,
         )
 
-        qkv_layer.qweight = torch.cat(
-            [q_proj.qweight, k_proj.qweight, v_proj.qweight], dim=cat_dim
-        )
-        qkv_layer.qzeros = torch.cat(
-            [q_proj.qzeros, k_proj.qzeros, v_proj.qzeros], dim=cat_dim
-        )
-        qkv_layer.scales = torch.cat(
-            [q_proj.scales, k_proj.scales, v_proj.scales], dim=cat_dim
-        )
+        qkv_layer.qweight = torch.cat([q_proj.qweight, k_proj.qweight, v_proj.qweight], dim=cat_dim)
+        qkv_layer.qzeros = torch.cat([q_proj.qzeros, k_proj.qzeros, v_proj.qzeros], dim=cat_dim)
+        qkv_layer.scales = torch.cat([q_proj.scales, k_proj.scales, v_proj.scales], dim=cat_dim)
 
         if isinstance(qkv_layer, WQLinear_GEMV):
             qkv_layer.split_k_iters = q_proj.split_k_iters
@@ -520,12 +468,10 @@ def post_init_awq_exllama_modules(model, exllama_config):
     """
 
     if exllama_config["version"] == ExllamaVersion.ONE:
-        # Third Party
         from awq.modules.linear.exllama import exllama_post_init
 
         model = exllama_post_init(model)
     elif exllama_config["version"] == ExllamaVersion.TWO:
-        # Third Party
         from awq.modules.linear.exllamav2 import exllamav2_post_init
 
         model = exllamav2_post_init(
@@ -545,7 +491,6 @@ def post_init_awq_ipex_modules(model):
         - Weights packing, reordering and repacking
     """
 
-    # Third Party
     from awq.modules.linear.gemm_ipex import ipex_post_init
 
     model = ipex_post_init(model)

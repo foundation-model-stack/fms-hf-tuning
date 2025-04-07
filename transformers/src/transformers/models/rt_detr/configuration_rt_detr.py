@@ -14,12 +14,12 @@
 # limitations under the License.
 """RT-DETR model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ...utils.backbone_utils import verify_backbone_config_arguments
 from ..auto import CONFIG_MAPPING
 from .configuration_rt_detr_resnet import RTDetrResNetConfig
+
 
 logger = logging.get_logger(__name__)
 

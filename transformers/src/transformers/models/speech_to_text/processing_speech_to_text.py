@@ -16,11 +16,9 @@
 Speech processor class for Speech2Text
 """
 
-# Standard
-from contextlib import contextmanager
 import warnings
+from contextlib import contextmanager
 
-# Local
 from ...processing_utils import ProcessorMixin
 
 
@@ -53,7 +51,7 @@ class Speech2TextProcessor(ProcessorMixin):
         When used in normal mode, this method forwards all its arguments to Speech2TextFeatureExtractor's
         [`~Speech2TextFeatureExtractor.__call__`] and returns its output. If used in the context
         [`~Speech2TextProcessor.as_target_processor`] this method forwards all its arguments to Speech2TextTokenizer's
-        [`~Speech2TextTokenizer.__call__`]. Please refer to the doctsring of the above two methods for more
+        [`~Speech2TextTokenizer.__call__`]. Please refer to the docstring of the above two methods for more
         information.
         """
         # For backward compatibility
@@ -61,9 +59,7 @@ class Speech2TextProcessor(ProcessorMixin):
             return self.current_processor(*args, **kwargs)
 
         if "raw_speech" in kwargs:
-            warnings.warn(
-                "Using `raw_speech` as a keyword argument is deprecated. Use `audio` instead."
-            )
+            warnings.warn("Using `raw_speech` as a keyword argument is deprecated. Use `audio` instead.")
             audio = kwargs.pop("raw_speech")
         else:
             audio = kwargs.pop("audio", None)
@@ -74,14 +70,10 @@ class Speech2TextProcessor(ProcessorMixin):
             args = args[1:]
 
         if audio is None and text is None:
-            raise ValueError(
-                "You need to specify either an `audio` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `audio` or `text` input to process.")
 
         if audio is not None:
-            inputs = self.feature_extractor(
-                audio, *args, sampling_rate=sampling_rate, **kwargs
-            )
+            inputs = self.feature_extractor(audio, *args, sampling_rate=sampling_rate, **kwargs)
         if text is not None:
             encodings = self.tokenizer(text, **kwargs)
 

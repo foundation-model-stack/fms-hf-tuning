@@ -2,7 +2,6 @@
 # There's no way to ignore "F401 '...' imported but unused" warnings in this
 # module, but to preserve other warnings. So, don't check this module at all.
 
-# Standard
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +17,8 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
+
 
 _import_structure = {"configuration_vitpose_backbone": ["VitPoseBackboneConfig"]}
 
@@ -36,7 +35,6 @@ else:
     ]
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_vitpose_backbone import VitPoseBackboneConfig
 
     try:
@@ -45,16 +43,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_vitpose_backbone import (
             VitPoseBackbone,
             VitPoseBackbonePreTrainedModel,
         )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

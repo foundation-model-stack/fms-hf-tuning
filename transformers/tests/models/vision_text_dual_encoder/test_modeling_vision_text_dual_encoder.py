@@ -14,19 +14,15 @@
 # limitations under the License.
 """Testing suite for the PyTorch VisionTextDualEncoder model."""
 
-# Standard
 import collections
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_modeling_common import floats_tensor, ids_tensor, random_attention_mask
 from ..bert.test_modeling_bert import BertModelTester
 from ..clip.test_modeling_clip import CLIPVisionModelTester
@@ -34,11 +30,10 @@ from ..deit.test_modeling_deit import DeiTModelTester
 from ..roberta.test_modeling_roberta import RobertaModelTester
 from ..vit.test_modeling_vit import ViTModelTester
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         BertModel,
         CLIPVisionModel,
@@ -51,10 +46,8 @@ if is_torch_available():
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import VisionTextDualEncoderProcessor
 
 
@@ -79,124 +72,54 @@ class VisionTextDualEncoderMixin:
         pass
 
     def check_model_from_pretrained_configs(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
+        self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs
     ):
-        config = VisionTextDualEncoderConfig.from_vision_text_configs(
-            vision_config, text_config
-        )
+        config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_config, text_config)
 
         model = VisionTextDualEncoderModel(config)
         model.to(torch_device)
         model.eval()
 
-        output = model(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            attention_mask=attention_mask,
-        )
+        output = model(input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask)
 
-        self.assertEqual(
-            output["text_embeds"].shape, (input_ids.shape[0], config.projection_dim)
-        )
-        self.assertEqual(
-            output["image_embeds"].shape, (pixel_values.shape[0], config.projection_dim)
-        )
+        self.assertEqual(output["text_embeds"].shape, (input_ids.shape[0], config.projection_dim))
+        self.assertEqual(output["image_embeds"].shape, (pixel_values.shape[0], config.projection_dim))
 
     def check_vision_text_dual_encoder_model(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
+        self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs
     ):
-        vision_model, text_model = self.get_vision_text_model(
-            vision_config, text_config
-        )
-        model = VisionTextDualEncoderModel(
-            vision_model=vision_model, text_model=text_model
-        )
+        vision_model, text_model = self.get_vision_text_model(vision_config, text_config)
+        model = VisionTextDualEncoderModel(vision_model=vision_model, text_model=text_model)
         model.to(torch_device)
         model.eval()
 
-        output = model(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            attention_mask=attention_mask,
-        )
+        output = model(input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask)
 
-        self.assertEqual(
-            output["text_embeds"].shape,
-            (input_ids.shape[0], model.config.projection_dim),
-        )
-        self.assertEqual(
-            output["image_embeds"].shape,
-            (pixel_values.shape[0], model.config.projection_dim),
-        )
+        self.assertEqual(output["text_embeds"].shape, (input_ids.shape[0], model.config.projection_dim))
+        self.assertEqual(output["image_embeds"].shape, (pixel_values.shape[0], model.config.projection_dim))
 
     def check_vision_text_dual_encoder_from_pretrained(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
+        self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs
     ):
-        vision_model, text_model = self.get_vision_text_model(
-            vision_config, text_config
-        )
+        vision_model, text_model = self.get_vision_text_model(vision_config, text_config)
         kwargs = {"vision_model": vision_model, "text_model": text_model}
         model = VisionTextDualEncoderModel.from_vision_text_pretrained(**kwargs)
         model.to(torch_device)
         model.eval()
 
-        output = model(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            attention_mask=attention_mask,
-        )
+        output = model(input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask)
 
-        self.assertEqual(
-            output["text_embeds"].shape,
-            (input_ids.shape[0], model.config.projection_dim),
-        )
-        self.assertEqual(
-            output["image_embeds"].shape,
-            (pixel_values.shape[0], model.config.projection_dim),
-        )
+        self.assertEqual(output["text_embeds"].shape, (input_ids.shape[0], model.config.projection_dim))
+        self.assertEqual(output["image_embeds"].shape, (pixel_values.shape[0], model.config.projection_dim))
 
-    def check_save_load(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
-    ):
-        vision_model, text_model = self.get_vision_text_model(
-            vision_config, text_config
-        )
-        model = VisionTextDualEncoderModel(
-            vision_model=vision_model, text_model=text_model
-        )
+    def check_save_load(self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs):
+        vision_model, text_model = self.get_vision_text_model(vision_config, text_config)
+        model = VisionTextDualEncoderModel(vision_model=vision_model, text_model=text_model)
         model.to(torch_device)
         model.eval()
 
         with torch.no_grad():
-            output = model(
-                input_ids=input_ids,
-                pixel_values=pixel_values,
-                attention_mask=attention_mask,
-            )
+            output = model(input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask)
             out_1 = output[0].cpu().numpy()
 
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -204,38 +127,21 @@ class VisionTextDualEncoderMixin:
                 model = VisionTextDualEncoderModel.from_pretrained(tmpdirname).eval()
                 model.to(torch_device)
 
-                after_output = model(
-                    input_ids=input_ids,
-                    pixel_values=pixel_values,
-                    attention_mask=attention_mask,
-                )
+                after_output = model(input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask)
                 out_2 = after_output[0].cpu().numpy()
                 max_diff = np.amax(np.abs(out_2 - out_1))
                 self.assertLessEqual(max_diff, 1e-5)
 
     def check_vision_text_output_attention(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
+        self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs
     ):
-        vision_model, text_model = self.get_vision_text_model(
-            vision_config, text_config
-        )
-        model = VisionTextDualEncoderModel(
-            vision_model=vision_model, text_model=text_model
-        )
+        vision_model, text_model = self.get_vision_text_model(vision_config, text_config)
+        model = VisionTextDualEncoderModel(vision_model=vision_model, text_model=text_model)
         model.to(torch_device)
         model.eval()
 
         output = model(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            attention_mask=attention_mask,
-            output_attentions=True,
+            input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask, output_attentions=True
         )
 
         vision_attentions = output.vision_model_output.attentions
@@ -244,14 +150,9 @@ class VisionTextDualEncoderMixin:
         # in ViT, the seq_len equals the number of patches + 1 (we add 1 for the [CLS] token)
         image_size = to_2tuple(vision_model.config.image_size)
         patch_size = to_2tuple(vision_model.config.patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
         seq_len = num_patches + 1
-        self.assertEqual(
-            vision_attentions[0].shape[-3:],
-            (vision_config.num_attention_heads, seq_len, seq_len),
-        )
+        self.assertEqual(vision_attentions[0].shape[-3:], (vision_config.num_attention_heads, seq_len, seq_len))
 
         text_attentions = output.text_model_output.attentions
         self.assertEqual(len(text_attentions), text_config.num_hidden_layers)
@@ -263,9 +164,7 @@ class VisionTextDualEncoderMixin:
 
     def assert_almost_equals(self, a: np.ndarray, b: np.ndarray, tol: float):
         diff = np.abs((a - b)).max()
-        self.assertLessEqual(
-            diff, tol, f"Difference between torch and flax is {diff} (>= {tol})."
-        )
+        self.assertLessEqual(diff, tol, f"Difference between torch and flax is {diff} (>= {tol}).")
 
     def test_vision_text_dual_encoder_model(self):
         inputs_dict = self.prepare_config_and_inputs()
@@ -324,11 +223,7 @@ class ViTBertModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
         )
         input_ids = ids_tensor([batch_size, 4], model.text_model.config.vocab_size)
         attention_mask = random_attention_mask([batch_size, 4])
-        inputs = {
-            "pixel_values": pixel_values,
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-        }
+        inputs = {"pixel_values": pixel_values, "input_ids": input_ids, "attention_mask": attention_mask}
 
         return model, inputs
 
@@ -372,8 +267,7 @@ class ViTBertModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
 class DeiTRobertaModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
     def get_pretrained_model_and_inputs(self):
         model = VisionTextDualEncoderModel.from_vision_text_pretrained(
-            "hf-internal-testing/tiny-random-deit",
-            "hf-internal-testing/tiny-random-roberta",
+            "hf-internal-testing/tiny-random-deit", "hf-internal-testing/tiny-random-roberta"
         )
         batch_size = 13
         pixel_values = floats_tensor(
@@ -386,37 +280,20 @@ class DeiTRobertaModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
         )
         input_ids = ids_tensor([batch_size, 4], model.text_model.config.vocab_size)
         attention_mask = random_attention_mask([batch_size, 4])
-        inputs = {
-            "pixel_values": pixel_values,
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-        }
+        inputs = {"pixel_values": pixel_values, "input_ids": input_ids, "attention_mask": attention_mask}
 
         return model, inputs
 
     def check_vision_text_output_attention(
-        self,
-        text_config,
-        input_ids,
-        attention_mask,
-        vision_config,
-        pixel_values=None,
-        **kwargs,
+        self, text_config, input_ids, attention_mask, vision_config, pixel_values=None, **kwargs
     ):
-        vision_model, text_model = self.get_vision_text_model(
-            vision_config, text_config
-        )
-        model = VisionTextDualEncoderModel(
-            vision_model=vision_model, text_model=text_model
-        )
+        vision_model, text_model = self.get_vision_text_model(vision_config, text_config)
+        model = VisionTextDualEncoderModel(vision_model=vision_model, text_model=text_model)
         model.to(torch_device)
         model.eval()
 
         output = model(
-            input_ids=input_ids,
-            pixel_values=pixel_values,
-            attention_mask=attention_mask,
-            output_attentions=True,
+            input_ids=input_ids, pixel_values=pixel_values, attention_mask=attention_mask, output_attentions=True
         )
 
         vision_attentions = output.vision_model_output.attentions
@@ -425,14 +302,9 @@ class DeiTRobertaModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
         # in DEiT, the seq_len equals the number of patches + 2 (we add 2 for the [CLS] and distillation tokens)
         image_size = to_2tuple(vision_model.config.image_size)
         patch_size = to_2tuple(vision_model.config.patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
         seq_len = num_patches + 2
-        self.assertEqual(
-            vision_attentions[0].shape[-3:],
-            (vision_config.num_attention_heads, seq_len, seq_len),
-        )
+        self.assertEqual(vision_attentions[0].shape[-3:], (vision_config.num_attention_heads, seq_len, seq_len))
 
         text_attentions = output.text_model_output.attentions
         self.assertEqual(len(text_attentions), text_config.num_hidden_layers)
@@ -495,11 +367,7 @@ class CLIPVisionBertModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
         )
         input_ids = ids_tensor([batch_size, 4], model.text_model.config.vocab_size)
         attention_mask = random_attention_mask([batch_size, 4])
-        inputs = {
-            "pixel_values": pixel_values,
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-        }
+        inputs = {"pixel_values": pixel_values, "input_ids": input_ids, "attention_mask": attention_mask}
 
         return model, inputs
 
@@ -544,28 +412,18 @@ class CLIPVisionBertModelTest(VisionTextDualEncoderMixin, unittest.TestCase):
 class VisionTextDualEncoderIntegrationTest(unittest.TestCase):
     @slow
     def test_inference(self):
-        model = VisionTextDualEncoderModel.from_pretrained(
-            "clip-italian/clip-italian", logit_scale_init_value=1.0
-        )
-        processor = VisionTextDualEncoderProcessor.from_pretrained(
-            "clip-italian/clip-italian"
-        )
+        model = VisionTextDualEncoderModel.from_pretrained("clip-italian/clip-italian", logit_scale_init_value=1.0)
+        processor = VisionTextDualEncoderProcessor.from_pretrained("clip-italian/clip-italian")
 
         image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
         inputs = processor(
-            text=["una foto di un gatto", "una foto di un cane"],
-            images=image,
-            padding=True,
-            return_tensors="pt",
+            text=["una foto di un gatto", "una foto di un cane"], images=image, padding=True, return_tensors="pt"
         )
 
         outputs = model(**inputs)
 
         # verify the logits
-        self.assertEqual(
-            outputs.logits_per_image.shape,
-            (inputs.pixel_values.shape[0], inputs.input_ids.shape[0]),
-        )
+        self.assertEqual(outputs.logits_per_image.shape, (inputs.pixel_values.shape[0], inputs.input_ids.shape[0]))
         self.assertEqual(
             outputs.logits_per_text.shape,
             (inputs.input_ids.shape[0], inputs.pixel_values.shape[0]),
@@ -573,6 +431,4 @@ class VisionTextDualEncoderIntegrationTest(unittest.TestCase):
 
         expected_logits = torch.tensor([[1.2284727, 0.3104122]])
 
-        torch.testing.assert_close(
-            outputs.logits_per_image, expected_logits, rtol=1e-3, atol=1e-3
-        )
+        torch.testing.assert_close(outputs.logits_per_image, expected_logits, rtol=1e-3, atol=1e-3)

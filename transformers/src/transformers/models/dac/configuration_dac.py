@@ -14,15 +14,13 @@
 # limitations under the License.
 """Dac model configuration"""
 
-# Standard
 import math
 
-# Third Party
 import numpy as np
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 

@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ....utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
@@ -22,6 +20,7 @@ from ....utils import (
     is_speech_available,
     is_torch_available,
 )
+
 
 _import_structure = {
     "configuration_speech_to_text_2": ["Speech2Text2Config"],
@@ -43,7 +42,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_speech_to_text_2 import Speech2Text2Config
     from .processing_speech_to_text_2 import Speech2Text2Processor
     from .tokenization_speech_to_text_2 import Speech2Text2Tokenizer
@@ -54,16 +52,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_speech_to_text_2 import (
             Speech2Text2ForCausalLM,
             Speech2Text2PreTrainedModel,
         )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

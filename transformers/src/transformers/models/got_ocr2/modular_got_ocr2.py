@@ -14,36 +14,30 @@
 # limitations under the License.
 
 
-# Standard
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
-# Third Party
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
 
-# First Party
+from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.llava.modeling_llava import (
     LlavaCausalLMOutputWithPast,
     LlavaForConditionalGeneration,
     LlavaPreTrainedModel,
 )
-from transformers.models.sam.modeling_sam import (
-    SamMLPBlock,
-    SamVisionAttention,
-    SamVisionEncoder,
-    SamVisionLayer,
-)
+from transformers.models.sam.modeling_sam import SamMLPBlock, SamVisionAttention, SamVisionEncoder, SamVisionLayer
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import (
     add_start_docstrings_to_model_forward,
+    can_return_tuple,
     is_vision_available,
     logging,
     replace_return_docstrings,
 )
 from ..auto import CONFIG_MAPPING, AutoConfig, AutoModelForCausalLM
+
 
 if is_vision_available():
     pass
@@ -205,9 +199,7 @@ class GotOcr2Config(PretrainedConfig):
             self.vision_config = vision_config
 
         if isinstance(text_config, dict):
-            text_config["model_type"] = (
-                text_config["model_type"] if "model_type" in text_config else "qwen2"
-            )
+            text_config["model_type"] = text_config["model_type"] if "model_type" in text_config else "qwen2"
             text_config = CONFIG_MAPPING[text_config["model_type"]](**text_config)
         elif text_config is None:
             text_config = CONFIG_MAPPING["qwen2"](
@@ -234,9 +226,6 @@ class GotOcr2Config(PretrainedConfig):
         self.text_config = text_config
 
         super().__init__(**kwargs)
-
-
-__all__ = ["GotOcr2VisionConfig", "GotOcr2Config"]
 
 
 class GotOcr2MLPBlock(SamMLPBlock):
@@ -267,24 +256,12 @@ class GotOcr2MultiModalProjector(nn.Module):
         vision_output_channels = config.vision_config.output_channels
         language_hidden_size = config.text_config.hidden_size
         self.conv_upsampler1 = nn.Conv2d(
-            vision_output_channels,
-            vision_output_channels * 2,
-            kernel_size=3,
-            stride=2,
-            padding=1,
-            bias=False,
+            vision_output_channels, vision_output_channels * 2, kernel_size=3, stride=2, padding=1, bias=False
         )
         self.conv_upsampler2 = nn.Conv2d(
-            vision_output_channels * 2,
-            language_hidden_size,
-            kernel_size=3,
-            stride=2,
-            padding=1,
-            bias=False,
+            vision_output_channels * 2, language_hidden_size, kernel_size=3, stride=2, padding=1, bias=False
         )
-        self.multimodal_projector = nn.Linear(
-            language_hidden_size, language_hidden_size
-        )
+        self.multimodal_projector = nn.Linear(language_hidden_size, language_hidden_size)
 
     def forward(self, vision_embeddings: torch.Tensor) -> torch.Tensor:
         hidden_state = self.conv_upsampler1(vision_embeddings)
@@ -382,9 +359,7 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
 
         if self.language_model._tied_weights_keys is not None:
-            self._tied_weights_keys = [
-                f"language_model.{k}" for k in self.language_model._tied_weights_keys
-            ]
+            self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
 
         self.pad_token_id = config.pad_token_id
 
@@ -405,14 +380,13 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
         image_outputs = self.vision_tower(pixel_values).last_hidden_state
         return self.multi_modal_projector(image_outputs)
 
+    @can_return_tuple
     @add_start_docstrings_to_model_forward(GOT_OCR2_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=GotOcr2CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=GotOcr2CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
-        input_ids: torch.LongTensor = None,
-        pixel_values: torch.FloatTensor = None,
+        input_ids: Optional[torch.LongTensor] = None,
+        pixel_values: Optional[torch.FloatTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[torch.FloatTensor]] = None,
@@ -421,10 +395,9 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
         logits_to_keep: Union[int, torch.Tensor] = 0,
-    ) -> Union[Tuple, LlavaCausalLMOutputWithPast]:
+    ) -> GotOcr2CausalLMOutputWithPast:
         r"""
             labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
@@ -470,24 +443,13 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
         when you're planning to sell a template."
         ```"""
 
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
         if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError(
-                "You must specify exactly one of input_ids or inputs_embeds"
-            )
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if pixel_values is not None and inputs_embeds is not None:
             raise ValueError(
@@ -498,29 +460,19 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
         if pixel_values is not None:
-            image_features = self.get_image_features(
-                pixel_values=pixel_values.to(inputs_embeds.dtype)
-            )
+            image_features = self.get_image_features(pixel_values=pixel_values.to(inputs_embeds.dtype))
             n_image_tokens = (input_ids == self.config.image_token_index).sum()
             n_image_features = image_features.shape[0] * image_features.shape[1]
             if n_image_tokens != n_image_features:
                 raise ValueError(
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
-            special_image_mask = (input_ids == self.config.image_token_index).unsqueeze(
-                -1
-            )
-            special_image_mask = special_image_mask.expand_as(inputs_embeds).to(
-                inputs_embeds.device
-            )
-            image_features = image_features.to(
-                inputs_embeds.device, inputs_embeds.dtype
-            )
-            inputs_embeds = inputs_embeds.masked_scatter(
-                special_image_mask, image_features
-            )
+            special_image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1)
+            special_image_mask = special_image_mask.expand_as(inputs_embeds).to(inputs_embeds.device)
+            image_features = image_features.to(inputs_embeds.device, inputs_embeds.dtype)
+            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
-        outputs = self.language_model(
+        outputs: CausalLMOutputWithPast = self.language_model(
             attention_mask=attention_mask,
             position_ids=position_ids,
             past_key_values=past_key_values,
@@ -528,12 +480,11 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
             cache_position=cache_position,
             logits_to_keep=logits_to_keep,
         )
 
-        logits = outputs[0]
+        logits = outputs.logits
 
         loss = None
         if labels is not None:
@@ -541,28 +492,17 @@ class GotOcr2ForConditionalGeneration(LlavaForConditionalGeneration):
             if attention_mask is not None:
                 # we use the input attention mask to shift the logits and labels, because it is 2D.
                 # we also crop attn mask in case it is longer, which happens in PrefixTuning with peft
-                shift_attention_mask = attention_mask[:, -(logits.shape[1] - 1) :].to(
-                    logits.device
-                )
-                shift_logits = logits[..., :-1, :][
-                    shift_attention_mask.to(logits.device) != 0
-                ].contiguous()
-                shift_labels = labels[..., 1:][
-                    shift_attention_mask.to(labels.device) != 0
-                ].contiguous()
+                shift_attention_mask = attention_mask[:, -(logits.shape[1] - 1) :].to(logits.device)
+                shift_logits = logits[..., :-1, :][shift_attention_mask.to(logits.device) != 0].contiguous()
+                shift_labels = labels[..., 1:][shift_attention_mask.to(labels.device) != 0].contiguous()
             else:
                 shift_logits = logits[..., :-1, :].contiguous()
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1).to(shift_logits.device),
+                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1).to(shift_logits.device)
             )
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
 
         return GotOcr2CausalLMOutputWithPast(
             loss=loss,

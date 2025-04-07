@@ -14,18 +14,15 @@
 # limitations under the License.
 """Testing suite for the PyTorch SeamlessM4Tv2 model."""
 
-# Standard
 import copy
 import tempfile
 import unittest
 
-# First Party
 from transformers import SeamlessM4Tv2Config, is_speech_available, is_torch_available
 from transformers.testing_utils import require_torch, slow, torch_device
 from transformers.trainer_utils import set_seed
 from transformers.utils import cached_property
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import (
     ModelTesterMixin,
@@ -35,11 +32,10 @@ from ...test_modeling_common import (
     random_attention_mask,
 )
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         SeamlessM4Tv2ForSpeechToSpeech,
         SeamlessM4Tv2ForSpeechToText,
@@ -49,7 +45,6 @@ if is_torch_available():
     )
 
 if is_speech_available():
-    # First Party
     from transformers import SeamlessM4TProcessor
 
 
@@ -450,18 +445,8 @@ class SeamlessM4Tv2ModelWithSpeechInputTest(ModelTesterMixin, unittest.TestCase)
     def test_model_weights_reload_no_missing_tied_weights(self):
         pass
 
-    @unittest.skip(
-        reason="SeamlessM4Tv2Model is base class but has actually a bigger architecture than seamlessM4T task-specific models."
-    )
-    def test_save_load_fast_init_to_base(self):
-        pass
-
     @unittest.skip(reason="SeamlessM4Tv2Model can takes input_ids or input_features")
     def test_forward_signature(self):
-        pass
-
-    @unittest.skip(reason="SeamlessM4Tv2 has no base model")
-    def test_save_load_fast_init_from_base(self):
         pass
 
     @unittest.skip(
@@ -597,7 +582,7 @@ class SeamlessM4Tv2ModelWithSpeechInputTest(ModelTesterMixin, unittest.TestCase)
     # TODO: @ydshieh: refer to #34968
     @unittest.skip(reason="Failing on multi-gpu runner")
     def test_retain_grad_hidden_states_attentions(self):
-        pass
+        self.skipTest(reason="Failing on multi-gpu runner")
 
 
 @require_torch
@@ -691,16 +676,6 @@ class SeamlessM4Tv2ModelWithTextInputTest(ModelTesterMixin, unittest.TestCase):
     def test_decoder_model_past_with_large_inputs(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs_for_decoder()
         self.model_tester.create_and_check_decoder_model_past_large_inputs(*config_and_inputs)
-
-    @unittest.skip(
-        reason="SeamlessM4Tv2Model is base class but has actually a bigger architecture than seamlessM4T task-specific models."
-    )
-    def test_save_load_fast_init_to_base(self):
-        pass
-
-    @unittest.skip(reason="SeamlessM4Tv2 has no base model")
-    def test_save_load_fast_init_from_base(self):
-        pass
 
     @unittest.skip(
         reason="This architecture seem to not compute gradients properly when using GC, check: https://github.com/huggingface/transformers/pull/27124"
@@ -846,11 +821,7 @@ class SeamlessM4Tv2GenerationTest(unittest.TestCase):
     def test_speech_generation(self):
         config, input_speech, input_text = self.prepare_speech_and_text_input()
 
-        # First Party
-        from transformers.testing_utils import (
-            set_config_for_less_flaky_test,
-            set_model_for_less_flaky_test,
-        )
+        from transformers.testing_utils import set_config_for_less_flaky_test, set_model_for_less_flaky_test
 
         set_config_for_less_flaky_test(config)
 

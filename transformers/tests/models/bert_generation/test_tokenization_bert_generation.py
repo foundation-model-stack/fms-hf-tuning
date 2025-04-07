@@ -13,21 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import BertGenerationTokenizer
-from transformers.testing_utils import (
-    get_tests_dir,
-    require_sentencepiece,
-    require_torch,
-    slow,
-)
+from transformers.testing_utils import get_tests_dir, require_sentencepiece, require_torch, slow
 from transformers.utils import cached_property
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
+
 
 SPIECE_UNDERLINE = "▁"
 
@@ -41,11 +34,12 @@ class BertGenerationTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = False
     test_sentencepiece = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         tokenizer = BertGenerationTokenizer(SAMPLE_VOCAB, keep_accents=True)
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
     def test_convert_token_and_id(self):
         """Test ``_convert_token_to_id`` and ``_convert_id_to_token``."""
@@ -107,29 +101,7 @@ class BertGenerationTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         ids = tokenizer.convert_tokens_to_ids(tokens)
         self.assertListEqual(
             ids,
-            [
-                8,
-                21,
-                84,
-                55,
-                24,
-                19,
-                7,
-                0,
-                602,
-                347,
-                347,
-                347,
-                3,
-                12,
-                66,
-                46,
-                72,
-                80,
-                6,
-                0,
-                4,
-            ],
+            [8, 21, 84, 55, 24, 19, 7, 0, 602, 347, 347, 347, 3, 12, 66, 46, 72, 80, 6, 0, 4],
         )
 
         back_tokens = tokenizer.convert_ids_to_tokens(ids)
@@ -162,18 +134,14 @@ class BertGenerationTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     @cached_property
     def big_tokenizer(self):
-        return BertGenerationTokenizer.from_pretrained(
-            "google/bert_for_seq_generation_L-24_bbc_encoder"
-        )
+        return BertGenerationTokenizer.from_pretrained("google/bert_for_seq_generation_L-24_bbc_encoder")
 
     @slow
     def test_tokenization_base_easy_symbols(self):
         symbols = "Hello World!"
         original_tokenizer_encodings = [18536, 2260, 101]
 
-        self.assertListEqual(
-            original_tokenizer_encodings, self.big_tokenizer.encode(symbols)
-        )
+        self.assertListEqual(original_tokenizer_encodings, self.big_tokenizer.encode(symbols))
 
     @slow
     def test_tokenization_base_hard_symbols(self):
@@ -239,38 +207,27 @@ class BertGenerationTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             1172,
         ]
 
-        self.assertListEqual(
-            original_tokenizer_encodings, self.big_tokenizer.encode(symbols)
-        )
+        self.assertListEqual(original_tokenizer_encodings, self.big_tokenizer.encode(symbols))
 
     @require_torch
     @slow
     def test_torch_encode_plus_sent_to_model(self):
-        # Third Party
         import torch
 
-        # First Party
         from transformers import BertGenerationConfig, BertGenerationEncoder
 
         # Build sequence
         first_ten_tokens = list(self.big_tokenizer.get_vocab().keys())[:10]
         sequence = " ".join(first_ten_tokens)
-        encoded_sequence = self.big_tokenizer.encode_plus(
-            sequence, return_tensors="pt", return_token_type_ids=False
-        )
+        encoded_sequence = self.big_tokenizer.encode_plus(sequence, return_tensors="pt", return_token_type_ids=False)
         batch_encoded_sequence = self.big_tokenizer.batch_encode_plus(
-            [sequence + " " + sequence],
-            return_tensors="pt",
-            return_token_type_ids=False,
+            [sequence + " " + sequence], return_tensors="pt", return_token_type_ids=False
         )
 
         config = BertGenerationConfig()
         model = BertGenerationEncoder(config)
 
-        assert (
-            model.get_input_embeddings().weight.shape[0]
-            >= self.big_tokenizer.vocab_size
-        )
+        assert model.get_input_embeddings().weight.shape[0] >= self.big_tokenizer.vocab_size
 
         with torch.no_grad():
             model(**encoded_sequence)

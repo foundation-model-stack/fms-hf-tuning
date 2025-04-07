@@ -14,37 +14,30 @@
 # limitations under the License.
 """Testing suite for the TensorFlow ViT model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
 import inspect
 import unittest
 
-# First Party
 from transformers import ViTConfig
 from transformers.testing_utils import require_tf, require_vision, slow
 from transformers.utils import cached_property, is_tf_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_tf_common import TFModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers import TFViTForImageClassification, TFViTModel
     from transformers.modeling_tf_utils import keras
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import ViTImageProcessor
 
 
@@ -95,9 +88,7 @@ class TFViTModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -127,47 +118,33 @@ class TFViTModelTester:
     def create_and_check_model(self, config, pixel_values, labels):
         model = TFViTModel(config=config)
         result = model(pixel_values, training=False)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
         # Test with an image with different size than the one specified in config.
         image_size = self.image_size // 2
         pixel_values = pixel_values[:, :, :image_size, :image_size]
         result = model(pixel_values, interpolate_pos_encoding=True, training=False)
         seq_length = (image_size // self.patch_size) ** 2 + 1
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, seq_length, self.hidden_size))
 
     def create_and_check_for_image_classification(self, config, pixel_values, labels):
         config.num_labels = self.type_sequence_label_size
         model = TFViTForImageClassification(config)
         result = model(pixel_values, labels=labels, training=False)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
         # Test with an image with different size than the one specified in config.
         image_size = self.image_size // 2
         pixel_values = pixel_values[:, :, :image_size, :image_size]
         result = model(pixel_values, interpolate_pos_encoding=True, training=False)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
         # test greyscale images
         config.num_channels = 1
         model = TFViTForImageClassification(config)
-        pixel_values = floats_tensor(
-            [self.batch_size, 1, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -183,14 +160,9 @@ class TFViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase)
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (TFViTModel, TFViTForImageClassification) if is_tf_available() else ()
-    )
+    all_model_classes = (TFViTModel, TFViTForImageClassification) if is_tf_available() else ()
     pipeline_model_mapping = (
-        {
-            "feature-extraction": TFViTModel,
-            "image-classification": TFViTForImageClassification,
-        }
+        {"feature-extraction": TFViTModel, "image-classification": TFViTForImageClassification}
         if is_tf_available()
         else {}
     )
@@ -201,9 +173,7 @@ class TFViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase)
 
     def setUp(self):
         self.model_tester = TFViTModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=ViTConfig, has_text_modality=False, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=ViTConfig, has_text_modality=False, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -262,17 +232,11 @@ def prepare_img():
 class TFViTModelIntegrationTest(unittest.TestCase):
     @cached_property
     def default_image_processor(self):
-        return (
-            ViTImageProcessor.from_pretrained("google/vit-base-patch16-224")
-            if is_vision_available()
-            else None
-        )
+        return ViTImageProcessor.from_pretrained("google/vit-base-patch16-224") if is_vision_available() else None
 
     @slow
     def test_inference_image_classification_head(self):
-        model = TFViTForImageClassification.from_pretrained(
-            "google/vit-base-patch16-224"
-        )
+        model = TFViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
 
         image_processor = self.default_image_processor
         image = prepare_img()

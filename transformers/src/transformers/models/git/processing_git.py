@@ -16,18 +16,11 @@
 Image/Text processor class for GIT
 """
 
-# Standard
 from typing import List, Optional, Union
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
-from ...processing_utils import (
-    ProcessingKwargs,
-    ProcessorMixin,
-    Unpack,
-    _validate_images_text_input_order,
-)
+from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, _validate_images_text_input_order
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import logging
 
@@ -64,11 +57,7 @@ class GitProcessor(ProcessorMixin):
     def __call__(
         self,
         images: Optional[ImageInput] = None,
-        text: Optional[
-            Union[
-                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-            ]
-        ] = None,
+        text: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[GitProcessorKwargs],
@@ -77,7 +66,7 @@ class GitProcessor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to BertTokenizerFast's [`~BertTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -106,19 +95,8 @@ class GitProcessor(ProcessorMixin):
               `None`).
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
-        legacy = kwargs.pop("legacy", True)
-        if legacy:
-            logger.warning_once(
-                "Legacy behavior is being used. The current behavior will be deprecated in version 5.0.0. "
-                "In the new behavior, if both images and text are provided, the last token (EOS token) "
-                "of the input_ids and attention_mask tensors will be removed. "
-                "To test the new behavior, set `legacy=False`as a processor call argument."
-            )
-
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
 
         # check if images and text inputs are reversed for BC
         images, text = _validate_images_text_input_order(images, text)
@@ -134,17 +112,10 @@ class GitProcessor(ProcessorMixin):
             text_features = self.tokenizer(text, **output_kwargs["text_kwargs"])
             data.update(text_features)
         if images is not None:
-            image_features = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_features = self.image_processor(images, **output_kwargs["images_kwargs"])
             data.update(image_features)
-            if not legacy:
-                data["input_ids"] = data["input_ids"][:, :-1]
-                data["attention_mask"] = data["attention_mask"][:, :-1]
 
-        return BatchFeature(
-            data=data, tensor_type=output_kwargs["common_kwargs"].get("return_tensors")
-        )
+        return BatchFeature(data=data, tensor_type=output_kwargs["common_kwargs"].get("return_tensors"))
 
     def batch_decode(self, *args, **kwargs):
         """

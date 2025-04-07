@@ -12,16 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import tempfile
 import unittest
 
-# First Party
-from transformers.models.marian.convert_marian_tatoeba_to_pytorch import (
-    DEFAULT_REPO,
-    TatoebaConverter,
-)
+from transformers.models.marian.convert_marian_tatoeba_to_pytorch import DEFAULT_REPO, TatoebaConverter
 from transformers.testing_utils import slow
 from transformers.utils import cached_property
 

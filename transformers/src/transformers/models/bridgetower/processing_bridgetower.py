@@ -16,10 +16,8 @@
 Processor class for BridgeTower.
 """
 
-# Standard
 from typing import List, Union
 
-# Local
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
 
@@ -69,9 +67,7 @@ class BridgeTowerProcessor(ProcessorMixin):
     def __call__(
         self,
         images,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[BridgeTowerProcessorKwargs],
@@ -89,9 +85,7 @@ class BridgeTowerProcessor(ProcessorMixin):
         )
         encoding = self.tokenizer(text=text, **output_kwargs["text_kwargs"])
         # add pixel_values + pixel_mask
-        encoding_image_processor = self.image_processor(
-            images, **output_kwargs["images_kwargs"]
-        )
+        encoding_image_processor = self.image_processor(images, **output_kwargs["images_kwargs"])
         encoding.update(encoding_image_processor)
 
         return encoding

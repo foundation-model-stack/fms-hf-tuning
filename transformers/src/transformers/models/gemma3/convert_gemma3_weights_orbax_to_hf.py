@@ -20,35 +20,32 @@ python -m transformers.models.gemma3.convert_gemma3_weights_orbax_to_hf \
     --variant='gemma3_4b' \
     --tokenizer_path="$HOME/gemma3/tokenizer/gemma3_cleaned_262144_v2.spiece.model" \
     --checkpoint_path="$HOME/gemma3/gemma3_4b_pt_orbax/" \
-    --output_path="$HOME/gemma3/gemma3_4b_pt_safetensors/" \
-    --precision='bfloat16'
+    --output_path="$HOME/gemma3/gemma3_4b_pt_safetensors/"
 """
 
-# Standard
 from collections.abc import Iterator, Sequence
 from typing import Any
-import dataclasses
 
-# Third Party
-from absl import app, flags, logging
-from orbax import checkpoint as obc
+import accelerate
 import numpy as np
 import torch
 import tree
+from absl import app, flags, logging
+from orbax import checkpoint as obc
 
-# First Party
-import accelerate
-
-# Local
-from ...image_utils import PILImageResampling
-from ..gemma import GemmaTokenizerFast
-from . import (
+from transformers import (
+    Gemma3Config,
     Gemma3ForCausalLM,
     Gemma3ForConditionalGeneration,
     Gemma3ImageProcessor,
     Gemma3Processor,
+    Gemma3TextConfig,
+    GemmaTokenizerFast,
+    GenerationConfig,
+    SiglipVisionConfig,
 )
-from .configuration_gemma3 import Gemma3Config, Gemma3TextConfig, SiglipVisionConfig
+from transformers.image_utils import PILImageResampling
+
 
 # ==== Internal Constants and Classes ====
 
@@ -95,21 +92,13 @@ _CHAT_TEMPLATE = """{{ bos_token }}
 {%- endif -%}
 """
 
-_DTYPES = {
-    "float32": torch.float32,
-    "bfloat16": torch.bfloat16,
-    "float16": torch.float16,
-}
+_DTYPES = {"float32", "bfloat16", "float16"}
 
 _SIGLIP_BASE = "SigLiPFromPatches_0/siglip_encoder"
 _SIGLIP_EMBEDDING = "SigLiPFromPatches_0/siglip_encoder/embedding"
-_SIGLIP_TRANSFORMER_ENCODER_BLOCK = (
-    "SigLiPFromPatches_0/siglip_encoder/Transformer/encoderblock_"
-)
+_SIGLIP_TRANSFORMER_ENCODER_BLOCK = "SigLiPFromPatches_0/siglip_encoder/Transformer/encoderblock_"
 _SIGLIP_TRANSFORMER_ENCODER_BLOCK_LEN = len(_SIGLIP_TRANSFORMER_ENCODER_BLOCK)
-_SIGLIP_TRANSFORMER_ENCODER_NORM = (
-    "SigLiPFromPatches_0/siglip_encoder/Transformer/encoder_norm"
-)
+_SIGLIP_TRANSFORMER_ENCODER_NORM = "SigLiPFromPatches_0/siglip_encoder/Transformer/encoder_norm"
 
 _TRANSFORMER_DECODER_BLOCK = "transformer/layer_"
 _TRANSFORMER_DECODER_BLOCK_LEN = len(_TRANSFORMER_DECODER_BLOCK)
@@ -165,10 +154,7 @@ _VARIANTS = {
             num_hidden_layers=34,
             num_key_value_heads=4,
             sliding_window=1024,
-            rope_scaling={
-                "rope_type": "linear",
-                "factor": 8.0,
-            },  # used for global RoPE only
+            rope_scaling={"rope_type": "linear", "factor": 8.0},  # used for global RoPE only
             rope_theta=1_000_000,
             rope_local_base_freq=10_000,
             attn_logit_softcapping=None,
@@ -186,10 +172,7 @@ _VARIANTS = {
             num_hidden_layers=48,
             num_key_value_heads=8,
             sliding_window=1024,
-            rope_scaling={
-                "rope_type": "linear",
-                "factor": 8.0,
-            },  # used for global RoPE only
+            rope_scaling={"rope_type": "linear", "factor": 8.0},  # used for global RoPE only
             rope_theta=1_000_000,
             rope_local_base_freq=10_000,
             attn_logit_softcapping=None,
@@ -207,16 +190,11 @@ _VARIANTS = {
             num_key_value_heads=16,
             head_dim=128,
             sliding_window=1024,
-            rope_scaling={
-                "rope_type": "linear",
-                "factor": 8.0,
-            },  # used for global RoPE only
+            rope_scaling={"rope_type": "linear", "factor": 8.0},  # used for global RoPE only
             rope_theta=1_000_000,
             rope_local_base_freq=10_000,
             attn_logit_softcapping=None,
-            query_pre_attn_scalar=(
-                42 * 128 // 32
-            ),  # 1 / sqrt(hidden_size // num_attention_heads)
+            query_pre_attn_scalar=(42 * 128 // 32),  # 1 / sqrt(hidden_size // num_attention_heads)
         ),
         vision_config=_VISION_CONFIG,
     ),
@@ -224,44 +202,32 @@ _VARIANTS = {
 
 # ==== Flags ====
 
-CHECKPOINT_PATH = flags.DEFINE_string(
+_CHECKPOINT_PATH = flags.DEFINE_string(
     name="checkpoint_path",
     default=None,
     help="Path to the Orbax checkpoint.",
     required=True,
 )
 
-INCLUDE_CHAT_TEMPLATE = flags.DEFINE_bool(
-    name="include_chat_template",
-    default=False,
-    help="If true, will save the default chat template with the tokenizer",
+_INCLUDE_CHAT_TEMPLATE = flags.DEFINE_bool(
+    name="include_chat_template", default=False, help="If true, will save the default chat template with the tokenizer"
 )
 
-OUTPUT_PATH = flags.DEFINE_string(
+_OUTPUT_PATH = flags.DEFINE_string(
     name="output_path",
     default=None,
     help="Path to store the HF checkpoint.",
     required=True,
 )
 
-PRECISION = flags.DEFINE_enum(
-    name="precision",
-    default=None,
+_TRANSFORMER_DTYPE = flags.DEFINE_enum(
+    name="text_dtype",
+    default="bfloat16",
     help="The floating point precision (aka dtype) of the model.",
-    enum_values=set(_DTYPES.keys()),
-    required=True,
+    enum_values=_DTYPES,
 )
 
-_TEXT_ONLY = flags.DEFINE_bool(
-    name="text_only",
-    default=False,
-    help=(
-        "If True, the model is loaded and saved as a Gemma3ForCausalLM, "
-        "otherwise model saed as Gemma3ForConditionalGeneration."
-    ),
-)
-
-TOKENIZER_PATH = flags.DEFINE_string(
+_TOKENIZER_PATH = flags.DEFINE_string(
     name="tokenizer_path",
     default=None,
     help="Path to the SentencePiece model file.",
@@ -275,6 +241,19 @@ _VARIANT = flags.DEFINE_enum(
     enum_values=set(_VARIANTS.keys()),
 )
 
+_VERBOSE = flags.DEFINE_bool(
+    name="verbose",
+    default=False,
+    help="If true, log the path, shape, and dtype of every converted layer.",
+)
+
+_VISION_DTYPE = flags.DEFINE_enum(
+    name="vision_dtype",
+    default="float32",
+    help="The floating point precision (aka dtype) of the model.",
+    enum_values=_DTYPES,
+)
+
 
 def convert_siglip_weight(
     config: SiglipVisionConfig,
@@ -286,25 +265,17 @@ def convert_siglip_weight(
     updated_weights: np.ndarray = None
 
     if path == _SIGLIP_BASE:
-        normalized_path = (
-            "vision_tower.vision_model.embeddings.position_embedding.weight"
-        )
+        normalized_path = "vision_tower.vision_model.embeddings.position_embedding.weight"
         updated_weights = weights.reshape(-1, config.hidden_size)
     elif path == _SIGLIP_EMBEDDING:
         if prop == "kernel":
-            normalized_path = (
-                "vision_tower.vision_model.embeddings.patch_embedding.weight"
-            )
+            normalized_path = "vision_tower.vision_model.embeddings.patch_embedding.weight"
             updated_weights = weights.transpose(3, 2, 0, 1)
         elif prop == "bias":
-            normalized_path = (
-                "vision_tower.vision_model.embeddings.patch_embedding.bias"
-            )
+            normalized_path = "vision_tower.vision_model.embeddings.patch_embedding.bias"
             updated_weights = weights
         else:
-            raise ValueError(
-                f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`."
-            )
+            raise ValueError(f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`.")
     elif path.startswith(_SIGLIP_TRANSFORMER_ENCODER_BLOCK):
         encoder_block_path = path[_SIGLIP_TRANSFORMER_ENCODER_BLOCK_LEN:]
         next_path_seperator_idx = encoder_block_path.find("/")
@@ -322,13 +293,9 @@ def convert_siglip_weight(
                 normalized_path += ".bias"
                 updated_weights = weights
             else:
-                raise ValueError(
-                    f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `scale`."
-                )
+                raise ValueError(f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `scale`.")
         elif encoder_block_path.startswith("/MlpBlock_0"):
-            normalized_path += (
-                ".mlp.fc1" if "/Dense_0" in encoder_block_path else ".mlp.fc2"
-            )
+            normalized_path += ".mlp.fc1" if "/Dense_0" in encoder_block_path else ".mlp.fc2"
 
             if prop == "kernel":
                 normalized_path += ".weight"
@@ -337,9 +304,7 @@ def convert_siglip_weight(
                 normalized_path += ".bias"
                 updated_weights = weights
             else:
-                raise ValueError(
-                    f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`."
-                )
+                raise ValueError(f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`.")
         elif encoder_block_path.startswith("/MultiHeadDotProductAttention_0"):
             if encoder_block_path.endswith("/key"):
                 normalized_path += ".self_attn.k_proj"
@@ -350,9 +315,7 @@ def convert_siglip_weight(
             elif encoder_block_path.endswith("/value"):
                 normalized_path += ".self_attn.v_proj"
             else:
-                raise ValueError(
-                    f"Unexpected path `{path}` in SigLIP Transformer MultiHeadDotProductAttention_0."
-                )
+                raise ValueError(f"Unexpected path `{path}` in SigLIP Transformer MultiHeadDotProductAttention_0.")
 
             if prop == "bias":
                 normalized_path += ".bias"
@@ -361,13 +324,9 @@ def convert_siglip_weight(
                 normalized_path += ".weight"
                 updated_weights = weights.reshape(-1, config.hidden_size).transpose()
             else:
-                raise ValueError(
-                    f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`."
-                )
+                raise ValueError(f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `kernel`.")
         else:
-            raise ValueError(
-                f"Unexpected path `{path}` in SigLIP Transformer Encoder Block."
-            )
+            raise ValueError(f"Unexpected path `{path}` in SigLIP Transformer Encoder Block.")
     elif path == _SIGLIP_TRANSFORMER_ENCODER_NORM:
         if prop == "scale":
             normalized_path = "vision_tower.vision_model.post_layernorm.weight"
@@ -376,14 +335,10 @@ def convert_siglip_weight(
             normalized_path = "vision_tower.vision_model.post_layernorm.bias"
             updated_weights = weights
         else:
-            raise ValueError(
-                f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `scale`."
-            )
+            raise ValueError(f"Unexpected member, `{prop}`, for path `{path}`. Should be `bias` or `scale`.")
     else:
         raise ValueError(f"Unexpected path `{path}`.")
 
-    if "vision" in normalized_path:
-        print(normalized_path)
     return normalized_path, updated_weights
 
 
@@ -408,26 +363,21 @@ def convert_transformer_weights(
             # Tied to language_model.lm_head.weight, assigned at the end.
             converted_paths = ["language_model.model.embed_tokens.weight"]
 
-            if not _TEXT_ONLY.value:
+            if _VARIANT.value != _VARIANT_GEMMA_3_1B:
                 # Gemma3 model doesn't have image soft token in input and output embeddings, resize to avoid bugs we had with Mllama
                 pre_expansion_embeddings = weights
                 mu = np.mean(pre_expansion_embeddings, axis=0)
                 sigma = np.cov(pre_expansion_embeddings, rowvar=False, bias=True)
-                new_embeddings = np.random.multivariate_normal(
-                    mu, 1e-5 * sigma, size=64
-                )
+                new_embeddings = np.random.multivariate_normal(mu, 1e-5 * sigma, size=64)
                 weights = np.vstack([pre_expansion_embeddings, new_embeddings])
 
             converted_weights = [weights]
-        elif _TEXT_ONLY.value or prop in (
-            "mm_output_embedding",
-            "mm_input_embedding_extra",
-        ):
+        elif _VARIANT.value == _VARIANT_GEMMA_3_1B or prop in ("mm_output_embedding", "mm_input_embedding_extra"):
             return zip([], [])
         else:
             raise ValueError(f"Unexpected member, {prop}, in Embedder.")
     elif path.startswith(f"{_TRANSFORMER_EMBEDDER}/mm"):
-        if _TEXT_ONLY.value:
+        if _VARIANT.value == _VARIANT_GEMMA_3_1B:
             return zip([], [])
 
         if path.endswith("/mm_input_projection"):
@@ -451,9 +401,7 @@ def convert_transformer_weights(
 
         if path.endswith("attn/attn_vec_einsum"):
             converted_paths = [f"{base_path}.self_attn.o_proj.weight"]
-            converted_weights = [
-                weights.transpose(2, 0, 1).reshape(config.hidden_size, attn_head_dim)
-            ]
+            converted_weights = [weights.transpose(2, 0, 1).reshape(config.hidden_size, attn_head_dim)]
         elif path.endswith("attn/_key_norm"):
             converted_paths = [f"{base_path}.self_attn.k_norm.weight"]
             converted_weights = [weights]
@@ -464,18 +412,12 @@ def convert_transformer_weights(
             ]
             k_proj_weights, v_proj_weights = weights
             converted_weights = [
-                k_proj_weights.transpose(0, 2, 1).reshape(
-                    kv_head_dim, config.hidden_size
-                ),
-                v_proj_weights.transpose(0, 2, 1).reshape(
-                    kv_head_dim, config.hidden_size
-                ),
+                k_proj_weights.transpose(0, 2, 1).reshape(kv_head_dim, config.hidden_size),
+                v_proj_weights.transpose(0, 2, 1).reshape(kv_head_dim, config.hidden_size),
             ]
         elif path.endswith("attn/q_einsum"):
             converted_paths = [f"{base_path}.self_attn.q_proj.weight"]
-            converted_weights = [
-                weights.transpose(0, 2, 1).reshape(attn_head_dim, config.hidden_size)
-            ]
+            converted_weights = [weights.transpose(0, 2, 1).reshape(attn_head_dim, config.hidden_size)]
         elif path.endswith("attn/_query_norm"):
             converted_paths = [f"{base_path}.self_attn.q_norm.weight"]
             converted_weights = [weights]
@@ -515,127 +457,74 @@ def convert_transformer_weights(
     return zip(converted_paths, converted_weights)
 
 
-@dataclasses.dataclass(frozen=True)
-class ConversionResult:
-    state_tree: dict[str, torch.Tensor]
-    config: Gemma3Config
-
-
-def convert(
-    checkpoint_path: str,
-    config: Gemma3Config,
-    target_dtype: torch.dtype,
-) -> ConversionResult:
+def convert(checkpoint_path: str, config: Gemma3Config) -> dict[str, torch.Tensor]:
     """Loads Orbax checkpoint from `input_path` and converts it to HF tree."""
     checkpointer = obc.PyTreeCheckpointer()
     ckpt = checkpointer.restore(checkpoint_path)
     hf_tree: dict[str, torch.Tensor] = {}
 
-    def update_tree(path: str, weights: np.ndarray) -> None:
-        torch_tensor = torch.from_numpy(weights.astype("float32")).type(target_dtype)
-        logging.info(
-            "%s converted shape=%s with dtype=%s",
-            path,
-            weights.shape,
-            torch_tensor.dtype,
-        )
-        hf_tree[path] = torch_tensor
+    def update_tree(path: str, weights: np.ndarray, target_dtype: torch.dtype) -> None:
+        hf_tree[path] = torch.from_numpy(weights.astype("float32")).type(target_dtype)
+        if _VERBOSE.value:
+            logging.info(
+                "%s converted shape=%s with dtype=%s",
+                path,
+                weights.shape,
+                target_dtype,
+            )
 
     for paths, value in tree.flatten_with_path(ckpt):
         if paths[0].startswith("SigLiPFromPatches_"):
             if config.vision_config is None:
                 continue
 
-            path, weights = convert_siglip_weight(
-                config=config.vision_config, paths=paths, weights=value
-            )
-            update_tree(path, weights)
+            path, weights = convert_siglip_weight(config=config.vision_config, paths=paths, weights=value)
+            update_tree(path, weights, config.vision_config.torch_dtype)
         else:
-            for path, weights in convert_transformer_weights(
-                config=config.text_config, paths=paths, weights=value
-            ):
+            for path, weights in convert_transformer_weights(config=config.text_config, paths=paths, weights=value):
                 if config.vision_config is None:
                     path = path[len("language_model.") :]
 
-                update_tree(path, weights)
+                update_tree(path, weights, config.text_config.torch_dtype)
 
     if config.vision_config is None:
         hf_tree["lm_head.weight"] = hf_tree["model.embed_tokens.weight"]
     else:
-        hf_tree["language_model.lm_head.weight"] = hf_tree[
-            "language_model.model.embed_tokens.weight"
-        ]
+        hf_tree["language_model.lm_head.weight"] = hf_tree["language_model.model.embed_tokens.weight"]
 
-    return ConversionResult(state_tree=hf_tree, config=config)
+    return hf_tree
 
 
 def main(*args):
     del args
 
+    output_path = _OUTPUT_PATH.value
     variant = _VARIANT.value
-    dtype = getattr(torch, PRECISION.value)
+
     config = _VARIANTS[variant]
-    output_path = OUTPUT_PATH.value
-
-    if variant == _VARIANT_GEMMA_3_1B:
-        flags.FLAGS.set_default(_TEXT_ONLY.name, True)
-
-    tokenizer = GemmaTokenizerFast(
-        TOKENIZER_PATH.value,
-        add_bos_token=True,
-        extra_special_tokens={
-            "image_token": "<image_soft_token>",  # Should be ID=262_144
-            "boi_token": "<start_of_image>",  # Should be ID=255_999
-            "eoi_token": "<end_of_image>",  # Should be ID=256_000
-        },
-    )
-
-    if INCLUDE_CHAT_TEMPLATE.value:
-        # Include chat template for CausalLM models
-        tokenizer.chat_template = _CHAT_TEMPLATE
+    config.text_config.torch_dtype = getattr(torch, _TRANSFORMER_DTYPE.value)
+    config.vision_config.torch_dtype = getattr(torch, _VISION_DTYPE.value)
+    if _INCLUDE_CHAT_TEMPLATE.value:
+        # Chat template is included for instruction tuned models, which treat
+        # both "<eos>" and "<end_of_turn>" as generation stoppers.
         config.eos_token_id = [1, 106]
 
-    if _TEXT_ONLY.value:
-        config.vision_config = None
-        tokenizer.save_pretrained(output_path)
-        logging.info("Saved GemmaTokenizer for %s to %s", variant, output_path)
-        del tokenizer
-    else:
-        image_processor = Gemma3ImageProcessor(
-            image_seq_length=256,
-            image_mean=(0.5,) * 3,
-            image_std=(0.5,) * 3,
-            size={"height": 896, "width": 896},
-            resample=PILImageResampling.BILINEAR,
-        )
-        processor = Gemma3Processor(
-            image_processor=image_processor,
-            tokenizer=tokenizer,
-        )
-        if INCLUDE_CHAT_TEMPLATE.value:
-            # Duplicate so multimodal instruct models can also be used for CausalLM
-            processor.chat_template = tokenizer.chat_template
-
-        processor.save_pretrained(output_path)
-        logging.info("Saved Gemma3Processor for %s to %s", variant, output_path)
-        del processor
-        del tokenizer
-
-    logging.info("Gemma 3 (%s) configured as: %s", variant, config)
-    logging.info("Converting Gemma 3 (%s) @ %s", variant, dtype)
-    result = convert(CHECKPOINT_PATH.value, config, dtype)
     logging.info(
-        "Converted Gemma 3 (%s) state tree from Orbax to Hugging Face.", variant
+        "Converting Gemma 3 (%s) @ %s (language) and %s (vision)",
+        variant,
+        _TRANSFORMER_DTYPE.value,
+        _VISION_DTYPE.value,
     )
+    state_tree = convert(_CHECKPOINT_PATH.value, config)
+    logging.info("Converted Gemma 3 (%s) state tree from Orbax to Hugging Face.", variant)
 
     with accelerate.init_empty_weights():
-        if config.vision_config is None:
+        if variant == _VARIANT_GEMMA_3_1B:
             model = Gemma3ForCausalLM(config=config.text_config)
         else:
             model = Gemma3ForConditionalGeneration(config)
 
-    model.load_state_dict(result.state_tree, assign=True, strict=True)
-    model.config.torch_dtype = dtype
+    model.load_state_dict(state_tree, assign=True, strict=True)
     logging.info(
         "Loaded Gemma 3 (%s) in Hugging Face Transformers as a %s instance.",
         variant,
@@ -649,7 +538,51 @@ def main(*args):
         type(model).__name__,
     )
     del model
-    del result
+    del state_tree
+
+    tokenizer = GemmaTokenizerFast(
+        _TOKENIZER_PATH.value,
+        add_bos_token=True,
+        extra_special_tokens={
+            "image_token": "<image_soft_token>",  # Should be ID=262_144
+            "boi_token": "<start_of_image>",  # Should be ID=255_999
+            "eoi_token": "<end_of_image>",  # Should be ID=256_000
+        },
+        chat_template=_CHAT_TEMPLATE if _INCLUDE_CHAT_TEMPLATE.value else None,
+    )
+    tokenizer.save_pretrained(output_path)
+    logging.info("Saved GemmaTokenizer for %s to %s", variant, output_path)
+
+    if variant != _VARIANT_GEMMA_3_1B:
+        image_processor = Gemma3ImageProcessor(
+            image_seq_length=256,
+            image_mean=(0.5,) * 3,
+            image_std=(0.5,) * 3,
+            size={"height": 896, "width": 896},
+            resample=PILImageResampling.BILINEAR,
+        )
+        processor = Gemma3Processor(
+            image_processor=image_processor,
+            tokenizer=tokenizer,
+            chat_template=tokenizer.chat_template,
+        )
+        processor.save_pretrained(output_path)
+        logging.info("Saved Gemma3Processor for %s to %s", variant, output_path)
+        del processor
+
+    del tokenizer
+
+    generation_config = GenerationConfig(
+        pad_token_id=config.pad_token_id,
+        bos_token_id=config.bos_token_id,
+        eos_token_id=config.eos_token_id,
+        cache_implementation="hybrid",
+        temperature=1.0,
+        do_sample=True,
+        top_k=64,
+        top_p=0.95,
+    )
+    generation_config.save_pretrained(output_path)
 
 
 if __name__ == "__main__":

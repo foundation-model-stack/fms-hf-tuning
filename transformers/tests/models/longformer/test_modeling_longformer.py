@@ -14,29 +14,19 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers import LongformerConfig, is_torch_available
-from transformers.testing_utils import (
-    require_sentencepiece,
-    require_tokenizers,
-    require_torch,
-    slow,
-    torch_device,
-)
+from transformers.testing_utils import require_sentencepiece, require_tokenizers, require_torch, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         LongformerForMaskedLM,
         LongformerForMultipleChoice,
@@ -45,9 +35,7 @@ if is_torch_available():
         LongformerForTokenClassification,
         LongformerModel,
     )
-    from transformers.models.longformer.modeling_longformer import (
-        LongformerSelfAttention,
-    )
+    from transformers.models.longformer.modeling_longformer import LongformerSelfAttention
 
 
 class LongformerModelTester:
@@ -118,33 +106,19 @@ class LongformerModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return LongformerConfig(
@@ -168,67 +142,31 @@ class LongformerModelTester:
         return config
 
     def create_and_check_attention_mask_determinism(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LongformerModel(config=config)
         model.to(torch_device)
         model.eval()
 
-        attention_mask = torch.ones(
-            input_ids.shape, dtype=torch.long, device=torch_device
-        )
-        output_with_mask = model(input_ids, attention_mask=attention_mask)[
-            "last_hidden_state"
-        ]
+        attention_mask = torch.ones(input_ids.shape, dtype=torch.long, device=torch_device)
+        output_with_mask = model(input_ids, attention_mask=attention_mask)["last_hidden_state"]
         output_without_mask = model(input_ids)["last_hidden_state"]
-        self.parent.assertTrue(
-            torch.allclose(
-                output_with_mask[0, 0, :5], output_without_mask[0, 0, :5], atol=1e-4
-            )
-        )
+        self.parent.assertTrue(torch.allclose(output_with_mask[0, 0, :5], output_without_mask[0, 0, :5], atol=1e-4))
 
     def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LongformerModel(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids, attention_mask=input_mask, token_type_ids=token_type_ids
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
         result = model(input_ids, token_type_ids=token_type_ids)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def create_and_check_model_with_global_attention_mask(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LongformerModel(config=config)
         model.to(torch_device)
@@ -243,53 +181,23 @@ class LongformerModelTester:
             global_attention_mask=global_attention_mask,
             token_type_ids=token_type_ids,
         )
-        result = model(
-            input_ids,
-            token_type_ids=token_type_ids,
-            global_attention_mask=global_attention_mask,
-        )
+        result = model(input_ids, token_type_ids=token_type_ids, global_attention_mask=global_attention_mask)
         result = model(input_ids, global_attention_mask=global_attention_mask)
 
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def create_and_check_for_masked_lm(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LongformerForMaskedLM(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-            labels=token_labels,
-        )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
     def create_and_check_for_question_answering(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = LongformerForQuestionAnswering(config=config)
         model.to(torch_device)
@@ -302,85 +210,40 @@ class LongformerModelTester:
             start_positions=sequence_labels,
             end_positions=sequence_labels,
         )
-        self.parent.assertEqual(
-            result.start_logits.shape, (self.batch_size, self.seq_length)
-        )
-        self.parent.assertEqual(
-            result.end_logits.shape, (self.batch_size, self.seq_length)
-        )
+        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
+        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def create_and_check_for_sequence_classification(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = LongformerForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-            labels=sequence_labels,
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=sequence_labels)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
     def create_and_check_for_token_classification(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = LongformerForTokenClassification(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-            labels=token_labels,
-        )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def create_and_check_for_multiple_choice(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_choices = self.num_choices
         model = LongformerForMultipleChoice(config=config)
         model.to(torch_device)
         model.eval()
-        multiple_choice_inputs_ids = (
-            input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_token_type_ids = (
-            token_type_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_input_mask = (
-            input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_input_mask = (
-            input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
+        multiple_choice_inputs_ids = input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_token_type_ids = token_type_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_input_mask = input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_input_mask = input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
         result = model(
             multiple_choice_inputs_ids,
             attention_mask=multiple_choice_input_mask,
@@ -388,9 +251,7 @@ class LongformerModelTester:
             token_type_ids=multiple_choice_token_type_ids,
             labels=choice_labels,
         )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.num_choices)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_choices))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -427,22 +288,12 @@ class LongformerModelTester:
         ) = config_and_inputs
 
         # Replace sep_token_id by some random id
-        input_ids[input_ids == config.sep_token_id] = torch.randint(
-            0, config.vocab_size, (1,)
-        ).item()
+        input_ids[input_ids == config.sep_token_id] = torch.randint(0, config.vocab_size, (1,)).item()
         # Make sure there are exactly three sep_token_id
         input_ids[:, -3:] = config.sep_token_id
         input_mask = torch.ones_like(input_ids)
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
 
 @require_torch
@@ -503,9 +354,7 @@ class LongformerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
     def setUp(self):
         self.model_tester = LongformerModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=LongformerConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=LongformerConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -516,31 +365,23 @@ class LongformerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
     def test_model_attention_mask_determinism(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_attention_mask_determinism(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_attention_mask_determinism(*config_and_inputs)
 
     def test_model_global_attention_mask(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_model_with_global_attention_mask(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_model_with_global_attention_mask(*config_and_inputs)
 
     def test_for_masked_lm(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_for_masked_lm(*config_and_inputs)
 
     def test_for_question_answering(self):
-        config_and_inputs = (
-            self.model_tester.prepare_config_and_inputs_for_question_answering()
-        )
+        config_and_inputs = self.model_tester.prepare_config_and_inputs_for_question_answering()
         self.model_tester.create_and_check_for_question_answering(*config_and_inputs)
 
     def test_for_sequence_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_for_sequence_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_sequence_classification(*config_and_inputs)
 
     def test_for_token_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -550,15 +391,11 @@ class LongformerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_for_multiple_choice(*config_and_inputs)
 
-    @unittest.skip(
-        reason="Longformer cannot keep gradients in attention or hidden states"
-    )
+    @unittest.skip(reason="Longformer cannot keep gradients in attention or hidden states")
     def test_retain_grad_hidden_states_attentions(self):
         return
 
-    @unittest.skip(
-        reason="LongFormer calculates global attn only when attn_mask has non-zero elements"
-    )
+    @unittest.skip(reason="LongFormer calculates global attn only when attn_mask has non-zero elements")
     def test_batching_equivalence(self):
         return
 
@@ -619,30 +456,18 @@ class LongformerModelIntegrationTest(unittest.TestCase):
 
     def test_diagonalize(self):
         hidden_states = self._get_hidden_states()
-        hidden_states = hidden_states.reshape(
-            (1, 8, 4)
-        )  # set seq length = 8, hidden dim = 4
-        chunked_hidden_states = LongformerSelfAttention._chunk(
-            hidden_states, window_overlap=2
-        )
+        hidden_states = hidden_states.reshape((1, 8, 4))  # set seq length = 8, hidden dim = 4
+        chunked_hidden_states = LongformerSelfAttention._chunk(hidden_states, window_overlap=2)
         window_overlap_size = chunked_hidden_states.shape[2]
         self.assertTrue(window_overlap_size == 4)
 
-        padded_hidden_states = LongformerSelfAttention._pad_and_diagonalize(
-            chunked_hidden_states
-        )
+        padded_hidden_states = LongformerSelfAttention._pad_and_diagonalize(chunked_hidden_states)
 
-        self.assertTrue(
-            padded_hidden_states.shape[-1]
-            == chunked_hidden_states.shape[-1] + window_overlap_size - 1
-        )
+        self.assertTrue(padded_hidden_states.shape[-1] == chunked_hidden_states.shape[-1] + window_overlap_size - 1)
 
         # first row => [0.4983,  2.6918, -0.0071,  1.0492, 0.0000,  0.0000,  0.0000]
         torch.testing.assert_close(
-            padded_hidden_states[0, 0, 0, :4],
-            chunked_hidden_states[0, 0, 0],
-            rtol=1e-3,
-            atol=1e-3,
+            padded_hidden_states[0, 0, 0, :4], chunked_hidden_states[0, 0, 0], rtol=1e-3, atol=1e-3
         )
         self.assertTrue(
             torch.allclose(
@@ -653,10 +478,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         )
         # last row => [0.0000,  0.0000,  0.0000, 2.0514, -1.1600,  0.5372,  0.2629]
         torch.testing.assert_close(
-            padded_hidden_states[0, 0, -1, 3:],
-            chunked_hidden_states[0, 0, -1],
-            rtol=1e-3,
-            atol=1e-3,
+            padded_hidden_states[0, 0, -1, 3:], chunked_hidden_states[0, 0, -1], rtol=1e-3, atol=1e-3
         )
         self.assertTrue(
             torch.allclose(
@@ -671,20 +493,13 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         self.assertEqual(hidden_states.shape, (1, 4, 8))
         padding = (0, 0, 0, 1)
 
-        padded_hidden_states = LongformerSelfAttention._pad_and_transpose_last_two_dims(
-            hidden_states, padding
-        )
+        padded_hidden_states = LongformerSelfAttention._pad_and_transpose_last_two_dims(hidden_states, padding)
         self.assertEqual(padded_hidden_states.shape, (1, 8, 5))
 
         expected_added_dim = torch.zeros((5,), device=torch_device, dtype=torch.float32)
+        torch.testing.assert_close(expected_added_dim, padded_hidden_states[0, -1, :], rtol=1e-6, atol=1e-6)
         torch.testing.assert_close(
-            expected_added_dim, padded_hidden_states[0, -1, :], rtol=1e-6, atol=1e-6
-        )
-        torch.testing.assert_close(
-            hidden_states[0, -1, :],
-            padded_hidden_states.view(1, -1)[0, 24:32],
-            rtol=1e-6,
-            atol=1e-6,
+            hidden_states[0, -1, :], padded_hidden_states.view(1, -1)[0, 24:32], rtol=1e-6, atol=1e-6
         )
 
     def test_chunk(self):
@@ -694,9 +509,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         hidden_size = 4
         hidden_states = hidden_states.reshape((batch_size, seq_length, hidden_size))
 
-        chunked_hidden_states = LongformerSelfAttention._chunk(
-            hidden_states, window_overlap=2
-        )
+        chunked_hidden_states = LongformerSelfAttention._chunk(hidden_states, window_overlap=2)
 
         # expected slices across chunk and seq length dim
         expected_slice_along_seq_length = torch.tensor(
@@ -707,17 +520,9 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         )
 
         torch.testing.assert_close(
-            chunked_hidden_states[0, :, 0, 0],
-            expected_slice_along_seq_length,
-            rtol=1e-3,
-            atol=1e-3,
+            chunked_hidden_states[0, :, 0, 0], expected_slice_along_seq_length, rtol=1e-3, atol=1e-3
         )
-        torch.testing.assert_close(
-            chunked_hidden_states[0, 0, :, 0],
-            expected_slice_along_chunk,
-            rtol=1e-3,
-            atol=1e-3,
-        )
+        torch.testing.assert_close(chunked_hidden_states[0, 0, :, 0], expected_slice_along_chunk, rtol=1e-3, atol=1e-3)
         self.assertEqual(chunked_hidden_states.shape, (1, 3, 4, 4))
 
     def test_mask_invalid_locations(self):
@@ -727,9 +532,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         seq_length = 8
         hidden_size = 4
         hidden_states = hidden_states.reshape((batch_size, seq_length, hidden_size))
-        chunked_hidden_states = LongformerSelfAttention._chunk(
-            hidden_states, window_overlap=2
-        )
+        chunked_hidden_states = LongformerSelfAttention._chunk(hidden_states, window_overlap=2)
 
         hid_states_1 = chunked_hidden_states.clone()
         LongformerSelfAttention._mask_invalid_locations(hid_states_1, 1)
@@ -748,16 +551,12 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         self.assertTrue(torch.isinf(hid_states_4).sum().item() == 12)
 
     def test_layer_local_attn(self):
-        model = LongformerModel.from_pretrained(
-            "patrickvonplaten/longformer-random-tiny"
-        )
+        model = LongformerModel.from_pretrained("patrickvonplaten/longformer-random-tiny")
         model.eval()
         layer = model.encoder.layer[0].attention.self.to(torch_device)
         hidden_states = self._get_hidden_states()
         batch_size, seq_length, hidden_size = hidden_states.size()
-        attention_mask = torch.zeros(
-            (batch_size, seq_length), dtype=torch.float32, device=torch_device
-        )
+        attention_mask = torch.zeros((batch_size, seq_length), dtype=torch.float32, device=torch_device)
         attention_mask[:, -2:] = -10000
 
         is_index_masked = attention_mask < 0
@@ -777,16 +576,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
             torch.allclose(
                 output_hidden_states[0, 1],
                 torch.tensor(
-                    [
-                        0.0019,
-                        0.0122,
-                        -0.0171,
-                        -0.0256,
-                        -0.0300,
-                        0.0173,
-                        -0.0115,
-                        0.0048,
-                    ],
+                    [0.0019, 0.0122, -0.0171, -0.0256, -0.0300, 0.0173, -0.0115, 0.0048],
                     dtype=torch.float32,
                     device=torch_device,
                 ),
@@ -795,18 +585,12 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         )
 
     def test_layer_global_attn(self):
-        model = LongformerModel.from_pretrained(
-            "patrickvonplaten/longformer-random-tiny"
-        )
+        model = LongformerModel.from_pretrained("patrickvonplaten/longformer-random-tiny")
         model.eval()
         layer = model.encoder.layer[0].attention.self.to(torch_device)
-        hidden_states = torch.cat(
-            [self._get_hidden_states(), self._get_hidden_states() - 0.5], dim=0
-        )
+        hidden_states = torch.cat([self._get_hidden_states(), self._get_hidden_states() - 0.5], dim=0)
         batch_size, seq_length, hidden_size = hidden_states.size()
-        attention_mask = torch.zeros(
-            (batch_size, seq_length), dtype=torch.float32, device=torch_device
-        )
+        attention_mask = torch.zeros((batch_size, seq_length), dtype=torch.float32, device=torch_device)
 
         # create attn mask
         attention_mask[0, -2:] = 10000.0
@@ -831,16 +615,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
             torch.allclose(
                 output_hidden_states[0, 2],
                 torch.tensor(
-                    [
-                        -0.0651,
-                        -0.0393,
-                        0.0309,
-                        -0.0342,
-                        -0.0066,
-                        -0.0155,
-                        -0.0209,
-                        -0.0494,
-                    ],
+                    [-0.0651, -0.0393, 0.0309, -0.0342, -0.0066, -0.0155, -0.0209, -0.0494],
                     dtype=torch.float32,
                     device=torch_device,
                 ),
@@ -852,16 +627,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
             torch.allclose(
                 output_hidden_states[1, -2],
                 torch.tensor(
-                    [
-                        -0.0405,
-                        -0.0384,
-                        0.0396,
-                        -0.0374,
-                        -0.0341,
-                        0.0136,
-                        0.0014,
-                        -0.0571,
-                    ],
+                    [-0.0405, -0.0384, 0.0396, -0.0374, -0.0341, 0.0136, 0.0014, -0.0571],
                     dtype=torch.float32,
                     device=torch_device,
                 ),
@@ -870,18 +636,12 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         )
 
     def test_layer_attn_probs(self):
-        model = LongformerModel.from_pretrained(
-            "patrickvonplaten/longformer-random-tiny"
-        )
+        model = LongformerModel.from_pretrained("patrickvonplaten/longformer-random-tiny")
         model.eval()
         layer = model.encoder.layer[0].attention.self.to(torch_device)
-        hidden_states = torch.cat(
-            [self._get_hidden_states(), self._get_hidden_states() - 0.5], dim=0
-        )
+        hidden_states = torch.cat([self._get_hidden_states(), self._get_hidden_states() - 0.5], dim=0)
         batch_size, seq_length, hidden_size = hidden_states.size()
-        attention_mask = torch.zeros(
-            (batch_size, seq_length), dtype=torch.float32, device=torch_device
-        )
+        attention_mask = torch.zeros((batch_size, seq_length), dtype=torch.float32, device=torch_device)
 
         # create attn mask
         attention_mask[0, -2:] = 10000.0
@@ -909,12 +669,8 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         self.assertTrue(torch.all(local_attentions[1, 1:4, :, :] == 0))
 
         # The weight of all tokens with local attention must sum to 1.
-        self.assertTrue(
-            torch.all(torch.abs(global_attentions[0, :, :2, :].sum(dim=-1) - 1) < 1e-6)
-        )
-        self.assertTrue(
-            torch.all(torch.abs(global_attentions[1, :, :1, :].sum(dim=-1) - 1) < 1e-6)
-        )
+        self.assertTrue(torch.all(torch.abs(global_attentions[0, :, :2, :].sum(dim=-1) - 1) < 1e-6))
+        self.assertTrue(torch.all(torch.abs(global_attentions[1, :, :1, :].sum(dim=-1) - 1) < 1e-6))
 
         self.assertTrue(
             torch.allclose(
@@ -973,25 +729,15 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         model.to(torch_device)
 
         # 'Hello world!'
-        input_ids = torch.tensor(
-            [[0, 20920, 232, 328, 1437, 2]], dtype=torch.long, device=torch_device
-        )
-        attention_mask = torch.ones(
-            input_ids.shape, dtype=torch.long, device=torch_device
-        )
+        input_ids = torch.tensor([[0, 20920, 232, 328, 1437, 2]], dtype=torch.long, device=torch_device)
+        attention_mask = torch.ones(input_ids.shape, dtype=torch.long, device=torch_device)
 
         output = model(input_ids, attention_mask=attention_mask)[0]
         output_without_mask = model(input_ids)[0]
 
-        expected_output_slice = torch.tensor(
-            [0.0549, 0.1087, -0.1119, -0.0368, 0.0250], device=torch_device
-        )
-        torch.testing.assert_close(
-            output[0, 0, -5:], expected_output_slice, rtol=1e-4, atol=1e-4
-        )
-        torch.testing.assert_close(
-            output_without_mask[0, 0, -5:], expected_output_slice, rtol=1e-4, atol=1e-4
-        )
+        expected_output_slice = torch.tensor([0.0549, 0.1087, -0.1119, -0.0368, 0.0250], device=torch_device)
+        torch.testing.assert_close(output[0, 0, -5:], expected_output_slice, rtol=1e-4, atol=1e-4)
+        torch.testing.assert_close(output_without_mask[0, 0, -5:], expected_output_slice, rtol=1e-4, atol=1e-4)
 
     @slow
     def test_inference_no_head_long(self):
@@ -1000,35 +746,19 @@ class LongformerModelIntegrationTest(unittest.TestCase):
 
         # 'Hello world! ' repeated 1000 times
         input_ids = torch.tensor(
-            [[0] + [20920, 232, 328, 1437] * 1000 + [2]],
-            dtype=torch.long,
-            device=torch_device,
+            [[0] + [20920, 232, 328, 1437] * 1000 + [2]], dtype=torch.long, device=torch_device
         )  # long input
 
-        attention_mask = torch.ones(
-            input_ids.shape, dtype=torch.long, device=input_ids.device
-        )
-        global_attention_mask = torch.zeros(
-            input_ids.shape, dtype=torch.long, device=input_ids.device
-        )
-        global_attention_mask[
-            :, [1, 4, 21]
-        ] = 1  # Set global attention on a few random positions
+        attention_mask = torch.ones(input_ids.shape, dtype=torch.long, device=input_ids.device)
+        global_attention_mask = torch.zeros(input_ids.shape, dtype=torch.long, device=input_ids.device)
+        global_attention_mask[:, [1, 4, 21]] = 1  # Set global attention on a few random positions
 
-        output = model(
-            input_ids,
-            attention_mask=attention_mask,
-            global_attention_mask=global_attention_mask,
-        )[0]
+        output = model(input_ids, attention_mask=attention_mask, global_attention_mask=global_attention_mask)[0]
 
         expected_output_sum = torch.tensor(74585.8594, device=torch_device)
         expected_output_mean = torch.tensor(0.0243, device=torch_device)
-        torch.testing.assert_close(
-            output.sum(), expected_output_sum, rtol=1e-4, atol=1e-4
-        )
-        torch.testing.assert_close(
-            output.mean(), expected_output_mean, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(output.sum(), expected_output_sum, rtol=1e-4, atol=1e-4)
+        torch.testing.assert_close(output.mean(), expected_output_mean, rtol=1e-4, atol=1e-4)
 
     @slow
     def test_inference_masked_lm_long(self):
@@ -1037,9 +767,7 @@ class LongformerModelIntegrationTest(unittest.TestCase):
 
         # 'Hello world! ' repeated 1000 times
         input_ids = torch.tensor(
-            [[0] + [20920, 232, 328, 1437] * 1000 + [2]],
-            dtype=torch.long,
-            device=torch_device,
+            [[0] + [20920, 232, 328, 1437] * 1000 + [2]], dtype=torch.long, device=torch_device
         )  # long input
         input_ids = input_ids.to(torch_device)
 
@@ -1050,15 +778,5 @@ class LongformerModelIntegrationTest(unittest.TestCase):
         expected_prediction_scores_mean = torch.tensor(-3.0348, device=torch_device)
 
         torch.testing.assert_close(loss, expected_loss, rtol=1e-4, atol=1e-4)
-        torch.testing.assert_close(
-            prediction_scores.sum(),
-            expected_prediction_scores_sum,
-            rtol=1e-4,
-            atol=1e-4,
-        )
-        torch.testing.assert_close(
-            prediction_scores.mean(),
-            expected_prediction_scores_mean,
-            rtol=1e-4,
-            atol=1e-4,
-        )
+        torch.testing.assert_close(prediction_scores.sum(), expected_prediction_scores_sum, rtol=1e-4, atol=1e-4)
+        torch.testing.assert_close(prediction_scores.mean(), expected_prediction_scores_mean, rtol=1e-4, atol=1e-4)

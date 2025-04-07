@@ -13,18 +13,15 @@
 # limitations under the License.
 
 
-# Standard
-from argparse import ArgumentParser
 import contextlib
 import importlib.util
 import io
 import os
 import platform
+from argparse import ArgumentParser
 
-# Third Party
 import huggingface_hub
 
-# Local
 from .. import __version__ as version
 from ..integrations.deepspeed import is_deepspeed_available
 from ..utils import (
@@ -65,12 +62,10 @@ class EnvironmentCommand(BaseTransformersCLICommand):
     def run(self):
         safetensors_version = "not installed"
         if is_safetensors_available():
-            # Third Party
             import safetensors
 
             safetensors_version = safetensors.__version__
         elif importlib.util.find_spec("safetensors") is not None:
-            # Third Party
             import safetensors
 
             safetensors_version = f"{safetensors.__version__} but is ignored because of PyTorch version too old."
@@ -78,26 +73,16 @@ class EnvironmentCommand(BaseTransformersCLICommand):
         accelerate_version = "not installed"
         accelerate_config = accelerate_config_str = "not found"
         if is_accelerate_available():
-            # First Party
-            from accelerate.commands.config import (
-                default_config_file,
-                load_config_from_file,
-            )
             import accelerate
+            from accelerate.commands.config import default_config_file, load_config_from_file
 
             accelerate_version = accelerate.__version__
             # Get the default from the config file.
-            if self._accelerate_config_file is not None or os.path.isfile(
-                default_config_file
-            ):
-                accelerate_config = load_config_from_file(
-                    self._accelerate_config_file
-                ).to_dict()
+            if self._accelerate_config_file is not None or os.path.isfile(default_config_file):
+                accelerate_config = load_config_from_file(self._accelerate_config_file).to_dict()
 
             accelerate_config_str = (
-                "\n".join(
-                    [f"\t- {prop}: {val}" for prop, val in accelerate_config.items()]
-                )
+                "\n".join([f"\t- {prop}: {val}" for prop, val in accelerate_config.items()])
                 if isinstance(accelerate_config, dict)
                 else f"\t{accelerate_config}"
             )
@@ -105,18 +90,17 @@ class EnvironmentCommand(BaseTransformersCLICommand):
         pt_version = "not installed"
         pt_cuda_available = "NA"
         if is_torch_available():
-            # Third Party
             import torch
 
             pt_version = torch.__version__
             pt_cuda_available = torch.cuda.is_available()
+            pt_xpu_available = torch.xpu.is_available()
             pt_npu_available = is_torch_npu_available()
             pt_hpu_available = is_torch_hpu_available()
 
         tf_version = "not installed"
         tf_cuda_available = "NA"
         if is_tf_available():
-            # Third Party
             import tensorflow as tf
 
             tf_version = tf.__version__
@@ -131,7 +115,6 @@ class EnvironmentCommand(BaseTransformersCLICommand):
         if is_deepspeed_available():
             # Redirect command line output to silence deepspeed import output.
             with contextlib.redirect_stdout(io.StringIO()):
-                # Third Party
                 import deepspeed
             deepspeed_version = deepspeed.__version__
 
@@ -140,7 +123,6 @@ class EnvironmentCommand(BaseTransformersCLICommand):
         jaxlib_version = "not installed"
         jax_backend = "NA"
         if is_flax_available():
-            # Third Party
             import flax
             import jax
             import jaxlib
@@ -170,6 +152,9 @@ class EnvironmentCommand(BaseTransformersCLICommand):
             if pt_cuda_available:
                 info["Using GPU in script?"] = "<fill in>"
                 info["GPU type"] = torch.cuda.get_device_name()
+            elif pt_xpu_available:
+                info["Using XPU in script?"] = "<fill in>"
+                info["XPU type"] = torch.xpu.get_device_name()
             elif pt_hpu_available:
                 info["Using HPU in script?"] = "<fill in>"
                 info["HPU type"] = torch.hpu.get_device_name()
@@ -178,9 +163,7 @@ class EnvironmentCommand(BaseTransformersCLICommand):
                 info["NPU type"] = torch.npu.get_device_name()
                 info["CANN version"] = torch.version.cann
 
-        print(
-            "\nCopy-and-paste the text below in your GitHub issue and FILL OUT the two last points.\n"
-        )
+        print("\nCopy-and-paste the text below in your GitHub issue and FILL OUT the two last points.\n")
         print(self.format_dict(info))
 
         return info

@@ -20,24 +20,23 @@ Fine-tuning a 🤗 Transformers model on {{cookiecutter.example_name}}.
 
 {%- if cookiecutter.with_trainer == "True" %}
 
-# Standard
-from dataclasses import dataclass, field
-from typing import List, Optional
 import logging
 import math
 import os
 import sys
+from dataclasses import dataclass, field
+from typing import Optional, List
 
-# Third Party
-from datasets import load_dataset
 import datasets
 import torch
+from datasets import load_dataset
 
-# First Party
+import transformers
 from transformers import (
     CONFIG_MAPPING,
     MODEL_MAPPING,
     AutoConfig,
+    {{cookiecutter.model_class}},
     AutoTokenizer,
     DataCollatorWithPadding,
     HfArgumentParser,
@@ -45,11 +44,10 @@ from transformers import (
     TrainingArguments,
     default_data_collator,
     set_seed,
-    {{cookiecutter.model_class}},
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
-import transformers
+
 
 logger = logging.getLogger(__name__)
 
@@ -521,26 +519,24 @@ if __name__ == "__main__":
 
 {%- elif cookiecutter.with_trainer == "False" %}
 
-# Standard
 import argparse
 import logging
 import math
 import os
 import random
 
-# Third Party
+import datasets
 from datasets import load_dataset, load_metric
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-import datasets
 
-# First Party
+import transformers
 from accelerate import Accelerator
 from transformers import (
     CONFIG_MAPPING,
     MODEL_MAPPING,
-    AdamW,
     AutoConfig,
+    {{cookiecutter.model_class}},
     AutoTokenizer,
     DataCollatorWithPadding,
     PretrainedConfig,
@@ -548,10 +544,9 @@ from transformers import (
     default_data_collator,
     get_scheduler,
     set_seed,
-    {{cookiecutter.model_class}},
 )
 from transformers.utils import send_example_telemetry
-import transformers
+
 
 logger = logging.getLogger(__name__)
 
@@ -867,7 +862,7 @@ def main():
             "weight_decay": 0.0,
         },
     ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
 
     # Prepare everything with our `accelerator`.
     model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(

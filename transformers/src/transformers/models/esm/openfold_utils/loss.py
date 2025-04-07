@@ -13,19 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import Dict, Optional, Tuple
 
-# Third Party
 import torch
 
 
 def _calculate_bin_centers(boundaries: torch.Tensor) -> torch.Tensor:
     step = boundaries[1] - boundaries[0]
     bin_centers = boundaries + step / 2
-    bin_centers = torch.cat(
-        [bin_centers, (bin_centers[-1] + step).unsqueeze(-1)], dim=0
-    )
+    bin_centers = torch.cat([bin_centers, (bin_centers[-1] + step).unsqueeze(-1)], dim=0)
     return bin_centers
 
 
@@ -63,10 +59,7 @@ def compute_predicted_aligned_error(
     boundaries = torch.linspace(0, max_bin, steps=(no_bins - 1), device=logits.device)
 
     aligned_confidence_probs = torch.nn.functional.softmax(logits, dim=-1)
-    (
-        predicted_aligned_error,
-        max_predicted_aligned_error,
-    ) = _calculate_expected_aligned_error(
+    predicted_aligned_error, max_predicted_aligned_error = _calculate_expected_aligned_error(
         alignment_confidence_breaks=boundaries,
         aligned_distance_error_probs=aligned_confidence_probs,
     )

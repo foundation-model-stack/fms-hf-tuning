@@ -14,35 +14,33 @@
 # limitations under the License.
 """Testing suite for the PyTorch VitMatte model."""
 
-# Standard
 import unittest
 
-# Third Party
 from huggingface_hub import hf_hub_download
 
-# First Party
 from transformers import VitMatteConfig
-from transformers.testing_utils import require_timm, require_torch, slow, torch_device
+from transformers.testing_utils import (
+    require_timm,
+    require_torch,
+    slow,
+    torch_device,
+)
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import VitDetConfig, VitMatteForImageMatting
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import VitMatteImageProcessor
 
 
@@ -86,9 +84,7 @@ class VitMatteModelTester:
         self.seq_length = (self.image_size // self.patch_size) ** 2
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -124,9 +120,7 @@ class VitMatteModelTester:
         model.to(torch_device)
         model.eval()
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.alphas.shape, (self.batch_size, 1, self.image_size, self.image_size)
-        )
+        self.parent.assertEqual(result.alphas.shape, (self.batch_size, 1, self.image_size, self.image_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -202,9 +196,7 @@ class VitMatteModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         model = VitMatteForImageMatting.from_pretrained(model_name)
         self.assertIsNotNone(model)
 
-    @unittest.skip(
-        reason="ViTMatte does not support retaining gradient on attention logits"
-    )
+    @unittest.skip(reason="ViTMatte does not support retaining gradient on attention logits")
     def test_retain_grad_hidden_states_attentions(self):
         pass
 
@@ -217,16 +209,10 @@ class VitMatteModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
             with torch.no_grad():
                 outputs = model(**self._prepare_for_class(inputs_dict, model_class))
 
-            hidden_states = (
-                outputs.encoder_hidden_states
-                if config.is_encoder_decoder
-                else outputs.hidden_states
-            )
+            hidden_states = outputs.encoder_hidden_states if config.is_encoder_decoder else outputs.hidden_states
 
             expected_num_layers = getattr(
-                self.model_tester,
-                "expected_num_hidden_layers",
-                self.model_tester.num_hidden_layers + 1,
+                self.model_tester, "expected_num_hidden_layers", self.model_tester.num_hidden_layers + 1
             )
             self.assertEqual(len(hidden_states), expected_num_layers)
 
@@ -258,7 +244,7 @@ class VitMatteModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
                 model.eval()
 
                 if model.__class__.__name__ == "VitMatteForImageMatting":
-                    # Confirm out_indices propogated to backbone
+                    # Confirm out_indices propagated to backbone
                     self.assertEqual(len(model.backbone.out_indices), 2)
 
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -283,30 +269,20 @@ class VitMatteModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 class VitMatteModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference(self):
-        processor = VitMatteImageProcessor.from_pretrained(
-            "hustvl/vitmatte-small-composition-1k"
-        )
-        model = VitMatteForImageMatting.from_pretrained(
-            "hustvl/vitmatte-small-composition-1k"
-        ).to(torch_device)
+        processor = VitMatteImageProcessor.from_pretrained("hustvl/vitmatte-small-composition-1k")
+        model = VitMatteForImageMatting.from_pretrained("hustvl/vitmatte-small-composition-1k").to(torch_device)
 
         filepath = hf_hub_download(
-            repo_id="hf-internal-testing/image-matting-fixtures",
-            filename="image.png",
-            repo_type="dataset",
+            repo_id="hf-internal-testing/image-matting-fixtures", filename="image.png", repo_type="dataset"
         )
         image = Image.open(filepath).convert("RGB")
         filepath = hf_hub_download(
-            repo_id="hf-internal-testing/image-matting-fixtures",
-            filename="trimap.png",
-            repo_type="dataset",
+            repo_id="hf-internal-testing/image-matting-fixtures", filename="trimap.png", repo_type="dataset"
         )
         trimap = Image.open(filepath).convert("L")
 
         # prepare image + trimap for the model
-        inputs = processor(images=image, trimaps=trimap, return_tensors="pt").to(
-            torch_device
-        )
+        inputs = processor(images=image, trimaps=trimap, return_tensors="pt").to(torch_device)
 
         with torch.no_grad():
             alphas = model(**inputs).alphas
@@ -315,13 +291,6 @@ class VitMatteModelIntegrationTest(unittest.TestCase):
         self.assertEqual(alphas.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [0.9977, 0.9987, 0.9990],
-                [0.9980, 0.9998, 0.9998],
-                [0.9983, 0.9998, 0.9998],
-            ],
-            device=torch_device,
+            [[0.9977, 0.9987, 0.9990], [0.9980, 0.9998, 0.9998], [0.9983, 0.9998, 0.9998]], device=torch_device
         )
-        torch.testing.assert_close(
-            alphas[0, 0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(alphas[0, 0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

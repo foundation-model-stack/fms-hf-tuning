@@ -12,32 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
+import unittest
 from pathlib import Path
 from shutil import copyfile
-import unittest
 
-# First Party
 from transformers import SPIECE_UNDERLINE, is_sentencepiece_available
 from transformers.models.speech_to_text import Speech2TextTokenizer
-from transformers.models.speech_to_text.tokenization_speech_to_text import (
-    VOCAB_FILES_NAMES,
-    save_json,
-)
-from transformers.testing_utils import (
-    get_tests_dir,
-    require_sentencepiece,
-    require_tokenizers,
-    slow,
-)
+from transformers.models.speech_to_text.tokenization_speech_to_text import VOCAB_FILES_NAMES, save_json
+from transformers.testing_utils import get_tests_dir, require_sentencepiece, require_tokenizers, slow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
+
 
 SAMPLE_VOCAB = get_tests_dir("fixtures/test_sentencepiece.model")
 
 if is_sentencepiece_available():
-    # Third Party
     import sentencepiece as sp
 
 
@@ -53,8 +42,9 @@ class SpeechToTextTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = False
     test_sentencepiece = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         spm_model = sp.SentencePieceProcessor()
         spm_model.Load(SAMPLE_VOCAB)
@@ -63,13 +53,13 @@ class SpeechToTextTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
         vocab += [spm_model.IdToPiece(id_) for id_ in range(len(spm_model))]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
 
-        save_dir = Path(self.tmpdirname)
+        save_dir = Path(cls.tmpdirname)
         save_json(vocab_tokens, save_dir / VOCAB_FILES_NAMES["vocab_file"])
         if not (save_dir / VOCAB_FILES_NAMES["spm_file"]).exists():
             copyfile(SAMPLE_VOCAB, save_dir / VOCAB_FILES_NAMES["spm_file"])
 
-        tokenizer = Speech2TextTokenizer.from_pretrained(self.tmpdirname)
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer = Speech2TextTokenizer.from_pretrained(cls.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
     def test_convert_token_and_id(self):
         """Test ``_convert_token_to_id`` and ``_convert_id_to_token``."""
@@ -104,32 +94,7 @@ class SpeechToTextTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
         tokens = tokenizer.tokenize("I was born in 92000, and this is falsé.")
         self.assertListEqual(tokens,[SPIECE_UNDERLINE + "I", SPIECE_UNDERLINE + "was", SPIECE_UNDERLINE + "b", "or", "n", SPIECE_UNDERLINE + "in", SPIECE_UNDERLINE + "", "9", "2", "0", "0", "0", ",", SPIECE_UNDERLINE + "and", SPIECE_UNDERLINE + "this", SPIECE_UNDERLINE + "is", SPIECE_UNDERLINE + "f", "al", "s", "é", "."])  # fmt: skip
         ids = tokenizer.convert_tokens_to_ids(tokens)
-        self.assertListEqual(
-            ids,
-            [
-                12,
-                25,
-                88,
-                59,
-                28,
-                23,
-                11,
-                4,
-                606,
-                351,
-                351,
-                351,
-                7,
-                16,
-                70,
-                50,
-                76,
-                84,
-                10,
-                4,
-                8,
-            ],
-        )
+        self.assertListEqual(ids, [12, 25, 88, 59, 28, 23, 11, 4, 606, 351, 351, 351, 7, 16, 70, 50, 76, 84, 10, 4, 8])
 
         back_tokens = tokenizer.convert_ids_to_tokens(ids)
         self.assertListEqual(back_tokens,[SPIECE_UNDERLINE + "I", SPIECE_UNDERLINE + "was", SPIECE_UNDERLINE + "b", "or", "n", SPIECE_UNDERLINE + "in", SPIECE_UNDERLINE + "", "<unk>", "2", "0", "0", "0", ",", SPIECE_UNDERLINE + "and", SPIECE_UNDERLINE + "this", SPIECE_UNDERLINE + "is", SPIECE_UNDERLINE + "f", "al", "s", "<unk>", "."])  # fmt: skip
@@ -154,9 +119,7 @@ class SpeechToTextTokenizerMultilinguialTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.tokenizer: Speech2TextTokenizer = Speech2TextTokenizer.from_pretrained(
-            cls.checkpoint_name
-        )
+        cls.tokenizer: Speech2TextTokenizer = Speech2TextTokenizer.from_pretrained(cls.checkpoint_name)
         return cls
 
     def check_language_codes(self):
@@ -172,9 +135,7 @@ class SpeechToTextTokenizerMultilinguialTest(unittest.TestCase):
         self.assertIn(ES_CODE, self.tokenizer.all_special_ids)
         generated_ids = [ES_CODE, 4, 1601, 47, 7647, 2]
         result = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
-        expected_spanish = self.tokenizer.decode(
-            generated_ids[1:], skip_special_tokens=True
-        )
+        expected_spanish = self.tokenizer.decode(generated_ids[1:], skip_special_tokens=True)
         self.assertEqual(result, expected_spanish)
         self.assertNotIn(self.tokenizer.eos_token, result)
 

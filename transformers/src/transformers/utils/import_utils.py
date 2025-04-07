@@ -15,12 +15,6 @@
 Import utilities: Utilities related to imports and our lazy inits.
 """
 
-# Standard
-from collections import OrderedDict
-from functools import lru_cache
-from itertools import chain
-from types import ModuleType
-from typing import Any, Dict, FrozenSet, Optional, Set, Tuple, Union
 import importlib.machinery
 import importlib.metadata
 import importlib.util
@@ -30,25 +24,32 @@ import shutil
 import subprocess
 import sys
 import warnings
+from collections import OrderedDict
+from functools import lru_cache
+from itertools import chain
+from types import ModuleType
+from typing import Any, Dict, FrozenSet, Optional, Set, Tuple, Union
 
-# Third Party
 from packaging import version
 
-# Local
 from . import logging
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 # TODO: This doesn't work for all packages (`bs4`, `faiss`, etc.) Talk to Sylvain to see how to do with it better.
-def _is_package_available(
-    pkg_name: str, return_version: bool = False
-) -> Union[Tuple[bool, str], bool]:
+def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[Tuple[bool, str], bool]:
     # Check if the package spec exists and grab its version to avoid importing a local directory
     package_exists = importlib.util.find_spec(pkg_name) is not None
     package_version = "N/A"
     if package_exists:
         try:
+            # TODO: Once python 3.9 support is dropped, `importlib.metadata.packages_distributions()`
+            # should be used here to map from package name to distribution names
+            # e.g. PIL -> Pillow, Pillow-SIMD; quark -> amd-quark; onnxruntime -> onnxruntime-gpu.
+            # `importlib.metadata.packages_distributions()` is not available in Python 3.9.
+
             # Primary method to get the package version
             package_version = importlib.metadata.version(pkg_name)
         except importlib.metadata.PackageNotFoundError:
@@ -65,6 +66,12 @@ def _is_package_available(
                         package_exists = False
                 except ImportError:
                     # If the package can't be imported, it's not available
+                    package_exists = False
+            elif pkg_name == "quark":
+                # TODO: remove once `importlib.metadata.packages_distributions()` is supported.
+                try:
+                    package_version = importlib.metadata.version("amd-quark")
+                except Exception:
                     package_exists = False
             else:
                 # For packages other than "torch", don't attempt the fallback and set as not available
@@ -99,11 +106,10 @@ GGUF_MIN_VERSION = "0.10.0"
 XLA_FSDPV2_MIN_VERSION = "2.2.0"
 HQQ_MIN_VERSION = "0.2.1"
 VPTQ_MIN_VERSION = "0.0.4"
+TORCHAO_MIN_VERSION = "0.4.0"
 
 
-_accelerate_available, _accelerate_version = _is_package_available(
-    "accelerate", return_version=True
-)
+_accelerate_available, _accelerate_version = _is_package_available("accelerate", return_version=True)
 _apex_available = _is_package_available("apex")
 _apollo_torch_available = _is_package_available("apollo_torch")
 _aqlm_available = _is_package_available("aqlm")
@@ -116,9 +122,7 @@ _fbgemm_gpu_available = _is_package_available("fbgemm_gpu")
 _galore_torch_available = _is_package_available("galore_torch")
 _lomo_available = _is_package_available("lomo_optim")
 _grokadamw_available = _is_package_available("grokadamw")
-_schedulefree_available, _schedulefree_version = _is_package_available(
-    "schedulefree", return_version=True
-)
+_schedulefree_available, _schedulefree_version = _is_package_available("schedulefree", return_version=True)
 # `importlib.metadata.version` doesn't work with `bs4` but `beautifulsoup4`. For `importlib.util.find_spec`, reversed.
 _bs4_available = importlib.util.find_spec("bs4") is not None
 _coloredlogs_available = _is_package_available("coloredlogs")
@@ -141,9 +145,7 @@ except importlib.metadata.PackageNotFoundError:
 _ftfy_available = _is_package_available("ftfy")
 _g2p_en_available = _is_package_available("g2p_en")
 _hadamard_available = _is_package_available("fast_hadamard_transform")
-_ipex_available, _ipex_version = _is_package_available(
-    "intel_extension_for_pytorch", return_version=True
-)
+_ipex_available, _ipex_version = _is_package_available("intel_extension_for_pytorch", return_version=True)
 _jieba_available = _is_package_available("jieba")
 _jinja_available = _is_package_available("jinja2")
 _kenlm_available = _is_package_available("kenlm")
@@ -159,6 +161,7 @@ _auto_gptq_available = _is_package_available("auto_gptq")
 _gptqmodel_available = _is_package_available("gptqmodel")
 # `importlib.metadata.version` doesn't work with `awq`
 _auto_awq_available = importlib.util.find_spec("awq") is not None
+_quark_available = _is_package_available("quark")
 _is_optimum_quanto_available = False
 try:
     importlib.metadata.version("optimum_quanto")
@@ -166,9 +169,7 @@ try:
 except importlib.metadata.PackageNotFoundError:
     _is_optimum_quanto_available = False
 # For compressed_tensors, only check spec to allow compressed_tensors-nightly package
-_compressed_tensors_available = (
-    importlib.util.find_spec("compressed_tensors") is not None
-)
+_compressed_tensors_available = importlib.util.find_spec("compressed_tensors") is not None
 _pandas_available = _is_package_available("pandas")
 _peft_available = _is_package_available("peft")
 _phonemizer_available = _is_package_available("phonemizer")
@@ -196,20 +197,16 @@ if _sklearn_available:
 _smdistributed_available = importlib.util.find_spec("smdistributed") is not None
 _soundfile_available = _is_package_available("soundfile")
 _spacy_available = _is_package_available("spacy")
-_sudachipy_available, _sudachipy_version = _is_package_available(
-    "sudachipy", return_version=True
-)
+_sudachipy_available, _sudachipy_version = _is_package_available("sudachipy", return_version=True)
 _tensorflow_probability_available = _is_package_available("tensorflow_probability")
 _tensorflow_text_available = _is_package_available("tensorflow_text")
 _tf2onnx_available = _is_package_available("tf2onnx")
 _timm_available = _is_package_available("timm")
 _tokenizers_available = _is_package_available("tokenizers")
 _torchaudio_available = _is_package_available("torchaudio")
-_torchao_available = _is_package_available("torchao")
+_torchao_available, _torchao_version = _is_package_available("torchao", return_version=True)
 _torchdistx_available = _is_package_available("torchdistx")
-_torchvision_available, _torchvision_version = _is_package_available(
-    "torchvision", return_version=True
-)
+_torchvision_available, _torchvision_version = _is_package_available("torchvision", return_version=True)
 _mlx_available = _is_package_available("mlx")
 _num2words_available = _is_package_available("num2words")
 _hqq_available, _hqq_version = _is_package_available("hqq", return_version=True)
@@ -223,9 +220,7 @@ _rich_available = _is_package_available("rich")
 _torch_version = "N/A"
 _torch_available = False
 if USE_TORCH in ENV_VARS_TRUE_AND_AUTO_VALUES and USE_TF not in ENV_VARS_TRUE_VALUES:
-    _torch_available, _torch_version = _is_package_available(
-        "torch", return_version=True
-    )
+    _torch_available, _torch_version = _is_package_available("torch", return_version=True)
 else:
     logger.info("Disabling PyTorch because USE_TF is set")
     _torch_available = False
@@ -236,10 +231,7 @@ _tf_available = False
 if FORCE_TF_AVAILABLE in ENV_VARS_TRUE_VALUES:
     _tf_available = True
 else:
-    if (
-        USE_TF in ENV_VARS_TRUE_AND_AUTO_VALUES
-        and USE_TORCH not in ENV_VARS_TRUE_VALUES
-    ):
+    if USE_TF in ENV_VARS_TRUE_AND_AUTO_VALUES and USE_TORCH not in ENV_VARS_TRUE_VALUES:
         # Note: _is_package_available("tensorflow") fails for tensorflow-cpu. Please test any changes to the line below
         # with tensorflow-cpu to make sure it still works!
         _tf_available = importlib.util.find_spec("tensorflow") is not None
@@ -311,9 +303,7 @@ if USE_JAX in ENV_VARS_TRUE_AND_AUTO_VALUES:
     if _flax_available:
         _jax_available, _jax_version = _is_package_available("jax", return_version=True)
         if _jax_available:
-            logger.info(
-                f"JAX version {_jax_version}, Flax version {_flax_version} available."
-            )
+            logger.info(f"JAX version {_jax_version}, Flax version {_flax_version} available.")
         else:
             _flax_available = _jax_available = False
             _jax_version = _flax_version = "N/A"
@@ -330,9 +320,7 @@ if _torch_available:
 
 _torch_xla_available = False
 if USE_TORCH_XLA in ENV_VARS_TRUE_VALUES:
-    _torch_xla_available, _torch_xla_version = _is_package_available(
-        "torch_xla", return_version=True
-    )
+    _torch_xla_available, _torch_xla_version = _is_package_available("torch_xla", return_version=True)
     if _torch_xla_available:
         logger.info(f"Torch XLA version {_torch_xla_version} available.")
 
@@ -354,16 +342,13 @@ def is_torch_available():
 
 
 def is_accelerate_available(min_version: str = ACCELERATE_MIN_VERSION):
-    return _accelerate_available and version.parse(
-        _accelerate_version
-    ) >= version.parse(min_version)
+    return _accelerate_available and version.parse(_accelerate_version) >= version.parse(min_version)
 
 
 def is_torch_deterministic():
     """
     Check whether pytorch uses deterministic algorithms by looking if torch.set_deterministic_debug_mode() is set to 1 or 2"
     """
-    # Third Party
     import torch
 
     if torch.get_deterministic_debug_mode() == 0:
@@ -447,9 +432,7 @@ def is_grokadamw_available():
 
 
 def is_schedulefree_available(min_version: str = SCHEDULEFREE_MIN_VERSION):
-    return _schedulefree_available and version.parse(
-        _schedulefree_version
-    ) >= version.parse(min_version)
+    return _schedulefree_available and version.parse(_schedulefree_version) >= version.parse(min_version)
 
 
 def is_pyctcdecode_available():
@@ -470,7 +453,6 @@ def is_pretty_midi_available():
 
 def is_torch_cuda_available():
     if is_torch_available():
-        # Third Party
         import torch
 
         return torch.cuda.is_available()
@@ -480,7 +462,6 @@ def is_torch_cuda_available():
 
 def is_mamba_ssm_available():
     if is_torch_available():
-        # Third Party
         import torch
 
         if not torch.cuda.is_available():
@@ -492,14 +473,12 @@ def is_mamba_ssm_available():
 
 def is_mamba_2_ssm_available():
     if is_torch_available():
-        # Third Party
         import torch
 
         if not torch.cuda.is_available():
             return False
         else:
             if _is_package_available("mamba_ssm"):
-                # Third Party
                 import mamba_ssm
 
                 if version.parse(mamba_ssm.__version__) >= version.parse("2.0.4"):
@@ -509,7 +488,6 @@ def is_mamba_2_ssm_available():
 
 def is_causal_conv1d_available():
     if is_torch_available():
-        # Third Party
         import torch
 
         if not torch.cuda.is_available():
@@ -526,13 +504,10 @@ def is_mambapy_available():
 
 def is_torch_mps_available(min_version: Optional[str] = None):
     if is_torch_available():
-        # Third Party
         import torch
 
         if hasattr(torch.backends, "mps"):
-            backend_available = (
-                torch.backends.mps.is_available() and torch.backends.mps.is_built()
-            )
+            backend_available = torch.backends.mps.is_available() and torch.backends.mps.is_built()
             if min_version is not None:
                 flag = version.parse(_torch_version) >= version.parse(min_version)
                 backend_available = backend_available and flag
@@ -544,7 +519,6 @@ def is_torch_bf16_gpu_available():
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     return torch.cuda.is_available() and torch.cuda.is_bf16_supported()
@@ -554,7 +528,6 @@ def is_torch_bf16_cpu_available():
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     try:
@@ -588,22 +561,17 @@ def is_torch_fp16_available_on_device(device):
         else:
             return True
 
-    # Third Party
     import torch
 
     try:
-        x = torch.zeros(2, 2, dtype=torch.float16).to(device)
+        x = torch.zeros(2, 2, dtype=torch.float16, device=device)
         _ = x @ x
 
         # At this moment, let's be strict of the check: check if `LayerNorm` is also supported on device, because many
         # models use this layer.
         batch, sentence_length, embedding_dim = 3, 4, 5
-        embedding = torch.randn(
-            batch, sentence_length, embedding_dim, dtype=torch.float16, device=device
-        )
-        layer_norm = torch.nn.LayerNorm(
-            embedding_dim, dtype=torch.float16, device=device
-        )
+        embedding = torch.randn(batch, sentence_length, embedding_dim, dtype=torch.float16, device=device)
+        layer_norm = torch.nn.LayerNorm(embedding_dim, dtype=torch.float16, device=device)
         _ = layer_norm(embedding)
 
     except:  # noqa: E722
@@ -619,7 +587,6 @@ def is_torch_bf16_available_on_device(device):
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     if device == "cuda":
@@ -629,7 +596,7 @@ def is_torch_bf16_available_on_device(device):
         return True
 
     try:
-        x = torch.zeros(2, 2, dtype=torch.bfloat16).to(device)
+        x = torch.zeros(2, 2, dtype=torch.bfloat16, device=device)
         _ = x @ x
     except:  # noqa: E722
         # TODO: more precise exception matching, if possible.
@@ -643,7 +610,6 @@ def is_torch_tf32_available():
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     if not torch.cuda.is_available() or torch.version.cuda is None:
@@ -652,9 +618,7 @@ def is_torch_tf32_available():
         return False
     if int(torch.version.cuda.split(".")[0]) < 11:
         return False
-    if version.parse(version.parse(torch.__version__).base_version) < version.parse(
-        "1.7"
-    ):
+    if version.parse(version.parse(torch.__version__).base_version) < version.parse("1.7"):
         return False
 
     return True
@@ -698,10 +662,7 @@ def is_flax_available():
 
 def is_flute_available():
     try:
-        return (
-            importlib.util.find_spec("flute") is not None
-            and importlib.metadata.version("flute-kernel") >= "0.4.1"
-        )
+        return importlib.util.find_spec("flute") is not None and importlib.metadata.version("flute-kernel") >= "0.4.1"
     except importlib.metadata.PackageNotFoundError:
         return False
 
@@ -714,46 +675,17 @@ def is_g2p_en_available():
     return _g2p_en_available
 
 
-@lru_cache()
-def is_torch_tpu_available(check_device=True):
-    "Checks if `torch_xla` is installed and potentially if a TPU is in the environment"
-    warnings.warn(
-        "`is_torch_tpu_available` is deprecated and will be removed in 4.41.0. "
-        "Please use the `is_torch_xla_available` instead.",
-        FutureWarning,
-    )
-
-    if not _torch_available:
-        return False
-    if importlib.util.find_spec("torch_xla") is not None:
-        if check_device:
-            # We need to check if `xla_device` can be found, will raise a RuntimeError if not
-            try:
-                # Third Party
-                import torch_xla.core.xla_model as xm
-
-                _ = xm.xla_device()
-                return True
-            except RuntimeError:
-                return False
-        return True
-    return False
-
-
 @lru_cache
 def is_torch_xla_available(check_is_tpu=False, check_is_gpu=False):
     """
     Check if `torch_xla` is available. To train a native pytorch job in an environment with torch xla installed, set
     the USE_TORCH_XLA to false.
     """
-    assert not (
-        check_is_tpu and check_is_gpu
-    ), "The check_is_tpu and check_is_gpu cannot both be true."
+    assert not (check_is_tpu and check_is_gpu), "The check_is_tpu and check_is_gpu cannot both be true."
 
     if not _torch_xla_available:
         return False
 
-    # Third Party
     import torch_xla
 
     if check_is_gpu:
@@ -777,7 +709,6 @@ def is_torch_npu_available(check_device=False):
     if not _torch_available or importlib.util.find_spec("torch_npu") is None:
         return False
 
-    # Third Party
     import torch
     import torch_npu  # noqa: F401
 
@@ -800,21 +731,16 @@ def is_torch_mlu_available(check_device=False):
     if not _torch_available or importlib.util.find_spec("torch_mlu") is None:
         return False
 
-    # Third Party
     import torch
     import torch_mlu  # noqa: F401
 
-    pytorch_cndev_based_mlu_check_previous_value = os.environ.get(
-        "PYTORCH_CNDEV_BASED_MLU_CHECK"
-    )
+    pytorch_cndev_based_mlu_check_previous_value = os.environ.get("PYTORCH_CNDEV_BASED_MLU_CHECK")
     try:
         os.environ["PYTORCH_CNDEV_BASED_MLU_CHECK"] = str(1)
         available = torch.mlu.is_available()
     finally:
         if pytorch_cndev_based_mlu_check_previous_value:
-            os.environ[
-                "PYTORCH_CNDEV_BASED_MLU_CHECK"
-            ] = pytorch_cndev_based_mlu_check_previous_value
+            os.environ["PYTORCH_CNDEV_BASED_MLU_CHECK"] = pytorch_cndev_based_mlu_check_previous_value
         else:
             os.environ.pop("PYTORCH_CNDEV_BASED_MLU_CHECK", None)
 
@@ -827,14 +753,11 @@ def is_torch_musa_available(check_device=False):
     if not _torch_available or importlib.util.find_spec("torch_musa") is None:
         return False
 
-    # Third Party
     import torch
     import torch_musa  # noqa: F401
 
     torch_musa_min_version = "0.33.0"
-    if _accelerate_available and version.parse(_accelerate_version) < version.parse(
-        torch_musa_min_version
-    ):
+    if _accelerate_available and version.parse(_accelerate_version) < version.parse(torch_musa_min_version):
         return False
 
     if check_device:
@@ -858,18 +781,18 @@ def is_torch_hpu_available():
         return False
 
     torch_hpu_min_version = "1.5.0"
-    if _accelerate_available and version.parse(_accelerate_version) < version.parse(
-        torch_hpu_min_version
-    ):
+    if _accelerate_available and version.parse(_accelerate_version) < version.parse(torch_hpu_min_version):
         return False
 
-    # Third Party
     import torch
+
+    if os.environ.get("PT_HPU_LAZY_MODE", "1") == "1":
+        # import habana_frameworks.torch in case of lazy mode to patch torch with torch.hpu
+        import habana_frameworks.torch  # noqa: F401
 
     if not hasattr(torch, "hpu") or not torch.hpu.is_available():
         return False
 
-    # Third Party
     import habana_frameworks.torch.utils.experimental as htexp  # noqa: F401
 
     # IlyasMoutawwakil: We patch masked_fill_ for int64 tensors to avoid a bug on Gaudi1
@@ -900,7 +823,6 @@ def is_habana_gaudi1():
     if not is_torch_hpu_available():
         return False
 
-    # Third Party
     import habana_frameworks.torch.utils.experimental as htexp  # noqa: F401
 
     # Check if the device is Gaudi1 (vs Gaudi2, Gaudi3)
@@ -918,7 +840,6 @@ def is_torch_compile_available():
     if not is_torch_available():
         return False
 
-    # Third Party
     import torch
 
     # We don't do any version check here to support nighlies marked as 1.14. Ultimately needs to check version against
@@ -933,16 +854,31 @@ def is_torchdynamo_compiling():
     # Importing torch._dynamo causes issues with PyTorch profiler (https://github.com/pytorch/pytorch/issues/130622)
     # hence rather relying on `torch.compiler.is_compiling()` when possible (torch>=2.3)
     try:
-        # Third Party
         import torch
 
         return torch.compiler.is_compiling()
     except Exception:
         try:
-            # Third Party
             import torch._dynamo as dynamo  # noqa: F401
 
             return dynamo.is_compiling()
+        except Exception:
+            return False
+
+
+def is_torchdynamo_exporting():
+    if not is_torch_available():
+        return False
+
+    try:
+        import torch
+
+        return torch.compiler.is_exporting()
+    except Exception:
+        try:
+            import torch._dynamo as dynamo  # noqa: F401
+
+            return dynamo.is_exporting()
         except Exception:
             return False
 
@@ -986,9 +922,7 @@ def is_aqlm_available():
 
 
 def is_vptq_available(min_version: str = VPTQ_MIN_VERSION):
-    return _vptq_available and version.parse(_vptq_version) >= version.parse(
-        min_version
-    )
+    return _vptq_available and version.parse(_vptq_version) >= version.parse(min_version)
 
 
 def is_av_available():
@@ -1014,11 +948,7 @@ def is_ninja_available():
 
 def is_ipex_available(min_version: str = ""):
     def get_major_and_minor_from_version(full_version):
-        return (
-            str(version.parse(full_version).major)
-            + "."
-            + str(version.parse(full_version).minor)
-        )
+        return str(version.parse(full_version).major) + "." + str(version.parse(full_version).minor)
 
     if not is_torch_available() or not _ipex_available:
         return False
@@ -1047,18 +977,12 @@ def is_torch_xpu_available(check_device=False):
         return False
 
     torch_version = version.parse(_torch_version)
-    if torch_version.major < 2 or (
-        torch_version.major == 2 and torch_version.minor < 6
-    ):
+    if torch_version.major < 2 or (torch_version.major == 2 and torch_version.minor < 6):
         if is_ipex_available():
-            # Third Party
             import intel_extension_for_pytorch  # noqa: F401
-        elif torch_version.major < 2 or (
-            torch_version.major == 2 and torch_version.minor < 4
-        ):
+        elif torch_version.major < 2 or (torch_version.major == 2 and torch_version.minor < 4):
             return False
 
-    # Third Party
     import torch
 
     if check_device:
@@ -1076,14 +1000,11 @@ def is_bitsandbytes_available():
     if not is_torch_available() or not _bitsandbytes_available:
         return False
 
-    # Third Party
     import torch
 
     # `bitsandbytes` versions older than 0.43.1 eagerly require CUDA at import time,
     # so those versions of the library are practically only available when CUDA is too.
-    if version.parse(importlib.metadata.version("bitsandbytes")) < version.parse(
-        "0.43.1"
-    ):
+    if version.parse(importlib.metadata.version("bitsandbytes")) < version.parse("0.43.1"):
         return torch.cuda.is_available()
 
     # Newer versions of `bitsandbytes` can be imported on systems without CUDA.
@@ -1094,7 +1015,6 @@ def is_bitsandbytes_multi_backend_available() -> bool:
     if not is_bitsandbytes_available():
         return False
 
-    # Third Party
     import bitsandbytes as bnb
 
     return "multi_backend" in getattr(bnb, "features", set())
@@ -1108,30 +1028,18 @@ def is_flash_attn_2_available():
         return False
 
     # Let's add an extra check to see if cuda is available
-    # Third Party
     import torch
 
     if not (torch.cuda.is_available() or is_torch_mlu_available()):
         return False
 
-    # Ascend does not support "flash_attn".
-    # If "flash_attn" is left in the env, is_flash_attn_2_available() should return False.
-    if is_torch_npu_available():
-        return False
-
     if torch.version.cuda:
-        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(
-            "2.1.0"
-        )
+        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse("2.1.0")
     elif torch.version.hip:
         # TODO: Bump the requirement to 2.1.0 once released in https://github.com/ROCmSoftwarePlatform/flash-attention
-        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(
-            "2.0.4"
-        )
+        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse("2.0.4")
     elif is_torch_mlu_available():
-        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(
-            "2.3.3"
-        )
+        return version.parse(importlib.metadata.version("flash_attn")) >= version.parse("2.3.3")
     else:
         return False
 
@@ -1141,9 +1049,7 @@ def is_flash_attn_greater_or_equal_2_10():
     if not _is_package_available("flash_attn"):
         return False
 
-    return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(
-        "2.1.0"
-    )
+    return version.parse(importlib.metadata.version("flash_attn")) >= version.parse("2.1.0")
 
 
 @lru_cache()
@@ -1151,19 +1057,25 @@ def is_flash_attn_greater_or_equal(library_version: str):
     if not _is_package_available("flash_attn"):
         return False
 
-    return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(
-        library_version
-    )
+    return version.parse(importlib.metadata.version("flash_attn")) >= version.parse(library_version)
 
 
 @lru_cache()
-def is_torch_greater_or_equal(library_version: str):
+def is_torch_greater_or_equal(library_version: str, accept_dev: bool = False):
+    """
+    Accepts a library version and returns True if the current version of the library is greater than or equal to the
+    given version. If `accept_dev` is True, it will also accept development versions (e.g. 2.7.0.dev20250320 matches
+    2.7.0).
+    """
     if not _is_package_available("torch"):
         return False
 
-    return version.parse(importlib.metadata.version("torch")) >= version.parse(
-        library_version
-    )
+    if accept_dev:
+        return version.parse(version.parse(importlib.metadata.version("torch")).base_version) >= version.parse(
+            library_version
+        )
+    else:
+        return version.parse(importlib.metadata.version("torch")) >= version.parse(library_version)
 
 
 def is_torchdistx_available():
@@ -1191,9 +1103,7 @@ def is_seqio_available():
 
 
 def is_gguf_available(min_version: str = GGUF_MIN_VERSION):
-    return _is_gguf_available and version.parse(_gguf_version) >= version.parse(
-        min_version
-    )
+    return _is_gguf_available and version.parse(_gguf_version) >= version.parse(min_version)
 
 
 def is_protobuf_available():
@@ -1203,9 +1113,7 @@ def is_protobuf_available():
 
 
 def is_fsdp_available(min_version: str = FSDP_MIN_VERSION):
-    return is_torch_available() and version.parse(_torch_version) >= version.parse(
-        min_version
-    )
+    return is_torch_available() and version.parse(_torch_version) >= version.parse(min_version)
 
 
 def is_optimum_available():
@@ -1219,6 +1127,10 @@ def is_auto_awq_available():
 def is_optimum_quanto_available():
     # `importlib.metadata.version` doesn't work with `optimum.quanto`, need to put `optimum_quanto`
     return _is_optimum_quanto_available
+
+
+def is_quark_available():
+    return _quark_available
 
 
 def is_compressed_tensors_available():
@@ -1299,10 +1211,7 @@ def is_in_notebook():
         if "IPKernelApp" not in get_ipython().config:
             raise ImportError("console")
         # Removed the lines to include VSCode
-        if (
-            "DATABRICKS_RUNTIME_VERSION" in os.environ
-            and os.environ["DATABRICKS_RUNTIME_VERSION"] < "11.0"
-        ):
+        if "DATABRICKS_RUNTIME_VERSION" in os.environ and os.environ["DATABRICKS_RUNTIME_VERSION"] < "11.0":
             # Databricks Runtime 11.0 and above uses IPython kernel by default so it should be compatible with Jupyter notebook
             # https://docs.microsoft.com/en-us/azure/databricks/notebooks/ipython-kernel
             raise ImportError("databricks")
@@ -1330,9 +1239,7 @@ def is_sagemaker_dp_enabled():
     try:
         # Parse it and check the field "sagemaker_distributed_dataparallel_enabled".
         sagemaker_params = json.loads(sagemaker_params)
-        if not sagemaker_params.get(
-            "sagemaker_distributed_dataparallel_enabled", False
-        ):
+        if not sagemaker_params.get("sagemaker_distributed_dataparallel_enabled", False):
             return False
     except json.JSONDecodeError:
         return False
@@ -1388,8 +1295,8 @@ def is_torchaudio_available():
     return _torchaudio_available
 
 
-def is_torchao_available():
-    return _torchao_available
+def is_torchao_available(min_version: str = TORCHAO_MIN_VERSION):
+    return _torchao_available and version.parse(_torchao_version) >= version.parse(min_version)
 
 
 def is_speech_available():
@@ -1444,9 +1351,7 @@ def is_sudachi_projection_available():
 
 
 def is_jumanpp_available():
-    return (importlib.util.find_spec("rhoknp") is not None) and (
-        shutil.which("jumanpp") is not None
-    )
+    return (importlib.util.find_spec("rhoknp") is not None) and (shutil.which("jumanpp") is not None)
 
 
 def is_cython_available():
@@ -1477,9 +1382,7 @@ def is_liger_kernel_available():
     if not _liger_kernel_available:
         return False
 
-    return version.parse(importlib.metadata.version("liger_kernel")) >= version.parse(
-        "0.3.0"
-    )
+    return version.parse(importlib.metadata.version("liger_kernel")) >= version.parse("0.3.0")
 
 
 def is_triton_available():
@@ -1877,22 +1780,13 @@ BACKENDS_MAPPING = OrderedDict(
         ("pyctcdecode", (is_pyctcdecode_available, PYCTCDECODE_IMPORT_ERROR)),
         ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
         ("sacremoses", (is_sacremoses_available, SACREMOSES_IMPORT_ERROR)),
-        (
-            "pytorch_quantization",
-            (is_pytorch_quantization_available, PYTORCH_QUANTIZATION_IMPORT_ERROR),
-        ),
+        ("pytorch_quantization", (is_pytorch_quantization_available, PYTORCH_QUANTIZATION_IMPORT_ERROR)),
         ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
         ("sklearn", (is_sklearn_available, SKLEARN_IMPORT_ERROR)),
         ("speech", (is_speech_available, SPEECH_IMPORT_ERROR)),
-        (
-            "tensorflow_probability",
-            (is_tensorflow_probability_available, TENSORFLOW_PROBABILITY_IMPORT_ERROR),
-        ),
+        ("tensorflow_probability", (is_tensorflow_probability_available, TENSORFLOW_PROBABILITY_IMPORT_ERROR)),
         ("tf", (is_tf_available, TENSORFLOW_IMPORT_ERROR)),
-        (
-            "tensorflow_text",
-            (is_tensorflow_text_available, TENSORFLOW_TEXT_IMPORT_ERROR),
-        ),
+        ("tensorflow_text", (is_tensorflow_text_available, TENSORFLOW_TEXT_IMPORT_ERROR)),
         ("timm", (is_timm_available, TIMM_IMPORT_ERROR)),
         ("torchaudio", (is_torchaudio_available, TORCHAUDIO_IMPORT_ERROR)),
         ("natten", (is_natten_available, NATTEN_IMPORT_ERROR)),
@@ -1921,21 +1815,11 @@ def requires_backends(obj, backends):
     name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
 
     # Raise an error for users who might not realize that classes without "TF" are torch-only
-    if (
-        "torch" in backends
-        and "tf" not in backends
-        and not is_torch_available()
-        and is_tf_available()
-    ):
+    if "torch" in backends and "tf" not in backends and not is_torch_available() and is_tf_available():
         raise ImportError(PYTORCH_IMPORT_ERROR_WITH_TF.format(name))
 
     # Raise the inverse error for PyTorch users trying to load TF classes
-    if (
-        "tf" in backends
-        and "torch" not in backends
-        and is_torch_available()
-        and not is_tf_available()
-    ):
+    if "tf" in backends and "torch" not in backends and is_torch_available() and not is_tf_available():
         raise ImportError(TF_IMPORT_ERROR_WITH_PYTORCH.format(name))
 
     checks = (BACKENDS_MAPPING[backend] for backend in backends)
@@ -1958,7 +1842,6 @@ class DummyObject(type):
 
 def is_torch_fx_proxy(x):
     if is_torch_fx_available():
-        # Third Party
         import torch.fx
 
         return isinstance(x, torch.fx.Proxy)
@@ -1981,7 +1864,7 @@ class _LazyModule(ModuleType):
         name: str,
         module_file: str,
         import_structure: IMPORT_STRUCTURE_T,
-        module_spec: importlib.machinery.ModuleSpec = None,
+        module_spec: Optional[importlib.machinery.ModuleSpec] = None,
         extra_objects: Dict[str, object] = None,
     ):
         super().__init__(name)
@@ -2034,9 +1917,7 @@ class _LazyModule(ModuleType):
                 for value in values:
                     self._class_to_module[value] = key
             # Needed for autocompletion in an IDE
-            self.__all__ = list(import_structure.keys()) + list(
-                chain(*import_structure.values())
-            )
+            self.__all__ = list(import_structure.keys()) + list(chain(*import_structure.values()))
             self.__file__ = module_file
             self.__spec__ = module_spec
             self.__path__ = [os.path.dirname(module_file)]
@@ -2110,9 +1991,7 @@ def direct_transformers_import(path: str, file="__init__.py") -> ModuleType:
     """
     name = "transformers"
     location = os.path.join(path, file)
-    spec = importlib.util.spec_from_file_location(
-        name, location, submodule_search_locations=[path]
-    )
+    spec = importlib.util.spec_from_file_location(name, location, submodule_search_locations=[path])
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module = sys.modules[name]
@@ -2128,9 +2007,7 @@ def export(*, backends=()):
     """
     for backend in backends:
         if backend not in BACKENDS_MAPPING:
-            raise ValueError(
-                f"Backend should be defined in the BACKENDS_MAPPING. Offending backend: {backend}"
-            )
+            raise ValueError(f"Backend should be defined in the BACKENDS_MAPPING. Offending backend: {backend}")
 
     if not isinstance(backends, tuple):
         raise ValueError("Backends should be a tuple.")
@@ -2178,9 +2055,7 @@ def fetch__all__(file_content):
 
     # __all__ is defined on a single line
     if lines[0].endswith("]"):
-        return [
-            obj.strip("\"' ") for obj in lines[0].split("=")[1].strip(" []").split(",")
-        ]
+        return [obj.strip("\"' ") for obj in lines[0].split("=")[1].strip(" []").split(",")]
 
     # __all__ is defined on multiple lines
     else:
@@ -2255,20 +2130,14 @@ def create_import_structure_from_path(module_path):
 
         for f in os.listdir(module_path):
             if f != "__pycache__" and os.path.isdir(os.path.join(module_path, f)):
-                import_structure[f] = create_import_structure_from_path(
-                    os.path.join(module_path, f)
-                )
+                import_structure[f] = create_import_structure_from_path(os.path.join(module_path, f))
 
             elif not os.path.isdir(os.path.join(directory, f)):
                 adjacent_modules.append(f)
 
     else:
         directory = os.path.dirname(module_path)
-        adjacent_modules = [
-            f
-            for f in os.listdir(directory)
-            if not os.path.isdir(os.path.join(directory, f))
-        ]
+        adjacent_modules = [f for f in os.listdir(directory) if not os.path.isdir(os.path.join(directory, f))]
 
     # We're only taking a look at files different from __init__.py
     # We could theoretically export things directly from the __init__.py
@@ -2280,12 +2149,8 @@ def create_import_structure_from_path(module_path):
     def find_substring(substring, list_):
         return any(substring in x for x in list_)
 
-    if find_substring("modular_", adjacent_modules) and find_substring(
-        "modeling_", adjacent_modules
-    ):
-        adjacent_modules = [
-            module for module in adjacent_modules if "modular_" not in module
-        ]
+    if find_substring("modular_", adjacent_modules) and find_substring("modeling_", adjacent_modules):
+        adjacent_modules = [module for module in adjacent_modules if "modular_" not in module]
 
     module_requirements = {}
     for module_name in adjacent_modules:
@@ -2319,9 +2184,7 @@ def create_import_structure_from_path(module_path):
             for index, line in enumerate(lines):
                 # This allows exporting items with other decorators. We'll take a look
                 # at the line that follows at the same indentation level.
-                if line.startswith((" ", "\t", "@", ")")) and not line.startswith(
-                    "@export"
-                ):
+                if line.startswith((" ", "\t", "@", ")")) and not line.startswith("@export"):
                     continue
 
                 # Skipping line enables putting whatever we want between the
@@ -2334,20 +2197,8 @@ def create_import_structure_from_path(module_path):
 
                     # Backends are defined on the same line as export
                     if "backends" in previous_line:
-                        backends_string = (
-                            previous_line.split("backends=")[1]
-                            .split("(")[1]
-                            .split(")")[0]
-                        )
-                        backends = tuple(
-                            sorted(
-                                [
-                                    b.strip("'\",")
-                                    for b in backends_string.split(", ")
-                                    if b
-                                ]
-                            )
-                        )
+                        backends_string = previous_line.split("backends=")[1].split("(")[1].split(")")[0]
+                        backends = tuple(sorted([b.strip("'\",") for b in backends_string.split(", ") if b]))
 
                     # Backends are defined in the lines following export, for example such as:
                     # @export(
@@ -2372,10 +2223,7 @@ def create_import_structure_from_path(module_path):
                                 backend_line = backend_line.split("=")[1]
                             if '"' in backend_line or "'" in backend_line:
                                 if ", " in backend_line:
-                                    backends.extend(
-                                        backend.strip("()\"', ")
-                                        for backend in backend_line.split(", ")
-                                    )
+                                    backends.extend(backend.strip("()\"', ") for backend in backend_line.split(", "))
                                 else:
                                     backends.append(backend_line.strip("()\"', "))
 
@@ -2551,9 +2399,7 @@ def clear_import_cache():
     This is useful when actively developing/modifying Transformers code.
     """
     # Get all transformers modules
-    transformers_modules = [
-        mod_name for mod_name in sys.modules if mod_name.startswith("transformers.")
-    ]
+    transformers_modules = [mod_name for mod_name in sys.modules if mod_name.startswith("transformers.")]
 
     # Remove them from sys.modules
     for mod_name in transformers_modules:

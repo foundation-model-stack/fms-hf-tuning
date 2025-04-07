@@ -14,15 +14,15 @@
 # limitations under the License.
 """Mpt configuration"""
 
-# Standard
 from typing import TYPE_CHECKING, Optional, Union
+
 
 if TYPE_CHECKING:
     pass
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 

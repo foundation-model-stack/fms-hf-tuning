@@ -23,13 +23,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import List, Union
+from typing import List, Optional, Union
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput, VideoInput
-from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs
+from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
 
 
@@ -37,7 +35,16 @@ class Qwen2_5_VLVideosProcessorKwargs(VideosKwargs, total=False):
     fps: Union[List[float], float]
 
 
+class Qwen2_5_VLImagesKwargs(ImagesKwargs):
+    min_pixels: Optional[int]
+    max_pixels: Optional[int]
+    patch_size: Optional[int]
+    temporal_patch_size: Optional[int]
+    merge_size: Optional[int]
+
+
 class Qwen2_5_VLProcessorKwargs(ProcessingKwargs, total=False):
+    images_kwargs: Qwen2_5_VLImagesKwargs
     videos_kwargs: Qwen2_5_VLVideosProcessorKwargs
     _defaults = {
         "text_kwargs": {
@@ -67,27 +74,15 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
     image_processor_class = "AutoImageProcessor"
     tokenizer_class = ("Qwen2Tokenizer", "Qwen2TokenizerFast")
 
-    def __init__(
-        self, image_processor=None, tokenizer=None, chat_template=None, **kwargs
-    ):
-        self.image_token = (
-            "<|image_pad|>"
-            if not hasattr(tokenizer, "image_token")
-            else tokenizer.image_token
-        )
-        self.video_token = (
-            "<|video_pad|>"
-            if not hasattr(tokenizer, "video_token")
-            else tokenizer.video_token
-        )
+    def __init__(self, image_processor=None, tokenizer=None, chat_template=None, **kwargs):
+        self.image_token = "<|image_pad|>" if not hasattr(tokenizer, "image_token") else tokenizer.image_token
+        self.video_token = "<|video_pad|>" if not hasattr(tokenizer, "video_token") else tokenizer.video_token
         super().__init__(image_processor, tokenizer, chat_template=chat_template)
 
     def __call__(
         self,
         images: ImageInput = None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         videos: VideoInput = None,
         **kwargs: Unpack[Qwen2_5_VLProcessorKwargs],
     ) -> BatchFeature:
@@ -134,29 +129,21 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
             **kwargs,
         )
         if images is not None:
-            image_inputs = self.image_processor(
-                images=images, videos=None, **output_kwargs["images_kwargs"]
-            )
+            image_inputs = self.image_processor(images=images, videos=None, **output_kwargs["images_kwargs"])
             image_grid_thw = image_inputs["image_grid_thw"]
         else:
             image_inputs = {}
             image_grid_thw = None
 
         if videos is not None:
-            videos_inputs = self.image_processor(
-                images=None, videos=videos, **output_kwargs["images_kwargs"]
-            )
+            videos_inputs = self.image_processor(images=None, videos=videos, **output_kwargs["images_kwargs"])
             video_grid_thw = videos_inputs["video_grid_thw"]
 
             fps = output_kwargs["videos_kwargs"].pop("fps", 2.0)
             if isinstance(fps, (int, float)):
-                second_per_grid_ts = [
-                    self.image_processor.temporal_patch_size / fps
-                ] * len(video_grid_thw)
+                second_per_grid_ts = [self.image_processor.temporal_patch_size / fps] * len(video_grid_thw)
             elif hasattr(fps, "__len__") and len(fps) == len(video_grid_thw):
-                second_per_grid_ts = [
-                    self.image_processor.temporal_patch_size / tmp for tmp in fps
-                ]
+                second_per_grid_ts = [self.image_processor.temporal_patch_size / tmp for tmp in fps]
             else:
                 raise ValueError(
                     f"The length of fps ({len(fps) if hasattr(fps, '__len__') else fps}) must be equal to the length of video_grid_thw ({len(video_grid_thw)}) or fps should be a single number."
@@ -177,8 +164,7 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
                 while self.image_token in text[i]:
                     text[i] = text[i].replace(
                         self.image_token,
-                        "<|placeholder|>"
-                        * (image_grid_thw[index].prod() // merge_length),
+                        "<|placeholder|>" * (image_grid_thw[index].prod() // merge_length),
                         1,
                     )
                     index += 1
@@ -191,8 +177,7 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
                 while self.video_token in text[i]:
                     text[i] = text[i].replace(
                         self.video_token,
-                        "<|placeholder|>"
-                        * (video_grid_thw[index].prod() // merge_length),
+                        "<|placeholder|>" * (video_grid_thw[index].prod() // merge_length),
                         1,
                     )
                     index += 1
@@ -217,11 +202,7 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
         return self.tokenizer.decode(*args, **kwargs)
 
     def post_process_image_text_to_text(
-        self,
-        generated_outputs,
-        skip_special_tokens=True,
-        clean_up_tokenization_spaces=False,
-        **kwargs,
+        self, generated_outputs, skip_special_tokens=True, clean_up_tokenization_spaces=False, **kwargs
     ):
         """
         Post-process the output of the model to decode the text.
@@ -251,9 +232,7 @@ class Qwen2_5_VLProcessor(ProcessorMixin):
     def model_input_names(self):
         tokenizer_input_names = self.tokenizer.model_input_names
         image_processor_input_names = self.image_processor.model_input_names
-        names_from_processor = list(
-            dict.fromkeys(tokenizer_input_names + image_processor_input_names)
-        )
+        names_from_processor = list(dict.fromkeys(tokenizer_input_names + image_processor_input_names))
         return names_from_processor + ["second_per_grid_ts"]
 
 

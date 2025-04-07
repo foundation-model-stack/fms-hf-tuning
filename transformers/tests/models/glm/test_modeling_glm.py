@@ -14,19 +14,11 @@
 # limitations under the License.
 """Testing suite for the PyTorch Glm model."""
 
-# Standard
 import unittest
 
-# Third Party
 import pytest
 
-# First Party
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    GlmConfig,
-    is_torch_available,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer, GlmConfig, is_torch_available
 from transformers.testing_utils import (
     is_flaky,
     require_flash_attn,
@@ -37,17 +29,15 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         GlmForCausalLM,
         GlmForSequenceClassification,
@@ -126,33 +116,19 @@ class GlmModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return self.config_class(
@@ -171,140 +147,14 @@ class GlmModelTester:
         )
 
     def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = self.model_class(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=input_mask)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    def create_and_check_model_as_decoder(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = self.model_class(config)
-        model.to(torch_device)
-        model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-        )
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-        )
-        result = model(input_ids, attention_mask=input_mask)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    def create_and_check_for_causal_lm(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = self.for_causal_lm_class(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
-
-    def create_and_check_decoder_model_past_large_inputs(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = self.for_causal_lm_class(config=config)
-        model.to(torch_device)
-        model.eval()
-
-        # first forward pass
-        outputs = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            use_cache=True,
-        )
-        past_key_values = outputs.past_key_values
-
-        # create hypothetical multiple next token and extent to next_input_ids
-        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size)
-        next_mask = ids_tensor((self.batch_size, 3), vocab_size=2)
-
-        # append to next input_ids and
-        next_input_ids = torch.cat([input_ids, next_tokens], dim=-1)
-        next_attention_mask = torch.cat([input_mask, next_mask], dim=-1)
-
-        output_from_no_past = model(
-            next_input_ids,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-        output_from_past = model(
-            next_tokens,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            past_key_values=past_key_values,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-
-        # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
-        output_from_no_past_slice = output_from_no_past[
-            :, -3:, random_slice_idx
-        ].detach()
-        output_from_past_slice = output_from_past[:, :, random_slice_idx].detach()
-
-        self.parent.assertTrue(output_from_past_slice.shape[1] == next_tokens.shape[1])
-
-        # test that outputs are equal for slice
-        self.parent.assertTrue(
-            torch.allclose(output_from_past_slice, output_from_no_past_slice, atol=1e-3)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.prepare_config_and_inputs_for_common with Llama->Glm
     def prepare_config_and_inputs_for_common(self):
@@ -323,16 +173,9 @@ class GlmModelTester:
 
 
 @require_torch
-class GlmModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class GlmModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (
-        (
-            GlmModel,
-            GlmForCausalLM,
-            GlmForSequenceClassification,
-            GlmForTokenClassification,
-        )
+        (GlmModel, GlmForCausalLM, GlmForSequenceClassification, GlmForTokenClassification)
         if is_torch_available()
         else ()
     )
@@ -372,17 +215,12 @@ class GlmModelTest(
         config.num_labels = 3
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = self.model_tester.for_sequence_class(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     def test_Glm_sequence_classification_model_for_single_label(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -390,17 +228,12 @@ class GlmModelTest(
         config.problem_type = "single_label_classification"
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = self.model_tester.for_sequence_class(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     def test_Glm_sequence_classification_model_for_multi_label(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -409,43 +242,30 @@ class GlmModelTest(
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
         sequence_labels = ids_tensor(
-            [self.model_tester.batch_size, config.num_labels],
-            self.model_tester.type_sequence_label_size,
+            [self.model_tester.batch_size, config.num_labels], self.model_tester.type_sequence_label_size
         ).to(torch.float)
         model = self.model_tester.for_sequence_class(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     def test_Glm_token_classification_model(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
         config.num_labels = 3
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        token_labels = ids_tensor(
-            [self.model_tester.batch_size, self.model_tester.seq_length],
-            config.num_labels,
-        )
+        token_labels = ids_tensor([self.model_tester.batch_size, self.model_tester.seq_length], config.num_labels)
         model = self.model_tester.for_token_class(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=token_labels)
         self.assertEqual(
             result.logits.shape,
-            (
-                self.model_tester.batch_size,
-                self.model_tester.seq_length,
-                self.model_tester.num_labels,
-            ),
+            (self.model_tester.batch_size, self.model_tester.seq_length, self.model_tester.num_labels),
         )
 
-    @unittest.skip(
-        reason="Glm uses GQA on all models so the KV cache is a non standard format"
-    )
+    @unittest.skip(reason="Glm uses GQA on all models so the KV cache is a non standard format")
     def test_past_key_values_format(self):
         pass
 
@@ -454,17 +274,10 @@ class GlmModelTest(
         """Overwrite the common test to use atol=1e-3 instead of 1e-4. Can still rarely fail, thus flaky."""
         for model_class in self.all_generative_model_classes:
             if not model_class._supports_static_cache:
-                self.skipTest(
-                    f"{model_class.__name__} is not guaranteed to work with custom 4D attention masks"
-                )
+                self.skipTest(f"{model_class.__name__} is not guaranteed to work with custom 4D attention masks")
             config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-            if (
-                getattr(config, "sliding_window", 0) is not None
-                and getattr(config, "sliding_window", 0) > 0
-            ):
-                self.skipTest(
-                    f"{model_class.__name__} with sliding window attention is not supported by this test"
-                )
+            if getattr(config, "sliding_window", 0) is not None and getattr(config, "sliding_window", 0) > 0:
+                self.skipTest(f"{model_class.__name__} with sliding window attention is not supported by this test")
             model = model_class(config).to(device=torch_device, dtype=torch.float32)
 
             (
@@ -486,9 +299,7 @@ class GlmModelTest(
             # logits_shared_prefix.shape == torch.Size([1, 6, ...])
 
             out_last_tokens = logits[:, -1, :]  # last tokens in each batch line
-            out_shared_prefix_last_tokens = logits_shared_prefix[
-                0, -3:, :
-            ]  # last three tokens
+            out_shared_prefix_last_tokens = logits_shared_prefix[0, -3:, :]  # last three tokens
 
             # comparing softmax-normalized logits:
             normalized_0 = torch.nn.functional.softmax(out_last_tokens)
@@ -512,9 +323,7 @@ class GlmIntegrationTest(unittest.TestCase):
     def setUpClass(cls):
         if is_torch_available() and torch.cuda.is_available():
             # 8 is for A100 / A10 and 7 for T4
-            cls.cuda_compute_capability_major_version = (
-                torch.cuda.get_device_capability()[0]
-            )
+            cls.cuda_compute_capability_major_version = torch.cuda.get_device_capability()[0]
 
     def test_model_9b_fp16(self):
         EXPECTED_TEXTS = [
@@ -523,16 +332,11 @@ class GlmIntegrationTest(unittest.TestCase):
         ]
 
         model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            low_cpu_mem_usage=True,
-            torch_dtype=torch.float16,
-            revision=self.revision,
+            self.model_id, low_cpu_mem_usage=True, torch_dtype=torch.float16, revision=self.revision
         ).to(torch_device)
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
-        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(
-            torch_device
-        )
+        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(torch_device)
 
         output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
         output_text = tokenizer.batch_decode(output, skip_special_tokens=True)
@@ -546,16 +350,11 @@ class GlmIntegrationTest(unittest.TestCase):
         ]
 
         model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            low_cpu_mem_usage=True,
-            torch_dtype=torch.bfloat16,
-            revision=self.revision,
+            self.model_id, low_cpu_mem_usage=True, torch_dtype=torch.bfloat16, revision=self.revision
         ).to(torch_device)
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
-        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(
-            torch_device
-        )
+        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(torch_device)
 
         output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
         output_text = tokenizer.batch_decode(output, skip_special_tokens=True)
@@ -578,9 +377,7 @@ class GlmIntegrationTest(unittest.TestCase):
         model.to(torch_device)
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
-        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(
-            torch_device
-        )
+        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(torch_device)
 
         output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
         output_text = tokenizer.batch_decode(output, skip_special_tokens=True)
@@ -604,9 +401,7 @@ class GlmIntegrationTest(unittest.TestCase):
         model.to(torch_device)
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
-        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(
-            torch_device
-        )
+        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(torch_device)
 
         output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
         output_text = tokenizer.batch_decode(output, skip_special_tokens=True)
@@ -631,9 +426,7 @@ class GlmIntegrationTest(unittest.TestCase):
         model.to(torch_device)
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
-        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(
-            torch_device
-        )
+        inputs = tokenizer(self.input_text, return_tensors="pt", padding=True).to(torch_device)
 
         output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
         output_text = tokenizer.batch_decode(output, skip_special_tokens=True)

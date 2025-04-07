@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-# Standard
 import argparse
 import json
 
-# Third Party
+import torch
 from huggingface_hub import hf_hub_download
 from PIL import Image
 from timm.models import create_model
-import torch
 
-# First Party
 from transformers import (
     BeitImageProcessor,
     Data2VecVisionConfig,
@@ -18,87 +15,41 @@ from transformers import (
 )
 
 
-def create_rename_keys(
-    config, has_lm_head=False, is_semantic=False, hf_prefix="data2vec."
-):
+def create_rename_keys(config, has_lm_head=False, is_semantic=False, hf_prefix="data2vec."):
     prefix = "backbone." if is_semantic else ""
 
     rename_keys = []
     for i in range(config.num_hidden_layers):
         # encoder layers: output projection, 2 feedforward neural networks and 2 layernorms
         rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.norm1.weight",
-                f"{hf_prefix}encoder.layer.{i}.layernorm_before.weight",
-            )
+            (f"{prefix}blocks.{i}.norm1.weight", f"{hf_prefix}encoder.layer.{i}.layernorm_before.weight")
+        )
+        rename_keys.append((f"{prefix}blocks.{i}.norm1.bias", f"{hf_prefix}encoder.layer.{i}.layernorm_before.bias"))
+        rename_keys.append(
+            (f"{prefix}blocks.{i}.attn.proj.weight", f"{hf_prefix}encoder.layer.{i}.attention.output.dense.weight")
         )
         rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.norm1.bias",
-                f"{hf_prefix}encoder.layer.{i}.layernorm_before.bias",
-            )
+            (f"{prefix}blocks.{i}.attn.proj.bias", f"{hf_prefix}encoder.layer.{i}.attention.output.dense.bias")
         )
         rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.attn.proj.weight",
-                f"{hf_prefix}encoder.layer.{i}.attention.output.dense.weight",
-            )
+            (f"{prefix}blocks.{i}.norm2.weight", f"{hf_prefix}encoder.layer.{i}.layernorm_after.weight")
+        )
+        rename_keys.append((f"{prefix}blocks.{i}.norm2.bias", f"{hf_prefix}encoder.layer.{i}.layernorm_after.bias"))
+        rename_keys.append(
+            (f"{prefix}blocks.{i}.mlp.fc1.weight", f"{hf_prefix}encoder.layer.{i}.intermediate.dense.weight")
         )
         rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.attn.proj.bias",
-                f"{hf_prefix}encoder.layer.{i}.attention.output.dense.bias",
-            )
+            (f"{prefix}blocks.{i}.mlp.fc1.bias", f"{hf_prefix}encoder.layer.{i}.intermediate.dense.bias")
         )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.norm2.weight",
-                f"{hf_prefix}encoder.layer.{i}.layernorm_after.weight",
-            )
-        )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.norm2.bias",
-                f"{hf_prefix}encoder.layer.{i}.layernorm_after.bias",
-            )
-        )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.mlp.fc1.weight",
-                f"{hf_prefix}encoder.layer.{i}.intermediate.dense.weight",
-            )
-        )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.mlp.fc1.bias",
-                f"{hf_prefix}encoder.layer.{i}.intermediate.dense.bias",
-            )
-        )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.mlp.fc2.weight",
-                f"{hf_prefix}encoder.layer.{i}.output.dense.weight",
-            )
-        )
-        rename_keys.append(
-            (
-                f"{prefix}blocks.{i}.mlp.fc2.bias",
-                f"{hf_prefix}encoder.layer.{i}.output.dense.bias",
-            )
-        )
+        rename_keys.append((f"{prefix}blocks.{i}.mlp.fc2.weight", f"{hf_prefix}encoder.layer.{i}.output.dense.weight"))
+        rename_keys.append((f"{prefix}blocks.{i}.mlp.fc2.bias", f"{hf_prefix}encoder.layer.{i}.output.dense.bias"))
 
     # projection layer + position embeddings
     rename_keys.extend(
         [
             (f"{prefix}cls_token", f"{hf_prefix}embeddings.cls_token"),
-            (
-                f"{prefix}patch_embed.proj.weight",
-                f"{hf_prefix}embeddings.patch_embeddings.projection.weight",
-            ),
-            (
-                f"{prefix}patch_embed.proj.bias",
-                f"{hf_prefix}embeddings.patch_embeddings.projection.bias",
-            ),
+            (f"{prefix}patch_embed.proj.weight", f"{hf_prefix}embeddings.patch_embeddings.projection.weight"),
+            (f"{prefix}patch_embed.proj.bias", f"{hf_prefix}embeddings.patch_embeddings.projection.bias"),
         ]
     )
 
@@ -143,13 +94,7 @@ def create_rename_keys(
     return rename_keys
 
 
-def read_in_q_k_v(
-    state_dict,
-    config,
-    has_lm_head=False,
-    is_semantic=False,
-    hf_prefix="data2vec_vision.",
-):
+def read_in_q_k_v(state_dict, config, has_lm_head=False, is_semantic=False, hf_prefix="data2vec_vision."):
     for i in range(config.num_hidden_layers):
         prefix = "backbone." if is_semantic else ""
         # queries, keys and values
@@ -157,21 +102,17 @@ def read_in_q_k_v(
         q_bias = state_dict.pop(f"{prefix}blocks.{i}.attn.q_bias")
         v_bias = state_dict.pop(f"{prefix}blocks.{i}.attn.v_bias")
 
-        state_dict[
-            f"{hf_prefix}encoder.layer.{i}.attention.attention.query.weight"
-        ] = in_proj_weight[: config.hidden_size, :]
-        state_dict[
-            f"{hf_prefix}encoder.layer.{i}.attention.attention.query.bias"
-        ] = q_bias
-        state_dict[
-            f"{hf_prefix}encoder.layer.{i}.attention.attention.key.weight"
-        ] = in_proj_weight[config.hidden_size : config.hidden_size * 2, :]
-        state_dict[
-            f"{hf_prefix}encoder.layer.{i}.attention.attention.value.weight"
-        ] = in_proj_weight[-config.hidden_size :, :]
-        state_dict[
-            f"{hf_prefix}encoder.layer.{i}.attention.attention.value.bias"
-        ] = v_bias
+        state_dict[f"{hf_prefix}encoder.layer.{i}.attention.attention.query.weight"] = in_proj_weight[
+            : config.hidden_size, :
+        ]
+        state_dict[f"{hf_prefix}encoder.layer.{i}.attention.attention.query.bias"] = q_bias
+        state_dict[f"{hf_prefix}encoder.layer.{i}.attention.attention.key.weight"] = in_proj_weight[
+            config.hidden_size : config.hidden_size * 2, :
+        ]
+        state_dict[f"{hf_prefix}encoder.layer.{i}.attention.attention.value.weight"] = in_proj_weight[
+            -config.hidden_size :, :
+        ]
+        state_dict[f"{hf_prefix}encoder.layer.{i}.attention.attention.value.bias"] = v_bias
 
         # gamma_1 and gamma_2
         # we call them lambda because otherwise they are renamed when using .from_pretrained
@@ -184,9 +125,7 @@ def read_in_q_k_v(
         # relative_position bias table + index
         if not has_lm_head:
             # each layer has its own relative position bias
-            table = state_dict.pop(
-                f"{prefix}blocks.{i}.attn.relative_position_bias_table"
-            )
+            table = state_dict.pop(f"{prefix}blocks.{i}.attn.relative_position_bias_table")
             index = state_dict.pop(f"{prefix}blocks.{i}.attn.relative_position_index")
 
             state_dict[
@@ -199,8 +138,7 @@ def read_in_q_k_v(
 
 def get_args():
     parser = argparse.ArgumentParser(
-        "Convert Data2VecVision to HF for image classification and pretraining",
-        add_help=False,
+        "Convert Data2VecVision to HF for image classification and pretraining", add_help=False
     )
     parser.add_argument("--hf_checkpoint_name", type=str)
     parser.add_argument("--input_size", default=224, type=int, help="images input size")
@@ -210,9 +148,7 @@ def get_args():
 
 
 def load_beit_model(args, is_finetuned, is_large):
-    def load_state_dict(
-        model, state_dict, prefix="", ignore_missing="relative_position_index"
-    ):
+    def load_state_dict(model, state_dict, prefix="", ignore_missing="relative_position_index"):
         missing_keys = []
         unexpected_keys = []
         error_msgs = []
@@ -225,13 +161,7 @@ def load_beit_model(args, is_finetuned, is_large):
         def load(module, prefix=""):
             local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
             module._load_from_state_dict(
-                state_dict,
-                prefix,
-                local_metadata,
-                True,
-                missing_keys,
-                unexpected_keys,
-                error_msgs,
+                state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs
             )
             for name, child in module._modules.items():
                 if child is not None:
@@ -261,11 +191,7 @@ def load_beit_model(args, is_finetuned, is_large):
                 )
             )
         if len(unexpected_keys) > 0:
-            print(
-                "Weights from pretrained model not used in {}: {}".format(
-                    model.__class__.__name__, unexpected_keys
-                )
-            )
+            print("Weights from pretrained model not used in {}: {}".format(model.__class__.__name__, unexpected_keys))
         if len(ignore_missing_keys) > 0:
             print(
                 "Ignored weights of {} not initialized from pretrained model: {}".format(
@@ -297,10 +223,7 @@ def load_beit_model(args, is_finetuned, is_large):
         **model_kwargs,
     )
     patch_size = model.patch_embed.patch_size
-    args.window_size = (
-        args.input_size // patch_size[0],
-        args.input_size // patch_size[1],
-    )
+    args.window_size = (args.input_size // patch_size[0], args.input_size // patch_size[1])
     checkpoint = torch.load(args.beit_checkpoint, map_location="cpu")
 
     print(f"Load ckpt from {args.beit_checkpoint}")
@@ -339,7 +262,6 @@ def main():
         # To convert Beit's data2vec_vision to HF you need to copy
         # https://github.com/facebookresearch/data2vec_vision/blob/main/beit/modeling_finetune.py
         # into this folder.
-        # Third Party
         import modeling_finetune  # noqa: F401
     else:
         # To convert Beit's data2vec_vision to HF you need to copy
@@ -350,7 +272,6 @@ def main():
         # test you need to add a `return x` after the following line:
         # https://github.com/facebookresearch/data2vec_vision/blob/af9a36349aaed59ae66e69b5dabeef2d62fdc5da/beit/modeling_cyclical.py#L197
         # to make the integration test pass.
-        # Third Party
         import modeling_cyclical  # noqa: F401
 
     # 1. Create model config
@@ -363,9 +284,7 @@ def main():
 
         repo_id = "huggingface/label-files"
         filename = "imagenet-1k-id2label.json"
-        id2label = json.load(
-            open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r")
-        )
+        id2label = json.load(open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r"))
         id2label = {int(k): v for k, v in id2label.items()}
         config.id2label = id2label
         config.label2id = {v: k for k, v in id2label.items()}
@@ -406,9 +325,7 @@ def main():
         has_lm_head = True
         hf_prefix = ""
 
-    rename_keys = create_rename_keys(
-        config, hf_prefix=hf_prefix, has_lm_head=has_lm_head
-    )
+    rename_keys = create_rename_keys(config, hf_prefix=hf_prefix, has_lm_head=has_lm_head)
     state_dict = orig_model.state_dict()
     for src, dest in rename_keys:
         val = state_dict.pop(src)
@@ -423,9 +340,7 @@ def main():
     with torch.no_grad():
         hf_model_output = hf_model(pixel_values)
 
-    hf_output = (
-        hf_model_output.logits if is_finetuned else hf_model_output.last_hidden_state
-    )
+    hf_output = hf_model_output.logits if is_finetuned else hf_model_output.last_hidden_state
 
     # 6. Compare
     max_absolute_diff = torch.max(torch.abs(hf_output - orig_model_output)).item()

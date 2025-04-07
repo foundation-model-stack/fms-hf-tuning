@@ -14,17 +14,16 @@
 # limitations under the License.
 """Tokenization classes for XLM."""
 
-# Standard
-from typing import List, Optional, Tuple
 import json
 import os
 import re
 import sys
 import unicodedata
+from typing import List, Optional, Tuple
 
-# Local
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -220,7 +219,6 @@ class XLMTokenizer(PreTrainedTokenizer):
         **kwargs,
     ):
         try:
-            # Third Party
             import sacremoses
         except ImportError:
             raise ImportError(
@@ -296,7 +294,6 @@ class XLMTokenizer(PreTrainedTokenizer):
     def ja_tokenize(self, text):
         if self.ja_word_tokenizer is None:
             try:
-                # Third Party
                 import Mykytea
 
                 self.ja_word_tokenizer = Mykytea.Mykytea(
@@ -423,7 +420,6 @@ class XLMTokenizer(PreTrainedTokenizer):
             text = self.moses_pipeline(text, lang=lang)
             try:
                 if "pythainlp" not in sys.modules:
-                    # Third Party
                     from pythainlp.tokenize import word_tokenize as th_word_tokenize
                 else:
                     th_word_tokenize = sys.modules["pythainlp"].word_tokenize
@@ -437,14 +433,11 @@ class XLMTokenizer(PreTrainedTokenizer):
         elif lang == "zh":
             try:
                 if "jieba" not in sys.modules:
-                    # Third Party
                     import jieba
                 else:
                     jieba = sys.modules["jieba"]
             except (AttributeError, ImportError):
-                logger.error(
-                    "Make sure you install Jieba (https://github.com/fxsjy/jieba) with the following steps"
-                )
+                logger.error("Make sure you install Jieba (https://github.com/fxsjy/jieba) with the following steps")
                 logger.error("1. pip install jieba")
                 raise
             text = " ".join(jieba.cut(text))
@@ -507,10 +500,7 @@ class XLMTokenizer(PreTrainedTokenizer):
         return bos + token_ids_0 + sep + token_ids_1 + sep
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """
         Retrieve sequence ids from a token list that has no special tokens added. This method is called when adding
@@ -530,9 +520,7 @@ class XLMTokenizer(PreTrainedTokenizer):
 
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=True,
+                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
             )
 
         if token_ids_1 is not None:
@@ -568,34 +556,23 @@ class XLMTokenizer(PreTrainedTokenizer):
             return len(cls + token_ids_0 + sep) * [0]
         return len(cls + token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
         merge_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["merges_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["merges_file"]
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
-            f.write(
-                json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False)
-                + "\n"
-            )
+            f.write(json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
 
         index = 0
         with open(merge_file, "w", encoding="utf-8") as writer:
-            for bpe_tokens, token_index in sorted(
-                self.bpe_ranks.items(), key=lambda kv: kv[1]
-            ):
+            for bpe_tokens, token_index in sorted(self.bpe_ranks.items(), key=lambda kv: kv[1]):
                 if index != token_index:
                     logger.warning(
                         f"Saving vocabulary to {merge_file}: BPE merge indices are not consecutive."
@@ -616,7 +593,6 @@ class XLMTokenizer(PreTrainedTokenizer):
         self.__dict__ = d
 
         try:
-            # Third Party
             import sacremoses
         except ImportError:
             raise ImportError(

@@ -16,10 +16,8 @@
 Processor class for Pix2Struct.
 """
 
-# Standard
 from typing import List, Optional, Union
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
@@ -28,9 +26,7 @@ from ...utils import logging
 
 class Pix2StructImagesKwargs(ImagesKwargs, total=False):
     max_patches: Optional[int]
-    header_text: Optional[
-        Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]
-    ]
+    header_text: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]]
 
 
 class Pix2StructProcessorKwargs(ProcessingKwargs, total=False):
@@ -82,9 +78,7 @@ class Pix2StructProcessor(ProcessorMixin):
     def __call__(
         self,
         images=None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[Pix2StructProcessorKwargs],
@@ -95,15 +89,6 @@ class Pix2StructProcessor(ProcessorMixin):
 
         Please refer to the docstring of the above two methods for more information.
         """
-        legacy = kwargs.pop("legacy", True)
-        if legacy:
-            logger.warning_once(
-                "Legacy behavior is being used. The current behavior will be deprecated in version 5.0.0. "
-                "In the new behavior, If both images and text are provided, image_processor is not a VQA processor, and `add_special_tokens` is unset, "
-                "the default value of `add_special_tokens` will be changed to `False` when calling the tokenizer. "
-                "To test the new behavior, set `legacy=False`as a processor call argument."
-            )
-
         if images is None and text is None:
             raise ValueError("You have to specify either images or text.")
 
@@ -112,9 +97,7 @@ class Pix2StructProcessor(ProcessorMixin):
             tokenizer_init_kwargs=self.tokenizer.init_kwargs,
             **kwargs,
         )
-        add_special_tokens = output_kwargs["text_kwargs"].pop(
-            "add_special_tokens", None
-        )
+        add_special_tokens = output_kwargs["text_kwargs"].pop("add_special_tokens", None)
         # Get only text
         if images is None and not self.image_processor.is_vqa:
             output_kwargs["text_kwargs"]["add_special_tokens"] = (
@@ -126,26 +109,20 @@ class Pix2StructProcessor(ProcessorMixin):
 
         if not self.image_processor.is_vqa:
             # add pixel_values
-            encoding_image_processor = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            encoding_image_processor = self.image_processor(images, **output_kwargs["images_kwargs"])
         else:
             # add pixel_values and bbox
             output_kwargs["images_kwargs"].setdefault("header_text", text)
-            encoding_image_processor = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            encoding_image_processor = self.image_processor(images, **output_kwargs["images_kwargs"])
 
         if text is not None and not self.image_processor.is_vqa:
             output_kwargs["text_kwargs"]["add_special_tokens"] = (
-                add_special_tokens if add_special_tokens is not None else legacy
+                add_special_tokens if add_special_tokens is not None else False
             )
             text_encoding = self.tokenizer(text=text, **output_kwargs["text_kwargs"])
 
             if "attention_mask" in text_encoding:
-                text_encoding["decoder_attention_mask"] = text_encoding.pop(
-                    "attention_mask"
-                )
+                text_encoding["decoder_attention_mask"] = text_encoding.pop("attention_mask")
             if "input_ids" in text_encoding:
                 text_encoding["decoder_input_ids"] = text_encoding.pop("input_ids")
         else:

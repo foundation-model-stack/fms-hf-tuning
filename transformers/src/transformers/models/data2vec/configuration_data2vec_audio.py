@@ -14,12 +14,11 @@
 # limitations under the License.
 """Data2VecText configuration"""
 
-# Standard
 import math
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -215,12 +214,7 @@ class Data2VecAudioConfig(PretrainedConfig):
         output_hidden_size=None,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-        )
+        super().__init__(**kwargs, pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id)
         self.hidden_size = hidden_size
         self.feat_extract_activation = feat_extract_activation
         self.conv_dim = list(conv_dim)

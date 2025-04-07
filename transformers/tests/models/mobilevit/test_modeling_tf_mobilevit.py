@@ -14,41 +14,30 @@
 # limitations under the License.
 """Testing suite for the TensorFlow MobileViT model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
 import inspect
 import unittest
 
-# First Party
 from transformers import MobileViTConfig
 from transformers.file_utils import is_tf_available, is_vision_available
 from transformers.testing_utils import require_tf, slow
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_tf_common import TFModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import numpy as np
     import tensorflow as tf
 
-    # First Party
-    from transformers import (
-        TFMobileViTForImageClassification,
-        TFMobileViTForSemanticSegmentation,
-        TFMobileViTModel,
-    )
+    from transformers import TFMobileViTForImageClassification, TFMobileViTForSemanticSegmentation, TFMobileViTModel
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import MobileViTImageProcessor
 
 
@@ -102,17 +91,13 @@ class TFMobileViTModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         pixel_labels = None
         if self.use_labels:
             labels = ids_tensor([self.batch_size], self.num_labels)
-            pixel_labels = ids_tensor(
-                [self.batch_size, self.image_size, self.image_size], self.num_labels
-            )
+            pixel_labels = ids_tensor([self.batch_size, self.image_size, self.image_size], self.num_labels)
 
         config = self.get_config()
 
@@ -140,35 +125,28 @@ class TFMobileViTModelTester:
         result = model(pixel_values, training=False)
         expected_height = expected_width = self.image_size // self.output_stride
         self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.last_hidden_size, expected_height, expected_width),
+            result.last_hidden_state.shape, (self.batch_size, self.last_hidden_size, expected_height, expected_width)
         )
 
-    def create_and_check_for_image_classification(
-        self, config, pixel_values, labels, pixel_labels
-    ):
+    def create_and_check_for_image_classification(self, config, pixel_values, labels, pixel_labels):
         config.num_labels = self.num_labels
         model = TFMobileViTForImageClassification(config)
         result = model(pixel_values, labels=labels, training=False)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
-    def create_and_check_for_semantic_segmentation(
-        self, config, pixel_values, labels, pixel_labels
-    ):
+    def create_and_check_for_semantic_segmentation(self, config, pixel_values, labels, pixel_labels):
         config.num_labels = self.num_labels
         model = TFMobileViTForSemanticSegmentation(config)
         expected_height = expected_width = self.image_size // self.output_stride
 
         result = model(pixel_values, training=False)
         self.parent.assertEqual(
-            result.logits.shape,
-            (self.batch_size, self.num_labels, expected_height, expected_width),
+            result.logits.shape, (self.batch_size, self.num_labels, expected_height, expected_width)
         )
 
         result = model(pixel_values, labels=pixel_labels, training=False)
         self.parent.assertEqual(
-            result.logits.shape,
-            (self.batch_size, self.num_labels, expected_height, expected_width),
+            result.logits.shape, (self.batch_size, self.num_labels, expected_height, expected_width)
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -186,19 +164,12 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
     """
 
     all_model_classes = (
-        (
-            TFMobileViTModel,
-            TFMobileViTForImageClassification,
-            TFMobileViTForSemanticSegmentation,
-        )
+        (TFMobileViTModel, TFMobileViTForImageClassification, TFMobileViTForSemanticSegmentation)
         if is_tf_available()
         else ()
     )
     pipeline_model_mapping = (
-        {
-            "feature-extraction": TFMobileViTModel,
-            "image-classification": TFMobileViTForImageClassification,
-        }
+        {"feature-extraction": TFMobileViTModel, "image-classification": TFMobileViTForImageClassification}
         if is_tf_available()
         else {}
     )
@@ -211,9 +182,7 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
 
     def setUp(self):
         self.model_tester = TFMobileViTModelTester(self)
-        self.config_tester = TFMobileViTConfigTester(
-            self, config_class=MobileViTConfig, has_text_modality=False
-        )
+        self.config_tester = TFMobileViTConfigTester(self, config_class=MobileViTConfig, has_text_modality=False)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -263,10 +232,7 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
             for i in range(len(hidden_states)):
                 self.assertListEqual(
                     list(hidden_states[i].shape[-2:]),
-                    [
-                        self.model_tester.image_size // divisor,
-                        self.model_tester.image_size // divisor,
-                    ],
+                    [self.model_tester.image_size // divisor, self.model_tester.image_size // divisor],
                 )
                 divisor *= 2
 
@@ -318,7 +284,7 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
                     super().test_keras_fit()
 
     # The default test_loss_computation() uses -100 as a proxy ignore_index
-    # to test masked losses. Overridding to avoid -100 since semantic segmentation
+    # to test masked losses. Overriding to avoid -100 since semantic segmentation
     #  models use `semantic_loss_ignore_index` from the config.
     def test_loss_computation(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -331,40 +297,25 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
             model = model_class(config)
             if getattr(model, "hf_compute_loss", None):
                 # The number of elements in the loss should be the same as the number of elements in the label
-                prepared_for_class = self._prepare_for_class(
-                    inputs_dict.copy(), model_class, return_labels=True
-                )
+                prepared_for_class = self._prepare_for_class(inputs_dict.copy(), model_class, return_labels=True)
                 added_label = prepared_for_class[
-                    sorted(
-                        prepared_for_class.keys() - inputs_dict.keys(), reverse=True
-                    )[0]
+                    sorted(prepared_for_class.keys() - inputs_dict.keys(), reverse=True)[0]
                 ]
                 expected_loss_size = added_label.shape.as_list()[:1]
 
                 # Test that model correctly compute the loss with kwargs
-                prepared_for_class = self._prepare_for_class(
-                    inputs_dict.copy(), model_class, return_labels=True
-                )
+                prepared_for_class = self._prepare_for_class(inputs_dict.copy(), model_class, return_labels=True)
                 possible_input_names = {"input_ids", "pixel_values", "input_features"}
-                input_name = possible_input_names.intersection(
-                    set(prepared_for_class)
-                ).pop()
+                input_name = possible_input_names.intersection(set(prepared_for_class)).pop()
                 model_input = prepared_for_class.pop(input_name)
 
                 loss = model(model_input, **prepared_for_class)[0]
-                self.assertTrue(
-                    loss.shape.as_list() == expected_loss_size
-                    or loss.shape.as_list() == [1]
-                )
+                self.assertTrue(loss.shape.as_list() == expected_loss_size or loss.shape.as_list() == [1])
 
                 # Test that model correctly compute the loss when we mask some positions
-                prepared_for_class = self._prepare_for_class(
-                    inputs_dict.copy(), model_class, return_labels=True
-                )
+                prepared_for_class = self._prepare_for_class(inputs_dict.copy(), model_class, return_labels=True)
                 possible_input_names = {"input_ids", "pixel_values", "input_features"}
-                input_name = possible_input_names.intersection(
-                    set(prepared_for_class)
-                ).pop()
+                input_name = possible_input_names.intersection(set(prepared_for_class)).pop()
                 model_input = prepared_for_class.pop(input_name)
                 if "labels" in prepared_for_class:
                     labels = prepared_for_class["labels"].numpy()
@@ -372,26 +323,16 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
                         # labels[0] = -100
                         prepared_for_class["labels"] = tf.convert_to_tensor(labels)
                         loss = model(model_input, **prepared_for_class)[0]
-                        self.assertTrue(
-                            loss.shape.as_list() == expected_loss_size
-                            or loss.shape.as_list() == [1]
-                        )
+                        self.assertTrue(loss.shape.as_list() == expected_loss_size or loss.shape.as_list() == [1])
                         self.assertTrue(not np.any(np.isnan(loss.numpy())))
 
                 # Test that model correctly compute the loss with a dict
-                prepared_for_class = self._prepare_for_class(
-                    inputs_dict.copy(), model_class, return_labels=True
-                )
+                prepared_for_class = self._prepare_for_class(inputs_dict.copy(), model_class, return_labels=True)
                 loss = model(prepared_for_class)[0]
-                self.assertTrue(
-                    loss.shape.as_list() == expected_loss_size
-                    or loss.shape.as_list() == [1]
-                )
+                self.assertTrue(loss.shape.as_list() == expected_loss_size or loss.shape.as_list() == [1])
 
                 # Test that model correctly compute the loss with a tuple
-                prepared_for_class = self._prepare_for_class(
-                    inputs_dict.copy(), model_class, return_labels=True
-                )
+                prepared_for_class = self._prepare_for_class(inputs_dict.copy(), model_class, return_labels=True)
 
                 # Get keys that were added with the _prepare_for_class function
                 label_keys = prepared_for_class.keys() - inputs_dict.keys()
@@ -419,10 +360,7 @@ class TFMobileViTModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.Tes
                 # Send to model
                 loss = model(tuple_input[:-1])[0]
 
-                self.assertTrue(
-                    loss.shape.as_list() == expected_loss_size
-                    or loss.shape.as_list() == [1]
-                )
+                self.assertTrue(loss.shape.as_list() == expected_loss_size or loss.shape.as_list() == [1])
 
     @slow
     def test_model_from_pretrained(self):
@@ -441,13 +379,9 @@ def prepare_img():
 class TFMobileViTModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification_head(self):
-        model = TFMobileViTForImageClassification.from_pretrained(
-            "apple/mobilevit-xx-small"
-        )
+        model = TFMobileViTForImageClassification.from_pretrained("apple/mobilevit-xx-small")
 
-        image_processor = MobileViTImageProcessor.from_pretrained(
-            "apple/mobilevit-xx-small"
-        )
+        image_processor = MobileViTImageProcessor.from_pretrained("apple/mobilevit-xx-small")
         image = prepare_img()
         inputs = image_processor(images=image, return_tensors="tf")
 
@@ -460,20 +394,14 @@ class TFMobileViTModelIntegrationTest(unittest.TestCase):
 
         expected_slice = tf.constant([-1.9364, -1.2327, -0.4653])
 
-        tf.debugging.assert_near(
-            outputs.logits[0, :3], expected_slice, atol=1e-4, rtol=1e-04
-        )
+        tf.debugging.assert_near(outputs.logits[0, :3], expected_slice, atol=1e-4, rtol=1e-04)
 
     @slow
     def test_inference_semantic_segmentation(self):
         # `from_pt` will be removed
-        model = TFMobileViTForSemanticSegmentation.from_pretrained(
-            "apple/deeplabv3-mobilevit-xx-small"
-        )
+        model = TFMobileViTForSemanticSegmentation.from_pretrained("apple/deeplabv3-mobilevit-xx-small")
 
-        image_processor = MobileViTImageProcessor.from_pretrained(
-            "apple/deeplabv3-mobilevit-xx-small"
-        )
+        image_processor = MobileViTImageProcessor.from_pretrained("apple/deeplabv3-mobilevit-xx-small")
 
         image = prepare_img()
         inputs = image_processor(images=image, return_tensors="tf")
@@ -488,24 +416,10 @@ class TFMobileViTModelIntegrationTest(unittest.TestCase):
 
         expected_slice = tf.constant(
             [
-                [
-                    [6.9713, 6.9786, 7.2422],
-                    [7.2893, 7.2825, 7.4446],
-                    [7.6580, 7.8797, 7.9420],
-                ],
-                [
-                    [-10.6869, -10.3250, -10.3471],
-                    [-10.4228, -9.9868, -9.7132],
-                    [-11.0405, -11.0221, -10.7318],
-                ],
-                [
-                    [-3.3089, -2.8539, -2.6740],
-                    [-3.2706, -2.5621, -2.5108],
-                    [-3.2534, -2.6615, -2.6651],
-                ],
+                [[6.9713, 6.9786, 7.2422], [7.2893, 7.2825, 7.4446], [7.6580, 7.8797, 7.9420]],
+                [[-10.6869, -10.3250, -10.3471], [-10.4228, -9.9868, -9.7132], [-11.0405, -11.0221, -10.7318]],
+                [[-3.3089, -2.8539, -2.6740], [-3.2706, -2.5621, -2.5108], [-3.2534, -2.6615, -2.6651]],
             ]
         )
 
-        tf.debugging.assert_near(
-            logits[0, :3, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        tf.debugging.assert_near(logits[0, :3, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from pathlib import Path
 
-# Third Party
 import fire
 
 

@@ -18,10 +18,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import Dict, List, Optional, Union
 
-# Local
 from ...image_processing_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
@@ -81,9 +79,7 @@ class AriaProcessor(ProcessorMixin):
 
     def __call__(
         self,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ],
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]],
         images: Optional[ImageInput] = None,
         audio=None,
         videos=None,
@@ -119,9 +115,7 @@ class AriaProcessor(ProcessorMixin):
         if isinstance(text, str):
             text = [text]
         elif not isinstance(text, list) and not isinstance(text[0], str):
-            raise ValueError(
-                "Invalid input text. Please provide a string, or a list of strings"
-            )
+            raise ValueError("Invalid input text. Please provide a string, or a list of strings")
         if images is not None:
             image_inputs = self.image_processor(
                 images,
@@ -132,9 +126,7 @@ class AriaProcessor(ProcessorMixin):
             prompt_strings = []
             num_crops = image_inputs.pop("num_crops") * tokens_per_image
             for sample in text:
-                sample = sample.replace(
-                    self.tokenizer.image_token, self.tokenizer.image_token * num_crops
-                )
+                sample = sample.replace(self.tokenizer.image_token, self.tokenizer.image_token * num_crops)
                 prompt_strings.append(sample)
 
         else:
@@ -169,9 +161,7 @@ class AriaProcessor(ProcessorMixin):
 
         # Remove `num_crops`, it is popped and used only when processing. Make a copy of list when remocing
         # otherwise `self.image_processor.model_input_names` is also modified
-        image_processor_input_names = [
-            name for name in image_processor_input_names if name != "num_crops"
-        ]
+        image_processor_input_names = [name for name in image_processor_input_names if name != "num_crops"]
         return list(dict.fromkeys(tokenizer_input_names + image_processor_input_names))
 
 

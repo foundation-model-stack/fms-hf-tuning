@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import (
     FEATURE_EXTRACTOR_MAPPING,
     IMAGE_PROCESSOR_MAPPING,
@@ -30,19 +27,13 @@ from transformers import (
     is_torch_available,
     pipeline,
 )
-from transformers.testing_utils import (
-    is_pipeline_test,
-    nested_simplify,
-    require_tf,
-    require_torch,
-)
+from transformers.testing_utils import is_pipeline_test, nested_simplify, require_tf, require_torch
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
 
@@ -54,9 +45,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_small_model_pt(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="pt",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="pt"
         )
         outputs = feature_extractor("This is a test")
         self.assertEqual(
@@ -66,9 +55,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_small_model_tf(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="tf",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="tf"
         )
         outputs = feature_extractor("This is a test")
         self.assertEqual(
@@ -78,9 +65,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_tokenization_small_model_pt(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="pt",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="pt"
         )
         # test with empty parameters
         outputs = feature_extractor("This is a test")
@@ -95,26 +80,14 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
 
         tokenize_kwargs = {"truncation": True, "padding": True, "max_length": 4}
         outputs = feature_extractor(
-            [
-                "This is a test",
-                "This",
-                "This is",
-                "This is a",
-                "This is a test test test test",
-            ],
+            ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
             tokenize_kwargs=tokenize_kwargs,
         )
         self.assertEqual(np.squeeze(outputs).shape, (5, 4, 32))
 
         tokenize_kwargs = {"padding": True, "max_length": 4}
         outputs = feature_extractor(
-            [
-                "This is a test",
-                "This",
-                "This is",
-                "This is a",
-                "This is a test test test test",
-            ],
+            ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
             truncation=True,
             tokenize_kwargs=tokenize_kwargs,
         )
@@ -124,13 +97,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
         tokenize_kwargs = {"truncation": True}
         with self.assertRaises(ValueError):
             _ = feature_extractor(
-                [
-                    "This is a test",
-                    "This",
-                    "This is",
-                    "This is a",
-                    "This is a test test test test",
-                ],
+                ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
                 truncation=True,
                 tokenize_kwargs=tokenize_kwargs,
             )
@@ -138,9 +105,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_tokenization_small_model_tf(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="tf",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="tf"
         )
         # test with empty parameters
         outputs = feature_extractor("This is a test")
@@ -155,26 +120,14 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
 
         tokenize_kwargs = {"truncation": True, "padding": True, "max_length": 4}
         outputs = feature_extractor(
-            [
-                "This is a test",
-                "This",
-                "This is",
-                "This is a",
-                "This is a test test test test",
-            ],
+            ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
             tokenize_kwargs=tokenize_kwargs,
         )
         self.assertEqual(np.squeeze(outputs).shape, (5, 4, 32))
 
         tokenize_kwargs = {"padding": True, "max_length": 4}
         outputs = feature_extractor(
-            [
-                "This is a test",
-                "This",
-                "This is",
-                "This is a",
-                "This is a test test test test",
-            ],
+            ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
             truncation=True,
             tokenize_kwargs=tokenize_kwargs,
         )
@@ -184,13 +137,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
         tokenize_kwargs = {"truncation": True}
         with self.assertRaises(ValueError):
             _ = feature_extractor(
-                [
-                    "This is a test",
-                    "This",
-                    "This is",
-                    "This is a",
-                    "This is a test test test test",
-                ],
+                ["This is a test", "This", "This is", "This is a", "This is a test test test test"],
                 truncation=True,
                 tokenize_kwargs=tokenize_kwargs,
             )
@@ -198,9 +145,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_torch
     def test_return_tensors_pt(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="pt",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="pt"
         )
         outputs = feature_extractor("This is a test", return_tensors=True)
         self.assertTrue(torch.is_tensor(outputs))
@@ -208,9 +153,7 @@ class FeatureExtractionPipelineTests(unittest.TestCase):
     @require_tf
     def test_return_tensors_tf(self):
         feature_extractor = pipeline(
-            task="feature-extraction",
-            model="hf-internal-testing/tiny-random-distilbert",
-            framework="tf",
+            task="feature-extraction", model="hf-internal-testing/tiny-random-distilbert", framework="tf"
         )
         outputs = feature_extractor("This is a test", return_tensors=True)
         self.assertTrue(tf.is_tensor(outputs))

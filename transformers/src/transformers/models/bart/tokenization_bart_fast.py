@@ -13,27 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from typing import List, Optional, Tuple
 import json
+from typing import List, Optional, Tuple
 
-# Third Party
 from tokenizers import processors
 
-# Local
 from ...tokenization_utils_base import AddedToken, BatchEncoding
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_bart import BartTokenizer
 
+
 logger = logging.get_logger(__name__)
 
 
-VOCAB_FILES_NAMES = {
-    "vocab_file": "vocab.json",
-    "merges_file": "merges.txt",
-    "tokenizer_file": "tokenizer.json",
-}
+VOCAB_FILES_NAMES = {"vocab_file": "vocab.json", "merges_file": "merges.txt", "tokenizer_file": "tokenizer.json"}
 
 # See all BART models at https://huggingface.co/models?filter=bart
 
@@ -165,9 +159,7 @@ class BartTokenizerFast(PreTrainedTokenizerFast):
 
         # the pre_tokenizer is already updated in the GPT2TokenizerFast `__init__`
         tokenizer_component = "post_processor"
-        tokenizer_component_instance = getattr(
-            self.backend_tokenizer, tokenizer_component, None
-        )
+        tokenizer_component_instance = getattr(self.backend_tokenizer, tokenizer_component, None)
         if tokenizer_component_instance:
             state = json.loads(tokenizer_component_instance.__getstate__())
 
@@ -216,11 +208,7 @@ class BartTokenizerFast(PreTrainedTokenizerFast):
         """
         # Mask token behave like a normal word, i.e. include the space before it
         # So we set lstrip to True
-        value = (
-            AddedToken(value, lstrip=True, rstrip=False)
-            if isinstance(value, str)
-            else value
-        )
+        value = AddedToken(value, lstrip=True, rstrip=False) if isinstance(value, str) else value
         self._mask_token = value
 
     def _batch_encode_plus(self, *args, **kwargs) -> BatchEncoding:
@@ -245,9 +233,7 @@ class BartTokenizerFast(PreTrainedTokenizerFast):
 
         return super()._encode_plus(*args, **kwargs)
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
         return tuple(files)
 

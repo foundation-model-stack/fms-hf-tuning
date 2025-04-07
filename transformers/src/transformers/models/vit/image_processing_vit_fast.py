@@ -14,7 +14,6 @@
 # limitations under the License.
 """Fast Image processor class for ViT."""
 
-# Local
 from ...image_processing_utils_fast import (
     BASE_IMAGE_PROCESSOR_FAST_DOCSTRING,
     BaseImageProcessorFast,
@@ -24,7 +23,9 @@ from ...image_utils import (
     IMAGENET_STANDARD_STD,
     PILImageResampling,
 )
-from ...utils import add_start_docstrings
+from ...utils import (
+    add_start_docstrings,
+)
 
 
 @add_start_docstrings(

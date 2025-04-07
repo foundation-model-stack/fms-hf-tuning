@@ -16,14 +16,11 @@
 Image/Text processor class for OWL-ViT
 """
 
-# Standard
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 import warnings
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import (
@@ -36,12 +33,9 @@ from ...processing_utils import (
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import TensorType, is_flax_available, is_tf_available, is_torch_available
 
+
 if TYPE_CHECKING:
-    # Local
-    from .modeling_owlvit import (
-        OwlViTImageGuidedObjectDetectionOutput,
-        OwlViTObjectDetectionOutput,
-    )
+    from .modeling_owlvit import OwlViTImageGuidedObjectDetectionOutput, OwlViTObjectDetectionOutput
 
 
 class OwlViTImagesKwargs(ImagesKwargs, total=False):
@@ -90,9 +84,7 @@ class OwlViTProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -103,9 +95,7 @@ class OwlViTProcessor(ProcessorMixin):
     def __call__(
         self,
         images: Optional[ImageInput] = None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         # The following is to capture `query_images` argument that may be passed as a positional argument.
         # See transformers.processing_utils.ProcessorMixin.prepare_and_validate_optional_call_args for more details,
         # or this conversation for more context: https://github.com/huggingface/transformers/pull/32544#discussion_r1720208116
@@ -120,7 +110,7 @@ class OwlViTProcessor(ProcessorMixin):
         Main method to prepare for the model one or several text(s) and image(s). This method forwards the `text` and
         `kwargs` arguments to CLIPTokenizerFast's [`~CLIPTokenizerFast.__call__`] if `text` is not `None` to encode:
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -170,9 +160,7 @@ class OwlViTProcessor(ProcessorMixin):
 
         data = {}
         if text is not None:
-            if isinstance(text, str) or (
-                isinstance(text, List) and not isinstance(text[0], List)
-            ):
+            if isinstance(text, str) or (isinstance(text, List) and not isinstance(text[0], List)):
                 encodings = [self.tokenizer(text, **output_kwargs["text_kwargs"])]
 
             elif isinstance(text, List) and isinstance(text[0], List):
@@ -184,59 +172,34 @@ class OwlViTProcessor(ProcessorMixin):
                 # Pad all batch samples to max number of text queries
                 for text_single in text:
                     if len(text_single) != max_num_queries:
-                        text_single = text_single + [" "] * (
-                            max_num_queries - len(text_single)
-                        )
+                        text_single = text_single + [" "] * (max_num_queries - len(text_single))
 
-                    encoding = self.tokenizer(
-                        text_single, **output_kwargs["text_kwargs"]
-                    )
+                    encoding = self.tokenizer(text_single, **output_kwargs["text_kwargs"])
                     encodings.append(encoding)
             else:
-                raise TypeError(
-                    "Input text should be a string, a list of strings or a nested list of strings"
-                )
+                raise TypeError("Input text should be a string, a list of strings or a nested list of strings")
 
             if return_tensors == "np":
-                input_ids = np.concatenate(
-                    [encoding["input_ids"] for encoding in encodings], axis=0
-                )
-                attention_mask = np.concatenate(
-                    [encoding["attention_mask"] for encoding in encodings], axis=0
-                )
+                input_ids = np.concatenate([encoding["input_ids"] for encoding in encodings], axis=0)
+                attention_mask = np.concatenate([encoding["attention_mask"] for encoding in encodings], axis=0)
 
             elif return_tensors == "jax" and is_flax_available():
-                # Third Party
                 import jax.numpy as jnp
 
-                input_ids = jnp.concatenate(
-                    [encoding["input_ids"] for encoding in encodings], axis=0
-                )
-                attention_mask = jnp.concatenate(
-                    [encoding["attention_mask"] for encoding in encodings], axis=0
-                )
+                input_ids = jnp.concatenate([encoding["input_ids"] for encoding in encodings], axis=0)
+                attention_mask = jnp.concatenate([encoding["attention_mask"] for encoding in encodings], axis=0)
 
             elif return_tensors == "pt" and is_torch_available():
-                # Third Party
                 import torch
 
-                input_ids = torch.cat(
-                    [encoding["input_ids"] for encoding in encodings], dim=0
-                )
-                attention_mask = torch.cat(
-                    [encoding["attention_mask"] for encoding in encodings], dim=0
-                )
+                input_ids = torch.cat([encoding["input_ids"] for encoding in encodings], dim=0)
+                attention_mask = torch.cat([encoding["attention_mask"] for encoding in encodings], dim=0)
 
             elif return_tensors == "tf" and is_tf_available():
-                # Third Party
                 import tensorflow as tf
 
-                input_ids = tf.stack(
-                    [encoding["input_ids"] for encoding in encodings], axis=0
-                )
-                attention_mask = tf.stack(
-                    [encoding["attention_mask"] for encoding in encodings], axis=0
-                )
+                input_ids = tf.stack([encoding["input_ids"] for encoding in encodings], axis=0)
+                attention_mask = tf.stack([encoding["attention_mask"] for encoding in encodings], axis=0)
 
             else:
                 raise ValueError("Target return tensor type could not be returned")
@@ -245,16 +208,12 @@ class OwlViTProcessor(ProcessorMixin):
             data["attention_mask"] = attention_mask
 
         if query_images is not None:
-            query_pixel_values = self.image_processor(
-                query_images, **output_kwargs["images_kwargs"]
-            ).pixel_values
+            query_pixel_values = self.image_processor(query_images, **output_kwargs["images_kwargs"]).pixel_values
             # Query images always override the text prompt
             data = {"query_pixel_values": query_pixel_values}
 
         if images is not None:
-            image_features = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_features = self.image_processor(images, **output_kwargs["images_kwargs"])
             data["pixel_values"] = image_features.pixel_values
 
         return BatchFeature(data=data, tensor_type=return_tensors)
@@ -313,16 +272,12 @@ class OwlViTProcessor(ProcessorMixin):
         )
 
         if text_labels is not None and len(text_labels) != len(output):
-            raise ValueError(
-                "Make sure that you pass in as many lists of text labels as images"
-            )
+            raise ValueError("Make sure that you pass in as many lists of text labels as images")
 
         # adding text labels to the output
         if text_labels is not None:
             for image_output, image_text_labels in zip(output, text_labels):
-                object_text_labels = [
-                    image_text_labels[i] for i in image_output["labels"]
-                ]
+                object_text_labels = [image_text_labels[i] for i in image_output["labels"]]
                 image_output["text_labels"] = object_text_labels
         else:
             for image_output in output:
@@ -360,10 +315,7 @@ class OwlViTProcessor(ProcessorMixin):
             - "labels": Set to `None`.
         """
         return self.image_processor.post_process_image_guided_detection(
-            outputs=outputs,
-            threshold=threshold,
-            nms_threshold=nms_threshold,
-            target_sizes=target_sizes,
+            outputs=outputs, threshold=threshold, nms_threshold=nms_threshold, target_sizes=target_sizes
         )
 
     def batch_decode(self, *args, **kwargs):

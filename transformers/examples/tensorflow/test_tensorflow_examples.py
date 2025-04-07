@@ -14,24 +14,21 @@
 # limitations under the License.
 
 
-# Standard
-from unittest import skip
-from unittest.mock import patch
 import argparse
 import json
 import logging
 import os
 import sys
+from unittest import skip
+from unittest.mock import patch
 
-# Third Party
-from packaging.version import parse
 import tensorflow as tf
+from packaging.version import parse
+
 
 try:
-    # Third Party
     import tf_keras as keras
 except (ModuleNotFoundError, ImportError):
-    # Third Party
     import keras
 
     if parse(keras.__version__).major > 2:
@@ -41,8 +38,8 @@ except (ModuleNotFoundError, ImportError):
             "`pip install tf-keras`."
         )
 
-# First Party
 from transformers.testing_utils import TestCasePlus, get_gpu_count, slow
+
 
 SRC_DIRS = [
     os.path.join(os.path.dirname(__file__), dirname)
@@ -62,7 +59,6 @@ sys.path.extend(SRC_DIRS)
 
 
 if SRC_DIRS is not None:
-    # Third Party
     import run_clm
     import run_image_classification
     import run_mlm

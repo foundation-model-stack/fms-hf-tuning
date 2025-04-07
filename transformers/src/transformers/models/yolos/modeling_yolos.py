@@ -14,21 +14,17 @@
 # limitations under the License.
 """PyTorch YOLOS model."""
 
-# Standard
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Set, Tuple, Union
 import collections.abc
-import math
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
-# Third Party
-from torch import nn
 import torch
 import torch.utils.checkpoint
+from torch import nn
 
-# Local
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...utils import (
     ModelOutput,
@@ -39,6 +35,7 @@ from ...utils import (
     replace_return_docstrings,
 )
 from .configuration_yolos import YolosConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -87,8 +84,8 @@ class YolosObjectDetectionOutput(ModelOutput):
 
     loss: Optional[torch.FloatTensor] = None
     loss_dict: Optional[Dict] = None
-    logits: torch.FloatTensor = None
-    pred_boxes: torch.FloatTensor = None
+    logits: Optional[torch.FloatTensor] = None
+    pred_boxes: Optional[torch.FloatTensor] = None
     auxiliary_outputs: Optional[List[Dict]] = None
     last_hidden_state: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
@@ -105,15 +102,11 @@ class YolosEmbeddings(nn.Module):
         super().__init__()
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size))
-        self.detection_tokens = nn.Parameter(
-            torch.zeros(1, config.num_detection_tokens, config.hidden_size)
-        )
+        self.detection_tokens = nn.Parameter(torch.zeros(1, config.num_detection_tokens, config.hidden_size))
         self.patch_embeddings = YolosPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
         self.position_embeddings = nn.Parameter(
-            torch.zeros(
-                1, num_patches + config.num_detection_tokens + 1, config.hidden_size
-            )
+            torch.zeros(1, num_patches + config.num_detection_tokens + 1, config.hidden_size)
         )
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -133,9 +126,7 @@ class YolosEmbeddings(nn.Module):
 
         # add positional encoding to each token
         # this might require interpolation of the existing position embeddings
-        position_embeddings = self.interpolation(
-            self.position_embeddings, (height, width)
-        )
+        position_embeddings = self.interpolation(self.position_embeddings, (height, width))
 
         embeddings = embeddings + position_embeddings
 
@@ -161,25 +152,15 @@ class InterpolateInitialPositionEmbeddings(nn.Module):
             self.config.image_size[0] // self.config.patch_size,
             self.config.image_size[1] // self.config.patch_size,
         )
-        patch_pos_embed = patch_pos_embed.view(
-            batch_size, hidden_size, patch_height, patch_width
-        )
+        patch_pos_embed = patch_pos_embed.view(batch_size, hidden_size, patch_height, patch_width)
 
         height, width = img_size
-        new_patch_heigth, new_patch_width = (
-            height // self.config.patch_size,
-            width // self.config.patch_size,
-        )
+        new_patch_heigth, new_patch_width = height // self.config.patch_size, width // self.config.patch_size
         patch_pos_embed = nn.functional.interpolate(
-            patch_pos_embed,
-            size=(new_patch_heigth, new_patch_width),
-            mode="bicubic",
-            align_corners=False,
+            patch_pos_embed, size=(new_patch_heigth, new_patch_width), mode="bicubic", align_corners=False
         )
         patch_pos_embed = patch_pos_embed.flatten(2).transpose(1, 2)
-        scale_pos_embed = torch.cat(
-            (cls_pos_embed, patch_pos_embed, det_pos_embed), dim=1
-        )
+        scale_pos_embed = torch.cat((cls_pos_embed, patch_pos_embed, det_pos_embed), dim=1)
         return scale_pos_embed
 
 
@@ -200,19 +181,11 @@ class InterpolateMidPositionEmbeddings(nn.Module):
             self.config.image_size[0] // self.config.patch_size,
             self.config.image_size[1] // self.config.patch_size,
         )
-        patch_pos_embed = patch_pos_embed.view(
-            depth * batch_size, hidden_size, patch_height, patch_width
-        )
+        patch_pos_embed = patch_pos_embed.view(depth * batch_size, hidden_size, patch_height, patch_width)
         height, width = img_size
-        new_patch_height, new_patch_width = (
-            height // self.config.patch_size,
-            width // self.config.patch_size,
-        )
+        new_patch_height, new_patch_width = height // self.config.patch_size, width // self.config.patch_size
         patch_pos_embed = nn.functional.interpolate(
-            patch_pos_embed,
-            size=(new_patch_height, new_patch_width),
-            mode="bicubic",
-            align_corners=False,
+            patch_pos_embed, size=(new_patch_height, new_patch_width), mode="bicubic", align_corners=False
         )
         patch_pos_embed = (
             patch_pos_embed.flatten(2)
@@ -220,9 +193,7 @@ class InterpolateMidPositionEmbeddings(nn.Module):
             .contiguous()
             .view(depth, batch_size, new_patch_height * new_patch_width, hidden_size)
         )
-        scale_pos_embed = torch.cat(
-            (cls_pos_embed, patch_pos_embed, det_pos_embed), dim=2
-        )
+        scale_pos_embed = torch.cat((cls_pos_embed, patch_pos_embed, det_pos_embed), dim=2)
         return scale_pos_embed
 
 
@@ -238,27 +209,15 @@ class YolosPatchEmbeddings(nn.Module):
         image_size, patch_size = config.image_size, config.patch_size
         num_channels, hidden_size = config.num_channels, config.hidden_size
 
-        image_size = (
-            image_size
-            if isinstance(image_size, collections.abc.Iterable)
-            else (image_size, image_size)
-        )
-        patch_size = (
-            patch_size
-            if isinstance(patch_size, collections.abc.Iterable)
-            else (patch_size, patch_size)
-        )
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
+        image_size = image_size if isinstance(image_size, collections.abc.Iterable) else (image_size, image_size)
+        patch_size = patch_size if isinstance(patch_size, collections.abc.Iterable) else (patch_size, patch_size)
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
         self.image_size = image_size
         self.patch_size = patch_size
         self.num_channels = num_channels
         self.num_patches = num_patches
 
-        self.projection = nn.Conv2d(
-            num_channels, hidden_size, kernel_size=patch_size, stride=patch_size
-        )
+        self.projection = nn.Conv2d(num_channels, hidden_size, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
         batch_size, num_channels, height, width = pixel_values.shape
@@ -271,129 +230,98 @@ class YolosPatchEmbeddings(nn.Module):
         return embeddings
 
 
+# Copied from transformers.models.vit.modeling_vit.eager_attention_forward
+def eager_attention_forward(
+    module: nn.Module,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: Optional[torch.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    # Take the dot product between "query" and "key" to get the raw attention scores.
+    attn_weights = torch.matmul(query, key.transpose(-1, -2)) * scaling
+
+    # Normalize the attention scores to probabilities.
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+
+    # This is actually dropping out entire tokens to attend to, which might
+    # seem a bit unusual, but is taken from the original Transformer paper.
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+
+    # Mask heads if we want to
+    if attention_mask is not None:
+        attn_weights = attn_weights * attention_mask
+
+    attn_output = torch.matmul(attn_weights, value)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 # Copied from transformers.models.vit.modeling_vit.ViTSelfAttention with ViT->Yolos
 class YolosSelfAttention(nn.Module):
     def __init__(self, config: YolosConfig) -> None:
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
-            config, "embedding_size"
-        ):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size {config.hidden_size} is not a multiple of the number of attention "
                 f"heads {config.num_attention_heads}."
             )
 
+        self.config = config
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
+        self.dropout_prob = config.attention_probs_dropout_prob
+        self.scaling = self.attention_head_size**-0.5
+        self.is_causal = False
 
-        self.query = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.key = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.value = nn.Linear(
-            config.hidden_size, self.all_head_size, bias=config.qkv_bias
-        )
-
-        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+        self.query = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.key = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
+        self.value = nn.Linear(config.hidden_size, self.all_head_size, bias=config.qkv_bias)
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(
-        self,
-        hidden_states,
-        head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
+        self, hidden_states, head_mask: Optional[torch.Tensor] = None, output_attentions: bool = False
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        mixed_query_layer = self.query(hidden_states)
-
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
-        query_layer = self.transpose_for_scores(mixed_query_layer)
+        query_layer = self.transpose_for_scores(self.query(hidden_states))
 
-        # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and output_attentions:
+                logger.warning_once(
+                    "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-
-        # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attention_probs = attention_probs * head_mask
-
-        context_layer = torch.matmul(attention_probs, value_layer)
-
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(new_context_layer_shape)
-
-        outputs = (
-            (context_layer, attention_probs) if output_attentions else (context_layer,)
-        )
-
-        return outputs
-
-
-# Copied from transformers.models.vit.modeling_vit.ViTSdpaSelfAttention with ViT->Yolos
-class YolosSdpaSelfAttention(YolosSelfAttention):
-    def __init__(self, config: YolosConfig) -> None:
-        super().__init__(config)
-        self.attention_probs_dropout_prob = config.attention_probs_dropout_prob
-
-    def forward(
-        self,
-        hidden_states: torch.FloatTensor,
-        head_mask: Optional[torch.Tensor] = None,
-        output_attentions: bool = False,
-    ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
-        if output_attentions or head_mask is not None:
-            logger.warning_once(
-                "`YolosSdpaAttention` is used but `torch.nn.functional.scaled_dot_product_attention` does not support "
-                "`output_attentions=True` or `head_mask`. Falling back to the manual attention implementation, but "
-                "specifying the manual implementation will be required from Transformers version v5.0.0 onwards. "
-                'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
-            )
-            return super().forward(
-                hidden_states=hidden_states,
-                head_mask=head_mask,
-                output_attentions=output_attentions,
-            )
-
-        mixed_query_layer = self.query(hidden_states)
-
-        key_layer = self.transpose_for_scores(self.key(hidden_states))
-        value_layer = self.transpose_for_scores(self.value(hidden_states))
-        query_layer = self.transpose_for_scores(mixed_query_layer)
-
-        context_layer = torch.nn.functional.scaled_dot_product_attention(
+        context_layer, attention_probs = attention_interface(
+            self,
             query_layer,
             key_layer,
             value_layer,
             head_mask,
-            self.attention_probs_dropout_prob if self.training else 0.0,
-            is_causal=False,
-            scale=None,
+            is_causal=self.is_causal,
+            scaling=self.scaling,
+            dropout=0.0 if not self.training else self.dropout_prob,
         )
 
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(new_context_layer_shape)
+        context_layer = context_layer.reshape(new_context_layer_shape)
 
-        return context_layer, None
+        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
+
+        return outputs
 
 
 # Copied from transformers.models.vit.modeling_vit.ViTSelfOutput with ViT->Yolos
@@ -408,9 +336,7 @@ class YolosSelfOutput(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
@@ -429,10 +355,7 @@ class YolosAttention(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads,
-            self.attention.num_attention_heads,
-            self.attention.attention_head_size,
-            self.pruned_heads,
+            heads, self.attention.num_attention_heads, self.attention.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
@@ -442,12 +365,8 @@ class YolosAttention(nn.Module):
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.attention.num_attention_heads = self.attention.num_attention_heads - len(
-            heads
-        )
-        self.attention.all_head_size = (
-            self.attention.attention_head_size * self.attention.num_attention_heads
-        )
+        self.attention.num_attention_heads = self.attention.num_attention_heads - len(heads)
+        self.attention.all_head_size = self.attention.attention_head_size * self.attention.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -460,17 +379,8 @@ class YolosAttention(nn.Module):
 
         attention_output = self.output(self_outputs[0], hidden_states)
 
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
-
-
-# Copied from transformers.models.vit.modeling_vit.ViTSdpaAttention with ViT->Yolos
-class YolosSdpaAttention(YolosAttention):
-    def __init__(self, config: YolosConfig) -> None:
-        super().__init__(config)
-        self.attention = YolosSdpaSelfAttention(config)
 
 
 # Copied from transformers.models.vit.modeling_vit.ViTIntermediate with ViT->Yolos
@@ -497,18 +407,13 @@ class YolosOutput(nn.Module):
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
         hidden_states = hidden_states + input_tensor
 
         return hidden_states
-
-
-YOLOS_ATTENTION_CLASSES = {"eager": YolosAttention, "sdpa": YolosSdpaAttention}
 
 
 # Copied from transformers.models.vit.modeling_vit.ViTLayer with ViT->Yolos,VIT->YOLOS
@@ -519,15 +424,11 @@ class YolosLayer(nn.Module):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
-        self.attention = YOLOS_ATTENTION_CLASSES[config._attn_implementation](config)
+        self.attention = YolosAttention(config)
         self.intermediate = YolosIntermediate(config)
         self.output = YolosOutput(config)
-        self.layernorm_before = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
-        self.layernorm_after = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.layernorm_before = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(
         self,
@@ -536,16 +437,12 @@ class YolosLayer(nn.Module):
         output_attentions: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor]]:
         self_attention_outputs = self.attention(
-            self.layernorm_before(
-                hidden_states
-            ),  # in Yolos, layernorm is applied before self-attention
+            self.layernorm_before(hidden_states),  # in Yolos, layernorm is applied before self-attention
             head_mask,
             output_attentions=output_attentions,
         )
         attention_output = self_attention_outputs[0]
-        outputs = self_attention_outputs[
-            1:
-        ]  # add self attentions if we output attention weights
+        outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
 
         # first residual connection
         hidden_states = attention_output + hidden_states
@@ -566,15 +463,11 @@ class YolosEncoder(nn.Module):
     def __init__(self, config: YolosConfig) -> None:
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [YolosLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layer = nn.ModuleList([YolosLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
         seq_length = (
-            1
-            + (config.image_size[0] * config.image_size[1] // config.patch_size**2)
-            + config.num_detection_tokens
+            1 + (config.image_size[0] * config.image_size[1] // config.patch_size**2) + config.num_detection_tokens
         )
         self.mid_position_embeddings = (
             nn.Parameter(
@@ -589,11 +482,7 @@ class YolosEncoder(nn.Module):
             else None
         )
 
-        self.interpolation = (
-            InterpolateMidPositionEmbeddings(config)
-            if config.use_mid_position_embeddings
-            else None
-        )
+        self.interpolation = InterpolateMidPositionEmbeddings(config) if config.use_mid_position_embeddings else None
 
     def forward(
         self,
@@ -609,9 +498,7 @@ class YolosEncoder(nn.Module):
         all_self_attentions = () if output_attentions else None
 
         if self.config.use_mid_position_embeddings:
-            interpolated_mid_position_embeddings = self.interpolation(
-                self.mid_position_embeddings, (height, width)
-            )
+            interpolated_mid_position_embeddings = self.interpolation(self.mid_position_embeddings, (height, width))
 
         for i, layer_module in enumerate(self.layer):
             if output_hidden_states:
@@ -627,17 +514,13 @@ class YolosEncoder(nn.Module):
                     output_attentions,
                 )
             else:
-                layer_outputs = layer_module(
-                    hidden_states, layer_head_mask, output_attentions
-                )
+                layer_outputs = layer_module(hidden_states, layer_head_mask, output_attentions)
 
             hidden_states = layer_outputs[0]
 
             if self.config.use_mid_position_embeddings:
                 if i < (self.config.num_hidden_layers - 1):
-                    hidden_states = (
-                        hidden_states + interpolated_mid_position_embeddings[i]
-                    )
+                    hidden_states = hidden_states + interpolated_mid_position_embeddings[i]
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
@@ -646,11 +529,7 @@ class YolosEncoder(nn.Module):
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, all_hidden_states, all_self_attentions]
-                if v is not None
-            )
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
         return BaseModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
@@ -670,6 +549,7 @@ class YolosPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = []
     _supports_sdpa = True
+    _supports_flash_attn_2 = True
 
     def _init_weights(self, module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm]) -> None:
         """Initialize the weights"""
@@ -767,19 +647,11 @@ class YolosModel(YolosPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
@@ -804,16 +676,10 @@ class YolosModel(YolosPreTrainedModel):
         )
         sequence_output = encoder_outputs[0]
         sequence_output = self.layernorm(sequence_output)
-        pooled_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
-        )
+        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
         if not return_dict:
-            head_outputs = (
-                (sequence_output, pooled_output)
-                if pooled_output is not None
-                else (sequence_output,)
-            )
+            head_outputs = (sequence_output, pooled_output) if pooled_output is not None else (sequence_output,)
             return head_outputs + encoder_outputs[1:]
 
         return BaseModelOutputWithPooling(
@@ -853,9 +719,7 @@ class YolosMLPPredictionHead(nn.Module):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.ModuleList(
-            nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])
-        )
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
@@ -879,16 +743,10 @@ class YolosForObjectDetection(YolosPreTrainedModel):
         # Object detection heads
         # We add one for the "no object" class
         self.class_labels_classifier = YolosMLPPredictionHead(
-            input_dim=config.hidden_size,
-            hidden_dim=config.hidden_size,
-            output_dim=config.num_labels + 1,
-            num_layers=3,
+            input_dim=config.hidden_size, hidden_dim=config.hidden_size, output_dim=config.num_labels + 1, num_layers=3
         )
         self.bbox_predictor = YolosMLPPredictionHead(
-            input_dim=config.hidden_size,
-            hidden_dim=config.hidden_size,
-            output_dim=4,
-            num_layers=3,
+            input_dim=config.hidden_size, hidden_dim=config.hidden_size, output_dim=4, num_layers=3
         )
 
         # Initialize weights and apply final processing
@@ -900,15 +758,10 @@ class YolosForObjectDetection(YolosPreTrainedModel):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [
-            {"logits": a, "pred_boxes": b}
-            for a, b in zip(outputs_class[:-1], outputs_coord[:-1])
-        ]
+        return [{"logits": a, "pred_boxes": b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
     @add_start_docstrings_to_model_forward(YOLOS_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=YolosObjectDetectionOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=YolosObjectDetectionOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
         self,
         pixel_values: torch.FloatTensor,
@@ -962,9 +815,7 @@ class YolosForObjectDetection(YolosPreTrainedModel):
         Detected cat with confidence 0.979 at location [10.93, 53.74, 313.41, 470.67]
         Detected remote with confidence 0.974 at location [41.63, 72.23, 178.09, 119.99]
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # First, sent images through YOLOS base model to obtain hidden states
         outputs = self.vit(
@@ -987,19 +838,11 @@ class YolosForObjectDetection(YolosPreTrainedModel):
         if labels is not None:
             outputs_class, outputs_coord = None, None
             if self.config.auxiliary_loss:
-                intermediate = (
-                    outputs.intermediate_hidden_states if return_dict else outputs[4]
-                )
+                intermediate = outputs.intermediate_hidden_states if return_dict else outputs[4]
                 outputs_class = self.class_labels_classifier(intermediate)
                 outputs_coord = self.bbox_predictor(intermediate).sigmoid()
             loss, loss_dict, auxiliary_outputs = self.loss_function(
-                logits,
-                labels,
-                self.device,
-                pred_boxes,
-                self.config,
-                outputs_class,
-                outputs_coord,
+                logits, labels, self.device, pred_boxes, self.config, outputs_class, outputs_coord
             )
 
         if not return_dict:

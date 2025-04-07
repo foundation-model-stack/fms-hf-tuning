@@ -15,19 +15,17 @@
 # limitations under the License.
 """Tokenization classes for BERTweet"""
 
-# Standard
-from shutil import copyfile
-from typing import List, Optional, Tuple
 import html
 import os
 import re
+from shutil import copyfile
+from typing import List, Optional, Tuple
 
-# Third Party
 import regex
 
-# Local
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -121,7 +119,6 @@ class BertweetTokenizer(PreTrainedTokenizer):
         **kwargs,
     ):
         try:
-            # Third Party
             from emoji import demojize
 
             self.demojizer = demojize
@@ -194,10 +191,7 @@ class BertweetTokenizer(PreTrainedTokenizer):
         return cls + token_ids_0 + sep + sep + token_ids_1 + sep
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """
         Retrieve sequence ids from a token list that has no special tokens added. This method is called when adding
@@ -217,9 +211,7 @@ class BertweetTokenizer(PreTrainedTokenizer):
 
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=True,
+                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
             )
 
         if token_ids_1 is None:
@@ -378,26 +370,18 @@ class BertweetTokenizer(PreTrainedTokenizer):
         out_string = " ".join(tokens).replace("@@ ", "").strip()
         return out_string
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         out_vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
         out_merge_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["merges_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["merges_file"]
         )
 
-        if os.path.abspath(self.vocab_file) != os.path.abspath(
-            out_vocab_file
-        ) and os.path.isfile(self.vocab_file):
+        if os.path.abspath(self.vocab_file) != os.path.abspath(out_vocab_file) and os.path.isfile(self.vocab_file):
             copyfile(self.vocab_file, out_vocab_file)
         elif not os.path.isfile(self.vocab_file):
             with open(out_vocab_file, "wb") as fi:
@@ -426,9 +410,7 @@ class BertweetTokenizer(PreTrainedTokenizer):
             except FileNotFoundError as fnfe:
                 raise fnfe
             except UnicodeError:
-                raise Exception(
-                    f"Incorrect encoding detected in {f}, please rebuild the dataset"
-                )
+                raise Exception(f"Incorrect encoding detected in {f}, please rebuild the dataset")
             return
 
         lines = f.readlines()
@@ -436,9 +418,7 @@ class BertweetTokenizer(PreTrainedTokenizer):
             line = lineTmp.strip()
             idx = line.rfind(" ")
             if idx == -1:
-                raise ValueError(
-                    "Incorrect dictionary format, expected '<token> <cnt>'"
-                )
+                raise ValueError("Incorrect dictionary format, expected '<token> <cnt>'")
             word = line[:idx]
             self.encoder[word] = len(self.encoder)
 
@@ -603,9 +583,7 @@ REGEXPS = (
 ######################################################################
 # This is the core tokenizing regex:
 
-WORD_RE = regex.compile(
-    r"""(%s)""" % "|".join(REGEXPS), regex.VERBOSE | regex.I | regex.UNICODE
-)
+WORD_RE = regex.compile(r"""(%s)""" % "|".join(REGEXPS), regex.VERBOSE | regex.I | regex.UNICODE)
 
 # WORD_RE performs poorly on these patterns:
 HANG_RE = regex.compile(r"([^a-zA-Z0-9])\1{3,}")
@@ -780,9 +758,9 @@ def casual_tokenize(text, preserve_case=True, reduce_len=False, strip_handles=Fa
     """
     Convenience function for wrapping the tokenizer.
     """
-    return TweetTokenizer(
-        preserve_case=preserve_case, reduce_len=reduce_len, strip_handles=strip_handles
-    ).tokenize(text)
+    return TweetTokenizer(preserve_case=preserve_case, reduce_len=reduce_len, strip_handles=strip_handles).tokenize(
+        text
+    )
 
 
 ###############################################################################

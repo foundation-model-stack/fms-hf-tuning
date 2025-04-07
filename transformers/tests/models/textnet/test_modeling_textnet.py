@@ -14,36 +14,32 @@
 # limitations under the License.
 """Testing suite for the PyTorch TextNet model."""
 
-# Standard
 import unittest
 
-# Third Party
-from PIL import Image
 import requests
+from PIL import Image
 
-# First Party
 from transformers import TextNetConfig
 from transformers.models.textnet.image_processing_textnet import TextNetImageProcessor
-from transformers.testing_utils import require_torch, require_vision, slow, torch_device
+from transformers.testing_utils import (
+    require_torch,
+    require_vision,
+    slow,
+    torch_device,
+)
 from transformers.utils import is_torch_available
 
-# Local
 from ...test_backbone_common import BackboneTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
-    from transformers import (
-        TextNetBackbone,
-        TextNetForImageClassification,
-        TextNetModel,
-    )
+if is_torch_available():
+    import torch
+    from torch import nn
+
+    from transformers import TextNetBackbone, TextNetForImageClassification, TextNetModel
 
 
 class TextNetConfigTester(ConfigTester):
@@ -149,9 +145,7 @@ class TextNetModelTester:
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size[0], self.image_size[1]]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size[0], self.image_size[1]])
 
         labels = None
         if self.use_labels:
@@ -172,8 +166,7 @@ class TextNetModelTester:
         scale_h = self.image_size[0] // 32
         scale_w = self.image_size[1] // 32
         self.parent.assertListEqual(
-            list(result.feature_maps[0].shape),
-            [self.batch_size, self.hidden_sizes[1], 8 * scale_h, 8 * scale_w],
+            list(result.feature_maps[0].shape), [self.batch_size, self.hidden_sizes[1], 8 * scale_h, 8 * scale_w]
         )
 
         # verify channels
@@ -192,8 +185,7 @@ class TextNetModelTester:
         scale_h = self.image_size[0] // 32
         scale_w = self.image_size[1] // 32
         self.parent.assertListEqual(
-            list(result.feature_maps[0].shape),
-            [self.batch_size, self.hidden_sizes[0], scale_h, scale_w],
+            list(result.feature_maps[0].shape), [self.batch_size, self.hidden_sizes[0], scale_h, scale_w]
         )
 
         # verify channels
@@ -214,16 +206,9 @@ class TextNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase)
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (TextNetModel, TextNetForImageClassification, TextNetBackbone)
-        if is_torch_available()
-        else ()
-    )
+    all_model_classes = (TextNetModel, TextNetForImageClassification, TextNetBackbone) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {
-            "feature-extraction": TextNetModel,
-            "image-classification": TextNetForImageClassification,
-        }
+        {"feature-extraction": TextNetModel, "image-classification": TextNetForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -237,9 +222,7 @@ class TextNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase)
 
     def setUp(self):
         self.model_tester = TextNetModelTester(self)
-        self.config_tester = TextNetConfigTester(
-            self, config_class=TextNetConfig, has_text_modality=False
-        )
+        self.config_tester = TextNetConfigTester(self, config_class=TextNetConfig, has_text_modality=False)
 
     @unittest.skip(reason="TextNet does not output attentions")
     def test_attention_outputs(self):
@@ -290,20 +273,13 @@ class TextNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase)
             with torch.no_grad():
                 outputs = model(**self._prepare_for_class(inputs_dict, model_class))
 
-            hidden_states = (
-                outputs.encoder_hidden_states
-                if config.is_encoder_decoder
-                else outputs.hidden_states
-            )
+            hidden_states = outputs.encoder_hidden_states if config.is_encoder_decoder else outputs.hidden_states
 
             self.assertEqual(len(hidden_states), self.model_tester.num_stages)
 
             self.assertListEqual(
                 list(hidden_states[0].shape[-2:]),
-                [
-                    self.model_tester.image_size[0] // 2,
-                    self.model_tester.image_size[1] // 2,
-                ],
+                [self.model_tester.image_size[0] // 2, self.model_tester.image_size[1] // 2],
             )
 
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -363,10 +339,7 @@ class TextNetModelIntegrationTest(unittest.TestCase):
             device=torch_device,
         )
         torch.testing.assert_close(
-            output.last_hidden_state[0, 12, :3, :3],
-            expected_slice_backbone,
-            rtol=1e-2,
-            atol=1e-2,
+            output.last_hidden_state[0, 12, :3, :3], expected_slice_backbone, rtol=1e-2, atol=1e-2
         )
 
 

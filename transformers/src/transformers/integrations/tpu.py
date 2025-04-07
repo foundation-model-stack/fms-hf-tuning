@@ -12,25 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
 from torch.utils.data import DataLoader
 
-# Local
 from ..utils import is_torch_xla_available
 
 
 def tpu_spmd_dataloader(dataloader: DataLoader):
     if is_torch_xla_available():
-        # Third Party
         import torch_xla.distributed.parallel_loader as pl
 
-        assert isinstance(
-            dataloader, pl.MpDeviceLoader
-        ), "The dataloader must be a `torch_xla.distributed.parallel_loader.MpDeviceLoader`."
+        assert isinstance(dataloader, pl.MpDeviceLoader), (
+            "The dataloader must be a `torch_xla.distributed.parallel_loader.MpDeviceLoader`."
+        )
 
         # This is to support PyTorch/XLA FSDP via SPMD.
         # Here we shard the input data's 0th dim across the fsdp axis.
-        # Third Party
         import torch_xla.distributed.spmd as xs
 
         sharding_spec = xs.ShardingSpec(xs.get_global_mesh(), ("fsdp", None))

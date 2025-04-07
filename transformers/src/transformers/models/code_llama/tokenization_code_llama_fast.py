@@ -12,32 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
+import os
 from shutil import copyfile
 from typing import List, Optional, Tuple
-import os
 
-# Third Party
 from tokenizers import normalizers, processors
 
-# Local
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import is_sentencepiece_available, logging
 from ...utils.versions import require_version
 
+
 require_version("tokenizers>=0.13.3")
 
 if is_sentencepiece_available():
-    # Local
     from .tokenization_code_llama import CodeLlamaTokenizer
 else:
     CodeLlamaTokenizer = None
 
 logger = logging.get_logger(__name__)
-VOCAB_FILES_NAMES = {
-    "vocab_file": "tokenizer.model",
-    "tokenizer_file": "tokenizer.json",
-}
+VOCAB_FILES_NAMES = {"vocab_file": "tokenizer.model", "tokenizer_file": "tokenizer.json"}
 
 SPIECE_UNDERLINE = "▁"
 
@@ -196,8 +190,8 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         if eos is None and self.add_eos_token:
             raise ValueError("add_eos_token = True but eos_token = None")
 
-        single = f"{(bos+':0 ') if self.add_bos_token else ''}$A:0{(' '+eos+':0') if self.add_eos_token else ''}"
-        pair = f"{single}{(' '+bos+':1') if self.add_bos_token else ''} $B:1{(' '+eos+':1') if self.add_eos_token else ''}"
+        single = f"{(bos + ':0 ') if self.add_bos_token else ''}$A:0{(' ' + eos + ':0') if self.add_eos_token else ''}"
+        pair = f"{single}{(' ' + bos + ':1') if self.add_bos_token else ''} $B:1{(' ' + eos + ':1') if self.add_eos_token else ''}"
 
         special_tokens = []
         if self.add_bos_token:
@@ -266,9 +260,7 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
         self._add_bos_token = value
         self.update_post_processor()
 
-    def set_infilling_processor(
-        self, reset, suffix_first=False, add_special_tokens=True
-    ):
+    def set_infilling_processor(self, reset, suffix_first=False, add_special_tokens=True):
         """
         Updates the normalizer to make sure the prompt format for `infilling` is respected. The infilling format is the
         following: if suffix_first
@@ -291,20 +283,10 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
 
         self._tokenizer.normalizer = normalizers.Replace(pattern=" ", content="▁")
         pair = [self.bos_token] if self.add_bos_token and add_special_tokens else []
-        special_tokens = (
-            [(self.bos_token, self.bos_token_id)]
-            if self.add_bos_token and add_special_tokens
-            else []
-        )
+        special_tokens = [(self.bos_token, self.bos_token_id)] if self.add_bos_token and add_special_tokens else []
         if suffix_first:
             # format as " <PRE> <SUF>{suf} <MID> {pre}"
-            pair += [
-                self.prefix_token,
-                self.suffix_token,
-                "$B",
-                self.middle_token,
-                "$A",
-            ]
+            pair += [self.prefix_token, self.suffix_token, "$B", self.middle_token, "$A"]
             special_tokens += [
                 (self.prefix_token, self.prefix_id),
                 (self.suffix_token, self.suffix_id),
@@ -312,13 +294,7 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
             ]
         else:
             # format as " <PRE> {pre} <SUF>{suf} <MID>"
-            pair += [
-                self.prefix_token,
-                "$A",
-                self.suffix_token,
-                "$B",
-                self.middle_token,
-            ]
+            pair += [self.prefix_token, "$A", self.suffix_token, "$B", self.middle_token]
             special_tokens += [
                 (self.prefix_token, self.prefix_id),
                 (self.suffix_token, self.suffix_id),
@@ -332,27 +308,14 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
             single="$A", pair=pair, special_tokens=special_tokens
         )
 
-    def encode_plus(
-        self,
-        text,
-        text_pair=None,
-        suffix_first=False,
-        add_special_tokens=True,
-        **kwargs,
-    ):
+    def encode_plus(self, text, text_pair=None, suffix_first=False, add_special_tokens=True, **kwargs):
         # hack to make sure the input is pre-process but outside rust
         text_pair = kwargs.pop("suffix", text_pair)
-        if (
-            self.fill_token is not None
-            and self.fill_token in text
-            and text_pair is None
-        ):
+        if self.fill_token is not None and self.fill_token in text and text_pair is None:
             text, text_pair = text.split(self.fill_token)
 
         if text_pair is None or len(text_pair) < 1:
-            return super().encode_plus(
-                text, text_pair, add_special_tokens=add_special_tokens, **kwargs
-            )
+            return super().encode_plus(text, text_pair, add_special_tokens=add_special_tokens, **kwargs)
 
         if None in (self.prefix_id, self.middle_id, self.suffix_id):
             raise ValueError(
@@ -361,19 +324,13 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
                 f" values : {self.prefix_id, self.middle_id, self.suffix_id}"
             )
 
-        self.set_infilling_processor(
-            False, suffix_first=suffix_first, add_special_tokens=add_special_tokens
-        )
-        tokens = super().encode_plus(
-            " " + text, text_pair=text_pair, add_special_tokens=True, **kwargs
-        )
+        self.set_infilling_processor(False, suffix_first=suffix_first, add_special_tokens=add_special_tokens)
+        tokens = super().encode_plus(" " + text, text_pair=text_pair, add_special_tokens=True, **kwargs)
         self.set_infilling_processor(True)
         return tokens
 
     # Copied from transformers.models.llama.tokenization_llama_fast.LlamaTokenizerFast.save_vocabulary
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not self.can_save_slow_tokenizer:
             raise ValueError(
                 "Your fast tokenizer does not have the necessary information to save the vocabulary for a slow "
@@ -384,9 +341,7 @@ class CodeLlamaTokenizerFast(PreTrainedTokenizerFast):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         out_vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
 
         if os.path.abspath(self.vocab_file) != os.path.abspath(out_vocab_file):

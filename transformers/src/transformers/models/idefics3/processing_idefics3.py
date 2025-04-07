@@ -16,20 +16,18 @@
 Processor class for Idefics3.
 """
 
-# Standard
+import re
 from itertools import accumulate
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
-import re
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput, is_valid_image, load_image
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import AddedToken, BatchEncoding, TextInput
 from ...utils import logging
 
+
 if TYPE_CHECKING:
-    # Local
     from ...tokenization_utils_base import PreTokenizedInput
 
 logger = logging.get_logger(__name__)
@@ -43,22 +41,13 @@ def is_image_or_image_url(elem):
     return is_url(elem) or is_valid_image(elem)
 
 
-def _prompt_split_image(
-    image_seq_len,
-    image_rows,
-    image_cols,
-    fake_token_around_image,
-    image_token,
-    global_img_token,
-):
+def _prompt_split_image(image_seq_len, image_rows, image_cols, fake_token_around_image, image_token, global_img_token):
     """Prompt with expanded image tokens for when the image is split into patches."""
     text_split_images = ""
     for n_h in range(image_rows):
         for n_w in range(image_cols):
             text_split_images += (
-                f"{fake_token_around_image}"
-                + f"<row_{n_h + 1}_col_{n_w + 1}>"
-                + f"{image_token}" * image_seq_len
+                f"{fake_token_around_image}" + f"<row_{n_h + 1}_col_{n_w + 1}>" + f"{image_token}" * image_seq_len
             )
         text_split_images += "\n"
 
@@ -71,9 +60,7 @@ def _prompt_split_image(
     return text_split_images
 
 
-def _prompt_single_image(
-    image_seq_len, fake_token_around_image, image_token, global_img_token
-):
+def _prompt_single_image(image_seq_len, fake_token_around_image, image_token, global_img_token):
     """Prompt with expanded image tokens for a single image."""
     return (
         f"{fake_token_around_image}"
@@ -84,12 +71,7 @@ def _prompt_single_image(
 
 
 def get_image_prompt_string(
-    image_rows,
-    image_cols,
-    image_seq_len,
-    fake_token_around_image,
-    image_token,
-    global_img_token,
+    image_rows, image_cols, image_seq_len, fake_token_around_image, image_token, global_img_token
 ):
     if image_rows == 0 and image_cols == 0:
         return _prompt_single_image(
@@ -99,12 +81,7 @@ def get_image_prompt_string(
             global_img_token=global_img_token,
         )
     return _prompt_split_image(
-        image_seq_len,
-        image_rows,
-        image_cols,
-        fake_token_around_image,
-        image_token,
-        global_img_token,
+        image_seq_len, image_rows, image_cols, fake_token_around_image, image_token, global_img_token
     )
 
 
@@ -128,9 +105,7 @@ class Idefics3ProcessorKwargs(ProcessingKwargs, total=False):
     }
 
 
-Idefics3ProcessorKwargs.__annotations__[
-    "images_kwargs"
-] = Idefics3ImagesKwargs  # python 3.8 compatibility
+Idefics3ProcessorKwargs.__annotations__["images_kwargs"] = Idefics3ImagesKwargs  # python 3.8 compatibility
 
 
 class Idefics3Processor(ProcessorMixin):
@@ -159,33 +134,22 @@ class Idefics3Processor(ProcessorMixin):
     tokenizer_class = "AutoTokenizer"
 
     def __init__(
-        self,
-        image_processor,
-        tokenizer=None,
-        image_seq_len: int = 169,
-        chat_template: str = None,
-        **kwargs,
+        self, image_processor, tokenizer=None, image_seq_len: int = 169, chat_template: Optional[str] = None, **kwargs
     ):
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
             raise ValueError("You need to specify a `tokenizer`.")
 
-        self.fake_image_token = AddedToken(
-            "<fake_token_around_image>", normalized=False, special=True
-        )
+        self.fake_image_token = AddedToken("<fake_token_around_image>", normalized=False, special=True)
         self.image_token = AddedToken("<image>", normalized=False, special=True)
-        self.end_of_utterance_token = AddedToken(
-            "<end_of_utterance>", normalized=False, special=True
-        )
+        self.end_of_utterance_token = AddedToken("<end_of_utterance>", normalized=False, special=True)
         self.global_image_tag = "<global-img>"  # https://github.com/huggingface/transformers/pull/32473/files/8063e5e17362571b693f1db95167f5443a3be1b2#r1734825341
         self.image_seq_len = image_seq_len
 
         # This regex matches one or more occurrences of <global-img> tags (optionally surrounded by newline characters)
         # or <row_x_col_y> tags (where x and y are digits, also optionally surrounded by newline characters).
-        self._regex_to_remove_extra_special_tokens = re.compile(
-            r"(\n?<global-img>\n?|<row_\d+_col_\d+>\n?)+"
-        )
+        self._regex_to_remove_extra_special_tokens = re.compile(r"(\n?<global-img>\n?|<row_\d+_col_\d+>\n?)+")
 
         tokens_to_add = {
             "additional_special_tokens": [
@@ -196,9 +160,7 @@ class Idefics3Processor(ProcessorMixin):
         }
         tokenizer.add_special_tokens(tokens_to_add)
 
-        super().__init__(
-            image_processor, tokenizer, chat_template=chat_template, **kwargs
-        )
+        super().__init__(image_processor, tokenizer, chat_template=chat_template, **kwargs)
 
     def _extract_images_from_prompts(self, prompts):
         prompt_images = []
@@ -215,9 +177,7 @@ class Idefics3Processor(ProcessorMixin):
     def __call__(
         self,
         images: Union[ImageInput, List[ImageInput], List[List[ImageInput]]] = None,
-        text: Union[
-            TextInput, "PreTokenizedInput", List[TextInput], List["PreTokenizedInput"]
-        ] = None,
+        text: Union[TextInput, "PreTokenizedInput", List[TextInput], List["PreTokenizedInput"]] = None,
         audio=None,
         videos=None,
         image_seq_len: Optional[int] = None,
@@ -279,9 +239,7 @@ class Idefics3Processor(ProcessorMixin):
             **kwargs,
         )
 
-        image_seq_len = (
-            image_seq_len if image_seq_len is not None else self.image_seq_len
-        )
+        image_seq_len = image_seq_len if image_seq_len is not None else self.image_seq_len
 
         n_images_in_text = []
         n_images_in_images = []
@@ -291,12 +249,8 @@ class Idefics3Processor(ProcessorMixin):
             if isinstance(text, str):
                 text = [text]
             elif not isinstance(text, list) and not isinstance(text[0], str):
-                raise ValueError(
-                    "Invalid input text. Please provide a string, or a list of strings"
-                )
-            n_images_in_text = [
-                sample.count(self.image_token.content) for sample in text
-            ]
+                raise ValueError("Invalid input text. Please provide a string, or a list of strings")
+            n_images_in_text = [sample.count(self.image_token.content) for sample in text]
 
         if images is not None:
             if is_image_or_image_url(images):
@@ -327,14 +281,9 @@ class Idefics3Processor(ProcessorMixin):
             n_images_in_images = [len(sample) for sample in images]
 
             # Load images if they are URLs
-            images = [
-                [load_image(im) if is_url(im) else im for im in sample]
-                for sample in images
-            ]
+            images = [[load_image(im) if is_url(im) else im for im in sample] for sample in images]
 
-            image_inputs = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_inputs = self.image_processor(images, **output_kwargs["images_kwargs"])
             inputs.update(image_inputs)
 
             if text is not None:
@@ -351,9 +300,7 @@ class Idefics3Processor(ProcessorMixin):
                 global_img_token = self.global_image_tag
 
                 prompt_strings = []
-                for sample, sample_rows, sample_cols in zip(
-                    text, image_rows, image_cols
-                ):
+                for sample, sample_rows, sample_cols in zip(text, image_rows, image_cols):
                     # Replace the image token with fake tokens around the expanded image token sequence of length `image_seq_len`
                     image_prompt_strings = []
                     for n_rows, n_cols in zip(sample_rows, sample_cols):
@@ -369,9 +316,7 @@ class Idefics3Processor(ProcessorMixin):
 
                     split_sample = sample.split(image_token)
                     if len(split_sample) == 0:
-                        raise ValueError(
-                            "The image token should be present in the text."
-                        )
+                        raise ValueError("The image token should be present in the text.")
 
                     # Place in the image prompt strings where the image tokens are
                     sample = split_sample[0]
@@ -379,9 +324,7 @@ class Idefics3Processor(ProcessorMixin):
                         sample += image_prompt_string + split_sample[i + 1]
                     prompt_strings.append(sample)
 
-                text_inputs = self.tokenizer(
-                    text=prompt_strings, **output_kwargs["text_kwargs"]
-                )
+                text_inputs = self.tokenizer(text=prompt_strings, **output_kwargs["text_kwargs"])
                 inputs.update(text_inputs)
 
         elif text is not None:
@@ -400,10 +343,7 @@ class Idefics3Processor(ProcessorMixin):
         refer to the docstring of this method for more information.
         """
         batched_decode_output = self.tokenizer.batch_decode(*args, **kwargs)
-        return [
-            self._regex_to_remove_extra_special_tokens.sub("<image>", s)
-            for s in batched_decode_output
-        ]
+        return [self._regex_to_remove_extra_special_tokens.sub("<image>", s) for s in batched_decode_output]
 
     def decode(self, *args, **kwargs):
         """

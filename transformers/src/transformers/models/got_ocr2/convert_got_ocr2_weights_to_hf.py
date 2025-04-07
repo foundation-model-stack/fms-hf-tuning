@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from typing import List, Optional
 import argparse
 import gc
 import glob
 import os
+from typing import List, Optional
 
-# Third Party
-from huggingface_hub import snapshot_download
-from safetensors import safe_open
 import regex as re
 import torch
+from huggingface_hub import snapshot_download
+from safetensors import safe_open
 
-# First Party
 from transformers import (
     GotOcr2Config,
     GotOcr2ForConditionalGeneration,
@@ -37,8 +34,8 @@ from transformers import (
 from transformers.convert_slow_tokenizer import TikTokenConverter
 from transformers.tokenization_utils import AddedToken
 
+
 if is_vision_available():
-    # First Party
     from transformers.image_utils import load_image
 
 
@@ -80,9 +77,7 @@ def convert_old_keys_to_new_keys(state_dict_keys: dict = None):
 
 
 def load_original_state_dict(model_id):
-    directory_path = snapshot_download(
-        repo_id=model_id, allow_patterns=["*.safetensors"]
-    )
+    directory_path = snapshot_download(repo_id=model_id, allow_patterns=["*.safetensors"])
 
     original_state_dict = {}
     for path in glob.glob(f"{directory_path}/*"):
@@ -146,23 +141,15 @@ def write_model(
     # Safety check: reload the converted model
     gc.collect()
     print("Reloading the model to check if it's saved correctly.")
-    model = GotOcr2ForConditionalGeneration.from_pretrained(
-        model_path, device_map="auto"
-    )
+    model = GotOcr2ForConditionalGeneration.from_pretrained(model_path, device_map="auto")
     processor = GotOcr2Processor.from_pretrained(model_path)
     image = load_image(
         "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/image_ocr.jpg"
     )
 
-    inputs = processor(image, return_tensors="pt", format=True).to(
-        model.device, dtype=model.dtype
-    )
-    generate_ids = model.generate(
-        **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-    )
-    decoded_output = processor.decode(
-        generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
-    )
+    inputs = processor(image, return_tensors="pt", format=True).to(model.device, dtype=model.dtype)
+    generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
+    decoded_output = processor.decode(generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
     expected_output = "\\title{\nR"
     print("Decoded output:", decoded_output)
     assert decoded_output == expected_output
@@ -214,9 +201,7 @@ def write_tokenizer(tokenizer_path: str, save_dir: str, push_to_hub: bool = Fals
     )
 
     pad_token = "<|endoftext|>"
-    pad_token = AddedToken(
-        pad_token, lstrip=False, rstrip=False, normalized=False, single_word=False
-    )
+    pad_token = AddedToken(pad_token, lstrip=False, rstrip=False, normalized=False, single_word=False)
 
     converter = GotOcr2Converter(
         vocab_file=tokenizer_path,
@@ -265,9 +250,7 @@ def main():
     )
 
     parser.add_argument(
-        "--push_to_hub",
-        action="store_true",
-        help="Whether or not to push the converted model to the 🤗 hub.",
+        "--push_to_hub", action="store_true", help="Whether or not to push the converted model to the 🤗 hub."
     )
     args = parser.parse_args()
     write_tokenizer(

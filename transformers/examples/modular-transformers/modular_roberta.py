@@ -1,7 +1,5 @@
-# Third Party
 import torch.nn as nn
 
-# First Party
 from transformers.models.bert.modeling_bert import BertEmbeddings, BertModel
 
 

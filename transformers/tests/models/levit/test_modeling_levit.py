@@ -14,30 +14,22 @@
 # limitations under the License.
 """Testing suite for the PyTorch LeViT model."""
 
-# Standard
-from math import ceil, floor
 import unittest
 import warnings
+from math import ceil, floor
 
-# First Party
 from transformers import LevitConfig
-from transformers.file_utils import (
-    cached_property,
-    is_torch_available,
-    is_vision_available,
-)
+from transformers.file_utils import cached_property, is_torch_available, is_vision_available
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         LevitForImageClassification,
         LevitForImageClassificationWithTeacher,
@@ -50,10 +42,8 @@ if is_torch_available():
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import LevitImageProcessor
 
 
@@ -113,9 +103,7 @@ class LevitModelTester:
         self.initializer_range = initializer_range
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -151,19 +139,11 @@ class LevitModelTester:
         image_size = (self.image_size, self.image_size)
         height, width = image_size[0], image_size[1]
         for _ in range(4):
-            height = floor(
-                ((height + 2 * self.padding - self.kernel_size) / self.stride) + 1
-            )
-            width = floor(
-                ((width + 2 * self.padding - self.kernel_size) / self.stride) + 1
-            )
+            height = floor(((height + 2 * self.padding - self.kernel_size) / self.stride) + 1)
+            width = floor(((width + 2 * self.padding - self.kernel_size) / self.stride) + 1)
         self.parent.assertEqual(
             result.last_hidden_state.shape,
-            (
-                self.batch_size,
-                ceil(height / 4) * ceil(width / 4),
-                self.hidden_sizes[-1],
-            ),
+            (self.batch_size, ceil(height / 4) * ceil(width / 4), self.hidden_sizes[-1]),
         )
 
     def create_and_check_for_image_classification(self, config, pixel_values, labels):
@@ -189,21 +169,14 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     """
 
     all_model_classes = (
-        (
-            LevitModel,
-            LevitForImageClassification,
-            LevitForImageClassificationWithTeacher,
-        )
+        (LevitModel, LevitForImageClassification, LevitForImageClassificationWithTeacher)
         if is_torch_available()
         else ()
     )
     pipeline_model_mapping = (
         {
             "image-feature-extraction": LevitModel,
-            "image-classification": (
-                LevitForImageClassification,
-                LevitForImageClassificationWithTeacher,
-            ),
+            "image-classification": (LevitForImageClassification, LevitForImageClassificationWithTeacher),
         }
         if is_torch_available()
         else {}
@@ -218,10 +191,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     def setUp(self):
         self.model_tester = LevitModelTester(self)
         self.config_tester = ConfigTester(
-            self,
-            config_class=LevitConfig,
-            has_text_modality=False,
-            common_properties=["image_size", "num_channels"],
+            self, config_class=LevitConfig, has_text_modality=False, common_properties=["image_size", "num_channels"]
         )
 
     def test_config(self):
@@ -258,22 +228,14 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
             for _ in range(4):
                 height = floor(
                     (
-                        (
-                            height
-                            + 2 * self.model_tester.padding
-                            - self.model_tester.kernel_size
-                        )
+                        (height + 2 * self.model_tester.padding - self.model_tester.kernel_size)
                         / self.model_tester.stride
                     )
                     + 1
                 )
                 width = floor(
                     (
-                        (
-                            width
-                            + 2 * self.model_tester.padding
-                            - self.model_tester.kernel_size
-                        )
+                        (width + 2 * self.model_tester.padding - self.model_tester.kernel_size)
                         / self.model_tester.stride
                     )
                     + 1
@@ -300,9 +262,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
             check_hidden_states_output(inputs_dict, config, model_class)
 
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
-        inputs_dict = super()._prepare_for_class(
-            inputs_dict, model_class, return_labels=return_labels
-        )
+        inputs_dict = super()._prepare_for_class(inputs_dict, model_class, return_labels=return_labels)
 
         if return_labels:
             if model_class.__name__ == "LevitForImageClassificationWithTeacher":
@@ -336,9 +296,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
             model = model_class(config)
             model.to(torch_device)
             model.train()
-            inputs = self._prepare_for_class(
-                inputs_dict, model_class, return_labels=True
-            )
+            inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
             loss = model(**inputs).loss
             loss.backward()
 
@@ -351,10 +309,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         config.return_dict = True
 
         for model_class in self.all_model_classes:
-            if (
-                model_class.__name__ in MODEL_MAPPING_NAMES.values()
-                or not model_class.supports_gradient_checkpointing
-            ):
+            if model_class.__name__ in MODEL_MAPPING_NAMES.values() or not model_class.supports_gradient_checkpointing:
                 continue
             # LevitForImageClassificationWithTeacher supports inference-only
             if model_class.__name__ == "LevitForImageClassificationWithTeacher":
@@ -363,9 +318,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
             model.gradient_checkpointing_enable()
             model.to(torch_device)
             model.train()
-            inputs = self._prepare_for_class(
-                inputs_dict, model_class, return_labels=True
-            )
+            inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
             loss = model(**inputs).loss
             loss.backward()
 
@@ -373,16 +326,8 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
 
         problem_types = [
-            {
-                "title": "multi_label_classification",
-                "num_labels": 2,
-                "dtype": torch.float,
-            },
-            {
-                "title": "single_label_classification",
-                "num_labels": 1,
-                "dtype": torch.long,
-            },
+            {"title": "multi_label_classification", "num_labels": 2, "dtype": torch.float},
+            {"title": "single_label_classification", "num_labels": 1, "dtype": torch.long},
             {"title": "regression", "num_labels": 1, "dtype": torch.float},
         ]
 
@@ -397,9 +342,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
                 continue
 
             for problem_type in problem_types:
-                with self.subTest(
-                    msg=f"Testing {model_class} with {problem_type['title']}"
-                ):
+                with self.subTest(msg=f"Testing {model_class} with {problem_type['title']}"):
                     config.problem_type = problem_type["title"]
                     config.num_labels = problem_type["num_labels"]
 
@@ -407,16 +350,10 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
                     model.to(torch_device)
                     model.train()
 
-                    inputs = self._prepare_for_class(
-                        inputs_dict, model_class, return_labels=True
-                    )
+                    inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
 
                     if problem_type["num_labels"] > 1:
-                        inputs["labels"] = (
-                            inputs["labels"]
-                            .unsqueeze(1)
-                            .repeat(1, problem_type["num_labels"])
-                        )
+                        inputs["labels"] = inputs["labels"].unsqueeze(1).repeat(1, problem_type["num_labels"])
 
                     inputs["labels"] = inputs["labels"].to(problem_type["dtype"])
 
@@ -427,10 +364,7 @@ class LevitModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
                     with warnings.catch_warnings(record=True) as warning_list:
                         loss = model(**inputs).loss
                     for w in warning_list:
-                        if (
-                            "Using a target size that is different to the input size"
-                            in str(w.message)
-                        ):
+                        if "Using a target size that is different to the input size" in str(w.message):
                             raise ValueError(
                                 f"Something is going wrong in the regression problem: intercepted {w.message}"
                             )
@@ -459,9 +393,7 @@ class LevitModelIntegrationTest(unittest.TestCase):
 
     @slow
     def test_inference_image_classification_head(self):
-        model = LevitForImageClassificationWithTeacher.from_pretrained(
-            "facebook/levit-128S"
-        ).to(torch_device)
+        model = LevitForImageClassificationWithTeacher.from_pretrained("facebook/levit-128S").to(torch_device)
 
         image_processor = self.default_image_processor
         image = prepare_img()
@@ -477,6 +409,4 @@ class LevitModelIntegrationTest(unittest.TestCase):
 
         expected_slice = torch.tensor([1.0448, -0.3745, -1.8317]).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4)

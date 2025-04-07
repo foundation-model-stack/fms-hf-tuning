@@ -13,26 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import Optional, Tuple, Union
 
-# Third Party
 import torch
 
-# Local
 from ...modeling_outputs import BackboneOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils import is_timm_available, is_torch_available, requires_backends
 from ...utils.backbone_utils import BackboneMixin
 from .configuration_timm_backbone import TimmBackboneConfig
 
+
 if is_timm_available():
-    # Third Party
     import timm
 
 
 if is_torch_available():
-    # Third Party
     from torch import Tensor
 
 
@@ -52,27 +48,17 @@ class TimmBackbone(PreTrainedModel, BackboneMixin):
         self.config = config
 
         if config.backbone is None:
-            raise ValueError(
-                "backbone is not set in the config. Please set it to a timm model name."
-            )
+            raise ValueError("backbone is not set in the config. Please set it to a timm model name.")
 
         if hasattr(config, "out_features") and config.out_features is not None:
-            raise ValueError(
-                "out_features is not supported by TimmBackbone. Please use out_indices instead."
-            )
+            raise ValueError("out_features is not supported by TimmBackbone. Please use out_indices instead.")
 
         pretrained = getattr(config, "use_pretrained_backbone", None)
         if pretrained is None:
-            raise ValueError(
-                "use_pretrained_backbone is not set in the config. Please set it to True or False."
-            )
+            raise ValueError("use_pretrained_backbone is not set in the config. Please set it to True or False.")
 
         # We just take the final layer by default. This matches the default for the transformers models.
-        out_indices = (
-            config.out_indices
-            if getattr(config, "out_indices", None) is not None
-            else (-1,)
-        )
+        out_indices = config.out_indices if getattr(config, "out_indices", None) is not None else (-1,)
 
         in_chans = kwargs.pop("in_chans", config.num_channels)
         self._backbone = timm.create_model(
@@ -92,19 +78,14 @@ class TimmBackbone(PreTrainedModel, BackboneMixin):
         # These are used to control the output of the model when called. If output_hidden_states is True, then
         # return_layers is modified to include all layers.
         self._return_layers = {
-            layer["module"]: str(layer["index"])
-            for layer in self._backbone.feature_info.get_dicts()
+            layer["module"]: str(layer["index"]) for layer in self._backbone.feature_info.get_dicts()
         }
-        self._all_layers = {
-            layer["module"]: str(i)
-            for i, layer in enumerate(self._backbone.feature_info.info)
-        }
+        self._all_layers = {layer["module"]: str(i) for i, layer in enumerate(self._backbone.feature_info.info)}
         super()._init_backbone(config)
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         requires_backends(cls, ["vision", "timm"])
-        # Local
         from ...models.timm_backbone import TimmBackboneConfig
 
         config = kwargs.pop("config", TimmBackboneConfig())
@@ -115,9 +96,7 @@ class TimmBackbone(PreTrainedModel, BackboneMixin):
 
         num_channels = kwargs.pop("num_channels", config.num_channels)
         features_only = kwargs.pop("features_only", config.features_only)
-        use_pretrained_backbone = kwargs.pop(
-            "use_pretrained_backbone", config.use_pretrained_backbone
-        )
+        use_pretrained_backbone = kwargs.pop("use_pretrained_backbone", config.use_pretrained_backbone)
         out_indices = kwargs.pop("out_indices", config.out_indices)
         config = TimmBackboneConfig(
             backbone=pretrained_model_name_or_path,
@@ -148,24 +127,14 @@ class TimmBackbone(PreTrainedModel, BackboneMixin):
         return_dict: Optional[bool] = None,
         **kwargs,
     ) -> Union[BackboneOutput, Tuple[Tensor, ...]]:
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
 
         if output_attentions:
-            raise ValueError(
-                "Cannot output attentions for timm backbones at the moment"
-            )
+            raise ValueError("Cannot output attentions for timm backbones at the moment")
 
         if output_hidden_states:
             # We modify the return layers to include all the stages of the backbone
@@ -186,9 +155,7 @@ class TimmBackbone(PreTrainedModel, BackboneMixin):
                 output = output + (hidden_states,)
             return output
 
-        return BackboneOutput(
-            feature_maps=feature_maps, hidden_states=hidden_states, attentions=None
-        )
+        return BackboneOutput(feature_maps=feature_maps, hidden_states=hidden_states, attentions=None)
 
 
 __all__ = ["TimmBackbone"]

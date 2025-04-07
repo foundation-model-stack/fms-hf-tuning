@@ -14,7 +14,6 @@
 # limitations under the License.
 """mT5 tokenization file"""
 
-# Local
 from ..t5 import T5TokenizerFast
 
 

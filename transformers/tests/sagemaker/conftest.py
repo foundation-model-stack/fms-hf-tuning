@@ -1,12 +1,11 @@
 # we define a fixture function below and it will be "used" by
 # referencing its name from tests
 
-# Standard
 import os
 
-# Third Party
-from attr import dataclass
 import pytest
+from attr import dataclass
+
 
 os.environ["AWS_DEFAULT_REGION"] = "us-east-1"  # defaults region
 
@@ -41,10 +40,7 @@ class SageMakerTestEnvironment:
             return [
                 {"Name": "train_runtime", "Regex": r"train_runtime.*=\D*(.*?)$"},
                 {"Name": "eval_accuracy", "Regex": r"loss.*=\D*(.*?)]?$"},
-                {
-                    "Name": "eval_loss",
-                    "Regex": r"sparse_categorical_accuracy.*=\D*(.*?)]?$",
-                },
+                {"Name": "eval_loss", "Regex": r"sparse_categorical_accuracy.*=\D*(.*?)]?$"},
             ]
 
     @property

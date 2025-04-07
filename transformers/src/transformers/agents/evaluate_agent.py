@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Local
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -207,11 +206,7 @@ EVALUATION_TASKS = [
         answer="translator(transcriber(text_reader(summarizer(text))), src_lang='English', tgt_lang='French')",
     ),
     Problem(
-        task=[
-            "Generate a video of the `prompt`",
-            "Animate a `prompt`",
-            "Make me a short video using `prompt`.",
-        ],
+        task=["Generate a video of the `prompt`", "Animate a `prompt`", "Make me a short video using `prompt`."],
         inputs={"prompt": "A lobster swimming"},
         answer="video_generator('A lobster swimming')",
     ),
@@ -242,9 +237,7 @@ def get_theoretical_tools(agent_answer, theoretical_answer, code_answer):
     return {name for name in TEST_TOOLS if name in code_answer[0]}
 
 
-def evaluate_code(
-    code, inputs=None, state=None, verbose=False, return_interpretor_error=False
-):
+def evaluate_code(code, inputs=None, state=None, verbose=False, return_interpretor_error=False):
     tools = BASE_PYTHON_TOOLS.copy()
     for name, tool in TEST_TOOLS.items():
         if name not in code:
@@ -274,19 +267,13 @@ def evaluate_code(
 def score_code(agent_answer, theoretical_answer, verbose: bool = False):
     if verbose:
         print(agent_answer, theoretical_answer)
-    theoretical_answer = (
-        theoretical_answer
-        if isinstance(theoretical_answer, list)
-        else [theoretical_answer]
-    )
+    theoretical_answer = theoretical_answer if isinstance(theoretical_answer, list) else [theoretical_answer]
 
     if agent_answer in theoretical_answer:
         if verbose:
             print("Perfect!")
         return 1
-    elif isinstance(agent_answer, dict) and any(
-        v in theoretical_answer for v in agent_answer.values()
-    ):
+    elif isinstance(agent_answer, dict) and any(v in theoretical_answer for v in agent_answer.values()):
         if verbose:
             print("Almost perfect, result in state!")
         return 0.75
@@ -305,9 +292,7 @@ def evaluate_one_result(code, agent_answer, theoretical_answer, answer, verbose=
     else:
         missing_tools = len(theoretical_tools - tools_in_code)
         unexpected_tools = len(tools_in_code - theoretical_tools)
-        tool_selection_score = max(
-            0, 1.0 - 0.25 * missing_tools - 0.25 * unexpected_tools
-        )
+        tool_selection_score = max(0, 1.0 - 0.25 * missing_tools - 0.25 * unexpected_tools)
 
         tool_selection_errors = {
             "selected_tools": tools_in_code,
@@ -338,11 +323,7 @@ def evaluate_one_result(code, agent_answer, theoretical_answer, answer, verbose=
     else:
         code_errors = None
 
-    return (tool_selection_score, tool_used_score, score), (
-        tool_selection_errors,
-        tool_used_errors,
-        code_errors,
-    )
+    return (tool_selection_score, tool_used_score, score), (tool_selection_errors, tool_used_errors, code_errors)
 
 
 def evaluate_agent(agent, batch_size=8, verbose=False, return_errors=False):
@@ -401,9 +382,7 @@ def evaluate_agent(agent, batch_size=8, verbose=False, return_errors=False):
             # Evaluate agent answer and code answer
             agent_answer = evaluate_code(code, problem.inputs, verbose=verbose)
             if isinstance(problem.answer, list):
-                theoretical_answer = [
-                    evaluate_code(answer, problem.inputs) for answer in problem.answer
-                ]
+                theoretical_answer = [evaluate_code(answer, problem.inputs) for answer in problem.answer]
             else:
                 theoretical_answer = evaluate_code(problem.answer, problem.inputs)
 

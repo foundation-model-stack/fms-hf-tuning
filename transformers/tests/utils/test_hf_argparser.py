@@ -12,27 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from argparse import Namespace
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union, get_args, get_origin
 import argparse
 import json
 import os
 import sys
 import tempfile
 import unittest
+from argparse import Namespace
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Literal, Optional, Union, get_args, get_origin
 
-# Third Party
 import yaml
 
-# First Party
 from transformers import HfArgumentParser, TrainingArguments
 from transformers.hf_argparser import make_choice_type_function, string_to_bool
 from transformers.testing_utils import require_torch
-from transformers.training_args import _VALID_DICT_FIELDS
+
 
 # Since Python 3.10, we can use the builtin `|` operator for Union types
 # See PEP 604: https://peps.python.org/pep-0604
@@ -158,9 +155,7 @@ class HfArgumentParserTest(unittest.TestCase):
             # So we need to compare results directly for equality
             if xx.get("choices", None) and yy.get("choices", None):
                 for expected_choice in yy["choices"] + xx["choices"]:
-                    self.assertEqual(
-                        xx["type"](expected_choice), yy["type"](expected_choice)
-                    )
+                    self.assertEqual(xx["type"](expected_choice), yy["type"](expected_choice))
                 del xx["type"], yy["type"]
 
             self.assertEqual(xx, yy)
@@ -172,9 +167,7 @@ class HfArgumentParserTest(unittest.TestCase):
         expected.add_argument("--foo", type=int, required=True)
         expected.add_argument("--bar", type=float, required=True)
         expected.add_argument("--baz", type=str, required=True)
-        expected.add_argument(
-            "--flag", type=string_to_bool, default=False, const=True, nargs="?"
-        )
+        expected.add_argument("--flag", type=string_to_bool, default=False, const=True, nargs="?")
         self.argparsersEqual(parser, expected)
 
         args = ["--foo", "1", "--baz", "quux", "--bar", "0.5"]
@@ -191,17 +184,11 @@ class HfArgumentParserTest(unittest.TestCase):
 
     def test_with_default_bool(self):
         expected = argparse.ArgumentParser()
-        expected.add_argument(
-            "--foo", type=string_to_bool, default=False, const=True, nargs="?"
-        )
-        expected.add_argument(
-            "--baz", type=string_to_bool, default=True, const=True, nargs="?"
-        )
+        expected.add_argument("--foo", type=string_to_bool, default=False, const=True, nargs="?")
+        expected.add_argument("--baz", type=string_to_bool, default=True, const=True, nargs="?")
         # A boolean no_* argument always has to come after its "default: True" regular counter-part
         # and its default must be set to False
-        expected.add_argument(
-            "--no_baz", "--no-baz", action="store_false", default=False, dest="baz"
-        )
+        expected.add_argument("--no_baz", "--no-baz", action="store_false", default=False, dest="baz")
         expected.add_argument("--opt", type=string_to_bool, default=None)
 
         dataclass_types = [WithDefaultBoolExample]
@@ -224,14 +211,10 @@ class HfArgumentParserTest(unittest.TestCase):
             args = parser.parse_args(["--foo", "--baz"])
             self.assertEqual(args, Namespace(foo=True, baz=True, opt=None))
 
-            args = parser.parse_args(
-                ["--foo", "True", "--baz", "True", "--opt", "True"]
-            )
+            args = parser.parse_args(["--foo", "True", "--baz", "True", "--opt", "True"])
             self.assertEqual(args, Namespace(foo=True, baz=True, opt=True))
 
-            args = parser.parse_args(
-                ["--foo", "False", "--baz", "False", "--opt", "False"]
-            )
+            args = parser.parse_args(["--foo", "False", "--baz", "False", "--opt", "False"])
             self.assertEqual(args, Namespace(foo=False, baz=False, opt=False))
 
     def test_with_enum(self):
@@ -291,58 +274,23 @@ class HfArgumentParserTest(unittest.TestCase):
 
         expected = argparse.ArgumentParser()
         expected.add_argument("--foo_int", "--foo-int", nargs="+", default=[], type=int)
-        expected.add_argument(
-            "--bar_int", "--bar-int", nargs="+", default=[1, 2, 3], type=int
-        )
-        expected.add_argument(
-            "--foo_str",
-            "--foo-str",
-            nargs="+",
-            default=["Hallo", "Bonjour", "Hello"],
-            type=str,
-        )
-        expected.add_argument(
-            "--foo_float", "--foo-float", nargs="+", default=[0.1, 0.2, 0.3], type=float
-        )
+        expected.add_argument("--bar_int", "--bar-int", nargs="+", default=[1, 2, 3], type=int)
+        expected.add_argument("--foo_str", "--foo-str", nargs="+", default=["Hallo", "Bonjour", "Hello"], type=str)
+        expected.add_argument("--foo_float", "--foo-float", nargs="+", default=[0.1, 0.2, 0.3], type=float)
 
         self.argparsersEqual(parser, expected)
 
         args = parser.parse_args([])
         self.assertEqual(
             args,
-            Namespace(
-                foo_int=[],
-                bar_int=[1, 2, 3],
-                foo_str=["Hallo", "Bonjour", "Hello"],
-                foo_float=[0.1, 0.2, 0.3],
-            ),
+            Namespace(foo_int=[], bar_int=[1, 2, 3], foo_str=["Hallo", "Bonjour", "Hello"], foo_float=[0.1, 0.2, 0.3]),
         )
 
-        args = parser.parse_args(
-            "--foo_int 1 --bar_int 2 3 --foo_str a b c --foo_float 0.1 0.7".split()
-        )
-        self.assertEqual(
-            args,
-            Namespace(
-                foo_int=[1],
-                bar_int=[2, 3],
-                foo_str=["a", "b", "c"],
-                foo_float=[0.1, 0.7],
-            ),
-        )
+        args = parser.parse_args("--foo_int 1 --bar_int 2 3 --foo_str a b c --foo_float 0.1 0.7".split())
+        self.assertEqual(args, Namespace(foo_int=[1], bar_int=[2, 3], foo_str=["a", "b", "c"], foo_float=[0.1, 0.7]))
 
-        args = parser.parse_args(
-            "--foo-int 1 --bar-int 2 3 --foo-str a b c --foo-float 0.1 0.7".split()
-        )
-        self.assertEqual(
-            args,
-            Namespace(
-                foo_int=[1],
-                bar_int=[2, 3],
-                foo_str=["a", "b", "c"],
-                foo_float=[0.1, 0.7],
-            ),
-        )
+        args = parser.parse_args("--foo-int 1 --bar-int 2 3 --foo-str a b c --foo-float 0.1 0.7".split())
+        self.assertEqual(args, Namespace(foo_int=[1], bar_int=[2, 3], foo_str=["a", "b", "c"], foo_float=[0.1, 0.7]))
 
     def test_with_optional(self):
         expected = argparse.ArgumentParser()
@@ -362,30 +310,17 @@ class HfArgumentParserTest(unittest.TestCase):
             self.argparsersEqual(parser, expected)
 
             args = parser.parse_args([])
-            self.assertEqual(
-                args, Namespace(foo=None, bar=None, baz=None, ces=[], des=[])
-            )
+            self.assertEqual(args, Namespace(foo=None, bar=None, baz=None, ces=[], des=[]))
 
-            args = parser.parse_args(
-                "--foo 12 --bar 3.14 --baz 42 --ces a b c --des 1 2 3".split()
-            )
-            self.assertEqual(
-                args,
-                Namespace(
-                    foo=12, bar=3.14, baz="42", ces=["a", "b", "c"], des=[1, 2, 3]
-                ),
-            )
+            args = parser.parse_args("--foo 12 --bar 3.14 --baz 42 --ces a b c --des 1 2 3".split())
+            self.assertEqual(args, Namespace(foo=12, bar=3.14, baz="42", ces=["a", "b", "c"], des=[1, 2, 3]))
 
     def test_with_required(self):
         parser = HfArgumentParser(RequiredExample)
 
         expected = argparse.ArgumentParser()
-        expected.add_argument(
-            "--required_list", "--required-list", nargs="+", type=int, required=True
-        )
-        expected.add_argument(
-            "--required_str", "--required-str", type=str, required=True
-        )
+        expected.add_argument("--required_list", "--required-list", nargs="+", type=int, required=True)
+        expected.add_argument("--required_str", "--required-str", type=str, required=True)
         expected.add_argument(
             "--required_enum",
             "--required-enum",
@@ -409,13 +344,7 @@ class HfArgumentParserTest(unittest.TestCase):
         )
         expected.add_argument("--opt", type=string_to_bool, default=None)
         expected.add_argument("--baz", default="toto", type=str, help="help message")
-        expected.add_argument(
-            "--foo_str",
-            "--foo-str",
-            nargs="+",
-            default=["Hallo", "Bonjour", "Hello"],
-            type=str,
-        )
+        expected.add_argument("--foo_str", "--foo-str", nargs="+", default=["Hallo", "Bonjour", "Hello"], type=str)
         self.argparsersEqual(parser, expected)
 
     def test_parse_dict(self):
@@ -443,9 +372,7 @@ class HfArgumentParserTest(unittest.TestCase):
             "extra": 42,
         }
 
-        self.assertRaises(
-            ValueError, parser.parse_dict, args_dict, allow_extra_keys=False
-        )
+        self.assertRaises(ValueError, parser.parse_dict, args_dict, allow_extra_keys=False)
 
     def test_parse_json(self):
         parser = HfArgumentParser(BasicExample)
@@ -484,7 +411,8 @@ class HfArgumentParserTest(unittest.TestCase):
         args = BasicExample(**args_dict_for_yaml)
         self.assertEqual(parsed_args, args)
 
-    def test_integration_training_args(self):
+    def test_z_integration_training_args(self):
+        # make sure that this test executes last in the test suite
         parser = HfArgumentParser(TrainingArguments)
         self.assertIsNotNone(parser)
 
@@ -496,7 +424,7 @@ class HfArgumentParserTest(unittest.TestCase):
         If this fails, a type annotation change is
         needed on a new input
         """
-        base_list = _VALID_DICT_FIELDS.copy()
+        base_list = TrainingArguments._VALID_DICT_FIELDS.copy()
         args = TrainingArguments
 
         # First find any annotations that contain `dict`
@@ -540,7 +468,7 @@ class HfArgumentParserTest(unittest.TestCase):
             self.assertIn(
                 field.name,
                 base_list,
-                f"Optional dict field `{field.name}` is not in the base list of valid fields. Please add it to `training_args._VALID_DICT_FIELDS`",
+                f"Optional dict field `{field.name}` is not in the base list of valid fields. Please add it to `TrainingArguments._VALID_DICT_FIELDS`",
             )
 
     @require_torch
@@ -551,6 +479,4 @@ class HfArgumentParserTest(unittest.TestCase):
                 accelerator_config='{"split_batches": "True", "gradient_accumulation_kwargs": {"num_steps": 2}}',
             )
             self.assertEqual(args.accelerator_config.split_batches, True)
-            self.assertEqual(
-                args.accelerator_config.gradient_accumulation_kwargs["num_steps"], 2
-            )
+            self.assertEqual(args.accelerator_config.gradient_accumulation_kwargs["num_steps"], 2)

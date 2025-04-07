@@ -13,30 +13,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import lru_cache
 
-# First Party
 from transformers import SqueezeBertTokenizer, SqueezeBertTokenizerFast
 from transformers.testing_utils import require_tokenizers, slow
 
-# Local
-from ..bert.test_tokenization_bert import BertTokenizationTest
+from ...test_tokenization_common import use_cache_if_possible
+
+# Avoid import `BertTokenizationTest` directly as it will run as `test_tokenization_squeezebert.py::BertTokenizationTest`
+# together with `test_tokenization_bert.py::BertTokenizationTest`.
+from ..bert import test_tokenization_bert
 
 
 @require_tokenizers
-class SqueezeBertTokenizationTest(BertTokenizationTest):
+class SqueezeBertTokenizationTest(test_tokenization_bert.BertTokenizationTest):
     tokenizer_class = SqueezeBertTokenizer
     rust_tokenizer_class = SqueezeBertTokenizerFast
     test_rust_tokenizer = True
     from_pretrained_id = "squeezebert/squeezebert-uncased"
 
-    def get_rust_tokenizer(self, **kwargs):
-        return SqueezeBertTokenizerFast.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_rust_tokenizer(cls, pretrained_name=None, **kwargs):
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return SqueezeBertTokenizerFast.from_pretrained(pretrained_name, **kwargs)
 
     @slow
     def test_sequence_builders(self):
-        tokenizer = SqueezeBertTokenizer.from_pretrained(
-            "squeezebert/squeezebert-mnli-headless"
-        )
+        tokenizer = SqueezeBertTokenizer.from_pretrained("squeezebert/squeezebert-mnli-headless")
 
         text = tokenizer.encode("sequence builders", add_special_tokens=False)
         text_2 = tokenizer.encode("multi-sequence build", add_special_tokens=False)
@@ -44,9 +49,7 @@ class SqueezeBertTokenizationTest(BertTokenizationTest):
         encoded_sentence = tokenizer.build_inputs_with_special_tokens(text)
         encoded_pair = tokenizer.build_inputs_with_special_tokens(text, text_2)
 
-        assert encoded_sentence == [tokenizer.cls_token_id] + text + [
+        assert encoded_sentence == [tokenizer.cls_token_id] + text + [tokenizer.sep_token_id]
+        assert encoded_pair == [tokenizer.cls_token_id] + text + [tokenizer.sep_token_id] + text_2 + [
             tokenizer.sep_token_id
         ]
-        assert encoded_pair == [tokenizer.cls_token_id] + text + [
-            tokenizer.sep_token_id
-        ] + text_2 + [tokenizer.sep_token_id]

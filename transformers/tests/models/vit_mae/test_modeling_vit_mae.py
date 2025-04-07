@@ -14,38 +14,40 @@
 # limitations under the License.
 """Testing suite for the PyTorch ViTMAE model."""
 
-# Standard
 import math
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
+from pytest import mark
 
-# First Party
 from transformers import ViTMAEConfig
-from transformers.testing_utils import require_torch, require_vision, slow, torch_device
+from transformers.testing_utils import (
+    is_flaky,
+    require_flash_attn,
+    require_torch,
+    require_torch_gpu,
+    require_vision,
+    slow,
+    torch_device,
+)
 from transformers.utils import cached_property, is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
+from ...test_modeling_common import ModelTesterMixin, _config_zero_init, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import ViTMAEForPreTraining, ViTMAEModel
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import ViTImageProcessor
 
 
@@ -102,9 +104,7 @@ class ViTMAEModelTester:
         self.mask_length = num_patches
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -141,10 +141,7 @@ class ViTMAEModelTester:
         model.to(torch_device)
         model.eval()
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_for_pretraining(self, config, pixel_values, labels):
         model = ViTMAEForPreTraining(config)
@@ -153,23 +150,17 @@ class ViTMAEModelTester:
         result = model(pixel_values)
         num_patches = (self.image_size // self.patch_size) ** 2
         expected_num_channels = self.patch_size**2 * self.num_channels
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, num_patches, expected_num_channels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, num_patches, expected_num_channels))
 
         # test greyscale images
         config.num_channels = 1
         model = ViTMAEForPreTraining(config)
         model.to(torch_device)
         model.eval()
-        pixel_values = floats_tensor(
-            [self.batch_size, 1, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
         result = model(pixel_values)
         expected_num_channels = self.patch_size**2
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, num_patches, expected_num_channels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, num_patches, expected_num_channels))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -185,12 +176,8 @@ class ViTMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (ViTMAEModel, ViTMAEForPreTraining) if is_torch_available() else ()
-    )
-    pipeline_model_mapping = (
-        {"image-feature-extraction": ViTMAEModel} if is_torch_available() else {}
-    )
+    all_model_classes = (ViTMAEModel, ViTMAEForPreTraining) if is_torch_available() else ()
+    pipeline_model_mapping = {"image-feature-extraction": ViTMAEModel} if is_torch_available() else {}
 
     test_pruning = False
     test_torchscript = False
@@ -200,9 +187,7 @@ class ViTMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = ViTMAEModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=ViTMAEConfig, has_text_modality=False, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=ViTMAEConfig, has_text_modality=False, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -250,9 +235,7 @@ class ViTMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
                 # make random mask reproducible
                 torch.manual_seed(2)
                 with torch.no_grad():
-                    after_outputs = model(
-                        **self._prepare_for_class(inputs_dict, model_class)
-                    )
+                    after_outputs = model(**self._prepare_for_class(inputs_dict, model_class))
 
                 # Make sure we don't have nans
                 out_1 = after_outputs[0].cpu().numpy()
@@ -267,29 +250,11 @@ class ViTMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     def test_determinism(self):
         pass
 
-    @unittest.skip(
-        reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load
-    to get deterministic results."""
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load
-    to get deterministic results."""
-    )
-    def test_save_load_fast_init_to_base(self):
-        pass
-
-    @unittest.skip(
-        reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load"""
-    )
+    @unittest.skip(reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load""")
     def test_model_outputs_equivalence(self):
         pass
 
-    @unittest.skip(
-        reason="ViTMAE returns a random mask + ids_restore in each forward pass"
-    )
+    @unittest.skip(reason="ViTMAE returns a random mask + ids_restore in each forward pass")
     def test_batching_equivalence(self):
         pass
 
@@ -298,6 +263,80 @@ class ViTMAEModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         model_name = "google/vit-base-patch16-224"
         model = ViTMAEModel.from_pretrained(model_name)
         self.assertIsNotNone(model)
+
+    @require_flash_attn
+    @require_torch_gpu
+    @mark.flash_attn_test
+    @slow
+    @is_flaky()
+    def test_flash_attn_2_inference_equivalence(self):
+        if not self.has_attentions:
+            self.skipTest(reason="Model architecture does not support attentions")
+
+        for model_class in self.all_model_classes:
+            if not model_class._supports_flash_attn_2:
+                self.skipTest(f"{model_class.__name__} does not support Flash Attention 2")
+
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
+            inputs_dict = self._prepare_for_class(inputs_dict, model_class)
+            inputs_dict["pixel_values"] = inputs_dict["pixel_values"].to(torch.bfloat16)
+
+            model = model_class(config)
+
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                model.save_pretrained(tmpdirname)
+                model_fa = model_class.from_pretrained(
+                    tmpdirname, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2"
+                )
+                model_fa.to(torch_device)
+
+                model = model_class.from_pretrained(tmpdirname, torch_dtype=torch.bfloat16)
+                model.to(torch_device)
+
+                # ForPretraining model has random `noise` -> need to set seed
+                # to make the test deterministic
+                torch.manual_seed(12345)
+                outputs = model(**inputs_dict, output_hidden_states=True)
+                torch.manual_seed(12345)
+                outputs_fa = model_fa(**inputs_dict, output_hidden_states=True)
+
+                logits = (
+                    outputs.hidden_states[-1]
+                    if not model.config.is_encoder_decoder
+                    else outputs.decoder_hidden_states[-1]
+                )
+                logits_fa = (
+                    outputs_fa.hidden_states[-1]
+                    if not model.config.is_encoder_decoder
+                    else outputs_fa.decoder_hidden_states[-1]
+                )
+
+                assert torch.allclose(logits_fa, logits, atol=4e-2, rtol=4e-2)
+
+                # check with inference + dropout
+                model.train()
+                _ = model_fa(**inputs_dict)
+
+    @unittest.skip("Not applicable for VideoMAE")
+    def test_flash_attn_2_inference_equivalence_right_padding(self):
+        pass
+
+    def test_initialization(self):
+        config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
+
+        configs_no_init = _config_zero_init(config)
+        for model_class in self.all_model_classes:
+            model = model_class(config=configs_no_init)
+            for name, param in model.named_parameters():
+                # This is an excepton in the module, it's initialized with xavier_uniform without using initializer_range
+                if name.endswith("patch_embeddings.projection.weight"):
+                    continue
+                if param.requires_grad:
+                    self.assertIn(
+                        ((param.data.mean() * 1e9).round() / 1e9).item(),
+                        [0.0, 1.0],
+                        msg=f"Parameter {name} of model {model_class} seems not properly initialized",
+                    )
 
 
 # We will verify our results on an image of cute cats
@@ -315,9 +354,7 @@ class ViTMAEModelIntegrationTest(unittest.TestCase):
 
     @cached_property
     def default_model(self):
-        return ViTMAEForPreTraining.from_pretrained("facebook/vit-mae-base").to(
-            torch_device
-        )
+        return ViTMAEForPreTraining.from_pretrained("facebook/vit-mae-base").to(torch_device)
 
     @slow
     def test_inference_for_pretraining(self):
@@ -334,9 +371,7 @@ class ViTMAEModelIntegrationTest(unittest.TestCase):
         # (this way we can ensure that the PT and TF models operate on the same inputs)
         vit_mae_config = ViTMAEConfig()
         num_patches = int((vit_mae_config.image_size // vit_mae_config.patch_size) ** 2)
-        noise = torch.from_numpy(np.random.uniform(size=(1, num_patches))).to(
-            device=torch_device
-        )
+        noise = torch.from_numpy(np.random.uniform(size=(1, num_patches))).to(device=torch_device)
 
         # forward pass
         with torch.no_grad():
@@ -347,19 +382,10 @@ class ViTMAEModelIntegrationTest(unittest.TestCase):
         self.assertEqual(outputs.logits.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [-0.0548, -1.7023, -0.9325],
-                [0.3721, -0.5670, -0.2233],
-                [0.8235, -1.3878, -0.3524],
-            ]
+            [[-0.0548, -1.7023, -0.9325], [0.3721, -0.5670, -0.2233], [0.8235, -1.3878, -0.3524]]
         )
 
-        torch.testing.assert_close(
-            outputs.logits[0, :3, :3],
-            expected_slice.to(torch_device),
-            rtol=1e-4,
-            atol=1e-4,
-        )
+        torch.testing.assert_close(outputs.logits[0, :3, :3], expected_slice.to(torch_device), rtol=1e-4, atol=1e-4)
 
     @slow
     def test_inference_interpolate_pos_encoding(self):
@@ -375,19 +401,13 @@ class ViTMAEModelIntegrationTest(unittest.TestCase):
 
         image_processor = self.default_image_processor
         image = prepare_img()
-        inputs = image_processor(images=image, return_tensors="pt", do_resize=False).to(
-            torch_device
-        )
+        inputs = image_processor(images=image, return_tensors="pt", do_resize=False).to(torch_device)
 
         # prepare a noise vector that will be also used for testing the TF model
         # (this way we can ensure that the PT and TF models operate on the same inputs)
         vit_mae_config = ViTMAEConfig()
-        num_patches = (image.height // vit_mae_config.patch_size) * (
-            image.width // vit_mae_config.patch_size
-        )
-        noise = torch.from_numpy(np.random.uniform(size=(1, num_patches))).to(
-            device=torch_device
-        )
+        num_patches = (image.height // vit_mae_config.patch_size) * (image.width // vit_mae_config.patch_size)
+        noise = torch.from_numpy(np.random.uniform(size=(1, num_patches))).to(device=torch_device)
 
         # forward pass
         with torch.no_grad():
@@ -408,9 +428,9 @@ class ViTMAEModelIntegrationTest(unittest.TestCase):
         image_processor = self.default_image_processor
 
         image = prepare_img()
-        inputs = image_processor(
-            images=image, return_tensors="pt", size={"height": 256, "width": 256}
-        ).to(torch_device)
+        inputs = image_processor(images=image, return_tensors="pt", size={"height": 256, "width": 256}).to(
+            torch_device
+        )
 
         # forward pass
         with torch.no_grad():

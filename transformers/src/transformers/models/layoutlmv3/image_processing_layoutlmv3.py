@@ -14,13 +14,10 @@
 # limitations under the License.
 """Image processor class for LayoutLMv3."""
 
-# Standard
 from typing import Dict, Iterable, Optional, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import resize, to_channel_dimension_format, to_pil_image
 from ...image_utils import (
@@ -45,13 +42,12 @@ from ...utils import (
     requires_backends,
 )
 
+
 if is_vision_available():
-    # Third Party
     import PIL
 
 # soft dependency
 if is_pytesseract_available():
-    # Third Party
     import pytesseract
 
 logger = logging.get_logger(__name__)
@@ -77,16 +73,8 @@ def apply_tesseract(
     # apply OCR
     pil_image = to_pil_image(image, input_data_format=input_data_format)
     image_width, image_height = pil_image.size
-    data = pytesseract.image_to_data(
-        pil_image, lang=lang, output_type="dict", config=tesseract_config
-    )
-    words, left, top, width, height = (
-        data["text"],
-        data["left"],
-        data["top"],
-        data["width"],
-        data["height"],
-    )
+    data = pytesseract.image_to_data(pil_image, lang=lang, output_type="dict", config=tesseract_config)
+    words, left, top, width, height = data["text"], data["left"], data["top"], data["width"], data["height"]
 
     # filter empty words and corresponding coordinates
     irrelevant_indices = [idx for idx, word in enumerate(words) if not word.strip()]
@@ -94,9 +82,7 @@ def apply_tesseract(
     left = [coord for idx, coord in enumerate(left) if idx not in irrelevant_indices]
     top = [coord for idx, coord in enumerate(top) if idx not in irrelevant_indices]
     width = [coord for idx, coord in enumerate(width) if idx not in irrelevant_indices]
-    height = [
-        coord for idx, coord in enumerate(height) if idx not in irrelevant_indices
-    ]
+    height = [coord for idx, coord in enumerate(height) if idx not in irrelevant_indices]
 
     # turn coordinates into (left, top, left+width, top+height) format
     actual_boxes = []
@@ -109,9 +95,7 @@ def apply_tesseract(
     for box in actual_boxes:
         normalized_boxes.append(normalize_box(box, image_width, image_height))
 
-    assert len(words) == len(
-        normalized_boxes
-    ), "Not as many words as there are bounding boxes"
+    assert len(words) == len(normalized_boxes), "Not as many words as there are bounding boxes"
 
     return words, normalized_boxes
 
@@ -182,9 +166,7 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_value
         self.do_normalize = do_normalize
-        self.image_mean = (
-            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
-        )
+        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
         self.apply_ocr = apply_ocr
         self.ocr_lang = ocr_lang
@@ -228,9 +210,7 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(
-                f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}"
-            )
+            raise ValueError(f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}")
         output_size = (size["height"], size["width"])
         return resize(
             image,
@@ -245,15 +225,15 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
     def preprocess(
         self,
         images: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample=None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Union[float, Iterable[float]] = None,
         image_std: Union[float, Iterable[float]] = None,
-        apply_ocr: bool = None,
+        apply_ocr: Optional[bool] = None,
         ocr_lang: Optional[str] = None,
         tesseract_config: Optional[str] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
@@ -316,17 +296,13 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
         apply_ocr = apply_ocr if apply_ocr is not None else self.apply_ocr
         ocr_lang = ocr_lang if ocr_lang is not None else self.ocr_lang
-        tesseract_config = (
-            tesseract_config if tesseract_config is not None else self.tesseract_config
-        )
+        tesseract_config = tesseract_config if tesseract_config is not None else self.tesseract_config
         images = make_list_of_images(images)
 
         if not valid_images(images):
@@ -364,52 +340,30 @@ class LayoutLMv3ImageProcessor(BaseImageProcessor):
             words_batch = []
             boxes_batch = []
             for image in images:
-                words, boxes = apply_tesseract(
-                    image,
-                    ocr_lang,
-                    tesseract_config,
-                    input_data_format=input_data_format,
-                )
+                words, boxes = apply_tesseract(image, ocr_lang, tesseract_config, input_data_format=input_data_format)
                 words_batch.append(words)
                 boxes_batch.append(boxes)
 
         if do_resize:
             images = [
-                self.resize(
-                    image=image,
-                    size=size,
-                    resample=resample,
-                    input_data_format=input_data_format,
-                )
+                self.resize(image=image, size=size, resample=resample, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_rescale:
             images = [
-                self.rescale(
-                    image=image,
-                    scale=rescale_factor,
-                    input_data_format=input_data_format,
-                )
+                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_normalize:
             images = [
-                self.normalize(
-                    image=image,
-                    mean=image_mean,
-                    std=image_std,
-                    input_data_format=input_data_format,
-                )
+                self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
                 for image in images
             ]
 
         images = [
-            to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
-            for image in images
+            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format) for image in images
         ]
 
         data = BatchFeature(data={"pixel_values": images}, tensor_type=return_tensors)

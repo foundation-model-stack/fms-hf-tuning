@@ -28,21 +28,14 @@
 # RUN_SLOW=0 pytest -rA tests/test_skip_decorators.py
 # RUN_SLOW=0 CUDA_VISIBLE_DEVICES="" pytest -rA tests/test_skip_decorators.py
 
-# Standard
 import os
 import unittest
 
-# Third Party
-from parameterized import parameterized
 import pytest
+from parameterized import parameterized
 
-# First Party
-from transformers.testing_utils import (
-    require_torch,
-    require_torch_gpu,
-    slow,
-    torch_device,
-)
+from transformers.testing_utils import require_torch, require_torch_gpu, slow, torch_device
+
 
 # skipping in unittest tests
 

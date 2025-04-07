@@ -14,18 +14,15 @@
 # limitations under the License.
 """PyTorch Neighborhood Attention Transformer model."""
 
-# Standard
+import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-import math
 
-# Third Party
-from torch import nn
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 import torch
 import torch.utils.checkpoint
+from torch import nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-# Local
 from ....activations import ACT2FN
 from ....modeling_outputs import BackboneOutput
 from ....modeling_utils import PreTrainedModel
@@ -44,8 +41,8 @@ from ....utils import (
 from ....utils.backbone_utils import BackboneMixin
 from .configuration_nat import NatConfig
 
+
 if is_natten_available():
-    # Third Party
     from natten.functional import natten2dav, natten2dqkrpb
 else:
 
@@ -100,7 +97,7 @@ class NatEncoderOutput(ModelOutput):
             include the spatial dimensions.
     """
 
-    last_hidden_state: torch.FloatTensor = None
+    last_hidden_state: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
     attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
     reshaped_hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -135,7 +132,7 @@ class NatModelOutput(ModelOutput):
             include the spatial dimensions.
     """
 
-    last_hidden_state: torch.FloatTensor = None
+    last_hidden_state: Optional[torch.FloatTensor] = None
     pooler_output: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
     attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -172,7 +169,7 @@ class NatImageClassifierOutput(ModelOutput):
     """
 
     loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
+    logits: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
     attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
     reshaped_hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -220,20 +217,8 @@ class NatPatchEmbeddings(nn.Module):
             raise ValueError("Dinat only supports patch size of 4 at the moment.")
 
         self.projection = nn.Sequential(
-            nn.Conv2d(
-                self.num_channels,
-                hidden_size // 2,
-                kernel_size=(3, 3),
-                stride=(2, 2),
-                padding=(1, 1),
-            ),
-            nn.Conv2d(
-                hidden_size // 2,
-                hidden_size,
-                kernel_size=(3, 3),
-                stride=(2, 2),
-                padding=(1, 1),
-            ),
+            nn.Conv2d(self.num_channels, hidden_size // 2, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
+            nn.Conv2d(hidden_size // 2, hidden_size, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
         )
 
     def forward(self, pixel_values: Optional[torch.FloatTensor]) -> torch.Tensor:
@@ -262,22 +247,16 @@ class NatDownsampler(nn.Module):
     def __init__(self, dim: int, norm_layer: nn.Module = nn.LayerNorm) -> None:
         super().__init__()
         self.dim = dim
-        self.reduction = nn.Conv2d(
-            dim, 2 * dim, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False
-        )
+        self.reduction = nn.Conv2d(dim, 2 * dim, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
         self.norm = norm_layer(2 * dim)
 
     def forward(self, input_feature: torch.Tensor) -> torch.Tensor:
-        input_feature = self.reduction(input_feature.permute(0, 3, 1, 2)).permute(
-            0, 2, 3, 1
-        )
+        input_feature = self.reduction(input_feature.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
         input_feature = self.norm(input_feature)
         return input_feature
 
 
-def drop_path(
-    input: torch.Tensor, drop_prob: float = 0.0, training: bool = False
-) -> torch.Tensor:
+def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -290,12 +269,8 @@ def drop_path(
     if drop_prob == 0.0 or not training:
         return input
     keep_prob = 1 - drop_prob
-    shape = (input.shape[0],) + (1,) * (
-        input.ndim - 1
-    )  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + torch.rand(
-        shape, dtype=input.dtype, device=input.device
-    )
+    shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
+    random_tensor = keep_prob + torch.rand(shape, dtype=input.dtype, device=input.device)
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -329,29 +304,16 @@ class NeighborhoodAttention(nn.Module):
         self.kernel_size = kernel_size
 
         # rpb is learnable relative positional biases; same concept is used Swin.
-        self.rpb = nn.Parameter(
-            torch.zeros(
-                num_heads, (2 * self.kernel_size - 1), (2 * self.kernel_size - 1)
-            )
-        )
+        self.rpb = nn.Parameter(torch.zeros(num_heads, (2 * self.kernel_size - 1), (2 * self.kernel_size - 1)))
 
-        self.query = nn.Linear(
-            self.all_head_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.key = nn.Linear(
-            self.all_head_size, self.all_head_size, bias=config.qkv_bias
-        )
-        self.value = nn.Linear(
-            self.all_head_size, self.all_head_size, bias=config.qkv_bias
-        )
+        self.query = nn.Linear(self.all_head_size, self.all_head_size, bias=config.qkv_bias)
+        self.key = nn.Linear(self.all_head_size, self.all_head_size, bias=config.qkv_bias)
+        self.value = nn.Linear(self.all_head_size, self.all_head_size, bias=config.qkv_bias)
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
     def transpose_for_scores(self, x):
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 3, 1, 2, 4)
 
@@ -370,9 +332,7 @@ class NeighborhoodAttention(nn.Module):
         query_layer = query_layer / math.sqrt(self.attention_head_size)
 
         # Compute NA between "query" and "key" to get the raw attention scores, and add relative positional biases.
-        attention_scores = natten2dqkrpb(
-            query_layer, key_layer, self.rpb, self.kernel_size, 1
-        )
+        attention_scores = natten2dqkrpb(query_layer, key_layer, self.rpb, self.kernel_size, 1)
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
@@ -386,9 +346,7 @@ class NeighborhoodAttention(nn.Module):
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
-        outputs = (
-            (context_layer, attention_probs) if output_attentions else (context_layer,)
-        )
+        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         return outputs
 
@@ -399,9 +357,7 @@ class NeighborhoodAttentionOutput(nn.Module):
         self.dense = nn.Linear(dim, dim)
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
@@ -419,10 +375,7 @@ class NeighborhoodAttentionModule(nn.Module):
         if len(heads) == 0:
             return
         heads, index = find_pruneable_heads_and_indices(
-            heads,
-            self.self.num_attention_heads,
-            self.self.attention_head_size,
-            self.pruned_heads,
+            heads, self.self.num_attention_heads, self.self.attention_head_size, self.pruned_heads
         )
 
         # Prune linear layers
@@ -433,9 +386,7 @@ class NeighborhoodAttentionModule(nn.Module):
 
         # Update hyper params and store pruned heads
         self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
-        self.self.all_head_size = (
-            self.self.attention_head_size * self.self.num_attention_heads
-        )
+        self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def forward(
@@ -445,9 +396,7 @@ class NeighborhoodAttentionModule(nn.Module):
     ) -> Tuple[torch.Tensor]:
         self_outputs = self.self(hidden_states, output_attentions)
         attention_output = self.output(self_outputs[0], hidden_states)
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
 
@@ -484,19 +433,13 @@ class NatLayer(nn.Module):
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.kernel_size = config.kernel_size
         self.layernorm_before = nn.LayerNorm(dim, eps=config.layer_norm_eps)
-        self.attention = NeighborhoodAttentionModule(
-            config, dim, num_heads, kernel_size=self.kernel_size
-        )
-        self.drop_path = (
-            NatDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
-        )
+        self.attention = NeighborhoodAttentionModule(config, dim, num_heads, kernel_size=self.kernel_size)
+        self.drop_path = NatDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
         self.layernorm_after = nn.LayerNorm(dim, eps=config.layer_norm_eps)
         self.intermediate = NatIntermediate(config, dim)
         self.output = NatOutput(config, dim)
         self.layer_scale_parameters = (
-            nn.Parameter(
-                config.layer_scale_init_value * torch.ones((2, dim)), requires_grad=True
-            )
+            nn.Parameter(config.layer_scale_init_value * torch.ones((2, dim)), requires_grad=True)
             if config.layer_scale_init_value > 0
             else None
         )
@@ -526,9 +469,7 @@ class NatLayer(nn.Module):
 
         _, height_pad, width_pad, _ = hidden_states.shape
 
-        attention_outputs = self.attention(
-            hidden_states, output_attentions=output_attentions
-        )
+        attention_outputs = self.attention(hidden_states, output_attentions=output_attentions)
 
         attention_output = attention_outputs[0]
 
@@ -549,11 +490,7 @@ class NatLayer(nn.Module):
 
         layer_output = hidden_states + self.drop_path(layer_output)
 
-        layer_outputs = (
-            (layer_output, attention_outputs[1])
-            if output_attentions
-            else (layer_output,)
-        )
+        layer_outputs = (layer_output, attention_outputs[1]) if output_attentions else (layer_output,)
         return layer_outputs
 
 
@@ -608,10 +545,7 @@ class NatEncoder(nn.Module):
         super().__init__()
         self.num_levels = len(config.depths)
         self.config = config
-        dpr = [
-            x.item()
-            for x in torch.linspace(0, config.drop_path_rate, sum(config.depths))
-        ]
+        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, sum(config.depths))]
         self.levels = nn.ModuleList(
             [
                 NatStage(
@@ -619,12 +553,8 @@ class NatEncoder(nn.Module):
                     dim=int(config.embed_dim * 2**i_layer),
                     depth=config.depths[i_layer],
                     num_heads=config.num_heads[i_layer],
-                    drop_path_rate=dpr[
-                        sum(config.depths[:i_layer]) : sum(config.depths[: i_layer + 1])
-                    ],
-                    downsample=NatDownsampler
-                    if (i_layer < self.num_levels - 1)
-                    else None,
+                    drop_path_rate=dpr[sum(config.depths[:i_layer]) : sum(config.depths[: i_layer + 1])],
+                    downsample=NatDownsampler if (i_layer < self.num_levels - 1) else None,
                 )
                 for i_layer in range(self.num_levels)
             ]
@@ -656,9 +586,7 @@ class NatEncoder(nn.Module):
 
             if output_hidden_states and output_hidden_states_before_downsampling:
                 # rearrange b h w c -> b c h w
-                reshaped_hidden_state = hidden_states_before_downsampling.permute(
-                    0, 3, 1, 2
-                )
+                reshaped_hidden_state = hidden_states_before_downsampling.permute(0, 3, 1, 2)
                 all_hidden_states += (hidden_states_before_downsampling,)
                 all_reshaped_hidden_states += (reshaped_hidden_state,)
             elif output_hidden_states and not output_hidden_states_before_downsampling:
@@ -671,11 +599,7 @@ class NatEncoder(nn.Module):
                 all_self_attentions += layer_outputs[2:]
 
         if not return_dict:
-            return tuple(
-                v
-                for v in [hidden_states, all_hidden_states, all_self_attentions]
-                if v is not None
-            )
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
 
         return NatEncoderOutput(
             last_hidden_state=hidden_states,
@@ -786,19 +710,11 @@ class NatModel(NatPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, NatModelOutput]:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
@@ -852,9 +768,7 @@ class NatForImageClassification(NatPreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            nn.Linear(self.nat.num_features, config.num_labels)
-            if config.num_labels > 0
-            else nn.Identity()
+            nn.Linear(self.nat.num_features, config.num_labels) if config.num_labels > 0 else nn.Identity()
         )
 
         # Initialize weights and apply final processing
@@ -881,9 +795,7 @@ class NatForImageClassification(NatPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.nat(
             pixel_values,
@@ -901,9 +813,7 @@ class NatForImageClassification(NatPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -947,9 +857,7 @@ class NatBackbone(NatPreTrainedModel, BackboneMixin):
 
         self.embeddings = NatEmbeddings(config)
         self.encoder = NatEncoder(config)
-        self.num_features = [config.embed_dim] + [
-            int(config.embed_dim * 2**i) for i in range(len(config.depths))
-        ]
+        self.num_features = [config.embed_dim] + [int(config.embed_dim * 2**i) for i in range(len(config.depths))]
 
         # Add layer norms to hidden states of out_features
         hidden_states_norms = {}
@@ -999,19 +907,11 @@ class NatBackbone(NatPreTrainedModel, BackboneMixin):
         >>> list(feature_maps[-1].shape)
         [1, 512, 7, 7]
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
 
         embedding_output = self.embeddings(pixel_values)
 
@@ -1031,13 +931,9 @@ class NatBackbone(NatPreTrainedModel, BackboneMixin):
                 # TODO can we simplify this?
                 batch_size, num_channels, height, width = hidden_state.shape
                 hidden_state = hidden_state.permute(0, 2, 3, 1).contiguous()
-                hidden_state = hidden_state.view(
-                    batch_size, height * width, num_channels
-                )
+                hidden_state = hidden_state.view(batch_size, height * width, num_channels)
                 hidden_state = self.hidden_states_norms[stage](hidden_state)
-                hidden_state = hidden_state.view(
-                    batch_size, height, width, num_channels
-                )
+                hidden_state = hidden_state.view(batch_size, height, width, num_channels)
                 hidden_state = hidden_state.permute(0, 3, 1, 2).contiguous()
                 feature_maps += (hidden_state,)
 

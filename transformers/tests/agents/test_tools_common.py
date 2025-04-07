@@ -12,32 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
+import unittest
 from pathlib import Path
 from typing import Dict, Union
-import unittest
 
-# Third Party
 import numpy as np
 import pytest
 
-# First Party
 from transformers import is_torch_available, is_vision_available
-from transformers.agents.agent_types import (
-    AGENT_TYPE_MAPPING,
-    AgentAudio,
-    AgentImage,
-    AgentText,
-)
+from transformers.agents.agent_types import AGENT_TYPE_MAPPING, AgentAudio, AgentImage, AgentText
 from transformers.agents.tools import Tool, tool
 from transformers.testing_utils import get_tests_dir, is_agent_test
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 

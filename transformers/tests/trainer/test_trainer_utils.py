@@ -13,26 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import copy
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers.data.data_collator import default_data_collator
 from transformers.testing_utils import require_accelerate, require_torch
 from transformers.trainer_utils import RemoveColumnsCollator, find_executable_batch_size
 from transformers.utils import is_torch_available
 
+
 if is_torch_available():
-    # Third Party
+    import torch
     from torch import nn
     from torch.utils.data import IterableDataset
-    import torch
 
-    # First Party
     from transformers.modeling_outputs import SequenceClassifierOutput
     from transformers.tokenization_utils_base import BatchEncoding
     from transformers.trainer_pt_utils import (
@@ -94,22 +90,16 @@ class TrainerUtilsTest(unittest.TestCase):
         ]
 
         predictions = np.random.normal(size=(num_samples, 13))
-        gatherer = DistributedTensorGatherer(
-            world_size=world_size, num_samples=num_samples
-        )
+        gatherer = DistributedTensorGatherer(world_size=world_size, num_samples=num_samples)
         for indices in input_indices:
             gatherer.add_arrays(predictions[indices])
         result = gatherer.finalize()
         self.assertTrue(np.array_equal(result, predictions))
 
         # With nested tensors
-        gatherer = DistributedTensorGatherer(
-            world_size=world_size, num_samples=num_samples
-        )
+        gatherer = DistributedTensorGatherer(world_size=world_size, num_samples=num_samples)
         for indices in input_indices:
-            gatherer.add_arrays(
-                [predictions[indices], [predictions[indices], predictions[indices]]]
-            )
+            gatherer.add_arrays([predictions[indices], [predictions[indices], predictions[indices]]])
         result = gatherer.finalize()
         self.assertTrue(isinstance(result, list))
         self.assertEqual(len(result), 2)
@@ -131,71 +121,43 @@ class TrainerUtilsTest(unittest.TestCase):
         sequence_lengths = [8, 10, 13]
 
         predictions = np.random.normal(size=(num_samples, 13))
-        gatherer = DistributedTensorGatherer(
-            world_size=world_size, num_samples=num_samples
-        )
+        gatherer = DistributedTensorGatherer(world_size=world_size, num_samples=num_samples)
         for indices, seq_length in zip(input_indices, sequence_lengths):
             gatherer.add_arrays(predictions[indices, :seq_length])
         result = gatherer.finalize()
 
         # Remove the extra samples added at the end for a round multiple of num processes.
-        actual_indices = [
-            input_indices[0],
-            input_indices[1][:-2],
-            input_indices[2][:-1],
-        ]
+        actual_indices = [input_indices[0], input_indices[1][:-2], input_indices[2][:-1]]
         for indices, seq_length in zip(actual_indices, sequence_lengths):
-            self.assertTrue(
-                np.array_equal(
-                    result[indices, :seq_length], predictions[indices, :seq_length]
-                )
-            )
+            self.assertTrue(np.array_equal(result[indices, :seq_length], predictions[indices, :seq_length]))
 
         # With nested tensors
         predictions = np.random.normal(size=(num_samples, 13))
-        gatherer = DistributedTensorGatherer(
-            world_size=world_size, num_samples=num_samples
-        )
+        gatherer = DistributedTensorGatherer(world_size=world_size, num_samples=num_samples)
         for indices, seq_length in zip(input_indices, sequence_lengths):
-            gatherer.add_arrays(
-                [predictions[indices, :seq_length], predictions[indices]]
-            )
+            gatherer.add_arrays([predictions[indices, :seq_length], predictions[indices]])
         result = gatherer.finalize()
 
         for indices, seq_length in zip(actual_indices, sequence_lengths):
-            self.assertTrue(
-                np.array_equal(
-                    result[0][indices, :seq_length], predictions[indices, :seq_length]
-                )
-            )
+            self.assertTrue(np.array_equal(result[0][indices, :seq_length], predictions[indices, :seq_length]))
         self.assertTrue(np.array_equal(result[1], predictions))
 
         # Check if works if varying seq_length is second
-        gatherer = DistributedTensorGatherer(
-            world_size=world_size, num_samples=num_samples
-        )
+        gatherer = DistributedTensorGatherer(world_size=world_size, num_samples=num_samples)
         for indices, seq_length in zip(input_indices, sequence_lengths):
-            gatherer.add_arrays(
-                [predictions[indices], predictions[indices, :seq_length]]
-            )
+            gatherer.add_arrays([predictions[indices], predictions[indices, :seq_length]])
         result = gatherer.finalize()
 
         self.assertTrue(np.array_equal(result[0], predictions))
         for indices, seq_length in zip(actual_indices, sequence_lengths):
-            self.assertTrue(
-                np.array_equal(
-                    result[1][indices, :seq_length], predictions[indices, :seq_length]
-                )
-            )
+            self.assertTrue(np.array_equal(result[1][indices, :seq_length], predictions[indices, :seq_length]))
 
     def test_label_smoothing(self):
         epsilon = 0.1
         num_labels = 12
         random_logits = torch.randn(4, 5, num_labels)
         random_labels = torch.randint(0, num_labels, (4, 5))
-        loss = nn.functional.cross_entropy(
-            random_logits.view(-1, num_labels), random_labels.view(-1)
-        )
+        loss = nn.functional.cross_entropy(random_logits.view(-1, num_labels), random_labels.view(-1))
         model_output = SequenceClassifierOutput(logits=random_logits)
         label_smoothed_loss = LabelSmoother(0.1)(model_output, random_labels)
         log_probs = -nn.functional.log_softmax(random_logits, dim=-1)
@@ -207,9 +169,7 @@ class TrainerUtilsTest(unittest.TestCase):
         random_labels[2, 1] = -100
         random_labels[2, 3] = -100
 
-        loss = nn.functional.cross_entropy(
-            random_logits.view(-1, num_labels), random_labels.view(-1)
-        )
+        loss = nn.functional.cross_entropy(random_logits.view(-1, num_labels), random_labels.view(-1))
         model_output = SequenceClassifierOutput(logits=random_logits)
         label_smoothed_loss = LabelSmoother(0.1)(model_output, random_labels)
         log_probs = -nn.functional.log_softmax(random_logits, dim=-1)
@@ -217,9 +177,7 @@ class TrainerUtilsTest(unittest.TestCase):
         log_probs[0, 1] = 0.0
         log_probs[2, 1] = 0.0
         log_probs[2, 3] = 0.0
-        expected_loss = (1 - epsilon) * loss + epsilon * log_probs.sum() / (
-            num_labels * 17
-        )
+        expected_loss = (1 - epsilon) * loss + epsilon * log_probs.sum() / (num_labels * 17)
         torch.testing.assert_close(label_smoothed_loss, expected_loss)
 
     def test_group_by_length(self):
@@ -270,23 +228,15 @@ class TrainerUtilsTest(unittest.TestCase):
         # Put one bigger than the others to check it ends up in first position
         lengths[32] = 50
 
-        indices_process_0 = list(
-            DistributedLengthGroupedSampler(4, num_replicas=2, rank=0, lengths=lengths)
-        )
-        indices_process_1 = list(
-            DistributedLengthGroupedSampler(4, num_replicas=2, rank=1, lengths=lengths)
-        )
+        indices_process_0 = list(DistributedLengthGroupedSampler(4, num_replicas=2, rank=0, lengths=lengths))
+        indices_process_1 = list(DistributedLengthGroupedSampler(4, num_replicas=2, rank=1, lengths=lengths))
         # The biggest element should be first
         self.assertEqual(lengths[indices_process_0[0]], 50)
         # The indices should be a permutation of range(100)
-        self.assertEqual(
-            sorted(indices_process_0 + indices_process_1), list(range(100))
-        )
+        self.assertEqual(sorted(indices_process_0 + indices_process_1), list(range(100)))
 
     def test_get_parameter_names(self):
-        model = nn.Sequential(
-            TstLayer(128), nn.ModuleList([TstLayer(128), TstLayer(128)])
-        )
+        model = nn.Sequential(TstLayer(128), nn.ModuleList([TstLayer(128), TstLayer(128)]))
         # fmt: off
         self.assertEqual(
             get_parameter_names(model, [nn.LayerNorm]),
@@ -325,12 +275,8 @@ class TrainerUtilsTest(unittest.TestCase):
         batch_size = 16
         for length in [23, 64, 123]:
             dataset = list(range(length))
-            shard1 = DistributedSamplerWithLoop(
-                dataset, batch_size, num_replicas=2, rank=0
-            )
-            shard2 = DistributedSamplerWithLoop(
-                dataset, batch_size, num_replicas=2, rank=1
-            )
+            shard1 = DistributedSamplerWithLoop(dataset, batch_size, num_replicas=2, rank=0)
+            shard2 = DistributedSamplerWithLoop(dataset, batch_size, num_replicas=2, rank=1)
 
             # Set seeds
             shard1.set_epoch(0)
@@ -367,12 +313,8 @@ class TrainerUtilsTest(unittest.TestCase):
             self.assertListEqual(total[length:], dataset[: (len(total) - length)])
 
             # With a batch_size passed
-            shard1 = SequentialDistributedSampler(
-                dataset, num_replicas=2, rank=0, batch_size=batch_size
-            )
-            shard2 = SequentialDistributedSampler(
-                dataset, num_replicas=2, rank=1, batch_size=batch_size
-            )
+            shard1 = SequentialDistributedSampler(dataset, num_replicas=2, rank=0, batch_size=batch_size)
+            shard2 = SequentialDistributedSampler(dataset, num_replicas=2, rank=1, batch_size=batch_size)
 
             # Sample
             samples1 = list(shard1)
@@ -386,20 +328,14 @@ class TrainerUtilsTest(unittest.TestCase):
             self.assertListEqual(total[:length], dataset)
             self.assertListEqual(total[length:], dataset[: (len(total) - length)])
 
-    def check_iterable_dataset_shard(
-        self, dataset, batch_size, drop_last, num_processes=2, epoch=0
-    ):
+    def check_iterable_dataset_shard(self, dataset, batch_size, drop_last, num_processes=2, epoch=0):
         # Set the seed for the base dataset to get the proper reference.
         dataset.generator.manual_seed(epoch)
         reference = list(dataset)
 
         shards = [
             IterableDatasetShard(
-                dataset,
-                batch_size=batch_size,
-                drop_last=drop_last,
-                num_processes=num_processes,
-                process_index=i,
+                dataset, batch_size=batch_size, drop_last=drop_last, num_processes=num_processes, process_index=i
             )
             for i in range(num_processes)
         ]
@@ -435,11 +371,7 @@ class TrainerUtilsTest(unittest.TestCase):
 
         sampler_shards = [
             ShardSampler(
-                reference,
-                batch_size=batch_size,
-                drop_last=drop_last,
-                num_processes=num_processes,
-                process_index=i,
+                reference, batch_size=batch_size, drop_last=drop_last, num_processes=num_processes, process_index=i
             )
             for i in range(num_processes)
         ]
@@ -449,29 +381,15 @@ class TrainerUtilsTest(unittest.TestCase):
     def test_iterable_dataset_shard(self):
         dataset = RandomIterableDataset()
 
-        self.check_iterable_dataset_shard(
-            dataset, 4, drop_last=True, num_processes=2, epoch=0
-        )
-        self.check_iterable_dataset_shard(
-            dataset, 4, drop_last=False, num_processes=2, epoch=0
-        )
+        self.check_iterable_dataset_shard(dataset, 4, drop_last=True, num_processes=2, epoch=0)
+        self.check_iterable_dataset_shard(dataset, 4, drop_last=False, num_processes=2, epoch=0)
 
-        self.check_iterable_dataset_shard(
-            dataset, 4, drop_last=True, num_processes=3, epoch=42
-        )
-        self.check_iterable_dataset_shard(
-            dataset, 4, drop_last=False, num_processes=3, epoch=42
-        )
+        self.check_iterable_dataset_shard(dataset, 4, drop_last=True, num_processes=3, epoch=42)
+        self.check_iterable_dataset_shard(dataset, 4, drop_last=False, num_processes=3, epoch=42)
 
     def test_iterable_dataset_shard_with_length(self):
         sampler_shards = [
-            IterableDatasetShard(
-                list(range(100)),
-                batch_size=4,
-                drop_last=True,
-                num_processes=2,
-                process_index=i,
-            )
+            IterableDatasetShard(list(range(100)), batch_size=4, drop_last=True, num_processes=2, process_index=i)
             for i in range(2)
         ]
 
@@ -484,19 +402,10 @@ class TrainerUtilsTest(unittest.TestCase):
             current_shard = 1 - current_shard
 
         self.assertListEqual([list(shard) for shard in sampler_shards], expected_shards)
-        self.assertListEqual(
-            [len(shard) for shard in sampler_shards],
-            [len(shard) for shard in expected_shards],
-        )
+        self.assertListEqual([len(shard) for shard in sampler_shards], [len(shard) for shard in expected_shards])
 
         sampler_shards = [
-            IterableDatasetShard(
-                list(range(100)),
-                batch_size=4,
-                drop_last=False,
-                num_processes=2,
-                process_index=i,
-            )
+            IterableDatasetShard(list(range(100)), batch_size=4, drop_last=False, num_processes=2, process_index=i)
             for i in range(2)
         ]
         # When drop_last=False, we get two last full batches by looping back to the beginning.
@@ -504,19 +413,12 @@ class TrainerUtilsTest(unittest.TestCase):
         expected_shards[1].extend(list(range(0, 4)))
 
         self.assertListEqual([list(shard) for shard in sampler_shards], expected_shards)
-        self.assertListEqual(
-            [len(shard) for shard in sampler_shards],
-            [len(shard) for shard in expected_shards],
-        )
+        self.assertListEqual([len(shard) for shard in sampler_shards], [len(shard) for shard in expected_shards])
 
     def check_shard_sampler(self, dataset, batch_size, drop_last, num_processes=2):
         shards = [
             ShardSampler(
-                dataset,
-                batch_size=batch_size,
-                drop_last=drop_last,
-                num_processes=num_processes,
-                process_index=i,
+                dataset, batch_size=batch_size, drop_last=drop_last, num_processes=num_processes, process_index=i
             )
             for i in range(num_processes)
         ]
@@ -690,9 +592,7 @@ class TrainerUtilsTest(unittest.TestCase):
         self.assertEqual(np_batch_2[2][1].shape, (4, 6))
 
         # Test no batches
-        none_arr = EvalLoopContainer(
-            do_nested_concat=True, padding_index=-100
-        ).get_arrays()
+        none_arr = EvalLoopContainer(do_nested_concat=True, padding_index=-100).get_arrays()
         self.assertIsNone(none_arr)
 
         none_arr = EvalLoopContainer(do_nested_concat=False).get_arrays()

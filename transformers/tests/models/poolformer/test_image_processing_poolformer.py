@@ -13,21 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_vision_available():
-    # First Party
     from transformers import PoolFormerImageProcessor
 
 
@@ -76,9 +70,7 @@ class PoolFormerImageProcessingTester:
     def expected_output_image_shape(self, images):
         return self.num_channels, self.crop_size["height"], self.crop_size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -113,14 +105,10 @@ class PoolFormerImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase)
         self.assertTrue(hasattr(image_processing, "image_std"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertEqual(image_processor.size, {"shortest_edge": 30})
         self.assertEqual(image_processor.crop_size, {"height": 30, "width": 30})
 
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict, size=42, crop_size=84
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict, size=42, crop_size=84)
         self.assertEqual(image_processor.size, {"shortest_edge": 42})
         self.assertEqual(image_processor.crop_size, {"height": 84, "width": 84})

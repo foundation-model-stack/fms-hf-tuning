@@ -13,24 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import json
 import os
 import tempfile
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import SPIECE_UNDERLINE, AddedToken, BatchEncoding, SiglipTokenizer
-from transformers.testing_utils import (
-    get_tests_dir,
-    require_sentencepiece,
-    require_tokenizers,
-    slow,
-)
+from transformers.testing_utils import get_tests_dir, require_sentencepiece, require_tokenizers, slow
 from transformers.utils import cached_property, is_tf_available, is_torch_available
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
+
 
 SAMPLE_VOCAB = get_tests_dir("fixtures/test_sentencepiece.model")
 
@@ -51,13 +45,13 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_sentencepiece = True
     test_sentencepiece_ignore_case = True
 
-    # Copied from tests.models.t5.test_tokenization_t5.T5TokenizationTest.setUp with T5->Siglip
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # We have a SentencePiece fixture for testing
         tokenizer = SiglipTokenizer(SAMPLE_VOCAB)
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
     # Copied from tests.models.t5.test_tokenization_t5.T5TokenizationTest.test_convert_token_and_id with T5->Siglip
     def test_convert_token_and_id(self):
@@ -80,9 +74,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         tokens = tokenizer.tokenize("This is a test")
         self.assertListEqual(tokens, ["▁this", "▁is", "▁a", "▁t", "est"])
 
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(tokens), [66, 46, 10, 170, 382]
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(tokens), [66, 46, 10, 170, 382])
 
         tokens = tokenizer.tokenize("I was born in 92000, and this is falsé.")
         self.assertListEqual(
@@ -111,31 +103,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             ],
         )
         ids = tokenizer.convert_tokens_to_ids(tokens)
-        self.assertListEqual(
-            ids,
-            [
-                7,
-                23,
-                21,
-                84,
-                55,
-                24,
-                19,
-                7,
-                0,
-                602,
-                347,
-                347,
-                347,
-                12,
-                66,
-                46,
-                72,
-                80,
-                6,
-                0,
-            ],
-        )
+        self.assertListEqual(ids, [7, 23, 21, 84, 55, 24, 19, 7, 0, 602, 347, 347, 347, 12, 66, 46, 72, 80, 6, 0])
 
         back_tokens = tokenizer.convert_ids_to_tokens(ids)
         self.assertListEqual(
@@ -168,9 +136,12 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def siglip_tokenizer(self):
         return SiglipTokenizer.from_pretrained("google/siglip-base-patch16-224")
 
-    # Copied from tests.models.t5.test_tokenization_t5.T5TokenizationTest.get_tokenizer with T5->Siglip
-    def get_tokenizer(self, **kwargs) -> SiglipTokenizer:
-        return self.tokenizer_class.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs) -> SiglipTokenizer:
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return cls.tokenizer_class.from_pretrained(pretrained_name, **kwargs)
 
     # Copied from tests.models.t5.test_tokenization_t5.T5TokenizationTest.test_rust_and_python_full_tokenizers with T5->Siglip
     def test_rust_and_python_full_tokenizers(self):
@@ -199,27 +170,12 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         tokenizer = self.siglip_tokenizer
         batch_with_eos_added = tokenizer(["hi</s>", "I went to the gym</s>", "</s>"])
         batch_without_eos_added = tokenizer(["hi", "I went to the gym", ""])
-        self.assertListEqual(
-            batch_with_eos_added["input_ids"], batch_without_eos_added["input_ids"]
-        )
+        self.assertListEqual(batch_with_eos_added["input_ids"], batch_without_eos_added["input_ids"])
 
     def test_prepare_batch(self):
         tokenizer = self.siglip_tokenizer
-        src_text = [
-            "A long paragraph for summarization.",
-            "Another paragraph for summarization.",
-        ]
-        expected_src_tokens = [
-            262,
-            266,
-            476,
-            8532,
-            270,
-            4460,
-            3949,
-            1682,
-            tokenizer.eos_token_id,
-        ]
+        src_text = ["A long paragraph for summarization.", "Another paragraph for summarization."]
+        expected_src_tokens = [262, 266, 476, 8532, 270, 4460, 3949, 1682, tokenizer.eos_token_id]
         batch = tokenizer(src_text, padding=True, return_tensors=FRAMEWORK)
         self.assertIsInstance(batch, BatchEncoding)
 
@@ -234,10 +190,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     def test_empty_target_text(self):
         tokenizer = self.siglip_tokenizer
-        src_text = [
-            "A long paragraph for summarization.",
-            "Another paragraph for summarization.",
-        ]
+        src_text = ["A long paragraph for summarization.", "Another paragraph for summarization."]
         batch = tokenizer(src_text, padding=True, return_tensors=FRAMEWORK)
         # check if input_ids are returned and no decoder_input_ids
         self.assertIn("input_ids", batch)
@@ -248,11 +201,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         tokenizer = self.siglip_tokenizer
         tgt_text = ["Summary of the text.", "Another summary."]
         targets = tokenizer(
-            text_target=tgt_text,
-            max_length=32,
-            padding="max_length",
-            truncation=True,
-            return_tensors=FRAMEWORK,
+            text_target=tgt_text, max_length=32, padding="max_length", truncation=True, return_tensors=FRAMEWORK
         )
         self.assertEqual(32, targets["input_ids"].shape[1])
 
@@ -280,18 +229,13 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def test_special_tokens_initialization(self):
         for tokenizer, pretrained_name, kwargs in self.tokenizers_list:
             with self.subTest(f"{tokenizer.__class__.__name__} ({pretrained_name})"):
-                added_tokens = [f"<extra_id_{i}>" for i in range(100)] + [
-                    AddedToken("<special>", lstrip=True)
-                ]
+                added_tokens = [f"<extra_id_{i}>" for i in range(100)] + [AddedToken("<special>", lstrip=True)]
 
-                tokenizer_r = self.rust_tokenizer_class.from_pretrained(
+                tokenizer_r = self.get_rust_tokenizer(
                     pretrained_name, additional_special_tokens=added_tokens, **kwargs
                 )
-                tokenizer_cr = self.rust_tokenizer_class.from_pretrained(
-                    pretrained_name,
-                    additional_special_tokens=added_tokens,
-                    **kwargs,
-                    from_slow=True,
+                tokenizer_cr = self.get_rust_tokenizer(
+                    pretrained_name, additional_special_tokens=added_tokens, **kwargs, from_slow=True
                 )
                 tokenizer_p = self.tokenizer_class.from_pretrained(
                     pretrained_name, additional_special_tokens=added_tokens, **kwargs
@@ -301,9 +245,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 r_output = tokenizer_r.encode("Hey this is a <special> token")
                 cr_output = tokenizer_cr.encode("Hey this is a <special> token")
 
-                special_token_id = tokenizer_r.encode(
-                    "<special>", add_special_tokens=False
-                )[0]
+                special_token_id = tokenizer_r.encode("<special>", add_special_tokens=False)[0]
 
                 self.assertEqual(p_output, r_output)
                 self.assertEqual(cr_output, r_output)
@@ -312,52 +254,36 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 self.assertTrue(special_token_id in cr_output)
 
     # Copied from tests.models.t5.test_tokenization_t5.T5TokenizationTest.test_special_tokens_initialization_with_non_empty_additional_special_tokens with T5->Siglip
-    def test_special_tokens_initialization_with_non_empty_additional_special_tokens(
-        self,
-    ):
+    def test_special_tokens_initialization_with_non_empty_additional_special_tokens(self):
         tokenizer_list = []
         if self.test_slow_tokenizer:
             tokenizer_list.append((self.tokenizer_class, self.get_tokenizer()))
 
         if self.test_rust_tokenizer:
-            tokenizer_list.append(
-                (self.rust_tokenizer_class, self.get_rust_tokenizer())
-            )
+            tokenizer_list.append((self.rust_tokenizer_class, self.get_rust_tokenizer()))
 
         for tokenizer_class, tokenizer_utils in tokenizer_list:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tokenizer_utils.save_pretrained(tmp_dir)
 
-                with open(
-                    os.path.join(tmp_dir, "special_tokens_map.json"), encoding="utf-8"
-                ) as json_file:
+                with open(os.path.join(tmp_dir, "special_tokens_map.json"), encoding="utf-8") as json_file:
                     special_tokens_map = json.load(json_file)
 
-                with open(
-                    os.path.join(tmp_dir, "tokenizer_config.json"), encoding="utf-8"
-                ) as json_file:
+                with open(os.path.join(tmp_dir, "tokenizer_config.json"), encoding="utf-8") as json_file:
                     tokenizer_config = json.load(json_file)
 
                 added_tokens_extra_ids = [f"<extra_id_{i}>" for i in range(100)]
 
-                special_tokens_map[
-                    "additional_special_tokens"
-                ] = added_tokens_extra_ids + ["an_additional_special_token"]
-                tokenizer_config[
-                    "additional_special_tokens"
-                ] = added_tokens_extra_ids + ["an_additional_special_token"]
+                special_tokens_map["additional_special_tokens"] = added_tokens_extra_ids + [
+                    "an_additional_special_token"
+                ]
+                tokenizer_config["additional_special_tokens"] = added_tokens_extra_ids + [
+                    "an_additional_special_token"
+                ]
 
-                with open(
-                    os.path.join(tmp_dir, "special_tokens_map.json"),
-                    "w",
-                    encoding="utf-8",
-                ) as outfile:
+                with open(os.path.join(tmp_dir, "special_tokens_map.json"), "w", encoding="utf-8") as outfile:
                     json.dump(special_tokens_map, outfile)
-                with open(
-                    os.path.join(tmp_dir, "tokenizer_config.json"),
-                    "w",
-                    encoding="utf-8",
-                ) as outfile:
+                with open(os.path.join(tmp_dir, "tokenizer_config.json"), "w", encoding="utf-8") as outfile:
                     json.dump(tokenizer_config, outfile)
 
                 # the following checks allow us to verify that our test works as expected, i.e. that the tokenizer takes
@@ -367,38 +293,28 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                     tmp_dir,
                 )
                 self.assertIn(
-                    "an_additional_special_token",
-                    tokenizer_without_change_in_init.additional_special_tokens,
+                    "an_additional_special_token", tokenizer_without_change_in_init.additional_special_tokens
                 )
                 # self.assertIn("an_additional_special_token",tokenizer_without_change_in_init.get_vocab()) # BySiglipTokenization no vocab
                 self.assertEqual(
                     ["an_additional_special_token"],
                     tokenizer_without_change_in_init.convert_ids_to_tokens(
-                        tokenizer_without_change_in_init.convert_tokens_to_ids(
-                            ["an_additional_special_token"]
-                        )
+                        tokenizer_without_change_in_init.convert_tokens_to_ids(["an_additional_special_token"])
                     ),
                 )
 
                 # Now we test that we can change the value of additional_special_tokens in the from_pretrained
-                new_added_tokens = added_tokens_extra_ids + [
-                    AddedToken("a_new_additional_special_token", lstrip=True)
-                ]
+                new_added_tokens = added_tokens_extra_ids + [AddedToken("a_new_additional_special_token", lstrip=True)]
                 tokenizer = tokenizer_class.from_pretrained(
                     tmp_dir,
                     additional_special_tokens=new_added_tokens,
                 )
 
-                self.assertIn(
-                    "a_new_additional_special_token",
-                    tokenizer.additional_special_tokens,
-                )
+                self.assertIn("a_new_additional_special_token", tokenizer.additional_special_tokens)
                 self.assertEqual(
                     ["a_new_additional_special_token"],
                     tokenizer.convert_ids_to_tokens(
-                        tokenizer.convert_tokens_to_ids(
-                            ["a_new_additional_special_token"]
-                        )
+                        tokenizer.convert_tokens_to_ids(["a_new_additional_special_token"])
                     ),
                 )
 
@@ -433,9 +349,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         if self.test_rust_tokenizer:
             rust_tokenizer = self.get_rust_tokenizer()
-            special_tokens_string_rust = rust_tokenizer.convert_tokens_to_string(
-                special_tokens
-            )
+            special_tokens_string_rust = rust_tokenizer.convert_tokens_to_string(special_tokens)
             self.assertEqual(special_tokens_string, special_tokens_string_rust)
 
     @slow
@@ -463,9 +377,7 @@ class SiglipTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             self.assertListEqual(input_ids, expected)
 
     def test_some_edge_cases(self):
-        tokenizer = SiglipTokenizer.from_pretrained(
-            "google/siglip-base-patch16-224", legacy=False
-        )
+        tokenizer = SiglipTokenizer.from_pretrained("google/siglip-base-patch16-224", legacy=False)
 
         sp_tokens = tokenizer.sp_model.encode("</s>>", out_type=str)
         self.assertEqual(sp_tokens, ["</", "s", ">", ">"])
@@ -501,11 +413,7 @@ class CommonSpmIntegrationTests(unittest.TestCase):
     def setUpClass(cls):
         tokenizer = SiglipTokenizer(SAMPLE_VOCAB, extra_ids=0, legacy=False)
         tokenizer.add_special_tokens(
-            {
-                "additional_special_tokens": [
-                    AddedToken("<extra_id_0>", rstrip=False, lstrip=False)
-                ]
-            }
+            {"additional_special_tokens": [AddedToken("<extra_id_0>", rstrip=False, lstrip=False)]}
         )
         cls.tokenizer = tokenizer
 
@@ -548,6 +456,4 @@ class CommonSpmIntegrationTests(unittest.TestCase):
         input_ids = self.tokenizer.encode("▁He is not             ▁He")
         self.assertEqual(input_ids, [37, 46, 44, 37, 2])
         tokens = self.tokenizer.tokenize("▁He is not              ▁He")
-        self.assertEqual(
-            tokens, ["▁he", "▁is", "▁not", "▁he"]
-        )  # spaces are eaten by spm even if not start
+        self.assertEqual(tokens, ["▁he", "▁is", "▁not", "▁he"])  # spaces are eaten by spm even if not start

@@ -13,26 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import json
 import shutil
 import tempfile
 import unittest
 
-# First Party
 from transformers import AutoProcessor, LlamaTokenizerFast, LlavaNextVideoProcessor
 from transformers.testing_utils import require_av, require_torch, require_vision
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import LlavaNextImageProcessor, LlavaNextVideoImageProcessor
 
 if is_torch_available:
-    # Third Party
     import torch
 
 
@@ -44,16 +40,11 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         self.tmpdirname = tempfile.mkdtemp()
         image_processor = LlavaNextImageProcessor()
         video_processor = LlavaNextVideoImageProcessor()
-        tokenizer = LlamaTokenizerFast.from_pretrained(
-            "llava-hf/LLaVA-NeXT-Video-7B-hf"
-        )
+        tokenizer = LlamaTokenizerFast.from_pretrained("llava-hf/LLaVA-NeXT-Video-7B-hf")
         processor_kwargs = self.prepare_processor_dict()
 
         processor = LlavaNextVideoProcessor(
-            video_processor=video_processor,
-            image_processor=image_processor,
-            tokenizer=tokenizer,
-            **processor_kwargs
+            video_processor=video_processor, image_processor=image_processor, tokenizer=tokenizer, **processor_kwargs
         )
         processor.save_pretrained(self.tmpdirname)
 
@@ -93,9 +84,7 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         # they have to be saved as separate file and loaded back from that file
         # so we check if the same template is loaded
         processor_dict = self.prepare_processor_dict()
-        self.assertTrue(
-            processor_loaded.chat_template == processor_dict.get("chat_template", None)
-        )
+        self.assertTrue(processor_loaded.chat_template == processor_dict.get("chat_template", None))
 
     def tearDown(self):
         shutil.rmtree(self.tmpdirname)
@@ -114,9 +103,7 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
             },
         ]
 
-        formatted_prompt = processor.apply_chat_template(
-            messages, add_generation_prompt=True
-        )
+        formatted_prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
         self.assertEqual(expected_prompt, formatted_prompt)
 
     @require_av
@@ -138,9 +125,7 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         expected_output = [[1, 3148, 1001, 29901, 29871, 32000, 13, 5618, 338, 4318, 297, 445, 4863, 29973, 319, 1799, 9047, 13566, 29901]]  # fmt: skip
         self.assertListEqual(expected_output, formatted_prompt_tokenized)
 
-        out_dict = processor.apply_chat_template(
-            messages, add_generation_prompt=True, tokenize=True, return_dict=True
-        )
+        out_dict = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True)
         self.assertListEqual(list(out_dict.keys()), ["input_ids", "attention_mask"])
 
         # add image URL for return dict
@@ -151,10 +136,7 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         out_dict_with_video = processor.apply_chat_template(
             messages, add_generation_prompt=True, tokenize=True, return_dict=True
         )
-        self.assertListEqual(
-            list(out_dict_with_video.keys()),
-            ["input_ids", "attention_mask", "pixel_values_videos"],
-        )
+        self.assertListEqual(list(out_dict_with_video.keys()), ["input_ids", "attention_mask", "pixel_values_videos"])
 
     @require_torch
     @require_av
@@ -180,8 +162,5 @@ class LlavaNextVideoProcessorTest(ProcessorTesterMixin, unittest.TestCase):
             return_dict=True,
             return_tensors="pt",
         )
-        self.assertListEqual(
-            list(out_dict_tensors.keys()),
-            ["input_ids", "attention_mask", "pixel_values_videos"],
-        )
+        self.assertListEqual(list(out_dict_tensors.keys()), ["input_ids", "attention_mask", "pixel_values_videos"])
         self.assertTrue(isinstance(out_dict_tensors["input_ids"], torch.Tensor))

@@ -16,11 +16,9 @@
 Speech processor class for Wav2Vec2-BERT
 """
 
-# Standard
-from typing import List, Optional, Union
 import warnings
+from typing import List, Optional, Union
 
-# Local
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import AudioInput, PreTokenizedInput, TextInput
 from ..seamless_m4t.feature_extraction_seamless_m4t import SeamlessM4TFeatureExtractor
@@ -66,12 +64,8 @@ class Wav2Vec2BertProcessor(ProcessorMixin):
                 FutureWarning,
             )
 
-            feature_extractor = SeamlessM4TFeatureExtractor.from_pretrained(
-                pretrained_model_name_or_path, **kwargs
-            )
-            tokenizer = Wav2Vec2CTCTokenizer.from_pretrained(
-                pretrained_model_name_or_path, **kwargs
-            )
+            feature_extractor = SeamlessM4TFeatureExtractor.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            tokenizer = Wav2Vec2CTCTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
 
             return cls(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
@@ -87,7 +81,7 @@ class Wav2Vec2BertProcessor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and audio(s). This method forwards the `audio`
         and `kwargs` arguments to SeamlessM4TFeatureExtractor's [`~SeamlessM4TFeatureExtractor.__call__`] if `audio` is not
         `None` to pre-process the audio. To prepare the target sequences(s), this method forwards the `text` and `kwargs` arguments to
-        PreTrainedTokenizer's [`~PreTrainedTokenizer.__call__`] if `text` is not `None`. Please refer to the doctsring of the above two methods for more information.
+        PreTrainedTokenizer's [`~PreTrainedTokenizer.__call__`] if `text` is not `None`. Please refer to the docstring of the above two methods for more information.
 
         Args:
             audio (`np.ndarray`, `torch.Tensor`, `List[np.ndarray]`, `List[torch.Tensor]`):
@@ -109,9 +103,7 @@ class Wav2Vec2BertProcessor(ProcessorMixin):
         """
 
         if audio is None and text is None:
-            raise ValueError(
-                "You need to specify either an `audio` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `audio` or `text` input to process.")
         output_kwargs = self._merge_kwargs(
             Wav2Vec2BertProcessorKwargs,
             tokenizer_init_kwargs=self.tokenizer.init_kwargs,
@@ -135,12 +127,10 @@ class Wav2Vec2BertProcessor(ProcessorMixin):
         """
         If `input_features` is not `None`, this method forwards the `input_features` and `kwargs` arguments to SeamlessM4TFeatureExtractor's [`~SeamlessM4TFeatureExtractor.pad`] to pad the input features.
         If `labels` is not `None`, this method forwards the `labels` and `kwargs` arguments to PreTrainedTokenizer's [`~PreTrainedTokenizer.pad`] to pad the label(s).
-        Please refer to the doctsring of the above two methods for more information.
+        Please refer to the docstring of the above two methods for more information.
         """
         if input_features is None and labels is None:
-            raise ValueError(
-                "You need to specify either an `input_features` or `labels` input to pad."
-            )
+            raise ValueError("You need to specify either an `input_features` or `labels` input to pad.")
 
         if input_features is not None:
             input_features = self.feature_extractor.pad(input_features, **kwargs)

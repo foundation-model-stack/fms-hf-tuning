@@ -1,5 +1,4 @@
 # Note that llama and cohere have different definitions for rotate_half
-# First Party
 from transformers.models.cohere.modeling_cohere import rotate_half  # noqa
 from transformers.models.llama.modeling_llama import LlamaAttention
 

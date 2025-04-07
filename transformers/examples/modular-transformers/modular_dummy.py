@@ -1,7 +1,5 @@
-# Third Party
 import torch
 
-# First Party
 from transformers.models.llama.modeling_llama import LlamaModel
 
 

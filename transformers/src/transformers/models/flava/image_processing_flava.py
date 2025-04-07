@@ -14,16 +14,13 @@
 # limitations under the License.
 """Image processor class for Flava."""
 
-# Standard
-from functools import lru_cache
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import math
 import random
+from functools import lru_cache
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import resize, to_channel_dimension_format
 from ...image_utils import (
@@ -39,15 +36,10 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_vision_available,
-    logging,
-)
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+
 
 if is_vision_available():
-    # Third Party
     import PIL
 
 
@@ -71,7 +63,7 @@ class FlavaMaskingGenerator:
         mask_group_max_patches: Optional[int] = None,
         mask_group_min_patches: int = 16,
         mask_group_min_aspect_ratio: Optional[float] = 0.3,
-        mask_group_max_aspect_ratio: float = None,
+        mask_group_max_aspect_ratio: Optional[float] = None,
     ):
         if not isinstance(input_size, tuple):
             input_size = (input_size,) * 2
@@ -81,19 +73,10 @@ class FlavaMaskingGenerator:
         self.total_mask_patches = total_mask_patches
 
         self.mask_group_min_patches = mask_group_min_patches
-        self.mask_group_max_patches = (
-            total_mask_patches
-            if mask_group_max_patches is None
-            else mask_group_max_patches
-        )
+        self.mask_group_max_patches = total_mask_patches if mask_group_max_patches is None else mask_group_max_patches
 
-        mask_group_max_aspect_ratio = (
-            mask_group_max_aspect_ratio or 1 / mask_group_min_aspect_ratio
-        )
-        self.log_aspect_ratio = (
-            math.log(mask_group_min_aspect_ratio),
-            math.log(mask_group_max_aspect_ratio),
-        )
+        mask_group_max_aspect_ratio = mask_group_max_aspect_ratio or 1 / mask_group_min_aspect_ratio
+        self.log_aspect_ratio = (math.log(mask_group_min_aspect_ratio), math.log(mask_group_max_aspect_ratio))
 
     def __repr__(self):
         repr_str = "MaskingGenerator(%d, %d -> [%d ~ %d], max = %d, %.3f ~ %.3f)" % (
@@ -263,10 +246,10 @@ class FlavaImageProcessor(BaseImageProcessor):
         # Codebook related params
         return_codebook_pixels: bool = False,
         codebook_do_resize: bool = True,
-        codebook_size: bool = None,
+        codebook_size: Optional[bool] = None,
         codebook_resample: int = PILImageResampling.LANCZOS,
         codebook_do_center_crop: bool = True,
-        codebook_crop_size: int = None,
+        codebook_crop_size: Optional[int] = None,
         codebook_do_rescale: bool = True,
         codebook_rescale_factor: Union[int, float] = 1 / 255,
         codebook_do_map_pixels: bool = True,
@@ -278,25 +261,13 @@ class FlavaImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"height": 224, "width": 224}
         size = get_size_dict(size)
-        crop_size = (
-            crop_size if crop_size is not None else {"height": 224, "width": 224}
-        )
+        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
-        codebook_size = (
-            codebook_size
-            if codebook_size is not None
-            else {"height": 112, "width": 112}
-        )
+        codebook_size = codebook_size if codebook_size is not None else {"height": 112, "width": 112}
         codebook_size = get_size_dict(codebook_size, param_name="codebook_size")
-        codebook_crop_size = (
-            codebook_crop_size
-            if codebook_crop_size is not None
-            else {"height": 112, "width": 112}
-        )
-        codebook_crop_size = get_size_dict(
-            codebook_crop_size, param_name="codebook_crop_size"
-        )
+        codebook_crop_size = codebook_crop_size if codebook_crop_size is not None else {"height": 112, "width": 112}
+        codebook_crop_size = get_size_dict(codebook_crop_size, param_name="codebook_crop_size")
 
         self.do_resize = do_resize
         self.size = size
@@ -328,14 +299,8 @@ class FlavaImageProcessor(BaseImageProcessor):
         self.codebook_do_map_pixels = codebook_do_map_pixels
         self.codebook_do_normalize = codebook_do_normalize
         self.codebook_image_mean = codebook_image_mean
-        self.codebook_image_mean = (
-            codebook_image_mean
-            if codebook_image_mean is not None
-            else FLAVA_CODEBOOK_MEAN
-        )
-        self.codebook_image_std = (
-            codebook_image_std if codebook_image_std is not None else FLAVA_CODEBOOK_STD
-        )
+        self.codebook_image_mean = codebook_image_mean if codebook_image_mean is not None else FLAVA_CODEBOOK_MEAN
+        self.codebook_image_std = codebook_image_std if codebook_image_std is not None else FLAVA_CODEBOOK_STD
 
     @classmethod
     def from_dict(cls, image_processor_dict: Dict[str, Any], **kwargs):
@@ -347,9 +312,7 @@ class FlavaImageProcessor(BaseImageProcessor):
         if "codebook_size" in kwargs:
             image_processor_dict["codebook_size"] = kwargs.pop("codebook_size")
         if "codebook_crop_size" in kwargs:
-            image_processor_dict["codebook_crop_size"] = kwargs.pop(
-                "codebook_crop_size"
-            )
+            image_processor_dict["codebook_crop_size"] = kwargs.pop("codebook_crop_size")
         return super().from_dict(image_processor_dict, **kwargs)
 
     @lru_cache()
@@ -409,9 +372,7 @@ class FlavaImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(
-                f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}"
-            )
+            raise ValueError(f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}")
         output_size = (size["height"], size["width"])
         return resize(
             image,
@@ -428,17 +389,17 @@ class FlavaImageProcessor(BaseImageProcessor):
     def _preprocess_image(
         self,
         image: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_center_crop: bool = None,
+        do_center_crop: Optional[bool] = None,
         crop_size: Dict[str, int] = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
-        do_map_pixels: bool = None,
+        do_map_pixels: Optional[bool] = None,
         data_format: Optional[ChannelDimension] = ChannelDimension.FIRST,
         input_data_format: Optional[ChannelDimension] = None,
     ) -> np.ndarray:
@@ -471,38 +432,22 @@ class FlavaImageProcessor(BaseImageProcessor):
             input_data_format = infer_channel_dimension_format(image)
 
         if do_resize:
-            image = self.resize(
-                image=image,
-                size=size,
-                resample=resample,
-                input_data_format=input_data_format,
-            )
+            image = self.resize(image=image, size=size, resample=resample, input_data_format=input_data_format)
 
         if do_center_crop:
-            image = self.center_crop(
-                image=image, size=crop_size, input_data_format=input_data_format
-            )
+            image = self.center_crop(image=image, size=crop_size, input_data_format=input_data_format)
 
         if do_rescale:
-            image = self.rescale(
-                image=image, scale=rescale_factor, input_data_format=input_data_format
-            )
+            image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
 
         if do_normalize:
-            image = self.normalize(
-                image=image,
-                mean=image_mean,
-                std=image_std,
-                input_data_format=input_data_format,
-            )
+            image = self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
 
         if do_map_pixels:
             image = self.map_pixels(image)
 
         if data_format is not None:
-            image = to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
+            image = to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
         return image
 
     @filter_out_non_signature_kwargs()
@@ -635,43 +580,23 @@ class FlavaImageProcessor(BaseImageProcessor):
         size = size if size is not None else self.size
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
-        do_center_crop = (
-            do_center_crop if do_center_crop is not None else self.do_center_crop
-        )
+        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
         crop_size = crop_size if crop_size is not None else self.crop_size
         crop_size = get_size_dict(crop_size, param_name="crop_size")
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
 
-        return_image_mask = (
-            return_image_mask
-            if return_image_mask is not None
-            else self.return_image_mask
-        )
-        input_size_patches = (
-            input_size_patches
-            if input_size_patches is not None
-            else self.input_size_patches
-        )
-        total_mask_patches = (
-            total_mask_patches
-            if total_mask_patches is not None
-            else self.total_mask_patches
-        )
+        return_image_mask = return_image_mask if return_image_mask is not None else self.return_image_mask
+        input_size_patches = input_size_patches if input_size_patches is not None else self.input_size_patches
+        total_mask_patches = total_mask_patches if total_mask_patches is not None else self.total_mask_patches
         mask_group_min_patches = (
-            mask_group_min_patches
-            if mask_group_min_patches is not None
-            else self.mask_group_min_patches
+            mask_group_min_patches if mask_group_min_patches is not None else self.mask_group_min_patches
         )
         mask_group_max_patches = (
-            mask_group_max_patches
-            if mask_group_max_patches is not None
-            else self.mask_group_max_patches
+            mask_group_max_patches if mask_group_max_patches is not None else self.mask_group_max_patches
         )
         mask_group_min_aspect_ratio = (
             mask_group_min_aspect_ratio
@@ -685,67 +610,29 @@ class FlavaImageProcessor(BaseImageProcessor):
         )
 
         return_codebook_pixels = (
-            return_codebook_pixels
-            if return_codebook_pixels is not None
-            else self.return_codebook_pixels
+            return_codebook_pixels if return_codebook_pixels is not None else self.return_codebook_pixels
         )
-        codebook_do_resize = (
-            codebook_do_resize
-            if codebook_do_resize is not None
-            else self.codebook_do_resize
-        )
-        codebook_size = (
-            codebook_size if codebook_size is not None else self.codebook_size
-        )
+        codebook_do_resize = codebook_do_resize if codebook_do_resize is not None else self.codebook_do_resize
+        codebook_size = codebook_size if codebook_size is not None else self.codebook_size
         codebook_size = get_size_dict(codebook_size, param_name="codebook_size")
-        codebook_resample = (
-            codebook_resample
-            if codebook_resample is not None
-            else self.codebook_resample
-        )
-        codebook_do_rescale = (
-            codebook_do_rescale
-            if codebook_do_rescale is not None
-            else self.codebook_do_rescale
-        )
+        codebook_resample = codebook_resample if codebook_resample is not None else self.codebook_resample
+        codebook_do_rescale = codebook_do_rescale if codebook_do_rescale is not None else self.codebook_do_rescale
         codebook_rescale_factor = (
-            codebook_rescale_factor
-            if codebook_rescale_factor is not None
-            else self.codebook_rescale_factor
+            codebook_rescale_factor if codebook_rescale_factor is not None else self.codebook_rescale_factor
         )
         codebook_do_center_crop = (
-            codebook_do_center_crop
-            if codebook_do_center_crop is not None
-            else self.codebook_do_center_crop
+            codebook_do_center_crop if codebook_do_center_crop is not None else self.codebook_do_center_crop
         )
-        codebook_crop_size = (
-            codebook_crop_size
-            if codebook_crop_size is not None
-            else self.codebook_crop_size
-        )
-        codebook_crop_size = get_size_dict(
-            codebook_crop_size, param_name="codebook_crop_size"
-        )
+        codebook_crop_size = codebook_crop_size if codebook_crop_size is not None else self.codebook_crop_size
+        codebook_crop_size = get_size_dict(codebook_crop_size, param_name="codebook_crop_size")
         codebook_do_map_pixels = (
-            codebook_do_map_pixels
-            if codebook_do_map_pixels is not None
-            else self.codebook_do_map_pixels
+            codebook_do_map_pixels if codebook_do_map_pixels is not None else self.codebook_do_map_pixels
         )
         codebook_do_normalize = (
-            codebook_do_normalize
-            if codebook_do_normalize is not None
-            else self.codebook_do_normalize
+            codebook_do_normalize if codebook_do_normalize is not None else self.codebook_do_normalize
         )
-        codebook_image_mean = (
-            codebook_image_mean
-            if codebook_image_mean is not None
-            else self.codebook_image_mean
-        )
-        codebook_image_std = (
-            codebook_image_std
-            if codebook_image_std is not None
-            else self.codebook_image_std
-        )
+        codebook_image_mean = codebook_image_mean if codebook_image_mean is not None else self.codebook_image_mean
+        codebook_image_std = codebook_image_std if codebook_image_std is not None else self.codebook_image_std
 
         images = make_list_of_images(images)
 

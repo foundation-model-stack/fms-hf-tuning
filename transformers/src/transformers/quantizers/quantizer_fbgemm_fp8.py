@@ -11,30 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
 import importlib
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-# Third Party
 from packaging import version
 
-# Local
 from .base import HfQuantizer
+
 
 if TYPE_CHECKING:
     from ..modeling_utils import PreTrainedModel
 
-# Local
-from ..utils import (
-    is_accelerate_available,
-    is_fbgemm_gpu_available,
-    is_torch_available,
-    logging,
-)
+from ..utils import is_accelerate_available, is_fbgemm_gpu_available, is_torch_available, logging
 from .quantizers_utils import get_module_from_name
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -56,9 +48,7 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
         self.quantization_config = quantization_config
 
     def validate_environment(self, *args, **kwargs):
-        if not is_torch_available() or version.parse(
-            importlib.metadata.version("torch")
-        ) < version.parse("2.1.0"):
+        if not is_torch_available() or version.parse(importlib.metadata.version("torch")) < version.parse("2.1.0"):
             raise ImportError(
                 "Using fbgemm fp8 quantization requires torch > 2.1.0"
                 "Please install the latest version of torch ( pip install --upgrade torch )"
@@ -75,9 +65,7 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
             )
 
         if not torch.cuda.is_available():
-            raise RuntimeError(
-                "Using FP8 quantized models with fbgemm kernels requires a GPU"
-            )
+            raise RuntimeError("Using FP8 quantized models with fbgemm kernels requires a GPU")
 
         compute_capability = torch.cuda.get_device_capability()
         major, minor = compute_capability
@@ -116,8 +104,7 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
             )
         elif torch_dtype == torch.float16:
             raise ValueError(
-                "You cannot use FP8 with torch_dtype=torch.float16."
-                "We recommend you passing torch_dtype=torch.bfloat16"
+                "You cannot use FP8 with torch_dtype=torch.float16.We recommend you passing torch_dtype=torch.bfloat16"
             )
         return torch_dtype
 
@@ -129,23 +116,25 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        # Local
-        from ..integrations import FbgemmFp8Linear
+        from ..integrations import FbgemmFp8Linear, FbgemmFp8Llama4TextExperts
 
         module, tensor_name = get_module_from_name(model, param_name)
 
         if isinstance(module, FbgemmFp8Linear):
             if self.pre_quantized or tensor_name == "bias":
                 if tensor_name == "weight" and param_value.dtype != torch.float8_e4m3fn:
-                    raise ValueError(
-                        "Expect quantized weights but got an unquantized weight"
-                    )
+                    raise ValueError("Expect quantized weights but got an unquantized weight")
                 return False
             else:
                 if tensor_name == "weight_scale":
-                    raise ValueError(
-                        "Expect unquantized weights but got a quantized weight_scale"
-                    )
+                    raise ValueError("Expect unquantized weights but got a quantized weight_scale")
+                return True
+        if isinstance(module, FbgemmFp8Llama4TextExperts):
+            if self.pre_quantized or tensor_name == "bias":
+                return False
+            else:
+                if tensor_name == "gate_up_proj_scale" or tensor_name == "down_proj_scale":
+                    raise ValueError("Expect unquantized weights but got a quantized weight_scale")
                 return True
         return False
 
@@ -161,14 +150,52 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
         """
         Quantizes weights into weight and weight_scale
         """
-        new_value, weight_scale = torch.ops.fbgemm.quantize_fp8_per_row(param_value)
+
+        from ..integrations import FbgemmFp8Llama4TextExperts
 
         module, tensor_name = get_module_from_name(model, param_name)
-        module._buffers[tensor_name] = new_value.to(target_device)
-        # to have the right output shape -> (out_features, 1)
-        module._buffers["weight_scale"] = weight_scale.view(
-            weight_scale.shape[0], 1
-        ).to(target_device)
+        if isinstance(module, FbgemmFp8Llama4TextExperts):
+            if tensor_name == "gate_up_proj":
+                # Process each expert separately
+                # Transpose the second and third dimension
+                transposed_param = param_value.transpose(1, 2)
+
+                # Reshape to 2D for quantization
+                original_shape = transposed_param.shape
+                flattened_param = transposed_param.reshape(-1, original_shape[-1])
+
+                # Quantize using per row instead of per column
+                new_value_flat, weight_scale_flat = torch.ops.fbgemm.quantize_fp8_per_row(flattened_param)
+
+                # Reshape back to original dimensions
+                new_value = new_value_flat.reshape(original_shape)
+                new_value = new_value.transpose(1, 2)
+                weight_scale = weight_scale_flat.reshape(original_shape[0], 1, original_shape[1])
+            elif tensor_name == "down_proj":
+                # Process each expert separately
+                # Transpose the weights for proper quantization
+                transposed_param = param_value.transpose(1, 2)
+
+                # Reshape to 2D for quantization
+                original_shape = transposed_param.shape
+                flattened_param = transposed_param.reshape(-1, original_shape[-1])
+
+                # Quantize using per column
+                new_value_flat, weight_scale_flat = torch.ops.fbgemm.quantize_fp8_per_row(flattened_param)
+
+                # Reshape back to original dimensions
+                new_value = new_value_flat.reshape(original_shape)
+                new_value = new_value.transpose(1, 2)
+                weight_scale = weight_scale_flat.reshape(original_shape[0], original_shape[1], 1)
+
+            module._parameters[f"{tensor_name}_scale"] = torch.nn.Parameter(weight_scale.to(target_device))
+        else:
+            new_value, weight_scale = torch.ops.fbgemm.quantize_fp8_per_row(param_value)
+            module._parameters[f"{tensor_name}_scale"] = torch.nn.Parameter(
+                weight_scale.view(weight_scale.shape[0], 1).to(target_device)
+            )
+
+        module._parameters[tensor_name] = torch.nn.Parameter(new_value.to(target_device))
 
         if unexpected_keys is not None and param_name in unexpected_keys:
             unexpected_keys.remove(param_name)
@@ -183,31 +210,31 @@ class FbgemmFp8HfQuantizer(HfQuantizer):
         keep_in_fp32_modules: Optional[List[str]] = None,
         **kwargs,
     ):
-        # Local
         from ..integrations import replace_with_fbgemm_fp8_linear
 
+        tp_plan = model._tp_plan
         self.modules_to_not_convert = self.get_modules_to_not_convert(
             model, self.quantization_config.modules_to_not_convert, keep_in_fp32_modules
         )
 
+        config = model.config
         model = replace_with_fbgemm_fp8_linear(
             model,
             modules_to_not_convert=self.modules_to_not_convert,
             quantization_config=self.quantization_config,
             pre_quantized=self.pre_quantized,
+            config=config,
+            tp_plan=tp_plan,
         )
 
         model.config.quantization_config = self.quantization_config
 
-    def update_missing_keys(
-        self, model, missing_keys: List[str], prefix: str
-    ) -> List[str]:
-        # Local
-        from ..integrations import FbgemmFp8Linear
+    def update_missing_keys(self, model, missing_keys: List[str], prefix: str) -> List[str]:
+        from ..integrations import FbgemmFp8Linear, FbgemmFp8Llama4TextExperts
 
         not_missing_keys = []
         for name, module in model.named_modules():
-            if isinstance(module, FbgemmFp8Linear):
+            if isinstance(module, FbgemmFp8Linear) or isinstance(module, FbgemmFp8Llama4TextExperts):
                 for missing in missing_keys:
                     if (
                         (name in missing or name in f"{prefix}.{missing}")

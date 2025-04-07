@@ -14,27 +14,21 @@
 # limitations under the License.
 """Flax VisionTextDualEncoder model."""
 
-# Standard
 from typing import Optional, Tuple
 
-# Third Party
-from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
-from flax.traverse_util import flatten_dict, unflatten_dict
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
+from flax.traverse_util import flatten_dict, unflatten_dict
 
-# Local
-from ...modeling_flax_utils import (
-    FlaxPreTrainedModel,
-    append_replace_return_docstrings,
-    overwrite_call_docstring,
-)
+from ...modeling_flax_utils import FlaxPreTrainedModel, append_replace_return_docstrings, overwrite_call_docstring
 from ...utils import add_start_docstrings, logging
 from ..auto.configuration_auto import AutoConfig
 from ..auto.modeling_flax_auto import FLAX_MODEL_MAPPING, FlaxAutoModel
 from ..clip.modeling_flax_clip import FlaxCLIPOutput, FlaxCLIPVisionModel
 from .configuration_vision_text_dual_encoder import VisionTextDualEncoderConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -137,9 +131,7 @@ class FlaxVisionTextDualEncoderModule(nn.Module):
         self.text_embed_dim = text_config.hidden_size
         self.projection_dim = self.config.projection_dim
 
-        vision_module = FLAX_MODEL_MAPPING.get(
-            self.config.vision_config.__class__, FlaxCLIPVisionModel
-        ).module_class
+        vision_module = FLAX_MODEL_MAPPING.get(self.config.vision_config.__class__, FlaxCLIPVisionModel).module_class
         text_module = FLAX_MODEL_MAPPING[self.config.text_config.__class__].module_class
 
         self.vision_model = vision_module(vision_config, dtype=self.dtype)
@@ -159,9 +151,7 @@ class FlaxVisionTextDualEncoderModule(nn.Module):
         )
 
         self.logit_scale = self.param(
-            "logit_scale",
-            lambda _, shape: jnp.ones(shape) * self.config.logit_scale_init_value,
-            [],
+            "logit_scale", lambda _, shape: jnp.ones(shape) * self.config.logit_scale_init_value, []
         )
 
     def __call__(
@@ -176,9 +166,7 @@ class FlaxVisionTextDualEncoderModule(nn.Module):
         output_hidden_states=None,
         return_dict=None,
     ):
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         vision_outputs = self.vision_model(
             pixel_values=pixel_values,
@@ -206,9 +194,7 @@ class FlaxVisionTextDualEncoderModule(nn.Module):
         text_embeds = self.text_projection(text_embeds)
 
         # normalized features
-        image_embeds = image_embeds / jnp.linalg.norm(
-            image_embeds, axis=-1, keepdims=True
-        )
+        image_embeds = image_embeds / jnp.linalg.norm(image_embeds, axis=-1, keepdims=True)
         text_embeds = text_embeds / jnp.linalg.norm(text_embeds, axis=-1, keepdims=True)
 
         # cosine similarity as logits
@@ -217,14 +203,7 @@ class FlaxVisionTextDualEncoderModule(nn.Module):
         logits_per_image = logits_per_text.T
 
         if not return_dict:
-            return (
-                logits_per_image,
-                logits_per_text,
-                text_embeds,
-                image_embeds,
-                text_outputs,
-                vision_outputs,
-            )
+            return (logits_per_image, logits_per_text, text_embeds, image_embeds, text_outputs, vision_outputs)
 
         return FlaxCLIPOutput(
             logits_per_image=logits_per_image,
@@ -256,29 +235,15 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
             )
 
         if input_shape is None:
-            input_shape = (
-                (1, 1),
-                (
-                    1,
-                    config.vision_config.image_size,
-                    config.vision_config.image_size,
-                    3,
-                ),
-            )
+            input_shape = ((1, 1), (1, config.vision_config.image_size, config.vision_config.image_size, 3))
 
         module = self.module_class(config=config, dtype=dtype, **kwargs)
-        super().__init__(
-            config, module, input_shape=input_shape, seed=seed, dtype=dtype
-        )
+        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype)
 
-    def init_weights(
-        self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None
-    ) -> FrozenDict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
         # init input tensor
         input_ids = jnp.zeros(input_shape[0], dtype="i4")
-        position_ids = jnp.broadcast_to(
-            jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_shape[0]
-        )
+        position_ids = jnp.broadcast_to(jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_shape[0])
         token_type_ids = jnp.ones_like(input_ids)
         attention_mask = jnp.ones_like(input_ids)
 
@@ -287,9 +252,9 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
         params_rng, dropout_rng = jax.random.split(rng)
         rngs = {"params": params_rng, "dropout": dropout_rng}
 
-        random_params = self.module.init(
-            rngs, input_ids, pixel_values, attention_mask, position_ids, token_type_ids
-        )["params"]
+        random_params = self.module.init(rngs, input_ids, pixel_values, attention_mask, position_ids, token_type_ids)[
+            "params"
+        ]
 
         if params is not None:
             random_params = flatten_dict(unfreeze(random_params))
@@ -315,26 +280,16 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ):
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
 
         pixel_values = jnp.transpose(pixel_values, (0, 2, 3, 1))
 
         if position_ids is None:
-            position_ids = jnp.broadcast_to(
-                jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_ids.shape
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_ids.shape)
 
         if token_type_ids is None:
             token_type_ids = jnp.zeros_like(input_ids)
@@ -387,9 +342,7 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
             the projection layer to the pooled output of text model.
         """
         if position_ids is None:
-            position_ids = jnp.broadcast_to(
-                jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_ids.shape
-            )
+            position_ids = jnp.broadcast_to(jnp.arange(jnp.atleast_2d(input_ids).shape[-1]), input_ids.shape)
 
         if token_type_ids is None:
             token_type_ids = jnp.zeros_like(input_ids)
@@ -402,14 +355,7 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
         if dropout_rng is not None:
             rngs["dropout"] = dropout_rng
 
-        def _get_features(
-            module,
-            input_ids,
-            attention_mask,
-            position_ids,
-            token_type_ids,
-            deterministic,
-        ):
+        def _get_features(module, input_ids, attention_mask, position_ids, token_type_ids, deterministic):
             text_outputs = module.text_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -433,11 +379,7 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
         )
 
     def get_image_features(
-        self,
-        pixel_values,
-        params: dict = None,
-        dropout_rng: jax.random.PRNGKey = None,
-        train=False,
+        self, pixel_values, params: dict = None, dropout_rng: jax.random.PRNGKey = None, train=False
     ):
         r"""
         Args:
@@ -456,9 +398,7 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
             rngs["dropout"] = dropout_rng
 
         def _get_features(module, pixel_values, deterministic):
-            vision_outputs = module.vision_model(
-                pixel_values=pixel_values, deterministic=deterministic
-            )
+            vision_outputs = module.vision_model(pixel_values=pixel_values, deterministic=deterministic)
             pooled_output = vision_outputs[1]  # pooled_output
             image_features = module.visual_projection(pooled_output)
             return image_features
@@ -474,8 +414,8 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
     @classmethod
     def from_vision_text_pretrained(
         cls,
-        vision_model_name_or_path: str = None,
-        text_model_name_or_path: str = None,
+        vision_model_name_or_path: Optional[str] = None,
+        text_model_name_or_path: Optional[str] = None,
         *model_args,
         **kwargs,
     ) -> FlaxPreTrainedModel:
@@ -532,15 +472,11 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
         ```"""
 
         kwargs_vision = {
-            argument[len("vision_") :]: value
-            for argument, value in kwargs.items()
-            if argument.startswith("vision_")
+            argument[len("vision_") :]: value for argument, value in kwargs.items() if argument.startswith("vision_")
         }
 
         kwargs_text = {
-            argument[len("text_") :]: value
-            for argument, value in kwargs.items()
-            if argument.startswith("text_")
+            argument[len("text_") :]: value for argument, value in kwargs.items() if argument.startswith("text_")
         }
 
         # remove text, vision kwargs from kwargs
@@ -567,9 +503,7 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
                 )
             else:
                 kwargs_vision["config"] = vision_config
-                vision_model = FlaxAutoModel.from_pretrained(
-                    vision_model_name_or_path, *model_args, **kwargs_vision
-                )
+                vision_model = FlaxAutoModel.from_pretrained(vision_model_name_or_path, *model_args, **kwargs_vision)
 
         text_model = kwargs_text.pop("model", None)
         if text_model is None:
@@ -582,15 +516,11 @@ class FlaxVisionTextDualEncoderModel(FlaxPreTrainedModel):
                 text_config = AutoConfig.from_pretrained(text_model_name_or_path)
                 kwargs_text["config"] = text_config
 
-            text_model = FlaxAutoModel.from_pretrained(
-                text_model_name_or_path, *model_args, **kwargs_text
-            )
+            text_model = FlaxAutoModel.from_pretrained(text_model_name_or_path, *model_args, **kwargs_text)
 
         # instantiate config with corresponding kwargs
         dtype = kwargs.pop("dtype", jnp.float32)
-        config = VisionTextDualEncoderConfig.from_vision_text_configs(
-            vision_model.config, text_model.config, **kwargs
-        )
+        config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_model.config, text_model.config, **kwargs)
 
         # init model
         model = cls(config, *model_args, dtype=dtype, **kwargs)
@@ -661,13 +591,10 @@ VISION_TEXT_DUAL_ENCODER_MODEL_DOCSTRING = r"""
 
 overwrite_call_docstring(
     FlaxVisionTextDualEncoderModel,
-    VISION_TEXT_DUAL_ENCODER_INPUTS_DOCSTRING
-    + VISION_TEXT_DUAL_ENCODER_MODEL_DOCSTRING,
+    VISION_TEXT_DUAL_ENCODER_INPUTS_DOCSTRING + VISION_TEXT_DUAL_ENCODER_MODEL_DOCSTRING,
 )
 append_replace_return_docstrings(
-    FlaxVisionTextDualEncoderModel,
-    output_type=FlaxCLIPOutput,
-    config_class=_CONFIG_FOR_DOC,
+    FlaxVisionTextDualEncoderModel, output_type=FlaxCLIPOutput, config_class=_CONFIG_FOR_DOC
 )
 
 

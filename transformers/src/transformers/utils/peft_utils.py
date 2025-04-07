@@ -11,17 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import Dict, Optional, Union
 import importlib
 import os
+from typing import Optional, Union
 
-# Third Party
 from packaging import version
 
-# Local
 from .hub import cached_file
 from .import_utils import is_peft_available
+
 
 ADAPTER_CONFIG_NAME = "adapter_config.json"
 ADAPTER_WEIGHTS_NAME = "adapter_model.bin"
@@ -33,7 +31,7 @@ def find_adapter_config_file(
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     force_download: bool = False,
     resume_download: Optional[bool] = None,
-    proxies: Optional[Dict[str, str]] = None,
+    proxies: Optional[dict[str, str]] = None,
     token: Optional[Union[bool, str]] = None,
     revision: Optional[str] = None,
     local_files_only: bool = False,
@@ -116,13 +114,9 @@ def check_peft_version(min_version: str) -> None:
             The version of PEFT to check against.
     """
     if not is_peft_available():
-        raise ValueError(
-            "PEFT is not installed. Please install it with `pip install peft`"
-        )
+        raise ValueError("PEFT is not installed. Please install it with `pip install peft`")
 
-    is_peft_version_compatible = version.parse(
-        importlib.metadata.version("peft")
-    ) >= version.parse(min_version)
+    is_peft_version_compatible = version.parse(importlib.metadata.version("peft")) >= version.parse(min_version)
 
     if not is_peft_version_compatible:
         raise ValueError(

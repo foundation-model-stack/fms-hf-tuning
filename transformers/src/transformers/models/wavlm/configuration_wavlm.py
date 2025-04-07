@@ -14,13 +14,12 @@
 # limitations under the License.
 """WavLM model configuration"""
 
-# Standard
 import functools
 import operator
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -250,12 +249,7 @@ class WavLMConfig(PretrainedConfig):
         output_hidden_size=None,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-        )
+        super().__init__(**kwargs, pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id)
         self.hidden_size = hidden_size
         self.feat_extract_norm = feat_extract_norm
         self.feat_extract_activation = feat_extract_activation

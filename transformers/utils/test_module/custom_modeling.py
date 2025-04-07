@@ -1,10 +1,7 @@
-# Third Party
 import torch
 
-# First Party
 from transformers import PreTrainedModel
 
-# Local
 from .custom_configuration import CustomConfig, NoSuperInitConfig
 
 

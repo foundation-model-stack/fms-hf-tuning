@@ -16,7 +16,6 @@
 # limitations under the License.
 """Benchmarking the library on inference and training"""
 
-# First Party
 from transformers import HfArgumentParser, PyTorchBenchmark, PyTorchBenchmarkArguments
 
 

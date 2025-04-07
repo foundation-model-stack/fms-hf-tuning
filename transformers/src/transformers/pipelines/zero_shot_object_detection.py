@@ -1,34 +1,20 @@
-# Standard
 from typing import Any, Dict, List, Union
 
-# Local
-from ..utils import (
-    add_end_docstrings,
-    is_torch_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
+from ..utils import add_end_docstrings, is_torch_available, is_vision_available, logging, requires_backends
 from .base import ChunkPipeline, build_pipeline_init_args
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # Local
     from ..image_utils import load_image, valid_images
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers.modeling_outputs import BaseModelOutput
 
-    # Local
-    from ..models.auto.modeling_auto import (
-        MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING_NAMES,
-    )
+    from ..models.auto.modeling_auto import MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
 
@@ -147,10 +133,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
         elif isinstance(image, (list, tuple)) and valid_images(image):
             return list(
                 super().__call__(
-                    (
-                        {"image": img, "candidate_labels": labels}
-                        for img, labels in zip(image, candidate_labels)
-                    ),
+                    ({"image": img, "candidate_labels": labels} for img, labels in zip(image, candidate_labels)),
                     **kwargs,
                 )
             )
@@ -205,12 +188,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
 
         outputs = self.model(**model_inputs)
 
-        model_outputs = {
-            "target_size": target_size,
-            "candidate_label": candidate_label,
-            "is_last": is_last,
-            **outputs,
-        }
+        model_outputs = {"target_size": target_size, "candidate_label": candidate_label, "is_last": is_last, **outputs}
         return model_outputs
 
     def postprocess(self, model_outputs, threshold=0.1, top_k=None):
@@ -219,9 +197,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             label = model_output["candidate_label"]
             model_output = BaseModelOutput(model_output)
             outputs = self.image_processor.post_process_object_detection(
-                outputs=model_output,
-                threshold=threshold,
-                target_sizes=model_output["target_size"],
+                outputs=model_output, threshold=threshold, target_sizes=model_output["target_size"]
             )[0]
 
             for index in outputs["scores"].nonzero():
@@ -248,9 +224,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             bbox (`Dict[str, int]`): Dict containing the coordinates in corners format.
         """
         if self.framework != "pt":
-            raise ValueError(
-                "The ZeroShotObjectDetectionPipeline is only available in PyTorch."
-            )
+            raise ValueError("The ZeroShotObjectDetectionPipeline is only available in PyTorch.")
         xmin, ymin, xmax, ymax = box.int().tolist()
         bbox = {
             "xmin": xmin,

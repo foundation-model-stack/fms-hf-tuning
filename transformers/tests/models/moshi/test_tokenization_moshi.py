@@ -13,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import inspect
 import pickle
 import shutil
 import tempfile
 import unittest
 
-# First Party
 from transformers import (
     SPIECE_UNDERLINE,
     AddedToken,
@@ -37,8 +35,8 @@ from transformers.testing_utils import (
     require_torch,
 )
 
-# Local
 from ...test_tokenization_common import SMALL_TRAINING_CORPUS, TokenizerTesterMixin
+
 
 SAMPLE_VOCAB = get_tests_dir("fixtures/test_sentencepiece.model")
 
@@ -53,8 +51,9 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = True
     from_pretrained_kwargs = {}
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # We have a SentencePiece fixture for testing
         tokenizer = PreTrainedTokenizerFast(
@@ -64,18 +63,17 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             eos_token="</s>",
         )
         tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
-    def get_rust_tokenizer(self, **kwargs) -> PreTrainedTokenizerFast:
-        return self.rust_tokenizer_class.from_pretrained(self.tmpdirname, **kwargs)
+    def get_rust_tokenizer(cls, pretrained_name=None, **kwargs) -> PreTrainedTokenizerFast:
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return cls.rust_tokenizer_class.from_pretrained(pretrained_name, **kwargs)
 
     @unittest.skip(reason="No slow tokenizer")
     def test_added_tokens_serialization(self):
         pass
 
-    @unittest.skip(
-        reason="PreTrainedTokenizerFast doesn't have tokenizer_file in its signature"
-    )
+    @unittest.skip(reason="PreTrainedTokenizerFast doesn't have tokenizer_file in its signature")
     def test_rust_tokenizer_signature(self):
         pass
 
@@ -129,29 +127,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         ids = tokenizer.convert_tokens_to_ids(tokens)
         self.assertListEqual(
             ids,
-            [
-                8,
-                21,
-                84,
-                55,
-                24,
-                19,
-                7,
-                0,
-                602,
-                347,
-                347,
-                347,
-                3,
-                12,
-                66,
-                46,
-                72,
-                80,
-                6,
-                0,
-                4,
-            ],
+            [8, 21, 84, 55, 24, 19, 7, 0, 602, 347, 347, 347, 3, 12, 66, 46, 72, 80, 6, 0, 4],
         )
 
         back_tokens = tokenizer.convert_ids_to_tokens(ids)
@@ -192,9 +168,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
                 r_output = tokenizer_r.encode("Hey this is a <special> token")
 
-                special_token_id = tokenizer_r.encode(
-                    "<special>", add_special_tokens=False
-                )[0]
+                special_token_id = tokenizer_r.encode("<special>", add_special_tokens=False)[0]
 
                 self.assertTrue(special_token_id in r_output)
 
@@ -219,35 +193,21 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         new_tokenizer = tokenizer.train_new_from_iterator(SMALL_TRAINING_CORPUS, 100)
 
         # Test we can use the new tokenizer with something not seen during training
-        inputs = new_tokenizer(
-            ["This is the first sentence", "This sentence is different 🤗."]
-        )
+        inputs = new_tokenizer(["This is the first sentence", "This sentence is different 🤗."])
         self.assertEqual(len(inputs["input_ids"]), 2)
-        decoded_input = new_tokenizer.decode(
-            inputs["input_ids"][0], skip_special_tokens=True
-        )
+        decoded_input = new_tokenizer.decode(inputs["input_ids"][0], skip_special_tokens=True)
         expected_result = "This is the first sentence"
 
         self.assertEqual(expected_result, decoded_input)
 
         # We check that the parameters of the tokenizer remained the same
         # Check we have the same number of added_tokens for both pair and non-pair inputs.
-        self.assertEqual(
-            tokenizer.num_special_tokens_to_add(False),
-            new_tokenizer.num_special_tokens_to_add(False),
-        )
-        self.assertEqual(
-            tokenizer.num_special_tokens_to_add(True),
-            new_tokenizer.num_special_tokens_to_add(True),
-        )
+        self.assertEqual(tokenizer.num_special_tokens_to_add(False), new_tokenizer.num_special_tokens_to_add(False))
+        self.assertEqual(tokenizer.num_special_tokens_to_add(True), new_tokenizer.num_special_tokens_to_add(True))
 
         # Check we have the correct max_length for both pair and non-pair inputs.
-        self.assertEqual(
-            tokenizer.max_len_single_sentence, new_tokenizer.max_len_single_sentence
-        )
-        self.assertEqual(
-            tokenizer.max_len_sentences_pair, new_tokenizer.max_len_sentences_pair
-        )
+        self.assertEqual(tokenizer.max_len_single_sentence, new_tokenizer.max_len_single_sentence)
+        self.assertEqual(tokenizer.max_len_sentences_pair, new_tokenizer.max_len_sentences_pair)
 
         # Assert the set of special tokens match as we didn't ask to change them
         self.assertSequenceEqual(
@@ -255,9 +215,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             new_tokenizer.all_special_tokens_extended,
         )
 
-        self.assertDictEqual(
-            tokenizer.special_tokens_map, new_tokenizer.special_tokens_map
-        )
+        self.assertDictEqual(tokenizer.special_tokens_map, new_tokenizer.special_tokens_map)
 
     def test_training_new_tokenizer_with_special_tokens_change(self):
         # This feature only exists for fast tokenizers
@@ -269,9 +227,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         class_signature = inspect.signature(tokenizer.__class__)
         if "cls_token" in class_signature.parameters:
             new_tokenizer = tokenizer.train_new_from_iterator(
-                SMALL_TRAINING_CORPUS,
-                100,
-                special_tokens_map={tokenizer.cls_token: "<cls>"},
+                SMALL_TRAINING_CORPUS, 100, special_tokens_map={tokenizer.cls_token: "<cls>"}
             )
             cls_id = new_tokenizer.get_vocab()["<cls>"]
             self.assertEqual(new_tokenizer.cls_token, "<cls>")
@@ -307,10 +263,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         # Check if the AddedToken / string format has been kept
         for special_token in tokenizer.all_special_tokens_extended:
-            if (
-                isinstance(special_token, AddedToken)
-                and special_token.content not in special_tokens_map
-            ):
+            if isinstance(special_token, AddedToken) and special_token.content not in special_tokens_map:
                 # The special token must appear identically in the list of the new tokenizer.
                 self.assertTrue(
                     special_token in new_tokenizer.all_special_tokens_extended,
@@ -338,7 +291,7 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 self.assertTrue(
                     find,
                     f"'{special_token.__repr__()}' should appear as an `AddedToken` in the all_special_tokens_extended = "
-                    f"{[k for k in new_tokenizer.all_special_tokens_extended if str(k)==new_special_token_str]} but it is missing"
+                    f"{[k for k in new_tokenizer.all_special_tokens_extended if str(k) == new_special_token_str]} but it is missing"
                     ", this means that the new tokenizers did not keep the `rstrip`, `lstrip`, `normalized` etc attributes.",
                 )
             elif special_token not in special_tokens_map:
@@ -350,19 +303,12 @@ class MoshiTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
             else:
                 # The special token must appear in the list of the new tokenizer as an object of type string.
-                self.assertTrue(
-                    special_tokens_map[special_token]
-                    in new_tokenizer.all_special_tokens_extended
-                )
+                self.assertTrue(special_tokens_map[special_token] in new_tokenizer.all_special_tokens_extended)
 
         # Test we can use the new tokenizer with something not seen during training
-        inputs = new_tokenizer(
-            ["This is the first sentence", "This sentence is different 🤗."]
-        )
+        inputs = new_tokenizer(["This is the first sentence", "This sentence is different 🤗."])
         self.assertEqual(len(inputs["input_ids"]), 2)
-        decoded_input = new_tokenizer.decode(
-            inputs["input_ids"][0], skip_special_tokens=True
-        )
+        decoded_input = new_tokenizer.decode(inputs["input_ids"][0], skip_special_tokens=True)
         expected_result = "This is the first sentence"
 
         self.assertEqual(expected_result, decoded_input)
@@ -389,10 +335,7 @@ class MoshiIntegrationTest(unittest.TestCase):
     @require_torch
     def integration_tests(self):
         inputs = self.tokenizer(
-            [
-                "The following string should be properly encoded: Hello.",
-                "But ird and ปี   ird   ด",
-            ],
+            ["The following string should be properly encoded: Hello.", "But ird and ปี   ird   ด"],
             return_tensors="pt",
         )
 
@@ -428,10 +371,9 @@ class MoshiIntegrationTest(unittest.TestCase):
         rust_tokenizer = self.rust_tokenizer
 
         self.assertEqual(rust_tokenizer.encode("This is a test"), [353, 275, 272, 694])
-        self.assertEqual(
-            rust_tokenizer.decode([353, 275, 272, 694], skip_special_tokens=True),
-            "This is a test",
-        )
+        self.assertEqual(rust_tokenizer.decode([353, 275, 272, 694], skip_special_tokens=True), "This is a test")
+
+        # bytefallback showcase
         bytefallback_tokens = [260, 235, 152, 163, 234, 184, 191, 13340, 235, 160, 163, 236, 180, 159, 234, 156, 179]  # fmt: skip
         self.assertEqual(rust_tokenizer.encode("生活的真谛是"), bytefallback_tokens)
         self.assertEqual(
@@ -441,16 +383,10 @@ class MoshiIntegrationTest(unittest.TestCase):
 
         # Inner spaces showcase
         self.assertEqual(rust_tokenizer.encode("Hi  Hello"), [2769, 260, 11725])
-        self.assertEqual(
-            rust_tokenizer.decode([2769, 260, 11725], skip_special_tokens=True),
-            "Hi  Hello",
-        )
+        self.assertEqual(rust_tokenizer.decode([2769, 260, 11725], skip_special_tokens=True), "Hi  Hello")
 
         self.assertEqual(rust_tokenizer.encode("Hi   Hello"), [2769, 260, 260, 11725])
-        self.assertEqual(
-            rust_tokenizer.decode([2769, 260, 260, 11725], skip_special_tokens=True),
-            "Hi   Hello",
-        )
+        self.assertEqual(rust_tokenizer.decode([2769, 260, 260, 11725], skip_special_tokens=True), "Hi   Hello")
 
         # TODO: @ArthurZucker
         # self.assertEqual(rust_tokenizer.encode(""), [])
@@ -494,24 +430,11 @@ class CommonSpmIntegrationTests(unittest.TestCase):
 
         text = fast_tokenizer.decode(EXPECTED_IDS)
         with self.subTest("test fast edge case fast"):
-            self.assertEqual(
-                text, "Hey<eos>. \t\t \n\nyou  é  @#😈  🤗!       , 1234 15 5,61"
-            )
+            self.assertEqual(text, "Hey<eos>. \t\t \n\nyou  é  @#😈  🤗!       , 1234 15 5,61")
 
         input_text = "\t\t\t\t \n\n61"
         EXPECTED_IDS = [260, 13, 13, 13, 13, 260, 14, 14, 285, 265]
-        EXPECTED_TOKENS = [
-            "▁",
-            "<0x09>",
-            "<0x09>",
-            "<0x09>",
-            "<0x09>",
-            "▁",
-            "<0x0A>",
-            "<0x0A>",
-            "6",
-            "1",
-        ]
+        EXPECTED_TOKENS = ["▁", "<0x09>", "<0x09>", "<0x09>", "<0x09>", "▁", "<0x0A>", "<0x0A>", "6", "1"]
 
         tokens = fast_tokenizer.tokenize(input_text)
         with self.subTest("test fast edge case fast"):

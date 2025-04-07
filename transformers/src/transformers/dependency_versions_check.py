@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Local
 from .dependency_versions_table import deps
 from .utils.versions import require_version, require_version_core
+
 
 # define which module versions we always want to check at run time
 # (usually the ones defined in `install_requires` in setup.py)
@@ -41,14 +41,12 @@ for pkg in pkgs_to_check_at_runtime:
     if pkg in deps:
         if pkg == "tokenizers":
             # must be loaded here, or else tqdm check may fail
-            # Local
             from .utils import is_tokenizers_available
 
             if not is_tokenizers_available():
                 continue  # not required, check version only if installed
         elif pkg == "accelerate":
             # must be loaded here, or else tqdm check may fail
-            # Local
             from .utils import is_accelerate_available
 
             # Maybe switch to is_torch_available in the future here so that Accelerate is hard dep of
@@ -58,9 +56,7 @@ for pkg in pkgs_to_check_at_runtime:
 
         require_version_core(deps[pkg])
     else:
-        raise ValueError(
-            f"can't find {pkg} in {deps.keys()}, check dependency_versions_table.py"
-        )
+        raise ValueError(f"can't find {pkg} in {deps.keys()}, check dependency_versions_table.py")
 
 
 def dep_version_check(pkg, hint=None):

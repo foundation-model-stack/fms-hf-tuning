@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +13,7 @@
 # limitations under the License.
 """Utilities to dynamically load objects from the Hub."""
 
-# Standard
-from pathlib import Path
-from types import ModuleType
-from typing import Any, Dict, List, Optional, Union
+import ast
 import filecmp
 import hashlib
 import importlib
@@ -28,13 +24,13 @@ import shutil
 import signal
 import sys
 import threading
-import typing
 import warnings
+from pathlib import Path
+from types import ModuleType
+from typing import Any, Optional, Union
 
-# Third Party
 from huggingface_hub import try_to_load_from_cache
 
-# Local
 from .utils import (
     HF_MODULES_CACHE,
     TRANSFORMERS_DYNAMIC_MODULE_NAME,
@@ -43,6 +39,7 @@ from .utils import (
     is_offline_mode,
     logging,
 )
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 _HF_REMOTE_CODE_LOCK = threading.Lock()
@@ -86,7 +83,7 @@ def create_dynamic_module(name: Union[str, os.PathLike]) -> None:
         importlib.invalidate_caches()
 
 
-def get_relative_imports(module_file: Union[str, os.PathLike]) -> List[str]:
+def get_relative_imports(module_file: Union[str, os.PathLike]) -> list[str]:
     """
     Get the list of modules that are relatively imported in a module file.
 
@@ -94,24 +91,20 @@ def get_relative_imports(module_file: Union[str, os.PathLike]) -> List[str]:
         module_file (`str` or `os.PathLike`): The module file to inspect.
 
     Returns:
-        `List[str]`: The list of relative imports in the module.
+        `list[str]`: The list of relative imports in the module.
     """
-    with open(module_file, "r", encoding="utf-8") as f:
+    with open(module_file, encoding="utf-8") as f:
         content = f.read()
 
     # Imports of the form `import .xxx`
-    relative_imports = re.findall(
-        r"^\s*import\s+\.(\S+)\s*$", content, flags=re.MULTILINE
-    )
+    relative_imports = re.findall(r"^\s*import\s+\.(\S+)\s*$", content, flags=re.MULTILINE)
     # Imports of the form `from .xxx import yyy`
-    relative_imports += re.findall(
-        r"^\s*from\s+\.(\S+)\s+import", content, flags=re.MULTILINE
-    )
+    relative_imports += re.findall(r"^\s*from\s+\.(\S+)\s+import", content, flags=re.MULTILINE)
     # Unique-ify
     return list(set(relative_imports))
 
 
-def get_relative_import_files(module_file: Union[str, os.PathLike]) -> List[str]:
+def get_relative_import_files(module_file: Union[str, os.PathLike]) -> list[str]:
     """
     Get the list of all files that are needed for a given module. Note that this function recurses through the relative
     imports (if a imports b and b imports c, it will return module files for b and c).
@@ -120,7 +113,7 @@ def get_relative_import_files(module_file: Union[str, os.PathLike]) -> List[str]
         module_file (`str` or `os.PathLike`): The module file to inspect.
 
     Returns:
-        `List[str]`: The list of all relative imports a given module needs (recursively), which will give us the list
+        `list[str]`: The list of all relative imports a given module needs (recursively), which will give us the list
         of module files a given module needs.
     """
     no_change = False
@@ -135,9 +128,7 @@ def get_relative_import_files(module_file: Union[str, os.PathLike]) -> List[str]
 
         module_path = Path(module_file).parent
         new_import_files = [str(module_path / m) for m in new_imports]
-        new_import_files = [
-            f for f in new_import_files if f not in all_relative_imports
-        ]
+        new_import_files = [f for f in new_import_files if f not in all_relative_imports]
         files_to_check = [f"{f}.py" for f in new_import_files]
 
         no_change = len(new_import_files) == 0
@@ -146,7 +137,7 @@ def get_relative_import_files(module_file: Union[str, os.PathLike]) -> List[str]
     return all_relative_imports
 
 
-def get_imports(filename: Union[str, os.PathLike]) -> List[str]:
+def get_imports(filename: Union[str, os.PathLike]) -> list[str]:
     """
     Extracts all the libraries (not relative imports this time) that are imported in a file.
 
@@ -154,32 +145,47 @@ def get_imports(filename: Union[str, os.PathLike]) -> List[str]:
         filename (`str` or `os.PathLike`): The module file to inspect.
 
     Returns:
-        `List[str]`: The list of all packages required to use the input module.
+        `list[str]`: The list of all packages required to use the input module.
     """
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         content = f.read()
+    imported_modules = set()
 
-    # filter out try/except block so in custom code we can have try/except imports
-    content = re.sub(r"\s*try\s*:.*?except.*?:", "", content, flags=re.DOTALL)
+    def recursive_look_for_imports(node):
+        if isinstance(node, ast.Try):
+            return  #  Don't recurse into Try blocks and ignore imports in them
+        elif isinstance(node, ast.If):
+            test = node.test
+            for condition_node in ast.walk(test):
+                if isinstance(condition_node, ast.Call) and getattr(condition_node.func, "id", "").startswith(
+                    "is_flash_attn"
+                ):
+                    # Don't recurse into "if flash_attn_available()" blocks and ignore imports in them
+                    return
+        elif isinstance(node, ast.Import):
+            # Handle 'import x' statements
+            for alias in node.names:
+                top_module = alias.name.split(".")[0]
+                if top_module:
+                    imported_modules.add(top_module)
+        elif isinstance(node, ast.ImportFrom):
+            # Handle 'from x import y' statements, ignoring relative imports
+            if node.level == 0 and node.module:
+                top_module = node.module.split(".")[0]
+                if top_module:
+                    imported_modules.add(top_module)
 
-    # filter out imports under is_flash_attn_2_available block for avoid import issues in cpu only environment
-    content = re.sub(
-        r"if is_flash_attn[a-zA-Z0-9_]+available\(\):\s*(from flash_attn\s*.*\s*)+",
-        "",
-        content,
-        flags=re.MULTILINE,
-    )
+        # Recursively visit all children
+        for child in ast.iter_child_nodes(node):
+            recursive_look_for_imports(child)
 
-    # Imports of the form `import xxx`
-    imports = re.findall(r"^\s*import\s+(\S+)\s*$", content, flags=re.MULTILINE)
-    # Imports of the form `from xxx import yyy`
-    imports += re.findall(r"^\s*from\s+(\S+)\s+import", content, flags=re.MULTILINE)
-    # Only keep the top-level module
-    imports = [imp.split(".")[0] for imp in imports if not imp.startswith(".")]
-    return list(set(imports))
+    tree = ast.parse(content)
+    recursive_look_for_imports(tree)
+
+    return sorted(imported_modules)
 
 
-def check_imports(filename: Union[str, os.PathLike]) -> List[str]:
+def check_imports(filename: Union[str, os.PathLike]) -> list[str]:
     """
     Check if the current Python environment contains all the libraries that are imported in a file. Will raise if a
     library is missing.
@@ -188,7 +194,7 @@ def check_imports(filename: Union[str, os.PathLike]) -> List[str]:
         filename (`str` or `os.PathLike`): The module file to check.
 
     Returns:
-        `List[str]`: The list of relative imports in the file.
+        `list[str]`: The list of relative imports in the file.
     """
     imports = get_imports(filename)
     missing_packages = []
@@ -219,7 +225,7 @@ def get_class_in_module(
     module_path: Union[str, os.PathLike],
     *,
     force_reload: bool = False,
-) -> typing.Type:
+) -> type:
     """
     Import a module on the cache directory for modules and extract a class from it.
 
@@ -246,12 +252,8 @@ def get_class_in_module(
         module_spec = importlib.util.spec_from_file_location(name, location=module_file)
 
         # Hash the module file and all its relative imports to check if we need to reload it
-        module_files: List[Path] = [module_file] + sorted(
-            map(Path, get_relative_import_files(module_file))
-        )
-        module_hash: str = hashlib.sha256(
-            b"".join(bytes(f) + f.read_bytes() for f in module_files)
-        ).hexdigest()
+        module_files: list[Path] = [module_file] + sorted(map(Path, get_relative_import_files(module_file)))
+        module_hash: str = hashlib.sha256(b"".join(bytes(f) + f.read_bytes() for f in module_files)).hexdigest()
 
         module: ModuleType
         if cached_module is None:
@@ -273,7 +275,7 @@ def get_cached_module_file(
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     force_download: bool = False,
     resume_download: Optional[bool] = None,
-    proxies: Optional[Dict[str, str]] = None,
+    proxies: Optional[dict[str, str]] = None,
     token: Optional[Union[bool, str]] = None,
     revision: Optional[str] = None,
     local_files_only: bool = False,
@@ -336,9 +338,7 @@ def get_cached_module_file(
             FutureWarning,
         )
         if token is not None:
-            raise ValueError(
-                "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
-            )
+            raise ValueError("`token` and `use_auth_token` are both specified. Please set only the argument `token`.")
         token = use_auth_token
 
     if is_offline_mode() and not local_files_only:
@@ -353,11 +353,7 @@ def get_cached_module_file(
     else:
         submodule = pretrained_model_name_or_path.replace("/", os.path.sep)
         cached_module = try_to_load_from_cache(
-            pretrained_model_name_or_path,
-            module_file,
-            cache_dir=cache_dir,
-            revision=_commit_hash,
-            repo_type=repo_type,
+            pretrained_model_name_or_path, module_file, cache_dir=cache_dir, revision=_commit_hash, repo_type=repo_type
         )
 
     new_files = []
@@ -379,10 +375,8 @@ def get_cached_module_file(
         if not is_local and cached_module != resolved_module_file:
             new_files.append(module_file)
 
-    except EnvironmentError:
-        logger.error(
-            f"Could not locate the {module_file} inside {pretrained_model_name_or_path}."
-        )
+    except OSError:
+        logger.error(f"Could not locate the {module_file} inside {pretrained_model_name_or_path}.")
         raise
 
     # Check we have all the requirements in our environment
@@ -402,9 +396,7 @@ def get_cached_module_file(
             importlib.invalidate_caches()
         for module_needed in modules_needed:
             module_needed = f"{module_needed}.py"
-            module_needed_file = os.path.join(
-                pretrained_model_name_or_path, module_needed
-            )
+            module_needed_file = os.path.join(pretrained_model_name_or_path, module_needed)
             if not (submodule_path / module_needed).exists() or not filecmp.cmp(
                 module_needed_file, str(submodule_path / module_needed)
             ):
@@ -459,14 +451,14 @@ def get_class_from_dynamic_module(
     cache_dir: Optional[Union[str, os.PathLike]] = None,
     force_download: bool = False,
     resume_download: Optional[bool] = None,
-    proxies: Optional[Dict[str, str]] = None,
+    proxies: Optional[dict[str, str]] = None,
     token: Optional[Union[bool, str]] = None,
     revision: Optional[str] = None,
     local_files_only: bool = False,
     repo_type: Optional[str] = None,
     code_revision: Optional[str] = None,
     **kwargs,
-) -> typing.Type:
+) -> type:
     """
     Extracts a class from a module file, present in the local folder or repository of a model.
 
@@ -550,9 +542,7 @@ def get_class_from_dynamic_module(
             FutureWarning,
         )
         if token is not None:
-            raise ValueError(
-                "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
-            )
+            raise ValueError("`token` and `use_auth_token` are both specified. Please set only the argument `token`.")
         token = use_auth_token
 
     # Catch the name of the repo if it's specified in `class_reference`
@@ -580,9 +570,7 @@ def get_class_from_dynamic_module(
     return get_class_in_module(class_name, final_module, force_reload=force_download)
 
 
-def custom_object_save(
-    obj: Any, folder: Union[str, os.PathLike], config: Optional[Dict] = None
-) -> List[str]:
+def custom_object_save(obj: Any, folder: Union[str, os.PathLike], config: Optional[dict] = None) -> list[str]:
     """
     Save the modeling files corresponding to a custom model/configuration/tokenizer etc. in a given folder. Optionally
     adds the proper fields in a config.
@@ -619,9 +607,7 @@ def custom_object_save(
                     slow_tokenizer = getattr(obj, "slow_tokenizer_class")
                     slow_tok_module_name = slow_tokenizer.__module__
                     last_slow_tok_module = slow_tok_module_name.split(".")[-1]
-                    slow_tokenizer_class = (
-                        f"{last_slow_tok_module}.{slow_tokenizer.__name__}"
-                    )
+                    slow_tokenizer_class = f"{last_slow_tok_module}.{slow_tokenizer.__name__}"
             else:
                 # Slow tokenizer: no way to have the fast class
                 slow_tokenizer_class = f"{last_module}.{obj.__class__.__name__}"
@@ -670,9 +656,7 @@ def _raise_timeout_error(signum, frame):
 TIME_OUT_REMOTE_CODE = 15
 
 
-def resolve_trust_remote_code(
-    trust_remote_code, model_name, has_local_code, has_remote_code
-):
+def resolve_trust_remote_code(trust_remote_code, model_name, has_local_code, has_remote_code):
     if trust_remote_code is None:
         if has_local_code:
             trust_remote_code = False

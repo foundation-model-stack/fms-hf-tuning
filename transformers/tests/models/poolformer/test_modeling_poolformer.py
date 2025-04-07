@@ -14,37 +14,26 @@
 # limitations under the License.
 """Testing suite for the PyTorch PoolFormer model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers import is_torch_available, is_vision_available
 from transformers.models.auto import get_values
 from transformers.testing_utils import require_torch, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
-    from transformers import (
-        MODEL_MAPPING,
-        PoolFormerConfig,
-        PoolFormerForImageClassification,
-        PoolFormerModel,
-    )
+    from transformers import MODEL_MAPPING, PoolFormerConfig, PoolFormerForImageClassification, PoolFormerModel
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import PoolFormerImageProcessor
 
 
@@ -93,15 +82,11 @@ class PoolFormerModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
-            labels = ids_tensor(
-                [self.batch_size, self.image_size, self.image_size], self.num_labels
-            )
+            labels = ids_tensor([self.batch_size, self.image_size, self.image_size], self.num_labels)
 
         config = PoolFormerConfig(
             image_size=self.image_size,
@@ -123,8 +108,7 @@ class PoolFormerModelTester:
         result = model(pixel_values)
         expected_height = expected_width = self.image_size // 32.0
         self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.hidden_sizes[-1], expected_height, expected_width),
+            result.last_hidden_state.shape, (self.batch_size, self.hidden_sizes[-1], expected_height, expected_width)
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -136,16 +120,9 @@ class PoolFormerModelTester:
 
 @require_torch
 class PoolFormerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
-    all_model_classes = (
-        (PoolFormerModel, PoolFormerForImageClassification)
-        if is_torch_available()
-        else ()
-    )
+    all_model_classes = (PoolFormerModel, PoolFormerForImageClassification) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {
-            "image-feature-extraction": PoolFormerModel,
-            "image-classification": PoolFormerForImageClassification,
-        }
+        {"image-feature-extraction": PoolFormerModel, "image-classification": PoolFormerForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -172,9 +149,7 @@ class PoolFormerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
     def test_inputs_embeds(self):
         pass
 
-    @unittest.skip(
-        reason="PoolFormer does not have get_input_embeddings method and get_output_embeddings methods"
-    )
+    @unittest.skip(reason="PoolFormer does not have get_input_embeddings method and get_output_embeddings methods")
     def test_model_get_set_embeddings(self):
         pass
 
@@ -227,9 +202,7 @@ class PoolFormerModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             model = model_class(config)
             model.to(torch_device)
             model.train()
-            inputs = self._prepare_for_class(
-                inputs_dict, model_class, return_labels=True
-            )
+            inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
             loss = model(**inputs).loss
             loss.backward()
 
@@ -251,13 +224,9 @@ class PoolFormerModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification_head(self):
         image_processor = PoolFormerImageProcessor()
-        model = PoolFormerForImageClassification.from_pretrained(
-            "sail/poolformer_s12"
-        ).to(torch_device)
+        model = PoolFormerForImageClassification.from_pretrained("sail/poolformer_s12").to(torch_device)
 
-        inputs = image_processor(images=prepare_img(), return_tensors="pt").to(
-            torch_device
-        )
+        inputs = image_processor(images=prepare_img(), return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():
@@ -268,6 +237,4 @@ class PoolFormerModelIntegrationTest(unittest.TestCase):
         self.assertEqual(outputs.logits.shape, expected_shape)
 
         expected_slice = torch.tensor([-0.6113, 0.1685, -0.0492]).to(torch_device)
-        torch.testing.assert_close(
-            outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4)

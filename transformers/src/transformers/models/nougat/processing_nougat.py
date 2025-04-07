@@ -16,17 +16,10 @@
 Processor class for Nougat.
 """
 
-# Standard
 from typing import Dict, List, Optional, Union
 
-# First Party
-from transformers.tokenization_utils_base import (
-    PreTokenizedInput,
-    TextInput,
-    TruncationStrategy,
-)
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput, TruncationStrategy
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...utils import PaddingStrategy, TensorType
 
@@ -57,34 +50,24 @@ class NougatProcessor(ProcessorMixin):
         self,
         images=None,
         text=None,
-        do_crop_margin: bool = None,
-        do_resize: bool = None,
+        do_crop_margin: Optional[bool] = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: "PILImageResampling" = None,  # noqa: F821
-        do_thumbnail: bool = None,
-        do_align_long_axis: bool = None,
-        do_pad: bool = None,
-        do_rescale: bool = None,
+        do_thumbnail: Optional[bool] = None,
+        do_align_long_axis: Optional[bool] = None,
+        do_pad: Optional[bool] = None,
+        do_rescale: Optional[bool] = None,
         rescale_factor: Union[int, float] = None,
-        do_normalize: bool = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
         data_format: Optional["ChannelDimension"] = "channels_first",  # noqa: F821
-        input_data_format: Optional[
-            Union[str, "ChannelDimension"]
-        ] = None,  # noqa: F821
-        text_pair: Optional[
-            Union[
-                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-            ]
-        ] = None,
-        text_target: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        input_data_format: Optional[Union[str, "ChannelDimension"]] = None,  # noqa: F821
+        text_pair: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]] = None,
+        text_target: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         text_pair_target: Optional[
-            Union[
-                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-            ]
+            Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]
         ] = None,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
@@ -103,9 +86,7 @@ class NougatProcessor(ProcessorMixin):
         verbose: bool = True,
     ):
         if images is None and text is None:
-            raise ValueError(
-                "You need to specify either an `images` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `images` or `text` input to process.")
 
         if images is not None:
             inputs = self.image_processor(

@@ -14,16 +14,13 @@
 # limitations under the License.
 """PyTorch ConvNext model."""
 
-# Standard
 from typing import Optional, Tuple, Union
 
-# Third Party
-from torch import nn
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 import torch
 import torch.utils.checkpoint
+from torch import nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-# Local
 from ...activations import ACT2FN
 from ...modeling_outputs import (
     BackboneOutput,
@@ -42,6 +39,7 @@ from ...utils import (
 from ...utils.backbone_utils import BackboneMixin
 from .configuration_convnext import ConvNextConfig
 
+
 logger = logging.get_logger(__name__)
 
 # General docstring
@@ -57,9 +55,7 @@ _IMAGE_CLASS_EXPECTED_OUTPUT = "tabby, tabby cat"
 
 
 # Copied from transformers.models.beit.modeling_beit.drop_path
-def drop_path(
-    input: torch.Tensor, drop_prob: float = 0.0, training: bool = False
-) -> torch.Tensor:
+def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -72,12 +68,8 @@ def drop_path(
     if drop_prob == 0.0 or not training:
         return input
     keep_prob = 1 - drop_prob
-    shape = (input.shape[0],) + (1,) * (
-        input.ndim - 1
-    )  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + torch.rand(
-        shape, dtype=input.dtype, device=input.device
-    )
+    shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
+    random_tensor = keep_prob + torch.rand(shape, dtype=input.dtype, device=input.device)
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -116,9 +108,7 @@ class ConvNextLayerNorm(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.data_format == "channels_last":
-            x = torch.nn.functional.layer_norm(
-                x, self.normalized_shape, self.weight, self.bias, self.eps
-            )
+            x = torch.nn.functional.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
         elif self.data_format == "channels_first":
             input_dtype = x.dtype
             x = x.float()
@@ -138,14 +128,9 @@ class ConvNextEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.patch_embeddings = nn.Conv2d(
-            config.num_channels,
-            config.hidden_sizes[0],
-            kernel_size=config.patch_size,
-            stride=config.patch_size,
+            config.num_channels, config.hidden_sizes[0], kernel_size=config.patch_size, stride=config.patch_size
         )
-        self.layernorm = ConvNextLayerNorm(
-            config.hidden_sizes[0], eps=1e-6, data_format="channels_first"
-        )
+        self.layernorm = ConvNextLayerNorm(config.hidden_sizes[0], eps=1e-6, data_format="channels_first")
         self.num_channels = config.num_channels
 
     def forward(self, pixel_values: torch.FloatTensor) -> torch.Tensor:
@@ -175,25 +160,17 @@ class ConvNextLayer(nn.Module):
 
     def __init__(self, config, dim, drop_path=0):
         super().__init__()
-        self.dwconv = nn.Conv2d(
-            dim, dim, kernel_size=7, padding=3, groups=dim
-        )  # depthwise conv
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)  # depthwise conv
         self.layernorm = ConvNextLayerNorm(dim, eps=1e-6)
-        self.pwconv1 = nn.Linear(
-            dim, 4 * dim
-        )  # pointwise/1x1 convs, implemented with linear layers
+        self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
         self.act = ACT2FN[config.hidden_act]
         self.pwconv2 = nn.Linear(4 * dim, dim)
         self.layer_scale_parameter = (
-            nn.Parameter(
-                config.layer_scale_init_value * torch.ones((dim)), requires_grad=True
-            )
+            nn.Parameter(config.layer_scale_init_value * torch.ones((dim)), requires_grad=True)
             if config.layer_scale_init_value > 0
             else None
         )
-        self.drop_path = (
-            ConvNextDropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = ConvNextDropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, hidden_states: torch.FloatTensor) -> torch.Tensor:
         input = hidden_states
@@ -222,33 +199,19 @@ class ConvNextStage(nn.Module):
         drop_path_rates(`List[float]`): Stochastic depth rates for each layer.
     """
 
-    def __init__(
-        self,
-        config,
-        in_channels,
-        out_channels,
-        kernel_size=2,
-        stride=2,
-        depth=2,
-        drop_path_rates=None,
-    ):
+    def __init__(self, config, in_channels, out_channels, kernel_size=2, stride=2, depth=2, drop_path_rates=None):
         super().__init__()
 
         if in_channels != out_channels or stride > 1:
             self.downsampling_layer = nn.Sequential(
                 ConvNextLayerNorm(in_channels, eps=1e-6, data_format="channels_first"),
-                nn.Conv2d(
-                    in_channels, out_channels, kernel_size=kernel_size, stride=stride
-                ),
+                nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride),
             )
         else:
             self.downsampling_layer = nn.Identity()
         drop_path_rates = drop_path_rates or [0.0] * depth
         self.layers = nn.Sequential(
-            *[
-                ConvNextLayer(config, dim=out_channels, drop_path=drop_path_rates[j])
-                for j in range(depth)
-            ]
+            *[ConvNextLayer(config, dim=out_channels, drop_path=drop_path_rates[j]) for j in range(depth)]
         )
 
     def forward(self, hidden_states: torch.FloatTensor) -> torch.Tensor:
@@ -262,10 +225,7 @@ class ConvNextEncoder(nn.Module):
         super().__init__()
         self.stages = nn.ModuleList()
         drop_path_rates = [
-            x.tolist()
-            for x in torch.linspace(0, config.drop_path_rate, sum(config.depths)).split(
-                config.depths
-            )
+            x.tolist() for x in torch.linspace(0, config.drop_path_rate, sum(config.depths)).split(config.depths)
         ]
         prev_chs = config.hidden_sizes[0]
         for i in range(config.num_stages):
@@ -326,9 +286,12 @@ class ConvNextPreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 module.bias.data.zero_()
-        elif isinstance(module, nn.LayerNorm):
+        elif isinstance(module, (nn.LayerNorm, ConvNextLayerNorm)):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
+        elif isinstance(module, ConvNextLayer):
+            if module.layer_scale_parameter is not None:
+                module.layer_scale_parameter.data.fill_(self.config.layer_scale_init_value)
 
 
 CONVNEXT_START_DOCSTRING = r"""
@@ -369,9 +332,7 @@ class ConvNextModel(ConvNextPreTrainedModel):
         self.encoder = ConvNextEncoder(config)
 
         # final layernorm layer
-        self.layernorm = nn.LayerNorm(
-            config.hidden_sizes[-1], eps=config.layer_norm_eps
-        )
+        self.layernorm = nn.LayerNorm(config.hidden_sizes[-1], eps=config.layer_norm_eps)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -386,18 +347,14 @@ class ConvNextModel(ConvNextPreTrainedModel):
     )
     def forward(
         self,
-        pixel_values: torch.FloatTensor = None,
+        pixel_values: Optional[torch.FloatTensor] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutputWithPoolingAndNoAttention]:
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
@@ -441,9 +398,7 @@ class ConvNextForImageClassification(ConvNextPreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            nn.Linear(config.hidden_sizes[-1], config.num_labels)
-            if config.num_labels > 0
-            else nn.Identity()
+            nn.Linear(config.hidden_sizes[-1], config.num_labels) if config.num_labels > 0 else nn.Identity()
         )
 
         # Initialize weights and apply final processing
@@ -458,7 +413,7 @@ class ConvNextForImageClassification(ConvNextPreTrainedModel):
     )
     def forward(
         self,
-        pixel_values: torch.FloatTensor = None,
+        pixel_values: Optional[torch.FloatTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -469,15 +424,9 @@ class ConvNextForImageClassification(ConvNextPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.convnext(
-            pixel_values,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
+        outputs = self.convnext(pixel_values, output_hidden_states=output_hidden_states, return_dict=return_dict)
 
         pooled_output = outputs.pooler_output if return_dict else outputs[1]
 
@@ -488,9 +437,7 @@ class ConvNextForImageClassification(ConvNextPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -536,9 +483,7 @@ class ConvNextBackbone(ConvNextPreTrainedModel, BackboneMixin):
         # Add layer norms to hidden states of out_features
         hidden_states_norms = {}
         for stage, num_channels in zip(self._out_features, self.channels):
-            hidden_states_norms[stage] = ConvNextLayerNorm(
-                num_channels, data_format="channels_first"
-            )
+            hidden_states_norms[stage] = ConvNextLayerNorm(num_channels, data_format="channels_first")
         self.hidden_states_norms = nn.ModuleDict(hidden_states_norms)
 
         # initialize weights and apply final processing
@@ -572,13 +517,9 @@ class ConvNextBackbone(ConvNextPreTrainedModel, BackboneMixin):
         >>> inputs = processor(image, return_tensors="pt")
         >>> outputs = model(**inputs)
         ```"""
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
         embedding_output = self.embeddings(pixel_values)
@@ -610,9 +551,4 @@ class ConvNextBackbone(ConvNextPreTrainedModel, BackboneMixin):
         )
 
 
-__all__ = [
-    "ConvNextForImageClassification",
-    "ConvNextModel",
-    "ConvNextPreTrainedModel",
-    "ConvNextBackbone",
-]
+__all__ = ["ConvNextForImageClassification", "ConvNextModel", "ConvNextPreTrainedModel", "ConvNextBackbone"]

@@ -14,16 +14,15 @@
 # limitations under the License.
 
 
-# Standard
-from time import time
-from unittest.mock import patch
 import json
 import logging
 import os
 import sys
+from time import time
+from unittest.mock import patch
 
-# First Party
 from transformers.testing_utils import TestCasePlus, require_torch_xla
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -48,7 +47,6 @@ logger.addHandler(stream_handler)
 @require_torch_xla
 class TorchXLAExamplesTests(TestCasePlus):
     def test_run_glue(self):
-        # Third Party
         import xla_spawn
 
         tmp_dir = self.get_auto_remove_tmp_dir()
@@ -85,7 +83,6 @@ class TorchXLAExamplesTests(TestCasePlus):
             self.assertLess(end - start, 500)
 
     def test_trainer_tpu(self):
-        # Third Party
         import xla_spawn
 
         testargs = """

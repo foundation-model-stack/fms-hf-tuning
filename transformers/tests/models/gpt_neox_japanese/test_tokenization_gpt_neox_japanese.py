@@ -14,20 +14,18 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers.models.gpt_neox_japanese.tokenization_gpt_neox_japanese import (
     VOCAB_FILES_NAMES,
     GPTNeoXJapaneseTokenizer,
 )
 from transformers.testing_utils import require_tokenizers, slow
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 @require_tokenizers
@@ -37,8 +35,9 @@ class GPTNeoXJapaneseTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_rust_tokenizer = False
     from_pretrained_kwargs = {"do_clean_text": False, "add_prefix_space": False}
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         vocab_tokens = [
             "こん",
@@ -64,22 +63,23 @@ class GPTNeoXJapaneseTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             "<|startoftext|>",
             "<|endoftext|>",
         ]
-        emoji_tokens = {
-            "emoji": {"\ud83d\ude00": "<|emoji1|>"},
-            "emoji_inv": {"<|emoji1|>": "\ud83d\ude00"},
-        }  # 😀
-        self.special_tokens_map = {"unk_token": "<unk>"}
+        emoji_tokens = {"emoji": {"\ud83d\ude00": "<|emoji1|>"}, "emoji_inv": {"<|emoji1|>": "\ud83d\ude00"}}  # 😀
+        cls.special_tokens_map = {"unk_token": "<unk>"}
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.emoji_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["emoji_file"])
-        with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        cls.emoji_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["emoji_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as vocab_writer:
             vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
-        with open(self.emoji_file, "w") as emoji_writer:
+        with open(cls.emoji_file, "w") as emoji_writer:
             emoji_writer.write(json.dumps(emoji_tokens))
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return GPTNeoXJapaneseTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return GPTNeoXJapaneseTokenizer.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "こんにちは、世界。 \nこんばんは、㔺界。😀"
@@ -106,19 +106,7 @@ class GPTNeoXJapaneseTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         # Testing tokenization
         input_text = "こんにちは、世界。　こんばんは、㔺界。"
-        expected_token = [
-            "こん",
-            "にちは",
-            "、",
-            "世界",
-            "。",
-            "<SP>",
-            "こん",
-            "ばんは",
-            "、",
-            "㔺界",
-            "。",
-        ]
+        expected_token = ["こん", "にちは", "、", "世界", "。", "<SP>", "こん", "ばんは", "、", "㔺界", "。"]
         tokens = tokenizer.tokenize(input_text)
         self.assertListEqual(tokens, expected_token)
 

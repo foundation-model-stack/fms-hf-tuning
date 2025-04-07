@@ -13,25 +13,20 @@
 # limitations under the License.
 
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import _LazyModule
 from ...utils.import_utils import define_import_structure
 
+
 if TYPE_CHECKING:
-    # Local
     from .configuration_deformable_detr import *
     from .feature_extraction_deformable_detr import *
     from .image_processing_deformable_detr import *
     from .image_processing_deformable_detr_fast import *
     from .modeling_deformable_detr import *
 else:
-    # Standard
     import sys
 
     _file = globals()["__file__"]
-    sys.modules[__name__] = _LazyModule(
-        __name__, _file, define_import_structure(_file), module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, _file, define_import_structure(_file), module_spec=__spec__)

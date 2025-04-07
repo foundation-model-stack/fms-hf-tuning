@@ -1,10 +1,9 @@
-# Standard
 import argparse
 import os
 
-# Third Party
 import torch
 import torch.distributed as dist
+
 
 # Environment variables set by torch.distributed.launch
 LOCAL_RANK = int(os.environ["LOCAL_RANK"])
@@ -40,9 +39,7 @@ def init_processes(backend):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--local_rank",
-        type=int,
-        help="Local rank. Necessary for using the torch.distributed.launch utility.",
+        "--local_rank", type=int, help="Local rank. Necessary for using the torch.distributed.launch utility."
     )
     parser.add_argument("--backend", type=str, default="nccl", choices=["nccl", "gloo"])
     args = parser.parse_args()

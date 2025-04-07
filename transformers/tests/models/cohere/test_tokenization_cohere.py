@@ -13,19 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
+import copy
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import CohereTokenizerFast
-from transformers.testing_utils import (
-    require_jinja,
-    require_tokenizers,
-    require_torch_multi_gpu,
-)
+from transformers.testing_utils import require_jinja, require_tokenizers, require_torch_multi_gpu
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 @require_tokenizers
@@ -44,16 +39,21 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         "pad_token": "<PAD>",
     }
 
-    def setUp(self):
-        super().setUp()
-        tokenizer = CohereTokenizerFast.from_pretrained(
-            "hf-internal-testing/tiny-random-CohereForCausalLM"
-        )
-        tokenizer.save_pretrained(self.tmpdirname)
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        tokenizer = CohereTokenizerFast.from_pretrained("hf-internal-testing/tiny-random-CohereForCausalLM")
+        tokenizer.save_pretrained(cls.tmpdirname)
 
-    def get_rust_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return CohereTokenizerFast.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_rust_tokenizer(cls, pretrained_name=None, **kwargs):
+        _kwargs = copy.deepcopy(cls.special_tokens_map)
+        _kwargs.update(kwargs)
+        kwargs = _kwargs
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return CohereTokenizerFast.from_pretrained(pretrained_name, **kwargs)
 
     # This gives CPU OOM on a single-gpu runner (~60G RAM). On multi-gpu runner, it has ~180G RAM which is enough.
     @require_torch_multi_gpu
@@ -70,10 +70,7 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         """
         tokenizer = self.get_rust_tokenizer()
 
-        INPUT_SENTENCES = [
-            "The quick brown fox<|END_OF_TURN_TOKEN|>",
-            "jumps over the lazy dog<|END_OF_TURN_TOKEN|>",
-        ]
+        INPUT_SENTENCES = ["The quick brown fox<|END_OF_TURN_TOKEN|>", "jumps over the lazy dog<|END_OF_TURN_TOKEN|>"]
         TARGET_TOKENS = [
             [5, 60, 203, 746, 666, 980, 571, 222, 87, 96, 8],
             [5, 82, 332, 88, 91, 544, 206, 257, 930, 97, 239, 435, 8],
@@ -92,9 +89,7 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def test_padding(self, max_length=10):
         for tokenizer, pretrained_name, kwargs in self.tokenizers_list:
             with self.subTest(f"{tokenizer.__class__.__name__} ({pretrained_name})"):
-                tokenizer_r = self.rust_tokenizer_class.from_pretrained(
-                    pretrained_name, **kwargs
-                )
+                tokenizer_r = self.get_rust_tokenizer(pretrained_name, **kwargs)
                 # tokenizer_r.pad_token = None # Hotfixing padding = None
                 # Simple input
                 s = "This is a simple input"
@@ -117,22 +112,10 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                     self.fail("Cohere Tokenizer should be able to deal with padding")
 
                 tokenizer_r.pad_token = None  # Hotfixing padding = None
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, s, max_length=max_length, padding="max_length")
 
                 # Simple input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, s, max_length=max_length, padding="max_length")
 
                 # Simple input
                 self.assertRaises(
@@ -144,22 +127,10 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, p, max_length=max_length, padding="max_length")
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, p, max_length=max_length, padding="max_length")
 
                 # Pair input
                 self.assertRaises(
@@ -173,27 +144,20 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def test_pretrained_model_lists(self):
         # No `max_model_input_sizes` for Cohere model
         self.assertGreaterEqual(len(self.tokenizer_class.pretrained_vocab_files_map), 1)
-        self.assertGreaterEqual(
-            len(list(self.tokenizer_class.pretrained_vocab_files_map.values())[0]), 1
-        )
+        self.assertGreaterEqual(len(list(self.tokenizer_class.pretrained_vocab_files_map.values())[0]), 1)
 
     @require_jinja
     def test_tokenization_for_chat(self):
         tokenizer = self.get_rust_tokenizer()
         test_chats = [
-            [
-                {"role": "system", "content": "You are a helpful chatbot."},
-                {"role": "user", "content": "Hello!"},
-            ],
+            [{"role": "system", "content": "You are a helpful chatbot."}, {"role": "user", "content": "Hello!"}],
             [
                 {"role": "system", "content": "You are a helpful chatbot."},
                 {"role": "user", "content": "Hello!"},
                 {"role": "assistant", "content": "Nice to meet you."},
             ],
         ]
-        tokenized_chats = [
-            tokenizer.apply_chat_template(test_chat) for test_chat in test_chats
-        ]
+        tokenized_chats = [tokenizer.apply_chat_template(test_chat) for test_chat in test_chats]
         # fmt: off
         expected_tokens = [
             [5, 36, 99, 59, 60, 41, 58, 60, 71, 55, 46, 71, 60, 61, 58, 54, 71, 60, 55, 51, 45, 54, 99, 38, 36, 99, 59, 65, 59, 60, 45, 53, 71, 60, 55, 51, 45, 54, 99, 38, 65, 243, 394, 204, 336, 84, 88, 887, 374, 216, 74, 286, 22, 8, 36, 99, 59, 60, 41, 58, 60, 71, 55, 46, 71, 60, 61, 58, 54, 71, 60, 55, 51, 45, 54, 99, 38, 36, 99, 61, 59, 45, 58, 71, 60, 55, 51, 45, 54, 99, 38, 48, 420, 87, 9, 8],
@@ -212,20 +176,14 @@ class CohereTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def test_tokenization_for_tool_use(self):
         tokenizer = self.get_rust_tokenizer()
 
-        conversation = [
-            {"role": "user", "content": "Whats the biggest penguin in the world?"}
-        ]
+        conversation = [{"role": "user", "content": "Whats the biggest penguin in the world?"}]
 
         tools = [
             {
                 "name": "internet_search",
                 "description": "Returns a list of relevant document snippets for a textual query retrieved from the internet",
                 "parameter_definitions": {
-                    "query": {
-                        "description": "Query to search the internet with",
-                        "type": "str",
-                        "required": True,
-                    }
+                    "query": {"description": "Query to search the internet with", "type": "str", "required": True}
                 },
             },
             {
@@ -288,19 +246,11 @@ def directly_answer() -> List[Dict]:
     @require_jinja
     def test_tokenization_for_grounded_generation(self):
         tokenizer = self.get_rust_tokenizer()
-        conversation = [
-            {"role": "user", "content": "Whats the biggest penguin in the world?"}
-        ]
+        conversation = [{"role": "user", "content": "Whats the biggest penguin in the world?"}]
 
         documents = [
-            {
-                "title": "Tall penguins",
-                "text": "Emperor penguins are the tallest growing up to 122 cm in height.",
-            },
-            {
-                "title": "Penguin habitats",
-                "text": "Emperor penguins only live in Antarctica.",
-            },
+            {"title": "Tall penguins", "text": "Emperor penguins are the tallest growing up to 122 cm in height."},
+            {"title": "Penguin habitats", "text": "Emperor penguins only live in Antarctica."},
         ]
 
         grounded_generation_prompt = tokenizer.apply_grounded_generation_template(

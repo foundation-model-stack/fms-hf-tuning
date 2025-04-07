@@ -15,24 +15,17 @@
 """Convert Depth Anything checkpoints from the original repository. URL:
 https://github.com/LiheYoung/Depth-Anything"""
 
-# Standard
-from pathlib import Path
 import argparse
+from pathlib import Path
 
-# Third Party
-from huggingface_hub import hf_hub_download
-from PIL import Image
 import requests
 import torch
+from huggingface_hub import hf_hub_download
+from PIL import Image
 
-# First Party
-from transformers import (
-    DepthAnythingConfig,
-    DepthAnythingForDepthEstimation,
-    Dinov2Config,
-    DPTImageProcessor,
-)
+from transformers import DepthAnythingConfig, DepthAnythingForDepthEstimation, Dinov2Config, DPTImageProcessor
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

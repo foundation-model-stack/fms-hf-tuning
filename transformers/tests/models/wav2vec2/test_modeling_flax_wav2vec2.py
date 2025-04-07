@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import inspect
 import math
 import multiprocessing
 import traceback
 import unittest
 
-# Third Party
-from datasets import load_dataset
 import numpy as np
+from datasets import load_dataset
 
-# First Party
 from transformers import Wav2Vec2Config, is_flax_available
 from transformers.testing_utils import (
     CaptureLogger,
@@ -37,21 +34,15 @@ from transformers.testing_utils import (
     slow,
 )
 
-# Local
-from ...test_modeling_flax_common import (
-    FlaxModelTesterMixin,
-    floats_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_flax_common import FlaxModelTesterMixin, floats_tensor, random_attention_mask
+
 
 if is_flax_available():
-    # Third Party
-    from flax.traverse_util import flatten_dict
     import jax
     import jax.numpy as jnp
     import optax
+    from flax.traverse_util import flatten_dict
 
-    # First Party
     from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Processor
     from transformers.models.wav2vec2.modeling_flax_wav2vec2 import (
         FlaxWav2Vec2ForCTC,
@@ -64,16 +55,13 @@ if is_flax_available():
 
 
 if is_pyctcdecode_available():
-    # Third Party
     import pyctcdecode.decoder
 
-    # First Party
     from transformers import Wav2Vec2ProcessorWithLM
     from transformers.models.wav2vec2_with_lm import processing_wav2vec2_with_lm
 
 
 if is_librosa_available():
-    # Third Party
     import librosa
 
 
@@ -82,38 +70,24 @@ def _test_wav2vec2_with_lm_invalid_pool(in_queue, out_queue, timeout):
     try:
         _ = in_queue.get(timeout=timeout)
 
-        ds = load_dataset(
-            "legacy-datasets/common_voice",
-            "es",
-            split="test",
-            streaming=True,
-            trust_remote_code=True,
-        )
+        ds = load_dataset("legacy-datasets/common_voice", "es", split="test", streaming=True, trust_remote_code=True)
         sample = next(iter(ds))
 
         resampled_audio = librosa.resample(sample["audio"]["array"], 48_000, 16_000)
 
-        model = FlaxWav2Vec2ForCTC.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
-        processor = Wav2Vec2ProcessorWithLM.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
+        model = FlaxWav2Vec2ForCTC.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
+        processor = Wav2Vec2ProcessorWithLM.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
 
         input_values = processor(resampled_audio, return_tensors="np").input_values
 
         logits = model(input_values).logits
 
         # use a spawn pool, which should trigger a warning if different than fork
-        with CaptureLogger(
-            pyctcdecode.decoder.logger
-        ) as cl, multiprocessing.get_context("spawn").Pool(1) as pool:
+        with CaptureLogger(pyctcdecode.decoder.logger) as cl, multiprocessing.get_context("spawn").Pool(1) as pool:
             transcription = processor.batch_decode(np.array(logits), pool).text
 
         unittest.TestCase().assertIn("Falling back to sequential decoding.", cl.out)
-        unittest.TestCase().assertEqual(
-            transcription[0], "bien y qué regalo vas a abrir primero"
-        )
+        unittest.TestCase().assertEqual(transcription[0], "bien y qué regalo vas a abrir primero")
 
         # force batch_decode to internally create a spawn pool, which should trigger a warning if different than fork
         multiprocessing.set_start_method("spawn", force=True)
@@ -121,9 +95,7 @@ def _test_wav2vec2_with_lm_invalid_pool(in_queue, out_queue, timeout):
             transcription = processor.batch_decode(np.array(logits)).text
 
         unittest.TestCase().assertIn("Falling back to sequential decoding.", cl.out)
-        unittest.TestCase().assertEqual(
-            transcription[0], "bien y qué regalo vas a abrir primero"
-        )
+        unittest.TestCase().assertEqual(transcription[0], "bien y qué regalo vas a abrir primero")
     except Exception:
         error = f"{traceback.format_exc()}"
 
@@ -229,9 +201,7 @@ class FlaxWav2Vec2ModelTester:
 @require_flax
 class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
     all_model_classes = (
-        (FlaxWav2Vec2Model, FlaxWav2Vec2ForCTC, FlaxWav2Vec2ForPreTraining)
-        if is_flax_available()
-        else ()
+        (FlaxWav2Vec2Model, FlaxWav2Vec2ForCTC, FlaxWav2Vec2ForPreTraining) if is_flax_available() else ()
     )
 
     def setUp(self):
@@ -254,9 +224,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
         mask_prob = 0.5
         mask_length = 4
-        mask_time_indices = _compute_mask_indices(
-            (batch_size, sequence_length), mask_prob, mask_length
-        )
+        mask_time_indices = _compute_mask_indices((batch_size, sequence_length), mask_prob, mask_length)
 
         dropout_rng, gumbel_rng = jax.random.split(jax.random.PRNGKey(0))
 
@@ -269,10 +237,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
             gumbel_rng=gumbel_rng,
         )[0]
 
-        self.assertTrue(
-            output.shape
-            == (batch_size, sequence_length, model.config.proj_codevector_dim)
-        )
+        self.assertTrue(output.shape == (batch_size, sequence_length, model.config.proj_codevector_dim))
 
     # overwrite because of `input_values`
     def test_forward_signature(self):
@@ -298,11 +263,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
                 @jax.jit
                 def model_jitted(input_values, attention_mask=None, **kwargs):
-                    return model(
-                        input_values=input_values,
-                        attention_mask=attention_mask,
-                        **kwargs,
-                    )
+                    return model(input_values=input_values, attention_mask=attention_mask, **kwargs)
 
                 with self.subTest("JIT Enabled"):
                     jitted_outputs = model_jitted(**prepared_inputs_dict).to_tuple()
@@ -326,11 +287,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
         # dummy loss function
         def compute_loss(
-            params,
-            input_values,
-            attention_mask,
-            freeze_feature_encoder: bool = False,
-            epsilon: float = 1e-8,
+            params, input_values, attention_mask, freeze_feature_encoder: bool = False, epsilon: float = 1e-8
         ):
             outputs = model(
                 input_values,
@@ -340,9 +297,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
             )
             # compute cosine similarity of projected and projected_quantized states
             cosine_sim = optax.cosine_similarity(
-                outputs.projected_states,
-                outputs.projected_quantized_states,
-                epsilon=epsilon,
+                outputs.projected_states, outputs.projected_quantized_states, epsilon=epsilon
             )
             loss = cosine_sim.sum()
             return loss, outputs.to_tuple()
@@ -351,9 +306,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
         grad_fn = jax.value_and_grad(compute_loss, has_aux=True)
 
         # compute loss, outputs and gradients for unfrozen model
-        (loss, outputs), grads = grad_fn(
-            params, input_values, attention_mask, freeze_feature_encoder=False
-        )
+        (loss, outputs), grads = grad_fn(params, input_values, attention_mask, freeze_feature_encoder=False)
 
         # compare to loss, outputs and gradients for frozen model
         (loss_frozen, outputs_frozen), grads_frozen = grad_fn(
@@ -372,12 +325,8 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
         self.assertEqual(grads.keys(), grads_frozen.keys())
 
         # ensure that the gradients of the feature extractor layers are precisely zero when frozen and contain non-zero entries when unfrozen
-        feature_extractor_grads = tuple(
-            grads[k] for k in grads if "feature_extractor" in k
-        )
-        feature_extractor_grads_frozen = tuple(
-            grads_frozen[k] for k in grads_frozen if "feature_extractor" in k
-        )
+        feature_extractor_grads = tuple(grads[k] for k in grads if "feature_extractor" in k)
+        feature_extractor_grads_frozen = tuple(grads_frozen[k] for k in grads_frozen if "feature_extractor" in k)
 
         for feature_extractor_grad, feature_extractor_grad_frozen in zip(
             feature_extractor_grads, feature_extractor_grads_frozen
@@ -387,9 +336,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
         # ensure that the gradients of all unfrozen layers remain equal, i.e. all layers excluding the frozen 'feature_extractor'
         grads = tuple(grads[k] for k in grads if "feature_extractor" not in k)
-        grads_frozen = tuple(
-            grads_frozen[k] for k in grads_frozen if "feature_extractor" not in k
-        )
+        grads_frozen = tuple(grads_frozen[k] for k in grads_frozen if "feature_extractor" not in k)
 
         for grad, grad_frozen in zip(grads, grads_frozen):
             self.assertTrue((grad == grad_frozen).all())
@@ -397,9 +344,7 @@ class FlaxWav2Vec2ModelTest(FlaxModelTesterMixin, unittest.TestCase):
     @slow
     def test_model_from_pretrained(self):
         for model_class_name in self.all_model_classes:
-            model = model_class_name.from_pretrained(
-                "facebook/wav2vec2-large-960h-lv60-self", from_pt=True
-            )
+            model = model_class_name.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", from_pt=True)
             outputs = model(np.ones((1, 1024), dtype="f4"))
             self.assertIsNotNone(outputs)
 
@@ -412,14 +357,9 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         mask_prob = 0.5
         mask_length = 1
 
-        mask = _compute_mask_indices(
-            (batch_size, sequence_length), mask_prob, mask_length
-        )
+        mask = _compute_mask_indices((batch_size, sequence_length), mask_prob, mask_length)
 
-        self.assertListEqual(
-            mask.sum(axis=-1).tolist(),
-            [mask_prob * sequence_length for _ in range(batch_size)],
-        )
+        self.assertListEqual(mask.sum(axis=-1).tolist(), [mask_prob * sequence_length for _ in range(batch_size)])
 
     def test_compute_mask_indices_overlap(self):
         batch_size = 4
@@ -427,9 +367,7 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         mask_prob = 0.5
         mask_length = 4
 
-        mask = _compute_mask_indices(
-            (batch_size, sequence_length), mask_prob, mask_length
-        )
+        mask = _compute_mask_indices((batch_size, sequence_length), mask_prob, mask_length)
 
         # because of overlap mask don't have to add up exactly to `mask_prob * sequence_length`, but have to be smaller or equal
         for batch_sum in mask.sum(axis=-1):
@@ -445,10 +383,7 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         attention_mask[:2, sequence_length // 2 :] = 0
 
         mask = _compute_mask_indices(
-            (batch_size, sequence_length),
-            mask_prob,
-            mask_length,
-            attention_mask=attention_mask,
+            (batch_size, sequence_length), mask_prob, mask_length, attention_mask=attention_mask
         )
 
         for batch_sum in mask.sum(axis=-1):
@@ -478,35 +413,26 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         features = (np.arange(sequence_length * hidden_size) // hidden_size).reshape(
             sequence_length, hidden_size
         )  # each value in vector consists of same value
-        features = np.broadcast_to(
-            features[None, :], (batch_size, sequence_length, hidden_size)
-        )
+        features = np.broadcast_to(features[None, :], (batch_size, sequence_length, hidden_size))
 
         negative_indices = _sample_negative_indices(features.shape, num_negatives)
 
         features = features.reshape(-1, hidden_size)  # BTC => (BxT)C
         # take negative vectors from sampled indices
         sampled_negatives = features[negative_indices.reshape(-1)]
-        negatives = sampled_negatives.reshape(
-            batch_size, sequence_length, num_negatives, hidden_size
-        ).transpose(2, 0, 1, 3)
-
-        self.assertTrue(
-            negatives.shape == (num_negatives, batch_size, sequence_length, hidden_size)
+        negatives = sampled_negatives.reshape(batch_size, sequence_length, num_negatives, hidden_size).transpose(
+            2, 0, 1, 3
         )
+
+        self.assertTrue(negatives.shape == (num_negatives, batch_size, sequence_length, hidden_size))
 
         # make sure no negatively sampled vector is actually a positive one
         for negative in negatives:
-            self.assertTrue(
-                ((negative - features.reshape(negative.shape)) == 0).sum() == 0.0
-            )
+            self.assertTrue(((negative - features.reshape(negative.shape)) == 0).sum() == 0.0)
 
         # make sure that full vectors are sampled and not values of vectors
         # => this means that `unique()` yields a single value for `hidden_size` dim
-        self.assertEqual(
-            np.unique(negatives, axis=-1).shape,
-            (num_negatives, batch_size, sequence_length, 1),
-        )
+        self.assertEqual(np.unique(negatives, axis=-1).shape, (num_negatives, batch_size, sequence_length, 1))
 
     def test_sample_negatives_with_attn_mask(self):
         batch_size = 2
@@ -523,17 +449,12 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         attention_mask[-1, sequence_length // 2 :] = 0
 
         forbidden_indices = (
-            np.arange(sequence_length // 2, sequence_length, dtype=np.int32)
-            + (batch_size - 1) * sequence_length
+            np.arange(sequence_length // 2, sequence_length, dtype=np.int32) + (batch_size - 1) * sequence_length
         ).tolist()
 
-        features = np.broadcast_to(
-            features[None, :], (batch_size, sequence_length, hidden_size)
-        )
+        features = np.broadcast_to(features[None, :], (batch_size, sequence_length, hidden_size))
 
-        negative_indices = _sample_negative_indices(
-            features.shape, num_negatives, attention_mask=attention_mask
-        )
+        negative_indices = _sample_negative_indices(features.shape, num_negatives, attention_mask=attention_mask)
 
         # make sure that no padding tokens are sampled
         self.assertTrue(all(idx not in negative_indices for idx in forbidden_indices))
@@ -541,26 +462,19 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
         features = features.reshape(-1, hidden_size)  # BTC => (BxT)C
         # take negative vectors from sampled indices
         sampled_negatives = features[negative_indices.reshape(-1)]
-        negatives = sampled_negatives.reshape(
-            batch_size, sequence_length, num_negatives, hidden_size
-        ).transpose(2, 0, 1, 3)
-
-        self.assertTrue(
-            negatives.shape == (num_negatives, batch_size, sequence_length, hidden_size)
+        negatives = sampled_negatives.reshape(batch_size, sequence_length, num_negatives, hidden_size).transpose(
+            2, 0, 1, 3
         )
+
+        self.assertTrue(negatives.shape == (num_negatives, batch_size, sequence_length, hidden_size))
 
         # make sure no negatively sampled vector is actually a positive one
         for negative in negatives:
-            self.assertTrue(
-                ((negative - features.reshape(negative.shape)) == 0).sum() == 0.0
-            )
+            self.assertTrue(((negative - features.reshape(negative.shape)) == 0).sum() == 0.0)
 
         # make sure that full vectors are sampled and not just slices of vectors
         # => this means that `unique()` yields a single value for `hidden_size` dim
-        self.assertEqual(
-            np.unique(negatives, axis=-1).shape,
-            (num_negatives, batch_size, sequence_length, 1),
-        )
+        self.assertEqual(np.unique(negatives, axis=-1).shape, (num_negatives, batch_size, sequence_length, 1))
 
 
 @require_flax
@@ -568,9 +482,7 @@ class FlaxWav2Vec2UtilsTest(unittest.TestCase):
 @slow
 class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
     def _load_datasamples(self, num_samples):
-        ds = load_dataset(
-            "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
-        )
+        ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
         # automatic decoding with librispeech
         speech_samples = ds.sort("id").filter(
             lambda x: x["id"] in [f"1272-141231-000{i}" for i in range(num_samples)]
@@ -579,12 +491,8 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
         return [x["array"] for x in speech_samples]
 
     def test_inference_ctc_robust_batched(self):
-        model = FlaxWav2Vec2ForCTC.from_pretrained(
-            "facebook/wav2vec2-large-960h-lv60-self", from_pt=True
-        )
-        processor = Wav2Vec2Processor.from_pretrained(
-            "facebook/wav2vec2-large-960h-lv60-self", do_lower_case=True
-        )
+        model = FlaxWav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", from_pt=True)
+        processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h-lv60-self", do_lower_case=True)
 
         input_speech = self._load_datasamples(4)
 
@@ -608,9 +516,7 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
         self.assertListEqual(predicted_trans, EXPECTED_TRANSCRIPTIONS)
 
     def test_inference_pretrained(self):
-        model = FlaxWav2Vec2ForPreTraining.from_pretrained(
-            "facebook/wav2vec2-large-lv60", from_pt=True
-        )
+        model = FlaxWav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-large-lv60", from_pt=True)
         feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
             "facebook/wav2vec2-large-lv60", return_attention_mask=True
         )
@@ -620,9 +526,7 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
 
         features_shape = (
             inputs_dict["input_values"].shape[0],
-            model._get_feat_extract_output_lengths(
-                np.array(inputs_dict["input_values"].shape[1])
-            ),
+            model._get_feat_extract_output_lengths(np.array(inputs_dict["input_values"].shape[1])),
         )
 
         mask_time_indices = _compute_mask_indices(
@@ -669,31 +573,18 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
         # => the cosine similarity between quantized states and predicted states > 0.5
         # a random wav2vec2 model has not learned to predict the quantized latent states
         # => the cosine similarity between quantized states and predicted states is very likely < 0.1
-        self.assertTrue(
-            cosine_sim_masked.mean().item() - 5 * cosine_sim_masked_rand.mean().item()
-            > 0
-        )
+        self.assertTrue(cosine_sim_masked.mean().item() - 5 * cosine_sim_masked_rand.mean().item() > 0)
 
     @require_pyctcdecode
     @require_librosa
     def test_wav2vec2_with_lm(self):
-        ds = load_dataset(
-            "legacy-datasets/common_voice",
-            "es",
-            split="test",
-            streaming=True,
-            trust_remote_code=True,
-        )
+        ds = load_dataset("legacy-datasets/common_voice", "es", split="test", streaming=True, trust_remote_code=True)
         sample = next(iter(ds))
 
         resampled_audio = librosa.resample(sample["audio"]["array"], 48_000, 16_000)
 
-        model = FlaxWav2Vec2ForCTC.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
-        processor = Wav2Vec2ProcessorWithLM.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
+        model = FlaxWav2Vec2ForCTC.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
+        processor = Wav2Vec2ProcessorWithLM.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
 
         input_values = processor(resampled_audio, return_tensors="np").input_values
 
@@ -706,23 +597,13 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
     @require_pyctcdecode
     @require_librosa
     def test_wav2vec2_with_lm_pool(self):
-        ds = load_dataset(
-            "legacy-datasets/common_voice",
-            "es",
-            split="test",
-            streaming=True,
-            trust_remote_code=True,
-        )
+        ds = load_dataset("legacy-datasets/common_voice", "es", split="test", streaming=True, trust_remote_code=True)
         sample = next(iter(ds))
 
         resampled_audio = librosa.resample(sample["audio"]["array"], 48_000, 16_000)
 
-        model = FlaxWav2Vec2ForCTC.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
-        processor = Wav2Vec2ProcessorWithLM.from_pretrained(
-            "patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm"
-        )
+        model = FlaxWav2Vec2ForCTC.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
+        processor = Wav2Vec2ProcessorWithLM.from_pretrained("patrickvonplaten/wav2vec2-large-xlsr-53-spanish-with-lm")
 
         input_values = processor(resampled_audio, return_tensors="np").input_values
 
@@ -735,12 +616,11 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
         self.assertEqual(transcription[0], "bien y qué regalo vas a abrir primero")
 
         # user-managed pool + num_processes should trigger a warning
-        with CaptureLogger(
-            processing_wav2vec2_with_lm.logger
-        ) as cl, multiprocessing.get_context("fork").Pool(2) as pool:
-            transcription = processor.batch_decode(
-                np.array(logits), pool, num_processes=2
-            ).text
+        with (
+            CaptureLogger(processing_wav2vec2_with_lm.logger) as cl,
+            multiprocessing.get_context("fork").Pool(2) as pool,
+        ):
+            transcription = processor.batch_decode(np.array(logits), pool, num_processes=2).text
 
         self.assertIn("num_process", cl.out)
         self.assertIn("it will be ignored", cl.out)
@@ -750,6 +630,4 @@ class FlaxWav2Vec2ModelIntegrationTest(unittest.TestCase):
     @require_pyctcdecode
     @require_librosa
     def test_wav2vec2_with_lm_invalid_pool(self):
-        run_test_in_subprocess(
-            test_case=self, target_func=_test_wav2vec2_with_lm_invalid_pool, inputs=None
-        )
+        run_test_in_subprocess(test_case=self, target_func=_test_wav2vec2_with_lm_invalid_pool, inputs=None)

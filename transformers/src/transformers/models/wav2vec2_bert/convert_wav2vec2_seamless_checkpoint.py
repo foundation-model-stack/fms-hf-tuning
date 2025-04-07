@@ -14,24 +14,22 @@
 # limitations under the License.
 """Convert Wav2Vec2Bert BERT checkpoint."""
 
-# Standard
 import argparse
 
-# Third Party
+import torch
+import torchaudio
 from fairseq2.data import Collater
 from fairseq2.data.audio import WaveformToFbankConverter
 from fairseq2.nn.padding import get_seqs_and_padding_mask
 from seamless_communication.models.conformer_shaw import load_conformer_shaw_model
-import torch
-import torchaudio
 
-# First Party
 from transformers import (
     SeamlessM4TFeatureExtractor,
     Wav2Vec2BertConfig,
     Wav2Vec2BertModel,
     logging,
 )
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -75,9 +73,7 @@ keys_to_remove = {
 
 
 def param_count(model):
-    return sum(
-        p[1].numel() for p in model.named_parameters() if "final_proj" not in p[0]
-    )
+    return sum(p[1].numel() for p in model.named_parameters() if "final_proj" not in p[0])
 
 
 def _convert_model(
@@ -108,9 +104,7 @@ def _convert_model(
             state_dict[new_key] = state_dict.pop(k)
 
     extra_keys = set(state_dict.keys()) - set(hf_model.state_dict().keys())
-    extra_keys = set(
-        {k for k in extra_keys if "num_updates" not in k}
-    )  # filter unecessary param
+    extra_keys = set({k for k in extra_keys if "num_updates" not in k})  # filter unecessary param
     missing_keys = set(hf_model.state_dict().keys()) - set(state_dict.keys())
     if len(extra_keys) != 0:
         raise ValueError(f"extra keys found: {extra_keys}")
@@ -119,7 +113,7 @@ def _convert_model(
     hf_model.load_state_dict(state_dict, strict=True)
     n_params = param_count(hf_model)
 
-    logger.info(f"model loaded: {round(n_params/1e6,1)}M params")
+    logger.info(f"model loaded: {round(n_params / 1e6, 1)}M params")
 
     hf_model.eval()
     del state_dict
@@ -164,9 +158,7 @@ def convert_wav2vec2_bert_checkpoint(
 
     if args.audio_path:
         waveform, sample_rate = torchaudio.load(args.audio_path)
-        waveform = torchaudio.functional.resample(
-            waveform, sample_rate, fe.sampling_rate
-        )
+        waveform = torchaudio.functional.resample(waveform, sample_rate, fe.sampling_rate)
 
         fbank_converter = WaveformToFbankConverter(
             num_mel_bins=80,
@@ -177,11 +169,7 @@ def convert_wav2vec2_bert_checkpoint(
         )
         collater = Collater(pad_value=1)
 
-        decoded_audio = {
-            "waveform": waveform.T,
-            "sample_rate": fe.sampling_rate,
-            "format": -1,
-        }
+        decoded_audio = {"waveform": waveform.T, "sample_rate": fe.sampling_rate, "format": -1}
         src = collater(fbank_converter(decoded_audio))["fbank"]
         seqs, padding_mask = get_seqs_and_padding_mask(src)
 
@@ -195,9 +183,7 @@ def convert_wav2vec2_bert_checkpoint(
         with torch.no_grad():
             outputs = hf_wav2vec(**inputs)
 
-        torch.testing.assert_close(
-            original_output, outputs.last_hidden_state, rtol=5e-3, atol=5e-3
-        )
+        torch.testing.assert_close(original_output, outputs.last_hidden_state, rtol=5e-3, atol=5e-3)
 
 
 if __name__ == "__main__":
@@ -209,10 +195,7 @@ if __name__ == "__main__":
         help="Path to the output PyTorch model.",
     )
     parser.add_argument(
-        "--checkpoint_path",
-        default="conformer_shaw",
-        type=str,
-        help="Path to seamless communication checkpoint",
+        "--checkpoint_path", default="conformer_shaw", type=str, help="Path to seamless communication checkpoint"
     )
     parser.add_argument(
         "--config_path",
@@ -220,9 +203,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to hf config.json of model to convert",
     )
-    parser.add_argument(
-        "--repo_id", default=None, type=str, help="Push to this repo id if precised."
-    )
+    parser.add_argument("--repo_id", default=None, type=str, help="Push to this repo id if precised.")
     parser.add_argument(
         "--audio_path",
         default=None,
@@ -232,8 +213,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     convert_wav2vec2_bert_checkpoint(
-        args.checkpoint_path,
-        args.pytorch_dump_folder_path,
-        args.config_path,
-        args.repo_id,
+        args.checkpoint_path, args.pytorch_dump_folder_path, args.config_path, args.repo_id
     )

@@ -14,16 +14,14 @@
 # limitations under the License.
 """EnCodec model configuration"""
 
-# Standard
-from typing import Optional
 import math
+from typing import Optional
 
-# Third Party
 import numpy as np
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 

@@ -15,13 +15,10 @@
 """ErnieM model configuration"""
 # Adapted from original paddlenlp repository.(https://github.com/PaddlePaddle/PaddleNLP/blob/develop/paddlenlp/transformers/ernie_m/configuration.py)
 
-# Future
 from __future__ import annotations
 
-# Standard
 from typing import Dict
 
-# Local
 from ....configuration_utils import PretrainedConfig
 
 
@@ -78,10 +75,7 @@ class ErnieMConfig(PretrainedConfig):
     """
 
     model_type = "ernie_m"
-    attribute_map: Dict[str, str] = {
-        "dropout": "classifier_dropout",
-        "num_classes": "num_labels",
-    }
+    attribute_map: Dict[str, str] = {"dropout": "classifier_dropout", "num_classes": "num_labels"}
 
     def __init__(
         self,

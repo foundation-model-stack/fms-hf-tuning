@@ -14,28 +14,20 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision, slow
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import AutoProcessor, Owlv2ForObjectDetection, Owlv2ImageProcessor
 
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -80,9 +72,7 @@ class Owlv2ImageProcessingTester:
     def expected_output_image_shape(self, images):
         return self.num_channels, self.size["height"], self.size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -116,9 +106,7 @@ class Owlv2ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         self.assertTrue(hasattr(image_processing, "image_std"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertEqual(image_processor.size, {"height": 18, "width": 18})
 
         image_processor = self.image_processing_class.from_dict(
@@ -147,18 +135,8 @@ class Owlv2ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         target_size = image.size[::-1]
         expected_boxes = torch.tensor(
             [
-                [
-                    341.66656494140625,
-                    23.38756561279297,
-                    642.321044921875,
-                    371.3482971191406,
-                ],
-                [
-                    6.753320693969727,
-                    51.96149826049805,
-                    326.61810302734375,
-                    473.12982177734375,
-                ],
+                [341.66656494140625, 23.38756561279297, 642.321044921875, 371.3482971191406],
+                [6.753320693969727, 51.96149826049805, 326.61810302734375, 473.12982177734375],
             ]
         )
 
@@ -167,9 +145,7 @@ class Owlv2ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         with torch.no_grad():
             outputs = model(**inputs)
 
-        results = processor.post_process_object_detection(
-            outputs, threshold=0.2, target_sizes=[target_size]
-        )[0]
+        results = processor.post_process_object_detection(outputs, threshold=0.2, target_sizes=[target_size])[0]
 
         boxes = results["boxes"]
         self.assertTrue(
@@ -178,9 +154,7 @@ class Owlv2ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         )
 
         # batch of images
-        inputs = processor(
-            text=[text, text], images=[image, image], return_tensors="pt"
-        )
+        inputs = processor(text=[text, text], images=[image, image], return_tensors="pt")
         with torch.no_grad():
             outputs = model(**inputs)
         results = processor.post_process_object_detection(
@@ -194,8 +168,6 @@ class Owlv2ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
                 f"Batch image bounding boxes fail. Expected {expected_boxes}, got {boxes}",
             )
 
-    @unittest.skip(
-        reason="OWLv2 doesn't treat 4 channel PIL and numpy consistently yet"
-    )  # FIXME Amy
+    @unittest.skip(reason="OWLv2 doesn't treat 4 channel PIL and numpy consistently yet")  # FIXME Amy
     def test_call_numpy_4_channels(self):
         pass

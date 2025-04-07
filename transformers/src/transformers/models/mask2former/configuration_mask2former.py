@@ -14,14 +14,13 @@
 # limitations under the License.
 """Mask2Former model configuration"""
 
-# Standard
 from typing import Dict, List, Optional
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ...utils.backbone_utils import verify_backbone_config_arguments
 from ..auto import CONFIG_MAPPING
+
 
 logger = logging.get_logger(__name__)
 
@@ -161,7 +160,7 @@ class Mask2FormerConfig(PretrainedConfig):
         init_xavier_std: float = 1.0,
         use_auxiliary_loss: bool = True,
         feature_strides: List[int] = [4, 8, 16, 32],
-        output_auxiliary_logits: bool = None,
+        output_auxiliary_logits: Optional[bool] = None,
         backbone: Optional[str] = None,
         use_pretrained_backbone: bool = False,
         use_timm_backbone: bool = False,
@@ -169,9 +168,7 @@ class Mask2FormerConfig(PretrainedConfig):
         **kwargs,
     ):
         if backbone_config is None and backbone is None:
-            logger.info(
-                "`backbone_config` is `None`. Initializing the config with the default `Swin` backbone."
-            )
+            logger.info("`backbone_config` is `None`. Initializing the config with the default `Swin` backbone.")
             backbone_config = CONFIG_MAPPING["swin"](
                 image_size=224,
                 num_channels=3,
@@ -197,10 +194,7 @@ class Mask2FormerConfig(PretrainedConfig):
             backbone_kwargs=backbone_kwargs,
         )
         # verify that the backbone is supported
-        if (
-            backbone_config is not None
-            and backbone_config.model_type not in self.backbones_supported
-        ):
+        if backbone_config is not None and backbone_config.model_type not in self.backbones_supported:
             logger.warning_once(
                 f"Backbone {backbone_config.model_type} is not a supported model and may not be compatible with Mask2Former. "
                 f"Supported model types: {','.join(self.backbones_supported)}"

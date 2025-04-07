@@ -12,28 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import List, Optional, Union
 import os
 import time
 import warnings
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Optional, Union
 
-# Third Party
+import torch
 from filelock import FileLock
 from torch.utils.data import Dataset
-import torch
 
-# Local
 from ...tokenization_utils_base import PreTrainedTokenizerBase
 from ...utils import logging
-from ..processors.glue import (
-    glue_convert_examples_to_features,
-    glue_output_modes,
-    glue_processors,
-)
+from ..processors.glue import glue_convert_examples_to_features, glue_output_modes, glue_processors
 from ..processors.utils import InputFeatures
+
 
 logger = logging.get_logger(__name__)
 
@@ -47,16 +41,9 @@ class GlueDataTrainingArguments:
     line.
     """
 
-    task_name: str = field(
-        metadata={
-            "help": "The name of the task to train on: "
-            + ", ".join(glue_processors.keys())
-        }
-    )
+    task_name: str = field(metadata={"help": "The name of the task to train on: " + ", ".join(glue_processors.keys())})
     data_dir: str = field(
-        metadata={
-            "help": "The input data dir. Should contain the .tsv files (or other data files) for the task."
-        }
+        metadata={"help": "The input data dir. Should contain the .tsv files (or other data files) for the task."}
     )
     max_seq_length: int = field(
         default=128,
@@ -68,8 +55,7 @@ class GlueDataTrainingArguments:
         },
     )
     overwrite_cache: bool = field(
-        default=False,
-        metadata={"help": "Overwrite the cached training and evaluation sets"},
+        default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
 
     def __post_init__(self):
@@ -138,8 +124,7 @@ class GlueDataset(Dataset):
                 start = time.time()
                 self.features = torch.load(cached_features_file)
                 logger.info(
-                    f"Loading features from cached file {cached_features_file} [took %.3f s]",
-                    time.time() - start,
+                    f"Loading features from cached file {cached_features_file} [took %.3f s]", time.time() - start
                 )
             else:
                 logger.info(f"Creating features from dataset file at {args.data_dir}")

@@ -1,4 +1,5 @@
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Modifications Copyright (C) 2025, Advanced Micro Devices, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,11 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
-from typing import Dict, Optional, Union
 import warnings
+from typing import Dict, Optional, Union
 
-# Local
 from ..models.auto.configuration_auto import AutoConfig
 from ..utils import logging
 from ..utils.quantization_config import (
@@ -33,6 +32,7 @@ from ..utils.quantization_config import (
     QuantizationConfigMixin,
     QuantizationMethod,
     QuantoConfig,
+    QuarkConfig,
     SpQRConfig,
     TorchAoConfig,
     VptqConfig,
@@ -51,9 +51,11 @@ from .quantizer_gptq import GptqHfQuantizer
 from .quantizer_higgs import HiggsHfQuantizer
 from .quantizer_hqq import HqqHfQuantizer
 from .quantizer_quanto import QuantoHfQuantizer
+from .quantizer_quark import QuarkHfQuantizer
 from .quantizer_spqr import SpQRHfQuantizer
 from .quantizer_torchao import TorchAoHfQuantizer
 from .quantizer_vptq import VptqHfQuantizer
+
 
 AUTO_QUANTIZER_MAPPING = {
     "awq": AwqQuantizer,
@@ -62,6 +64,7 @@ AUTO_QUANTIZER_MAPPING = {
     "gptq": GptqHfQuantizer,
     "aqlm": AqlmHfQuantizer,
     "quanto": QuantoHfQuantizer,
+    "quark": QuarkHfQuantizer,
     "eetq": EetqHfQuantizer,
     "higgs": HiggsHfQuantizer,
     "hqq": HqqHfQuantizer,
@@ -82,6 +85,7 @@ AUTO_QUANTIZATION_CONFIG_MAPPING = {
     "gptq": GPTQConfig,
     "aqlm": AqlmConfig,
     "quanto": QuantoConfig,
+    "quark": QuarkConfig,
     "hqq": HqqConfig,
     "compressed-tensors": CompressedTensorsConfig,
     "fbgemm_fp8": FbgemmFp8Config,
@@ -106,14 +110,8 @@ class AutoQuantizationConfig:
     def from_dict(cls, quantization_config_dict: Dict):
         quant_method = quantization_config_dict.get("quant_method", None)
         # We need a special care for bnb models to make sure everything is BC ..
-        if quantization_config_dict.get(
-            "load_in_8bit", False
-        ) or quantization_config_dict.get("load_in_4bit", False):
-            suffix = (
-                "_4bit"
-                if quantization_config_dict.get("load_in_4bit", False)
-                else "_8bit"
-            )
+        if quantization_config_dict.get("load_in_8bit", False) or quantization_config_dict.get("load_in_4bit", False):
+            suffix = "_4bit" if quantization_config_dict.get("load_in_4bit", False) else "_8bit"
             quant_method = QuantizationMethod.BITS_AND_BYTES + suffix
         elif quant_method is None:
             raise ValueError(
@@ -131,9 +129,7 @@ class AutoQuantizationConfig:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
-        model_config = AutoConfig.from_pretrained(
-            pretrained_model_name_or_path, **kwargs
-        )
+        model_config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
         if getattr(model_config, "quantization_config", None) is None:
             raise ValueError(
                 f"Did not found a `quantization_config` in {pretrained_model_name_or_path}. Make sure that the model is correctly quantized."
@@ -152,9 +148,7 @@ class AutoHfQuantizer:
     """
 
     @classmethod
-    def from_config(
-        cls, quantization_config: Union[QuantizationConfigMixin, Dict], **kwargs
-    ):
+    def from_config(cls, quantization_config: Union[QuantizationConfigMixin, Dict], **kwargs):
         # Convert it to a QuantizationConfig if the q_config is a dict
         if isinstance(quantization_config, dict):
             quantization_config = AutoQuantizationConfig.from_dict(quantization_config)
@@ -180,9 +174,7 @@ class AutoHfQuantizer:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
-        quantization_config = AutoQuantizationConfig.from_pretrained(
-            pretrained_model_name_or_path, **kwargs
-        )
+        quantization_config = AutoQuantizationConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
         return cls.from_config(quantization_config)
 
     @classmethod
@@ -206,10 +198,7 @@ class AutoHfQuantizer:
             quantization_config = AutoQuantizationConfig.from_dict(quantization_config)
 
         if (
-            isinstance(
-                quantization_config,
-                (GPTQConfig, AwqConfig, FbgemmFp8Config, CompressedTensorsConfig),
-            )
+            isinstance(quantization_config, (GPTQConfig, AwqConfig, FbgemmFp8Config, CompressedTensorsConfig))
             and quantization_config_from_args is not None
         ):
             # special case for GPTQ / AWQ / FbgemmFp8 config collision
@@ -227,14 +216,8 @@ class AutoHfQuantizer:
     @staticmethod
     def supports_quant_method(quantization_config_dict):
         quant_method = quantization_config_dict.get("quant_method", None)
-        if quantization_config_dict.get(
-            "load_in_8bit", False
-        ) or quantization_config_dict.get("load_in_4bit", False):
-            suffix = (
-                "_4bit"
-                if quantization_config_dict.get("load_in_4bit", False)
-                else "_8bit"
-            )
+        if quantization_config_dict.get("load_in_8bit", False) or quantization_config_dict.get("load_in_4bit", False):
+            suffix = "_4bit" if quantization_config_dict.get("load_in_4bit", False) else "_8bit"
             quant_method = QuantizationMethod.BITS_AND_BYTES + suffix
         elif quant_method is None:
             raise ValueError(

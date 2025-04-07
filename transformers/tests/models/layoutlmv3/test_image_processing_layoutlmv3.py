@@ -14,24 +14,17 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_pytesseract, require_torch
 from transformers.utils import is_pytesseract_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_pytesseract_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import LayoutLMv3ImageProcessor
 
 
@@ -60,18 +53,12 @@ class LayoutLMv3ImageProcessingTester:
         self.apply_ocr = apply_ocr
 
     def prepare_image_processor_dict(self):
-        return {
-            "do_resize": self.do_resize,
-            "size": self.size,
-            "apply_ocr": self.apply_ocr,
-        }
+        return {"do_resize": self.do_resize, "size": self.size, "apply_ocr": self.apply_ocr}
 
     def expected_output_image_shape(self, images):
         return self.num_channels, self.size["height"], self.size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -86,9 +73,7 @@ class LayoutLMv3ImageProcessingTester:
 @require_torch
 @require_pytesseract
 class LayoutLMv3ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
-    image_processing_class = (
-        LayoutLMv3ImageProcessor if is_pytesseract_available() else None
-    )
+    image_processing_class = LayoutLMv3ImageProcessor if is_pytesseract_available() else None
 
     def setUp(self):
         super().setUp()
@@ -105,26 +90,19 @@ class LayoutLMv3ImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase)
         self.assertTrue(hasattr(image_processing, "apply_ocr"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertEqual(image_processor.size, {"height": 18, "width": 18})
 
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict, size=42
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict, size=42)
         self.assertEqual(image_processor.size, {"height": 42, "width": 42})
 
     def test_LayoutLMv3_integration_test(self):
         # with apply_OCR = True
         image_processing = LayoutLMv3ImageProcessor()
 
-        # Third Party
         from datasets import load_dataset
 
-        ds = load_dataset(
-            "hf-internal-testing/fixtures_docvqa", split="test", trust_remote_code=True
-        )
+        ds = load_dataset("hf-internal-testing/fixtures_docvqa", split="test", trust_remote_code=True)
 
         image = Image.open(ds[0]["file"]).convert("RGB")
 

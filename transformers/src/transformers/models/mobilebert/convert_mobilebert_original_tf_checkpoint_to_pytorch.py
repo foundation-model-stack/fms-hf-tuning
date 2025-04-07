@@ -12,26 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 
-# Third Party
 import torch
 
-# First Party
-from transformers import (
-    MobileBertConfig,
-    MobileBertForPreTraining,
-    load_tf_weights_in_mobilebert,
-)
+from transformers import MobileBertConfig, MobileBertForPreTraining, load_tf_weights_in_mobilebert
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 
 
-def convert_tf_checkpoint_to_pytorch(
-    tf_checkpoint_path, mobilebert_config_file, pytorch_dump_path
-):
+def convert_tf_checkpoint_to_pytorch(tf_checkpoint_path, mobilebert_config_file, pytorch_dump_path):
     # Initialise PyTorch model
     config = MobileBertConfig.from_json_file(mobilebert_config_file)
     print(f"Building PyTorch model from configuration: {config}")
@@ -47,11 +39,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "--tf_checkpoint_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the TensorFlow checkpoint path.",
+        "--tf_checkpoint_path", default=None, type=str, required=True, help="Path to the TensorFlow checkpoint path."
     )
     parser.add_argument(
         "--mobilebert_config_file",
@@ -64,13 +52,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--pytorch_dump_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the output PyTorch model.",
+        "--pytorch_dump_path", default=None, type=str, required=True, help="Path to the output PyTorch model."
     )
     args = parser.parse_args()
-    convert_tf_checkpoint_to_pytorch(
-        args.tf_checkpoint_path, args.mobilebert_config_file, args.pytorch_dump_path
-    )
+    convert_tf_checkpoint_to_pytorch(args.tf_checkpoint_path, args.mobilebert_config_file, args.pytorch_dump_path)

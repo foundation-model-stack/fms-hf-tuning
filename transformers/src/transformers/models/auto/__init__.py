@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
@@ -23,6 +21,7 @@ from ...utils import (
     is_tf_available,
     is_torch_available,
 )
+
 
 _import_structure = {
     "auto_factory": ["get_values"],
@@ -216,7 +215,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .auto_factory import get_values
     from .configuration_auto import CONFIG_MAPPING, MODEL_NAMES_MAPPING, AutoConfig
     from .feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
@@ -230,7 +228,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_auto import (
             MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
             MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING,
@@ -323,7 +320,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_tf_auto import (
             TF_MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
             TF_MODEL_FOR_CAUSAL_LM_MAPPING,
@@ -377,7 +373,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_flax_auto import (
             FLAX_MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
             FLAX_MODEL_FOR_CAUSAL_LM_MAPPING,
@@ -409,9 +404,6 @@ if TYPE_CHECKING:
         )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

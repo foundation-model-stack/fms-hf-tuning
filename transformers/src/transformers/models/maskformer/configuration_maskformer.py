@@ -14,16 +14,15 @@
 # limitations under the License.
 """MaskFormer model configuration"""
 
-# Standard
 from typing import Dict, Optional
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ...utils.backbone_utils import verify_backbone_config_arguments
 from ..auto import CONFIG_MAPPING
 from ..detr import DetrConfig
 from ..swin import SwinConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -154,10 +153,7 @@ class MaskFormerConfig(PretrainedConfig):
             backbone_kwargs=backbone_kwargs,
         )
         # verify that the backbone is supported
-        if (
-            backbone_config is not None
-            and backbone_config.model_type not in self.backbones_supported
-        ):
+        if backbone_config is not None and backbone_config.model_type not in self.backbones_supported:
             logger.warning_once(
                 f"Backbone {backbone_config.model_type} is not a supported model and may not be compatible with MaskFormer. "
                 f"Supported model types: {','.join(self.backbones_supported)}"
@@ -169,9 +165,7 @@ class MaskFormerConfig(PretrainedConfig):
         else:
             # verify that the decoder is supported
             decoder_type = (
-                decoder_config.pop("model_type")
-                if isinstance(decoder_config, dict)
-                else decoder_config.model_type
+                decoder_config.pop("model_type") if isinstance(decoder_config, dict) else decoder_config.model_type
             )
             if decoder_type not in self.decoders_supported:
                 raise ValueError(
@@ -208,10 +202,7 @@ class MaskFormerConfig(PretrainedConfig):
 
     @classmethod
     def from_backbone_and_decoder_configs(
-        cls,
-        backbone_config: PretrainedConfig,
-        decoder_config: PretrainedConfig,
-        **kwargs,
+        cls, backbone_config: PretrainedConfig, decoder_config: PretrainedConfig, **kwargs
     ):
         """Instantiate a [`MaskFormerConfig`] (or a derived class) from a pre-trained backbone model configuration and DETR model
         configuration.

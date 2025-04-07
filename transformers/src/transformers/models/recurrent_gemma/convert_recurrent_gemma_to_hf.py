@@ -11,20 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 import os
 import warnings
 
-# Third Party
 import torch
-
-# First Party
 from accelerate import init_empty_weights
+
 from transformers import GemmaTokenizer, RecurrentGemmaConfig, RecurrentGemmaForCausalLM
 
+
 try:
-    # First Party
     from transformers import GemmaTokenizerFast
 except ImportError as e:
     warnings.warn(e)
@@ -33,8 +30,8 @@ except ImportError as e:
     )
     GemmaTokenizerFast = None
 
-# Third Party
 import regex as re
+
 
 """
 Sample usage:
@@ -72,14 +69,7 @@ CONFIG_MAPPING = {"2B": gemma_2b_config, "7B": gemma_7b_config}
 LAYER_NAME_MAPPING = {"embedder.weight": "model.embed_tokens.weight"}
 
 
-def write_model(
-    save_path,
-    input_base_path,
-    config,
-    safe_serialization=True,
-    push_to_hub=False,
-    dtype=torch.float32,
-):
+def write_model(save_path, input_base_path, config, safe_serialization=True, push_to_hub=False, dtype=torch.float32):
     print(f"Fetching all parameters from the checkpoint at '{input_base_path}'")
     model_state_dict = torch.load(input_base_path, map_location="cpu")
 
@@ -130,9 +120,7 @@ def write_model(
             state_dict[key.replace("gate.", "gate_")] = v.contiguous().clone()
         elif "embed_tokens" in key:
             state_dict[key] = v[: config.vocab_size, :].contiguous().clone()
-            state_dict["lm_head.weight"] = (
-                v[: config.vocab_size, :].contiguous().clone()
-            )
+            state_dict["lm_head.weight"] = v[: config.vocab_size, :].contiguous().clone()
         else:
             state_dict[key] = v.contiguous()
 
@@ -155,9 +143,7 @@ def write_model(
 
 def write_tokenizer(input_tokenizer_path, save_path, push_to_hub=False):
     # Initialize the tokenizer based on the `spm` model
-    tokenizer_class = (
-        GemmaTokenizer if GemmaTokenizerFast is None else GemmaTokenizerFast
-    )
+    tokenizer_class = GemmaTokenizer if GemmaTokenizerFast is None else GemmaTokenizerFast
     print(f"Saving a {tokenizer_class.__name__} to {save_path}.")
     tokenizer = tokenizer_class(input_tokenizer_path)
     if push_to_hub:
@@ -215,9 +201,7 @@ def main():
 
     if args.convert_tokenizer:
         if args.tokenizer_checkpoint is None:
-            raise ValueError(
-                "Path to the tokenizer is required when passing --convert_tokenizer"
-            )
+            raise ValueError("Path to the tokenizer is required when passing --convert_tokenizer")
 
         spm_path = os.path.join(args.tokenizer_checkpoint)
         write_tokenizer(spm_path, args.output_dir, args.push_to_hub)

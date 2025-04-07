@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import is_torch_available
 from transformers.testing_utils import (
     require_sentencepiece,
@@ -27,11 +25,10 @@ from transformers.testing_utils import (
     torch_device,
 )
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import CamembertModel
 
 
@@ -41,9 +38,7 @@ if is_torch_available():
 class CamembertModelIntegrationTest(unittest.TestCase):
     @slow
     def test_output_embeds_base_model(self):
-        model = CamembertModel.from_pretrained(
-            "almanach/camembert-base", attn_implementation="eager"
-        )
+        model = CamembertModel.from_pretrained("almanach/camembert-base", attn_implementation="eager")
         model.to(torch_device)
 
         input_ids = torch.tensor(
@@ -57,13 +52,7 @@ class CamembertModelIntegrationTest(unittest.TestCase):
         self.assertEqual(output.shape, expected_shape)
         # compare the actual values for a slice.
         expected_slice = torch.tensor(
-            [
-                [
-                    [-0.0254, 0.0235, 0.1027],
-                    [0.0606, -0.1811, -0.0418],
-                    [-0.1561, -0.1127, 0.2687],
-                ]
-            ],
+            [[[-0.0254, 0.0235, 0.1027], [0.0606, -0.1811, -0.0418], [-0.1561, -0.1127, 0.2687]]],
             device=torch_device,
             dtype=torch.float,
         )
@@ -71,9 +60,7 @@ class CamembertModelIntegrationTest(unittest.TestCase):
         # camembert.eval()
         # expected_slice = roberta.model.forward(input_ids)[0][:, :3, :3].detach()
 
-        torch.testing.assert_close(
-            output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
     @slow
     @require_torch_sdpa
@@ -85,23 +72,13 @@ class CamembertModelIntegrationTest(unittest.TestCase):
         )  # J'aime le camembert !
 
         expected_slice = torch.tensor(
-            [
-                [
-                    [-0.0254, 0.0235, 0.1027],
-                    [0.0606, -0.1811, -0.0418],
-                    [-0.1561, -0.1127, 0.2687],
-                ]
-            ],
+            [[[-0.0254, 0.0235, 0.1027], [0.0606, -0.1811, -0.0418], [-0.1561, -0.1127, 0.2687]]],
             device=torch_device,
             dtype=torch.float,
         )
 
-        model = CamembertModel.from_pretrained(
-            "almanach/camembert-base", attn_implementation="sdpa"
-        ).to(torch_device)
+        model = CamembertModel.from_pretrained("almanach/camembert-base", attn_implementation="sdpa").to(torch_device)
         with torch.no_grad():
             output = model(input_ids)["last_hidden_state"].detach()
 
-        torch.testing.assert_close(
-            output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

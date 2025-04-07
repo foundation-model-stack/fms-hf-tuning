@@ -14,46 +14,30 @@
 # limitations under the License.
 """Testing suite for the PyTorch Audio Spectrogram Transformer (AST) model."""
 
-# Standard
 import inspect
 import unittest
 
-# Third Party
 from huggingface_hub import hf_hub_download
 
-# First Party
 from transformers import ASTConfig
-from transformers.testing_utils import (
-    require_torch,
-    require_torchaudio,
-    slow,
-    torch_device,
-)
-from transformers.utils import (
-    cached_property,
-    is_torch_available,
-    is_torchaudio_available,
-)
+from transformers.testing_utils import require_torch, require_torchaudio, slow, torch_device
+from transformers.utils import cached_property, is_torch_available, is_torchaudio_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import ASTForAudioClassification, ASTModel
 
 
 if is_torchaudio_available():
-    # Third Party
     import torchaudio
 
-    # First Party
     from transformers import ASTFeatureExtractor
 
 
@@ -103,17 +87,13 @@ class ASTModelTester:
         self.attn_implementation = attn_implementation
 
         # in AST, the seq length equals the number of patches + 2 (we add 2 for the [CLS] and distillation tokens)
-        frequency_out_dimension = (
-            self.num_mel_bins - self.patch_size
-        ) // self.frequency_stride + 1
+        frequency_out_dimension = (self.num_mel_bins - self.patch_size) // self.frequency_stride + 1
         time_out_dimension = (self.max_length - self.patch_size) // self.time_stride + 1
         num_patches = frequency_out_dimension * time_out_dimension
         self.seq_length = num_patches + 2
 
     def prepare_config_and_inputs(self):
-        input_values = floats_tensor(
-            [self.batch_size, self.max_length, self.num_mel_bins]
-        )
+        input_values = floats_tensor([self.batch_size, self.max_length, self.num_mel_bins])
 
         labels = None
         if self.use_labels:
@@ -147,10 +127,7 @@ class ASTModelTester:
         model.to(torch_device)
         model.eval()
         result = model(input_values)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -179,10 +156,7 @@ class ASTModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         else ()
     )
     pipeline_model_mapping = (
-        {
-            "audio-classification": ASTForAudioClassification,
-            "feature-extraction": ASTModel,
-        }
+        {"audio-classification": ASTForAudioClassification, "feature-extraction": ASTModel}
         if is_torch_available()
         else {}
     )
@@ -209,9 +183,7 @@ class ASTModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = ASTModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=ASTConfig, has_text_modality=False, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=ASTConfig, has_text_modality=False, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -255,9 +227,7 @@ class ASTModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 # We will verify our results on some audio from AudioSet
 def prepare_audio():
     filepath = hf_hub_download(
-        repo_id="nielsr/audio-spectogram-transformer-checkpoint",
-        filename="sample_audio.flac",
-        repo_type="dataset",
+        repo_id="nielsr/audio-spectogram-transformer-checkpoint", filename="sample_audio.flac", repo_type="dataset"
     )
 
     audio, sampling_rate = torchaudio.load(filepath)
@@ -271,9 +241,7 @@ class ASTModelIntegrationTest(unittest.TestCase):
     @cached_property
     def default_feature_extractor(self):
         return (
-            ASTFeatureExtractor.from_pretrained(
-                "MIT/ast-finetuned-audioset-10-10-0.4593"
-            )
+            ASTFeatureExtractor.from_pretrained("MIT/ast-finetuned-audioset-10-10-0.4593")
             if is_torchaudio_available()
             else None
         )
@@ -281,16 +249,12 @@ class ASTModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_audio_classification(self):
         feature_extractor = self.default_feature_extractor
-        model = ASTForAudioClassification.from_pretrained(
-            "MIT/ast-finetuned-audioset-10-10-0.4593"
-        ).to(torch_device)
+        model = ASTForAudioClassification.from_pretrained("MIT/ast-finetuned-audioset-10-10-0.4593").to(torch_device)
 
         feature_extractor = self.default_feature_extractor
         audio, sampling_rate = prepare_audio()
         audio = audio.squeeze().numpy()
-        inputs = feature_extractor(
-            audio, sampling_rate=sampling_rate, return_tensors="pt"
-        ).to(torch_device)
+        inputs = feature_extractor(audio, sampling_rate=sampling_rate, return_tensors="pt").to(torch_device)
 
         # forward pass
         with torch.no_grad():
@@ -302,6 +266,4 @@ class ASTModelIntegrationTest(unittest.TestCase):
 
         expected_slice = torch.tensor([-0.8760, -7.0042, -8.6602]).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4)

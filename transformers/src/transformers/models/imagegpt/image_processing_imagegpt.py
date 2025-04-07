@@ -14,13 +14,10 @@
 # limitations under the License.
 """Image processor class for ImageGPT."""
 
-# Standard
 from typing import Dict, List, Optional, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import rescale, resize, to_channel_dimension_format
 from ...image_utils import (
@@ -34,15 +31,10 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_vision_available,
-    logging,
-)
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+
 
 if is_vision_available():
-    # Third Party
     import PIL
 
 
@@ -149,9 +141,7 @@ class ImageGPTImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(
-                f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}"
-            )
+            raise ValueError(f"The `size` dictionary must contain the keys `height` and `width`. Got {size.keys()}")
         output_size = (size["height"], size["width"])
         return resize(
             image,
@@ -179,12 +169,7 @@ class ImageGPTImageProcessor(BaseImageProcessor):
             input_data_format (`ChannelDimension` or `str`, *optional*):
                 The channel dimension format of the input image. If not provided, it will be inferred.
         """
-        image = rescale(
-            image=image,
-            scale=1 / 127.5,
-            data_format=data_format,
-            input_data_format=input_data_format,
-        )
+        image = rescale(image=image, scale=1 / 127.5, data_format=data_format, input_data_format=input_data_format)
         image = image - 1
         return image
 
@@ -192,10 +177,10 @@ class ImageGPTImageProcessor(BaseImageProcessor):
     def preprocess(
         self,
         images: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
         resample: PILImageResampling = None,
-        do_normalize: bool = None,
+        do_normalize: Optional[bool] = None,
         do_color_quantize: Optional[bool] = None,
         clusters: Optional[Union[List[List[int]], np.ndarray]] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
@@ -247,11 +232,7 @@ class ImageGPTImageProcessor(BaseImageProcessor):
         size = get_size_dict(size)
         resample = resample if resample is not None else self.resample
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
-        do_color_quantize = (
-            do_color_quantize
-            if do_color_quantize is not None
-            else self.do_color_quantize
-        )
+        do_color_quantize = do_color_quantize if do_color_quantize is not None else self.do_color_quantize
         clusters = clusters if clusters is not None else self.clusters
         clusters = np.array(clusters)
 
@@ -289,28 +270,15 @@ class ImageGPTImageProcessor(BaseImageProcessor):
 
         if do_resize:
             images = [
-                self.resize(
-                    image=image,
-                    size=size,
-                    resample=resample,
-                    input_data_format=input_data_format,
-                )
+                self.resize(image=image, size=size, resample=resample, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_normalize:
-            images = [
-                self.normalize(image=image, input_data_format=input_data_format)
-                for image in images
-            ]
+            images = [self.normalize(image=image, input_data_format=input_data_format) for image in images]
 
         if do_color_quantize:
-            images = [
-                to_channel_dimension_format(
-                    image, ChannelDimension.LAST, input_data_format
-                )
-                for image in images
-            ]
+            images = [to_channel_dimension_format(image, ChannelDimension.LAST, input_data_format) for image in images]
             # color quantize from (batch_size, height, width, 3) to (batch_size, height, width)
             images = np.array(images)
             images = color_quantize(images, clusters).reshape(images.shape[:-1])
@@ -323,9 +291,7 @@ class ImageGPTImageProcessor(BaseImageProcessor):
             images = list(images)
         else:
             images = [
-                to_channel_dimension_format(
-                    image, data_format, input_channel_dim=input_data_format
-                )
+                to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
                 for image in images
             ]
 

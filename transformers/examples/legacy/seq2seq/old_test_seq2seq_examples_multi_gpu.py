@@ -14,20 +14,11 @@
 
 # as due to their complexity multi-gpu tests could impact other tests, and to aid debug we have those in a separate module.
 
-# Standard
 import os
 import sys
 
-# First Party
-from transformers.testing_utils import (
-    TestCasePlus,
-    execute_subprocess_async,
-    get_gpu_count,
-    require_torch_gpu,
-    slow,
-)
+from transformers.testing_utils import TestCasePlus, execute_subprocess_async, get_gpu_count, require_torch_gpu, slow
 
-# Local
 from .utils import load_json
 
 

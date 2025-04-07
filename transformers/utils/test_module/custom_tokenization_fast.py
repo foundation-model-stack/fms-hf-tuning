@@ -1,7 +1,5 @@
-# First Party
 from transformers import BertTokenizerFast
 
-# Local
 from .custom_tokenization import CustomTokenizer
 
 

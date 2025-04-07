@@ -1,15 +1,13 @@
-# Standard
-from typing import Dict
 import argparse
 import importlib.util
 import logging
 import os
+from typing import Dict
 import sys
 
-# Third Party
-from psycopg2.extensions import register_adapter
 from psycopg2.extras import Json
-import psycopg2
+from psycopg2.extensions import register_adapter
+
 
 register_adapter(dict, Json)
 
@@ -19,14 +17,7 @@ class ImportModuleException(Exception):
 
 
 class MetricsRecorder:
-    def __init__(
-        self,
-        connection,
-        logger: logging.Logger,
-        branch: str,
-        commit_id: str,
-        commit_msg: str,
-    ):
+    def __init__(self, connection, logger: logging.Logger, branch: str, commit_id: str, commit_msg: str):
         self.conn = connection
         self.conn.autocommit = True
         self.logger = logger
@@ -48,9 +39,7 @@ class MetricsRecorder:
             logger.debug(f"initialised benchmark #{benchmark_id}")
             return benchmark_id
 
-    def collect_device_measurements(
-        self, benchmark_id: int, cpu_util, mem_megabytes, gpu_util, gpu_mem_megabytes
-    ):
+    def collect_device_measurements(self, benchmark_id: int, cpu_util, mem_megabytes, gpu_util, gpu_mem_megabytes):
         """
         Collect device metrics, such as CPU & GPU usage. These are "static", as in you cannot pass arbitrary arguments to the function.
         """
@@ -63,9 +52,7 @@ class MetricsRecorder:
             f"inserted device measurements for benchmark #{benchmark_id} [CPU util: {cpu_util}, mem MBs: {mem_megabytes}, GPU util: {gpu_util}, GPU mem MBs: {gpu_mem_megabytes}]"
         )
 
-    def collect_model_measurements(
-        self, benchmark_id: int, measurements: Dict[str, float]
-    ):
+    def collect_model_measurements(self, benchmark_id: int, measurements: Dict[str, float]):
         with self.conn.cursor() as cur:
             cur.execute(
                 """
@@ -79,9 +66,7 @@ class MetricsRecorder:
                     measurements,
                 ),
             )
-        self.logger.debug(
-            f"inserted model measurements for benchmark #{benchmark_id}: {measurements}"
-        )
+        self.logger.debug(f"inserted model measurements for benchmark #{benchmark_id}: {measurements}")
 
     def close(self):
         self.conn.close()
@@ -101,9 +86,7 @@ def parse_arguments():
     """
     Parse command line arguments for the benchmarking CLI.
     """
-    parser = argparse.ArgumentParser(
-        description="CLI for benchmarking the huggingface/transformers."
-    )
+    parser = argparse.ArgumentParser(description="CLI for benchmarking the huggingface/transformers.")
 
     parser.add_argument(
         "branch",

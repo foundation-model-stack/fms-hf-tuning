@@ -16,7 +16,6 @@
 Processor class for TVP.
 """
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...tokenization_utils_base import BatchEncoding
 
@@ -52,7 +51,7 @@ class TvpProcessor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to BertTokenizerFast's [`~BertTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `videos` and `kwargs` arguments to
-        TvpImageProcessor's [`~TvpImageProcessor.__call__`] if `videos` is not `None`. Please refer to the doctsring of
+        TvpImageProcessor's [`~TvpImageProcessor.__call__`] if `videos` is not `None`. Please refer to the docstring of
         the above two methods for more information.
 
         Args:
@@ -60,7 +59,7 @@ class TvpProcessor(ProcessorMixin):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            videos (`List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`, `List[List[PIL.Image.Image]]`, `List[List[np.ndarrray]]`,:
+            videos (`List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`, `List[List[PIL.Image.Image]]`, `List[List[np.ndarray]]`,:
                 `List[List[torch.Tensor]]`): The video or batch of videos to be prepared. Each video should be a list
                 of frames, which can be either PIL images or NumPy arrays. In case of NumPy arrays/PyTorch tensors,
                 each frame should be of shape (H, W, C), where H and W are frame height and width, and C is a number of
@@ -87,9 +86,7 @@ class TvpProcessor(ProcessorMixin):
         max_text_length = kwargs.pop("max_text_length", None)
 
         if text is None and videos is None:
-            raise ValueError(
-                "You have to specify either text or videos. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or videos. Both cannot be none.")
 
         encoding = {}
         if text is not None:
@@ -106,9 +103,7 @@ class TvpProcessor(ProcessorMixin):
             encoding.update(textual_input)
 
         if videos is not None:
-            image_features = self.image_processor(
-                videos, return_tensors=return_tensors, **kwargs
-            )
+            image_features = self.image_processor(videos, return_tensors=return_tensors, **kwargs)
             encoding.update(image_features)
 
         return BatchEncoding(data=encoding, tensor_type=return_tensors)

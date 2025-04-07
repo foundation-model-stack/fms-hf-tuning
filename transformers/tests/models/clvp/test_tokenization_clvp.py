@@ -14,17 +14,15 @@
 # limitations under the License.
 
 
-# Standard
-from typing import List
 import json
 import os
 import unittest
+from functools import lru_cache
+from typing import List
 
-# First Party
 from transformers import ClvpTokenizer
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin, slow
+from ...test_tokenization_common import TokenizerTesterMixin, slow, use_cache_if_possible
 
 
 class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
@@ -35,8 +33,9 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_seq2seq = False
     test_sentencepiece_ignore_case = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = [
@@ -65,19 +64,23 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         ]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["#version: 0.2", "\u0120 l", "\u0120l o", "\u0120lo w", "e r", ""]
-        self.special_tokens_map = {"unk_token": "<unk>"}
+        cls.special_tokens_map = {"unk_token": "<unk>"}
 
-        self.vocab_file = os.path.join(self.tmpdirname, "vocab.json")
-        self.merges_file = os.path.join(self.tmpdirname, "merges.txt")
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        cls.vocab_file = os.path.join(cls.tmpdirname, "vocab.json")
+        cls.merges_file = os.path.join(cls.tmpdirname, "merges.txt")
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
-        with open(self.merges_file, "w", encoding="utf-8") as fp:
+        with open(cls.merges_file, "w", encoding="utf-8") as fp:
             fp.write("\n".join(merges))
 
     # Copied from transformers.tests.models.gpt2.test_tokenization_gpt2.GPT2TokenizationTest.get_tokenizer with GPT2->Clvp
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return ClvpTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return ClvpTokenizer.from_pretrained(pretrained_name, **kwargs)
 
     # Copied from transformers.tests.models.gpt2.test_tokenization_gpt2.GPT2TokenizationTest.get_input_output_texts
     def get_input_output_texts(self, tokenizer):
@@ -99,9 +102,7 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
                 self.assertEqual(len(encoded_special_token), 1)
 
-                decoded = tokenizer.decode(
-                    encoded_special_token, skip_special_tokens=True
-                )
+                decoded = tokenizer.decode(encoded_special_token, skip_special_tokens=True)
                 self.assertTrue(special_token not in decoded)
 
     # Copied from transformers.tests.models.gpt2.test_tokenization_gpt2.GPT2TokenizationTest.test_rust_and_python_full_tokenizers
@@ -120,9 +121,7 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         self.assertListEqual(tokens, rust_tokens)
 
         # Testing conversion to ids without special tokens
-        ids = tokenizer.encode(
-            sequence, add_special_tokens=False, add_prefix_space=True
-        )
+        ids = tokenizer.encode(sequence, add_special_tokens=False, add_prefix_space=True)
         rust_ids = rust_tokenizer.encode(sequence, add_special_tokens=False)
         self.assertListEqual(ids, rust_ids)
 
@@ -135,17 +134,13 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         # Testing the unknown token
         input_tokens = tokens + [rust_tokenizer.unk_token]
         input_bpe_tokens = [14, 15, 10, 9, 3, 2, 15, 19]
-        self.assertListEqual(
-            rust_tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(rust_tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     # Copied from transformers.tests.models.gpt2.test_tokenization_gpt2.GPT2TokenizationTest.test_padding
     def test_padding(self, max_length=15):
         for tokenizer, pretrained_name, kwargs in self.tokenizers_list:
             with self.subTest(f"{tokenizer.__class__.__name__} ({pretrained_name})"):
-                tokenizer_r = self.rust_tokenizer_class.from_pretrained(
-                    pretrained_name, **kwargs
-                )
+                tokenizer_r = self.get_rust_tokenizer(pretrained_name, **kwargs)
 
                 # Simple input
                 s = "This is a simple input"
@@ -157,22 +152,10 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 ]
 
                 # Simple input tests
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, s, max_length=max_length, padding="max_length")
 
                 # Simple input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, s, max_length=max_length, padding="max_length")
 
                 # Simple input
                 self.assertRaises(
@@ -184,22 +167,10 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, p, max_length=max_length, padding="max_length")
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, p, max_length=max_length, padding="max_length")
 
                 # Pair input
                 self.assertRaises(
@@ -270,12 +241,8 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             with self.subTest(f"{tokenizer.__class__.__name__}"):
                 sequence_0 = "Encode this."
                 sequence_1 = "This one too please."
-                encoded_sequence = tokenizer.encode(
-                    sequence_0, add_special_tokens=False
-                )
-                encoded_sequence += tokenizer.encode(
-                    sequence_1, add_special_tokens=False
-                )
+                encoded_sequence = tokenizer.encode(sequence_0, add_special_tokens=False)
+                encoded_sequence += tokenizer.encode(sequence_1, add_special_tokens=False)
                 encoded_sequence_dict = tokenizer.encode_plus(
                     sequence_0,
                     sequence_1,
@@ -284,13 +251,10 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
                 encoded_sequence_w_special = encoded_sequence_dict["input_ids"]
                 special_tokens_mask = encoded_sequence_dict["special_tokens_mask"]
-                self.assertEqual(
-                    len(special_tokens_mask), len(encoded_sequence_w_special)
-                )
+                self.assertEqual(len(special_tokens_mask), len(encoded_sequence_w_special))
 
                 filtered_sequence = [
-                    (x if not special_tokens_mask[i] else None)
-                    for i, x in enumerate(encoded_sequence_w_special)
+                    (x if not special_tokens_mask[i] else None) for i, x in enumerate(encoded_sequence_w_special)
                 ]
                 filtered_sequence = [x for x in filtered_sequence if x is not None]
                 self.assertEqual(encoded_sequence, filtered_sequence)
@@ -307,9 +271,7 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         self.assertIn(0, output["token_type_ids"])
 
     def test_full_tokenizer(self):
-        tokenizer = ClvpTokenizer(
-            self.vocab_file, self.merges_file, **self.special_tokens_map
-        )
+        tokenizer = ClvpTokenizer(self.vocab_file, self.merges_file, **self.special_tokens_map)
         text = "lower newer"
         bpe_tokens = ["l", "o", "w", "er", "[SPACE]", "n", "e", "w", "er"]
         tokens = tokenizer.tokenize(text, add_prefix_space=False)
@@ -317,9 +279,7 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + [tokenizer.unk_token]
         input_bpe_tokens = [0, 1, 2, 15, 21, 9, 3, 2, 15, 19]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     @slow
     def test_outputs_with_numbers(self):
@@ -334,9 +294,7 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                            ]
         # fmt: on
 
-        self.assertListEqual(
-            tokenizer.encode(text, add_special_tokens=False), EXPECTED_OUTPUT
-        )
+        self.assertListEqual(tokenizer.encode(text, add_special_tokens=False), EXPECTED_OUTPUT)
 
     @slow
     def test_tokenizer_integration(self):
@@ -357,8 +315,5 @@ class ClvpTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         # fmt: on
 
         self.tokenizer_integration_test_util(
-            sequences=sequences,
-            expected_encoding=expected_encoding,
-            model_name="susnato/clvp_dev",
-            padding=True,
+            sequences=sequences, expected_encoding=expected_encoding, model_name="susnato/clvp_dev", padding=True
         )

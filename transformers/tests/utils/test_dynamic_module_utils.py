@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 
-# Third Party
 import pytest
 
-# First Party
 from transformers.dynamic_module_utils import get_imports
+
 
 TOP_LEVEL_IMPORT = """
 import os

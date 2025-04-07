@@ -1,11 +1,8 @@
-# Standard
 import json
 
-# Third Party
 import datasets
 import torch
 
-# First Party
 from tests.trainer.test_trainer import StoreLossCallback
 from transformers import (
     AutoModelForCausalLM,
@@ -49,9 +46,7 @@ class TestTrainerDistributedLoss(TestCasePlus):
         with open(f"{output_dir}/fixed_losses.json") as f:
             fixed_loss = json.load(f)
 
-        broken_diff = [
-            abs(base_loss[i] - broken_loss[i]) for i in range(len(base_loss))
-        ]
+        broken_diff = [abs(base_loss[i] - broken_loss[i]) for i in range(len(base_loss))]
         fixed_diff = [abs(base_loss[i] - fixed_loss[i]) for i in range(len(base_loss))]
         sum_base = sum(base_loss)
         sum_broken = sum(broken_diff)
@@ -72,9 +67,7 @@ def run_distributed_training(training_args):
     tokenizer.pad_token = tokenizer.eos_token
 
     def tokenize_function(examples):
-        return tokenizer(
-            examples["text"], max_length=16, padding="max_length", truncation=True
-        )
+        return tokenizer(examples["text"], max_length=16, padding="max_length", truncation=True)
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
 

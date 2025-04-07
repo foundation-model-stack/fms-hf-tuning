@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
-from ....utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_tokenizers_available,
-    is_torch_available,
-)
+from ....utils import OptionalDependencyNotAvailable, _LazyModule, is_tokenizers_available, is_torch_available
+
 
 _import_structure = {
     "configuration_retribert": ["RetriBertConfig"],
@@ -49,7 +43,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_retribert import RetriBertConfig
     from .tokenization_retribert import RetriBertTokenizer
 
@@ -59,7 +52,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .tokenization_retribert_fast import RetriBertTokenizerFast
 
     try:
@@ -68,13 +60,12 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
-        from .modeling_retribert import RetriBertModel, RetriBertPreTrainedModel
+        from .modeling_retribert import (
+            RetriBertModel,
+            RetriBertPreTrainedModel,
+        )
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

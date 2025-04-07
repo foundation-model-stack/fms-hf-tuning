@@ -14,15 +14,12 @@
 # limitations under the License.
 """Testing suite for the PyTorch OmDet-Turbo model."""
 
-# Standard
-from io import BytesIO
 import copy
 import unittest
+from io import BytesIO
 
-# Third Party
 import requests
 
-# First Party
 from transformers import OmDetTurboConfig, is_torch_available, is_vision_available
 from transformers.feature_extraction_utils import BatchFeature
 from transformers.file_utils import cached_property
@@ -35,30 +32,21 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_common import (
-    ModelTesterMixin,
-    _config_zero_init,
-    floats_tensor,
-    ids_tensor,
-)
+from ...test_modeling_common import ModelTesterMixin, _config_zero_init, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
     import torch.nn.functional as F
 
-    # First Party
     from transformers import OmDetTurboForObjectDetection
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import AutoProcessor
 
 
@@ -97,9 +85,7 @@ class OmDetTurboModelTester:
         self.num_classes = num_classes
         self.use_timm_backbone = use_timm_backbone
         self.backbone = backbone
-        self.apply_layernorm_after_vision_backbone = (
-            apply_layernorm_after_vision_backbone
-        )
+        self.apply_layernorm_after_vision_backbone = apply_layernorm_after_vision_backbone
         self.image_size = image_size
         self.text_projection_in_dim = text_projection_in_dim
         self.text_projection_out_dim = text_projection_out_dim
@@ -118,27 +104,17 @@ class OmDetTurboModelTester:
         self.decoder_seq_length = self.num_queries
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
-        input_ids_tasks = ids_tensor(
-            [self.batch_size, self.max_text_len], self.num_classes
-        )
+        input_ids_tasks = ids_tensor([self.batch_size, self.max_text_len], self.num_classes)
         input_ids_tasks = input_ids_tasks.to(torch_device)
         input_ids_classes = torch.cat(
-            [
-                ids_tensor([self.num_classes, self.max_text_len], self.num_classes)
-                for _ in range(self.batch_size)
-            ]
+            [ids_tensor([self.num_classes, self.max_text_len], self.num_classes) for _ in range(self.batch_size)]
         )
         input_ids_classes = input_ids_classes.to(torch_device)
         attention_mask_tasks = torch.ones_like(input_ids_tasks, device=torch_device)
         attention_mask_classes = torch.ones_like(input_ids_classes, device=torch_device)
-        classes_structure = (
-            torch.ones(self.batch_size, dtype=torch.long, device=torch_device)
-            * self.num_classes
-        )
+        classes_structure = torch.ones(self.batch_size, dtype=torch.long, device=torch_device) * self.num_classes
         encoding = BatchFeature()
         encoding.update(
             {
@@ -196,11 +172,7 @@ class OmDetTurboModelTester:
             text_projection_out_dim=self.text_projection_out_dim,
             encoder_hidden_dim=self.hidden_size,
             decoder_hidden_dim=self.hidden_size,
-            vision_features_channels=[
-                self.hidden_size,
-                self.hidden_size,
-                self.hidden_size,
-            ],
+            vision_features_channels=[self.hidden_size, self.hidden_size, self.hidden_size],
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -214,12 +186,9 @@ class OmDetTurboModelTester:
 
         result = model(**inputs_dict)
 
+        self.parent.assertEqual(result.decoder_coord_logits.shape, (self.batch_size, self.num_queries, 4))
         self.parent.assertEqual(
-            result.decoder_coord_logits.shape, (self.batch_size, self.num_queries, 4)
-        )
-        self.parent.assertEqual(
-            result.decoder_class_logits.shape,
-            (self.batch_size, self.num_queries, self.num_classes),
+            result.decoder_class_logits.shape, (self.batch_size, self.num_queries, self.num_classes)
         )
 
 
@@ -230,16 +199,12 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
     test_pruning = False
     test_head_masking = False
     pipeline_model_mapping = (
-        {"zero-shot-object-detection": OmDetTurboForObjectDetection}
-        if is_torch_available()
-        else {}
+        {"zero-shot-object-detection": OmDetTurboForObjectDetection} if is_torch_available() else {}
     )
 
     # special case for head models
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
-        inputs_dict = super()._prepare_for_class(
-            inputs_dict, model_class, return_labels=return_labels
-        )
+        inputs_dict = super()._prepare_for_class(inputs_dict, model_class, return_labels=return_labels)
 
         return inputs_dict
 
@@ -249,11 +214,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             self,
             config_class=OmDetTurboConfig,
             has_text_modality=False,
-            common_properties=[
-                "d_model",
-                "encoder_attention_heads",
-                "decoder_num_heads",
-            ],
+            common_properties=["d_model", "encoder_attention_heads", "decoder_num_heads"],
         )
 
     def test_config(self):
@@ -261,9 +222,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
     def test_object_detection_head_model(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_object_detection_head_model(
-            config, inputs_dict
-        )
+        self.model_tester.create_and_check_object_detection_head_model(config, inputs_dict)
 
     @unittest.skip(
         reason="Unsupported as classes_input_ids are classes input are flattened by the processor: https://github.com/huggingface/transformers/issues/33669"
@@ -310,11 +269,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             if self.model_tester.is_training is False:
                 model.eval()
 
-            model_vocab_size = (
-                config.text_config.vocab_size
-                if hasattr(config, "text_config")
-                else config.vocab_size
-            )
+            model_vocab_size = config.text_config.vocab_size if hasattr(config, "text_config") else config.vocab_size
             # Retrieve the embeddings and clone theme
             model_embed = model.resize_token_embeddings(model_vocab_size)
             cloned_embeddings = model_embed.weight.clone()
@@ -328,9 +283,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             )
             self.assertEqual(new_model_vocab_size, model_vocab_size + 10)
             # Check that it actually resizes the embeddings matrix
-            self.assertEqual(
-                model_embed.weight.shape[0], cloned_embeddings.shape[0] + 10
-            )
+            self.assertEqual(model_embed.weight.shape[0], cloned_embeddings.shape[0] + 10)
             # Check to make sure the type of embeddings returned post resizing is same as type of input
             type_model_embed_post_resize = type(model_embed)
             self.assertEqual(type_model_embed_pre_resize, type_model_embed_post_resize)
@@ -346,9 +299,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             )
             self.assertEqual(new_model_vocab_size, model_vocab_size - 15)
             # Check that it actually resizes the embeddings matrix
-            self.assertEqual(
-                model_embed.weight.shape[0], cloned_embeddings.shape[0] - 15
-            )
+            self.assertEqual(model_embed.weight.shape[0], cloned_embeddings.shape[0] - 15)
 
             # Check that the model can still do a forward pass successfully (every parameter should be resized)
             # Input ids should be clamped to the maximum size of the vocabulary
@@ -371,11 +322,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             model = model_class(config)
             model.to(torch_device)
 
-            model_vocab_size = (
-                config.text_config.vocab_size
-                if hasattr(config, "text_config")
-                else config.vocab_size
-            )
+            model_vocab_size = config.text_config.vocab_size if hasattr(config, "text_config") else config.vocab_size
             model.resize_token_embeddings(model_vocab_size + 10, pad_to_multiple_of=1)
             new_model_vocab_size = (
                 model.config.text_config.vocab_size
@@ -384,9 +331,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             )
             self.assertTrue(new_model_vocab_size + 10, model_vocab_size)
 
-            model_embed = model.resize_token_embeddings(
-                model_vocab_size, pad_to_multiple_of=64
-            )
+            model_embed = model.resize_token_embeddings(model_vocab_size, pad_to_multiple_of=64)
             new_model_vocab_size = (
                 model.config.text_config.vocab_size
                 if hasattr(model.config, "text_config")
@@ -397,16 +342,12 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             self.assertTrue(model_embed.weight.shape[0], new_model_vocab_size)
             self.assertTrue(new_model_vocab_size, model.vocab_size)
 
-            model_embed = model.resize_token_embeddings(
-                model_vocab_size + 13, pad_to_multiple_of=64
-            )
+            model_embed = model.resize_token_embeddings(model_vocab_size + 13, pad_to_multiple_of=64)
             self.assertTrue(model_embed.weight.shape[0] // 64, 0)
 
             # Check that resizing a model to a multiple of pad_to_multiple leads to a model of exactly that size
             target_dimension = 128
-            model_embed = model.resize_token_embeddings(
-                target_dimension, pad_to_multiple_of=64
-            )
+            model_embed = model.resize_token_embeddings(target_dimension, pad_to_multiple_of=64)
             self.assertTrue(model_embed.weight.shape[0], target_dimension)
 
             with self.assertRaisesRegex(
@@ -429,31 +370,19 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             # instead, we can rely on cos distance for image/speech models, similar to `diffusers`
             if "input_ids" not in batched_input:
                 return lambda tensor1, tensor2: (
-                    1.0
-                    - F.cosine_similarity(
-                        tensor1.float().flatten(),
-                        tensor2.float().flatten(),
-                        dim=0,
-                        eps=1e-38,
-                    )
+                    1.0 - F.cosine_similarity(tensor1.float().flatten(), tensor2.float().flatten(), dim=0, eps=1e-38)
                 )
             return lambda tensor1, tensor2: torch.max(torch.abs(tensor1 - tensor2))
 
         def recursive_check(batched_object, single_row_object, model_name, key):
             if isinstance(batched_object, (list, tuple)):
-                for batched_object_value, single_row_object_value in zip(
-                    batched_object, single_row_object
-                ):
-                    recursive_check(
-                        batched_object_value, single_row_object_value, model_name, key
-                    )
+                for batched_object_value, single_row_object_value in zip(batched_object, single_row_object):
+                    recursive_check(batched_object_value, single_row_object_value, model_name, key)
             elif isinstance(batched_object, dict):
                 for batched_object_value, single_row_object_value in zip(
                     batched_object.values(), single_row_object.values()
                 ):
-                    recursive_check(
-                        batched_object_value, single_row_object_value, model_name, key
-                    )
+                    recursive_check(batched_object_value, single_row_object_value, model_name, key)
             # do not compare returned loss (0-dim tensor) / codebook ids (int) / caching objects
             elif batched_object is None or not isinstance(batched_object, torch.Tensor):
                 return
@@ -466,16 +395,13 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
                 slice_ids = [slice(0, index) for index in single_row_object.shape]
                 batched_row = batched_object[slice_ids]
                 self.assertFalse(
-                    torch.isnan(batched_row).any(),
-                    f"Batched output has `nan` in {model_name} for key={key}",
+                    torch.isnan(batched_row).any(), f"Batched output has `nan` in {model_name} for key={key}"
                 )
                 self.assertFalse(
-                    torch.isinf(batched_row).any(),
-                    f"Batched output has `inf` in {model_name} for key={key}",
+                    torch.isinf(batched_row).any(), f"Batched output has `inf` in {model_name} for key={key}"
                 )
                 self.assertFalse(
-                    torch.isnan(single_row_object).any(),
-                    f"Single row output has `nan` in {model_name} for key={key}",
+                    torch.isnan(single_row_object).any(), f"Single row output has `nan` in {model_name} for key={key}"
                 )
                 self.assertFalse(
                     torch.isinf(single_row_object).any(),
@@ -497,12 +423,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
             model_name = model_class.__name__
             if hasattr(self.model_tester, "prepare_config_and_inputs_for_model_class"):
-                (
-                    config,
-                    batched_input,
-                ) = self.model_tester.prepare_config_and_inputs_for_model_class(
-                    model_class
-                )
+                config, batched_input = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
             batched_input_prepared = self._prepare_for_class(batched_input, model_class)
             model = model_class(config).to(torch_device).eval()
             batch_size = self.model_tester.batch_size
@@ -521,33 +442,18 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
             for key in model_batched_output:
                 # DETR starts from zero-init queries to decoder, leading to cos_similarity = `nan`
-                if (
-                    hasattr(self, "zero_init_hidden_state")
-                    and "decoder_hidden_states" in key
-                ):
+                if hasattr(self, "zero_init_hidden_state") and "decoder_hidden_states" in key:
                     model_batched_output[key] = model_batched_output[key][1:]
                     model_row_output[key] = model_row_output[key][1:]
-                if key in (
-                    "decoder_class_logits",
-                    "decoder_classes",
-                    "encoder_class_logits",
-                ):
+                if key in ("decoder_class_logits", "decoder_classes", "encoder_class_logits"):
                     # check if all elements are close to 0, if so skip the test as the test strugles with comparing
                     # tensors with all elements close to 0
                     if torch.allclose(
-                        model_batched_output[key],
-                        torch.zeros_like(model_batched_output[key]),
-                        atol=1e-6,
-                    ) and torch.allclose(
-                        model_row_output[key],
-                        torch.zeros_like(model_row_output[key]),
-                        atol=1e-6,
-                    ):
+                        model_batched_output[key], torch.zeros_like(model_batched_output[key]), atol=1e-6
+                    ) and torch.allclose(model_row_output[key], torch.zeros_like(model_row_output[key]), atol=1e-6):
                         continue
 
-                recursive_check(
-                    model_batched_output[key], model_row_output[key], model_name, key
-                )
+                recursive_check(model_batched_output[key], model_row_output[key], model_name, key)
 
     def test_attention_outputs(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -575,9 +481,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
                 outputs = model(**self._prepare_for_class(inputs_dict, model_class))
             attentions = outputs.encoder_attentions[-1]
             self.assertEqual(
-                len(attentions),
-                self.model_tester.num_hidden_layers
-                * self.model_tester.num_projection_layers,
+                len(attentions), self.model_tester.num_hidden_layers * self.model_tester.num_projection_layers
             )
             # Rest of the shape seems to depend on backbone output shapes and image size
             self.assertListEqual(
@@ -591,9 +495,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             # decoder attentions
             decoder_attentions = outputs.decoder_attentions[0]
             self.assertIsInstance(decoder_attentions, (list, tuple))
-            self.assertEqual(
-                len(decoder_attentions), self.model_tester.num_hidden_layers
-            )
+            self.assertEqual(len(decoder_attentions), self.model_tester.num_hidden_layers)
             self.assertListEqual(
                 list(decoder_attentions[0].shape[-3:]),
                 [
@@ -628,9 +530,7 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             self_attentions = outputs.encoder_attentions[-1]
 
             self.assertEqual(
-                len(self_attentions),
-                self.model_tester.num_hidden_layers
-                * self.model_tester.num_projection_layers,
+                len(self_attentions), self.model_tester.num_hidden_layers * self.model_tester.num_projection_layers
             )
             self.assertListEqual(
                 list(attentions[0].shape[-3:]),
@@ -653,24 +553,17 @@ class OmDetTurboModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
             hidden_states = outputs.encoder_hidden_states
             expected_num_layers = getattr(
-                self.model_tester,
-                "expected_num_hidden_layers",
-                self.model_tester.num_projection_layers + 1,
+                self.model_tester, "expected_num_hidden_layers", self.model_tester.num_projection_layers + 1
             )
             self.assertEqual(len(hidden_states), expected_num_layers)
 
             seq_len = self.model_tester.encoder_seq_length_vision
 
-            self.assertListEqual(
-                list(hidden_states[0].shape[-3:]),
-                [self.model_tester.hidden_size, seq_len, seq_len],
-            )
+            self.assertListEqual(list(hidden_states[0].shape[-3:]), [self.model_tester.hidden_size, seq_len, seq_len])
 
             hidden_states = outputs.decoder_hidden_states
             expected_num_layers = getattr(
-                self.model_tester,
-                "expected_num_hidden_layers",
-                self.model_tester.num_hidden_layers + 1,
+                self.model_tester, "expected_num_hidden_layers", self.model_tester.num_hidden_layers + 1
             )
             self.assertIsInstance(hidden_states, (list, tuple))
             self.assertEqual(len(hidden_states), expected_num_layers)
@@ -763,10 +656,7 @@ def prepare_img_batched():
     url2 = "http://images.cocodataset.org/train2017/000000257813.jpg"
     url3 = "https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg"
 
-    return [
-        Image.open(BytesIO(requests.get(url).content)).convert("RGB")
-        for url in [url1, url2, url3]
-    ]
+    return [Image.open(BytesIO(requests.get(url).content)).convert("RGB") for url in [url1, url2, url3]]
 
 
 def prepare_text_batched():
@@ -786,287 +676,166 @@ def prepare_text_batched():
 class OmDetTurboModelIntegrationTests(unittest.TestCase):
     @cached_property
     def default_processor(self):
-        return (
-            AutoProcessor.from_pretrained("omlab/omdet-turbo-swin-tiny-hf")
-            if is_vision_available()
-            else None
-        )
+        return AutoProcessor.from_pretrained("omlab/omdet-turbo-swin-tiny-hf") if is_vision_available() else None
 
     def test_inference_object_detection_head(self):
-        model = OmDetTurboForObjectDetection.from_pretrained(
-            "omlab/omdet-turbo-swin-tiny-hf"
-        ).to(torch_device)
+        model = OmDetTurboForObjectDetection.from_pretrained("omlab/omdet-turbo-swin-tiny-hf").to(torch_device)
 
         processor = self.default_processor
         image = prepare_img()
         text_labels, task = prepare_text()
-        encoding = processor(
-            images=image, text=text_labels, task=task, return_tensors="pt"
-        ).to(torch_device)
+        encoding = processor(images=image, text=text_labels, task=task, return_tensors="pt").to(torch_device)
 
         with torch.no_grad():
             outputs = model(**encoding)
 
         expected_shape_coord_logits = torch.Size((1, model.config.num_queries, 4))
         expected_shape_class_logits = torch.Size((1, model.config.num_queries, 2))
-        self.assertEqual(
-            outputs.decoder_coord_logits.shape, expected_shape_coord_logits
-        )
-        self.assertEqual(
-            outputs.decoder_class_logits.shape, expected_shape_class_logits
-        )
+        self.assertEqual(outputs.decoder_coord_logits.shape, expected_shape_coord_logits)
+        self.assertEqual(outputs.decoder_class_logits.shape, expected_shape_class_logits)
 
-        expected_class_logits = torch.tensor(
-            [[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]
-        ).to(torch_device)
+        expected_class_logits = torch.tensor([[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]).to(
+            torch_device
+        )
         expected_coord_logits = torch.tensor(
-            [
-                [
-                    [0.2550, 0.5501, 0.4738, 0.8745],
-                    [0.7695, 0.4121, 0.4603, 0.7244],
-                    [0.7691, 0.4117, 0.4603, 0.7214],
-                ]
-            ]
+            [[[0.2550, 0.5501, 0.4738, 0.8745], [0.7695, 0.4121, 0.4603, 0.7244], [0.7691, 0.4117, 0.4603, 0.7214]]]
         ).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.decoder_class_logits[:3, :3],
-            expected_class_logits,
-            rtol=1e-1,
-            atol=1e-1,
-        )
-        torch.testing.assert_close(
-            outputs.decoder_coord_logits[:3, :3],
-            expected_coord_logits,
-            rtol=1e-3,
-            atol=1e-3,
-        )
+        torch.testing.assert_close(outputs.decoder_class_logits[:3, :3], expected_class_logits, rtol=1e-1, atol=1e-1)
+        torch.testing.assert_close(outputs.decoder_coord_logits[:3, :3], expected_coord_logits, rtol=1e-3, atol=1e-3)
 
         # verify grounded postprocessing
         results = processor.post_process_grounded_object_detection(
             outputs, text_labels=[text_labels], target_sizes=[image.size[::-1]]
         )[0]
-        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(
-            torch_device
-        )
-        expected_slice_boxes = torch.tensor([39.8870, 70.3522, 176.7424, 118.0354]).to(
-            torch_device
-        )
+        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(torch_device)
+        expected_slice_boxes = torch.tensor([39.8870, 70.3522, 176.7424, 118.0354]).to(torch_device)
 
         self.assertEqual(len(results["scores"]), 4)
-        torch.testing.assert_close(
-            results["scores"], expected_scores, rtol=1e-2, atol=1e-2
-        )
-        torch.testing.assert_close(
-            results["boxes"][0, :], expected_slice_boxes, rtol=1e-2, atol=1e-2
-        )
+        torch.testing.assert_close(results["scores"], expected_scores, rtol=1e-2, atol=1e-2)
+        torch.testing.assert_close(results["boxes"][0, :], expected_slice_boxes, rtol=1e-2, atol=1e-2)
 
         expected_text_labels = ["remote", "cat", "remote", "cat"]
         self.assertListEqual(results["text_labels"], expected_text_labels)
 
     def test_inference_object_detection_head_fp16(self):
-        model = OmDetTurboForObjectDetection.from_pretrained(
-            "omlab/omdet-turbo-swin-tiny-hf"
-        ).to(torch_device, dtype=torch.float16)
+        model = OmDetTurboForObjectDetection.from_pretrained("omlab/omdet-turbo-swin-tiny-hf").to(
+            torch_device, dtype=torch.float16
+        )
 
         processor = self.default_processor
         image = prepare_img()
         text_labels, task = prepare_text()
-        encoding = processor(
-            images=image, text=text_labels, task=task, return_tensors="pt"
-        ).to(torch_device, dtype=torch.float16)
+        encoding = processor(images=image, text=text_labels, task=task, return_tensors="pt").to(
+            torch_device, dtype=torch.float16
+        )
 
         with torch.no_grad():
             outputs = model(**encoding)
 
         expected_shape_coord_logits = torch.Size((1, model.config.num_queries, 4))
         expected_shape_class_logits = torch.Size((1, model.config.num_queries, 2))
-        self.assertEqual(
-            outputs.decoder_coord_logits.shape, expected_shape_coord_logits
-        )
-        self.assertEqual(
-            outputs.decoder_class_logits.shape, expected_shape_class_logits
-        )
+        self.assertEqual(outputs.decoder_coord_logits.shape, expected_shape_coord_logits)
+        self.assertEqual(outputs.decoder_class_logits.shape, expected_shape_class_logits)
 
-        expected_class_logits = torch.tensor(
-            [[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]
-        ).to(torch_device, dtype=torch.float16)
+        expected_class_logits = torch.tensor([[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]).to(
+            torch_device, dtype=torch.float16
+        )
         expected_coord_logits = torch.tensor(
-            [
-                [
-                    [0.2550, 0.5501, 0.4738, 0.8745],
-                    [0.7695, 0.4121, 0.4603, 0.7244],
-                    [0.7691, 0.4117, 0.4603, 0.7214],
-                ]
-            ]
+            [[[0.2550, 0.5501, 0.4738, 0.8745], [0.7695, 0.4121, 0.4603, 0.7244], [0.7691, 0.4117, 0.4603, 0.7214]]]
         ).to(torch_device, dtype=torch.float16)
 
-        torch.testing.assert_close(
-            outputs.decoder_class_logits[:3, :3],
-            expected_class_logits,
-            rtol=1e-1,
-            atol=1e-1,
-        )
-        torch.testing.assert_close(
-            outputs.decoder_coord_logits[:3, :3],
-            expected_coord_logits,
-            rtol=1e-3,
-            atol=1e-3,
-        )
+        torch.testing.assert_close(outputs.decoder_class_logits[:3, :3], expected_class_logits, rtol=1e-1, atol=1e-1)
+        torch.testing.assert_close(outputs.decoder_coord_logits[:3, :3], expected_coord_logits, rtol=1e-3, atol=1e-3)
 
         # verify grounded postprocessing
         results = processor.post_process_grounded_object_detection(
             outputs, text_labels=[text_labels], target_sizes=[image.size[::-1]]
         )[0]
-        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(
-            torch_device, dtype=torch.float16
-        )
+        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(torch_device, dtype=torch.float16)
         expected_slice_boxes = torch.tensor([39.8870, 70.3522, 176.7424, 118.0354]).to(
             torch_device, dtype=torch.float16
         )
 
         self.assertEqual(len(results["scores"]), 4)
-        torch.testing.assert_close(
-            results["scores"], expected_scores, rtol=1e-2, atol=1e-2
-        )
-        torch.testing.assert_close(
-            results["boxes"][0, :], expected_slice_boxes, rtol=1e-1, atol=1e-1
-        )
+        torch.testing.assert_close(results["scores"], expected_scores, rtol=1e-2, atol=1e-2)
+        torch.testing.assert_close(results["boxes"][0, :], expected_slice_boxes, rtol=1e-1, atol=1e-1)
 
         expected_text_labels = ["remote", "cat", "remote", "cat"]
         self.assertListEqual(results["text_labels"], expected_text_labels)
 
     def test_inference_object_detection_head_no_task(self):
-        model = OmDetTurboForObjectDetection.from_pretrained(
-            "omlab/omdet-turbo-swin-tiny-hf"
-        ).to(torch_device)
+        model = OmDetTurboForObjectDetection.from_pretrained("omlab/omdet-turbo-swin-tiny-hf").to(torch_device)
 
         processor = self.default_processor
         image = prepare_img()
         text_labels, _ = prepare_text()
-        encoding = processor(images=image, text=text_labels, return_tensors="pt").to(
-            torch_device
-        )
+        encoding = processor(images=image, text=text_labels, return_tensors="pt").to(torch_device)
 
         with torch.no_grad():
             outputs = model(**encoding)
 
         expected_shape_coord_logits = torch.Size((1, model.config.num_queries, 4))
         expected_shape_class_logits = torch.Size((1, model.config.num_queries, 2))
-        self.assertEqual(
-            outputs.decoder_coord_logits.shape, expected_shape_coord_logits
-        )
-        self.assertEqual(
-            outputs.decoder_class_logits.shape, expected_shape_class_logits
-        )
+        self.assertEqual(outputs.decoder_coord_logits.shape, expected_shape_coord_logits)
+        self.assertEqual(outputs.decoder_class_logits.shape, expected_shape_class_logits)
 
-        expected_class_logits = torch.tensor(
-            [[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]
-        ).to(torch_device)
+        expected_class_logits = torch.tensor([[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]).to(
+            torch_device
+        )
         expected_coord_logits = torch.tensor(
-            [
-                [
-                    [0.2550, 0.5501, 0.4738, 0.8745],
-                    [0.7695, 0.4121, 0.4603, 0.7244],
-                    [0.7691, 0.4117, 0.4603, 0.7214],
-                ]
-            ]
+            [[[0.2550, 0.5501, 0.4738, 0.8745], [0.7695, 0.4121, 0.4603, 0.7244], [0.7691, 0.4117, 0.4603, 0.7214]]]
         ).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.decoder_class_logits[:3, :3],
-            expected_class_logits,
-            rtol=1e-1,
-            atol=1e-1,
-        )
-        torch.testing.assert_close(
-            outputs.decoder_coord_logits[:3, :3],
-            expected_coord_logits,
-            rtol=1e-3,
-            atol=1e-3,
-        )
+        torch.testing.assert_close(outputs.decoder_class_logits[:3, :3], expected_class_logits, rtol=1e-1, atol=1e-1)
+        torch.testing.assert_close(outputs.decoder_coord_logits[:3, :3], expected_coord_logits, rtol=1e-3, atol=1e-3)
 
         # verify grounded postprocessing
         results = processor.post_process_grounded_object_detection(
             outputs, text_labels=[text_labels], target_sizes=[image.size[::-1]]
         )[0]
-        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(
-            torch_device
-        )
-        expected_slice_boxes = torch.tensor([39.8870, 70.3522, 176.7424, 118.0354]).to(
-            torch_device
-        )
+        expected_scores = torch.tensor([0.7675, 0.7196, 0.5634, 0.5524]).to(torch_device)
+        expected_slice_boxes = torch.tensor([39.8870, 70.3522, 176.7424, 118.0354]).to(torch_device)
 
         self.assertEqual(len(results["scores"]), 4)
-        torch.testing.assert_close(
-            results["scores"], expected_scores, rtol=1e-2, atol=1e-2
-        )
-        torch.testing.assert_close(
-            results["boxes"][0, :], expected_slice_boxes, rtol=1e-2, atol=1e-2
-        )
+        torch.testing.assert_close(results["scores"], expected_scores, rtol=1e-2, atol=1e-2)
+        torch.testing.assert_close(results["boxes"][0, :], expected_slice_boxes, rtol=1e-2, atol=1e-2)
 
         expected_text_labels = ["remote", "cat", "remote", "cat"]
         self.assertListEqual(results["text_labels"], expected_text_labels)
 
     def test_inference_object_detection_head_batched(self):
         torch_device = "cpu"
-        model = OmDetTurboForObjectDetection.from_pretrained(
-            "omlab/omdet-turbo-swin-tiny-hf"
-        ).to(torch_device)
+        model = OmDetTurboForObjectDetection.from_pretrained("omlab/omdet-turbo-swin-tiny-hf").to(torch_device)
 
         processor = self.default_processor
         images_batched = prepare_img_batched()
         text_labels_batched, tasks_batched = prepare_text_batched()
         encoding = processor(
-            images=images_batched,
-            text=text_labels_batched,
-            task=tasks_batched,
-            return_tensors="pt",
+            images=images_batched, text=text_labels_batched, task=tasks_batched, return_tensors="pt"
         ).to(torch_device)
 
         with torch.no_grad():
             outputs = model(**encoding)
 
-        expected_shape_coord_logits = torch.Size(
-            (len(images_batched), model.config.num_queries, 4)
-        )
-        expected_shape_class_logits = torch.Size(
-            (len(images_batched), model.config.num_queries, 3)
-        )
-        self.assertEqual(
-            outputs.decoder_coord_logits.shape, expected_shape_coord_logits
-        )
-        self.assertEqual(
-            outputs.decoder_class_logits.shape, expected_shape_class_logits
-        )
+        expected_shape_coord_logits = torch.Size((len(images_batched), model.config.num_queries, 4))
+        expected_shape_class_logits = torch.Size((len(images_batched), model.config.num_queries, 3))
+        self.assertEqual(outputs.decoder_coord_logits.shape, expected_shape_coord_logits)
+        self.assertEqual(outputs.decoder_class_logits.shape, expected_shape_class_logits)
 
         expected_class_logits = torch.tensor(
-            [
-                [[0.9427, -2.5958, -7.7601]],
-                [[-2.3408, -9.3516, -9.3516]],
-                [[1.0740, -2.3315, -1.1885]],
-            ]
+            [[[0.9427, -2.5958, -7.7601]], [[-2.3408, -9.3516, -9.3516]], [[1.0740, -2.3315, -1.1885]]]
         ).to(torch_device)
 
         expected_coord_logits = torch.tensor(
-            [
-                [[0.2550, 0.5501, 0.4738]],
-                [[0.2535, 0.6006, 0.0353]],
-                [[0.3742, 0.3337, 0.0666]],
-            ]
+            [[[0.2550, 0.5501, 0.4738]], [[0.2535, 0.6006, 0.0353]], [[0.3742, 0.3337, 0.0666]]]
         ).to(torch_device)
 
         torch.testing.assert_close(
-            outputs.decoder_class_logits[:, :1, :3],
-            expected_class_logits,
-            rtol=1e-1,
-            atol=1e-1,
+            outputs.decoder_class_logits[:, :1, :3], expected_class_logits, rtol=1e-1, atol=1e-1
         )
         torch.testing.assert_close(
-            outputs.decoder_coord_logits[:, :1, :3],
-            expected_coord_logits,
-            rtol=1e-3,
-            atol=1e-3,
+            outputs.decoder_coord_logits[:, :1, :3], expected_coord_logits, rtol=1e-3, atol=1e-3
         )
 
         # verify grounded postprocessing
@@ -1087,16 +856,10 @@ class OmDetTurboModelIntegrationTests(unittest.TestCase):
 
         self.assertListEqual([len(result["scores"]) for result in results], [4, 4, 6])
         torch.testing.assert_close(
-            torch.stack([result["scores"][0] for result in results]),
-            expected_scores,
-            rtol=1e-2,
-            atol=1e-2,
+            torch.stack([result["scores"][0] for result in results]), expected_scores, rtol=1e-2, atol=1e-2
         )
         torch.testing.assert_close(
-            torch.stack([result["boxes"][0, :] for result in results]),
-            expected_slice_boxes,
-            rtol=1e-2,
-            atol=1e-2,
+            torch.stack([result["boxes"][0, :] for result in results]), expected_slice_boxes, rtol=1e-2, atol=1e-2
         )
 
         expected_text_labels = [
@@ -1104,22 +867,16 @@ class OmDetTurboModelIntegrationTests(unittest.TestCase):
             ["boat", "boat", "boat", "boat"],
             ["statue", "trees", "trees", "torch", "statue", "statue"],
         ]
-        self.assertListEqual(
-            [result["text_labels"] for result in results], expected_text_labels
-        )
+        self.assertListEqual([result["text_labels"] for result in results], expected_text_labels)
 
     @require_torch_accelerator
     def test_inference_object_detection_head_equivalence_cpu_gpu(self):
         processor = self.default_processor
         image = prepare_img()
         text_labels, task = prepare_text()
-        encoding = processor(
-            images=image, text=text_labels, task=task, return_tensors="pt"
-        )
+        encoding = processor(images=image, text=text_labels, task=task, return_tensors="pt")
         # 1. run model on CPU
-        model = OmDetTurboForObjectDetection.from_pretrained(
-            "omlab/omdet-turbo-swin-tiny-hf"
-        )
+        model = OmDetTurboForObjectDetection.from_pretrained("omlab/omdet-turbo-swin-tiny-hf")
 
         with torch.no_grad():
             cpu_outputs = model(**encoding)
@@ -1131,30 +888,16 @@ class OmDetTurboModelIntegrationTests(unittest.TestCase):
             gpu_outputs = model(**encoding)
 
         # 3. assert equivalence
-        expected_class_logits = torch.tensor(
-            [[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]]
-        )
+        expected_class_logits = torch.tensor([[[0.9427, -2.5958], [0.2105, -3.4569], [-2.6364, -4.1610]]])
         expected_coord_logits = torch.tensor(
-            [
-                [
-                    [0.2550, 0.5501, 0.4738, 0.8745],
-                    [0.7695, 0.4121, 0.4603, 0.7244],
-                    [0.7691, 0.4117, 0.4603, 0.7214],
-                ]
-            ]
+            [[[0.2550, 0.5501, 0.4738, 0.8745], [0.7695, 0.4121, 0.4603, 0.7244], [0.7691, 0.4117, 0.4603, 0.7214]]]
         )
 
         torch.testing.assert_close(
-            cpu_outputs.decoder_class_logits[:3, :3],
-            expected_class_logits,
-            rtol=1e-1,
-            atol=1e-1,
+            cpu_outputs.decoder_class_logits[:3, :3], expected_class_logits, rtol=1e-1, atol=1e-1
         )
         torch.testing.assert_close(
-            cpu_outputs.decoder_coord_logits[:3, :3],
-            expected_coord_logits,
-            rtol=1e-3,
-            atol=1e-3,
+            cpu_outputs.decoder_coord_logits[:3, :3], expected_coord_logits, rtol=1e-3, atol=1e-3
         )
 
         # verify grounded postprocessing
@@ -1165,12 +908,5 @@ class OmDetTurboModelIntegrationTests(unittest.TestCase):
             gpu_outputs, text_labels=[text_labels], target_sizes=[image.size[::-1]]
         )[0]
 
-        torch.testing.assert_close(
-            results_cpu["scores"], result_gpu["scores"].cpu(), rtol=1e-2, atol=1e-2
-        )
-        torch.testing.assert_close(
-            results_cpu["boxes"][0, :],
-            result_gpu["boxes"][0, :].cpu(),
-            rtol=1e-2,
-            atol=1e-2,
-        )
+        torch.testing.assert_close(results_cpu["scores"], result_gpu["scores"].cpu(), rtol=1e-2, atol=1e-2)
+        torch.testing.assert_close(results_cpu["boxes"][0, :], result_gpu["boxes"][0, :].cpu(), rtol=1e-2, atol=1e-2)

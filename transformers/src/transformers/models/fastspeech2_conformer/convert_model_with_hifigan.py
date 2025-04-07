@@ -14,13 +14,10 @@
 # limitations under the License.
 """Convert FastSpeech2Conformer checkpoint."""
 
-# Standard
 import argparse
 
-# Third Party
 import torch
 
-# First Party
 from transformers import (
     FastSpeech2ConformerConfig,
     FastSpeech2ConformerHifiGan,
@@ -31,12 +28,12 @@ from transformers import (
     logging,
 )
 
-# Local
 from .convert_fastspeech2_conformer_original_pytorch_checkpoint_to_pytorch import (
     convert_espnet_state_dict_to_hf,
     remap_model_yaml_config,
 )
 from .convert_hifigan import load_weights, remap_hifigan_yaml_config
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger("transformers.models.FastSpeech2Conformer")
@@ -66,9 +63,7 @@ def convert_FastSpeech2ConformerWithHifiGan_checkpoint(
     load_weights(espnet_checkpoint, vocoder, vocoder_config)
 
     # Prepare the model + vocoder
-    config = FastSpeech2ConformerWithHifiGanConfig.from_sub_model_configs(
-        model_config, vocoder_config
-    )
+    config = FastSpeech2ConformerWithHifiGanConfig.from_sub_model_configs(model_config, vocoder_config)
     with_hifigan_model = FastSpeech2ConformerWithHifiGan(config)
     with_hifigan_model.model = model
     with_hifigan_model.vocoder = vocoder
@@ -82,19 +77,9 @@ def convert_FastSpeech2ConformerWithHifiGan_checkpoint(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint_path", required=True, default=None, type=str, help="Path to original checkpoint")
     parser.add_argument(
-        "--checkpoint_path",
-        required=True,
-        default=None,
-        type=str,
-        help="Path to original checkpoint",
-    )
-    parser.add_argument(
-        "--yaml_config_path",
-        required=True,
-        default=None,
-        type=str,
-        help="Path to config.yaml of model to convert",
+        "--yaml_config_path", required=True, default=None, type=str, help="Path to config.yaml of model to convert"
     )
     parser.add_argument(
         "--pytorch_dump_folder_path",
@@ -104,10 +89,7 @@ if __name__ == "__main__":
         help="Path to the output `FastSpeech2ConformerModel` PyTorch model.",
     )
     parser.add_argument(
-        "--push_to_hub",
-        default=None,
-        type=str,
-        help="Where to upload the converted model on the 🤗 hub.",
+        "--push_to_hub", default=None, type=str, help="Where to upload the converted model on the 🤗 hub."
     )
 
     args = parser.parse_args()

@@ -14,13 +14,10 @@
 # limitations under the License.
 """Image processor class for PoolFormer."""
 
-# Standard
 from typing import Dict, List, Optional, Union
 
-# Third Party
 import numpy as np
 
-# Local
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import (
     get_resize_output_image_size,
@@ -40,15 +37,10 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_vision_available,
-    logging,
-)
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+
 
 if is_vision_available():
-    # Third Party
     import PIL
 
 
@@ -126,9 +118,7 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         super().__init__(**kwargs)
         size = size if size is not None else {"shortest_edge": 224}
         size = get_size_dict(size, default_to_square=False)
-        crop_size = (
-            crop_size if crop_size is not None else {"height": 224, "width": 224}
-        )
+        crop_size = crop_size if crop_size is not None else {"height": 224, "width": 224}
         crop_size = get_size_dict(crop_size, param_name="crop_size")
 
         self.do_resize = do_resize
@@ -140,9 +130,7 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = (
-            image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
-        )
+        self.image_mean = image_mean if image_mean is not None else IMAGENET_DEFAULT_MEAN
         self.image_std = image_std if image_std is not None else IMAGENET_DEFAULT_STD
 
     def resize(
@@ -186,12 +174,8 @@ class PoolFormerImageProcessor(BaseImageProcessor):
                 The channel dimension format of the input image. If not provided, it will be inferred.
         """
         size = get_size_dict(size, default_to_square=False)
-        if "shortest_edge" not in size and (
-            "height" not in size or "width" not in size
-        ):
-            raise ValueError(
-                f"size must contain 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}"
-            )
+        if "shortest_edge" not in size and ("height" not in size or "width" not in size):
+            raise ValueError(f"size must contain 'height' and 'width' or 'shortest_edge' as keys. Got {size.keys()}")
         if crop_pct is not None:
             if "shortest_edge" in size:
                 scale_size = int(size["shortest_edge"] / crop_pct)
@@ -199,26 +183,17 @@ class PoolFormerImageProcessor(BaseImageProcessor):
                 if size["height"] == size["width"]:
                     scale_size = int(size["height"] / crop_pct)
                 else:
-                    scale_size = (
-                        int(size["height"] / crop_pct),
-                        int(size["width"] / crop_pct),
-                    )
+                    scale_size = (int(size["height"] / crop_pct), int(size["width"] / crop_pct))
             else:
                 raise ValueError("Invalid size for resize: {}".format(size))
 
             output_size = get_resize_output_image_size(
-                image,
-                size=scale_size,
-                default_to_square=False,
-                input_data_format=input_data_format,
+                image, size=scale_size, default_to_square=False, input_data_format=input_data_format
             )
         else:
             if "shortest_edge" in size:
                 output_size = get_resize_output_image_size(
-                    image,
-                    size=size["shortest_edge"],
-                    default_to_square=False,
-                    input_data_format=input_data_format,
+                    image, size=size["shortest_edge"], default_to_square=False, input_data_format=input_data_format
                 )
             elif "height" in size and "width" in size:
                 output_size = (size["height"], size["width"])
@@ -238,15 +213,15 @@ class PoolFormerImageProcessor(BaseImageProcessor):
     def preprocess(
         self,
         images: ImageInput,
-        do_resize: bool = None,
+        do_resize: Optional[bool] = None,
         size: Dict[str, int] = None,
-        crop_pct: int = None,
+        crop_pct: Optional[int] = None,
         resample: PILImageResampling = None,
-        do_center_crop: bool = None,
+        do_center_crop: Optional[bool] = None,
         crop_size: Dict[str, int] = None,
-        do_rescale: bool = None,
-        rescale_factor: float = None,
-        do_normalize: bool = None,
+        do_rescale: Optional[bool] = None,
+        rescale_factor: Optional[float] = None,
+        do_normalize: Optional[bool] = None,
         image_mean: Optional[Union[float, List[float]]] = None,
         image_std: Optional[Union[float, List[float]]] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
@@ -304,13 +279,9 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         crop_pct = crop_pct if crop_pct is not None else self.crop_pct
         resample = resample if resample is not None else self.resample
-        do_center_crop = (
-            do_center_crop if do_center_crop is not None else self.do_center_crop
-        )
+        do_center_crop = do_center_crop if do_center_crop is not None else self.do_center_crop
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -356,49 +327,30 @@ class PoolFormerImageProcessor(BaseImageProcessor):
         if do_resize:
             images = [
                 self.resize(
-                    image=image,
-                    size=size,
-                    crop_pct=crop_pct,
-                    resample=resample,
-                    input_data_format=input_data_format,
+                    image=image, size=size, crop_pct=crop_pct, resample=resample, input_data_format=input_data_format
                 )
                 for image in images
             ]
 
         if do_center_crop:
             images = [
-                self.center_crop(
-                    image=image, size=crop_size, input_data_format=input_data_format
-                )
-                for image in images
+                self.center_crop(image=image, size=crop_size, input_data_format=input_data_format) for image in images
             ]
 
         if do_rescale:
             images = [
-                self.rescale(
-                    image=image,
-                    scale=rescale_factor,
-                    input_data_format=input_data_format,
-                )
+                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
                 for image in images
             ]
 
         if do_normalize:
             images = [
-                self.normalize(
-                    image=image,
-                    mean=image_mean,
-                    std=image_std,
-                    input_data_format=input_data_format,
-                )
+                self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
                 for image in images
             ]
 
         images = [
-            to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
-            for image in images
+            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format) for image in images
         ]
 
         data = {"pixel_values": images}

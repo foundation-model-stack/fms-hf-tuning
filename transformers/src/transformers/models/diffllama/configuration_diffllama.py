@@ -17,7 +17,6 @@
 # limitations under the License.
 """DiffLlama model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...modeling_rope_utils import rope_config_validation
 
@@ -181,11 +180,7 @@ class DiffLlamaConfig(PretrainedConfig):
         self.attention_bias = attention_bias
         self.attention_dropout = attention_dropout
         self.lambda_std_dev = lambda_std_dev
-        self.head_dim = (
-            head_dim
-            if head_dim is not None
-            else self.hidden_size // self.num_attention_heads
-        )
+        self.head_dim = head_dim if head_dim is not None else self.hidden_size // self.num_attention_heads
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, copy it it to 'rope_type'.
         if self.rope_scaling is not None and "type" in self.rope_scaling:

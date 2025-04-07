@@ -13,25 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-# Third Party
-from PIL import Image
 import numpy as np
+from PIL import Image
 
-# First Party
 from transformers import is_torch_available
 from transformers.agents.agent_types import AGENT_TYPE_MAPPING
 from transformers.agents.default_tools import FinalAnswerTool
 from transformers.testing_utils import get_tests_dir, require_torch
 
-# Local
 from .test_tools_common import ToolTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -51,9 +47,9 @@ class FinalAnswerToolTester(unittest.TestCase, ToolTesterMixin):
     def create_inputs(self):
         inputs_text = {"answer": "Text input"}
         inputs_image = {
-            "answer": Image.open(
-                Path(get_tests_dir("fixtures/tests_samples/COCO")) / "000000039769.png"
-            ).resize((512, 512))
+            "answer": Image.open(Path(get_tests_dir("fixtures/tests_samples/COCO")) / "000000039769.png").resize(
+                (512, 512)
+            )
         }
         inputs_audio = {"answer": torch.Tensor(np.ones(3000))}
         return {"string": inputs_text, "image": inputs_image, "audio": inputs_audio}

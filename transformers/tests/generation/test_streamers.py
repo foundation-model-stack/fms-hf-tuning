@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
+import unittest
 from queue import Empty
 from threading import Thread
 from unittest.mock import patch
-import unittest
 
-# Third Party
 import pytest
 
-# First Party
 from transformers import (
     AsyncTextIteratorStreamer,
     AutoTokenizer,
@@ -33,66 +30,45 @@ from transformers import (
 from transformers.testing_utils import CaptureStdout, require_torch, torch_device
 from transformers.utils.logging import _get_library_root_logger
 
-# Local
 from ..test_modeling_common import ids_tensor
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import AutoModelForCausalLM
 
 
 @require_torch
 class StreamerTester(unittest.TestCase):
     def test_text_streamer_matches_non_streaming(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         greedy_ids = model.generate(input_ids, max_new_tokens=10, do_sample=False)
         greedy_text = tokenizer.decode(greedy_ids[0])
 
         with CaptureStdout() as cs:
             streamer = TextStreamer(tokenizer)
-            model.generate(
-                input_ids, max_new_tokens=10, do_sample=False, streamer=streamer
-            )
+            model.generate(input_ids, max_new_tokens=10, do_sample=False, streamer=streamer)
         # The greedy text should be printed to stdout, except for the final "\n" in the streamer
         streamer_text = cs.out[:-1]
 
         self.assertEqual(streamer_text, greedy_text)
 
     def test_iterator_streamer_matches_non_streaming(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         greedy_ids = model.generate(input_ids, max_new_tokens=10, do_sample=False)
         greedy_text = tokenizer.decode(greedy_ids[0])
 
         streamer = TextIteratorStreamer(tokenizer)
-        generation_kwargs = {
-            "input_ids": input_ids,
-            "max_new_tokens": 10,
-            "do_sample": False,
-            "streamer": streamer,
-        }
+        generation_kwargs = {"input_ids": input_ids, "max_new_tokens": 10, "do_sample": False, "streamer": streamer}
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
         streamer_text = ""
@@ -102,26 +78,18 @@ class StreamerTester(unittest.TestCase):
         self.assertEqual(streamer_text, greedy_text)
 
     def test_text_streamer_skip_prompt(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         greedy_ids = model.generate(input_ids, max_new_tokens=10, do_sample=False)
         new_greedy_ids = greedy_ids[:, input_ids.shape[1] :]
         new_greedy_text = tokenizer.decode(new_greedy_ids[0])
 
         with CaptureStdout() as cs:
             streamer = TextStreamer(tokenizer, skip_prompt=True)
-            model.generate(
-                input_ids, max_new_tokens=10, do_sample=False, streamer=streamer
-            )
+            model.generate(input_ids, max_new_tokens=10, do_sample=False, streamer=streamer)
         # The greedy text should be printed to stdout, except for the final "\n" in the streamer
         streamer_text = cs.out[:-1]
 
@@ -132,22 +100,16 @@ class StreamerTester(unittest.TestCase):
         # with actual models -- the dummy models' tokenizers are not aligned with their models, and
         # `skip_special_tokens=True` has no effect on them
         tokenizer = AutoTokenizer.from_pretrained("distilbert/distilgpt2")
-        model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2").to(
-            torch_device
-        )
+        model = AutoModelForCausalLM.from_pretrained("distilbert/distilgpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = (
-            torch.ones((1, 5), device=torch_device).long() * model.config.bos_token_id
-        )
+        input_ids = torch.ones((1, 5), device=torch_device).long() * model.config.bos_token_id
 
         root = _get_library_root_logger()
         with patch.object(root, "propagate", False):
             with CaptureStdout() as cs:
                 streamer = TextStreamer(tokenizer, skip_special_tokens=True)
-                model.generate(
-                    input_ids, max_new_tokens=1, do_sample=False, streamer=streamer
-                )
+                model.generate(input_ids, max_new_tokens=1, do_sample=False, streamer=streamer)
 
         # The prompt contains a special token, so the streamer should not print it. As such, the output text, when
         # re-tokenized, must only contain one token
@@ -156,24 +118,13 @@ class StreamerTester(unittest.TestCase):
         self.assertEqual(streamer_text_tokenized.input_ids.shape, (1, 1))
 
     def test_iterator_streamer_timeout(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         streamer = TextIteratorStreamer(tokenizer, timeout=0.001)
-        generation_kwargs = {
-            "input_ids": input_ids,
-            "max_new_tokens": 10,
-            "do_sample": False,
-            "streamer": streamer,
-        }
+        generation_kwargs = {"input_ids": input_ids, "max_new_tokens": 10, "do_sample": False, "streamer": streamer}
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
 
@@ -188,27 +139,16 @@ class StreamerTester(unittest.TestCase):
 @pytest.mark.asyncio(loop_scope="class")
 class AsyncStreamerTester(unittest.IsolatedAsyncioTestCase):
     async def test_async_iterator_streamer_matches_non_streaming(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         greedy_ids = model.generate(input_ids, max_new_tokens=10, do_sample=False)
         greedy_text = tokenizer.decode(greedy_ids[0])
 
         streamer = AsyncTextIteratorStreamer(tokenizer)
-        generation_kwargs = {
-            "input_ids": input_ids,
-            "max_new_tokens": 10,
-            "do_sample": False,
-            "streamer": streamer,
-        }
+        generation_kwargs = {"input_ids": input_ids, "max_new_tokens": 10, "do_sample": False, "streamer": streamer}
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
         streamer_text = ""
@@ -218,24 +158,13 @@ class AsyncStreamerTester(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(streamer_text, greedy_text)
 
     async def test_async_iterator_streamer_timeout(self):
-        tokenizer = AutoTokenizer.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            "hf-internal-testing/tiny-random-gpt2"
-        ).to(torch_device)
+        tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-gpt2")
+        model = AutoModelForCausalLM.from_pretrained("hf-internal-testing/tiny-random-gpt2").to(torch_device)
         model.config.eos_token_id = -1
 
-        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(
-            torch_device
-        )
+        input_ids = ids_tensor((1, 5), vocab_size=model.config.vocab_size).to(torch_device)
         streamer = AsyncTextIteratorStreamer(tokenizer, timeout=0.001)
-        generation_kwargs = {
-            "input_ids": input_ids,
-            "max_new_tokens": 10,
-            "do_sample": False,
-            "streamer": streamer,
-        }
+        generation_kwargs = {"input_ids": input_ids, "max_new_tokens": 10, "do_sample": False, "streamer": streamer}
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
 

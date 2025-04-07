@@ -14,35 +14,21 @@
 # limitations under the License.
 """Tokenization classes for TAPEX."""
 
-# Standard
-from functools import lru_cache
-from typing import Dict, List, Optional, Tuple, Union
 import json
 import os
 import random
+from functools import lru_cache
+from typing import Dict, List, Optional, Tuple, Union
 
-# Third Party
 import regex as re
 
-# Local
-from ....file_utils import (
-    ExplicitEnum,
-    PaddingStrategy,
-    TensorType,
-    add_end_docstrings,
-    is_pandas_available,
-)
+from ....file_utils import ExplicitEnum, PaddingStrategy, TensorType, add_end_docstrings, is_pandas_available
 from ....tokenization_utils import AddedToken, PreTrainedTokenizer
-from ....tokenization_utils_base import (
-    ENCODE_KWARGS_DOCSTRING,
-    BatchEncoding,
-    TextInput,
-    TruncationStrategy,
-)
+from ....tokenization_utils_base import ENCODE_KWARGS_DOCSTRING, BatchEncoding, TextInput, TruncationStrategy
 from ....utils import logging
 
+
 if is_pandas_available():
-    # Third Party
     import pandas as pd
 
 
@@ -123,9 +109,7 @@ def bytes_to_unicode():
     vocab. To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
     """
     bs = (
-        list(range(ord("!"), ord("~") + 1))
-        + list(range(ord("¡"), ord("¬") + 1))
-        + list(range(ord("®"), ord("ÿ") + 1))
+        list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
     )
     cs = bs[:]
     n = 0
@@ -160,9 +144,7 @@ class IndexedRowTableLinearize:
         """
         Given a table, TableLinearize aims at converting it into a flatten sequence with special symbols.
         """
-        assert (
-            "header" in table_content and "rows" in table_content
-        ), self.PROMPT_MESSAGE
+        assert "header" in table_content and "rows" in table_content, self.PROMPT_MESSAGE
         # process header
         table_str = self.process_header(table_content["header"]) + " "
         # process rows
@@ -284,43 +266,15 @@ class TapexTokenizer(PreTrainedTokenizer):
         max_cell_length=15,
         **kwargs,
     ):
-        bos_token = (
-            AddedToken(bos_token, lstrip=False, rstrip=False)
-            if isinstance(bos_token, str)
-            else bos_token
-        )
-        eos_token = (
-            AddedToken(eos_token, lstrip=False, rstrip=False)
-            if isinstance(eos_token, str)
-            else eos_token
-        )
-        sep_token = (
-            AddedToken(sep_token, lstrip=False, rstrip=False)
-            if isinstance(sep_token, str)
-            else sep_token
-        )
-        cls_token = (
-            AddedToken(cls_token, lstrip=False, rstrip=False)
-            if isinstance(cls_token, str)
-            else cls_token
-        )
-        unk_token = (
-            AddedToken(unk_token, lstrip=False, rstrip=False)
-            if isinstance(unk_token, str)
-            else unk_token
-        )
-        pad_token = (
-            AddedToken(pad_token, lstrip=False, rstrip=False)
-            if isinstance(pad_token, str)
-            else pad_token
-        )
+        bos_token = AddedToken(bos_token, lstrip=False, rstrip=False) if isinstance(bos_token, str) else bos_token
+        eos_token = AddedToken(eos_token, lstrip=False, rstrip=False) if isinstance(eos_token, str) else eos_token
+        sep_token = AddedToken(sep_token, lstrip=False, rstrip=False) if isinstance(sep_token, str) else sep_token
+        cls_token = AddedToken(cls_token, lstrip=False, rstrip=False) if isinstance(cls_token, str) else cls_token
+        unk_token = AddedToken(unk_token, lstrip=False, rstrip=False) if isinstance(unk_token, str) else unk_token
+        pad_token = AddedToken(pad_token, lstrip=False, rstrip=False) if isinstance(pad_token, str) else pad_token
 
         # Mask token behave like a normal word, i.e. include the space before it
-        mask_token = (
-            AddedToken(mask_token, lstrip=True, rstrip=False)
-            if isinstance(mask_token, str)
-            else mask_token
-        )
+        mask_token = AddedToken(mask_token, lstrip=True, rstrip=False) if isinstance(mask_token, str) else mask_token
 
         with open(vocab_file, encoding="utf-8") as vocab_handle:
             self.encoder = json.load(vocab_handle)
@@ -337,9 +291,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         self.do_lower_case = do_lower_case
 
         # Should have added re.IGNORECASE so BPE merges can happen for capitalized versions of contractions
-        self.pat = re.compile(
-            r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        )
+        self.pat = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
         # additional properties
 
@@ -387,10 +339,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         return cls + token_ids_0 + sep + sep + token_ids_1 + sep
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """
         Args:
@@ -407,9 +356,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         """
         if already_has_special_tokens:
             return super().get_special_tokens_mask(
-                token_ids_0=token_ids_0,
-                token_ids_1=token_ids_1,
-                already_has_special_tokens=True,
+                token_ids_0=token_ids_0, token_ids_1=token_ids_1, already_has_special_tokens=True
             )
 
         if token_ids_1 is None:
@@ -439,9 +386,7 @@ class TapexTokenizer(PreTrainedTokenizer):
 
     def prepare_for_tokenization(self, text, is_split_into_words=False, **kwargs):
         add_prefix_space = kwargs.pop("add_prefix_space", self.add_prefix_space)
-        if (is_split_into_words or add_prefix_space) and (
-            len(text) > 0 and not text[0].isspace()
-        ):
+        if (is_split_into_words or add_prefix_space) and (len(text) > 0 and not text[0].isspace()):
             text = " " + text
         return (text, kwargs)
 
@@ -515,40 +460,27 @@ class TapexTokenizer(PreTrainedTokenizer):
     def convert_tokens_to_string(self, tokens):
         """Converts a sequence of tokens (string) in a single string."""
         text = "".join(tokens)
-        text = bytearray([self.byte_decoder[c] for c in text]).decode(
-            "utf-8", errors=self.errors
-        )
+        text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8", errors=self.errors)
         return text
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
         merge_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["merges_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["merges_file"]
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
-            f.write(
-                json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False)
-                + "\n"
-            )
+            f.write(json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
 
         index = 0
         with open(merge_file, "w", encoding="utf-8") as writer:
             writer.write("#version: 0.2\n")
-            for bpe_tokens, token_index in sorted(
-                self.bpe_ranks.items(), key=lambda kv: kv[1]
-            ):
+            for bpe_tokens, token_index in sorted(self.bpe_ranks.items(), key=lambda kv: kv[1]):
                 if index != token_index:
                     logger.warning(
                         f"Saving vocabulary to {merge_file}: BPE merge indices are not consecutive."
@@ -560,9 +492,7 @@ class TapexTokenizer(PreTrainedTokenizer):
 
         return vocab_file, merge_file
 
-    @add_end_docstrings(
-        ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING
-    )
+    @add_end_docstrings(ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING)
     def __call__(
         self,
         table: Union["pd.DataFrame", List["pd.DataFrame"]] = None,
@@ -683,12 +613,8 @@ class TapexTokenizer(PreTrainedTokenizer):
                 "table input must of type `pd.DataFrame` (single example), `List[pd.DataFrame]` (batch of examples). "
             )
         if not valid_query:
-            raise ValueError(
-                "query input must of type `str` (single example), `List[str]` (batch of examples). "
-            )
-        is_batched = isinstance(table, (list, tuple)) or isinstance(
-            query, (list, tuple)
-        )
+            raise ValueError("query input must of type `str` (single example), `List[str]` (batch of examples). ")
+        is_batched = isinstance(table, (list, tuple)) or isinstance(query, (list, tuple))
 
         if is_batched:
             return self.batch_encode_plus(
@@ -731,9 +657,7 @@ class TapexTokenizer(PreTrainedTokenizer):
                 **kwargs,
             )
 
-    @add_end_docstrings(
-        ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING
-    )
+    @add_end_docstrings(ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING)
     def batch_encode_plus(
         self,
         table: Union["pd.DataFrame", List["pd.DataFrame"]],
@@ -762,12 +686,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         </Tip>
         """
         # Backward compatibility for 'truncation_strategy', 'pad_to_max_length'
-        (
-            padding_strategy,
-            truncation_strategy,
-            max_length,
-            kwargs,
-        ) = self._get_padding_truncation_strategies(
+        padding_strategy, truncation_strategy, max_length, kwargs = self._get_padding_truncation_strategies(
             padding=padding,
             truncation=truncation,
             max_length=max_length,
@@ -854,9 +773,7 @@ class TapexTokenizer(PreTrainedTokenizer):
 
         return BatchEncoding(batch_outputs)
 
-    @add_end_docstrings(
-        ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING
-    )
+    @add_end_docstrings(ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING)
     def _batch_prepare_for_model(
         self,
         table: Union["pd.DataFrame", List["pd.DataFrame"]],
@@ -885,11 +802,7 @@ class TapexTokenizer(PreTrainedTokenizer):
             answer = [None] * len(table)
         for _table, _query, _answer in zip(table, query, answer):
             text = self.prepare_table_query(
-                _table,
-                _query,
-                _answer,
-                truncation_strategy=truncation_strategy,
-                max_length=max_length,
+                _table, _query, _answer, truncation_strategy=truncation_strategy, max_length=max_length
             )
 
             if self.do_lower_case:
@@ -939,9 +852,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         answer: Optional[str] = None,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
-        truncation: Union[
-            bool, str, TruncationStrategy, TapexTruncationStrategy
-        ] = None,
+        truncation: Union[bool, str, TruncationStrategy, TapexTruncationStrategy] = None,
         max_length: Optional[int] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         **kwargs,
@@ -965,9 +876,7 @@ class TapexTokenizer(PreTrainedTokenizer):
 
         return encoded_inputs["input_ids"]
 
-    @add_end_docstrings(
-        ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING
-    )
+    @add_end_docstrings(ENCODE_KWARGS_DOCSTRING, TAPEX_ENCODE_PLUS_ADDITIONAL_KWARGS_DOCSTRING)
     def encode_plus(
         self,
         table: "pd.DataFrame",
@@ -988,12 +897,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         **kwargs,
     ) -> BatchEncoding:
         # Backward compatibility for 'truncation_strategy', 'pad_to_max_length'
-        (
-            padding_strategy,
-            truncation_strategy,
-            max_length,
-            kwargs,
-        ) = self._get_padding_truncation_strategies(
+        padding_strategy, truncation_strategy, max_length, kwargs = self._get_padding_truncation_strategies(
             padding=padding,
             truncation=truncation,
             max_length=max_length,
@@ -1052,11 +956,7 @@ class TapexTokenizer(PreTrainedTokenizer):
             )
 
         text = self.prepare_table_query(
-            table,
-            query,
-            answer,
-            truncation_strategy=truncation_strategy,
-            max_length=max_length,
+            table, query, answer, truncation_strategy=truncation_strategy, max_length=max_length
         )
 
         # if necessary, perform lower case
@@ -1174,12 +1074,7 @@ class TapexTokenizer(PreTrainedTokenizer):
                 Corresponding answer supervision to the queries for training the model.
         """
         # Backward compatibility for 'truncation_strategy', 'pad_to_max_length'
-        (
-            padding_strategy,
-            truncation_strategy,
-            max_length,
-            kwargs,
-        ) = self._get_padding_truncation_strategies(
+        padding_strategy, truncation_strategy, max_length, kwargs = self._get_padding_truncation_strategies(
             padding=padding,
             truncation=truncation,
             max_length=max_length,
@@ -1271,9 +1166,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         answer: str,
         add_special_tokens: bool = True,
         padding: Union[bool, str, PaddingStrategy] = False,
-        truncation: Union[
-            bool, str, TruncationStrategy, TapexTruncationStrategy
-        ] = None,
+        truncation: Union[bool, str, TruncationStrategy, TapexTruncationStrategy] = None,
         max_length: Optional[int] = None,
         return_tensors: Optional[Union[str, TensorType]] = None,
         **kwargs,
@@ -1324,12 +1217,7 @@ class TapexTokenizer(PreTrainedTokenizer):
                 Corresponding answer supervision to the queries for training the model.
         """
         # Backward compatibility for 'truncation_strategy', 'pad_to_max_length'
-        (
-            padding_strategy,
-            truncation_strategy,
-            max_length,
-            kwargs,
-        ) = self._get_padding_truncation_strategies(
+        padding_strategy, truncation_strategy, max_length, kwargs = self._get_padding_truncation_strategies(
             padding=padding,
             truncation=truncation,
             max_length=max_length,
@@ -1426,19 +1314,14 @@ class TapexTokenizer(PreTrainedTokenizer):
         """
         if not table.empty:
             # step 1: create table dictionary
-            table_content = {
-                "header": list(table.columns),
-                "rows": [list(row.values) for i, row in table.iterrows()],
-            }
+            table_content = {"header": list(table.columns), "rows": [list(row.values) for i, row in table.iterrows()]}
 
             # step 2: modify table internally
             # always truncate table cells based on self.max_cell_length
             # optionally truncate rows if truncation_strategy is set to it
             self.truncate_table_cells(table_content, query, answer)
             if truncation_strategy == TapexTruncationStrategy.DROP_ROWS_TO_FIT:
-                self.truncate_table_rows(
-                    table_content, query, answer, max_length=max_length
-                )
+                self.truncate_table_rows(table_content, query, answer, max_length=max_length)
 
             # step 3: linearize table
             linear_table = self.table_linearize.process_table(table_content)
@@ -1490,11 +1373,7 @@ class TapexTokenizer(PreTrainedTokenizer):
             return cell_value
 
     def truncate_table_rows(
-        self,
-        table_content: Dict,
-        question: str,
-        answer: Optional[Union[str, List[str]]] = None,
-        max_length=None,
+        self, table_content: Dict, question: str, answer: Optional[Union[str, List[str]]] = None, max_length=None
     ):
         """
         Args:
@@ -1507,9 +1386,7 @@ class TapexTokenizer(PreTrainedTokenizer):
         answer:
             if for training, is the supervision; otherwise will be empty
         """
-        delete_ratio, remain_token_len = self.estimate_delete_ratio(
-            table_content, question, max_length
-        )
+        delete_ratio, remain_token_len = self.estimate_delete_ratio(table_content, question, max_length)
         # randomly delete unrelated rows
         self.delete_unrelated_rows(table_content, question, answer, delete_ratio)
         # guarantee the result < max_length
@@ -1524,13 +1401,9 @@ class TapexTokenizer(PreTrainedTokenizer):
             maximum_keep_rows += 1
         del table_content["rows"][maximum_keep_rows:]
 
-    def estimate_delete_ratio(
-        self, table_content: Dict, question: str, max_length=None
-    ):
+    def estimate_delete_ratio(self, table_content: Dict, question: str, max_length=None):
         if "header" not in table_content or "rows" not in table_content:
-            raise ValueError(
-                "The table content should contain both 'header' and 'rows' keys."
-            )
+            raise ValueError("The table content should contain both 'header' and 'rows' keys.")
         # calculate the tokens of header, special tokens will only be pre-prepended into question
         question_tokens = self.tokenize(question, add_special_tokens=True)
         # calculate the tokens of header
@@ -1554,9 +1427,7 @@ class TapexTokenizer(PreTrainedTokenizer):
             # calc a roughly delete rate
             return 1.0 - remain_token_len / value_token_len, remain_token_len
 
-    def delete_unrelated_rows(
-        self, table_content: Dict, question: str, answer: List, delete_ratio: float
-    ):
+    def delete_unrelated_rows(self, table_content: Dict, question: str, answer: List, delete_ratio: float):
         """
         The argument answer is used only during training.
         """
@@ -1577,21 +1448,14 @@ class TapexTokenizer(PreTrainedTokenizer):
                 truncated_unrelated_indices.append(_row_idx)
             else:
                 # add neighbours to preserve information aggressively
-                related_indices.extend(
-                    [_row_idx - 2, _row_idx - 1, _row_idx, _row_idx + 1, _row_idx + 2]
-                )
+                related_indices.extend([_row_idx - 2, _row_idx - 1, _row_idx, _row_idx + 1, _row_idx + 2])
 
         # remove the neighbours
         truncated_unrelated_indices = [
-            _row_idx
-            for _row_idx in truncated_unrelated_indices
-            if _row_idx not in related_indices
+            _row_idx for _row_idx in truncated_unrelated_indices if _row_idx not in related_indices
         ]
         # select some cases to drop
-        drop_items = min(
-            len(truncated_unrelated_indices),
-            int(len(table_content["rows"]) * delete_ratio),
-        )
+        drop_items = min(len(truncated_unrelated_indices), int(len(table_content["rows"]) * delete_ratio))
         drop_row_indices = random.choices(truncated_unrelated_indices, k=drop_items)
 
         for _row_idx in reversed(range(row_max_len)):
@@ -1600,8 +1464,4 @@ class TapexTokenizer(PreTrainedTokenizer):
 
         # only when the drop ratio is too large, logging for warning.
         if "id" in table_content and len(drop_row_indices) > 0:
-            logger.warning(
-                "Delete {:.2f} rows in table {}".format(
-                    len(drop_row_indices), table_content["id"]
-                )
-            )
+            logger.warning("Delete {:.2f} rows in table {}".format(len(drop_row_indices), table_content["id"]))

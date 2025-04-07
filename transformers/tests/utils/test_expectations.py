@@ -1,7 +1,5 @@
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import Expectations
 
 

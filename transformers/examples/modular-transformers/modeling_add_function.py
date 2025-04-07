@@ -5,12 +5,10 @@
 #                          modular_add_function.py file directly. One of our CI enforces this.
 #                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 # Note that zamba does not have the `apply_rotary_pos_emb` function!
-# Standard
 from typing import Optional, Tuple
 
-# Third Party
-from torch import nn
 import torch
+from torch import nn
 
 
 def rotate_half(x):
@@ -64,7 +62,5 @@ class TestAttention(nn.Module):
     def __init__(self):
         pass
 
-    def forward(
-        self,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    def forward(self) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         _ = apply_rotary_pos_emb(1, 1, 1, 1)

@@ -14,12 +14,11 @@
 # limitations under the License.
 """XLM-ProphetNet model configuration"""
 
-# Standard
 from typing import Callable, Optional, Union
 
-# Local
 from ....configuration_utils import PretrainedConfig
 from ....utils import logging
+
 
 logger = logging.get_logger(__name__)
 

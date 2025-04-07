@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Standard
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +16,9 @@
 # limitations under the License.
 import re
 
-# Third Party
-from requests.exceptions import RequestException
 import requests
+from requests.exceptions import RequestException
 
-# Local
 from .tools import Tool
 
 
@@ -29,14 +26,11 @@ class DuckDuckGoSearchTool(Tool):
     name = "web_search"
     description = """Perform a web search based on your query (think a Google search) then returns the top search results as a list of dict elements.
     Each result has keys 'title', 'href' and 'body'."""
-    inputs = {
-        "query": {"type": "string", "description": "The search query to perform."}
-    }
+    inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "any"
 
     def forward(self, query: str) -> str:
         try:
-            # Third Party
             from duckduckgo_search import DDGS
         except ImportError:
             raise ImportError(
@@ -59,7 +53,6 @@ class VisitWebpageTool(Tool):
 
     def forward(self, url: str) -> str:
         try:
-            # Third Party
             from markdownify import markdownify
         except ImportError:
             raise ImportError(

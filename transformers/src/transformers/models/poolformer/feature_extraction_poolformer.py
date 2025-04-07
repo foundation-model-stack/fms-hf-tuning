@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for PoolFormer."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_poolformer import PoolFormerImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

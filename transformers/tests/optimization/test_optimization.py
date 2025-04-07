@@ -14,24 +14,20 @@
 # limitations under the License.
 
 
-# Standard
 import os
 import tempfile
 import unittest
 
-# First Party
 from transformers import is_torch_available
 from transformers.testing_utils import require_torch
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import (
         Adafactor,
-        AdamW,
         get_constant_schedule,
         get_constant_schedule_with_warmup,
         get_cosine_schedule_with_warmup,
@@ -79,7 +75,7 @@ class OptimizationTest(unittest.TestCase):
         target = torch.tensor([0.4, 0.2, -0.5])
         criterion = nn.MSELoss()
         # No warmup, constant schedule, no gradient clipping
-        optimizer = AdamW(params=[w], lr=2e-1, weight_decay=0.0)
+        optimizer = torch.optim.AdamW(params=[w], lr=2e-1, weight_decay=0.0)
         for _ in range(100):
             loss = criterion(w, target)
             loss.backward()
@@ -117,7 +113,7 @@ class OptimizationTest(unittest.TestCase):
 @require_torch
 class ScheduleInitTest(unittest.TestCase):
     m = nn.Linear(50, 50) if is_torch_available() else None
-    optimizer = AdamW(m.parameters(), lr=10.0) if is_torch_available() else None
+    optimizer = torch.optim.AdamW(m.parameters(), lr=10.0) if is_torch_available() else None
     num_steps = 10
 
     def assertListAlmostEqual(self, list1, list2, tol, msg=None):
@@ -176,13 +172,9 @@ class ScheduleInitTest(unittest.TestCase):
 
             scheduler = scheduler_func(self.optimizer, **kwargs)
             if scheduler_func.__name__ != "get_constant_schedule":
-                LambdaScheduleWrapper.wrap_scheduler(
-                    scheduler
-                )  # wrap to test picklability of the schedule
+                LambdaScheduleWrapper.wrap_scheduler(scheduler)  # wrap to test picklability of the schedule
             lrs_2 = unwrap_and_save_reload_schedule(scheduler, self.num_steps)
-            self.assertListEqual(
-                lrs_1, lrs_2, msg=f"failed for {scheduler_func} in save and reload"
-            )
+            self.assertListEqual(lrs_1, lrs_2, msg=f"failed for {scheduler_func} in save and reload")
 
     def test_get_scheduler(self):
         test_params = [
@@ -219,19 +211,11 @@ class ScheduleInitTest(unittest.TestCase):
                     "decay_type": "1-sqrt",
                 },
             },
-            {
-                "name": "cosine",
-                "optimizer": self.optimizer,
-                "num_warmup_steps": 2,
-                "num_training_steps": 10,
-            },
+            {"name": "cosine", "optimizer": self.optimizer, "num_warmup_steps": 2, "num_training_steps": 10},
         ]
 
         for param in test_params:
-            self.assertTrue(
-                get_scheduler(**param),
-                msg=f"failed for {param['name']} in get_scheduler",
-            )
+            self.assertTrue(get_scheduler(**param), msg=f"failed for {param['name']} in get_scheduler")
 
 
 class LambdaScheduleWrapper:

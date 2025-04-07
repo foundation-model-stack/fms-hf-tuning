@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import (
     MODEL_FOR_IMAGE_TO_IMAGE_MAPPING,
     AutoImageProcessor,
@@ -31,8 +29,8 @@ from transformers.testing_utils import (
     slow,
 )
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 else:

@@ -16,25 +16,23 @@
 
 URL: https://github.com/Visual-Attention-Network/VAN-Classification"""
 
-# Standard
-from dataclasses import dataclass, field
-from functools import partial
-from pathlib import Path
-from typing import List
 import argparse
 import json
 import sys
+from dataclasses import dataclass, field
+from functools import partial
+from pathlib import Path
+from typing import List, Optional
 
-# Third Party
-from huggingface_hub import cached_download, hf_hub_download
-from torch import Tensor
 import torch
 import torch.nn as nn
+from huggingface_hub import cached_download, hf_hub_download
+from torch import Tensor
 
-# First Party
 from transformers import AutoImageProcessor, VanConfig, VanForImageClassification
 from transformers.models.deprecated.van.modeling_van import VanLayerScaling
 from transformers.utils import logging
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
@@ -47,11 +45,7 @@ class Tracker:
     handles: list = field(default_factory=list)
 
     def _forward_hook(self, m, inputs: Tensor, outputs: Tensor):
-        has_not_submodules = (
-            len(list(m.modules())) == 1
-            or isinstance(m, nn.Conv2d)
-            or isinstance(m, nn.BatchNorm2d)
-        )
+        has_not_submodules = len(list(m.modules())) == 1 or isinstance(m, nn.Conv2d) or isinstance(m, nn.BatchNorm2d)
         if has_not_submodules:
             if not isinstance(m, VanLayerScaling):
                 self.traced.append(m)
@@ -113,9 +107,7 @@ def copy_parameters(from_model: nn.Module, our_model: nn.Module) -> nn.Module:
 
             all_keys.append((from_key, to_key))
             from_key = f"block{stage_idx + 1}.{block_id}.layer_scale_2"
-            to_key = (
-                f"van.encoder.stages.{stage_idx}.layers.{block_id}.mlp_scaling.weight"
-            )
+            to_key = f"van.encoder.stages.{stage_idx}.layers.{block_id}.mlp_scaling.weight"
 
             all_keys.append((from_key, to_key))
 
@@ -161,9 +153,7 @@ def convert_weight_and_push(
         )
 
         # we can use the convnext one
-        image_processor = AutoImageProcessor.from_pretrained(
-            "facebook/convnext-base-224-22k-1k"
-        )
+        image_processor = AutoImageProcessor.from_pretrained("facebook/convnext-base-224-22k-1k")
         image_processor.push_to_hub(
             repo_path_or_name=save_directory / checkpoint_name,
             commit_message="Add image processor",
@@ -173,25 +163,19 @@ def convert_weight_and_push(
         print(f"Pushed {checkpoint_name}")
 
 
-def convert_weights_and_push(
-    save_directory: Path, model_name: str = None, push_to_hub: bool = True
-):
+def convert_weights_and_push(save_directory: Path, model_name: Optional[str] = None, push_to_hub: bool = True):
     filename = "imagenet-1k-id2label.json"
     num_labels = 1000
 
     repo_id = "huggingface/label-files"
     num_labels = num_labels
-    id2label = json.load(
-        open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r")
-    )
+    id2label = json.load(open(hf_hub_download(repo_id, filename, repo_type="dataset"), "r"))
     id2label = {int(k): v for k, v in id2label.items()}
 
     id2label = id2label
     label2id = {v: k for k, v in id2label.items()}
 
-    ImageNetPreTrainedConfig = partial(
-        VanConfig, num_labels=num_labels, id2label=id2label, label2id=label2id
-    )
+    ImageNetPreTrainedConfig = partial(VanConfig, num_labels=num_labels, id2label=id2label, label2id=label2id)
 
     names_to_config = {
         "van-tiny": ImageNetPreTrainedConfig(
@@ -301,9 +285,6 @@ if __name__ == "__main__":
     van_dir = args.van_dir
     # append the path to the parents to maskformer dir
     sys.path.append(str(van_dir.parent))
-    # Third Party
     from van.models.van import van_base, van_large, van_small, van_tiny
 
-    convert_weights_and_push(
-        pytorch_dump_folder_path, args.model_name, args.push_to_hub
-    )
+    convert_weights_and_push(pytorch_dump_folder_path, args.model_name, args.push_to_hub)

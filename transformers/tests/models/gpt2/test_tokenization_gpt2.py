@@ -14,18 +14,16 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import AutoTokenizer, GPT2Tokenizer, GPT2TokenizerFast
 from transformers.models.gpt2.tokenization_gpt2 import VOCAB_FILES_NAMES
-from transformers.testing_utils import require_jinja, require_tokenizers
+from transformers.testing_utils import require_jinja, require_tiktoken, require_tokenizers
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 @require_tokenizers
@@ -37,8 +35,9 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     from_pretrained_kwargs = {"add_prefix_space": True}
     test_seq2seq = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = [
@@ -66,24 +65,30 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         ]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["#version: 0.2", "\u0120 l", "\u0120l o", "\u0120lo w", "e r", ""]
-        self.special_tokens_map = {"unk_token": "<unk>"}
+        cls.special_tokens_map = {"unk_token": "<unk>"}
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        cls.merges_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
-        with open(self.merges_file, "w", encoding="utf-8") as fp:
+        with open(cls.merges_file, "w", encoding="utf-8") as fp:
             fp.write("\n".join(merges))
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return GPT2Tokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return GPT2Tokenizer.from_pretrained(pretrained_name, **kwargs)
 
-    def get_rust_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return GPT2TokenizerFast.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_rust_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return GPT2TokenizerFast.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "lower newer"
@@ -91,9 +96,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         return input_text, output_text
 
     def test_full_tokenizer(self):
-        tokenizer = GPT2Tokenizer(
-            self.vocab_file, self.merges_file, **self.special_tokens_map
-        )
+        tokenizer = GPT2Tokenizer(self.vocab_file, self.merges_file, **self.special_tokens_map)
         text = "lower newer"
         bpe_tokens = ["\u0120low", "er", "\u0120", "n", "e", "w", "er"]
         tokens = tokenizer.tokenize(text, add_prefix_space=True)
@@ -101,9 +104,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + [tokenizer.unk_token]
         input_bpe_tokens = [14, 15, 10, 9, 3, 2, 15, 19]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     def test_rust_and_python_full_tokenizers(self):
         if not self.test_rust_tokenizer:
@@ -120,9 +121,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         self.assertListEqual(tokens, rust_tokens)
 
         # Testing conversion to ids without special tokens
-        ids = tokenizer.encode(
-            sequence, add_special_tokens=False, add_prefix_space=True
-        )
+        ids = tokenizer.encode(sequence, add_special_tokens=False, add_prefix_space=True)
         rust_ids = rust_tokenizer.encode(sequence, add_special_tokens=False)
         self.assertListEqual(ids, rust_ids)
 
@@ -135,9 +134,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         # Testing the unknown token
         input_tokens = tokens + [rust_tokenizer.unk_token]
         input_bpe_tokens = [14, 15, 10, 9, 3, 2, 15, 19]
-        self.assertListEqual(
-            rust_tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(rust_tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     @unittest.skip
     def test_pretokenized_inputs(self, *args, **kwargs):
@@ -148,9 +145,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     def test_padding(self, max_length=15):
         for tokenizer, pretrained_name, kwargs in self.tokenizers_list:
             with self.subTest(f"{tokenizer.__class__.__name__} ({pretrained_name})"):
-                tokenizer_r = self.rust_tokenizer_class.from_pretrained(
-                    pretrained_name, **kwargs
-                )
+                tokenizer_r = self.get_rust_tokenizer(pretrained_name, **kwargs)
 
                 # Simple input
                 s = "This is a simple input"
@@ -162,22 +157,10 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 ]
 
                 # Simple input tests
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, s, max_length=max_length, padding="max_length")
 
                 # Simple input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    s,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, s, max_length=max_length, padding="max_length")
 
                 # Simple input
                 self.assertRaises(
@@ -189,22 +172,10 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode, p, max_length=max_length, padding="max_length")
 
                 # Pair input
-                self.assertRaises(
-                    ValueError,
-                    tokenizer_r.encode_plus,
-                    p,
-                    max_length=max_length,
-                    padding="max_length",
-                )
+                self.assertRaises(ValueError, tokenizer_r.encode_plus, p, max_length=max_length, padding="max_length")
 
                 # Pair input
                 self.assertRaises(
@@ -268,9 +239,7 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     def test_add_bos_token_slow(self):
         bos_token = "$$$"
-        tokenizer = GPT2Tokenizer.from_pretrained(
-            self.tmpdirname, bos_token=bos_token, add_bos_token=True
-        )
+        tokenizer = GPT2Tokenizer.from_pretrained(self.tmpdirname, bos_token=bos_token, add_bos_token=True)
 
         s = "This is a simple input"
         s2 = ["This is a simple input 1", "This is a simple input 2"]
@@ -300,12 +269,8 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             with self.subTest(f"{tokenizer.__class__.__name__}"):
                 sequence_0 = "Encode this."
                 sequence_1 = "This one too please."
-                encoded_sequence = tokenizer.encode(
-                    sequence_0, add_special_tokens=False
-                )
-                encoded_sequence += tokenizer.encode(
-                    sequence_1, add_special_tokens=False
-                )
+                encoded_sequence = tokenizer.encode(sequence_0, add_special_tokens=False)
+                encoded_sequence += tokenizer.encode(sequence_1, add_special_tokens=False)
                 encoded_sequence_dict = tokenizer.encode_plus(
                     sequence_0,
                     sequence_1,
@@ -314,13 +279,10 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
                 )
                 encoded_sequence_w_special = encoded_sequence_dict["input_ids"]
                 special_tokens_mask = encoded_sequence_dict["special_tokens_mask"]
-                self.assertEqual(
-                    len(special_tokens_mask), len(encoded_sequence_w_special)
-                )
+                self.assertEqual(len(special_tokens_mask), len(encoded_sequence_w_special))
 
                 filtered_sequence = [
-                    (x if not special_tokens_mask[i] else None)
-                    for i, x in enumerate(encoded_sequence_w_special)
+                    (x if not special_tokens_mask[i] else None) for i, x in enumerate(encoded_sequence_w_special)
                 ]
                 filtered_sequence = [x for x in filtered_sequence if x is not None]
                 self.assertEqual(encoded_sequence, filtered_sequence)
@@ -330,23 +292,15 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         tokenizer = GPT2Tokenizer.from_pretrained(self.tmpdirname)
         tokenizer.chat_template = "{% for message in messages %}{{ message.content }}{{ eos_token }}{% endfor %}"
         test_chats = [
-            [
-                {"role": "system", "content": "You are a helpful chatbot."},
-                {"role": "user", "content": "Hello!"},
-            ],
+            [{"role": "system", "content": "You are a helpful chatbot."}, {"role": "user", "content": "Hello!"}],
             [
                 {"role": "system", "content": "You are a helpful chatbot."},
                 {"role": "user", "content": "Hello!"},
                 {"role": "assistant", "content": "Nice to meet you."},
             ],
-            [
-                {"role": "assistant", "content": "Nice to meet you."},
-                {"role": "user", "content": "Hello!"},
-            ],
+            [{"role": "assistant", "content": "Nice to meet you."}, {"role": "user", "content": "Hello!"}],
         ]
-        tokenized_chats = [
-            tokenizer.apply_chat_template(test_chat) for test_chat in test_chats
-        ]
+        tokenized_chats = [tokenizer.apply_chat_template(test_chat) for test_chat in test_chats]
         # fmt: off
         expected_tokens = [[20, 1, 20, 10, 20, 4, 3, 10, 20, 10, 20, 3, 0, 20, 20, 20, 0, 10, 20, 20, 20, 6, 20, 1, 6, 20, 20, 20, 3, 0, 0, 1, 20, 20],
                           [20, 1, 20, 10, 20, 4, 3, 10, 20, 10, 20, 3, 0, 20, 20, 20, 0, 10, 20, 20, 20, 6, 20, 1, 6, 20, 20, 20, 3, 0, 0, 1, 20, 20, 20, 7, 20, 3, 10, 6, 1, 10, 20, 3, 3, 6, 10, 20, 1, 20, 20, 20],
@@ -354,6 +308,23 @@ class GPT2TokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         # fmt: on
         for tokenized_chat, expected_tokens in zip(tokenized_chats, expected_tokens):
             self.assertListEqual(tokenized_chat, expected_tokens)
+
+    @require_tiktoken
+    def test_tokenization_tiktoken(self):
+        from tiktoken import encoding_name_for_model
+
+        from transformers.integrations.tiktoken import convert_tiktoken_to_fast
+
+        encoding = encoding_name_for_model("gpt2")
+        convert_tiktoken_to_fast(encoding, self.tmpdirname)
+
+        tiktoken_fast_tokenizer = GPT2TokenizerFast.from_pretrained(self.tmpdirname)
+        rust_tokenizer = GPT2TokenizerFast.from_pretrained("openai-community/gpt2")
+        sequence = "lower newer"
+        self.assertEqual(
+            rust_tokenizer.decode(rust_tokenizer.encode(sequence)),
+            tiktoken_fast_tokenizer.decode(rust_tokenizer.encode(sequence)),
+        )
 
 
 @require_tokenizers

@@ -1,12 +1,13 @@
-# First Party
-from transformers.models.llava_next.image_processing_llava_next_fast import (
-    LlavaNextImageProcessorFast,
-)
+from transformers.models.llava_next.image_processing_llava_next_fast import LlavaNextImageProcessorFast
 
-# Local
 from ...image_processing_utils_fast import BASE_IMAGE_PROCESSOR_FAST_DOCSTRING
-from ...image_utils import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD, PILImageResampling
+from ...image_utils import (
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+    PILImageResampling,
+)
 from ...utils import add_start_docstrings, logging
+
 
 logger = logging.get_logger(__name__)
 

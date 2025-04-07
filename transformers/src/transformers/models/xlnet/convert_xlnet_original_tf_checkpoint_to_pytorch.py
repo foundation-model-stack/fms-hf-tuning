@@ -14,14 +14,11 @@
 # limitations under the License.
 """Convert BERT checkpoint."""
 
-# Standard
 import argparse
 import os
 
-# Third Party
 import torch
 
-# First Party
 from transformers import (
     XLNetConfig,
     XLNetForQuestionAnswering,
@@ -30,6 +27,7 @@ from transformers import (
     load_tf_weights_in_xlnet,
 )
 from transformers.utils import CONFIG_NAME, WEIGHTS_NAME, logging
+
 
 GLUE_TASKS_NUM_LABELS = {
     "cola": 2,
@@ -55,9 +53,7 @@ def convert_xlnet_checkpoint_to_pytorch(
 
     finetuning_task = finetuning_task.lower() if finetuning_task is not None else ""
     if finetuning_task in GLUE_TASKS_NUM_LABELS:
-        print(
-            f"Building PyTorch XLNetForSequenceClassification model from configuration: {config}"
-        )
+        print(f"Building PyTorch XLNetForSequenceClassification model from configuration: {config}")
         config.finetuning_task = finetuning_task
         config.num_labels = GLUE_TASKS_NUM_LABELS[finetuning_task]
         model = XLNetForSequenceClassification(config)
@@ -84,11 +80,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "--tf_checkpoint_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the TensorFlow checkpoint path.",
+        "--tf_checkpoint_path", default=None, type=str, required=True, help="Path to the TensorFlow checkpoint path."
     )
     parser.add_argument(
         "--xlnet_config_file",
@@ -117,8 +109,5 @@ if __name__ == "__main__":
     print(args)
 
     convert_xlnet_checkpoint_to_pytorch(
-        args.tf_checkpoint_path,
-        args.xlnet_config_file,
-        args.pytorch_dump_folder_path,
-        args.finetuning_task,
+        args.tf_checkpoint_path, args.xlnet_config_file, args.pytorch_dump_folder_path, args.finetuning_task
     )

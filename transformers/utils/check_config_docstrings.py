@@ -13,12 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import inspect
 import re
 
-# First Party
 from transformers.utils import direct_transformers_import
+
 
 # All paths are set with the intent you should run this script from the root of the repo with the command
 # python utils/check_config_docstrings.py
@@ -48,6 +47,7 @@ CONFIG_CLASSES_TO_IGNORE_FOR_DOCSTRING_CHECKPOINT_CHECK = {
     "LlamaConfig",
     "GraniteConfig",
     "GraniteMoeConfig",
+    "Qwen3MoeConfig",
 }
 
 
@@ -84,10 +84,7 @@ def check_config_docstrings_have_checkpoints():
         checkpoint = get_checkpoint_from_config_class(config_class)
 
         name = config_class.__name__
-        if (
-            checkpoint is None
-            and name not in CONFIG_CLASSES_TO_IGNORE_FOR_DOCSTRING_CHECKPOINT_CHECK
-        ):
+        if checkpoint is None and name not in CONFIG_CLASSES_TO_IGNORE_FOR_DOCSTRING_CHECKPOINT_CHECK:
             configs_without_checkpoint.append(name)
 
     if len(configs_without_checkpoint) > 0:

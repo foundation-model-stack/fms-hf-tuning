@@ -14,25 +14,31 @@
 # limitations under the License.
 
 
-# Standard
 from typing import ClassVar, List, Optional, Union
 
-# First Party
 from transformers.models.paligemma.processing_paligemma import (
     IMAGE_TOKEN,
     PaliGemmaProcessor,
     build_string_from_input,
 )
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput, is_valid_image, make_flat_list_of_images
-from ...processing_utils import ProcessingKwargs, Unpack
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
-from ...utils import is_torch_available, logging
+from ...processing_utils import (
+    ProcessingKwargs,
+    Unpack,
+)
+from ...tokenization_utils_base import (
+    PreTokenizedInput,
+    TextInput,
+)
+from ...utils import (
+    is_torch_available,
+    logging,
+)
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -84,9 +90,7 @@ class ColPaliProcessor(PaliGemmaProcessor):
     def __call__(
         self,
         images: ImageInput = None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[ColPaliProcessorKwargs],
@@ -96,11 +100,11 @@ class ColPaliProcessor(PaliGemmaProcessor):
         wrapper around the PaliGemmaProcessor's [`~PaliGemmaProcessor.__call__`] method adapted for the ColPali model. It cannot process
         both text and images at the same time.
 
-        When preparing the the text(s), this method forwards the `text` and `kwargs` arguments to LlamaTokenizerFast's
+        When preparing the text(s), this method forwards the `text` and `kwargs` arguments to LlamaTokenizerFast's
         [`~LlamaTokenizerFast.__call__`].
-        When preparing the the image(s), this method forwards the `images` and `kwargs` arguments to SiglipImageProcessor's
+        When preparing the image(s), this method forwards the `images` and `kwargs` arguments to SiglipImageProcessor's
         [`~SiglipImageProcessor.__call__`].
-        Please refer to the doctsring of the above two methods for more information.
+        Please refer to the docstring of the above two methods for more information.
 
         Args:
             images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`):
@@ -147,14 +151,8 @@ class ColPaliProcessor(PaliGemmaProcessor):
                 images = [images]
             elif isinstance(images, list) and is_valid_image(images[0]):
                 pass
-            elif not (
-                isinstance(images, list)
-                and isinstance(images[0], list)
-                and is_valid_image(images[0][0])
-            ):
-                raise ValueError(
-                    "images must be an image, list of images or list of list of images"
-                )
+            elif not (isinstance(images, list) and isinstance(images[0], list) and is_valid_image(images[0][0])):
+                raise ValueError("images must be an image, list of images or list of list of images")
 
             texts_doc = [self.visual_prompt_prefix] * len(images)
             images = [image.convert("RGB") for image in images]
@@ -170,9 +168,7 @@ class ColPaliProcessor(PaliGemmaProcessor):
                 for prompt, image_list in zip(texts_doc, images)
             ]
             images = make_flat_list_of_images(images)
-            pixel_values = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )["pixel_values"]
+            pixel_values = self.image_processor(images, **output_kwargs["images_kwargs"])["pixel_values"]
 
             # max_length has to account for the image tokens
             if output_kwargs["text_kwargs"].get("max_length", None) is not None:
@@ -187,9 +183,7 @@ class ColPaliProcessor(PaliGemmaProcessor):
             return_data = {**inputs, "pixel_values": pixel_values}
 
             if return_token_type_ids:
-                labels = inputs["input_ids"].masked_fill(
-                    inputs["token_type_ids"] == 0, -100
-                )
+                labels = inputs["input_ids"].masked_fill(inputs["token_type_ids"] == 0, -100)
                 return_data.update({"labels": labels})
 
             return BatchFeature(data=return_data)
@@ -210,9 +204,7 @@ class ColPaliProcessor(PaliGemmaProcessor):
                 query += "\n"  # make input ISO to PaliGemma's processor
                 texts_query.append(query)
 
-            output_kwargs["text_kwargs"]["max_length"] = output_kwargs[
-                "text_kwargs"
-            ].get("max_length", 50)
+            output_kwargs["text_kwargs"]["max_length"] = output_kwargs["text_kwargs"].get("max_length", 50)
 
             batch_query = self.tokenizer(
                 texts_query,
@@ -346,18 +338,12 @@ class ColPaliProcessor(PaliGemmaProcessor):
             )
             for j in range(0, len(passage_embeddings), batch_size):
                 batch_passages = torch.nn.utils.rnn.pad_sequence(
-                    passage_embeddings[j : j + batch_size],
-                    batch_first=True,
-                    padding_value=0,
+                    passage_embeddings[j : j + batch_size], batch_first=True, padding_value=0
                 )
                 batch_scores.append(
-                    torch.einsum("bnd,csd->bcns", batch_queries, batch_passages)
-                    .max(dim=3)[0]
-                    .sum(dim=2)
+                    torch.einsum("bnd,csd->bcns", batch_queries, batch_passages).max(dim=3)[0].sum(dim=2)
                 )
-            scores.append(
-                torch.cat(batch_scores, dim=1).to(output_dtype).to(output_device)
-            )
+            scores.append(torch.cat(batch_scores, dim=1).to(output_dtype).to(output_device))
 
         return torch.cat(scores, dim=0)
 

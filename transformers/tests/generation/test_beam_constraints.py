@@ -14,18 +14,15 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers import is_torch_available
 from transformers.testing_utils import require_torch
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers.generation import DisjunctiveConstraint
 
 
@@ -43,9 +40,7 @@ class ConstraintTest(unittest.TestCase):
             DisjunctiveConstraint(torch.LongTensor([[1, 2, 4], [1, 2, 3]]))
 
         with self.assertRaises(ValueError):
-            DisjunctiveConstraint(
-                [torch.LongTensor([1, 2, 4]), torch.LongTensor([1, 2, 3, 4, 5])]
-            )
+            DisjunctiveConstraint([torch.LongTensor([1, 2, 4]), torch.LongTensor([1, 2, 3, 4, 5])])
 
     def test_check_illegal_input(self):
         # We can't have constraints that are complete subsets of another. This leads to a perverse

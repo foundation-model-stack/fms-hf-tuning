@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from pathlib import Path
-from typing import Tuple
-from unittest.mock import patch
 import math
 import os
 import re
 import sys
+from pathlib import Path
+from typing import Tuple
+from unittest.mock import patch
 
-# Third Party
 from parameterized import parameterized
 
-# First Party
 from transformers.testing_utils import (
     CaptureStderr,
     ExtendSysPath,
@@ -45,9 +42,9 @@ from transformers.testing_utils import (
 from transformers.trainer_callback import TrainerState
 from transformers.trainer_utils import set_seed
 
+
 bindir = os.path.abspath(os.path.dirname(__file__))
 with ExtendSysPath(f"{bindir}/../../examples/pytorch/translation"):
-    # Third Party
     from run_translation import main  # noqa
 
 
@@ -81,9 +78,7 @@ class TestTrainerExt(TestCasePlus):
             do_predict=do_predict,
             n_gpus_to_use=n_gpus_to_use,
         )
-        logs = TrainerState.load_from_json(
-            os.path.join(output_dir, "trainer_state.json")
-        ).log_history
+        logs = TrainerState.load_from_json(os.path.join(output_dir, "trainer_state.json")).log_history
 
         if not do_eval:
             self.skipTest(reason="do_eval is False")
@@ -96,9 +91,7 @@ class TestTrainerExt(TestCasePlus):
 
             last_step_stats = eval_metrics[-1]
             assert isinstance(last_step_stats["eval_bleu"], float)
-            assert not math.isnan(
-                float(last_step_stats["eval_loss"])
-            ), "eval_loss must not be `nan`"
+            assert not math.isnan(float(last_step_stats["eval_loss"])), "eval_loss must not be `nan`"
 
     @require_torch_non_multi_accelerator
     def test_run_seq2seq_no_dist(self):
@@ -126,14 +119,10 @@ class TestTrainerExt(TestCasePlus):
         # specifically to the problem traced it to self.optimizer.step() - if it's run 2nd time via
         # 2nd main() call it botches the future eval.
         #
-        self.run_seq2seq_quick(
-            distributed=True, extra_args_str="--fp16 --fp16_backend=apex"
-        )
+        self.run_seq2seq_quick(distributed=True, extra_args_str="--fp16 --fp16_backend=apex")
         # test 2nd time - was getting eval_loss': nan'
         # to reproduce the problem set distributed=False
-        self.run_seq2seq_quick(
-            distributed=True, extra_args_str="--fp16 --fp16_backend=apex"
-        )
+        self.run_seq2seq_quick(distributed=True, extra_args_str="--fp16 --fp16_backend=apex")
 
     @parameterized.expand(["base", "low", "high", "mixed"])
     @require_torch_multi_accelerator
@@ -144,21 +133,12 @@ class TestTrainerExt(TestCasePlus):
             "base": {"extra_args_str": "", "n_matches": 1},
             # test with low log_level and log_level_replica - should be noisy on all processes
             # now the info string should appear twice on 2 processes
-            "low": {
-                "extra_args_str": "--log_level debug --log_level_replica debug",
-                "n_matches": 2,
-            },
+            "low": {"extra_args_str": "--log_level debug --log_level_replica debug", "n_matches": 2},
             # test with high log_level and low log_level_replica
             # now the info string should appear once only on the replica
-            "high": {
-                "extra_args_str": "--log_level error --log_level_replica debug",
-                "n_matches": 1,
-            },
+            "high": {"extra_args_str": "--log_level error --log_level_replica debug", "n_matches": 1},
             # test with high log_level and log_level_replica - should be quiet on all processes
-            "mixed": {
-                "extra_args_str": "--log_level error --log_level_replica error",
-                "n_matches": 0,
-            },
+            "mixed": {"extra_args_str": "--log_level error --log_level_replica error", "n_matches": 0},
         }
 
         data = experiments[experiment_id]
@@ -187,16 +167,12 @@ class TestTrainerExt(TestCasePlus):
         )
 
         # Check metrics
-        logs = TrainerState.load_from_json(
-            os.path.join(output_dir, "trainer_state.json")
-        ).log_history
+        logs = TrainerState.load_from_json(os.path.join(output_dir, "trainer_state.json")).log_history
         eval_metrics = [log for log in logs if "eval_loss" in log.keys()]
         first_step_stats = eval_metrics[0]
         last_step_stats = eval_metrics[-1]
 
-        assert (
-            first_step_stats["eval_loss"] > last_step_stats["eval_loss"]
-        ), "model learned nothing"
+        assert first_step_stats["eval_loss"] > last_step_stats["eval_loss"], "model learned nothing"
         assert isinstance(last_step_stats["eval_bleu"], float)
 
         # test if do_predict saves generations and metrics
@@ -208,7 +184,6 @@ class TestTrainerExt(TestCasePlus):
     @slow
     @require_bitsandbytes
     def test_run_seq2seq_bnb(self):
-        # First Party
         from transformers.training_args import OptimizerNames
 
         def train_and_return_metrics(optim: str) -> Tuple[int, float]:
@@ -228,21 +203,15 @@ class TestTrainerExt(TestCasePlus):
             )
 
             # Check metrics
-            logs = TrainerState.load_from_json(
-                Path(output_dir, "trainer_state.json")
-            ).log_history
+            logs = TrainerState.load_from_json(Path(output_dir, "trainer_state.json")).log_history
             gpu_peak_mem_mb = int(logs[0]["train_mem_gpu_peaked_delta"] / 2**20)
             gpu_alloc_mem_mb = int(logs[0]["train_mem_gpu_alloc_delta"] / 2**20)
 
             loss = logs[0]["train_loss"]
             return gpu_peak_mem_mb, gpu_alloc_mem_mb, loss
 
-        gpu_peak_mem_orig, gpu_alloc_mem_orig, loss_orig = train_and_return_metrics(
-            OptimizerNames.ADAMW_TORCH.value
-        )
-        gpu_peak_mem_bnb, gpu_alloc_mem_bnb, loss_bnb = train_and_return_metrics(
-            OptimizerNames.ADAMW_BNB.value
-        )
+        gpu_peak_mem_orig, gpu_alloc_mem_orig, loss_orig = train_and_return_metrics(OptimizerNames.ADAMW_TORCH.value)
+        gpu_peak_mem_bnb, gpu_alloc_mem_bnb, loss_bnb = train_and_return_metrics(OptimizerNames.ADAMW_BNB.value)
 
         gpu_alloc_mem_diff = gpu_alloc_mem_orig - gpu_alloc_mem_bnb
 
@@ -291,9 +260,7 @@ class TestTrainerExt(TestCasePlus):
         )
 
         self.assertEqual(
-            loss_orig,
-            loss_bnb,
-            f"loss should be the same, but got loss_orig={loss_orig}, loss_bnb={loss_bnb}",
+            loss_orig, loss_bnb, f"loss should be the same, but got loss_orig={loss_orig}, loss_bnb={loss_bnb}"
         )
 
     def run_trainer(

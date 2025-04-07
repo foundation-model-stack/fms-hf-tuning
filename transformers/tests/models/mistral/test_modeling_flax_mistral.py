@@ -13,24 +13,19 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import MistralConfig, is_flax_available, is_tokenizers_available
 from transformers.testing_utils import require_flax, slow
 
-# Local
 from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor
 
+
 if is_flax_available():
-    # Third Party
     import jax.numpy as jnp
 
-    # First Party
     from transformers.models.mistral.modeling_flax_mistral import (
         FlaxMistralForCausalLM,
         FlaxMistralModel,
@@ -38,7 +33,6 @@ if is_flax_available():
 
 
 if is_tokenizers_available():
-    # First Party
     from transformers import LlamaTokenizerFast
 
 
@@ -124,9 +118,7 @@ class FlaxMistralModelTester:
         return config, inputs_dict
 
     # Copied from tests.models.gpt_neo.test_modeling_flax_gpt_neo.FlaxGPTNeoModelTester.check_use_cache_forward
-    def check_use_cache_forward(
-        self, model_class_name, config, input_ids, attention_mask
-    ):
+    def check_use_cache_forward(self, model_class_name, config, input_ids, attention_mask):
         max_decoder_length = 20
         model = model_class_name(config)
 
@@ -134,8 +126,7 @@ class FlaxMistralModelTester:
         attention_mask = jnp.ones((input_ids.shape[0], max_decoder_length), dtype="i4")
 
         position_ids = jnp.broadcast_to(
-            jnp.arange(input_ids.shape[-1] - 1)[None, :],
-            (input_ids.shape[0], input_ids.shape[-1] - 1),
+            jnp.arange(input_ids.shape[-1] - 1)[None, :], (input_ids.shape[0], input_ids.shape[-1] - 1)
         )
         outputs_cache = model(
             input_ids[:, :-1],
@@ -144,9 +135,7 @@ class FlaxMistralModelTester:
             position_ids=position_ids,
         )
 
-        position_ids = jnp.array(
-            input_ids.shape[0] * [[input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        position_ids = jnp.array(input_ids.shape[0] * [[input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model(
             input_ids[:, -1:],
             attention_mask=attention_mask,
@@ -156,35 +145,22 @@ class FlaxMistralModelTester:
 
         outputs = model(input_ids)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
     # Copied from tests.models.gpt_neo.test_modeling_flax_gpt_neo.FlaxGPTNeoModelTester.check_use_cache_forward_with_attn_mask
-    def check_use_cache_forward_with_attn_mask(
-        self, model_class_name, config, input_ids, attention_mask
-    ):
+    def check_use_cache_forward_with_attn_mask(self, model_class_name, config, input_ids, attention_mask):
         max_decoder_length = 20
         model = model_class_name(config)
 
         attention_mask_cache = jnp.concatenate(
-            [
-                attention_mask,
-                jnp.zeros(
-                    (
-                        attention_mask.shape[0],
-                        max_decoder_length - attention_mask.shape[1],
-                    )
-                ),
-            ],
+            [attention_mask, jnp.zeros((attention_mask.shape[0], max_decoder_length - attention_mask.shape[1]))],
             axis=-1,
         )
 
         past_key_values = model.init_cache(input_ids.shape[0], max_decoder_length)
         position_ids = jnp.broadcast_to(
-            jnp.arange(input_ids.shape[-1] - 1)[None, :],
-            (input_ids.shape[0], input_ids.shape[-1] - 1),
+            jnp.arange(input_ids.shape[-1] - 1)[None, :], (input_ids.shape[0], input_ids.shape[-1] - 1)
         )
 
         outputs_cache = model(
@@ -193,9 +169,7 @@ class FlaxMistralModelTester:
             past_key_values=past_key_values,
             position_ids=position_ids,
         )
-        position_ids = jnp.array(
-            input_ids.shape[0] * [[input_ids.shape[-1] - 1]], dtype="i4"
-        )
+        position_ids = jnp.array(input_ids.shape[0] * [[input_ids.shape[-1] - 1]], dtype="i4")
         outputs_cache_next = model(
             input_ids[:, -1:],
             past_key_values=outputs_cache.past_key_values,
@@ -205,39 +179,25 @@ class FlaxMistralModelTester:
 
         outputs = model(input_ids, attention_mask=attention_mask)
 
-        diff = np.max(
-            np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5]))
-        )
+        diff = np.max(np.abs((outputs_cache_next[0][:, -1, :5] - outputs[0][:, -1, :5])))
         self.parent.assertTrue(diff < 1e-3, msg=f"Max diff is {diff}")
 
 
 @require_flax
 class FlaxMistralModelTest(FlaxModelTesterMixin, unittest.TestCase):
-    all_model_classes = (
-        (FlaxMistralModel, FlaxMistralForCausalLM) if is_flax_available() else ()
-    )
+    all_model_classes = (FlaxMistralModel, FlaxMistralForCausalLM) if is_flax_available() else ()
 
     def setUp(self):
         self.model_tester = FlaxMistralModelTester(self)
 
     def test_use_cache_forward(self):
         for model_class_name in self.all_model_classes:
-            (
-                config,
-                input_ids,
-                attention_mask,
-            ) = self.model_tester.prepare_config_and_inputs()
-            self.model_tester.check_use_cache_forward(
-                model_class_name, config, input_ids, attention_mask
-            )
+            config, input_ids, attention_mask = self.model_tester.prepare_config_and_inputs()
+            self.model_tester.check_use_cache_forward(model_class_name, config, input_ids, attention_mask)
 
     def test_use_cache_forward_with_attn_mask(self):
         for model_class_name in self.all_model_classes:
-            (
-                config,
-                input_ids,
-                attention_mask,
-            ) = self.model_tester.prepare_config_and_inputs()
+            config, input_ids, attention_mask = self.model_tester.prepare_config_and_inputs()
             self.model_tester.check_use_cache_forward_with_attn_mask(
                 model_class_name, config, input_ids, attention_mask
             )
@@ -245,9 +205,7 @@ class FlaxMistralModelTest(FlaxModelTesterMixin, unittest.TestCase):
     @slow
     def test_model_from_pretrained(self):
         for model_class_name in self.all_model_classes:
-            model = model_class_name.from_pretrained(
-                "mistralai/Mistral-7B-v0.1", from_pt=True
-            )
+            model = model_class_name.from_pretrained("mistralai/Mistral-7B-v0.1", from_pt=True)
             outputs = model(np.ones((1, 1)))
             self.assertIsNotNone(outputs)
 
@@ -262,9 +220,7 @@ class FlaxMistralIntegrationTest(unittest.TestCase):
 
     def test_model_logits(self):
         input_ids = jnp.array([[1, 306, 4658, 278, 6593, 310, 2834, 338]])
-        EXPECTED_MEAN = np.array(
-            [[-2.5548, -2.5737, -3.0600, -2.5906, -2.8478, -2.8118, -2.9325, -2.7694]]
-        )
+        EXPECTED_MEAN = np.array([[-2.5548, -2.5737, -3.0600, -2.5906, -2.8478, -2.8118, -2.9325, -2.7694]])
         EXPECTED_SLICE = np.array([-5.8781,-5.8616,-0.1052,-4.7200,-5.8781,-5.8774,-5.8773,-5.8777,-5.8781,-5.8780,-5.8781,-5.8779,-1.0787,1.7583,-5.8779,-5.8780,-5.8783,-5.8778,-5.8776,-5.8781,-5.8784,-5.8778,-5.8778,-5.8777,-5.8779,-5.8778,-5.8776,-5.8780,-5.8779,-5.8781])  # fmt: skip
 
         flax_logits = self.model(input_ids).logits
@@ -280,8 +236,6 @@ class FlaxMistralIntegrationTest(unittest.TestCase):
         EXPECTED_TEXT_COMPLETION = """My favourite condiment is 100% ketchup. I love it on everything. I’m not a big"""
         prompt = "My favourite condiment is "
         inputs = tokenizer(prompt, return_tensors="np", truncation=True, padding=True)
-        generated_ids = self.model.generate(
-            **inputs, max_new_tokens=20, temperature=0
-        ).sequences
+        generated_ids = self.model.generate(**inputs, max_new_tokens=20, temperature=0).sequences
         generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
         self.assertEqual(generated_text, EXPECTED_TEXT_COMPLETION)

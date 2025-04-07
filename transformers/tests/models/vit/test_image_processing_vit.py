@@ -14,25 +14,18 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_torchvision_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_vision_available():
-    # First Party
     from transformers import ViTImageProcessor
 
     if is_torchvision_available():
-        # First Party
         from transformers import ViTImageProcessorFast
 
 
@@ -76,9 +69,7 @@ class ViTImageProcessingTester:
     def expected_output_image_shape(self, images):
         return self.num_channels, self.size["height"], self.size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -94,9 +85,7 @@ class ViTImageProcessingTester:
 @require_vision
 class ViTImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
     image_processing_class = ViTImageProcessor if is_vision_available() else None
-    fast_image_processing_class = (
-        ViTImageProcessorFast if is_torchvision_available() else None
-    )
+    fast_image_processing_class = ViTImageProcessorFast if is_torchvision_available() else None
 
     def setUp(self):
         super().setUp()
@@ -117,12 +106,8 @@ class ViTImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
 
     def test_image_processor_from_dict_with_kwargs(self):
         for image_processing_class in self.image_processor_list:
-            image_processor = image_processing_class.from_dict(
-                self.image_processor_dict
-            )
+            image_processor = image_processing_class.from_dict(self.image_processor_dict)
             self.assertEqual(image_processor.size, {"height": 18, "width": 18})
 
-            image_processor = image_processing_class.from_dict(
-                self.image_processor_dict, size=42
-            )
+            image_processor = image_processing_class.from_dict(self.image_processor_dict, size=42)
             self.assertEqual(image_processor.size, {"height": 42, "width": 42})

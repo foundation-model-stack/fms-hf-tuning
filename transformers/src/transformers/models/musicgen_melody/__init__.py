@@ -11,16 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
     is_torch_available,
     is_torchaudio_available,
 )
+
 
 _import_structure = {
     "configuration_musicgen_melody": [
@@ -48,14 +47,11 @@ try:
 except OptionalDependencyNotAvailable:
     pass
 else:
-    _import_structure["feature_extraction_musicgen_melody"] = [
-        "MusicgenMelodyFeatureExtractor"
-    ]
+    _import_structure["feature_extraction_musicgen_melody"] = ["MusicgenMelodyFeatureExtractor"]
     _import_structure["processing_musicgen_melody"] = ["MusicgenMelodyProcessor"]
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_musicgen_melody import (
         MusicgenMelodyConfig,
         MusicgenMelodyDecoderConfig,
@@ -67,7 +63,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_musicgen_melody import (
             MusicgenMelodyForCausalLM,
             MusicgenMelodyForConditionalGeneration,
@@ -81,15 +76,11 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .feature_extraction_musicgen_melody import MusicgenMelodyFeatureExtractor
         from .processing_musicgen_melody import MusicgenMelodyProcessor
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

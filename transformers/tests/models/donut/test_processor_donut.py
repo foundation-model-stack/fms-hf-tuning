@@ -14,14 +14,11 @@
 # limitations under the License.
 
 
-# Standard
 import tempfile
 import unittest
 
-# First Party
 from transformers import DonutImageProcessor, DonutProcessor, XLMRobertaTokenizerFast
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
 

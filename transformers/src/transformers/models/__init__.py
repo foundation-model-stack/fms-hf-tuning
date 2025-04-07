@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Local
 from . import (
     albert,
     align,
@@ -72,6 +71,7 @@ from . import (
     deberta,
     deberta_v2,
     decision_transformer,
+    deepseek_v3,
     deformable_detr,
     deit,
     deprecated,
@@ -148,6 +148,7 @@ from . import (
     levit,
     lilt,
     llama,
+    llama4,
     llava,
     llava_next,
     llava_next_video,
@@ -213,6 +214,7 @@ from . import (
     persimmon,
     phi,
     phi3,
+    phi4_multimodal,
     phimoe,
     phobert,
     pix2struct,
@@ -220,6 +222,7 @@ from . import (
     plbart,
     poolformer,
     pop2piano,
+    prompt_depth_anything,
     prophetnet,
     pvt,
     pvt_v2,
@@ -228,6 +231,8 @@ from . import (
     qwen2_audio,
     qwen2_moe,
     qwen2_vl,
+    qwen3,
+    qwen3_moe,
     rag,
     recurrent_gemma,
     reformer,
@@ -248,6 +253,7 @@ from . import (
     seggpt,
     sew,
     sew_d,
+    shieldgemma2,
     siglip,
     siglip2,
     smolvlm,

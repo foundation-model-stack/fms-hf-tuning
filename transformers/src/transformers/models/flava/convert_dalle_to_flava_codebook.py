@@ -13,14 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import argparse
 import os
 
-# Third Party
 import torch
 
-# First Party
 from transformers import FlavaImageCodebook, FlavaImageCodebookConfig
 
 
@@ -31,10 +28,7 @@ def rreplace(s, old, new, occurrence):
 
 def count_parameters(state_dict):
     # encoder.embeddings are double copied in original FLAVA
-    return sum(
-        param.float().sum() if "encoder.embeddings" not in key else 0
-        for key, param in state_dict.items()
-    )
+    return sum(param.float().sum() if "encoder.embeddings" not in key else 0 for key, param in state_dict.items())
 
 
 def upgrade_state_dict(state_dict):
@@ -60,13 +54,10 @@ def upgrade_state_dict(state_dict):
 
 
 @torch.no_grad()
-def convert_dalle_checkpoint(
-    checkpoint_path, pytorch_dump_folder_path, config_path=None, save_checkpoint=True
-):
+def convert_dalle_checkpoint(checkpoint_path, pytorch_dump_folder_path, config_path=None, save_checkpoint=True):
     """
     Copy/paste/tweak model's weights to transformers design.
     """
-    # Third Party
     from dall_e import Encoder
 
     encoder = Encoder()
@@ -103,23 +94,9 @@ def convert_dalle_checkpoint(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        help="Path to the output PyTorch model.",
-    )
-    parser.add_argument(
-        "--checkpoint_path", default=None, type=str, help="Path to flava checkpoint"
-    )
-    parser.add_argument(
-        "--config_path",
-        default=None,
-        type=str,
-        help="Path to hf config.json of model to convert",
-    )
+    parser.add_argument("--pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model.")
+    parser.add_argument("--checkpoint_path", default=None, type=str, help="Path to flava checkpoint")
+    parser.add_argument("--config_path", default=None, type=str, help="Path to hf config.json of model to convert")
     args = parser.parse_args()
 
-    convert_dalle_checkpoint(
-        args.checkpoint_path, args.pytorch_dump_folder_path, args.config_path
-    )
+    convert_dalle_checkpoint(args.checkpoint_path, args.pytorch_dump_folder_path, args.config_path)

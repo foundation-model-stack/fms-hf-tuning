@@ -13,13 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import load_tool
 
-# Local
 from .test_tools_common import ToolTesterMixin
 
 

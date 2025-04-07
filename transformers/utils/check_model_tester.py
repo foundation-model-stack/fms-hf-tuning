@@ -14,12 +14,11 @@
 # limitations under the License.
 
 
-# Standard
 import glob
 import os
 
-# Third Party
 from get_test_info import get_tester_classes
+
 
 if __name__ == "__main__":
     failures = []
@@ -28,11 +27,7 @@ if __name__ == "__main__":
     test_files = glob.glob(pattern)
     # TODO: deal with TF/Flax too
     test_files = [
-        x
-        for x in test_files
-        if not (
-            x.startswith("test_modeling_tf_") or x.startswith("test_modeling_flax_")
-        )
+        x for x in test_files if not (x.startswith("test_modeling_tf_") or x.startswith("test_modeling_flax_"))
     ]
 
     for test_file in test_files:
@@ -55,12 +50,7 @@ if __name__ == "__main__":
                             target = 128
                         elif k in ["hidden_size", "d_model"]:
                             target = 40
-                        elif k == [
-                            "num_layers",
-                            "num_hidden_layers",
-                            "num_encoder_layers",
-                            "num_decoder_layers",
-                        ]:
+                        elif k == ["num_layers", "num_hidden_layers", "num_encoder_layers", "num_decoder_layers"]:
                             target = 5
                         if target is not None and v > target:
                             failures.append(

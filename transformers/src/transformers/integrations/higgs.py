@@ -13,25 +13,25 @@
 # limitations under the License.
 "HIGGS through FLUTE (Flexible Lookup Table Engine for LUT-quantized LLMs) integration file"
 
-# Standard
 from math import sqrt
 
-# Local
-from ..utils import is_flute_available, is_hadamard_available, is_torch_available
+from ..utils import (
+    is_flute_available,
+    is_hadamard_available,
+    is_torch_available,
+)
+
 
 if is_torch_available():
-    # Third Party
-    from torch import nn
     import torch
+    from torch import nn
 
 
 if is_flute_available():
-    # Third Party
     from flute.integrations.higgs import prepare_data_transposed
     from flute.tune import TuneMetaData, qgemm_v2
 
 if is_hadamard_available():
-    # Third Party
     from fast_hadamard_transform import hadamard_transform
 
 
@@ -433,21 +433,12 @@ def get_higgs_grid(p: int, n: int):
             ]
         )
     elif (p, n) == (1, 4):
-        return torch.tensor(
-            [
-                [-1.5104175806045532],
-                [-0.4527800381183624],
-                [0.4527800381183624],
-                [1.5104175806045532],
-            ]
-        )
+        return torch.tensor([[-1.5104175806045532], [-0.4527800381183624], [0.4527800381183624], [1.5104175806045532]])
     else:
         raise NotImplementedError(f"Unsupported p={p}, n={n}")
 
 
-def quantize_with_higgs(
-    weight, bits: int = 4, p: int = 2, group_size: int = 256, hadamard_size: int = 1024
-):
+def quantize_with_higgs(weight, bits: int = 4, p: int = 2, group_size: int = 256, hadamard_size: int = 1024):
     assert len(weight.shape) == 2, "Only 2D weights are supported for now"
 
     grid = get_higgs_grid(p, 2 ** (p * bits)).to(weight.device)
@@ -455,7 +446,7 @@ def quantize_with_higgs(
 
     device = weight.device
     dtype = weight.dtype
-    weight = weight.clone().float()
+    weight = weight.to(copy=True, dtype=torch.float32)
     # Pad to Hadamard transform size
     weight = pad_to_block(weight, [1], hadamard_size)
 
@@ -471,9 +462,7 @@ def quantize_with_higgs(
     # Quantize
     codes = torch.empty(weight.shape[:-1], device=device, dtype=torch.uint8)
     for i in range(0, weight.shape[0], 16):
-        codes[i : i + 16] = torch.argmax(
-            2 * weight[i : i + 16] @ grid.T - grid_norm_2, dim=-1
-        ).to(torch.uint8)
+        codes[i : i + 16] = torch.argmax(2 * weight[i : i + 16] @ grid.T - grid_norm_2, dim=-1).to(torch.uint8)
     del weight
 
     codes = codes.reshape(codes.shape[0], -1)
@@ -523,40 +512,24 @@ class HiggsLinear(torch.nn.Module):
         assert num_bits in [2, 3, 4]
 
         self.weight = nn.Parameter(
-            torch.empty(
-                (out_features * num_bits // 16, in_features),
-                dtype=torch.int16,
-                device=device,
-            ),
+            torch.empty((out_features * num_bits // 16, in_features), dtype=torch.int16, device=device),
             requires_grad=False,
         )
         self.scales = nn.Parameter(
-            torch.empty(
-                (out_features, in_features // group_size), dtype=dtype, device=device
-            ),
-            requires_grad=False,
+            torch.empty((out_features, in_features // group_size), dtype=dtype, device=device), requires_grad=False
         )
-        self.tables = nn.Parameter(
-            torch.empty((2**num_bits,), dtype=dtype, device=device),
-            requires_grad=False,
-        )
+        self.tables = nn.Parameter(torch.empty((2**num_bits,), dtype=dtype, device=device), requires_grad=False)
         self.tables2 = nn.Parameter(
-            torch.empty((2**num_bits, 2**num_bits, 2), dtype=dtype, device=device),
-            requires_grad=False,
+            torch.empty((2**num_bits, 2**num_bits, 2), dtype=dtype, device=device), requires_grad=False
         )
 
         if bias:
-            self.bias = nn.Parameter(
-                torch.empty(out_features, device=device, dtype=dtype),
-                requires_grad=False,
-            )
+            self.bias = nn.Parameter(torch.empty(out_features, device=device, dtype=dtype), requires_grad=False)
         else:
             self.register_parameter("bias", None)
 
         self.workspace = None  # must be set externally to be reused among layers
-        self.tune_metadata: TuneMetaData = (
-            None  # must be set externally because architecture dependent
-        )
+        self.tune_metadata: TuneMetaData = None  # must be set externally because architecture dependent
 
     def forward(self, x):
         x = pad_to_block(x, [-1], self.hadamard_size)
@@ -599,7 +572,6 @@ def replace_with_higgs_linear(
             should not be passed by the user.
     """
 
-    # First Party
     from accelerate import init_empty_weights
 
     for name, module in model.named_children():
@@ -610,10 +582,7 @@ def replace_with_higgs_linear(
         if isinstance(module, nn.Linear):
             # Check if the current key is not in the `quantization_config.modules_to_not_convert`
             current_key_name_str = ".".join(current_key_name)
-            if not any(
-                current_key_name_str.endswith(key)
-                for key in quantization_config.modules_to_not_convert
-            ):
+            if not any(current_key_name_str.endswith(key) for key in quantization_config.modules_to_not_convert):
                 with init_empty_weights():
                     in_features = module.in_features
                     out_features = module.out_features
@@ -673,11 +642,7 @@ def dequantize_higgs(model, current_key_name=None):
                 )
 
                 model._modules[name].weight.data = module(
-                    torch.eye(
-                        in_features,
-                        device=module.scales.device,
-                        dtype=module.scales.dtype,
-                    )
+                    torch.eye(in_features, device=module.scales.device, dtype=module.scales.dtype)
                 ).T.contiguous()
 
             if len(list(module.children())) > 0:

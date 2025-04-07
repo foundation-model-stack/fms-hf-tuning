@@ -14,37 +14,28 @@
 # limitations under the License.
 """Testing suite for the MgpstrProcessor."""
 
-# Standard
 import json
 import os
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
 import pytest
 
-# First Party
 from transformers import MgpstrTokenizer
 from transformers.models.mgp_str.tokenization_mgp_str import VOCAB_FILES_NAMES
 from transformers.testing_utils import require_torch, require_vision
-from transformers.utils import (
-    IMAGE_PROCESSOR_NAME,
-    is_torch_available,
-    is_vision_available,
-)
+from transformers.utils import IMAGE_PROCESSOR_NAME, is_torch_available, is_vision_available
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import MgpstrProcessor, ViTImageProcessor
 
 
@@ -60,6 +51,7 @@ class MgpstrProcessorTest(unittest.TestCase):
     def setUp(self):
         self.image_size = (3, 32, 128)
         self.tmpdirname = tempfile.mkdtemp()
+
         vocab = ['[GO]', '[s]', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']  # fmt: skip
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
 
@@ -78,7 +70,7 @@ class MgpstrProcessorTest(unittest.TestCase):
         with open(self.image_processor_file, "w", encoding="utf-8") as fp:
             json.dump(image_processor_map, fp)
 
-    # We copy here rather than use the ProcessorTesterMixin as this processor has a `char_tokenizer` instad of a
+    # We copy here rather than use the ProcessorTesterMixin as this processor has a `char_tokenizer` instead of a
     # tokenizer attribute, which means all the tests would need to be overridden.
     @require_vision
     def prepare_image_inputs(self):
@@ -102,60 +94,41 @@ class MgpstrProcessorTest(unittest.TestCase):
         tokenizer = self.get_tokenizer()
         image_processor = self.get_image_processor()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
         processor.save_pretrained(self.tmpdirname)
         processor = MgpstrProcessor.from_pretrained(self.tmpdirname, use_fast=False)
 
         self.assertEqual(processor.char_tokenizer.get_vocab(), tokenizer.get_vocab())
         self.assertIsInstance(processor.char_tokenizer, MgpstrTokenizer)
 
-        self.assertEqual(
-            processor.image_processor.to_json_string(), image_processor.to_json_string()
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor.to_json_string())
         self.assertIsInstance(processor.image_processor, ViTImageProcessor)
 
     def test_save_load_pretrained_additional_features(self):
         tokenizer = self.get_tokenizer()
         image_processor = self.get_image_processor()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
         processor.save_pretrained(self.tmpdirname)
 
         tokenizer_add_kwargs = self.get_tokenizer(bos_token="(BOS)", eos_token="(EOS)")
-        image_processor_add_kwargs = self.get_image_processor(
-            do_normalize=False, padding_value=1.0
-        )
+        image_processor_add_kwargs = self.get_image_processor(do_normalize=False, padding_value=1.0)
 
         processor = MgpstrProcessor.from_pretrained(
-            self.tmpdirname,
-            bos_token="(BOS)",
-            eos_token="(EOS)",
-            do_normalize=False,
-            padding_value=1.0,
+            self.tmpdirname, bos_token="(BOS)", eos_token="(EOS)", do_normalize=False, padding_value=1.0
         )
 
-        self.assertEqual(
-            processor.char_tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.char_tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
         self.assertIsInstance(processor.char_tokenizer, MgpstrTokenizer)
 
-        self.assertEqual(
-            processor.image_processor.to_json_string(),
-            image_processor_add_kwargs.to_json_string(),
-        )
+        self.assertEqual(processor.image_processor.to_json_string(), image_processor_add_kwargs.to_json_string())
         self.assertIsInstance(processor.image_processor, ViTImageProcessor)
 
     def test_image_processor(self):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
         image_input = self.prepare_image_inputs()
 
@@ -163,17 +136,13 @@ class MgpstrProcessorTest(unittest.TestCase):
         input_processor = processor(images=image_input, return_tensors="np")
 
         for key in input_image_proc.keys():
-            self.assertAlmostEqual(
-                input_image_proc[key].sum(), input_processor[key].sum(), delta=1e-2
-            )
+            self.assertAlmostEqual(input_image_proc[key].sum(), input_processor[key].sum(), delta=1e-2)
 
     def test_tokenizer(self):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
         input_str = "test"
 
@@ -187,9 +156,7 @@ class MgpstrProcessorTest(unittest.TestCase):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
         input_str = "test"
         image_input = self.prepare_image_inputs()
@@ -206,15 +173,9 @@ class MgpstrProcessorTest(unittest.TestCase):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
-        predicted_ids = [
-            [1, 4, 5, 8, 1, 0, 8],
-            [3, 4, 3, 1, 1, 8, 9],
-            [3, 4, 3, 1, 1, 8, 9],
-        ]
+        predicted_ids = [[1, 4, 5, 8, 1, 0, 8], [3, 4, 3, 1, 1, 8, 9], [3, 4, 3, 1, 1, 8, 9]]
 
         decoded_processor = processor.char_decode(predicted_ids)
         decoded_tok = tokenizer.batch_decode(predicted_ids)
@@ -226,9 +187,7 @@ class MgpstrProcessorTest(unittest.TestCase):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
         input_str = None
         image_input = self.prepare_image_inputs()
@@ -241,9 +200,7 @@ class MgpstrProcessorTest(unittest.TestCase):
         image_processor = self.get_image_processor()
         tokenizer = self.get_tokenizer()
 
-        processor = MgpstrProcessor(
-            tokenizer=tokenizer, image_processor=image_processor
-        )
+        processor = MgpstrProcessor(tokenizer=tokenizer, image_processor=image_processor)
 
         char_input = torch.randn(1, 27, 38)
         bpe_input = torch.randn(1, 27, 50257)
@@ -251,7 +208,4 @@ class MgpstrProcessorTest(unittest.TestCase):
 
         results = processor.batch_decode([char_input, bpe_input, wp_input])
 
-        self.assertListEqual(
-            list(results.keys()),
-            ["generated_text", "scores", "char_preds", "bpe_preds", "wp_preds"],
-        )
+        self.assertListEqual(list(results.keys()), ["generated_text", "scores", "char_preds", "bpe_preds", "wp_preds"])

@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import List, Union
 
-# Local
 from ..utils import (
     add_end_docstrings,
     is_tf_available,
@@ -27,30 +25,24 @@ from ..utils import (
 )
 from .base import Pipeline, build_pipeline_init_args
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # Local
     from ..image_utils import load_image
 
 if is_tf_available():
-    # Local
     from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # Local
     from ..models.auto.modeling_auto import MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
 
 
-@add_end_docstrings(
-    build_pipeline_init_args(has_tokenizer=True, has_image_processor=True)
-)
+@add_end_docstrings(build_pipeline_init_args(has_tokenizer=True, has_image_processor=True))
 class ImageToTextPipeline(Pipeline):
     """
     Image To Text pipeline using a `AutoModelForVision2Seq`. This pipeline predicts a caption for a given image.
@@ -78,14 +70,10 @@ class ImageToTextPipeline(Pipeline):
         super().__init__(*args, **kwargs)
         requires_backends(self, "vision")
         self.check_model_type(
-            TF_MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES
-            if self.framework == "tf"
-            else MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES
+            TF_MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES if self.framework == "tf" else MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES
         )
 
-    def _sanitize_parameters(
-        self, max_new_tokens=None, generate_kwargs=None, prompt=None, timeout=None
-    ):
+    def _sanitize_parameters(self, max_new_tokens=None, generate_kwargs=None, prompt=None, timeout=None):
         forward_params = {}
         preprocess_params = {}
 
@@ -112,11 +100,7 @@ class ImageToTextPipeline(Pipeline):
 
         return preprocess_params, forward_params, {}
 
-    def __call__(
-        self,
-        inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None,
-        **kwargs,
-    ):
+    def __call__(self, inputs: Union[str, List[str], "Image.Image", List["Image.Image"]] = None, **kwargs):
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -149,9 +133,7 @@ class ImageToTextPipeline(Pipeline):
         if "images" in kwargs:
             inputs = kwargs.pop("images")
         if inputs is None:
-            raise ValueError(
-                "Cannot call the image-to-text pipeline without an inputs argument!"
-            )
+            raise ValueError("Cannot call the image-to-text pipeline without an inputs argument!")
         return super().__call__(inputs, **kwargs)
 
     def preprocess(self, image, prompt=None, timeout=None):
@@ -171,44 +153,32 @@ class ImageToTextPipeline(Pipeline):
             model_type = self.model.config.model_type
 
             if model_type == "git":
-                model_inputs = self.image_processor(
-                    images=image, return_tensors=self.framework
-                )
+                model_inputs = self.image_processor(images=image, return_tensors=self.framework)
                 if self.framework == "pt":
                     model_inputs = model_inputs.to(self.torch_dtype)
-                input_ids = self.tokenizer(
-                    text=prompt, add_special_tokens=False
-                ).input_ids
+                input_ids = self.tokenizer(text=prompt, add_special_tokens=False).input_ids
                 input_ids = [self.tokenizer.cls_token_id] + input_ids
                 input_ids = torch.tensor(input_ids).unsqueeze(0)
                 model_inputs.update({"input_ids": input_ids})
 
             elif model_type == "pix2struct":
-                model_inputs = self.image_processor(
-                    images=image, header_text=prompt, return_tensors=self.framework
-                )
+                model_inputs = self.image_processor(images=image, header_text=prompt, return_tensors=self.framework)
                 if self.framework == "pt":
                     model_inputs = model_inputs.to(self.torch_dtype)
 
             elif model_type != "vision-encoder-decoder":
                 # vision-encoder-decoder does not support conditional generation
-                model_inputs = self.image_processor(
-                    images=image, return_tensors=self.framework
-                )
+                model_inputs = self.image_processor(images=image, return_tensors=self.framework)
                 if self.framework == "pt":
                     model_inputs = model_inputs.to(self.torch_dtype)
                 text_inputs = self.tokenizer(prompt, return_tensors=self.framework)
                 model_inputs.update(text_inputs)
 
             else:
-                raise ValueError(
-                    f"Model type {model_type} does not support conditional text generation"
-                )
+                raise ValueError(f"Model type {model_type} does not support conditional text generation")
 
         else:
-            model_inputs = self.image_processor(
-                images=image, return_tensors=self.framework
-            )
+            model_inputs = self.image_processor(images=image, return_tensors=self.framework)
             if self.framework == "pt":
                 model_inputs = model_inputs.to(self.torch_dtype)
 

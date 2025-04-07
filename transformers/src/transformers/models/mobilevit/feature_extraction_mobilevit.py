@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for MobileViT."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_mobilevit import MobileViTImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

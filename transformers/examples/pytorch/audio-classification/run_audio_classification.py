@@ -14,22 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from dataclasses import dataclass, field
-from random import randint
-from typing import Optional
 import logging
 import os
 import sys
 import warnings
+from dataclasses import dataclass, field
+from random import randint
+from typing import Optional
 
-# Third Party
-from datasets import DatasetDict, load_dataset
 import datasets
 import evaluate
 import numpy as np
+from datasets import DatasetDict, load_dataset
 
-# First Party
+import transformers
 from transformers import (
     AutoConfig,
     AutoFeatureExtractor,
@@ -42,17 +40,14 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
-import transformers
+
 
 logger = logging.getLogger(__name__)
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.50.0.dev0")
+check_min_version("4.52.0.dev0")
 
-require_version(
-    "datasets>=1.14.0",
-    "To fix: pip install -r examples/pytorch/audio-classification/requirements.txt",
-)
+require_version("datasets>=1.14.0", "To fix: pip install -r examples/pytorch/audio-classification/requirements.txt")
 
 
 def random_subsample(wav: np.ndarray, max_length: float, sample_rate: int = 16000):
@@ -73,22 +68,15 @@ class DataTrainingArguments:
     the command line.
     """
 
-    dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "Name of a dataset from the datasets package"}
-    )
+    dataset_name: Optional[str] = field(default=None, metadata={"help": "Name of a dataset from the datasets package"})
     dataset_config_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "The configuration name of the dataset to use (via the datasets library)."
-        },
+        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
     )
     train_file: Optional[str] = field(
-        default=None,
-        metadata={"help": "A file containing the training audio paths and labels."},
+        default=None, metadata={"help": "A file containing the training audio paths and labels."}
     )
     eval_file: Optional[str] = field(
-        default=None,
-        metadata={"help": "A file containing the validation audio paths and labels."},
+        default=None, metadata={"help": "A file containing the validation audio paths and labels."}
     )
     train_split_name: str = field(
         default="train",
@@ -106,15 +94,10 @@ class DataTrainingArguments:
     )
     audio_column_name: str = field(
         default="audio",
-        metadata={
-            "help": "The name of the dataset column containing the audio data. Defaults to 'audio'"
-        },
+        metadata={"help": "The name of the dataset column containing the audio data. Defaults to 'audio'"},
     )
     label_column_name: str = field(
-        default="label",
-        metadata={
-            "help": "The name of the dataset column containing the labels. Defaults to 'label'"
-        },
+        default="label", metadata={"help": "The name of the dataset column containing the labels. Defaults to 'label'"}
     )
     max_train_samples: Optional[int] = field(
         default=None,
@@ -136,9 +119,7 @@ class DataTrainingArguments:
     )
     max_length_seconds: float = field(
         default=20,
-        metadata={
-            "help": "Audio clips will be randomly cut to this length during training if the value is set."
-        },
+        metadata={"help": "Audio clips will be randomly cut to this length during training if the value is set."},
     )
 
 
@@ -150,40 +131,26 @@ class ModelArguments:
 
     model_name_or_path: str = field(
         default="facebook/wav2vec2-base",
-        metadata={
-            "help": "Path to pretrained model or model identifier from huggingface.co/models"
-        },
+        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
     )
     config_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Pretrained config name or path if not the same as model_name"
-        },
+        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
     cache_dir: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Where do you want to store the pretrained models downloaded from the Hub"
-        },
+        default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from the Hub"}
     )
     model_revision: str = field(
         default="main",
-        metadata={
-            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
-        },
+        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
     feature_extractor_name: Optional[str] = field(
         default=None, metadata={"help": "Name or path of preprocessor config."}
     )
     freeze_feature_encoder: bool = field(
-        default=True,
-        metadata={"help": "Whether to freeze the feature encoder layers of the model."},
+        default=True, metadata={"help": "Whether to freeze the feature encoder layers of the model."}
     )
     attention_mask: bool = field(
-        default=True,
-        metadata={
-            "help": "Whether to generate an attention mask in the feature extractor."
-        },
+        default=True, metadata={"help": "Whether to generate an attention mask in the feature extractor."}
     )
     token: str = field(
         default=None,
@@ -205,16 +172,11 @@ class ModelArguments:
         },
     )
     freeze_feature_extractor: Optional[bool] = field(
-        default=None,
-        metadata={
-            "help": "Whether to freeze the feature extractor layers of the model."
-        },
+        default=None, metadata={"help": "Whether to freeze the feature extractor layers of the model."}
     )
     ignore_mismatched_sizes: bool = field(
         default=False,
-        metadata={
-            "help": "Will enable to load a pretrained model whose head dimensions are different."
-        },
+        metadata={"help": "Will enable to load a pretrained model whose head dimensions are different."},
     )
 
     def __post_init__(self):
@@ -238,15 +200,11 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser(
-        (ModelArguments, DataTrainingArguments, TrainingArguments)
-    )
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(
-            json_file=os.path.abspath(sys.argv[1])
-        )
+        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -283,20 +241,14 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if (
-        os.path.isdir(training_args.output_dir)
-        and training_args.do_train
-        and not training_args.overwrite_output_dir
-    ):
+    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
             raise ValueError(
                 f"Output directory ({training_args.output_dir}) already exists and is not empty. "
                 "Use --overwrite_output_dir to train from scratch."
             )
-        elif (
-            last_checkpoint is not None and training_args.resume_from_checkpoint is None
-        ):
+        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
             logger.info(
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
@@ -347,8 +299,7 @@ def main():
     # `datasets` takes care of automatically loading and resampling the audio,
     # so we just need to set the correct target sampling rate.
     raw_datasets = raw_datasets.cast_column(
-        data_args.audio_column_name,
-        datasets.features.Audio(sampling_rate=feature_extractor.sampling_rate),
+        data_args.audio_column_name, datasets.features.Audio(sampling_rate=feature_extractor.sampling_rate)
     )
 
     model_input_name = feature_extractor.model_input_names[0]
@@ -358,14 +309,10 @@ def main():
         subsampled_wavs = []
         for audio in batch[data_args.audio_column_name]:
             wav = random_subsample(
-                audio["array"],
-                max_length=data_args.max_length_seconds,
-                sample_rate=feature_extractor.sampling_rate,
+                audio["array"], max_length=data_args.max_length_seconds, sample_rate=feature_extractor.sampling_rate
             )
             subsampled_wavs.append(wav)
-        inputs = feature_extractor(
-            subsampled_wavs, sampling_rate=feature_extractor.sampling_rate
-        )
+        inputs = feature_extractor(subsampled_wavs, sampling_rate=feature_extractor.sampling_rate)
         output_batch = {model_input_name: inputs.get(model_input_name)}
         output_batch["labels"] = list(batch[data_args.label_column_name])
 
@@ -427,9 +374,7 @@ def main():
     if training_args.do_train:
         if data_args.max_train_samples is not None:
             raw_datasets["train"] = (
-                raw_datasets["train"]
-                .shuffle(seed=training_args.seed)
-                .select(range(data_args.max_train_samples))
+                raw_datasets["train"].shuffle(seed=training_args.seed).select(range(data_args.max_train_samples))
             )
         # Set the training transforms
         raw_datasets["train"].set_transform(train_transforms, output_all_columns=False)
@@ -437,9 +382,7 @@ def main():
     if training_args.do_eval:
         if data_args.max_eval_samples is not None:
             raw_datasets["eval"] = (
-                raw_datasets["eval"]
-                .shuffle(seed=training_args.seed)
-                .select(range(data_args.max_eval_samples))
+                raw_datasets["eval"].shuffle(seed=training_args.seed).select(range(data_args.max_eval_samples))
             )
         # Set the validation transforms
         raw_datasets["eval"].set_transform(val_transforms, output_all_columns=False)

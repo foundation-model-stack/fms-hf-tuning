@@ -16,10 +16,8 @@
 Image/Text processor class for XCLIP
 """
 
-# Standard
 import warnings
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...tokenization_utils_base import BatchEncoding
 
@@ -52,9 +50,7 @@ class XCLIPProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -69,14 +65,14 @@ class XCLIPProcessor(ProcessorMixin):
         and `kwargs` arguments to CLIPTokenizerFast's [`~CLIPTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `videos` and `kwargs` arguments to
         VideoMAEImageProcessor's [`~VideoMAEImageProcessor.__call__`] if `videos` is not `None`. Please refer to the
-        doctsring of the above two methods for more information.
+        docstring of the above two methods for more information.
 
         Args:
             text (`str`, `List[str]`, `List[List[str]]`):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            videos (`List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`, `List[List[PIL.Image.Image]]`, `List[List[np.ndarrray]]`,:
+            videos (`List[PIL.Image.Image]`, `List[np.ndarray]`, `List[torch.Tensor]`, `List[List[PIL.Image.Image]]`, `List[List[np.ndarray]]`,:
                 `List[List[torch.Tensor]]`): The video or batch of videos to be prepared. Each video should be a list
                 of frames, which can be either PIL images or NumPy arrays. In case of NumPy arrays/PyTorch tensors,
                 each frame should be of shape (H, W, C), where H and W are frame height and width, and C is a number of
@@ -101,17 +97,13 @@ class XCLIPProcessor(ProcessorMixin):
         """
 
         if text is None and videos is None:
-            raise ValueError(
-                "You have to specify either text or videos. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or videos. Both cannot be none.")
 
         if text is not None:
             encoding = self.tokenizer(text, return_tensors=return_tensors, **kwargs)
 
         if videos is not None:
-            image_features = self.image_processor(
-                videos, return_tensors=return_tensors, **kwargs
-            )
+            image_features = self.image_processor(videos, return_tensors=return_tensors, **kwargs)
 
         if text is not None and videos is not None:
             encoding["pixel_values"] = image_features.pixel_values
@@ -119,9 +111,7 @@ class XCLIPProcessor(ProcessorMixin):
         elif text is not None:
             return encoding
         else:
-            return BatchEncoding(
-                data=dict(**image_features), tensor_type=return_tensors
-            )
+            return BatchEncoding(data=dict(**image_features), tensor_type=return_tensors)
 
     def batch_decode(self, *args, **kwargs):
         """

@@ -13,11 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import gc
 import unittest
 
-# First Party
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -33,12 +31,11 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_accelerate_available, is_torch_available
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_accelerate_available():
-    # First Party
     from accelerate import init_empty_weights
 
 
@@ -69,9 +66,7 @@ class BitNetTest(unittest.TestCase):
         Load the model
         """
         cls.tokenizer = AutoTokenizer.from_pretrained(cls.model_name)
-        cls.quantized_model = AutoModelForCausalLM.from_pretrained(
-            cls.model_name, device_map=cls.device
-        )
+        cls.quantized_model = AutoModelForCausalLM.from_pretrained(cls.model_name, device_map=cls.device)
 
     def tearDown(self):
         gc.collect()
@@ -79,7 +74,6 @@ class BitNetTest(unittest.TestCase):
         gc.collect()
 
     def test_replace_with_bitlinear(self):
-        # First Party
         from transformers.integrations import BitLinear, replace_with_bitnet_linear
 
         model_id = "facebook/opt-350m"
@@ -109,19 +103,14 @@ class BitNetTest(unittest.TestCase):
         expected_output = "What are we having for dinner? What are we going to do for fun this weekend?"
         input_ids = self.tokenizer(input_text, return_tensors="pt").to("cuda")
 
-        output = self.quantized_model.generate(
-            **input_ids, max_new_tokens=11, do_sample=False
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True), expected_output
-        )
+        output = self.quantized_model.generate(**input_ids, max_new_tokens=11, do_sample=False)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), expected_output)
 
     def test_packing_unpacking(self):
         """
         Simple test the packing and unpacking logic
         """
 
-        # First Party
         from transformers.integrations import pack_weights, unpack_weights
 
         u = torch.randint(0, 255, (256, 256), dtype=torch.uint8)
@@ -136,17 +125,12 @@ class BitNetTest(unittest.TestCase):
         test the activation function behaviour
         """
 
-        # First Party
         from transformers.integrations import BitLinear
 
-        layer = BitLinear(
-            in_features=4, out_features=2, bias=False, dtype=torch.float32
-        )
+        layer = BitLinear(in_features=4, out_features=2, bias=False, dtype=torch.float32)
         layer.to(self.device)
 
-        input_tensor = torch.tensor([1.0, -1.0, -1.0, 1.0], dtype=torch.float32).to(
-            torch_device
-        )
+        input_tensor = torch.tensor([1.0, -1.0, -1.0, 1.0], dtype=torch.float32).to(torch_device)
 
         # Quantize the input tensor
         quantized_tensor, scale = layer.activation_quant(input_tensor)
@@ -184,7 +168,6 @@ class BitNetTest(unittest.TestCase):
         test that the BitNet layer weight shapes are correct, and the weight_scale is correctly initialized to 1
         """
 
-        # First Party
         from transformers.integrations import replace_with_bitnet_linear
 
         out_features = 1024
@@ -202,9 +185,7 @@ class BitNetTest(unittest.TestCase):
                 bias: bool = False,
             ):
                 super().__init__()
-                self.linear = torch.nn.Linear(
-                    in_features=in_features, out_features=out_features, bias=bias
-                )
+                self.linear = torch.nn.Linear(in_features=in_features, out_features=out_features, bias=bias)
 
             def forward(self, x):
                 return self.linear(x)
@@ -212,9 +193,7 @@ class BitNetTest(unittest.TestCase):
         model = SimpleLinearModule()
         replace_with_bitnet_linear(model)
 
-        self.assertEqual(
-            list(model.linear.weight.shape), [out_features // 4, in_features]
-        )
+        self.assertEqual(list(model.linear.weight.shape), [out_features // 4, in_features])
         self.assertEqual(model.linear.weight_scale, 1)
 
 
@@ -225,9 +204,7 @@ class BitNetSerializationTest(unittest.TestCase):
     def test_model_serialization(self):
         model_name = "HF1BitLLM/Llama3-8B-1.58-100B-tokens"
         device = "cuda"
-        quantized_model = AutoModelForCausalLM.from_pretrained(
-            model_name, device_map=device
-        )
+        quantized_model = AutoModelForCausalLM.from_pretrained(model_name, device_map=device)
         input_tensor = torch.zeros((1, 8), dtype=torch.int32, device=device)
 
         with torch.no_grad():
@@ -242,9 +219,7 @@ class BitNetSerializationTest(unittest.TestCase):
         torch.cuda.empty_cache()
 
         # Load and check if the logits match
-        model_loaded = AutoModelForCausalLM.from_pretrained(
-            "quant_model", device_map=device
-        )
+        model_loaded = AutoModelForCausalLM.from_pretrained("quant_model", device_map=device)
 
         with torch.no_grad():
             logits_loaded = model_loaded.forward(input_tensor).logits

@@ -13,10 +13,8 @@
 # limitations under the License.
 
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ...utils import (
     OptionalDependencyNotAvailable,
     _LazyModule,
@@ -24,6 +22,7 @@ from ...utils import (
     is_tokenizers_available,
     is_torch_available,
 )
+
 
 _import_structure = {
     "configuration_phi": ["PhiConfig"],
@@ -45,7 +44,6 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
     from .configuration_phi import PhiConfig
 
     try:
@@ -54,7 +52,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_phi import (
             PhiForCausalLM,
             PhiForSequenceClassification,
@@ -65,9 +62,6 @@ if TYPE_CHECKING:
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

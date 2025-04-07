@@ -14,45 +14,31 @@
 # limitations under the License.
 """Testing suite for the PyTorch Fuyu model."""
 
-# Standard
 import io
 import unittest
 
-# Third Party
-from parameterized import parameterized
 import pytest
 import requests
+from parameterized import parameterized
 
-# First Party
 from transformers import FuyuConfig, is_torch_available, is_vision_available
-from transformers.testing_utils import (
-    require_torch,
-    require_torch_accelerator,
-    slow,
-    torch_device,
-)
+from transformers.testing_utils import require_torch, require_torch_accelerator, slow
 from transformers.utils import cached_property
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_modeling_common import ModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 
 if is_torch_available() and is_vision_available():
-    # First Party
     from transformers import FuyuProcessor
 
 
 if is_torch_available():
-    # Third Party
-    import torch
-
-    # First Party
     from transformers import FuyuForCausalLM
 
 
@@ -121,12 +107,8 @@ class FuyuModelTester:
         sequence_labels = None
         token_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
 
         config = self.get_config()
 
@@ -149,137 +131,6 @@ class FuyuModelTester:
             pad_token_id=self.pad_token_id,
         )
 
-    def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-    ):
-        model = FuyuForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask)
-        result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    def create_and_check_model_as_decoder(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.add_cross_attention = True
-        model = FuyuForCausalLM(config)
-        model.to(torch_device)
-        model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-        )
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-        )
-        result = model(input_ids, attention_mask=input_mask)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    def create_and_check_for_causal_lm(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = FuyuForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
-
-    def create_and_check_decoder_model_past_large_inputs(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.is_decoder = True
-        config.add_cross_attention = True
-        model = FuyuForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-
-        # first forward pass
-        outputs = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            use_cache=True,
-        )
-        past_key_values = outputs.past_key_values
-
-        # create hypothetical multiple next token and extent to next_input_ids
-        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size)
-        next_mask = ids_tensor((self.batch_size, 3), vocab_size=2)
-
-        # append to next input_ids and
-        next_input_ids = torch.cat([input_ids, next_tokens], dim=-1)
-        next_attention_mask = torch.cat([input_mask, next_mask], dim=-1)
-
-        output_from_no_past = model(
-            next_input_ids,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-        output_from_past = model(
-            next_tokens,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            past_key_values=past_key_values,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-
-        # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
-        output_from_no_past_slice = output_from_no_past[
-            :, -3:, random_slice_idx
-        ].detach()
-        output_from_past_slice = output_from_past[:, :, random_slice_idx].detach()
-
-        self.parent.assertTrue(output_from_past_slice.shape[1] == next_tokens.shape[1])
-
-        # test that outputs are equal for slice
-        self.parent.assertTrue(
-            torch.allclose(output_from_past_slice, output_from_no_past_slice, atol=1e-3)
-        )
-
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         (
@@ -294,14 +145,10 @@ class FuyuModelTester:
 
 
 @require_torch
-class FuyuModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class FuyuModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (FuyuForCausalLM,) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {"text-generation": FuyuForCausalLM, "image-text-to-text": FuyuForCausalLM}
-        if is_torch_available()
-        else {}
+        {"text-generation": FuyuForCausalLM, "image-text-to-text": FuyuForCausalLM} if is_torch_available() else {}
     )
 
     test_head_masking = False
@@ -333,16 +180,12 @@ class FuyuModelTest(
 
     @parameterized.expand([("random",), ("same",)])
     @pytest.mark.generate
-    @unittest.skip(
-        "Fuyu doesn't support assisted generation due to the need to crop/extend image patches indices"
-    )
+    @unittest.skip("Fuyu doesn't support assisted generation due to the need to crop/extend image patches indices")
     def test_assisted_decoding_matches_greedy_search(self):
         pass
 
     @pytest.mark.generate
-    @unittest.skip(
-        "Fuyu doesn't support assisted generation due to the need to crop/extend image patches indices"
-    )
+    @unittest.skip("Fuyu doesn't support assisted generation due to the need to crop/extend image patches indices")
     def test_assisted_decoding_sample(self):
         pass
 
@@ -361,9 +204,7 @@ class FuyuModelTest(
     def test_model_parallelism(self):
         super().test_model_parallelism()
 
-    @unittest.skip(
-        reason="Fuyu `prepare_inputs_for_generation` function doesn't have cache position."
-    )
+    @unittest.skip(reason="Fuyu `prepare_inputs_for_generation` function doesn't have cache position.")
     def test_generate_continue_from_inputs_embeds():
         pass
 
@@ -388,15 +229,11 @@ class FuyuModelIntegrationTest(unittest.TestCase):
 
         text_prompt_coco_captioning = "Generate a coco-style caption.\n"
 
-        inputs = processor(
-            images=image, text=text_prompt_coco_captioning, return_tensors="pt"
-        )
+        inputs = processor(images=image, text=text_prompt_coco_captioning, return_tensors="pt")
         generated_ids = model.generate(**inputs, max_new_tokens=10)
 
         # take the last 8 tokens (in order to skip special \n\x04 characters) and decode them
-        generated_text = processor.batch_decode(
-            generated_ids[:, -8:], skip_special_tokens=True
-        )[0]
+        generated_text = processor.batch_decode(generated_ids[:, -8:], skip_special_tokens=True)[0]
         self.assertEqual(generated_text, "A blue bus parked on the side of a road.")
 
 

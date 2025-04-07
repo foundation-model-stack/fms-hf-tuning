@@ -14,14 +14,13 @@
 # limitations under the License.
 """MEGA configuration"""
 
-# Standard
 from collections import OrderedDict
 from typing import Mapping
 
-# Local
 from ....configuration_utils import PretrainedConfig
 from ....onnx import OnnxConfig
 from ....utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -187,12 +186,7 @@ class MegaConfig(PretrainedConfig):
         add_lm_hidden_dense_layer=True,
         **kwargs,
     ):
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            **kwargs,
-        )
+        super().__init__(pad_token_id=pad_token_id, bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
 
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size

@@ -14,27 +14,19 @@
 # limitations under the License.
 """Testing suite for the PyTorch Chinese-CLIP model."""
 
-# Standard
 import inspect
 import os
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
 import requests
 
-# First Party
-from transformers import (
-    ChineseCLIPConfig,
-    ChineseCLIPTextConfig,
-    ChineseCLIPVisionConfig,
-)
+from transformers import ChineseCLIPConfig, ChineseCLIPTextConfig, ChineseCLIPVisionConfig
 from transformers.models.auto import get_values
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import (
     ModelTesterMixin,
@@ -45,12 +37,11 @@ from ...test_modeling_common import (
 )
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import (
         MODEL_FOR_PRETRAINING_MAPPING,
         ChineseCLIPModel,
@@ -60,10 +51,8 @@ if is_torch_available():
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import ChineseCLIPProcessor
 
 
@@ -125,33 +114,19 @@ class ChineseCLIPTextModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         """
@@ -184,12 +159,8 @@ class ChineseCLIPTextModelTester:
         ) = self.prepare_config_and_inputs()
 
         config.is_decoder = True
-        encoder_hidden_states = floats_tensor(
-            [self.batch_size, self.seq_length, self.hidden_size]
-        )
-        encoder_attention_mask = ids_tensor(
-            [self.batch_size, self.seq_length], vocab_size=2
-        )
+        encoder_hidden_states = floats_tensor([self.batch_size, self.seq_length, self.hidden_size])
+        encoder_attention_mask = ids_tensor([self.batch_size, self.seq_length], vocab_size=2)
 
         return (
             config,
@@ -204,30 +175,16 @@ class ChineseCLIPTextModelTester:
         )
 
     def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = ChineseCLIPTextModel(config=config)
         model.to(torch_device)
         model.eval()
-        result = model(
-            input_ids, attention_mask=input_mask, token_type_ids=token_type_ids
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
         result = model(input_ids, token_type_ids=token_type_ids)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def create_and_check_model_as_decoder(
         self,
@@ -258,16 +215,9 @@ class ChineseCLIPTextModelTester:
             token_type_ids=token_type_ids,
             encoder_hidden_states=encoder_hidden_states,
         )
-        result = model(
-            input_ids, attention_mask=input_mask, token_type_ids=token_type_ids
-        )
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -280,11 +230,7 @@ class ChineseCLIPTextModelTester:
             token_labels,
             choice_labels,
         ) = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "token_type_ids": token_type_ids,
-            "attention_mask": input_mask,
-        }
+        inputs_dict = {"input_ids": input_ids, "token_type_ids": token_type_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
 
@@ -328,9 +274,7 @@ class ChineseCLIPVisionModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
         config = self.get_config()
 
         return config, pixel_values
@@ -359,16 +303,9 @@ class ChineseCLIPVisionModelTester:
         # expected sequence length = num_patches + 1 (we add 1 for the [CLS] token)
         image_size = (self.image_size, self.image_size)
         patch_size = (self.patch_size, self.patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, num_patches + 1, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, num_patches + 1, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -384,16 +321,12 @@ class ChineseCLIPTextModelTest(ModelTesterMixin, unittest.TestCase):
 
     # special case for ForPreTraining model
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
-        inputs_dict = super()._prepare_for_class(
-            inputs_dict, model_class, return_labels=return_labels
-        )
+        inputs_dict = super()._prepare_for_class(inputs_dict, model_class, return_labels=return_labels)
 
         if return_labels:
             if model_class in get_values(MODEL_FOR_PRETRAINING_MAPPING):
                 inputs_dict["labels"] = torch.zeros(
-                    (self.model_tester.batch_size, self.model_tester.seq_length),
-                    dtype=torch.long,
-                    device=torch_device,
+                    (self.model_tester.batch_size, self.model_tester.seq_length), dtype=torch.long, device=torch_device
                 )
                 inputs_dict["next_sentence_label"] = torch.zeros(
                     self.model_tester.batch_size, dtype=torch.long, device=torch_device
@@ -402,9 +335,7 @@ class ChineseCLIPTextModelTest(ModelTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = ChineseCLIPTextModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=ChineseCLIPTextConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=ChineseCLIPTextConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -477,18 +408,6 @@ class ChineseCLIPTextModelTest(ModelTesterMixin, unittest.TestCase):
     def test_training_gradient_checkpointing_use_reentrant_false(self):
         pass
 
-    @unittest.skip(
-        reason="ChineseCLIPTextModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="ChineseCLIPTextModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_to_base(self):
-        pass
-
 
 @require_torch
 class ChineseCLIPVisionModelTest(ModelTesterMixin, unittest.TestCase):
@@ -506,10 +425,7 @@ class ChineseCLIPVisionModelTest(ModelTesterMixin, unittest.TestCase):
     def setUp(self):
         self.model_tester = ChineseCLIPVisionModelTester(self)
         self.config_tester = ConfigTester(
-            self,
-            config_class=ChineseCLIPVisionConfig,
-            has_text_modality=False,
-            hidden_size=37,
+            self, config_class=ChineseCLIPVisionConfig, has_text_modality=False, hidden_size=37
         )
 
     def test_config(self):
@@ -564,18 +480,6 @@ class ChineseCLIPVisionModelTest(ModelTesterMixin, unittest.TestCase):
     def test_training_gradient_checkpointing_use_reentrant_false(self):
         pass
 
-    @unittest.skip(
-        reason="ChineseCLIPVisionModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="ChineseCLIPVisionModel has no base class and is not available in MODEL_MAPPING"
-    )
-    def test_save_load_fast_init_to_base(self):
-        pass
-
     @slow
     def test_model_from_pretrained(self):
         model_name = "OFA-Sys/chinese-clip-vit-base-patch16"
@@ -593,9 +497,7 @@ class ChineseCLIPModelTester:
         self.parent = parent
         self.text_model_tester = ChineseCLIPTextModelTester(parent, **text_kwargs)
         self.vision_model_tester = ChineseCLIPVisionModelTester(parent, **vision_kwargs)
-        self.batch_size = (
-            self.text_model_tester.batch_size
-        )  # need bs for batching_equivalence test
+        self.batch_size = self.text_model_tester.batch_size  # need bs for batching_equivalence test
         self.is_training = is_training
 
     def prepare_config_and_inputs(self):
@@ -608,10 +510,7 @@ class ChineseCLIPModelTester:
             __,
             ___,
         ) = self.text_model_tester.prepare_config_and_inputs()
-        (
-            vision_config,
-            pixel_values,
-        ) = self.vision_model_tester.prepare_config_and_inputs()
+        vision_config, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
 
         config = self.get_config()
 
@@ -619,35 +518,23 @@ class ChineseCLIPModelTester:
 
     def get_config(self):
         return ChineseCLIPConfig.from_text_vision_configs(
-            self.text_model_tester.get_config(),
-            self.vision_model_tester.get_config(),
-            projection_dim=64,
+            self.text_model_tester.get_config(), self.vision_model_tester.get_config(), projection_dim=64
         )
 
-    def create_and_check_model(
-        self, config, input_ids, token_type_ids, attention_mask, pixel_values
-    ):
+    def create_and_check_model(self, config, input_ids, token_type_ids, attention_mask, pixel_values):
         model = ChineseCLIPModel(config).to(torch_device).eval()
         with torch.no_grad():
             result = model(input_ids, pixel_values, attention_mask, token_type_ids)
         self.parent.assertEqual(
-            result.logits_per_image.shape,
-            (self.vision_model_tester.batch_size, self.text_model_tester.batch_size),
+            result.logits_per_image.shape, (self.vision_model_tester.batch_size, self.text_model_tester.batch_size)
         )
         self.parent.assertEqual(
-            result.logits_per_text.shape,
-            (self.text_model_tester.batch_size, self.vision_model_tester.batch_size),
+            result.logits_per_text.shape, (self.text_model_tester.batch_size, self.vision_model_tester.batch_size)
         )
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        (
-            config,
-            input_ids,
-            token_type_ids,
-            attention_mask,
-            pixel_values,
-        ) = config_and_inputs
+        config, input_ids, token_type_ids, attention_mask, pixel_values = config_and_inputs
         inputs_dict = {
             "input_ids": input_ids,
             "token_type_ids": token_type_ids,
@@ -661,9 +548,7 @@ class ChineseCLIPModelTester:
 @require_torch
 class ChineseCLIPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (ChineseCLIPModel,) if is_torch_available() else ()
-    pipeline_model_mapping = (
-        {"feature-extraction": ChineseCLIPModel} if is_torch_available() else {}
-    )
+    pipeline_model_mapping = {"feature-extraction": ChineseCLIPModel} if is_torch_available() else {}
     fx_compatible = False
     test_head_masking = False
     test_pruning = False
@@ -695,7 +580,7 @@ class ChineseCLIPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
     def test_model_get_set_embeddings(self):
         pass
 
-    # override as the `logit_scale` parameter initilization is different for CHINESE_CLIP
+    # override as the `logit_scale` parameter initialization is different for CHINESE_CLIP
     def test_initialization(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
 
@@ -707,7 +592,7 @@ class ChineseCLIPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
             model = model_class(config=configs_no_init)
             for name, param in model.named_parameters():
                 if param.requires_grad:
-                    # check if `logit_scale` is initilized as per the original implementation
+                    # check if `logit_scale` is initialized as per the original implementation
                     if name == "logit_scale":
                         self.assertAlmostEqual(
                             param.data.item(),
@@ -736,9 +621,7 @@ class ChineseCLIPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
 
             try:
                 input_ids = inputs_dict["input_ids"]
-                pixel_values = inputs_dict[
-                    "pixel_values"
-                ]  # CHINESE_CLIP needs pixel_values
+                pixel_values = inputs_dict["pixel_values"]  # CHINESE_CLIP needs pixel_values
                 traced_model = torch.jit.trace(model, (input_ids, pixel_values))
             except RuntimeError:
                 self.fail("Couldn't trace module.")
@@ -771,14 +654,10 @@ class ChineseCLIPModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
                     non_persistent_buffers[key] = loaded_model_state_dict[key]
 
             loaded_model_state_dict = {
-                key: value
-                for key, value in loaded_model_state_dict.items()
-                if key not in non_persistent_buffers
+                key: value for key, value in loaded_model_state_dict.items() if key not in non_persistent_buffers
             }
 
-            self.assertEqual(
-                set(model_state_dict.keys()), set(loaded_model_state_dict.keys())
-            )
+            self.assertEqual(set(model_state_dict.keys()), set(loaded_model_state_dict.keys()))
 
             model_buffers = list(model.buffers())
             for non_persistent_buffer in non_persistent_buffers.values():
@@ -824,10 +703,7 @@ class ChineseCLIPModelIntegrationTest(unittest.TestCase):
 
         image = prepare_img()
         inputs = processor(
-            text=["杰尼龟", "妙蛙种子", "小火龙", "皮卡丘"],
-            images=image,
-            padding=True,
-            return_tensors="pt",
+            text=["杰尼龟", "妙蛙种子", "小火龙", "皮卡丘"], images=image, padding=True, return_tensors="pt"
         ).to(torch_device)
 
         # forward pass
@@ -845,9 +721,7 @@ class ChineseCLIPModelIntegrationTest(unittest.TestCase):
         )
 
         probs = outputs.logits_per_image.softmax(dim=1)
-        expected_probs = torch.tensor(
-            [[1.2686e-03, 5.4499e-02, 6.7968e-04, 9.4355e-01]], device=torch_device
-        )
+        expected_probs = torch.tensor([[1.2686e-03, 5.4499e-02, 6.7968e-04, 9.4355e-01]], device=torch_device)
 
         torch.testing.assert_close(probs, expected_probs, rtol=5e-3, atol=5e-3)
 
@@ -861,15 +735,11 @@ class ChineseCLIPModelIntegrationTest(unittest.TestCase):
         model = ChineseCLIPModel.from_pretrained(model_name).to(torch_device)
 
         image_processor = ChineseCLIPProcessor.from_pretrained(
-            model_name,
-            size={"height": 180, "width": 180},
-            crop_size={"height": 180, "width": 180},
+            model_name, size={"height": 180, "width": 180}, crop_size={"height": 180, "width": 180}
         )
 
         image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")
-        inputs = image_processor(
-            text="what's in the image", images=image, return_tensors="pt"
-        ).to(torch_device)
+        inputs = image_processor(text="what's in the image", images=image, return_tensors="pt").to(torch_device)
 
         # interpolate_pos_encodiung false should return value error
         with self.assertRaises(ValueError, msg="doesn't match model"):
@@ -883,21 +753,12 @@ class ChineseCLIPModelIntegrationTest(unittest.TestCase):
         # verify the logits
         expected_shape = torch.Size((1, 122, 768))
 
-        self.assertEqual(
-            outputs.vision_model_output.last_hidden_state.shape, expected_shape
-        )
+        self.assertEqual(outputs.vision_model_output.last_hidden_state.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [-0.3990, 0.2983, -0.1239],
-                [-0.1452, -0.2759, 0.0403],
-                [-0.3149, -0.4763, 0.8555],
-            ]
+            [[-0.3990, 0.2983, -0.1239], [-0.1452, -0.2759, 0.0403], [-0.3149, -0.4763, 0.8555]]
         ).to(torch_device)
 
         torch.testing.assert_close(
-            outputs.vision_model_output.last_hidden_state[0, :3, :3],
-            expected_slice,
-            rtol=1e-4,
-            atol=1e-4,
+            outputs.vision_model_output.last_hidden_state[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
         )

@@ -13,20 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import AlbertTokenizer, AlbertTokenizerFast
-from transformers.testing_utils import (
-    get_tests_dir,
-    require_sentencepiece,
-    require_tokenizers,
-    slow,
-)
+from transformers.testing_utils import get_tests_dir, require_sentencepiece, require_tokenizers, slow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
+
 
 SAMPLE_VOCAB = get_tests_dir("fixtures/spiece.model")
 
@@ -41,12 +34,13 @@ class AlbertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     test_sentencepiece = True
     test_sentencepiece_ignore_case = True
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # We have a SentencePiece fixture for testing
         tokenizer = AlbertTokenizer(SAMPLE_VOCAB)
-        tokenizer.save_pretrained(self.tmpdirname)
+        tokenizer.save_pretrained(cls.tmpdirname)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "this is a test"
@@ -100,54 +94,19 @@ class AlbertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         tokens = tokenizer.tokenize("This is a test")
         self.assertListEqual(tokens, ["▁this", "▁is", "▁a", "▁test"])
 
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(tokens), [48, 25, 21, 1289]
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(tokens), [48, 25, 21, 1289])
 
         tokens = tokenizer.tokenize("I was born in 92000, and this is falsé.")
         self.assertListEqual(
-            tokens,
-            [
-                "▁i",
-                "▁was",
-                "▁born",
-                "▁in",
-                "▁9",
-                "2000",
-                ",",
-                "▁and",
-                "▁this",
-                "▁is",
-                "▁fal",
-                "s",
-                "é",
-                ".",
-            ],
+            tokens, ["▁i", "▁was", "▁born", "▁in", "▁9", "2000", ",", "▁and", "▁this", "▁is", "▁fal", "s", "é", "."]
         )
         ids = tokenizer.convert_tokens_to_ids(tokens)
-        self.assertListEqual(
-            ids, [31, 23, 386, 19, 561, 3050, 15, 17, 48, 25, 8256, 18, 1, 9]
-        )
+        self.assertListEqual(ids, [31, 23, 386, 19, 561, 3050, 15, 17, 48, 25, 8256, 18, 1, 9])
 
         back_tokens = tokenizer.convert_ids_to_tokens(ids)
         self.assertListEqual(
             back_tokens,
-            [
-                "▁i",
-                "▁was",
-                "▁born",
-                "▁in",
-                "▁9",
-                "2000",
-                ",",
-                "▁and",
-                "▁this",
-                "▁is",
-                "▁fal",
-                "s",
-                "<unk>",
-                ".",
-            ],
+            ["▁i", "▁was", "▁born", "▁in", "▁9", "2000", ",", "▁and", "▁this", "▁is", "▁fal", "s", "<unk>", "."],
         )
 
     def test_sequence_builders(self):
@@ -159,12 +118,10 @@ class AlbertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         encoded_sentence = tokenizer.build_inputs_with_special_tokens(text)
         encoded_pair = tokenizer.build_inputs_with_special_tokens(text, text_2)
 
-        assert encoded_sentence == [tokenizer.cls_token_id] + text + [
+        assert encoded_sentence == [tokenizer.cls_token_id] + text + [tokenizer.sep_token_id]
+        assert encoded_pair == [tokenizer.cls_token_id] + text + [tokenizer.sep_token_id] + text_2 + [
             tokenizer.sep_token_id
         ]
-        assert encoded_pair == [tokenizer.cls_token_id] + text + [
-            tokenizer.sep_token_id
-        ] + text_2 + [tokenizer.sep_token_id]
 
     @slow
     def test_tokenizer_integration(self):

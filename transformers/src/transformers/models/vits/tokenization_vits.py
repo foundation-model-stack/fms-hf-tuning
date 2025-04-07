@@ -14,22 +14,19 @@
 # limitations under the License.
 """Tokenization class for VITS."""
 
-# Standard
-from typing import Any, Dict, List, Optional, Tuple, Union
 import json
 import os
 import re
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Local
 from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import is_phonemizer_available, is_uroman_available, logging
 
+
 if is_phonemizer_available():
-    # Third Party
     import phonemizer
 
 if is_uroman_available():
-    # Third Party
     import uroman as ur
 
 logger = logging.get_logger(__name__)
@@ -117,9 +114,7 @@ class VitsTokenizer(PreTrainedTokenizer):
 
     def normalize_text(self, input_string):
         """Lowercase the input string, respecting any special token ids that may be part or entirely upper-cased."""
-        all_vocabulary = list(self.encoder.keys()) + list(
-            self.added_tokens_encoder.keys()
-        )
+        all_vocabulary = list(self.encoder.keys()) + list(self.added_tokens_encoder.keys())
         filtered_text = ""
 
         i = 0
@@ -145,11 +140,7 @@ class VitsTokenizer(PreTrainedTokenizer):
         return text
 
     def prepare_for_tokenization(
-        self,
-        text: str,
-        is_split_into_words: bool = False,
-        normalize: Optional[bool] = None,
-        **kwargs,
+        self, text: str, is_split_into_words: bool = False, normalize: Optional[bool] = None, **kwargs
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Performs any necessary transformations before tokenization.
@@ -196,9 +187,7 @@ class VitsTokenizer(PreTrainedTokenizer):
 
         if self.phonemize:
             if not is_phonemizer_available():
-                raise ImportError(
-                    "Please install the `phonemizer` Python package to use this tokenizer."
-                )
+                raise ImportError("Please install the `phonemizer` Python package to use this tokenizer.")
 
             filtered_text = phonemizer.phonemize(
                 filtered_text,
@@ -211,9 +200,7 @@ class VitsTokenizer(PreTrainedTokenizer):
             filtered_text = re.sub(r"\s+", " ", filtered_text)
         elif normalize:
             # strip any chars outside of the vocab (punctuation)
-            filtered_text = "".join(
-                list(filter(lambda char: char in self.encoder, filtered_text))
-            ).strip()
+            filtered_text = "".join(list(filter(lambda char: char in self.encoder, filtered_text))).strip()
 
         return filtered_text, kwargs
 
@@ -241,24 +228,17 @@ class VitsTokenizer(PreTrainedTokenizer):
         """Converts an index (integer) in a token (str) using the vocab."""
         return self.decoder.get(index)
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Union[Tuple[str], None]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Union[Tuple[str], None]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
 
         vocab_file = os.path.join(
-            save_directory,
-            (filename_prefix + "-" if filename_prefix else "")
-            + VOCAB_FILES_NAMES["vocab_file"],
+            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
-            f.write(
-                json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False)
-                + "\n"
-            )
+            f.write(json.dumps(self.encoder, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
 
         return (vocab_file,)
 

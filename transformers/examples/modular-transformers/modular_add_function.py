@@ -1,5 +1,4 @@
 # Note that zamba does not have the `apply_rotary_pos_emb` function!
-# First Party
 from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 from transformers.models.zamba.modeling_zamba import ZambaAttention
 

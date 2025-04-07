@@ -16,19 +16,12 @@
 Image/Text processor class for SigLIP.
 """
 
-# Standard
 from typing import List, Optional, Union
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessorMixin
-from ...tokenization_utils_base import (
-    PaddingStrategy,
-    PreTokenizedInput,
-    TextInput,
-    TruncationStrategy,
-)
+from ...tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
 from ...utils import TensorType
 
 
@@ -55,20 +48,18 @@ class SiglipProcessor(ProcessorMixin):
 
     def __call__(
         self,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         images: ImageInput = None,
         padding: Union[bool, str, PaddingStrategy] = False,
         truncation: Union[bool, str, TruncationStrategy] = None,
-        max_length: int = None,
+        max_length: Optional[int] = None,
         return_tensors: Optional[Union[str, TensorType]] = TensorType.PYTORCH,
     ) -> BatchFeature:
         """
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to SiglipTokenizer's [`~SiglipTokenizer.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` argument to
-        SiglipImageProcessor's [`~SiglipImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        SiglipImageProcessor's [`~SiglipImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -111,17 +102,11 @@ class SiglipProcessor(ProcessorMixin):
         """
 
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
 
         if text is not None:
             encoding = self.tokenizer(
-                text,
-                return_tensors=return_tensors,
-                padding=padding,
-                truncation=truncation,
-                max_length=max_length,
+                text, return_tensors=return_tensors, padding=padding, truncation=truncation, max_length=max_length
             )
 
         if images is not None:

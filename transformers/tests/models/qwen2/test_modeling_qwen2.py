@@ -14,15 +14,12 @@
 # limitations under the License.
 """Testing suite for the PyTorch Qwen2 model."""
 
-# Standard
 import gc
 import unittest
 
-# Third Party
-from packaging import version
 import pytest
+from packaging import version
 
-# First Party
 from transformers import AutoTokenizer, Qwen2Config, is_torch_available, set_seed
 from transformers.generation.configuration_utils import GenerationConfig
 from transformers.testing_utils import (
@@ -36,17 +33,15 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         Qwen2ForCausalLM,
         Qwen2ForQuestionAnswering,
@@ -127,33 +122,19 @@ class Qwen2ModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.type_vocab_size
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
 
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return Qwen2Config(
@@ -179,146 +160,14 @@ class Qwen2ModelTester:
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_model with Llama->Qwen2
     def create_and_check_model(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = Qwen2Model(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=input_mask)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_model_as_decoder with Llama->Qwen2
-    def create_and_check_model_as_decoder(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.add_cross_attention = True
-        model = Qwen2Model(config)
-        model.to(torch_device)
-        model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-        )
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-        )
-        result = model(input_ids, attention_mask=input_mask)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_for_causal_lm with Llama->Qwen2
-    def create_and_check_for_causal_lm(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        model = Qwen2ForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
-
-    # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.create_and_check_decoder_model_past_large_inputs with Llama->Qwen2
-    def create_and_check_decoder_model_past_large_inputs(
-        self,
-        config,
-        input_ids,
-        token_type_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
-        encoder_hidden_states,
-        encoder_attention_mask,
-    ):
-        config.is_decoder = True
-        config.add_cross_attention = True
-        model = Qwen2ForCausalLM(config=config)
-        model.to(torch_device)
-        model.eval()
-
-        # first forward pass
-        outputs = model(
-            input_ids,
-            attention_mask=input_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            use_cache=True,
-        )
-        past_key_values = outputs.past_key_values
-
-        # create hypothetical multiple next token and extent to next_input_ids
-        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size)
-        next_mask = ids_tensor((self.batch_size, 3), vocab_size=2)
-
-        # append to next input_ids and
-        next_input_ids = torch.cat([input_ids, next_tokens], dim=-1)
-        next_attention_mask = torch.cat([input_mask, next_mask], dim=-1)
-
-        output_from_no_past = model(
-            next_input_ids,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-        output_from_past = model(
-            next_tokens,
-            attention_mask=next_attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            past_key_values=past_key_values,
-            output_hidden_states=True,
-        )["hidden_states"][0]
-
-        # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
-        output_from_no_past_slice = output_from_no_past[
-            :, -3:, random_slice_idx
-        ].detach()
-        output_from_past_slice = output_from_past[:, :, random_slice_idx].detach()
-
-        self.parent.assertTrue(output_from_past_slice.shape[1] == next_tokens.shape[1])
-
-        # test that outputs are equal for slice
-        self.parent.assertTrue(
-            torch.allclose(output_from_past_slice, output_from_no_past_slice, atol=1e-3)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTester.prepare_config_and_inputs_for_common
     def prepare_config_and_inputs_for_common(self):
@@ -338,9 +187,7 @@ class Qwen2ModelTester:
 
 @require_torch
 # Copied from tests.models.mistral.test_modeling_mistral.MistralModelTest with Mistral->Qwen2
-class Qwen2ModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class Qwen2ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (
         (
             Qwen2Model,
@@ -383,9 +230,7 @@ class Qwen2ModelTest(
 
     def setUp(self):
         self.model_tester = Qwen2ModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=Qwen2Config, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=Qwen2Config, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -405,21 +250,15 @@ class Qwen2ModelTest(
 
     def test_Qwen2_sequence_classification_model(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
-        print(config)
         config.num_labels = 3
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = Qwen2ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     def test_Qwen2_sequence_classification_model_for_single_label(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -427,17 +266,12 @@ class Qwen2ModelTest(
         config.problem_type = "single_label_classification"
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        sequence_labels = ids_tensor(
-            [self.model_tester.batch_size], self.model_tester.type_sequence_label_size
-        )
+        sequence_labels = ids_tensor([self.model_tester.batch_size], self.model_tester.type_sequence_label_size)
         model = Qwen2ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     def test_Qwen2_sequence_classification_model_for_multi_label(self):
         config, input_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -446,17 +280,13 @@ class Qwen2ModelTest(
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
         sequence_labels = ids_tensor(
-            [self.model_tester.batch_size, config.num_labels],
-            self.model_tester.type_sequence_label_size,
+            [self.model_tester.batch_size, config.num_labels], self.model_tester.type_sequence_label_size
         ).to(torch.float)
         model = Qwen2ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=sequence_labels)
-        self.assertEqual(
-            result.logits.shape,
-            (self.model_tester.batch_size, self.model_tester.num_labels),
-        )
+        self.assertEqual(result.logits.shape, (self.model_tester.batch_size, self.model_tester.num_labels))
 
     # Copied from tests.models.llama.test_modeling_llama.LlamaModelTest.test_llama_token_classification_model with Llama->Qwen2,llama->Qwen2
     def test_Qwen2_token_classification_model(self):
@@ -464,32 +294,17 @@ class Qwen2ModelTest(
         config.num_labels = 3
         input_ids = input_dict["input_ids"]
         attention_mask = input_ids.ne(1).to(torch_device)
-        token_labels = ids_tensor(
-            [self.model_tester.batch_size, self.model_tester.seq_length],
-            config.num_labels,
-        )
+        token_labels = ids_tensor([self.model_tester.batch_size, self.model_tester.seq_length], config.num_labels)
         model = Qwen2ForTokenClassification(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=attention_mask, labels=token_labels)
         self.assertEqual(
             result.logits.shape,
-            (
-                self.model_tester.batch_size,
-                self.model_tester.seq_length,
-                self.model_tester.num_labels,
-            ),
+            (self.model_tester.batch_size, self.model_tester.seq_length, self.model_tester.num_labels),
         )
 
-    @unittest.skip(
-        reason="Qwen2 buffers include complex numbers, which breaks this test"
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="Qwen2 uses GQA on all models so the KV cache is a non standard format"
-    )
+    @unittest.skip(reason="Qwen2 uses GQA on all models so the KV cache is a non standard format")
     def test_past_key_values_format(self):
         pass
 
@@ -511,10 +326,9 @@ class Qwen2IntegrationTest(unittest.TestCase):
         with torch.no_grad():
             out = model(input_ids).logits.float().cpu()
         # Expected mean on dim = -1
-        EXPECTED_MEAN = torch.tensor(
-            [[-1.9537, -1.6193, -1.4123, -1.4673, -1.8511, -1.9309, -1.9826, -2.1776]]
-        )
+        EXPECTED_MEAN = torch.tensor([[-1.9537, -1.6193, -1.4123, -1.4673, -1.8511, -1.9309, -1.9826, -2.1776]])
         torch.testing.assert_close(out.mean(-1), EXPECTED_MEAN, rtol=1e-2, atol=1e-2)
+        # slicing logits[0, 0, 0:30]
         EXPECTED_SLICE = torch.tensor([3.2025, 7.1265, 4.6058, 3.6423, 1.6357, 3.9265, 5.1883, 5.8760, 2.7942, 4.4823, 3.2571, 2.1063, 3.4275, 4.2028, 1.9767, 5.2115, 6.6756, 6.3999, 6.0483, 5.7378, 5.6660, 5.2298, 5.4103, 5.1248, 5.4376, 2.4570, 2.6107, 5.4039, 2.8077, 4.7777])  # fmt: skip
         print(out[0, 0, :30])
         torch.testing.assert_close(out[0, 0, :30], EXPECTED_SLICE, rtol=1e-4, atol=1e-4)
@@ -525,13 +339,13 @@ class Qwen2IntegrationTest(unittest.TestCase):
 
     @slow
     def test_model_450m_generation(self):
-        EXPECTED_TEXT_COMPLETION = """My favourite condiment is 100% natural, organic and vegan. I love to use it in my cooking and I"""
+        EXPECTED_TEXT_COMPLETION = (
+            """My favourite condiment is 100% natural, organic and vegan. I love to use it in my cooking and I"""
+        )
         prompt = "My favourite condiment is "
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B", use_fast=False)
         model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto")
-        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(
-            model.model.embed_tokens.weight.device
-        )
+        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(model.model.embed_tokens.weight.device)
 
         # greedy generation outputs
         generated_ids = model.generate(input_ids, max_new_tokens=20, temperature=0)
@@ -578,9 +392,7 @@ class Qwen2IntegrationTest(unittest.TestCase):
         EXPECTED_OUTPUT_TOKEN_IDS = [306, 338]
         # An input with 4097 tokens that is above the size of the sliding window
         input_ids = [1] + [306, 338] * 2048
-        model = Qwen2ForCausalLM.from_pretrained(
-            "Qwen/Qwen2-0.5B", device_map="auto", attn_implementation="sdpa"
-        )
+        model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto", attn_implementation="sdpa")
         input_ids = torch.tensor([input_ids]).to(model.model.embed_tokens.weight.device)
         generated_ids = model.generate(input_ids, max_new_tokens=4, temperature=0)
         self.assertEqual(EXPECTED_OUTPUT_TOKEN_IDS, generated_ids[0][-2:].tolist())
@@ -589,9 +401,7 @@ class Qwen2IntegrationTest(unittest.TestCase):
         assistant_model = model
         assistant_model.generation_config.num_assistant_tokens = 2
         assistant_model.generation_config.num_assistant_tokens_schedule = "constant"
-        generated_ids = assistant_model.generate(
-            input_ids, max_new_tokens=4, temperature=0
-        )
+        generated_ids = assistant_model.generate(input_ids, max_new_tokens=4, temperature=0)
         self.assertEqual(EXPECTED_OUTPUT_TOKEN_IDS, generated_ids[0][-2:].tolist())
 
         del assistant_model
@@ -599,13 +409,13 @@ class Qwen2IntegrationTest(unittest.TestCase):
         backend_empty_cache(torch_device)
         gc.collect()
 
-        EXPECTED_TEXT_COMPLETION = "My favourite condiment is 100% natural, organic and vegan. I love to use it in my cooking and I"
+        EXPECTED_TEXT_COMPLETION = (
+            "My favourite condiment is 100% natural, organic and vegan. I love to use it in my cooking and I"
+        )
         prompt = "My favourite condiment is "
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B", use_fast=False)
 
-        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(
-            model.model.embed_tokens.weight.device
-        )
+        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(model.model.embed_tokens.weight.device)
 
         # greedy generation outputs
         generated_ids = model.generate(input_ids, max_new_tokens=20, temperature=0)
@@ -614,27 +424,21 @@ class Qwen2IntegrationTest(unittest.TestCase):
 
     @slow
     def test_speculative_generation(self):
-        EXPECTED_TEXT_COMPLETION = "My favourite condiment is 100% natural honey, and I always like to use it in my recipes. I love"
+        EXPECTED_TEXT_COMPLETION = (
+            "My favourite condiment is 100% natural honey, and I always like to use it in my recipes. I love"
+        )
         prompt = "My favourite condiment is "
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-7B", use_fast=False)
-        model = Qwen2ForCausalLM.from_pretrained(
-            "Qwen/Qwen2-0.5B", device_map="auto", torch_dtype=torch.float16
-        )
+        model = Qwen2ForCausalLM.from_pretrained("Qwen/Qwen2-0.5B", device_map="auto", torch_dtype=torch.float16)
         assistant_model = Qwen2ForCausalLM.from_pretrained(
             "Qwen/Qwen2-0.5B", device_map="auto", torch_dtype=torch.float16
         )
-        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(
-            model.model.embed_tokens.weight.device
-        )
+        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(model.model.embed_tokens.weight.device)
 
         # greedy generation outputs
         set_seed(0)
         generated_ids = model.generate(
-            input_ids,
-            max_new_tokens=20,
-            do_sample=True,
-            temperature=0.3,
-            assistant_model=assistant_model,
+            input_ids, max_new_tokens=20, do_sample=True, temperature=0.3, assistant_model=assistant_model
         )
         text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
         self.assertEqual(EXPECTED_TEXT_COMPLETION, text)
@@ -648,7 +452,6 @@ class Qwen2IntegrationTest(unittest.TestCase):
         if version.parse(torch.__version__) < version.parse("2.4.0"):
             self.skipTest(reason="This test requires torch >= 2.4 to run.")
 
-        # First Party
         from transformers.integrations.executorch import (
             TorchExportableModuleWithStaticCache,
             convert_and_export_with_cache,
@@ -656,15 +459,13 @@ class Qwen2IntegrationTest(unittest.TestCase):
 
         qwen_model = "Qwen/Qwen2-0.5B"
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            qwen_model, pad_token="</s>", padding_side="right"
-        )
+        tokenizer = AutoTokenizer.from_pretrained(qwen_model, pad_token="</s>", padding_side="right")
         EXPECTED_TEXT_COMPLETION = [
             "My favourite condiment is 100% natural, organic, gluten free, vegan, and free from preservatives. I"
         ]
-        max_generation_length = tokenizer(
-            EXPECTED_TEXT_COMPLETION, return_tensors="pt", padding=True
-        )["input_ids"].shape[-1]
+        max_generation_length = tokenizer(EXPECTED_TEXT_COMPLETION, return_tensors="pt", padding=True)[
+            "input_ids"
+        ].shape[-1]
 
         # Load model
         device = "cpu"
@@ -689,22 +490,16 @@ class Qwen2IntegrationTest(unittest.TestCase):
         )
 
         prompt = ["My favourite condiment is "]
-        prompt_tokens = tokenizer(prompt, return_tensors="pt", padding=True).to(
-            model.device
-        )
+        prompt_tokens = tokenizer(prompt, return_tensors="pt", padding=True).to(model.device)
         prompt_token_ids = prompt_tokens["input_ids"]
         max_new_tokens = max_generation_length - prompt_token_ids.shape[-1]
 
         # Static Cache + export
         exported_program = convert_and_export_with_cache(model)
         ep_generated_ids = TorchExportableModuleWithStaticCache.generate(
-            exported_program=exported_program,
-            prompt_token_ids=prompt_token_ids,
-            max_new_tokens=max_new_tokens,
+            exported_program=exported_program, prompt_token_ids=prompt_token_ids, max_new_tokens=max_new_tokens
         )
-        ep_generated_text = tokenizer.batch_decode(
-            ep_generated_ids, skip_special_tokens=True
-        )
+        ep_generated_text = tokenizer.batch_decode(ep_generated_ids, skip_special_tokens=True)
         self.assertEqual(EXPECTED_TEXT_COMPLETION, ep_generated_text)
 
     @require_flash_attn
@@ -1106,37 +901,24 @@ In summary:"""
         # fmt: on
 
         input_ids = tokenizer(LONG_TEXT, return_tensors="pt").input_ids.to(torch_device)
-        generated_ids = model.generate(input_ids, max_new_tokens=50)[
-            :, input_ids.shape[1] :
-        ]
+        generated_ids = model.generate(input_ids, max_new_tokens=50)[:, input_ids.shape[1] :]
+
         torch.testing.assert_close(generated_ids.cpu(), torch.tensor([[  576,  4570, 71818,   374,  6509,   825,   315,   279,  1429, 88228, 21984,   315,   279, 11220,  4948,  8584,   304,   279,   467, 19859, 4180,  4168,    13,  1084, 14230, 16170,   315,  3349, 19256,   304, 279,  2266,   315, 13444, 14550,   448, 50867,   429,   525,   330, 4145,     1,   476,   330, 88845,     1,   323,  1246,  3425,   264]], dtype=torch.long))  # fmt: skip
         self.assertEqual(
             tokenizer.decode(generated_ids[0]),
             """ The Guanzi is considered one of the most foundational texts of the developing political economy in the Warring States period. It addresses principles of price regulation in the context of effectively dealing with commodities that are "light" or "heavy" and how whether a""",
         )
         model.config._attn_implementation = "eager"
-        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[
-            :, input_ids.shape[1] :
-        ]
+        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[:, input_ids.shape[1] :]
         with self.subTest("Eager matches sdpa"):
-            torch.testing.assert_close(
-                generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4
-            )
+            torch.testing.assert_close(generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4)
 
         model.config._attn_implementation = "flex_attention"
-        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[
-            :, input_ids.shape[1] :
-        ]
+        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[:, input_ids.shape[1] :]
         with self.subTest("Eager matches Flex attention"):
-            torch.testing.assert_close(
-                generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4
-            )
+            torch.testing.assert_close(generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4)
 
         model.config._attn_implementation = "flash_attention_2"
-        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[
-            :, input_ids.shape[1] :
-        ]
+        new_generated_ids = model.generate(input_ids, max_new_tokens=50)[:, input_ids.shape[1] :]
         with self.subTest("Eager matches flash attention"):
-            torch.testing.assert_close(
-                generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4
-            )
+            torch.testing.assert_close(generated_ids, new_generated_ids, rtol=1e-4, atol=1e-4)

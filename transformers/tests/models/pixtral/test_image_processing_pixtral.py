@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import time
 import unittest
 
-# Third Party
-from packaging import version
 import numpy as np
 import requests
+from packaging import version
 
-# First Party
 from transformers.testing_utils import (
     require_torch,
     require_torch_gpu,
@@ -30,31 +27,20 @@ from transformers.testing_utils import (
     slow,
     torch_device,
 )
-from transformers.utils import (
-    is_torch_available,
-    is_torchvision_available,
-    is_vision_available,
-)
+from transformers.utils import is_torch_available, is_torchvision_available, is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import PixtralImageProcessor
 
     if is_torchvision_available():
-        # First Party
         from transformers import PixtralImageProcessorFast
 
 
@@ -126,10 +112,7 @@ class PixtralImageProcessingTester:
                 height = int(np.floor(height / ratio))
                 width = int(np.floor(width / ratio))
 
-            patch_height, patch_width = (
-                self.patch_size["height"],
-                self.patch_size["width"],
-            )
+            patch_height, patch_width = self.patch_size["height"], self.patch_size["width"]
             num_height_tokens = (height - 1) // patch_height + 1
             num_width_tokens = (width - 1) // patch_width + 1
 
@@ -138,9 +121,7 @@ class PixtralImageProcessingTester:
 
         return batch_size, self.num_channels, return_height, return_width
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         images = prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -157,9 +138,7 @@ class PixtralImageProcessingTester:
 @require_vision
 class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
     image_processing_class = PixtralImageProcessor if is_vision_available() else None
-    fast_image_processing_class = (
-        PixtralImageProcessorFast if is_torchvision_available() else None
-    )
+    fast_image_processing_class = PixtralImageProcessorFast if is_torchvision_available() else None
 
     def setUp(self):
         super().setUp()
@@ -195,25 +174,13 @@ class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
                 self.assertIsInstance(image, Image.Image)
 
             # Test not batched input
-            encoded_images = image_processing(
-                image_inputs_list[0], return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list[0]
-                )
-            )
+            encoded_images = image_processing(image_inputs_list[0], return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list[0])
             self.assertEqual(tuple(encoded_images.shape), expected_output_image_shape)
 
             # Test batched
-            encoded_images = image_processing(
-                image_inputs_list, return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list
-                )
-            )
+            encoded_images = image_processing(image_inputs_list, return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list)
             self.assertEqual(tuple(encoded_images.shape), expected_output_image_shape)
 
     def test_call_numpy(self):
@@ -221,70 +188,38 @@ class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
             # Initialize image_processing
             image_processing = image_processing_class(**self.image_processor_dict)
             # create random numpy tensors
-            image_inputs_list = self.image_processor_tester.prepare_image_inputs(
-                numpify=True
-            )
+            image_inputs_list = self.image_processor_tester.prepare_image_inputs(numpify=True)
             for image in image_inputs_list:
                 self.assertIsInstance(image, np.ndarray)
 
             # Test not batched input
-            encoded_images = image_processing(
-                image_inputs_list[0], return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list[0]
-                )
-            )
+            encoded_images = image_processing(image_inputs_list[0], return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list[0])
             self.assertEqual(tuple(encoded_images.shape), expected_output_image_shape)
 
             # Test batched
-            batch_encoded_images = image_processing(
-                image_inputs_list, return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list
-                )
-            )
-            self.assertEqual(
-                tuple(batch_encoded_images.shape), expected_output_image_shape
-            )
+            batch_encoded_images = image_processing(image_inputs_list, return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list)
+            self.assertEqual(tuple(batch_encoded_images.shape), expected_output_image_shape)
 
     def test_call_pytorch(self):
         for image_processing_class in self.image_processor_list:
             # Initialize image_processing
             image_processing = image_processing_class(**self.image_processor_dict)
             # create random PyTorch tensors
-            image_inputs_list = self.image_processor_tester.prepare_image_inputs(
-                torchify=True
-            )
+            image_inputs_list = self.image_processor_tester.prepare_image_inputs(torchify=True)
             for image in image_inputs_list:
                 self.assertIsInstance(image, torch.Tensor)
 
             # Test not batched input
-            encoded_images = image_processing(
-                image_inputs_list[0], return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list[0]
-                )
-            )
+            encoded_images = image_processing(image_inputs_list[0], return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list[0])
             self.assertEqual(tuple(encoded_images.shape), expected_output_image_shape)
 
             # Test batched
-            batch_encoded_images = image_processing(
-                image_inputs_list, return_tensors="pt"
-            ).pixel_values
-            expected_output_image_shape = (
-                self.image_processor_tester.expected_output_image_shape(
-                    image_inputs_list
-                )
-            )
-            self.assertEqual(
-                tuple(batch_encoded_images.shape), expected_output_image_shape
-            )
+            batch_encoded_images = image_processing(image_inputs_list, return_tensors="pt").pixel_values
+            expected_output_image_shape = self.image_processor_tester.expected_output_image_shape(image_inputs_list)
+            self.assertEqual(tuple(batch_encoded_images.shape), expected_output_image_shape)
 
     @require_vision
     @require_torch
@@ -292,26 +227,17 @@ class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         if not self.test_slow_image_processor or not self.test_fast_image_processor:
             self.skipTest(reason="Skipping speed test")
 
-        if (
-            self.image_processing_class is None
-            or self.fast_image_processing_class is None
-        ):
-            self.skipTest(
-                reason="Skipping speed test as one of the image processors is not defined"
-            )
+        if self.image_processing_class is None or self.fast_image_processing_class is None:
+            self.skipTest(reason="Skipping speed test as one of the image processors is not defined")
 
         def measure_time(image_processor, image):
             start = time.time()
             _ = image_processor(image, return_tensors="pt")
             return time.time() - start
 
-        image_inputs_list = self.image_processor_tester.prepare_image_inputs(
-            torchify=True
-        )
+        image_inputs_list = self.image_processor_tester.prepare_image_inputs(torchify=True)
         image_processor_slow = self.image_processing_class(**self.image_processor_dict)
-        image_processor_fast = self.fast_image_processing_class(
-            **self.image_processor_dict
-        )
+        image_processor_fast = self.fast_image_processing_class(**self.image_processor_dict)
 
         fast_time = measure_time(image_processor_fast, image_inputs_list)
         slow_time = measure_time(image_processor_slow, image_inputs_list)
@@ -322,92 +248,55 @@ class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
     @require_torch
     def test_slow_fast_equivalence(self):
         dummy_image = Image.open(
-            requests.get(
-                "http://images.cocodataset.org/val2017/000000039769.jpg", stream=True
-            ).raw
+            requests.get("http://images.cocodataset.org/val2017/000000039769.jpg", stream=True).raw
         )
 
         if not self.test_slow_image_processor or not self.test_fast_image_processor:
             self.skipTest(reason="Skipping slow/fast equivalence test")
 
-        if (
-            self.image_processing_class is None
-            or self.fast_image_processing_class is None
-        ):
-            self.skipTest(
-                reason="Skipping slow/fast equivalence test as one of the image processors is not defined"
-            )
+        if self.image_processing_class is None or self.fast_image_processing_class is None:
+            self.skipTest(reason="Skipping slow/fast equivalence test as one of the image processors is not defined")
 
         image_processor_slow = self.image_processing_class(**self.image_processor_dict)
-        image_processor_fast = self.fast_image_processing_class(
-            **self.image_processor_dict
-        )
+        image_processor_fast = self.fast_image_processing_class(**self.image_processor_dict)
 
         encoding_slow = image_processor_slow(dummy_image, return_tensors="pt")
         encoding_fast = image_processor_fast(dummy_image, return_tensors="pt")
         torch.testing.assert_close(
-            encoding_slow.pixel_values[0][0],
-            encoding_fast.pixel_values[0][0],
-            rtol=100,
-            atol=1e-1,
+            encoding_slow.pixel_values[0][0], encoding_fast.pixel_values[0][0], rtol=100, atol=1e-1
         )
 
     @require_vision
     @require_torch
     def test_slow_fast_equivalence_batched(self):
-        dummy_images = self.image_processor_tester.prepare_image_inputs(
-            equal_resolution=False, torchify=True
-        )
+        dummy_images = self.image_processor_tester.prepare_image_inputs(equal_resolution=False, torchify=True)
 
         if not self.test_slow_image_processor or not self.test_fast_image_processor:
             self.skipTest(reason="Skipping slow/fast equivalence test")
 
-        if (
-            self.image_processing_class is None
-            or self.fast_image_processing_class is None
-        ):
-            self.skipTest(
-                reason="Skipping slow/fast equivalence test as one of the image processors is not defined"
-            )
+        if self.image_processing_class is None or self.fast_image_processing_class is None:
+            self.skipTest(reason="Skipping slow/fast equivalence test as one of the image processors is not defined")
 
-        if (
-            hasattr(self.image_processor_tester, "do_center_crop")
-            and self.image_processor_tester.do_center_crop
-        ):
+        if hasattr(self.image_processor_tester, "do_center_crop") and self.image_processor_tester.do_center_crop:
             self.skipTest(
                 reason="Skipping as do_center_crop is True and center_crop functions are not equivalent for fast and slow processors"
             )
 
         image_processor_slow = self.image_processing_class(**self.image_processor_dict)
-        image_processor_fast = self.fast_image_processing_class(
-            **self.image_processor_dict
-        )
+        image_processor_fast = self.fast_image_processing_class(**self.image_processor_dict)
 
         encoding_slow = image_processor_slow(dummy_images, return_tensors="pt")
         encoding_fast = image_processor_fast(dummy_images, return_tensors="pt")
 
         for i in range(len(encoding_slow.pixel_values)):
             self.assertTrue(
-                torch.allclose(
-                    encoding_slow.pixel_values[i][0],
-                    encoding_fast.pixel_values[i][0],
-                    atol=1e-1,
-                )
+                torch.allclose(encoding_slow.pixel_values[i][0], encoding_fast.pixel_values[i][0], atol=1e-1)
             )
             self.assertLessEqual(
-                torch.mean(
-                    torch.abs(
-                        encoding_slow.pixel_values[i][0]
-                        - encoding_fast.pixel_values[i][0]
-                    )
-                ).item(),
-                1e-3,
+                torch.mean(torch.abs(encoding_slow.pixel_values[i][0] - encoding_fast.pixel_values[i][0])).item(), 1e-3
             )
             torch.testing.assert_close(
-                encoding_slow.pixel_values[0][0],
-                encoding_fast.pixel_values[0][0],
-                rtol=100,
-                atol=1e-1,
+                encoding_slow.pixel_values[0][0], encoding_fast.pixel_values[0][0], rtol=100, atol=1e-1
             )
 
     @slow
@@ -415,33 +304,22 @@ class PixtralImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
     @require_vision
     def test_can_compile_fast_image_processor(self):
         if self.fast_image_processing_class is None:
-            self.skipTest(
-                "Skipping compilation test as fast image processor is not defined"
-            )
+            self.skipTest("Skipping compilation test as fast image processor is not defined")
         if version.parse(torch.__version__) < version.parse("2.3"):
             self.skipTest(reason="This test requires torch >= 2.3 to run.")
 
         torch.compiler.reset()
         input_image = torch.randint(0, 255, (3, 224, 224), dtype=torch.uint8)
         image_processor = self.fast_image_processing_class(**self.image_processor_dict)
-        output_eager = image_processor(
-            input_image, device=torch_device, return_tensors="pt"
-        )
+        output_eager = image_processor(input_image, device=torch_device, return_tensors="pt")
 
         image_processor = torch.compile(image_processor, mode="reduce-overhead")
-        output_compiled = image_processor(
-            input_image, device=torch_device, return_tensors="pt"
-        )
+        output_compiled = image_processor(input_image, device=torch_device, return_tensors="pt")
 
         torch.testing.assert_close(
-            output_eager.pixel_values[0][0],
-            output_compiled.pixel_values[0][0],
-            rtol=1e-4,
-            atol=1e-4,
+            output_eager.pixel_values[0][0], output_compiled.pixel_values[0][0], rtol=1e-4, atol=1e-4
         )
 
-    @unittest.skip(
-        reason="PixtralImageProcessor doesn't treat 4 channel PIL and numpy consistently yet"
-    )  # FIXME Amy
+    @unittest.skip(reason="PixtralImageProcessor doesn't treat 4 channel PIL and numpy consistently yet")  # FIXME Amy
     def test_call_numpy_4_channels(self):
         pass

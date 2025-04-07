@@ -14,23 +14,19 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers import MPNetConfig, is_torch_available
 from transformers.testing_utils import require_torch, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         MPNetForMaskedLM,
         MPNetForMultipleChoice,
@@ -104,23 +100,12 @@ class MPNetModelTester:
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
-        return (
-            config,
-            input_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        )
+        return config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return MPNetConfig(
@@ -137,35 +122,18 @@ class MPNetModelTester:
         )
 
     def create_and_check_mpnet_model(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = MPNetModel(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, input_mask)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
-        self.parent.assertEqual(
-            result.pooler_output.shape, (self.batch_size, self.hidden_size)
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
+        self.parent.assertEqual(result.pooler_output.shape, (self.batch_size, self.hidden_size))
 
     def create_and_check_mpnet_for_question_answering(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         model = MPNetForQuestionAnswering(config=config)
         model.to(torch_device)
@@ -176,21 +144,11 @@ class MPNetModelTester:
             start_positions=sequence_labels,
             end_positions=sequence_labels,
         )
-        self.parent.assertEqual(
-            result.start_logits.shape, (self.batch_size, self.seq_length)
-        )
-        self.parent.assertEqual(
-            result.end_logits.shape, (self.batch_size, self.seq_length)
-        )
+        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
+        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def create_and_check_mpnet_for_sequence_classification(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = MPNetForSequenceClassification(config)
@@ -200,61 +158,34 @@ class MPNetModelTester:
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
     def create_and_check_mpnet_for_multiple_choice(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_choices = self.num_choices
         model = MPNetForMultipleChoice(config=config)
         model.to(torch_device)
         model.eval()
-        multiple_choice_inputs_ids = (
-            input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_input_mask = (
-            input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
+        multiple_choice_inputs_ids = input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_input_mask = input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
         result = model(
             multiple_choice_inputs_ids,
             attention_mask=multiple_choice_input_mask,
             labels=choice_labels,
         )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.num_choices)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_choices))
 
     def create_and_check_mpnet_for_token_classification(
-        self,
-        config,
-        input_ids,
-        input_mask,
-        sequence_labels,
-        token_labels,
-        choice_labels,
+        self, config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
     ):
         config.num_labels = self.num_labels
         model = MPNetForTokenClassification(config=config)
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        (
-            config,
-            input_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        ) = config_and_inputs
+        (config, input_ids, input_mask, sequence_labels, token_labels, choice_labels) = config_and_inputs
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
@@ -290,9 +221,7 @@ class MPNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def setUp(self):
         self.model_tester = MPNetModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=MPNetConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=MPNetConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -303,9 +232,7 @@ class MPNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def test_for_sequence_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_sequence_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_sequence_classification(*config_and_inputs)
 
     def test_for_multiple_choice(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -313,19 +240,13 @@ class MPNetModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
 
     def test_for_token_classification(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_token_classification(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_token_classification(*config_and_inputs)
 
     def test_for_question_answering(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_mpnet_for_question_answering(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_mpnet_for_question_answering(*config_and_inputs)
 
-    @unittest.skip(
-        reason="TFMPNet adds poolers to all models, unlike the PT model class."
-    )
+    @unittest.skip(reason="TFMPNet adds poolers to all models, unlike the PT model class.")
     def test_tf_from_pt_safetensors(self):
         return
 
@@ -335,22 +256,12 @@ class MPNetModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_no_head(self):
         model = MPNetModel.from_pretrained("microsoft/mpnet-base")
-        input_ids = torch.tensor(
-            [[0, 345, 232, 328, 740, 140, 1695, 69, 6078, 1588, 2]]
-        )
+        input_ids = torch.tensor([[0, 345, 232, 328, 740, 140, 1695, 69, 6078, 1588, 2]])
         output = model(input_ids)[0]
         expected_shape = torch.Size((1, 11, 768))
         self.assertEqual(output.shape, expected_shape)
         expected_slice = torch.tensor(
-            [
-                [
-                    [-0.0550, 0.1943, -0.0740],
-                    [-0.0562, 0.2211, -0.0579],
-                    [-0.0437, 0.3337, -0.0641],
-                ]
-            ]
+            [[[-0.0550, 0.1943, -0.0740], [-0.0562, 0.2211, -0.0579], [-0.0437, 0.3337, -0.0641]]]
         )
         # compare the actual values for a slice.
-        torch.testing.assert_close(
-            output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

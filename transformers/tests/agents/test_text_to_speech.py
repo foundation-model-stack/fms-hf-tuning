@@ -13,20 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import load_tool
 from transformers.utils import is_torch_available
+
 
 if is_torch_available():
     import torch
 
-# First Party
 from transformers.testing_utils import require_torch
 
-# Local
 from .test_tools_common import ToolTesterMixin
 
 

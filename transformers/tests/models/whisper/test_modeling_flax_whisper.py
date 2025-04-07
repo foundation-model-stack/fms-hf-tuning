@@ -12,35 +12,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import functools
 import inspect
 import tempfile
 import unittest
 
-# First Party
 from transformers import WhisperConfig, is_flax_available
 from transformers.testing_utils import require_flax, slow
 from transformers.utils import cached_property
 from transformers.utils.import_utils import is_datasets_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_flax_common import FlaxModelTesterMixin, floats_tensor
 
+
 if is_datasets_available():
-    # Third Party
-    from datasets import load_dataset
     import datasets
+    from datasets import load_dataset
 
 if is_flax_available():
-    # Third Party
-    from flax.core.frozen_dict import unfreeze
-    from flax.traverse_util import flatten_dict
     import jax
     import numpy as np
+    from flax.core.frozen_dict import unfreeze
+    from flax.traverse_util import flatten_dict
 
-    # First Party
     from transformers import (
         FLAX_MODEL_MAPPING,
         FlaxWhisperForAudioClassification,
@@ -49,9 +44,7 @@ if is_flax_available():
         WhisperFeatureExtractor,
         WhisperProcessor,
     )
-    from transformers.models.whisper.modeling_flax_whisper import (
-        sinusoidal_embedding_init,
-    )
+    from transformers.models.whisper.modeling_flax_whisper import sinusoidal_embedding_init
 
 
 @require_flax
@@ -124,9 +117,7 @@ class FlaxWhisperModelTester:
         self.suppress_tokens = suppress_tokens
 
     def prepare_config_and_inputs_for_common(self):
-        input_features = floats_tensor(
-            [self.batch_size, self.num_mel_bins, self.seq_length], self.vocab_size
-        )
+        input_features = floats_tensor([self.batch_size, self.num_mel_bins, self.seq_length], self.vocab_size)
 
         decoder_input_ids = np.array(self.batch_size * [[self.decoder_start_token_id]])
 
@@ -153,9 +144,7 @@ class FlaxWhisperModelTester:
             encoder_layers=self.encoder_layers,
             suppress_tokens=self.suppress_tokens,
         )
-        inputs_dict = prepare_whisper_inputs_dict(
-            config, input_features, decoder_input_ids
-        )
+        inputs_dict = prepare_whisper_inputs_dict(config, input_features, decoder_input_ids)
         return config, inputs_dict
 
 
@@ -170,9 +159,7 @@ def prepare_whisper_inputs_dict(
         decoder_attention_mask = np.concatenate(
             [
                 np.ones(decoder_input_ids[:, :1].shape, dtype=np.int8),
-                np.not_equal(decoder_input_ids[:, 1:], config.pad_token_id).astype(
-                    np.int8
-                ),
+                np.not_equal(decoder_input_ids[:, 1:], config.pad_token_id).astype(np.int8),
             ],
             axis=-1,
         )
@@ -200,11 +187,7 @@ def make_partial_class(full_class, *args, **kwargs):
 
 @require_flax
 class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
-    all_model_classes = (
-        (FlaxWhisperForConditionalGeneration, FlaxWhisperModel)
-        if is_flax_available()
-        else ()
-    )
+    all_model_classes = (FlaxWhisperForConditionalGeneration, FlaxWhisperModel) if is_flax_available() else ()
     is_encoder_decoder = True
     test_pruning = False
     test_head_masking = False
@@ -216,8 +199,7 @@ class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
         self.init_shape = (1,) + inputs_dict["input_features"].shape[1:]
 
         self.all_model_classes = (
-            make_partial_class(model_class, input_shape=self.init_shape)
-            for model_class in self.all_model_classes
+            make_partial_class(model_class, input_shape=self.init_shape) for model_class in self.all_model_classes
         )
         self.config_tester = ConfigTester(self, config_class=WhisperConfig)
 
@@ -248,11 +230,7 @@ class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
 
                 @jax.jit
                 def model_jitted(input_features, decoder_input_ids, **kwargs):
-                    return model(
-                        input_features=input_features,
-                        decoder_input_ids=decoder_input_ids,
-                        **kwargs,
-                    )
+                    return model(input_features=input_features, decoder_input_ids=decoder_input_ids, **kwargs)
 
                 with self.subTest("JIT Enabled"):
                     jitted_outputs = model_jitted(**prepared_inputs_dict).to_tuple()
@@ -268,9 +246,7 @@ class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
     # overwrite because of `input_features`
     def test_save_load_from_base(self):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-        base_class = make_partial_class(
-            FLAX_MODEL_MAPPING[config.__class__], input_shape=self.init_shape
-        )
+        base_class = make_partial_class(FLAX_MODEL_MAPPING[config.__class__], input_shape=self.init_shape)
 
         for model_class in self.all_model_classes:
             if model_class.__name__ == base_class.__name__:
@@ -284,31 +260,23 @@ class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
                 model.save_pretrained(tmpdirname)
                 head_model = model_class.from_pretrained(tmpdirname)
 
-                base_param_from_head = flatten_dict(
-                    unfreeze(head_model.params[head_model.base_model_prefix])
-                )
+                base_param_from_head = flatten_dict(unfreeze(head_model.params[head_model.base_model_prefix]))
 
                 for key in base_param_from_head.keys():
-                    max_diff = (
-                        (base_params[key] - base_param_from_head[key]).sum().item()
-                    )
+                    max_diff = (base_params[key] - base_param_from_head[key]).sum().item()
                     self.assertLessEqual(max_diff, 1e-3, msg=f"{key} not identical")
 
     # overwrite because of `input_features`
     def test_save_load_to_base(self):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()
-        base_class = make_partial_class(
-            FLAX_MODEL_MAPPING[config.__class__], input_shape=self.init_shape
-        )
+        base_class = make_partial_class(FLAX_MODEL_MAPPING[config.__class__], input_shape=self.init_shape)
 
         for model_class in self.all_model_classes:
             if model_class.__name__ == base_class.__name__:
                 continue
 
             model = model_class(config)
-            base_params_from_head = flatten_dict(
-                unfreeze(model.params[model.base_model_prefix])
-            )
+            base_params_from_head = flatten_dict(unfreeze(model.params[model.base_model_prefix]))
 
             # check that all base model weights are loaded correctly
             with tempfile.TemporaryDirectory() as tmpdirname:
@@ -318,9 +286,7 @@ class FlaxWhisperModelTest(FlaxModelTesterMixin, unittest.TestCase):
                 base_params = flatten_dict(unfreeze(base_model.params))
 
                 for key in base_params_from_head.keys():
-                    max_diff = (
-                        (base_params[key] - base_params_from_head[key]).sum().item()
-                    )
+                    max_diff = (base_params[key] - base_params_from_head[key]).sum().item()
                     self.assertLessEqual(max_diff, 1e-3, msg=f"{key} not identical")
 
     def test_encoder_sinusoidal_embed_positions(self):
@@ -345,9 +311,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
         return WhisperProcessor.from_pretrained("openai/whisper-base")
 
     def _load_datasamples(self, num_samples):
-        ds = load_dataset(
-            "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
-        )
+        ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
         # automatic decoding with librispeech
         speech_samples = ds.sort("id").select(range(num_samples))[:num_samples]["audio"]
 
@@ -357,9 +321,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
         model = FlaxWhisperModel.from_pretrained("openai/whisper-tiny", from_pt=True)
         input_speech = self._load_datasamples(1)
         feature_extractor = WhisperFeatureExtractor()
-        input_features = feature_extractor(
-            input_speech, return_tensors="np"
-        ).input_features
+        input_features = feature_extractor(input_speech, return_tensors="np").input_features
 
         logits = model(
             input_features,
@@ -382,14 +344,10 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
         self.assertTrue(np.allclose(logits[0][0, 0, :30], EXPECTED_LOGITS, atol=1e-4))
 
     def test_small_en_logits_librispeech(self):
-        model = FlaxWhisperModel.from_pretrained(
-            "openai/whisper-small.en", from_pt=True
-        )
+        model = FlaxWhisperModel.from_pretrained("openai/whisper-small.en", from_pt=True)
         input_speech = self._load_datasamples(1)
         feature_extractor = WhisperFeatureExtractor()
-        input_features = feature_extractor(
-            input_speech, return_tensors="np"
-        ).input_features
+        input_features = feature_extractor(input_speech, return_tensors="np").input_features
 
         logits = model(
             input_features,
@@ -399,9 +357,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
             return_dict=False,
         )
 
-        logits = (
-            logits[0] @ model.params["model"]["decoder"]["embed_tokens"]["embedding"].T
-        )
+        logits = logits[0] @ model.params["model"]["decoder"]["embed_tokens"]["embedding"].T
 
         # fmt: off
         EXPECTED_LOGITS = np.array(
@@ -421,10 +377,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
         input_speech = self._load_datasamples(1)
         processor = WhisperProcessor.from_pretrained("openai/whisper-large")
         processed_inputs = processor(
-            audio=input_speech,
-            text="This part of the speech",
-            add_special_tokens=False,
-            return_tensors="np",
+            audio=input_speech, text="This part of the speech", add_special_tokens=False, return_tensors="np"
         )
         input_features = processed_inputs.input_features
         decoder_input_ids = processed_inputs.labels
@@ -437,9 +390,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
             return_dict=False,
         )
 
-        logits = (
-            logits[0] @ model.params["model"]["decoder"]["embed_tokens"]["embedding"].T
-        )
+        logits = logits[0] @ model.params["model"]["decoder"]["embed_tokens"]["embedding"].T
 
         # fmt: off
         EXPECTED_LOGITS = np.array(
@@ -455,21 +406,15 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
 
     def test_tiny_en_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-tiny.en")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-tiny.en", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny.en", from_pt=True)
         model.config.decoder_start_token_id = 50257
 
         input_speech = self._load_datasamples(1)
         input_features = processor.feature_extractor(
-            raw_speech=input_speech,
-            sampling_rate=processor.feature_extractor.sampling_rate,
-            return_tensors="jax",
+            raw_speech=input_speech, sampling_rate=processor.feature_extractor.sampling_rate, return_tensors="jax"
         ).input_features
 
-        generated_ids = model.generate(
-            input_features, num_beams=5, max_length=20
-        ).sequences
+        generated_ids = model.generate(input_features, num_beams=5, max_length=20).sequences
         transcript = processor.tokenizer.decode(generated_ids[0])
 
         EXPECTED_TRANSCRIPT = (
@@ -480,20 +425,14 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
 
     def test_tiny_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-tiny")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-tiny", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny", from_pt=True)
 
         input_speech = self._load_datasamples(1)
         input_features = processor.feature_extractor(
-            raw_speech=input_speech,
-            sampling_rate=processor.feature_extractor.sampling_rate,
-            return_tensors="jax",
+            raw_speech=input_speech, sampling_rate=processor.feature_extractor.sampling_rate, return_tensors="jax"
         ).input_features
 
-        generated_ids = model.generate(
-            input_features, num_beams=5, max_length=20
-        ).sequences
+        generated_ids = model.generate(input_features, num_beams=5, max_length=20).sequences
         transcript = processor.tokenizer.decode(generated_ids[0])
 
         EXPECTED_TRANSCRIPT = (
@@ -504,66 +443,38 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
 
     def test_large_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-large")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-large", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-large", from_pt=True)
 
         input_speech = self._load_datasamples(1)
         input_features = processor.feature_extractor(
-            raw_speech=input_speech,
-            sampling_rate=processor.feature_extractor.sampling_rate,
-            return_tensors="jax",
+            raw_speech=input_speech, sampling_rate=processor.feature_extractor.sampling_rate, return_tensors="jax"
         ).input_features
 
-        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(
-            language="en", task="transcribe"
-        )
+        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(language="en", task="transcribe")
 
-        generated_ids = model.generate(
-            input_features, num_beams=5, max_length=20
-        ).sequences
-        transcript = processor.tokenizer.decode(
-            generated_ids[0], skip_special_tokens=True
-        )
+        generated_ids = model.generate(input_features, num_beams=5, max_length=20).sequences
+        transcript = processor.tokenizer.decode(generated_ids[0], skip_special_tokens=True)
 
-        EXPECTED_TRANSCRIPT = (
-            " Mr. Quilter is the apostle of the middle classes and we are glad"
-        )
+        EXPECTED_TRANSCRIPT = " Mr. Quilter is the apostle of the middle classes and we are glad"
         self.assertEqual(transcript, EXPECTED_TRANSCRIPT)
 
     def test_large_generation_multilingual(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-large")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-large", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-large", from_pt=True)
 
-        ds = load_dataset(
-            "legacy-datasets/common_voice",
-            "ja",
-            split="test",
-            streaming=True,
-            trust_remote_code=True,
-        )
+        ds = load_dataset("legacy-datasets/common_voice", "ja", split="test", streaming=True, trust_remote_code=True)
         ds = ds.cast_column("audio", datasets.Audio(sampling_rate=16_000))
         input_speech = next(iter(ds))["audio"]["array"]
-        input_features = processor.feature_extractor(
-            raw_speech=input_speech, return_tensors="np"
-        )
+        input_features = processor.feature_extractor(raw_speech=input_speech, return_tensors="np")
 
-        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(
-            language="ja", task="transcribe"
-        )
-        generated_ids = model.generate(
-            input_features, do_sample=False, max_length=20
-        ).sequences
+        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(language="ja", task="transcribe")
+        generated_ids = model.generate(input_features, do_sample=False, max_length=20).sequences
         transcript = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         EXPECTED_TRANSCRIPT = "木村さんに電話を貸してもらいました"
         self.assertEqual(transcript, EXPECTED_TRANSCRIPT)
 
-        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(
-            language="en", task="transcribe"
-        )
+        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(language="en", task="transcribe")
         generated_ids = model.generate(
             input_features,
             do_sample=False,
@@ -574,12 +485,8 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
         EXPECTED_TRANSCRIPT = " Kimura-san called me."
         self.assertEqual(transcript, EXPECTED_TRANSCRIPT)
 
-        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(
-            language="ja", task="translate"
-        )
-        generated_ids = model.generate(
-            input_features, do_sample=False, max_length=20
-        ).sequences
+        model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(language="ja", task="translate")
+        generated_ids = model.generate(input_features, do_sample=False, max_length=20).sequences
         transcript = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         EXPECTED_TRANSCRIPT = " I borrowed a phone from Kimura san"
@@ -587,14 +494,10 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
 
     def test_large_batched_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-large")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-large", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-large", from_pt=True)
 
         input_speech = self._load_datasamples(4)
-        input_features = processor.feature_extractor(
-            raw_speech=input_speech, return_tensors="np"
-        ).input_features
+        input_features = processor.feature_extractor(raw_speech=input_speech, return_tensors="np").input_features
         generated_ids = model.generate(input_features, max_length=20).sequences
 
         # fmt: off
@@ -624,14 +527,10 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
 
     def test_tiny_en_batched_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-tiny.en")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-tiny.en", from_pt=True
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny.en", from_pt=True)
 
         input_speech = self._load_datasamples(4)
-        input_features = processor.feature_extractor(
-            raw_speech=input_speech, return_tensors="np"
-        ).input_features
+        input_features = processor.feature_extractor(raw_speech=input_speech, return_tensors="np").input_features
         generated_ids = model.generate(input_features, max_length=20).sequences
 
         # fmt: off
@@ -663,20 +562,15 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
     @slow
     def test_tiny_timestamp_generation(self):
         processor = WhisperProcessor.from_pretrained("openai/whisper-tiny")
-        model = FlaxWhisperForConditionalGeneration.from_pretrained(
-            "openai/whisper-tiny"
-        )
+        model = FlaxWhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny")
 
         input_speech = np.concatenate(self._load_datasamples(4))
-        input_features = processor.feature_extractor(
-            raw_speech=input_speech, return_tensors="jax"
-        ).input_features
+        input_features = processor.feature_extractor(raw_speech=input_speech, return_tensors="jax").input_features
 
-        generate_fn = jax.jit(
-            functools.partial(model.generate, max_length=448, return_timestamps=True)
-        )
+        generate_fn = jax.jit(functools.partial(model.generate, max_length=448, return_timestamps=True))
 
         generated_ids = generate_fn(input_features)
+
         EXPECTED_OUTPUT = np.array([50258, 50259, 50359, 50364, 2221, 13, 2326, 388, 391, 307, 264, 50244, 295, 264, 2808, 5359, 11, 293, 321, 366, 5404, 281, 2928, 702, 14943, 13, 50692, 50692, 6966, 307, 2221, 13, 2326, 388, 391, 311, 9060, 1570, 1880, 813, 702, 1871, 13, 50926, 50926, 634, 5112, 505, 300, 412, 341, 42729, 3196, 295, 264, 1064, 11, 365, 5272, 293, 12904, 9256, 450, 10539, 51208, 51208, 949, 505, 11, 14138, 10117, 490, 3936, 293, 1080, 3542, 5160, 881, 26336, 281, 264, 1575, 13, 51552, 51552, 634, 575, 12525, 22618, 1968, 6144, 35617, 7354, 1292, 6, 589, 307, 534, 10281, 934, 439, 11, 293, 51836, 51836, 50257])  # fmt: skip
 
         self.assertTrue(np.allclose(generated_ids, EXPECTED_OUTPUT))
@@ -724,9 +618,7 @@ class FlaxWhisperModelIntegrationTest(unittest.TestCase):
             }
         ]
 
-        transcript = processor.batch_decode(
-            generated_ids, skip_special_tokens=True, output_offsets=True
-        )
+        transcript = processor.batch_decode(generated_ids, skip_special_tokens=True, output_offsets=True)
         self.assertEqual(transcript, EXPECTED_TRANSCRIPT)
 
 
@@ -807,9 +699,7 @@ class FlaxWhisperEncoderModelTester:
         }
 
     def prepare_config_and_inputs(self):
-        input_features = floats_tensor(
-            [self.batch_size, self.num_mel_bins, self.seq_length]
-        )
+        input_features = floats_tensor([self.batch_size, self.num_mel_bins, self.seq_length])
 
         config = self.get_config()
         inputs_dict = self.prepare_whisper_encoder_inputs_dict(
@@ -838,9 +728,7 @@ class FlaxWhisperEncoderModelTester:
 
 @require_flax
 class WhisperEncoderModelTest(FlaxModelTesterMixin, unittest.TestCase):
-    all_model_classes = (
-        (FlaxWhisperForAudioClassification,) if is_flax_available() else ()
-    )
+    all_model_classes = (FlaxWhisperForAudioClassification,) if is_flax_available() else ()
     is_encoder_decoder = False
     fx_compatible = False
     test_pruning = False
@@ -854,8 +742,7 @@ class WhisperEncoderModelTest(FlaxModelTesterMixin, unittest.TestCase):
         self.init_shape = (1,) + inputs_dict["input_features"].shape[1:]
 
         self.all_model_classes = (
-            make_partial_class(model_class, input_shape=self.init_shape)
-            for model_class in self.all_model_classes
+            make_partial_class(model_class, input_shape=self.init_shape) for model_class in self.all_model_classes
         )
         self.config_tester = ConfigTester(self, config_class=WhisperConfig)
 
@@ -896,14 +783,8 @@ class WhisperEncoderModelTest(FlaxModelTesterMixin, unittest.TestCase):
             # signature.parameters is an OrderedDict => so arg_names order is deterministic
             arg_names = [*signature.parameters.keys()]
 
-            expected_arg_names = [
-                "input_features",
-                "attention_mask",
-                "output_attentions",
-            ]
-            self.assertListEqual(
-                arg_names[: len(expected_arg_names)], expected_arg_names
-            )
+            expected_arg_names = ["input_features", "attention_mask", "output_attentions"]
+            self.assertListEqual(arg_names[: len(expected_arg_names)], expected_arg_names)
 
     def test_inputs_embeds(self):
         pass

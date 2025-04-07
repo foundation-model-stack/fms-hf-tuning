@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import (
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
     TF_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
@@ -32,11 +30,10 @@ from transformers.testing_utils import (
     slow,
 )
 
-# Local
 from .test_pipelines_common import ANY
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -50,16 +47,10 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
     tf_model_mapping = TF_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING
 
     if model_mapping is not None:
-        model_mapping = {
-            config: model
-            for config, model in model_mapping.items()
-            if config.__name__ not in _TO_SKIP
-        }
+        model_mapping = {config: model for config, model in model_mapping.items() if config.__name__ not in _TO_SKIP}
     if tf_model_mapping is not None:
         tf_model_mapping = {
-            config: model
-            for config, model in tf_model_mapping.items()
-            if config.__name__ not in _TO_SKIP
+            config: model for config, model in tf_model_mapping.items() if config.__name__ not in _TO_SKIP
         }
 
     def get_test_pipeline(
@@ -83,77 +74,39 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
         return classifier, ["Who are you voting for in 2020?", "My stomach hurts."]
 
     def run_pipeline_test(self, classifier, _):
-        outputs = classifier(
-            "Who are you voting for in 2020?", candidate_labels="politics"
-        )
-        self.assertEqual(
-            outputs,
-            {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]},
-        )
+        outputs = classifier("Who are you voting for in 2020?", candidate_labels="politics")
+        self.assertEqual(outputs, {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]})
 
         # No kwarg
         outputs = classifier("Who are you voting for in 2020?", ["politics"])
-        self.assertEqual(
-            outputs,
-            {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]},
-        )
+        self.assertEqual(outputs, {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]})
 
-        outputs = classifier(
-            "Who are you voting for in 2020?", candidate_labels=["politics"]
-        )
-        self.assertEqual(
-            outputs,
-            {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]},
-        )
+        outputs = classifier("Who are you voting for in 2020?", candidate_labels=["politics"])
+        self.assertEqual(outputs, {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]})
 
-        outputs = classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels="politics, public health",
-        )
+        outputs = classifier("Who are you voting for in 2020?", candidate_labels="politics, public health")
         self.assertEqual(
-            outputs,
-            {
-                "sequence": ANY(str),
-                "labels": [ANY(str), ANY(str)],
-                "scores": [ANY(float), ANY(float)],
-            },
+            outputs, {"sequence": ANY(str), "labels": [ANY(str), ANY(str)], "scores": [ANY(float), ANY(float)]}
+        )
+        self.assertAlmostEqual(sum(nested_simplify(outputs["scores"])), 1.0)
+
+        outputs = classifier("Who are you voting for in 2020?", candidate_labels=["politics", "public health"])
+        self.assertEqual(
+            outputs, {"sequence": ANY(str), "labels": [ANY(str), ANY(str)], "scores": [ANY(float), ANY(float)]}
         )
         self.assertAlmostEqual(sum(nested_simplify(outputs["scores"])), 1.0)
 
         outputs = classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health"],
+            "Who are you voting for in 2020?", candidate_labels="politics", hypothesis_template="This text is about {}"
         )
-        self.assertEqual(
-            outputs,
-            {
-                "sequence": ANY(str),
-                "labels": [ANY(str), ANY(str)],
-                "scores": [ANY(float), ANY(float)],
-            },
-        )
-        self.assertAlmostEqual(sum(nested_simplify(outputs["scores"])), 1.0)
-
-        outputs = classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels="politics",
-            hypothesis_template="This text is about {}",
-        )
-        self.assertEqual(
-            outputs,
-            {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]},
-        )
+        self.assertEqual(outputs, {"sequence": ANY(str), "labels": [ANY(str)], "scores": [ANY(float)]})
 
         # https://github.com/huggingface/transformers/issues/13846
         outputs = classifier(["I am happy"], ["positive", "negative"])
         self.assertEqual(
             outputs,
             [
-                {
-                    "sequence": ANY(str),
-                    "labels": [ANY(str), ANY(str)],
-                    "scores": [ANY(float), ANY(float)],
-                }
+                {"sequence": ANY(str), "labels": [ANY(str), ANY(str)], "scores": [ANY(float), ANY(float)]}
                 for i in range(1)
             ],
         )
@@ -161,11 +114,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
         self.assertEqual(
             outputs,
             [
-                {
-                    "sequence": ANY(str),
-                    "labels": [ANY(str), ANY(str)],
-                    "scores": [ANY(float), ANY(float)],
-                }
+                {"sequence": ANY(str), "labels": [ANY(str), ANY(str)], "scores": [ANY(float), ANY(float)]}
                 for i in range(2)
             ],
         )
@@ -229,8 +178,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
         # Adding a test so we don't make the mistake again.
         # https://github.com/huggingface/transformers/issues/13381#issuecomment-912343499
         zero_shot_classifier(
-            "Who are you voting for in 2020?" * 100,
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?" * 100, candidate_labels=["politics", "public health", "science"]
         )
 
     @require_torch
@@ -241,8 +189,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             framework="pt",
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -263,8 +210,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             torch_dtype=torch.float16,
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -285,8 +231,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             torch_dtype=torch.bfloat16,
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -306,8 +251,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             framework="tf",
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -323,13 +267,10 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
     @require_torch
     def test_large_model_pt(self):
         zero_shot_classifier = pipeline(
-            "zero-shot-classification",
-            model="FacebookAI/roberta-large-mnli",
-            framework="pt",
+            "zero-shot-classification", model="FacebookAI/roberta-large-mnli", framework="pt"
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -353,12 +294,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             " fraction of the training costs of the best models from the literature. We show that the Transformer"
             " generalizes well to other tasks by applying it successfully to English constituency parsing both with"
             " large and limited training data.",
-            candidate_labels=[
-                "machine learning",
-                "statistics",
-                "translation",
-                "vision",
-            ],
+            candidate_labels=["machine learning", "statistics", "translation", "vision"],
             multi_label=True,
         )
         self.assertEqual(
@@ -388,13 +324,10 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
     @require_tf
     def test_large_model_tf(self):
         zero_shot_classifier = pipeline(
-            "zero-shot-classification",
-            model="FacebookAI/roberta-large-mnli",
-            framework="tf",
+            "zero-shot-classification", model="FacebookAI/roberta-large-mnli", framework="tf"
         )
         outputs = zero_shot_classifier(
-            "Who are you voting for in 2020?",
-            candidate_labels=["politics", "public health", "science"],
+            "Who are you voting for in 2020?", candidate_labels=["politics", "public health", "science"]
         )
 
         self.assertEqual(
@@ -418,12 +351,7 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
             " fraction of the training costs of the best models from the literature. We show that the Transformer"
             " generalizes well to other tasks by applying it successfully to English constituency parsing both with"
             " large and limited training data.",
-            candidate_labels=[
-                "machine learning",
-                "statistics",
-                "translation",
-                "vision",
-            ],
+            candidate_labels=["machine learning", "statistics", "translation", "vision"],
             multi_label=True,
         )
         self.assertEqual(

@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from typing import Dict
 import unittest
+from typing import Dict
 
-# Third Party
-from huggingface_hub.utils import insecure_hashlib
 import numpy as np
+from huggingface_hub.utils import insecure_hashlib
 
-# First Party
 from transformers import (
     MODEL_FOR_MASK_GENERATION_MAPPING,
     TF_MODEL_FOR_MASK_GENERATION_MAPPING,
@@ -37,8 +34,8 @@ from transformers.testing_utils import (
     slow,
 )
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 else:
 
@@ -64,18 +61,10 @@ def mask_to_test_readable(mask: Image) -> Dict:
 @require_torch
 class MaskGenerationPipelineTests(unittest.TestCase):
     model_mapping = dict(
-        (
-            list(MODEL_FOR_MASK_GENERATION_MAPPING.items())
-            if MODEL_FOR_MASK_GENERATION_MAPPING
-            else []
-        )
+        (list(MODEL_FOR_MASK_GENERATION_MAPPING.items()) if MODEL_FOR_MASK_GENERATION_MAPPING else [])
     )
     tf_model_mapping = dict(
-        (
-            list(TF_MODEL_FOR_MASK_GENERATION_MAPPING.items())
-            if TF_MODEL_FOR_MASK_GENERATION_MAPPING
-            else []
-        )
+        (list(TF_MODEL_FOR_MASK_GENERATION_MAPPING.items()) if TF_MODEL_FOR_MASK_GENERATION_MAPPING else [])
     )
 
     def get_test_pipeline(
@@ -114,17 +103,12 @@ class MaskGenerationPipelineTests(unittest.TestCase):
     def test_small_model_pt(self):
         image_segmenter = pipeline("mask-generation", model="facebook/sam-vit-huge")
 
-        outputs = image_segmenter(
-            "http://images.cocodataset.org/val2017/000000039769.jpg",
-            points_per_batch=256,
-        )
+        outputs = image_segmenter("http://images.cocodataset.org/val2017/000000039769.jpg", points_per_batch=256)
 
         # Shortening by hashing
         new_outupt = []
         for i, o in enumerate(outputs["masks"]):
-            new_outupt += [
-                {"mask": mask_to_test_readable(o), "scores": outputs["scores"][i]}
-            ]
+            new_outupt += [{"mask": mask_to_test_readable(o), "scores": outputs["scores"][i]}]
 
         # fmt: off
         self.assertEqual(
@@ -171,17 +155,13 @@ class MaskGenerationPipelineTests(unittest.TestCase):
         image_segmenter = pipeline("mask-generation", model=model_id)
 
         outputs = image_segmenter(
-            "http://images.cocodataset.org/val2017/000000039769.jpg",
-            pred_iou_thresh=1,
-            points_per_batch=256,
+            "http://images.cocodataset.org/val2017/000000039769.jpg", pred_iou_thresh=1, points_per_batch=256
         )
 
         # Shortening by hashing
         new_outupt = []
         for i, o in enumerate(outputs["masks"]):
-            new_outupt += [
-                {"mask": mask_to_test_readable(o), "scores": outputs["scores"][i]}
-            ]
+            new_outupt += [{"mask": mask_to_test_readable(o), "scores": outputs["scores"][i]}]
 
         self.assertEqual(
             nested_simplify(new_outupt, decimals=4),

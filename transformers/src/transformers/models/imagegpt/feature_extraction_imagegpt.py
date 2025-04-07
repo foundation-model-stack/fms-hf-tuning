@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for ImageGPT."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_imagegpt import ImageGPTImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

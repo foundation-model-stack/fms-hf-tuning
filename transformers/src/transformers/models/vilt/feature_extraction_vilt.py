@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for ViLT."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_vilt import ViltImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

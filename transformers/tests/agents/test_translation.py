@@ -13,14 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# First Party
 from transformers import load_tool
 from transformers.agents.agent_types import AGENT_TYPE_MAPPING
 
-# Local
 from .test_tools_common import ToolTesterMixin, output_type
 
 
@@ -35,9 +32,7 @@ class TranslationToolTester(unittest.TestCase, ToolTesterMixin):
         self.assertEqual(result, "- Hé, comment ça va?")
 
     def test_exact_match_kwarg(self):
-        result = self.tool(
-            text="Hey, what's up?", src_lang="English", tgt_lang="French"
-        )
+        result = self.tool(text="Hey, what's up?", src_lang="English", tgt_lang="French")
         self.assertEqual(result, "- Hé, comment ça va?")
 
     def test_call(self):

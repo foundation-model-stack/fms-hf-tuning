@@ -12,21 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import shutil
 import tempfile
 import unittest
 
-# First Party
 from transformers import AutoProcessor, GotOcr2Processor, PreTrainedTokenizerFast
 from transformers.testing_utils import require_vision
 from transformers.utils import is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import GotOcr2ImageProcessor
 
 
@@ -71,17 +68,10 @@ class GotOcr2ProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         self.assertEqual(inputs["input_ids"].shape, (1, 303))
         self.assertEqual(inputs["pixel_values"].shape, (1, 3, 384, 384))
 
-        inputs = processor(
-            [image_input, image_input],
-            return_tensors="pt",
-            multi_page=True,
-            format=True,
-        )
+        inputs = processor([image_input, image_input], return_tensors="pt", multi_page=True, format=True)
         self.assertEqual(inputs["input_ids"].shape, (1, 547))
         self.assertEqual(inputs["pixel_values"].shape, (2, 3, 384, 384))
 
-        inputs = processor(
-            image_input, return_tensors="pt", crop_to_patches=True, max_patches=6
-        )
+        inputs = processor(image_input, return_tensors="pt", crop_to_patches=True, max_patches=6)
         self.assertEqual(inputs["input_ids"].shape, (1, 1826))
         self.assertEqual(inputs["pixel_values"].shape, (7, 3, 384, 384))

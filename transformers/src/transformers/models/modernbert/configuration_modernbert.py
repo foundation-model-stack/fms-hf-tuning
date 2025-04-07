@@ -19,10 +19,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import Literal
 
-# Local
 from ...configuration_utils import PretrainedConfig
 
 
@@ -215,6 +213,11 @@ class ModernBertConfig(PretrainedConfig):
             raise ValueError(
                 f'Invalid value for `classifier_pooling`, should be either "cls" or "mean", but is {self.classifier_pooling}.'
             )
+
+    def to_dict(self):
+        output = super().to_dict()
+        output.pop("reference_compile", None)
+        return output
 
 
 __all__ = ["ModernBertConfig"]

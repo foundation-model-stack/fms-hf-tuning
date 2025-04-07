@@ -14,11 +14,8 @@
 # limitations under the License.
 """Testing suite for the TensorFlow ViTMAE model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
-from importlib import import_module
 import copy
 import inspect
 import json
@@ -26,38 +23,29 @@ import math
 import os
 import tempfile
 import unittest
+from importlib import import_module
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import ViTMAEConfig
-from transformers.file_utils import (
-    cached_property,
-    is_tf_available,
-    is_vision_available,
-)
+from transformers.file_utils import cached_property, is_tf_available, is_vision_available
 from transformers.testing_utils import require_tf, require_vision, slow
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_tf_common import TFModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers import TFViTMAEForPreTraining, TFViTMAEModel
     from transformers.modeling_tf_utils import keras
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import ViTImageProcessor
 
 
@@ -111,9 +99,7 @@ class TFViTMAEModelTester:
         self.seq_length = int(math.ceil((1 - mask_ratio) * (num_patches + 1)))
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -148,10 +134,7 @@ class TFViTMAEModelTester:
     def create_and_check_model(self, config, pixel_values, labels):
         model = TFViTMAEModel(config=config)
         result = model(pixel_values, training=False)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_for_pretraining(self, config, pixel_values, labels):
         model = TFViTMAEForPreTraining(config)
@@ -159,22 +142,16 @@ class TFViTMAEModelTester:
         # expected sequence length = num_patches
         num_patches = (self.image_size // self.patch_size) ** 2
         expected_num_channels = self.patch_size**2 * self.num_channels
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, num_patches, expected_num_channels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, num_patches, expected_num_channels))
 
         # test greyscale images
         config.num_channels = 1
         model = TFViTMAEForPreTraining(config)
 
-        pixel_values = floats_tensor(
-            [self.batch_size, 1, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
         result = model(pixel_values, training=False)
         expected_num_channels = self.patch_size**2
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, num_patches, expected_num_channels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, num_patches, expected_num_channels))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -190,12 +167,8 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (TFViTMAEModel, TFViTMAEForPreTraining) if is_tf_available() else ()
-    )
-    pipeline_model_mapping = (
-        {"feature-extraction": TFViTMAEModel} if is_tf_available() else {}
-    )
+    all_model_classes = (TFViTMAEModel, TFViTMAEForPreTraining) if is_tf_available() else ()
+    pipeline_model_mapping = {"feature-extraction": TFViTMAEModel} if is_tf_available() else {}
 
     test_pruning = False
     test_onnx = False
@@ -204,9 +177,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
     def setUp(self):
         self.model_tester = TFViTMAEModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=ViTMAEConfig, has_text_modality=False, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=ViTMAEConfig, has_text_modality=False, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -261,9 +232,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
 
             outputs_dict = model(inputs, noise=noise)
 
-            inputs_keywords = copy.deepcopy(
-                self._prepare_for_class(inputs_dict, model_class)
-            )
+            inputs_keywords = copy.deepcopy(self._prepare_for_class(inputs_dict, model_class))
             outputs_keywords = model(**inputs_keywords, noise=noise)
             output_dict = outputs_dict[0].numpy()
             output_keywords = outputs_keywords[0].numpy()
@@ -316,8 +285,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             for module_member_name in dir(module)
             if module_member_name.endswith("MainLayer")
             # This condition is required, since `modeling_tf_clip.py` has 3 classes whose names end with `MainLayer`.
-            and module_member_name[: -len("MainLayer")]
-            == model_class.__name__[: -len("Model")]
+            and module_member_name[: -len("MainLayer")] == model_class.__name__[: -len("Model")]
             for module_member in (getattr(module, module_member_name),)
             if isinstance(module_member, type)
             and keras.layers.Layer in module_member.__bases__
@@ -333,8 +301,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             main_layer = main_layer_class(config)
 
             symbolic_inputs = {
-                name: keras.Input(tensor.shape[1:], dtype=tensor.dtype)
-                for name, tensor in inputs_dict.items()
+                name: keras.Input(tensor.shape[1:], dtype=tensor.dtype) for name, tensor in inputs_dict.items()
             }
 
             model = keras.Model(symbolic_inputs, outputs=main_layer(symbolic_inputs))
@@ -343,10 +310,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
             with tempfile.TemporaryDirectory() as tmpdirname:
                 filepath = os.path.join(tmpdirname, "keras_model.h5")
                 model.save(filepath)
-                model = keras.models.load_model(
-                    filepath,
-                    custom_objects={main_layer_class.__name__: main_layer_class},
-                )
+                model = keras.models.load_model(filepath, custom_objects={main_layer_class.__name__: main_layer_class})
                 assert isinstance(model, keras.Model)
                 after_outputs = model(inputs_dict)
                 self.assert_outputs_same(after_outputs, outputs)
@@ -425,9 +389,7 @@ class TFViTMAEModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCa
     def test_determinism(self):
         pass
 
-    @unittest.skip(
-        reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load"""
-    )
+    @unittest.skip(reason="""ViTMAE returns a random mask + ids_restore in each forward pass. See test_save_load""")
     def test_model_outputs_equivalence(self):
         pass
 
@@ -475,11 +437,7 @@ class TFViTMAEModelIntegrationTest(unittest.TestCase):
         self.assertEqual(outputs.logits.shape, expected_shape)
 
         expected_slice = tf.convert_to_tensor(
-            [
-                [-0.0548, -1.7023, -0.9325],
-                [0.3721, -0.5670, -0.2233],
-                [0.8235, -1.3878, -0.3524],
-            ]
+            [[-0.0548, -1.7023, -0.9325], [0.3721, -0.5670, -0.2233], [0.8235, -1.3878, -0.3524]]
         )
 
         tf.debugging.assert_near(outputs.logits[0, :3, :3], expected_slice, atol=1e-4)
@@ -503,9 +461,7 @@ class TFViTMAEModelIntegrationTest(unittest.TestCase):
         # prepare a noise vector that will be also used for testing the TF model
         # (this way we can ensure that the PT and TF models operate on the same inputs)
         vit_mae_config = ViTMAEConfig()
-        num_patches = (image.height // vit_mae_config.patch_size) * (
-            image.width // vit_mae_config.patch_size
-        )
+        num_patches = (image.height // vit_mae_config.patch_size) * (image.width // vit_mae_config.patch_size)
         noise = np.random.uniform(size=(1, num_patches))
 
         # forward pass

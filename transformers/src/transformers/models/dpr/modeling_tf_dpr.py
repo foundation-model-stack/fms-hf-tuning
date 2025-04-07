@@ -15,26 +15,15 @@
 
 """TensorFlow DPR model for Open Domain Question Answering."""
 
-# Future
 from __future__ import annotations
 
-# Standard
 from dataclasses import dataclass
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
-# Third Party
 import tensorflow as tf
 
-# Local
 from ...modeling_tf_outputs import TFBaseModelOutputWithPooling
-from ...modeling_tf_utils import (
-    TFModelInputType,
-    TFPreTrainedModel,
-    get_initializer,
-    keras,
-    shape_list,
-    unpack_inputs,
-)
+from ...modeling_tf_utils import TFModelInputType, TFPreTrainedModel, get_initializer, keras, shape_list, unpack_inputs
 from ...utils import (
     ModelOutput,
     add_start_docstrings,
@@ -44,6 +33,7 @@ from ...utils import (
 )
 from ..bert.modeling_tf_bert import TFBertMainLayer
 from .configuration_dpr import DPRConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -78,7 +68,7 @@ class TFDPRContextEncoderOutput(ModelOutput):
             heads.
     """
 
-    pooler_output: tf.Tensor = None
+    pooler_output: Optional[tf.Tensor] = None
     hidden_states: Tuple[tf.Tensor, ...] | None = None
     attentions: Tuple[tf.Tensor, ...] | None = None
 
@@ -106,7 +96,7 @@ class TFDPRQuestionEncoderOutput(ModelOutput):
             heads.
     """
 
-    pooler_output: tf.Tensor = None
+    pooler_output: Optional[tf.Tensor] = None
     hidden_states: Tuple[tf.Tensor, ...] | None = None
     attentions: Tuple[tf.Tensor, ...] | None = None
 
@@ -137,9 +127,9 @@ class TFDPRReaderOutput(ModelOutput):
             heads.
     """
 
-    start_logits: tf.Tensor = None
-    end_logits: tf.Tensor = None
-    relevance_logits: tf.Tensor = None
+    start_logits: Optional[tf.Tensor] = None
+    end_logits: Optional[tf.Tensor] = None
+    relevance_logits: Optional[tf.Tensor] = None
     hidden_states: Tuple[tf.Tensor, ...] | None = None
     attentions: Tuple[tf.Tensor, ...] | None = None
 
@@ -151,9 +141,7 @@ class TFDPREncoderLayer(keras.layers.Layer):
         super().__init__(**kwargs)
 
         # resolve name conflict with TFBertMainLayer instead of TFBertModel
-        self.bert_model = TFBertMainLayer(
-            config, add_pooling_layer=False, name="bert_model"
-        )
+        self.bert_model = TFBertMainLayer(config, add_pooling_layer=False, name="bert_model")
         self.config = config
 
         if self.config.hidden_size <= 0:
@@ -161,21 +149,19 @@ class TFDPREncoderLayer(keras.layers.Layer):
         self.projection_dim = config.projection_dim
         if self.projection_dim > 0:
             self.encode_proj = keras.layers.Dense(
-                config.projection_dim,
-                kernel_initializer=get_initializer(config.initializer_range),
-                name="encode_proj",
+                config.projection_dim, kernel_initializer=get_initializer(config.initializer_range), name="encode_proj"
             )
 
     @unpack_inputs
     def call(
         self,
-        input_ids: tf.Tensor = None,
+        input_ids: Optional[tf.Tensor] = None,
         attention_mask: tf.Tensor | None = None,
         token_type_ids: tf.Tensor | None = None,
         inputs_embeds: tf.Tensor | None = None,
-        output_attentions: bool = None,
-        output_hidden_states: bool = None,
-        return_dict: bool = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
         training: bool = False,
     ) -> Union[TFBaseModelOutputWithPooling, Tuple[tf.Tensor, ...]]:
         outputs = self.bert_model(
@@ -231,20 +217,16 @@ class TFDPRSpanPredictorLayer(keras.layers.Layer):
         self.encoder = TFDPREncoderLayer(config, name="encoder")
 
         self.qa_outputs = keras.layers.Dense(
-            2,
-            kernel_initializer=get_initializer(config.initializer_range),
-            name="qa_outputs",
+            2, kernel_initializer=get_initializer(config.initializer_range), name="qa_outputs"
         )
         self.qa_classifier = keras.layers.Dense(
-            1,
-            kernel_initializer=get_initializer(config.initializer_range),
-            name="qa_classifier",
+            1, kernel_initializer=get_initializer(config.initializer_range), name="qa_classifier"
         )
 
     @unpack_inputs
     def call(
         self,
-        input_ids: tf.Tensor = None,
+        input_ids: Optional[tf.Tensor] = None,
         attention_mask: tf.Tensor | None = None,
         inputs_embeds: tf.Tensor | None = None,
         output_attentions: bool = False,
@@ -253,11 +235,7 @@ class TFDPRSpanPredictorLayer(keras.layers.Layer):
         training: bool = False,
     ) -> Union[TFDPRReaderOutput, Tuple[tf.Tensor, ...]]:
         # notations: N - number of questions in a batch, M - number of passages per questions, L - sequence length
-        n_passages, sequence_length = (
-            shape_list(input_ids)
-            if input_ids is not None
-            else shape_list(inputs_embeds)[:2]
-        )
+        n_passages, sequence_length = shape_list(input_ids) if input_ids is not None else shape_list(inputs_embeds)[:2]
         # feed encoder
         outputs = self.encoder(
             input_ids=input_ids,
@@ -318,7 +296,7 @@ class TFDPRSpanPredictor(TFPreTrainedModel):
     @unpack_inputs
     def call(
         self,
-        input_ids: tf.Tensor = None,
+        input_ids: Optional[tf.Tensor] = None,
         attention_mask: tf.Tensor | None = None,
         token_type_ids: tf.Tensor | None = None,
         inputs_embeds: tf.Tensor | None = None,
@@ -351,7 +329,7 @@ class TFDPREncoder(TFPreTrainedModel):
     @unpack_inputs
     def call(
         self,
-        input_ids: tf.Tensor = None,
+        input_ids: Optional[tf.Tensor] = None,
         attention_mask: tf.Tensor | None = None,
         token_type_ids: tf.Tensor | None = None,
         inputs_embeds: tf.Tensor | None = None,
@@ -571,9 +549,7 @@ class TFDPRContextEncoder(TFDPRPretrainedContextEncoder):
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(TF_DPR_ENCODERS_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=TFDPRContextEncoderOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=TFDPRContextEncoderOutput, config_class=_CONFIG_FOR_DOC)
     def call(
         self,
         input_ids: TFModelInputType | None = None,
@@ -600,9 +576,7 @@ class TFDPRContextEncoder(TFDPRPretrainedContextEncoder):
         ```
         """
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time"
-            )
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -634,9 +608,7 @@ class TFDPRContextEncoder(TFDPRPretrainedContextEncoder):
             return outputs[1:]
 
         return TFDPRContextEncoderOutput(
-            pooler_output=outputs.pooler_output,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+            pooler_output=outputs.pooler_output, hidden_states=outputs.hidden_states, attentions=outputs.attentions
         )
 
     def build(self, input_shape=None):
@@ -666,9 +638,7 @@ class TFDPRQuestionEncoder(TFDPRPretrainedQuestionEncoder):
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(TF_DPR_ENCODERS_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=TFDPRQuestionEncoderOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=TFDPRQuestionEncoderOutput, config_class=_CONFIG_FOR_DOC)
     def call(
         self,
         input_ids: TFModelInputType | None = None,
@@ -695,9 +665,7 @@ class TFDPRQuestionEncoder(TFDPRPretrainedQuestionEncoder):
         ```
         """
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time"
-            )
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:
@@ -728,9 +696,7 @@ class TFDPRQuestionEncoder(TFDPRPretrainedQuestionEncoder):
         if not return_dict:
             return outputs[1:]
         return TFDPRQuestionEncoderOutput(
-            pooler_output=outputs.pooler_output,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+            pooler_output=outputs.pooler_output, hidden_states=outputs.hidden_states, attentions=outputs.attentions
         )
 
     def build(self, input_shape=None):
@@ -760,9 +726,7 @@ class TFDPRReader(TFDPRPretrainedReader):
 
     @unpack_inputs
     @add_start_docstrings_to_model_forward(TF_DPR_READER_INPUTS_DOCSTRING)
-    @replace_return_docstrings(
-        output_type=TFDPRReaderOutput, config_class=_CONFIG_FOR_DOC
-    )
+    @replace_return_docstrings(output_type=TFDPRReaderOutput, config_class=_CONFIG_FOR_DOC)
     def call(
         self,
         input_ids: TFModelInputType | None = None,
@@ -796,9 +760,7 @@ class TFDPRReader(TFDPRPretrainedReader):
         ```
         """
         if input_ids is not None and inputs_embeds is not None:
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time"
-            )
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             input_shape = shape_list(input_ids)
         elif inputs_embeds is not None:

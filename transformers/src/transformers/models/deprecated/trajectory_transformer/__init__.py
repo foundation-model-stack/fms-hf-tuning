@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ....utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available
+
 
 _import_structure = {
     "configuration_trajectory_transformer": ["TrajectoryTransformerConfig"],
@@ -35,8 +34,9 @@ else:
 
 
 if TYPE_CHECKING:
-    # Local
-    from .configuration_trajectory_transformer import TrajectoryTransformerConfig
+    from .configuration_trajectory_transformer import (
+        TrajectoryTransformerConfig,
+    )
 
     try:
         if not is_torch_available():
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        # Local
         from .modeling_trajectory_transformer import (
             TrajectoryTransformerModel,
             TrajectoryTransformerPreTrainedModel,
@@ -53,9 +52,6 @@ if TYPE_CHECKING:
 
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

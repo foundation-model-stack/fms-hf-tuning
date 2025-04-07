@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
-from huggingface_hub import AudioClassificationOutputElement
+import datasets
 import numpy as np
+from huggingface_hub import AudioClassificationOutputElement
 
-# First Party
 from transformers import (
     MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
     TF_MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
@@ -36,11 +34,10 @@ from transformers.testing_utils import (
     slow,
 )
 
-# Local
 from .test_pipelines_common import ANY
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -48,6 +45,15 @@ if is_torch_available():
 class AudioClassificationPipelineTests(unittest.TestCase):
     model_mapping = MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING
     tf_model_mapping = TF_MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING
+    _dataset = None
+
+    @classmethod
+    def _load_dataset(cls):
+        # Lazy loading of the dataset. Because it is a class method, it will only be loaded once per pytest process.
+        if cls._dataset is None:
+            cls._dataset = datasets.load_dataset(
+                "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
+            )
 
     def get_test_pipeline(
         self,
@@ -94,20 +100,13 @@ class AudioClassificationPipelineTests(unittest.TestCase):
         self.run_torchaudio(audio_classifier)
 
         for single_output in output:
-            compare_pipeline_output_to_hub_spec(
-                single_output, AudioClassificationOutputElement
-            )
+            compare_pipeline_output_to_hub_spec(single_output, AudioClassificationOutputElement)
 
     @require_torchaudio
     def run_torchaudio(self, audio_classifier):
-        # Third Party
-        import datasets
-
+        self._load_dataset()
         # test with a local file
-        dataset = datasets.load_dataset(
-            "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
-        )
-        audio = dataset[0]["audio"]["array"]
+        audio = self._dataset[0]["audio"]["array"]
         output = audio_classifier(audio)
         self.assertEqual(
             output,
@@ -138,26 +137,17 @@ class AudioClassificationPipelineTests(unittest.TestCase):
             {"score": 0.0841, "label": "right"},
             {"score": 0.0834, "label": "left"},
         ]
-        self.assertIn(
-            nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2]
-        )
+        self.assertIn(nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2])
 
-        audio_dict = {
-            "array": np.ones((8000,)),
-            "sampling_rate": audio_classifier.feature_extractor.sampling_rate,
-        }
+        audio_dict = {"array": np.ones((8000,)), "sampling_rate": audio_classifier.feature_extractor.sampling_rate}
         output = audio_classifier(audio_dict, top_k=4)
-        self.assertIn(
-            nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2]
-        )
+        self.assertIn(nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2])
 
     @require_torch
     def test_small_model_pt_fp16(self):
         model = "anton-l/wav2vec2-random-tiny-classifier"
 
-        audio_classifier = pipeline(
-            "audio-classification", model=model, torch_dtype=torch.float16
-        )
+        audio_classifier = pipeline("audio-classification", model=model, torch_dtype=torch.float16)
 
         audio = np.ones((8000,))
         output = audio_classifier(audio, top_k=4)
@@ -177,31 +167,19 @@ class AudioClassificationPipelineTests(unittest.TestCase):
             {"score": 0.0836, "label": "yes"},
             {"score": 0.0835, "label": "right"},
         ]
-        self.assertIn(
-            nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2]
-        )
+        self.assertIn(nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2])
 
-        audio_dict = {
-            "array": np.ones((8000,)),
-            "sampling_rate": audio_classifier.feature_extractor.sampling_rate,
-        }
+        audio_dict = {"array": np.ones((8000,)), "sampling_rate": audio_classifier.feature_extractor.sampling_rate}
         output = audio_classifier(audio_dict, top_k=4)
-        self.assertIn(
-            nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2]
-        )
+        self.assertIn(nested_simplify(output, decimals=4), [EXPECTED_OUTPUT, EXPECTED_OUTPUT_PT_2])
 
     @require_torch
     @slow
     def test_large_model_pt(self):
-        # Third Party
-        import datasets
-
         model = "superb/wav2vec2-base-superb-ks"
 
         audio_classifier = pipeline("audio-classification", model=model)
-        dataset = datasets.load_dataset(
-            "anton-l/superb_dummy", "ks", split="test", trust_remote_code=True
-        )
+        dataset = datasets.load_dataset("anton-l/superb_dummy", "ks", split="test", trust_remote_code=True)
 
         audio = np.array(dataset[3]["speech"], dtype=np.float32)
         output = audio_classifier(audio, top_k=4)
@@ -237,9 +215,7 @@ class AudioClassificationPipelineTests(unittest.TestCase):
         result = classification_pipeline(signal)
         num_labels = classification_pipeline.model.config.num_labels
 
-        self.assertEqual(
-            len(result), num_labels, "Should return all labels when top_k is None"
-        )
+        self.assertEqual(len(result), num_labels, "Should return all labels when top_k is None")
 
     @require_torch
     @slow
@@ -258,9 +234,7 @@ class AudioClassificationPipelineTests(unittest.TestCase):
         result = classification_pipeline(signal)
         num_labels = classification_pipeline.model.config.num_labels
 
-        self.assertEqual(
-            len(result), num_labels, "Should handle models with fewer labels correctly"
-        )
+        self.assertEqual(len(result), num_labels, "Should handle models with fewer labels correctly")
 
     @require_torch
     @slow
@@ -279,6 +253,4 @@ class AudioClassificationPipelineTests(unittest.TestCase):
         result = classification_pipeline(signal)
         num_labels = classification_pipeline.model.config.num_labels
 
-        self.assertEqual(
-            len(result), num_labels, "Should cap top_k to number of labels"
-        )
+        self.assertEqual(len(result), num_labels, "Should cap top_k to number of labels")

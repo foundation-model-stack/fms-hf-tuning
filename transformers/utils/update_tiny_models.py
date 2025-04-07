@@ -20,7 +20,6 @@ version of `tests/utils/tiny_model_summary.json`. That updated file should be me
 `transformers` so the pipeline testing will use the latest created/updated tiny models.
 """
 
-# Standard
 import argparse
 import copy
 import json
@@ -28,14 +27,12 @@ import multiprocessing
 import os
 import time
 
-# Third Party
 from create_dummy_models import COMPOSITE_MODELS, create_tiny_models
 from huggingface_hub import ModelFilter, hf_api
 
-# First Party
+import transformers
 from transformers import AutoFeatureExtractor, AutoImageProcessor, AutoTokenizer
 from transformers.image_processing_utils import BaseImageProcessor
-import transformers
 
 
 def get_all_model_names():
@@ -50,11 +47,7 @@ def get_all_model_names():
             x
             for x in dir(module)
             if x.endswith("_MAPPING_NAMES")
-            and (
-                x.startswith("MODEL_")
-                or x.startswith("TF_MODEL_")
-                or x.startswith("FLAX_MODEL_")
-            )
+            and (x.startswith("MODEL_") or x.startswith("TF_MODEL_") or x.startswith("FLAX_MODEL_"))
         ]
         for name in mapping_names:
             mapping = getattr(module, name)
@@ -179,9 +172,7 @@ def get_tiny_model_summary_from_hub(output_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--num_workers", default=1, type=int, help="The number of workers to run."
-    )
+    parser.add_argument("--num_workers", default=1, type=int, help="The number of workers to run.")
     args = parser.parse_args()
 
     # This has to be `spawn` to avoid hanging forever!

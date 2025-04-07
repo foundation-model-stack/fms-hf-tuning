@@ -14,23 +14,19 @@
 # limitations under the License.
 """Testing suite for the PyTorch CPMAnt model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import is_torch_available, require_torch, tooslow
 
-# Local
 from ...generation.test_utils import torch_device
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         CpmAntConfig,
         CpmAntForCausalLM,
@@ -87,9 +83,7 @@ class CpmAntModelTester:
 
     def prepare_config_and_inputs(self):
         input_ids = {}
-        input_ids["input_ids"] = ids_tensor(
-            [self.batch_size, self.seq_length], self.vocab_size
-        ).type(torch.int32)
+        input_ids["input_ids"] = ids_tensor([self.batch_size, self.seq_length], self.vocab_size).type(torch.int32)
         input_ids["use_cache"] = False
 
         config = self.get_config()
@@ -120,9 +114,7 @@ class CpmAntModelTester:
 
         hidden_states = model(**input_ids).last_hidden_state
 
-        self.parent.assertEqual(
-            hidden_states.shape, (self.batch_size, self.seq_length, config.hidden_size)
-        )
+        self.parent.assertEqual(hidden_states.shape, (self.batch_size, self.seq_length, config.hidden_size))
 
     def create_and_check_lm_head_model(self, config, input_ids, *args):
         model = CpmAntForCausalLM(config)
@@ -133,11 +125,7 @@ class CpmAntModelTester:
         model_output = model(**input_ids)
         self.parent.assertEqual(
             model_output.logits.shape,
-            (
-                self.batch_size,
-                self.seq_length,
-                config.vocab_size + config.prompt_types * config.prompt_length,
-            ),
+            (self.batch_size, self.seq_length, config.vocab_size + config.prompt_types * config.prompt_length),
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -151,9 +139,7 @@ class CpmAntModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
     # Doesn't run generation tests. There are interface mismatches when using `generate` -- TODO @gante
     all_generative_model_classes = ()
     pipeline_model_mapping = (
-        {"feature-extraction": CpmAntModel, "text-generation": CpmAntForCausalLM}
-        if is_torch_available()
-        else {}
+        {"feature-extraction": CpmAntModel, "text-generation": CpmAntForCausalLM} if is_torch_available() else {}
     )
 
     test_pruning = False
@@ -170,14 +156,12 @@ class CpmAntModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase):
         self.config_tester.run_common_tests()
 
     def test_inputs_embeds(self):
-        unittest.skip(reason="CPMAnt doesn't support input_embeds.")(
-            self.test_inputs_embeds
-        )
+        unittest.skip(reason="CPMAnt doesn't support input_embeds.")(self.test_inputs_embeds)
 
     def test_retain_grad_hidden_states_attentions(self):
         unittest.skip(
             "CPMAnt doesn't support retain grad in hidden_states or attentions, because prompt management will peel off the output.hidden_states from graph.\
-                 So is attentions. We strongly recommand you use loss to tune model."
+                 So is attentions. We strongly recommend you use loss to tune model."
         )(self.test_retain_grad_hidden_states_attentions)
 
     def test_cpmant_model(self):
@@ -201,17 +185,9 @@ class CpmAntModelIntegrationTest(unittest.TestCase):
         hidden_states = model(**inputs).last_hidden_state
 
         expected_slice = torch.tensor(
-            [
-                [
-                    [6.1708, 5.9244, 1.0835],
-                    [6.5207, 6.2893, -11.3324],
-                    [-1.0107, -0.0576, -5.9577],
-                ]
-            ],
+            [[[6.1708, 5.9244, 1.0835], [6.5207, 6.2893, -11.3324], [-1.0107, -0.0576, -5.9577]]],
         )
-        torch.testing.assert_close(
-            hidden_states[:, :3, :3], expected_slice, rtol=1e-2, atol=1e-2
-        )
+        torch.testing.assert_close(hidden_states[:, :3, :3], expected_slice, rtol=1e-2, atol=1e-2)
 
 
 @require_torch
@@ -226,17 +202,9 @@ class CpmAntForCausalLMlIntegrationTest(unittest.TestCase):
         hidden_states = model(**inputs).logits
 
         expected_slice = torch.tensor(
-            [
-                [
-                    [-6.4267, -6.4083, -6.3958],
-                    [-5.8802, -5.9447, -5.7811],
-                    [-5.3896, -5.4820, -5.4295],
-                ]
-            ],
+            [[[-6.4267, -6.4083, -6.3958], [-5.8802, -5.9447, -5.7811], [-5.3896, -5.4820, -5.4295]]],
         )
-        torch.testing.assert_close(
-            hidden_states[:, :3, :3], expected_slice, rtol=1e-2, atol=1e-2
-        )
+        torch.testing.assert_close(hidden_states[:, :3, :3], expected_slice, rtol=1e-2, atol=1e-2)
 
     @tooslow
     def test_simple_generation(self):

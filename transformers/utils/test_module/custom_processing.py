@@ -1,4 +1,3 @@
-# First Party
 from transformers import ProcessorMixin
 
 

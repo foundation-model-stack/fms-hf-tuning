@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import unittest
 
-# Third Party
 from huggingface_hub.utils import are_progress_bars_disabled
 
-# First Party
+import transformers.models.bart.tokenization_bart
 from transformers import logging
 from transformers.testing_utils import CaptureLogger, mockenv, mockenv_context
 from transformers.utils.logging import disable_progress_bar, enable_progress_bar
-import transformers.models.bart.tokenization_bart
 
 
 class HfArgumentParserTest(unittest.TestCase):

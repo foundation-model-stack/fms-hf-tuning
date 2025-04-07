@@ -11,16 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import argparse
 import json
 import os
 
-# Third Party
 import torch
 
-# First Party
-from transformers import MixtralConfig, MixtralForCausalLM
+from transformers import (
+    MixtralConfig,
+    MixtralForCausalLM,
+)
+
 
 """
 Sample usage:
@@ -44,9 +45,7 @@ come in several checkpoints they each contain a part of each weight of the model
 
 
 def compute_intermediate_size(n, ffn_dim_multiplier=1, multiple_of=256):
-    return multiple_of * (
-        (int(ffn_dim_multiplier * int(8 * n / 3)) + multiple_of - 1) // multiple_of
-    )
+    return multiple_of * ((int(ffn_dim_multiplier * int(8 * n / 3)) + multiple_of - 1) // multiple_of)
 
 
 def read_json(path):
@@ -66,9 +65,7 @@ def write_model(model_path, input_base_path, model_size, safe_serialization=True
     num_shards = 1
 
     # For some reason this is a string in the params.json
-    sliding_window = (
-        int(params["sliding_window"]) if "sliding_window" in params else None
-    )
+    sliding_window = int(params["sliding_window"]) if "sliding_window" in params else None
     n_layers = params["num_hidden_layers"]
     n_heads = params["num_attention_heads"]
     n_heads_per_shard = n_heads // num_shards
@@ -92,20 +89,12 @@ def write_model(model_path, input_base_path, model_size, safe_serialization=True
 
     # permute for sliced rotary
     def permute(w, n_heads=n_heads, dim1=dim, dim2=dim):
-        return (
-            w.view(n_heads, dim1 // n_heads // 2, 2, dim2)
-            .transpose(1, 2)
-            .reshape(dim1, dim2)
-        )
+        return w.view(n_heads, dim1 // n_heads // 2, 2, dim2).transpose(1, 2).reshape(dim1, dim2)
 
     print(f"Fetching all parameters from the checkpoint at {input_base_path}.")
     # Load weights
     loaded = [
-        torch.load(
-            os.path.join(input_base_path, f"consolidated.{i:02d}.pt"),
-            map_location="cpu",
-        )
-        for i in range(8)
+        torch.load(os.path.join(input_base_path, f"consolidated.{i:02d}.pt"), map_location="cpu") for i in range(8)
     ]
 
     merged_state_dict = {}
@@ -150,18 +139,16 @@ def write_model(model_path, input_base_path, model_size, safe_serialization=True
             .reshape(key_value_dim, dim)
         )
 
-        state_dict[
-            f"model.layers.{layer_i}.self_attn.o_proj.weight"
-        ] = merged_state_dict[f"layers.{layer_i}.attention.wo.weight"]
+        state_dict[f"model.layers.{layer_i}.self_attn.o_proj.weight"] = merged_state_dict[
+            f"layers.{layer_i}.attention.wo.weight"
+        ]
 
         w1 = merged_state_dict[f"layers.{layer_i}.block_sparse_moe.w1"]
         w2 = merged_state_dict[f"layers.{layer_i}.block_sparse_moe.w2"]
         w3 = merged_state_dict[f"layers.{layer_i}.block_sparse_moe.w3"]
 
         experts_w1 = [
-            w1[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :]
-            .contiguous()
-            .clone()
+            w1[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :].clone(memory_format=torch.contiguous_format)
             for expert_idx in range(num_local_experts)
         ]
 
@@ -170,20 +157,16 @@ def write_model(model_path, input_base_path, model_size, safe_serialization=True
             state_dict[expert_key + ".weight"] = expert_block.clone()
 
         experts_w2 = [
-            w2[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :]
-            .contiguous()
-            .clone()
+            w2[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :].clone(memory_format=torch.contiguous_format)
             for expert_idx in range(num_local_experts)
         ]
 
         for idx, expert_block in enumerate(experts_w2):
             expert_key = f"model.layers.{layer_i}.block_sparse_moe.experts.{idx}.w2"
-            state_dict[expert_key + ".weight"] = expert_block.T.clone().contiguous()
+            state_dict[expert_key + ".weight"] = expert_block.T.clone(memory_format=torch.contiguous_format)
 
         experts_w3 = [
-            w3[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :]
-            .contiguous()
-            .clone()
+            w3[ffn_dim * expert_idx : ffn_dim * (expert_idx + 1), :].clone(memory_format=torch.contiguous_format)
             for expert_idx in range(num_local_experts)
         ]
 
@@ -191,9 +174,9 @@ def write_model(model_path, input_base_path, model_size, safe_serialization=True
             expert_key = f"model.layers.{layer_i}.block_sparse_moe.experts.{idx}.w3"
             state_dict[expert_key + ".weight"] = expert_block.clone()
 
-        state_dict[
-            f"model.layers.{layer_i}.block_sparse_moe.gate.weight"
-        ] = merged_state_dict[f"layers.{layer_i}.block_sparse_moe.gate.weight"]
+        state_dict[f"model.layers.{layer_i}.block_sparse_moe.gate.weight"] = merged_state_dict[
+            f"layers.{layer_i}.block_sparse_moe.gate.weight"
+        ]
 
     state_dict.update(
         {
@@ -246,14 +229,8 @@ def main():
         help="'f' models correspond to the finetuned versions, and are specific to the Mixtral official release. For more details on Mixtral, checkout the original repo: https://huggingface.co/mistral-ai",
         default="7B",
     )
-    parser.add_argument(
-        "--output_dir", help="Location to write HF model", required=True
-    )
-    parser.add_argument(
-        "--safe_serialization",
-        type=bool,
-        help="Whether or not to save using `safetensors`.",
-    )
+    parser.add_argument("--output_dir", help="Location to write HF model", required=True)
+    parser.add_argument("--safe_serialization", type=bool, help="Whether or not to save using `safetensors`.")
     args = parser.parse_args()
     write_model(
         model_path=args.output_dir,

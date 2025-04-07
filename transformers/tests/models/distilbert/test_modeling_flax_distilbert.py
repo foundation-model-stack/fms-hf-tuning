@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import DistilBertConfig, is_flax_available
 from transformers.testing_utils import require_flax, slow
 
-# Local
-from ...test_modeling_flax_common import (
-    FlaxModelTesterMixin,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_flax_common import FlaxModelTesterMixin, ids_tensor, random_attention_mask
+
 
 if is_flax_available():
-    # Third Party
     import jax.numpy as jnp
 
-    # First Party
     from transformers.models.distilbert.modeling_flax_distilbert import (
         FlaxDistilBertForMaskedLM,
         FlaxDistilBertForMultipleChoice,
@@ -156,14 +147,6 @@ class FlaxDistilBertModelIntegrationTest(unittest.TestCase):
         output = model(input_ids, attention_mask=attention_mask)[0]
         expected_shape = (1, 11, 768)
         self.assertEqual(output.shape, expected_shape)
-        expected_slice = np.array(
-            [
-                [
-                    [-0.1639, 0.3299, 0.1648],
-                    [-0.1746, 0.3289, 0.1710],
-                    [-0.1884, 0.3357, 0.1810],
-                ]
-            ]
-        )
+        expected_slice = np.array([[[-0.1639, 0.3299, 0.1648], [-0.1746, 0.3289, 0.1710], [-0.1884, 0.3357, 0.1810]]])
 
         self.assertTrue(jnp.allclose(output[:, 1:4, 1:4], expected_slice, atol=1e-4))

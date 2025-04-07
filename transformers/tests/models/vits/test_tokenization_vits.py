@@ -14,20 +14,18 @@
 # limitations under the License.
 """Tests for the VITS tokenizer."""
 
-# Standard
 import json
 import os
 import shutil
 import tempfile
 import unittest
+from functools import lru_cache
 
-# First Party
 from transformers import VitsTokenizer
 from transformers.models.vits.tokenization_vits import VOCAB_FILES_NAMES
 from transformers.testing_utils import slow
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 class VitsTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
@@ -35,45 +33,46 @@ class VitsTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
     tokenizer_class = VitsTokenizer
     test_rust_tokenizer = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-        vocab = "k ' z y u d h e s w – 3 c p - 1 j m i X f l o 0 b r a 4 2 n _ x v t q 5 6 g ț ţ < > | <pad> <unk>".split(
-            " "
+        vocab = (
+            "k ' z y u d h e s w – 3 c p - 1 j m i X f l o 0 b r a 4 2 n _ x v t q 5 6 g ț ţ < > | <pad> <unk>".split(
+                " "
+            )
         )
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         vocab_tokens[" "] = vocab_tokens["X"]
         del vocab_tokens["X"]
 
-        self.special_tokens_map = {"pad_token": "<pad>", "unk_token": "<unk>"}
+        cls.special_tokens_map = {"pad_token": "<pad>", "unk_token": "<unk>"}
 
-        self.tmpdirname = tempfile.mkdtemp()
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        cls.tmpdirname = tempfile.mkdtemp()
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             fp.write(json.dumps(vocab_tokens) + "\n")
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
         kwargs["phonemize"] = False
         kwargs["normalize"] = False
-        return VitsTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return VitsTokenizer.from_pretrained(pretrained_name, **kwargs)
 
-    def get_clean_sequence(
-        self, tokenizer, with_prefix_space=False, max_length=20, min_length=5
-    ):
+    def get_clean_sequence(self, tokenizer, with_prefix_space=False, max_length=20, min_length=5):
         txt = "beyonce lives in los angeles"
         ids = tokenizer.encode(txt, add_special_tokens=False)
         return txt, ids
 
-    @unittest.skip(
-        reason="Adding multicharacter tokens does not work with the VITS tokenizer"
-    )
+    @unittest.skip(reason="Adding multicharacter tokens does not work with the VITS tokenizer")
     def test_add_tokens_tokenizer(self):
         pass
 
-    @unittest.skip(
-        reason="Adding multicharacter tokens does not work with the VITS tokenizer"
-    )
+    @unittest.skip(reason="Adding multicharacter tokens does not work with the VITS tokenizer")
     def test_encode_decode_with_spaces(self):
         pass
 
@@ -101,21 +100,15 @@ class VitsTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
                 tokenizer.save_pretrained(tmpdirname)
 
                 after_tokenizer = tokenizer.__class__.from_pretrained(tmpdirname)
-                after_tokens = after_tokenizer.encode(
-                    sample_text, add_special_tokens=False
-                )
+                after_tokens = after_tokenizer.encode(sample_text, add_special_tokens=False)
                 after_vocab = after_tokenizer.get_vocab()
                 self.assertListEqual(before_tokens, after_tokens)
                 self.assertDictEqual(before_vocab, after_vocab)
 
                 shutil.rmtree(tmpdirname)
 
-    @unittest.skip(
-        reason="Adding multicharacter tokens does not work the VITS tokenizer"
-    )
-    def test_special_tokens_initialization_with_non_empty_additional_special_tokens(
-        self,
-    ):
+    @unittest.skip(reason="Adding multicharacter tokens does not work the VITS tokenizer")
+    def test_special_tokens_initialization_with_non_empty_additional_special_tokens(self):
         pass
 
     def test_ron_normalization(self):
@@ -142,12 +135,10 @@ class VitsTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
         encoded_unnormalized_ids = tokenizer(sequences, normalize=False)
 
         decoded_normalized_sequences = [
-            tokenizer.decode(seq, skip_special_tokens=False)
-            for seq in encoded_normalized_ids["input_ids"]
+            tokenizer.decode(seq, skip_special_tokens=False) for seq in encoded_normalized_ids["input_ids"]
         ]
         decoded_unnormalized_sequences = [
-            tokenizer.decode(seq, skip_special_tokens=False)
-            for seq in encoded_unnormalized_ids["input_ids"]
+            tokenizer.decode(seq, skip_special_tokens=False) for seq in encoded_unnormalized_ids["input_ids"]
         ]
 
         self.assertEqual(decoded_normalized_sequences, normalized_sequences)
@@ -194,10 +185,7 @@ class VitsTokenizerTest(TokenizerTesterMixin, unittest.TestCase):
             )
 
             encoding = tokenizer(sequences, padding=True, normalize=True)
-            decoded_sequences = [
-                tokenizer.decode(seq, skip_special_tokens=True)
-                for seq in encoding["input_ids"]
-            ]
+            decoded_sequences = [tokenizer.decode(seq, skip_special_tokens=True) for seq in encoding["input_ids"]]
 
             encoding_data = encoding.data
             self.assertDictEqual(encoding_data, expected_encoding)

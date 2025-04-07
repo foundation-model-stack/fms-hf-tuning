@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Local
 from ..utils import is_optimum_quanto_available, is_torch_available, logging
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 logger = logging.get_logger(__name__)
@@ -47,11 +46,9 @@ def replace_with_quanto_layers(
             A boolean that indicates if the conversion has been successful or not. This is used for recursion and
             should not be passed by the user.
     """
-    # First Party
     from accelerate import init_empty_weights
 
     if is_optimum_quanto_available():
-        # Third Party
         from optimum.quanto import QLayerNorm, QLinear, qfloat8, qint2, qint4, qint8
 
     w_mapping = {"float8": qfloat8, "int8": qint8, "int4": qint4, "int2": qint2}

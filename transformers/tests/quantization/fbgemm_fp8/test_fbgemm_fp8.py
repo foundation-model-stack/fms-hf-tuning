@@ -13,19 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import gc
 import tempfile
 import unittest
 
-# First Party
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    FbgemmFp8Config,
-    OPTForCausalLM,
-)
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, FbgemmFp8Config, OPTForCausalLM
 from transformers.testing_utils import (
     require_accelerate,
     require_fbgemm_gpu,
@@ -37,12 +29,11 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_accelerate_available, is_torch_available
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_accelerate_available():
-    # First Party
     from accelerate import init_empty_weights
 
 
@@ -62,15 +53,10 @@ class FbgemmFp8ConfigTest(unittest.TestCase):
         """
         Simple test that checks if one uses a dict and converts it to a config object, the config object is the same as the dict
         """
-        dict = {
-            "modules_to_not_convert": ["lm_head.weight"],
-            "quant_method": "fbgemm_fp8",
-        }
+        dict = {"modules_to_not_convert": ["lm_head.weight"], "quant_method": "fbgemm_fp8"}
         quantization_config = FbgemmFp8Config.from_dict(dict)
 
-        self.assertEqual(
-            dict["modules_to_not_convert"], quantization_config.modules_to_not_convert
-        )
+        self.assertEqual(dict["modules_to_not_convert"], quantization_config.modules_to_not_convert)
         self.assertEqual(dict["quant_method"], quantization_config.quant_method)
 
 
@@ -136,9 +122,7 @@ class FbgemmFp8Test(unittest.TestCase):
         quantization_config = FbgemmFp8Config()
         cls.tokenizer = AutoTokenizer.from_pretrained(cls.model_name)
         cls.quantized_model = AutoModelForCausalLM.from_pretrained(
-            cls.model_name,
-            device_map=cls.device_map,
-            quantization_config=quantization_config,
+            cls.model_name, device_map=cls.device_map, quantization_config=quantization_config
         )
 
     def tearDown(self):
@@ -151,16 +135,10 @@ class FbgemmFp8Test(unittest.TestCase):
         Simple test that checks if the quantized model has been converted properly
         """
 
-        # First Party
-        from transformers.integrations import (
-            FbgemmFp8Linear,
-            replace_with_fbgemm_fp8_linear,
-        )
+        from transformers.integrations import FbgemmFp8Linear, replace_with_fbgemm_fp8_linear
 
         model_id = "facebook/opt-350m"
-        config = AutoConfig.from_pretrained(
-            model_id, revision="cb32f77e905cccbca1d970436fb0f5e6b58ee3c5"
-        )
+        config = AutoConfig.from_pretrained(model_id, revision="cb32f77e905cccbca1d970436fb0f5e6b58ee3c5")
         quantization_config = FbgemmFp8Config()
 
         with init_empty_weights():
@@ -171,9 +149,7 @@ class FbgemmFp8Test(unittest.TestCase):
             if isinstance(module, torch.nn.Linear):
                 nb_linears += 1
 
-        model = replace_with_fbgemm_fp8_linear(
-            model, quantization_config=quantization_config
-        )
+        model = replace_with_fbgemm_fp8_linear(model, quantization_config=quantization_config)
         nb_fbgemm_linear = 0
         for module in model.modules():
             if isinstance(module, FbgemmFp8Linear):
@@ -184,9 +160,7 @@ class FbgemmFp8Test(unittest.TestCase):
         with init_empty_weights():
             model = OPTForCausalLM(config)
         quantization_config = FbgemmFp8Config(modules_to_not_convert=["fc1"])
-        model = replace_with_fbgemm_fp8_linear(
-            model, quantization_config=quantization_config
-        )
+        model = replace_with_fbgemm_fp8_linear(model, quantization_config=quantization_config)
         nb_fbgemm_linear = 0
         for module in model.modules():
             if isinstance(module, FbgemmFp8Linear):
@@ -198,17 +172,10 @@ class FbgemmFp8Test(unittest.TestCase):
         """
         Simple test that checks if the quantized model is working properly
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            torch_device
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
-        output = self.quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        output = self.quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_save_pretrained(self):
         """
@@ -217,19 +184,12 @@ class FbgemmFp8Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.quantized_model.save_pretrained(tmpdirname)
 
-            model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname, device_map=self.device_map
-            )
+            model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map=self.device_map)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                torch_device
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
             output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_change_loading_attributes(self):
         """
@@ -241,47 +201,31 @@ class FbgemmFp8Test(unittest.TestCase):
             quantization_config = FbgemmFp8Config(activation_scale_ub=1000.0)
 
             model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname,
-                device_map=self.device_map,
-                quantization_config=quantization_config,
+                tmpdirname, device_map=self.device_map, quantization_config=quantization_config
             )
 
-            self.assertEqual(
-                model.model.layers[1].mlp.down_proj.input_scale_ub.item(), 1000.0
-            )
+            self.assertEqual(model.model.layers[1].mlp.down_proj.input_scale_ub.item(), 1000.0)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                torch_device
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
             output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     @require_torch_multi_gpu
     def test_quantized_model_multi_gpu(self):
         """
         Simple test that checks if the quantized model is working properly with multiple GPUs
-        set CUDA_VISIBLE_DEVICES=0,1 if you have more than 2 GPUS
+        set CUDA_VISIBLE_DEVICES=0,1 if you have more than 2 GPUs
         """
-        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-            torch_device
-        )
+        input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
         quantization_config = FbgemmFp8Config()
         quantized_model = AutoModelForCausalLM.from_pretrained(
             self.model_name, device_map="auto", quantization_config=quantization_config
         )
         self.assertTrue(set(quantized_model.hf_device_map.values()) == {0, 1})
 
-        output = quantized_model.generate(
-            **input_ids, max_new_tokens=self.max_new_tokens
-        )
-        self.assertEqual(
-            self.tokenizer.decode(output[0], skip_special_tokens=True),
-            self.EXPECTED_OUTPUT,
-        )
+        output = quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
+        self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     def test_quantized_model_offload(self):
         """
@@ -290,13 +234,10 @@ class FbgemmFp8Test(unittest.TestCase):
         quantization_config = FbgemmFp8Config()
 
         with self.assertRaisesRegex(
-            ValueError,
-            "You are attempting to load an FP8 model with a device_map that contains a CPU or disk device.",
+            ValueError, "You are attempting to load an FP8 model with a device_map that contains a CPU or disk device."
         ):
             AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                device_map=self.offload_device_map,
-                quantization_config=quantization_config,
+                self.model_name, device_map=self.offload_device_map, quantization_config=quantization_config
             )
 
     def test_save_pretrained_offload(self):
@@ -306,20 +247,11 @@ class FbgemmFp8Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.quantized_model.save_pretrained(tmpdirname)
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                torch_device
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
-            quantized_model = AutoModelForCausalLM.from_pretrained(
-                tmpdirname, device_map=self.offload_device_map
-            )
-            output = quantized_model.generate(
-                **input_ids, max_new_tokens=self.max_new_tokens
-            )
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            quantized_model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map=self.offload_device_map)
+            output = quantized_model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
     @require_torch_multi_gpu
     def test_save_pretrained_multi_gpu(self):
@@ -332,15 +264,10 @@ class FbgemmFp8Test(unittest.TestCase):
             model = AutoModelForCausalLM.from_pretrained(tmpdirname, device_map="auto")
             self.assertTrue(set(model.hf_device_map.values()) == {0, 1})
 
-            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(
-                torch_device
-            )
+            input_ids = self.tokenizer(self.input_text, return_tensors="pt").to(torch_device)
 
             output = model.generate(**input_ids, max_new_tokens=self.max_new_tokens)
-            self.assertEqual(
-                self.tokenizer.decode(output[0], skip_special_tokens=True),
-                self.EXPECTED_OUTPUT,
-            )
+            self.assertEqual(self.tokenizer.decode(output[0], skip_special_tokens=True), self.EXPECTED_OUTPUT)
 
 
 @require_torch_gpu
@@ -351,7 +278,6 @@ class FbgemmFp8LinearTest(unittest.TestCase):
         """
         Test that FbgemmFp8Linear preserves shape when in_features == out_features.
         """
-        # First Party
         from transformers.integrations import FbgemmFp8Linear
 
         with init_empty_weights(include_buffers=True):
@@ -365,7 +291,6 @@ class FbgemmFp8LinearTest(unittest.TestCase):
         """
         Test that FbgemmFp8Linear generates the correct shape when in_features != out_features.
         """
-        # First Party
         from transformers.integrations import FbgemmFp8Linear
 
         with init_empty_weights(include_buffers=True):

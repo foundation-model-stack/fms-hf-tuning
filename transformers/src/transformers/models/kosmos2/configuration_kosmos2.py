@@ -14,9 +14,9 @@
 # limitations under the License.
 """KOSMOS-2 model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -236,10 +236,7 @@ class Kosmos2Config(PretrainedConfig):
     ```"""
 
     model_type = "kosmos-2"
-    sub_configs = {
-        "text_config": Kosmos2TextConfig,
-        "vision_config": Kosmos2VisionConfig,
-    }
+    sub_configs = {"text_config": Kosmos2TextConfig, "vision_config": Kosmos2VisionConfig}
 
     def __init__(
         self,
@@ -252,15 +249,11 @@ class Kosmos2Config(PretrainedConfig):
 
         if text_config is None:
             text_config = {}
-            logger.info(
-                "`text_config` is `None`. Initializing the `Kosmos2TextConfig` with default values."
-            )
+            logger.info("`text_config` is `None`. Initializing the `Kosmos2TextConfig` with default values.")
 
         if vision_config is None:
             vision_config = {}
-            logger.info(
-                "`vision_config` is `None`. Initializing the `Kosmos2VisionConfig` with default values."
-            )
+            logger.info("`vision_config` is `None`. Initializing the `Kosmos2VisionConfig` with default values.")
 
         self.text_config = Kosmos2TextConfig(**text_config)
         self.vision_config = Kosmos2VisionConfig(**vision_config)

@@ -14,20 +14,17 @@
 # limitations under the License.
 """Testing suite for the PyTorch Perceiver model."""
 
-# Standard
-from typing import Dict, List, Tuple
 import copy
 import inspect
 import math
 import tempfile
 import unittest
 import warnings
+from typing import Dict, List, Tuple
 
-# Third Party
-from datasets import load_dataset
 import numpy as np
+from datasets import load_dataset
 
-# First Party
 from transformers import PerceiverConfig
 from transformers.testing_utils import (
     IS_ROCM_SYSTEM,
@@ -39,22 +36,15 @@ from transformers.testing_utils import (
 )
 from transformers.utils import is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_common import (
-    ModelTesterMixin,
-    floats_tensor,
-    ids_tensor,
-    random_attention_mask,
-)
+from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
-if is_torch_available():
-    # Third Party
-    from torch import nn
-    import torch
 
-    # First Party
+if is_torch_available():
+    import torch
+    from torch import nn
+
     from transformers import (
         PerceiverForImageClassificationConvProcessing,
         PerceiverForImageClassificationFourier,
@@ -76,10 +66,8 @@ if is_torch_available():
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import PerceiverImageProcessor
 
 
@@ -146,15 +134,8 @@ class PerceiverModelTester:
         self.num_labels = num_labels
         self.scope = scope
         # set subsampling for multimodal model (take first chunk)
-        image_chunk_size = (
-            np.prod((self.num_frames, self.image_size, self.image_size)) // self.nchunks
-        )
-        audio_chunk_size = (
-            self.num_frames
-            * self.audio_samples_per_frame
-            // self.samples_per_patch
-            // self.nchunks
-        )
+        image_chunk_size = np.prod((self.num_frames, self.image_size, self.image_size)) // self.nchunks
+        audio_chunk_size = self.num_frames * self.audio_samples_per_frame // self.samples_per_patch // self.nchunks
         self.subsampling = {
             "image": torch.arange(0, image_chunk_size),
             "audio": torch.arange(0, audio_chunk_size),
@@ -169,60 +150,36 @@ class PerceiverModelTester:
         token_labels = None
         if self.use_labels:
             sequence_labels = ids_tensor([self.batch_size], self.num_labels)
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
 
         if model_class is None or model_class.__name__ == "PerceiverModel":
-            inputs = floats_tensor(
-                [self.batch_size, self.seq_length, config.d_model], scale=1.0
-            )
+            inputs = floats_tensor([self.batch_size, self.seq_length, config.d_model], scale=1.0)
             return config, inputs, input_mask, sequence_labels, token_labels
-        elif model_class.__name__ in [
-            "PerceiverForMaskedLM",
-            "PerceiverForSequenceClassification",
-        ]:
+        elif model_class.__name__ in ["PerceiverForMaskedLM", "PerceiverForSequenceClassification"]:
             inputs = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
             # input mask is only relevant for text inputs
             if self.use_input_mask:
                 input_mask = random_attention_mask([self.batch_size, self.seq_length])
         elif model_class.__name__ == "PerceiverForImageClassificationLearned":
-            inputs = floats_tensor(
-                [self.batch_size, self.num_channels, self.image_size, self.image_size]
-            )
+            inputs = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
         elif model_class.__name__ == "PerceiverForImageClassificationFourier":
-            inputs = floats_tensor(
-                [self.batch_size, self.num_channels, self.image_size, self.image_size]
-            )
+            inputs = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
         elif model_class.__name__ == "PerceiverForImageClassificationConvProcessing":
-            inputs = floats_tensor(
-                [self.batch_size, self.num_channels, self.image_size, self.image_size]
-            )
+            inputs = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
         elif model_class.__name__ == "PerceiverForOpticalFlow":
-            inputs = floats_tensor(
-                [self.batch_size, 2, 27, self.train_size[0], self.train_size[1]]
-            )
+            inputs = floats_tensor([self.batch_size, 2, 27, self.train_size[0], self.train_size[1]])
         elif model_class.__name__ == "PerceiverForMultimodalAutoencoding":
             images = torch.randn(
-                (
-                    self.batch_size,
-                    self.num_frames,
-                    self.num_channels,
-                    self.image_size,
-                    self.image_size,
-                ),
+                (self.batch_size, self.num_frames, self.num_channels, self.image_size, self.image_size),
                 device=torch_device,
             )
             audio = torch.randn(
-                (self.batch_size, self.num_frames * self.audio_samples_per_frame, 1),
-                device=torch_device,
+                (self.batch_size, self.num_frames * self.audio_samples_per_frame, 1), device=torch_device
             )
             inputs = {
                 "image": images,
                 "audio": audio,
-                "label": torch.zeros(
-                    (self.batch_size, self.num_labels), device=torch_device
-                ),
+                "label": torch.zeros((self.batch_size, self.num_labels), device=torch_device),
             }
         else:
             raise ValueError(f"Model class {model_class} not supported")
@@ -264,20 +221,14 @@ class PerceiverModelTester:
         config.max_position_embeddings = 40
         return config
 
-    def create_and_check_for_masked_lm(
-        self, config, inputs, input_mask, sequence_labels, token_labels
-    ):
+    def create_and_check_for_masked_lm(self, config, inputs, input_mask, sequence_labels, token_labels):
         model = PerceiverForMaskedLM(config=config)
         model.to(torch_device)
         model.eval()
         result = model(inputs, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
-    def create_and_check_for_sequence_classification(
-        self, config, inputs, input_mask, sequence_labels, token_labels
-    ):
+    def create_and_check_for_sequence_classification(self, config, inputs, input_mask, sequence_labels, token_labels):
         model = PerceiverForSequenceClassification(config=config)
         model.to(torch_device)
         model.eval()
@@ -368,11 +319,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             self,
             config_class=PerceiverConfig,
             hidden_size=37,
-            common_properties=[
-                "d_model",
-                "num_self_attention_heads",
-                "num_cross_attention_heads",
-            ],
+            common_properties=["d_model", "num_self_attention_heads", "num_cross_attention_heads"],
         )
 
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
@@ -397,9 +344,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                 *MODEL_FOR_MASKED_LM_MAPPING_NAMES.values(),
             ]:
                 inputs_dict["labels"] = torch.zeros(
-                    (self.model_tester.batch_size, self.model_tester.seq_length),
-                    dtype=torch.long,
-                    device=torch_device,
+                    (self.model_tester.batch_size, self.model_tester.seq_length), dtype=torch.long, device=torch_device
                 )
         return inputs_dict
 
@@ -407,49 +352,34 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
         self.config_tester.run_common_tests()
 
     def test_for_masked_lm(self):
-        config_and_inputs = self.model_tester.prepare_config_and_inputs(
-            model_class=PerceiverForMaskedLM
-        )
+        config_and_inputs = self.model_tester.prepare_config_and_inputs(model_class=PerceiverForMaskedLM)
         self.model_tester.create_and_check_for_masked_lm(*config_and_inputs)
 
     def test_for_sequence_classification(self):
-        config_and_inputs = self.model_tester.prepare_config_and_inputs(
-            model_class=PerceiverForSequenceClassification
-        )
-        self.model_tester.create_and_check_for_sequence_classification(
-            *config_and_inputs
-        )
+        config_and_inputs = self.model_tester.prepare_config_and_inputs(model_class=PerceiverForSequenceClassification)
+        self.model_tester.create_and_check_for_sequence_classification(*config_and_inputs)
 
     def test_for_image_classification_learned(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs(
             model_class=PerceiverForImageClassificationLearned
         )
-        self.model_tester.create_and_check_for_image_classification_learned(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_image_classification_learned(*config_and_inputs)
 
     def test_for_image_classification_fourier(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs(
             model_class=PerceiverForImageClassificationFourier
         )
-        self.model_tester.create_and_check_for_image_classification_fourier(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_image_classification_fourier(*config_and_inputs)
 
     def test_for_image_classification_conv(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs(
             model_class=PerceiverForImageClassificationConvProcessing
         )
-        self.model_tester.create_and_check_for_image_classification_conv(
-            *config_and_inputs
-        )
+        self.model_tester.create_and_check_for_image_classification_conv(*config_and_inputs)
 
     def test_model_get_set_embeddings(self):
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
             model = model_class(config)
             # we overwrite this, as the embeddings of Perceiver are an instance of nn.Parameter
             # and Perceiver doesn't support get_output_embeddings
@@ -467,26 +397,19 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             ]:
                 continue
 
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
             config.return_dict = True
 
             model = model_class(config)
             model.to(torch_device)
             model.train()
-            inputs = self._prepare_for_class(
-                inputs_dict, model_class, return_labels=True
-            )
+            inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
             loss = model(**inputs).loss
             loss.backward()
 
     def test_forward_signature(self):
         for model_class in self.all_model_classes:
-            config, _ = self.model_tester.prepare_config_and_inputs_for_model_class(
-                model_class
-            )
+            config, _ = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
 
             model = model_class(config)
             signature = inspect.signature(model.forward)
@@ -498,10 +421,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
     def test_determinism(self):
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
 
             model = model_class(config)
             model.to(torch_device)
@@ -532,10 +452,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
         seq_len = getattr(self.model_tester, "num_latents", None)
 
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
             config.return_dict = True
 
             inputs_dict["output_attentions"] = True
@@ -550,10 +467,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             cross_attentions = outputs.cross_attentions
 
             # check expected number of attentions depending on model class
-            expected_num_self_attentions = (
-                self.model_tester.num_blocks
-                * self.model_tester.num_self_attends_per_block
-            )
+            expected_num_self_attentions = self.model_tester.num_blocks * self.model_tester.num_self_attends_per_block
             if model.__class__.__name__ == "PerceiverModel":
                 # we expect to have 2 cross-attentions, namely one in the PerceiverEncoder, and one in PerceiverBasicDecoder
                 expected_num_cross_attentions = 1
@@ -612,11 +526,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
             hidden_states = outputs.hidden_states
 
-            expected_num_layers = (
-                self.model_tester.num_blocks
-                * self.model_tester.num_self_attends_per_block
-                + 1
-            )
+            expected_num_layers = self.model_tester.num_blocks * self.model_tester.num_self_attends_per_block + 1
             self.assertEqual(len(hidden_states), expected_num_layers)
 
             seq_length = self.model_tester.num_latents
@@ -627,10 +537,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             )
 
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
 
             inputs_dict["output_hidden_states"] = True
             check_hidden_states_output(inputs_dict, config, model_class)
@@ -648,18 +555,12 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
         def check_equivalence(model, tuple_inputs, dict_inputs, additional_kwargs={}):
             with torch.no_grad():
-                tuple_output = model(
-                    **tuple_inputs, return_dict=False, **additional_kwargs
-                )
-                dict_output = model(
-                    **dict_inputs, return_dict=True, **additional_kwargs
-                ).to_tuple()
+                tuple_output = model(**tuple_inputs, return_dict=False, **additional_kwargs)
+                dict_output = model(**dict_inputs, return_dict=True, **additional_kwargs).to_tuple()
 
                 def recursive_check(tuple_object, dict_object):
                     if isinstance(tuple_object, (List, Tuple)):
-                        for tuple_iterable_value, dict_iterable_value in zip(
-                            tuple_object, dict_object
-                        ):
+                        for tuple_iterable_value, dict_iterable_value in zip(tuple_object, dict_object):
                             recursive_check(tuple_iterable_value, dict_iterable_value)
                     elif isinstance(tuple_object, Dict):
                         for tuple_iterable_value, dict_iterable_value in zip(
@@ -671,9 +572,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                     else:
                         self.assertTrue(
                             torch.allclose(
-                                set_nan_tensor_to_zero(tuple_object),
-                                set_nan_tensor_to_zero(dict_object),
-                                atol=1e-5,
+                                set_nan_tensor_to_zero(tuple_object), set_nan_tensor_to_zero(dict_object), atol=1e-5
                             ),
                             msg=(
                                 "Tuple and dict output are not equal. Difference:"
@@ -686,10 +585,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                 recursive_check(tuple_output, dict_output)
 
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
 
             model = model_class(config)
             model.to(torch_device)
@@ -699,87 +595,45 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             dict_inputs = self._prepare_for_class(inputs_dict, model_class)
             check_equivalence(model, tuple_inputs, dict_inputs)
 
-            if model_class.__name__ not in [
-                "PerceiverForOpticalFlow",
-                "PerceiverForMultimodalAutoencoding",
-            ]:
+            if model_class.__name__ not in ["PerceiverForOpticalFlow", "PerceiverForMultimodalAutoencoding"]:
                 # optical flow + multimodal models don't support training for now
-                tuple_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                dict_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
+                tuple_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                dict_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
                 check_equivalence(model, tuple_inputs, dict_inputs)
 
             tuple_inputs = self._prepare_for_class(inputs_dict, model_class)
             dict_inputs = self._prepare_for_class(inputs_dict, model_class)
 
-            check_equivalence(
-                model, tuple_inputs, dict_inputs, {"output_hidden_states": True}
-            )
+            check_equivalence(model, tuple_inputs, dict_inputs, {"output_hidden_states": True})
 
             tuple_inputs = self._prepare_for_class(inputs_dict, model_class)
             dict_inputs = self._prepare_for_class(inputs_dict, model_class)
-            check_equivalence(
-                model, tuple_inputs, dict_inputs, {"output_attentions": True}
-            )
+            check_equivalence(model, tuple_inputs, dict_inputs, {"output_attentions": True})
 
-            if model_class.__name__ not in [
-                "PerceiverForOpticalFlow",
-                "PerceiverForMultimodalAutoencoding",
-            ]:
+            if model_class.__name__ not in ["PerceiverForOpticalFlow", "PerceiverForMultimodalAutoencoding"]:
                 # optical flow + multimodal models don't support training for now
-                tuple_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                dict_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                check_equivalence(
-                    model, tuple_inputs, dict_inputs, {"output_hidden_states": True}
-                )
+                tuple_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                dict_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                check_equivalence(model, tuple_inputs, dict_inputs, {"output_hidden_states": True})
 
-            if model_class.__name__ not in [
-                "PerceiverForOpticalFlow",
-                "PerceiverForMultimodalAutoencoding",
-            ]:
+            if model_class.__name__ not in ["PerceiverForOpticalFlow", "PerceiverForMultimodalAutoencoding"]:
                 # optical flow + multimodal models don't support training for now
-                tuple_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                dict_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                check_equivalence(
-                    model, tuple_inputs, dict_inputs, {"output_attentions": True}
-                )
+                tuple_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                dict_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                check_equivalence(model, tuple_inputs, dict_inputs, {"output_attentions": True})
 
-            if model_class.__name__ not in [
-                "PerceiverForOpticalFlow",
-                "PerceiverForMultimodalAutoencoding",
-            ]:
+            if model_class.__name__ not in ["PerceiverForOpticalFlow", "PerceiverForMultimodalAutoencoding"]:
                 # optical flow + multimodal models don't support training for now
-                tuple_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
-                dict_inputs = self._prepare_for_class(
-                    inputs_dict, model_class, return_labels=True
-                )
+                tuple_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
+                dict_inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
                 check_equivalence(
-                    model,
-                    tuple_inputs,
-                    dict_inputs,
-                    {"output_hidden_states": True, "output_attentions": True},
+                    model, tuple_inputs, dict_inputs, {"output_hidden_states": True, "output_attentions": True}
                 )
 
     def test_retain_grad_hidden_states_attentions(self):
         # no need to test all models as different heads yield the same functionality
         model_class = PerceiverForMaskedLM
-        (
-            config,
-            inputs_dict,
-        ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+        config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
         config.output_hidden_states = True
         config.output_attentions = True
 
@@ -806,19 +660,14 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
 
     def test_feed_forward_chunking(self):
         for model_class in self.all_model_classes:
-            (
-                original_config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            original_config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
             torch.manual_seed(0)
             config = copy.deepcopy(original_config)
             model = model_class(config)
             model.to(torch_device)
             model.eval()
 
-            hidden_states_no_chunk = model(
-                **self._prepare_for_class(inputs_dict, model_class)
-            )[0]
+            hidden_states_no_chunk = model(**self._prepare_for_class(inputs_dict, model_class))[0]
 
             torch.manual_seed(0)
             config.chunk_size_feed_forward = 1
@@ -826,33 +675,19 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             model.to(torch_device)
             model.eval()
 
-            hidden_states_with_chunk = model(
-                **self._prepare_for_class(inputs_dict, model_class)
-            )[0]
+            hidden_states_with_chunk = model(**self._prepare_for_class(inputs_dict, model_class))[0]
             if model_class.__name__ == "PerceiverForMultimodalAutoencoding":
                 # model outputs a dictionary with logits for each modality
                 for modality in hidden_states_no_chunk.keys():
                     self.assertTrue(
-                        torch.allclose(
-                            hidden_states_no_chunk[modality],
-                            hidden_states_with_chunk[modality],
-                            atol=1e-3,
-                        )
+                        torch.allclose(hidden_states_no_chunk[modality], hidden_states_with_chunk[modality], atol=1e-3)
                     )
             else:
-                torch.testing.assert_close(
-                    hidden_states_no_chunk,
-                    hidden_states_with_chunk,
-                    rtol=1e-3,
-                    atol=1e-3,
-                )
+                torch.testing.assert_close(hidden_states_no_chunk, hidden_states_with_chunk, rtol=1e-3, atol=1e-3)
 
     def test_save_load(self):
         for model_class in self.all_model_classes:
-            (
-                config,
-                inputs_dict,
-            ) = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
+            config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_model_class(model_class)
 
             model = model_class(config)
             model.to(torch_device)
@@ -870,9 +705,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                         model = model_class.from_pretrained(tmpdirname)
                         model.to(torch_device)
                         with torch.no_grad():
-                            after_outputs = model(
-                                **self._prepare_for_class(inputs_dict, model_class)
-                            )
+                            after_outputs = model(**self._prepare_for_class(inputs_dict, model_class))
 
                         # Make sure we don't have nans
                         out_1 = after_outputs[0][modality].cpu().numpy()
@@ -889,9 +722,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                     model = model_class.from_pretrained(tmpdirname)
                     model.to(torch_device)
                     with torch.no_grad():
-                        after_outputs = model(
-                            **self._prepare_for_class(inputs_dict, model_class)
-                        )
+                        after_outputs = model(**self._prepare_for_class(inputs_dict, model_class))
 
                     # Make sure we don't have nans
                     out_1 = after_outputs[0].cpu().numpy()
@@ -923,49 +754,26 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
             if hasattr(model, base_model_prefix):
                 with tempfile.TemporaryDirectory() as temp_dir_name:
                     model.base_model.save_pretrained(temp_dir_name)
-                    model, loading_info = model_class.from_pretrained(
-                        temp_dir_name, output_loading_info=True
-                    )
-                    with self.subTest(
-                        msg=f"Missing keys for {model.__class__.__name__}"
-                    ):
+                    model, loading_info = model_class.from_pretrained(temp_dir_name, output_loading_info=True)
+                    with self.subTest(msg=f"Missing keys for {model.__class__.__name__}"):
                         self.assertGreater(len(loading_info["missing_keys"]), 0)
 
     def test_problem_types(self):
         problem_types = [
-            {
-                "title": "multi_label_classification",
-                "num_labels": 2,
-                "dtype": torch.float,
-            },
-            {
-                "title": "single_label_classification",
-                "num_labels": 1,
-                "dtype": torch.long,
-            },
+            {"title": "multi_label_classification", "num_labels": 2, "dtype": torch.float},
+            {"title": "single_label_classification", "num_labels": 1, "dtype": torch.long},
             {"title": "regression", "num_labels": 1, "dtype": torch.float},
         ]
 
         for model_class in self.all_model_classes:
-            if (
-                model_class.__name__
-                not in MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.values()
-            ):
+            if model_class.__name__ not in MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.values():
                 continue
 
-            (
-                config,
-                inputs,
-                input_mask,
-                _,
-                _,
-            ) = self.model_tester.prepare_config_and_inputs(model_class=model_class)
+            config, inputs, input_mask, _, _ = self.model_tester.prepare_config_and_inputs(model_class=model_class)
             inputs_dict = {"inputs": inputs, "attention_mask": input_mask}
 
             for problem_type in problem_types:
-                with self.subTest(
-                    msg=f"Testing {model_class} with {problem_type['title']}"
-                ):
+                with self.subTest(msg=f"Testing {model_class} with {problem_type['title']}"):
                     config.problem_type = problem_type["title"]
                     config.num_labels = problem_type["num_labels"]
 
@@ -973,16 +781,10 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                     model.to(torch_device)
                     model.train()
 
-                    inputs = self._prepare_for_class(
-                        inputs_dict, model_class, return_labels=True
-                    )
+                    inputs = self._prepare_for_class(inputs_dict, model_class, return_labels=True)
 
                     if problem_type["num_labels"] > 1:
-                        inputs["labels"] = (
-                            inputs["labels"]
-                            .unsqueeze(1)
-                            .repeat(1, problem_type["num_labels"])
-                        )
+                        inputs["labels"] = inputs["labels"].unsqueeze(1).repeat(1, problem_type["num_labels"])
 
                     inputs["labels"] = inputs["labels"].to(problem_type["dtype"])
 
@@ -993,10 +795,7 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
                     with warnings.catch_warnings(record=True) as warning_list:
                         loss = model(**inputs).loss
                     for w in warning_list:
-                        if (
-                            "Using a target size that is different to the input size"
-                            in str(w.message)
-                        ):
+                        if "Using a target size that is different to the input size" in str(w.message):
                             raise ValueError(
                                 f"Something is going wrong in the regression problem: intercepted {w.message}"
                             )
@@ -1011,18 +810,6 @@ class PerceiverModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCas
         )
     )
     def test_multi_gpu_data_parallel_forward(self):
-        pass
-
-    @unittest.skip(
-        reason="Perceiver models don't have a typical head like is the case with BERT"
-    )
-    def test_save_load_fast_init_from_base(self):
-        pass
-
-    @unittest.skip(
-        reason="Perceiver models don't have a typical head like is the case with BERT"
-    )
-    def test_save_load_fast_init_to_base(self):
         pass
 
     @unittest.skip(reason="Perceiver doesn't support resize_token_embeddings")
@@ -1056,9 +843,7 @@ def prepare_img():
 
 # Helper functions for optical flow integration test
 def prepare_optical_flow_images():
-    dataset = load_dataset(
-        "hf-internal-testing/fixtures_sintel", split="test", trust_remote_code=True
-    )
+    dataset = load_dataset("hf-internal-testing/fixtures_sintel", split="test", trust_remote_code=True)
     image1 = Image.open(dataset[0]["file"]).convert("RGB")
     image2 = Image.open(dataset[0]["file"]).convert("RGB")
 
@@ -1076,9 +861,7 @@ def extract_image_patches(x, kernel, stride=1, dilation=1):
     w2 = math.ceil(w / stride)
     pad_row = (h2 - 1) * stride + (kernel - 1) * dilation + 1 - h
     pad_col = (w2 - 1) * stride + (kernel - 1) * dilation + 1 - w
-    x = torch.nn.functional.pad(
-        x, (pad_row // 2, pad_row - pad_row // 2, pad_col // 2, pad_col - pad_col // 2)
-    )
+    x = torch.nn.functional.pad(x, (pad_row // 2, pad_row - pad_row // 2, pad_col // 2, pad_col - pad_col // 2))
 
     # Extract patches
     patches = x.unfold(2, kernel, stride).unfold(3, kernel, stride)
@@ -1102,9 +885,7 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
 
         # mask " missing.".
         encoding.input_ids[0, 52:61] = tokenizer.mask_token_id
-        inputs, input_mask = encoding.input_ids.to(
-            torch_device
-        ), encoding.attention_mask.to(torch_device)
+        inputs, input_mask = encoding.input_ids.to(torch_device), encoding.attention_mask.to(torch_device)
 
         # forward pass
         with torch.no_grad():
@@ -1116,17 +897,11 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
         self.assertEqual(logits.shape, expected_shape)
 
         expected_slice = torch.tensor(
-            [
-                [-10.8609, -10.7651, -10.9187],
-                [-12.1689, -11.9389, -12.1479],
-                [-12.1518, -11.9707, -12.2073],
-            ],
+            [[-10.8609, -10.7651, -10.9187], [-12.1689, -11.9389, -12.1479], [-12.1518, -11.9707, -12.2073]],
             device=torch_device,
         )
 
-        torch.testing.assert_close(
-            logits[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(logits[0, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
         expected_greedy_predictions = [38, 115, 111, 121, 121, 111, 116, 109, 52]
         masked_tokens_predictions = logits[0, 52:61].argmax(dim=-1).tolist()
@@ -1135,16 +910,12 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification(self):
         image_processor = PerceiverImageProcessor()
-        model = PerceiverForImageClassificationLearned.from_pretrained(
-            "deepmind/vision-perceiver-learned"
-        )
+        model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
         model.to(torch_device)
 
         # prepare inputs
         image = prepare_img()
-        inputs = image_processor(image, return_tensors="pt").pixel_values.to(
-            torch_device
-        )
+        inputs = image_processor(image, return_tensors="pt").pixel_values.to(torch_device)
         input_mask = None
 
         # forward pass
@@ -1164,16 +935,12 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification_fourier(self):
         image_processor = PerceiverImageProcessor()
-        model = PerceiverForImageClassificationFourier.from_pretrained(
-            "deepmind/vision-perceiver-fourier"
-        )
+        model = PerceiverForImageClassificationFourier.from_pretrained("deepmind/vision-perceiver-fourier")
         model.to(torch_device)
 
         # prepare inputs
         image = prepare_img()
-        inputs = image_processor(image, return_tensors="pt").pixel_values.to(
-            torch_device
-        )
+        inputs = image_processor(image, return_tensors="pt").pixel_values.to(torch_device)
         input_mask = None
 
         # forward pass
@@ -1192,16 +959,12 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_image_classification_conv(self):
         image_processor = PerceiverImageProcessor()
-        model = PerceiverForImageClassificationConvProcessing.from_pretrained(
-            "deepmind/vision-perceiver-conv"
-        )
+        model = PerceiverForImageClassificationConvProcessing.from_pretrained("deepmind/vision-perceiver-conv")
         model.to(torch_device)
 
         # prepare inputs
         image = prepare_img()
-        inputs = image_processor(image, return_tensors="pt").pixel_values.to(
-            torch_device
-        )
+        inputs = image_processor(image, return_tensors="pt").pixel_values.to(torch_device)
         input_mask = None
 
         # forward pass
@@ -1219,9 +982,7 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
 
     @slow
     def test_inference_optical_flow(self):
-        model = PerceiverForOpticalFlow.from_pretrained(
-            "deepmind/optical-flow-perceiver"
-        )
+        model = PerceiverForOpticalFlow.from_pretrained("deepmind/optical-flow-perceiver")
         model.to(torch_device)
 
         # prepare inputs
@@ -1261,30 +1022,22 @@ class PerceiverModelIntegrationTest(unittest.TestCase):
             device=torch_device,
         )
 
-        torch.testing.assert_close(
-            logits[0, :3, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(logits[0, :3, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)
 
     @slow
     def test_inference_interpolate_pos_encoding(self):
         image_processor = PerceiverImageProcessor(size={"height": 384, "width": 384})
-        model = PerceiverForImageClassificationLearned.from_pretrained(
-            "deepmind/vision-perceiver-learned"
-        )
+        model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
         model.to(torch_device)
 
         # prepare inputs
         image = prepare_img()
-        inputs = image_processor(image, return_tensors="pt").pixel_values.to(
-            torch_device
-        )
+        inputs = image_processor(image, return_tensors="pt").pixel_values.to(torch_device)
         input_mask = None
 
         # forward pass
         with torch.no_grad():
-            outputs = model(
-                inputs=inputs, attention_mask=input_mask, interpolate_pos_encoding=True
-            )
+            outputs = model(inputs=inputs, attention_mask=input_mask, interpolate_pos_encoding=True)
         logits = outputs.logits
 
         # verify logits

@@ -14,14 +14,13 @@
 # limitations under the License.
 """TVP model configuration"""
 
-# Standard
 import copy
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ...utils.backbone_utils import verify_backbone_config_arguments
 from ..auto import CONFIG_MAPPING
+
 
 logger = logging.get_logger(__name__)
 
@@ -132,9 +131,7 @@ class TvpConfig(PretrainedConfig):
     ):
         super().__init__(**kwargs)
         if backbone_config is None and backbone is None:
-            logger.info(
-                "`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone."
-            )
+            logger.info("`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone.")
             backbone_config = CONFIG_MAPPING["resnet"](out_features=["stage4"])
         elif isinstance(backbone_config, dict):
             backbone_model_type = backbone_config.get("model_type")

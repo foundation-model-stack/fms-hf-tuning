@@ -13,23 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 import numpy as np
 import pytest
 
-# First Party
 from transformers import load_tool
 from transformers.agents.agent_types import AGENT_TYPE_MAPPING
 from transformers.agents.default_tools import BASE_PYTHON_TOOLS
-from transformers.agents.python_interpreter import (
-    InterpreterError,
-    evaluate_python_code,
-)
+from transformers.agents.python_interpreter import InterpreterError, evaluate_python_code
 
-# Local
 from .test_tools_common import ToolTesterMixin
 
 
@@ -64,12 +57,7 @@ class PythonInterpreterToolTester(unittest.TestCase, ToolTesterMixin):
         for _input, expected_input in zip(inputs, self.tool.inputs.values()):
             input_type = expected_input["type"]
             if isinstance(input_type, list):
-                _inputs.append(
-                    [
-                        AGENT_TYPE_MAPPING[_input_type](_input)
-                        for _input_type in input_type
-                    ]
-                )
+                _inputs.append([AGENT_TYPE_MAPPING[_input_type](_input) for _input_type in input_type])
             else:
                 _inputs.append(AGENT_TYPE_MAPPING[input_type](_input))
 
@@ -103,10 +91,7 @@ class PythonInterpreterTester(unittest.TestCase):
         code = "print = '3'"
         with pytest.raises(InterpreterError) as e:
             evaluate_python_code(code, {"print": print}, state={})
-        assert (
-            "Cannot assign to name 'print': doing this would erase the existing tool!"
-            in str(e)
-        )
+        assert "Cannot assign to name 'print': doing this would erase the existing tool!" in str(e)
 
     def test_evaluate_call(self):
         code = "y = add_two(x)"
@@ -132,9 +117,7 @@ class PythonInterpreterTester(unittest.TestCase):
         state = {"x": 3}
         result = evaluate_python_code(code, {"add_two": add_two}, state=state)
         self.assertDictEqual(result, {"x": 3, "y": 5})
-        self.assertDictEqual(
-            state, {"x": 3, "test_dict": {"x": 3, "y": 5}, "print_outputs": ""}
-        )
+        self.assertDictEqual(state, {"x": 3, "test_dict": {"x": 3, "y": 5}, "print_outputs": ""})
 
     def test_evaluate_expression(self):
         code = "x = 3\ny = 5"
@@ -150,9 +133,7 @@ class PythonInterpreterTester(unittest.TestCase):
         result = evaluate_python_code(code, {}, state=state)
         # evaluate returns the value of the last assignment.
         assert result == "This is x: 3."
-        self.assertDictEqual(
-            state, {"x": 3, "text": "This is x: 3.", "print_outputs": ""}
-        )
+        self.assertDictEqual(state, {"x": 3, "text": "This is x: 3.", "print_outputs": ""})
 
     def test_evaluate_if(self):
         code = "if x <= 3:\n    y = 2\nelse:\n    y = 5"
@@ -193,15 +174,11 @@ class PythonInterpreterTester(unittest.TestCase):
         state = {"x": 3}
         result = evaluate_python_code(code, {"add_two": add_two}, state=state)
         assert result == 5
-        self.assertDictEqual(
-            state, {"x": 3, "test_dict": {"x": 3, "y": 5}, "print_outputs": ""}
-        )
+        self.assertDictEqual(state, {"x": 3, "test_dict": {"x": 3, "y": 5}, "print_outputs": ""})
 
         code = "vendor = {'revenue': 31000, 'rent': 50312}; vendor['ratio'] = round(vendor['revenue'] / vendor['rent'], 2)"
         state = {}
-        evaluate_python_code(
-            code, {"min": min, "print": print, "round": round}, state=state
-        )
+        evaluate_python_code(code, {"min": min, "print": print, "round": round}, state=state)
         assert state["vendor"] == {"revenue": 31000, "rent": 50312, "ratio": 0.62}
 
     def test_subscript_string_with_string_index_raises_appropriate_error(self):
@@ -315,16 +292,7 @@ print(check_digits)
 """
         state = {}
         evaluate_python_code(
-            code,
-            {
-                "range": range,
-                "print": print,
-                "sum": sum,
-                "enumerate": enumerate,
-                "int": int,
-                "str": str,
-            },
-            state,
+            code, {"range": range, "print": print, "sum": sum, "enumerate": enumerate, "int": int, "str": str}, state
         )
 
     def test_listcomp(self):
@@ -357,9 +325,7 @@ print(check_digits)
         assert result == {0: 0, 1: 1, 2: 4}
 
         code = "{num: name for num, name in {101: 'a', 102: 'b'}.items() if name not in ['a']}"
-        result = evaluate_python_code(
-            code, {"print": print}, state={}, authorized_imports=["pandas"]
-        )
+        result = evaluate_python_code(code, {"print": print}, state={}, authorized_imports=["pandas"])
         assert result == {102: "b"}
 
         code = """
@@ -407,9 +373,7 @@ else:
     best_city = "Manhattan"
     best_city
     """
-        result = evaluate_python_code(
-            code, BASE_PYTHON_TOOLS, state={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}
-        )
+        result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
         assert result == "Brooklyn"
 
         code = """if d > e and a < b:
@@ -420,9 +384,7 @@ else:
     best_city = "Manhattan"
     best_city
     """
-        result = evaluate_python_code(
-            code, BASE_PYTHON_TOOLS, state={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}
-        )
+        result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
         assert result == "Sacramento"
 
     def test_if_conditions(self):
@@ -438,9 +400,7 @@ if char.isalpha():
         result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert result == 2.0
 
-        code = (
-            "from random import choice, seed\nseed(12)\nchoice(['win', 'lose', 'draw'])"
-        )
+        code = "from random import choice, seed\nseed(12)\nchoice(['win', 'lose', 'draw'])"
         result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={})
         assert result == "lose"
 
@@ -474,14 +434,10 @@ if char.isalpha():
 
         # Test submodules are handled properly, thus not raising error
         code = "import numpy.random as rd\nrng = rd.default_rng(12345)\nrng.random()"
-        result = evaluate_python_code(
-            code, BASE_PYTHON_TOOLS, state={}, authorized_imports=["numpy"]
-        )
+        result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={}, authorized_imports=["numpy"])
 
         code = "from numpy.random import default_rng as d_rng\nrng = d_rng(12345)\nrng.random()"
-        result = evaluate_python_code(
-            code, BASE_PYTHON_TOOLS, state={}, authorized_imports=["numpy"]
-        )
+        result = evaluate_python_code(code, BASE_PYTHON_TOOLS, state={}, authorized_imports=["numpy"])
 
     def test_additional_imports(self):
         code = "import numpy as np"
@@ -598,11 +554,7 @@ cat_sound = cat.sound()
 cat_str = str(cat)
     """
         state = {}
-        evaluate_python_code(
-            code,
-            {"print": print, "len": len, "super": super, "str": str, "sum": sum},
-            state=state,
-        )
+        evaluate_python_code(code, {"print": print, "len": len, "super": super, "str": str, "sum": sum}, state=state)
 
         # Assert results
         assert state["dog1_sound"] == "The dog barks."
@@ -636,11 +588,7 @@ except ValueError as e:
     exception_message = str(e)
     """
         state = {}
-        evaluate_python_code(
-            code,
-            {"print": print, "len": len, "super": super, "str": str, "sum": sum},
-            state=state,
-        )
+        evaluate_python_code(code, {"print": print, "len": len, "super": super, "str": str, "sum": sum}, state=state)
         assert state["exception_message"] == "An error occurred"
 
     def test_print(self):
@@ -652,9 +600,7 @@ except ValueError as e:
     def test_types_as_objects(self):
         code = "type_a = float(2); type_b = str; type_c = int"
         state = {}
-        result = evaluate_python_code(
-            code, {"float": float, "str": str, "int": int}, state=state
-        )
+        result = evaluate_python_code(code, {"float": float, "str": str, "int": int}, state=state)
         assert result is int
 
     def test_tuple_id(self):
@@ -785,9 +731,7 @@ def add_one(n, shift):
 add_one(1, 1)
 """
         state = {}
-        result = evaluate_python_code(
-            code, {"print": print, "range": range, "ord": ord, "chr": chr}, state=state
-        )
+        result = evaluate_python_code(code, {"print": print, "range": range, "ord": ord, "chr": chr}, state=state)
         assert result == 2
 
         # test returning None
@@ -798,9 +742,7 @@ def returns_none(a):
 returns_none(1)
 """
         state = {}
-        result = evaluate_python_code(
-            code, {"print": print, "range": range, "ord": ord, "chr": chr}, state=state
-        )
+        result = evaluate_python_code(code, {"print": print, "range": range, "ord": ord, "chr": chr}, state=state)
         assert result is None
 
     def test_nested_for_loop(self):
@@ -816,9 +758,7 @@ out = [i for sublist in all_res for i in sublist]
 out[:10]
 """
         state = {}
-        result = evaluate_python_code(
-            code, {"print": print, "range": range}, state=state
-        )
+        result = evaluate_python_code(code, {"print": print, "range": range}, state=state)
         assert result == [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
 
     def test_pandas(self):
@@ -833,9 +773,7 @@ parts_with_5_set_count = df[df['SetCount'] == 5.0]
 parts_with_5_set_count[['Quantity', 'SetCount']].values[1]
 """
         state = {}
-        result = evaluate_python_code(
-            code, {}, state=state, authorized_imports=["pandas"]
-        )
+        result = evaluate_python_code(code, {}, state=state, authorized_imports=["pandas"])
         assert np.array_equal(result, [-1, 5])
 
         code = """
@@ -847,9 +785,7 @@ print("HH0")
 # Filter the DataFrame to get only the rows with outdated atomic numbers
 filtered_df = df.loc[df['AtomicNumber'].isin([104])]
 """
-        result = evaluate_python_code(
-            code, {"print": print}, state={}, authorized_imports=["pandas"]
-        )
+        result = evaluate_python_code(code, {"print": print}, state={}, authorized_imports=["pandas"])
         assert np.array_equal(result.values[0], [104, 1])
 
         code = """import pandas as pd
@@ -882,9 +818,7 @@ coords_barcelona = (41.3869, 2.1660)
 
 distance_geneva_barcelona = haversine(*coords_geneva, *coords_barcelona)
 """
-        result = evaluate_python_code(
-            code, {"print": print, "map": map}, state={}, authorized_imports=["math"]
-        )
+        result = evaluate_python_code(code, {"print": print, "map": map}, state={}, authorized_imports=["math"])
         assert round(result, 1) == 622395.4
 
     def test_for(self):

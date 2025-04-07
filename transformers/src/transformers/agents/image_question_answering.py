@@ -15,11 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Third Party
-from PIL import Image
 import torch
+from PIL import Image
 
-# Local
 from ..models.auto import AutoModelForVisualQuestionAnswering, AutoProcessor
 from ..utils import requires_backends
 from .tools import PipelineTool
@@ -27,7 +25,9 @@ from .tools import PipelineTool
 
 class ImageQuestionAnsweringTool(PipelineTool):
     default_checkpoint = "dandelin/vilt-b32-finetuned-vqa"
-    description = "This is a tool that answers a question about an image. It returns a text that is the answer to the question."
+    description = (
+        "This is a tool that answers a question about an image. It returns a text that is the answer to the question."
+    )
     name = "image_qa"
     pre_processor_class = AutoProcessor
     model_class = AutoModelForVisualQuestionAnswering

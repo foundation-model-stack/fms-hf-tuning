@@ -13,11 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from dataclasses import fields, is_dataclass
-from pathlib import Path
-from textwrap import dedent
-from typing import get_args
 import copy
 import inspect
 import json
@@ -25,8 +20,11 @@ import os
 import random
 import re
 import unittest
+from dataclasses import fields, is_dataclass
+from pathlib import Path
+from textwrap import dedent
+from typing import get_args
 
-# Third Party
 from huggingface_hub import (
     AudioClassificationInput,
     AutomaticSpeechRecognitionInput,
@@ -40,7 +38,6 @@ from huggingface_hub import (
     ZeroShotImageClassificationInput,
 )
 
-# First Party
 from transformers.models.auto.processing_auto import PROCESSOR_MAPPING_NAMES
 from transformers.pipelines import (
     AudioClassificationPipeline,
@@ -65,25 +62,14 @@ from transformers.testing_utils import (
 )
 from transformers.utils import direct_transformers_import, logging
 
-# Local
-from .pipelines.test_pipelines_audio_classification import (
-    AudioClassificationPipelineTests,
-)
-from .pipelines.test_pipelines_automatic_speech_recognition import (
-    AutomaticSpeechRecognitionPipelineTests,
-)
+from .pipelines.test_pipelines_audio_classification import AudioClassificationPipelineTests
+from .pipelines.test_pipelines_automatic_speech_recognition import AutomaticSpeechRecognitionPipelineTests
 from .pipelines.test_pipelines_depth_estimation import DepthEstimationPipelineTests
-from .pipelines.test_pipelines_document_question_answering import (
-    DocumentQuestionAnsweringPipelineTests,
-)
+from .pipelines.test_pipelines_document_question_answering import DocumentQuestionAnsweringPipelineTests
 from .pipelines.test_pipelines_feature_extraction import FeatureExtractionPipelineTests
 from .pipelines.test_pipelines_fill_mask import FillMaskPipelineTests
-from .pipelines.test_pipelines_image_classification import (
-    ImageClassificationPipelineTests,
-)
-from .pipelines.test_pipelines_image_feature_extraction import (
-    ImageFeatureExtractionPipelineTests,
-)
+from .pipelines.test_pipelines_image_classification import ImageClassificationPipelineTests
+from .pipelines.test_pipelines_image_feature_extraction import ImageFeatureExtractionPipelineTests
 from .pipelines.test_pipelines_image_segmentation import ImageSegmentationPipelineTests
 from .pipelines.test_pipelines_image_text_to_text import ImageTextToTextPipelineTests
 from .pipelines.test_pipelines_image_to_image import ImageToImagePipelineTests
@@ -93,34 +79,19 @@ from .pipelines.test_pipelines_object_detection import ObjectDetectionPipelineTe
 from .pipelines.test_pipelines_question_answering import QAPipelineTests
 from .pipelines.test_pipelines_summarization import SummarizationPipelineTests
 from .pipelines.test_pipelines_table_question_answering import TQAPipelineTests
-from .pipelines.test_pipelines_text2text_generation import (
-    Text2TextGenerationPipelineTests,
-)
-from .pipelines.test_pipelines_text_classification import (
-    TextClassificationPipelineTests,
-)
+from .pipelines.test_pipelines_text2text_generation import Text2TextGenerationPipelineTests
+from .pipelines.test_pipelines_text_classification import TextClassificationPipelineTests
 from .pipelines.test_pipelines_text_generation import TextGenerationPipelineTests
 from .pipelines.test_pipelines_text_to_audio import TextToAudioPipelineTests
-from .pipelines.test_pipelines_token_classification import (
-    TokenClassificationPipelineTests,
-)
+from .pipelines.test_pipelines_token_classification import TokenClassificationPipelineTests
 from .pipelines.test_pipelines_translation import TranslationPipelineTests
-from .pipelines.test_pipelines_video_classification import (
-    VideoClassificationPipelineTests,
-)
-from .pipelines.test_pipelines_visual_question_answering import (
-    VisualQuestionAnsweringPipelineTests,
-)
+from .pipelines.test_pipelines_video_classification import VideoClassificationPipelineTests
+from .pipelines.test_pipelines_visual_question_answering import VisualQuestionAnsweringPipelineTests
 from .pipelines.test_pipelines_zero_shot import ZeroShotClassificationPipelineTests
-from .pipelines.test_pipelines_zero_shot_audio_classification import (
-    ZeroShotAudioClassificationPipelineTests,
-)
-from .pipelines.test_pipelines_zero_shot_image_classification import (
-    ZeroShotImageClassificationPipelineTests,
-)
-from .pipelines.test_pipelines_zero_shot_object_detection import (
-    ZeroShotObjectDetectionPipelineTests,
-)
+from .pipelines.test_pipelines_zero_shot_audio_classification import ZeroShotAudioClassificationPipelineTests
+from .pipelines.test_pipelines_zero_shot_image_classification import ZeroShotImageClassificationPipelineTests
+from .pipelines.test_pipelines_zero_shot_object_detection import ZeroShotObjectDetectionPipelineTests
+
 
 pipeline_test_mapping = {
     "audio-classification": {"test": AudioClassificationPipelineTests},
@@ -149,12 +120,8 @@ pipeline_test_mapping = {
     "video-classification": {"test": VideoClassificationPipelineTests},
     "visual-question-answering": {"test": VisualQuestionAnsweringPipelineTests},
     "zero-shot": {"test": ZeroShotClassificationPipelineTests},
-    "zero-shot-audio-classification": {
-        "test": ZeroShotAudioClassificationPipelineTests
-    },
-    "zero-shot-image-classification": {
-        "test": ZeroShotImageClassificationPipelineTests
-    },
+    "zero-shot-audio-classification": {"test": ZeroShotAudioClassificationPipelineTests},
+    "zero-shot-image-classification": {"test": ZeroShotImageClassificationPipelineTests},
     "zero-shot-object-detection": {"test": ZeroShotObjectDetectionPipelineTests},
 }
 
@@ -162,10 +129,7 @@ task_to_pipeline_and_spec_mapping = {
     # Adding a task to this list will cause its pipeline input signature to be checked against the corresponding
     # task spec in the HF Hub
     "audio-classification": (AudioClassificationPipeline, AudioClassificationInput),
-    "automatic-speech-recognition": (
-        AutomaticSpeechRecognitionPipeline,
-        AutomaticSpeechRecognitionInput,
-    ),
+    "automatic-speech-recognition": (AutomaticSpeechRecognitionPipeline, AutomaticSpeechRecognitionInput),
     "depth-estimation": (DepthEstimationPipeline, DepthEstimationInput),
     "image-classification": (ImageClassificationPipeline, ImageClassificationInput),
     "image-segmentation": (ImageSegmentationPipeline, ImageSegmentationInput),
@@ -173,10 +137,7 @@ task_to_pipeline_and_spec_mapping = {
     "object-detection": (ObjectDetectionPipeline, ObjectDetectionInput),
     "question-answering": (QuestionAnsweringPipeline, QuestionAnsweringInput),
     "video-classification": (VideoClassificationPipeline, VideoClassificationInput),
-    "zero-shot-image-classification": (
-        ZeroShotImageClassificationPipeline,
-        ZeroShotImageClassificationInput,
-    ),
+    "zero-shot-image-classification": (ZeroShotImageClassificationPipeline, ZeroShotImageClassificationInput),
 }
 
 for task, task_info in pipeline_test_mapping.items():
@@ -190,17 +151,11 @@ for task, task_info in pipeline_test_mapping.items():
 # The default value `hf-internal-testing` is for running the pipeline testing against the tiny models on the Hub.
 # For debugging purpose, we can specify a local path which is the `output_path` argument of a previous run of
 # `utils/create_dummy_models.py`.
-TRANSFORMERS_TINY_MODEL_PATH = os.environ.get(
-    "TRANSFORMERS_TINY_MODEL_PATH", "hf-internal-testing"
-)
+TRANSFORMERS_TINY_MODEL_PATH = os.environ.get("TRANSFORMERS_TINY_MODEL_PATH", "hf-internal-testing")
 if TRANSFORMERS_TINY_MODEL_PATH == "hf-internal-testing":
-    TINY_MODEL_SUMMARY_FILE_PATH = os.path.join(
-        Path(__file__).parent.parent, "tests/utils/tiny_model_summary.json"
-    )
+    TINY_MODEL_SUMMARY_FILE_PATH = os.path.join(Path(__file__).parent.parent, "tests/utils/tiny_model_summary.json")
 else:
-    TINY_MODEL_SUMMARY_FILE_PATH = os.path.join(
-        TRANSFORMERS_TINY_MODEL_PATH, "reports", "tiny_model_summary.json"
-    )
+    TINY_MODEL_SUMMARY_FILE_PATH = os.path.join(TRANSFORMERS_TINY_MODEL_PATH, "reports", "tiny_model_summary.json")
 with open(TINY_MODEL_SUMMARY_FILE_PATH) as fp:
     tiny_model_summary = json.load(fp)
 
@@ -275,10 +230,7 @@ class PipelineTesterMixin:
                 processor_names = [processor_names]
 
             commit = None
-            if (
-                model_arch_name in tiny_model_summary
-                and "sha" in tiny_model_summary[model_arch_name]
-            ):
+            if model_arch_name in tiny_model_summary and "sha" in tiny_model_summary[model_arch_name]:
                 commit = tiny_model_summary[model_arch_name]["sha"]
 
             repo_name = f"tiny-random-{model_arch_name}"
@@ -454,9 +406,7 @@ class PipelineTesterMixin:
                 f"{self.__class__.__name__}::test_pipeline_{task.replace('-', '_')}_{torch_dtype} is skipped: Could not find or load "
                 f"the model from `{repo_id}` with `{model_architecture}`."
             )
-            self.skipTest(
-                f"Could not find or load the model from {repo_id} with {model_architecture}."
-            )
+            self.skipTest(f"Could not find or load the model from {repo_id} with {model_architecture}.")
 
         # -------------------- Load tokenizer --------------------
 
@@ -476,39 +426,27 @@ class PipelineTesterMixin:
                 try:
                     # Can fail if some extra dependencies are not installed
                     processor_class = getattr(transformers_module, name)
-                    processor = processor_class.from_pretrained(
-                        repo_id, revision=commit
-                    )
+                    processor = processor_class.from_pretrained(repo_id, revision=commit)
                     processors[key] = processor
                 except Exception:
                     logger.warning(
                         f"{self.__class__.__name__}::test_pipeline_{task.replace('-', '_')}_{torch_dtype} is skipped: "
                         f"Could not load the {key} from `{repo_id}` with `{name}`."
                     )
-                    self.skipTest(
-                        f"Could not load the {key} from {repo_id} with {name}."
-                    )
+                    self.skipTest(f"Could not load the {key} from {repo_id} with {name}.")
 
         # ---------------------------------------------------------
 
         # TODO: Maybe not upload such problematic tiny models to Hub.
-        if (
-            tokenizer is None
-            and "image_processor" not in processors
-            and "feature_extractor" not in processors
-        ):
+        if tokenizer is None and "image_processor" not in processors and "feature_extractor" not in processors:
             logger.warning(
                 f"{self.__class__.__name__}::test_pipeline_{task.replace('-', '_')}_{torch_dtype} is skipped: Could not find or load "
                 f"any tokenizer / image processor / feature extractor from `{repo_id}`."
             )
-            self.skipTest(
-                f"Could not find or load any tokenizer / processor from {repo_id}."
-            )
+            self.skipTest(f"Could not find or load any tokenizer / processor from {repo_id}.")
 
         pipeline_test_class_name = pipeline_test_mapping[task]["test"].__name__
-        if self.is_pipeline_test_to_skip_more(
-            pipeline_test_class_name, model.config, model, tokenizer, **processors
-        ):
+        if self.is_pipeline_test_to_skip_more(pipeline_test_class_name, model.config, model, tokenizer, **processors):
             logger.warning(
                 f"{self.__class__.__name__}::test_pipeline_{task.replace('-', '_')}_{torch_dtype} is skipped: test is "
                 f"currently known to fail for: model `{model_architecture.__name__}` | tokenizer "
@@ -529,9 +467,7 @@ class PipelineTesterMixin:
         # `run_pipeline_test`.
         task_test = pipeline_test_mapping[task]["test"]()
 
-        pipeline, examples = task_test.get_test_pipeline(
-            model, tokenizer, **processors, torch_dtype=torch_dtype
-        )
+        pipeline, examples = task_test.get_test_pipeline(model, tokenizer, **processors, torch_dtype=torch_dtype)
         if pipeline is None:
             # The test can disable itself, but it should be very marginal
             # Concerns: Wav2Vec2ForCTC without tokenizer test (FastTokenizer don't exist)
@@ -545,10 +481,7 @@ class PipelineTesterMixin:
 
         def run_batch_test(pipeline, examples):
             # Need to copy because `Conversation` are stateful
-            if (
-                pipeline.tokenizer is not None
-                and pipeline.tokenizer.pad_token_id is None
-            ):
+            if pipeline.tokenizer is not None and pipeline.tokenizer.pad_token_id is None:
                 return  # No batching for this and it's OK
 
             # 10 examples with batch size 4 means there needs to be a unfinished batch
@@ -846,9 +779,7 @@ class PipelineTesterMixin:
     @is_pipeline_test
     @require_torch
     def test_pipeline_zero_shot_audio_classification_fp16(self):
-        self.run_task_tests(
-            task="zero-shot-audio-classification", torch_dtype="float16"
-        )
+        self.run_task_tests(task="zero-shot-audio-classification", torch_dtype="float16")
 
     @is_pipeline_test
     @require_vision
@@ -859,9 +790,7 @@ class PipelineTesterMixin:
     @require_vision
     @require_torch
     def test_pipeline_zero_shot_image_classification_fp16(self):
-        self.run_task_tests(
-            task="zero-shot-image-classification", torch_dtype="float16"
-        )
+        self.run_task_tests(task="zero-shot-image-classification", torch_dtype="float16")
 
     @is_pipeline_test
     @require_vision
@@ -937,19 +866,12 @@ def validate_test_components(model, tokenizer):
     CONFIG_WITHOUT_VOCAB_SIZE = ["CanineConfig"]
     if tokenizer is not None:
         # Removing `decoder=True` in `get_text_config` can lead to conflicting values e.g. in MusicGen
-        config_vocab_size = getattr(
-            model.config.get_text_config(decoder=True), "vocab_size", None
-        )
+        config_vocab_size = getattr(model.config.get_text_config(decoder=True), "vocab_size", None)
         # For CLIP-like models
         if config_vocab_size is None:
             if hasattr(model.config, "text_encoder"):
-                config_vocab_size = getattr(
-                    model.config.text_config, "vocab_size", None
-                )
-        if (
-            config_vocab_size is None
-            and model.config.__class__.__name__ not in CONFIG_WITHOUT_VOCAB_SIZE
-        ):
+                config_vocab_size = getattr(model.config.text_config, "vocab_size", None)
+        if config_vocab_size is None and model.config.__class__.__name__ not in CONFIG_WITHOUT_VOCAB_SIZE:
             raise ValueError(
                 "Could not determine `vocab_size` from model configuration while `tokenizer` is not `None`."
             )
@@ -982,9 +904,7 @@ def parse_args_from_docstring_by_indentation(docstring):
     # source of truth, so these have to be correct!
     docstring = dedent(docstring)
     lines_by_indent = [
-        (len(line) - len(line.lstrip()), line.strip())
-        for line in docstring.split("\n")
-        if line.strip()
+        (len(line) - len(line.lstrip()), line.strip()) for line in docstring.split("\n") if line.strip()
     ]
     args_lineno = None
     args_indent = None
@@ -1010,6 +930,11 @@ def parse_args_from_docstring_by_indentation(docstring):
 
 
 def compare_pipeline_args_to_hub_spec(pipeline_class, hub_spec):
+    """
+    Compares the docstring of a pipeline class to the fields of the matching Hub input signature class to ensure that
+    they match. This guarantees that Transformers pipelines can be used in inference without needing to manually
+    refactor or rename inputs.
+    """
     ALLOWED_TRANSFORMERS_ONLY_ARGS = ["timeout"]
 
     docstring = inspect.getdoc(pipeline_class.__call__).strip()
@@ -1017,18 +942,20 @@ def compare_pipeline_args_to_hub_spec(pipeline_class, hub_spec):
     hub_args = set(get_arg_names_from_hub_spec(hub_spec))
 
     # Special casing: We allow the name of this arg to differ
-    js_generate_args = [js_arg for js_arg in hub_args if js_arg.startswith("generate")]
+    hub_generate_args = [
+        hub_arg for hub_arg in hub_args if hub_arg.startswith("generate") or hub_arg.startswith("generation")
+    ]
     docstring_generate_args = [
         docstring_arg
         for docstring_arg in docstring_args
-        if docstring_arg.startswith("generate")
+        if docstring_arg.startswith("generate") or docstring_arg.startswith("generation")
     ]
     if (
-        len(js_generate_args) == 1
+        len(hub_generate_args) == 1
         and len(docstring_generate_args) == 1
-        and js_generate_args != docstring_generate_args
+        and hub_generate_args != docstring_generate_args
     ):
-        hub_args.remove(js_generate_args[0])
+        hub_args.remove(hub_generate_args[0])
         docstring_args.remove(docstring_generate_args[0])
 
     # Special casing 2: We permit some transformers-only arguments that don't affect pipeline output

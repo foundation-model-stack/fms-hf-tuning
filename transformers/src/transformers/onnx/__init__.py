@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from typing import TYPE_CHECKING
 
-# Local
 from ..utils import _LazyModule
+
 
 _import_structure = {
     "config": [
@@ -33,7 +32,6 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    # Local
     from .config import (
         EXTERNAL_DATA_FORMAT_SIZE_LIMIT,
         OnnxConfig,
@@ -46,9 +44,6 @@ if TYPE_CHECKING:
     from .utils import ParameterFormat, compute_serialized_parameters_size
 
 else:
-    # Standard
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

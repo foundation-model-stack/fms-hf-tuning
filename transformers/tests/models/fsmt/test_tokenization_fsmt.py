@@ -14,18 +14,16 @@
 # limitations under the License.
 
 
-# Standard
 import json
 import os
 import unittest
 
-# First Party
 from transformers.models.fsmt.tokenization_fsmt import VOCAB_FILES_NAMES, FSMTTokenizer
 from transformers.testing_utils import slow
 from transformers.utils import cached_property
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
+
 
 # using a different tiny model than the one used for default params defined in init to ensure proper testing
 FSMT_TINY2 = "stas/tiny-wmt19-en-ru"
@@ -36,8 +34,9 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     tokenizer_class = FSMTTokenizer
     test_rust_tokenizer = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = [
@@ -66,28 +65,22 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["l o 123", "lo w 1456", "e r</w> 1789", ""]
 
-        self.langs = ["en", "ru"]
+        cls.langs = ["en", "ru"]
         config = {
-            "langs": self.langs,
+            "langs": cls.langs,
             "src_vocab_size": 10,
             "tgt_vocab_size": 20,
         }
 
-        self.src_vocab_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["src_vocab_file"]
-        )
-        self.tgt_vocab_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["tgt_vocab_file"]
-        )
-        config_file = os.path.join(self.tmpdirname, "tokenizer_config.json")
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
-        with open(self.src_vocab_file, "w") as fp:
+        cls.src_vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["src_vocab_file"])
+        cls.tgt_vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["tgt_vocab_file"])
+        config_file = os.path.join(cls.tmpdirname, "tokenizer_config.json")
+        cls.merges_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
+        with open(cls.src_vocab_file, "w") as fp:
             fp.write(json.dumps(vocab_tokens))
-        with open(self.tgt_vocab_file, "w") as fp:
+        with open(cls.tgt_vocab_file, "w") as fp:
             fp.write(json.dumps(vocab_tokens))
-        with open(self.merges_file, "w") as fp:
+        with open(cls.merges_file, "w") as fp:
             fp.write("\n".join(merges))
         with open(config_file, "w") as fp:
             fp.write(json.dumps(config))
@@ -111,9 +104,7 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     def test_full_tokenizer(self):
         """Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt"""
-        tokenizer = FSMTTokenizer(
-            self.langs, self.src_vocab_file, self.tgt_vocab_file, self.merges_file
-        )
+        tokenizer = FSMTTokenizer(self.langs, self.src_vocab_file, self.tgt_vocab_file, self.merges_file)
 
         text = "lower"
         bpe_tokens = ["low", "er</w>"]
@@ -122,9 +113,7 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
         input_tokens = tokens + ["<unk>"]
         input_bpe_tokens = [14, 15, 20]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)
 
     @slow
     def test_sequence_builders(self):
@@ -147,29 +136,9 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         targets = [
             [
                 "Here's a little song I wrote. Don't worry, be happy.",
-                [
-                    2470,
-                    39,
-                    11,
-                    2349,
-                    7222,
-                    70,
-                    5979,
-                    7,
-                    8450,
-                    1050,
-                    13160,
-                    5,
-                    26,
-                    6445,
-                    7,
-                    2,
-                ],
+                [2470, 39, 11, 2349, 7222, 70, 5979, 7, 8450, 1050, 13160, 5, 26, 6445, 7, 2],
             ],
-            [
-                "This is it. No more. I'm done!",
-                [132, 21, 37, 7, 1434, 86, 7, 70, 6476, 1305, 427, 2],
-            ],
+            ["This is it. No more. I'm done!", [132, 21, 37, 7, 1434, 86, 7, 70, 6476, 1305, 427, 2]],
         ]
 
         # if data needs to be recreated or added, run:
@@ -187,24 +156,9 @@ class FSMTTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
 
     @slow
     def test_tokenizer_lower(self):
-        tokenizer = FSMTTokenizer.from_pretrained(
-            "facebook/wmt19-ru-en", do_lower_case=True
-        )
+        tokenizer = FSMTTokenizer.from_pretrained("facebook/wmt19-ru-en", do_lower_case=True)
         tokens = tokenizer.tokenize("USA is United States of America")
-        expected = [
-            "us",
-            "a</w>",
-            "is</w>",
-            "un",
-            "i",
-            "ted</w>",
-            "st",
-            "ates</w>",
-            "of</w>",
-            "am",
-            "er",
-            "ica</w>",
-        ]
+        expected = ["us", "a</w>", "is</w>", "un", "i", "ted</w>", "st", "ates</w>", "of</w>", "am", "er", "ica</w>"]
         self.assertListEqual(tokens, expected)
 
     @unittest.skip(reason="FSMTConfig.__init__  requires non-optional args")

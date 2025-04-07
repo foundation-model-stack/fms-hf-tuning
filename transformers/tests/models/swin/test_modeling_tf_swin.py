@@ -14,31 +14,25 @@
 # limitations under the License.
 """Testing suite for the TF 2.0 Swin model."""
 
-# Future
 from __future__ import annotations
 
-# Standard
 import inspect
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import SwinConfig
 from transformers.testing_utils import require_tf, require_vision, slow, to_2tuple
 from transformers.utils import cached_property, is_tf_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_tf_common import TFModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
-    # First Party
     from transformers.modeling_tf_utils import keras
     from transformers.models.swin.modeling_tf_swin import (
         TFSwinForImageClassification,
@@ -48,10 +42,8 @@ if is_tf_available():
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import AutoImageProcessor
 
 
@@ -109,9 +101,7 @@ class TFSwinModelTester:
         self.encoder_stride = encoder_stride
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
@@ -147,54 +137,38 @@ class TFSwinModelTester:
         model = TFSwinModel(config=config)
         result = model(pixel_values)
 
-        expected_seq_len = ((config.image_size // config.patch_size) ** 2) // (
-            4 ** (len(config.depths) - 1)
-        )
+        expected_seq_len = ((config.image_size // config.patch_size) ** 2) // (4 ** (len(config.depths) - 1))
         expected_dim = int(config.embed_dim * 2 ** (len(config.depths) - 1))
 
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, expected_seq_len, expected_dim),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, expected_seq_len, expected_dim))
 
     def create_and_check_for_masked_image_modeling(self, config, pixel_values, labels):
         model = TFSwinForMaskedImageModeling(config=config)
         result = model(pixel_values)
         self.parent.assertEqual(
-            result.logits.shape,
-            (self.batch_size, self.num_channels, self.image_size, self.image_size),
+            result.logits.shape, (self.batch_size, self.num_channels, self.image_size, self.image_size)
         )
 
         # test greyscale images
         config.num_channels = 1
         model = TFSwinForMaskedImageModeling(config)
 
-        pixel_values = floats_tensor(
-            [self.batch_size, 1, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, 1, self.image_size, self.image_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, 1, self.image_size, self.image_size))
 
     def create_and_check_for_image_classification(self, config, pixel_values, labels):
         config.num_labels = self.type_sequence_label_size
         model = TFSwinForImageClassification(config)
         result = model(pixel_values, labels=labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
         # test greyscale images
         config.num_channels = 1
         model = TFSwinForImageClassification(config)
-        pixel_values = floats_tensor(
-            [self.batch_size, 1, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
         result = model(pixel_values)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -215,10 +189,7 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         else ()
     )
     pipeline_model_mapping = (
-        {
-            "feature-extraction": TFSwinModel,
-            "image-classification": TFSwinForImageClassification,
-        }
+        {"feature-extraction": TFSwinModel, "image-classification": TFSwinForImageClassification}
         if is_tf_available()
         else {}
     )
@@ -306,11 +277,7 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
             self.assertListEqual(
                 list(attentions[0].shape[-3:]),
-                [
-                    self.model_tester.num_heads[0],
-                    window_size_squared,
-                    window_size_squared,
-                ],
+                [self.model_tester.num_heads[0], window_size_squared, window_size_squared],
             )
             out_len = len(outputs)
 
@@ -333,11 +300,7 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
             self.assertListEqual(
                 list(self_attentions[0].shape[-3:]),
-                [
-                    self.model_tester.num_heads[0],
-                    window_size_squared,
-                    window_size_squared,
-                ],
+                [self.model_tester.num_heads[0], window_size_squared, window_size_squared],
             )
 
     def check_hidden_states_output(self, inputs_dict, config, model_class, image_size):
@@ -346,18 +309,14 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         hidden_states = outputs.hidden_states
 
         expected_num_layers = getattr(
-            self.model_tester,
-            "expected_num_hidden_layers",
-            len(self.model_tester.depths) + 1,
+            self.model_tester, "expected_num_hidden_layers", len(self.model_tester.depths) + 1
         )
         self.assertEqual(len(hidden_states), expected_num_layers)
 
         # Swin has a different seq_length
         patch_size = to_2tuple(config.patch_size)
 
-        num_patches = (image_size[1] // patch_size[1]) * (
-            image_size[0] // patch_size[0]
-        )
+        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
 
         self.assertListEqual(
             list(hidden_states[0].shape[-2:]),
@@ -369,9 +328,7 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
         batch_size, num_channels, height, width = reshaped_hidden_states[0].shape
 
-        reshaped_hidden_states = tf.reshape(
-            reshaped_hidden_states[0], (batch_size, num_channels, height * width)
-        )
+        reshaped_hidden_states = tf.reshape(reshaped_hidden_states[0], (batch_size, num_channels, height * width))
         reshaped_hidden_states = tf.transpose(reshaped_hidden_states, (0, 2, 1))
 
         self.assertListEqual(
@@ -386,17 +343,13 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
         for model_class in self.all_model_classes:
             inputs_dict["output_hidden_states"] = True
-            self.check_hidden_states_output(
-                inputs_dict, config, model_class, image_size
-            )
+            self.check_hidden_states_output(inputs_dict, config, model_class, image_size)
 
             # check that output_hidden_states also work using config
             del inputs_dict["output_hidden_states"]
             config.output_hidden_states = True
 
-            self.check_hidden_states_output(
-                inputs_dict, config, model_class, image_size
-            )
+            self.check_hidden_states_output(inputs_dict, config, model_class, image_size)
 
     def test_inputs_requiring_padding(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
@@ -410,16 +363,12 @@ class TFSwinModelTest(TFModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
         for model_class in self.all_model_classes:
             inputs_dict["output_hidden_states"] = True
-            self.check_hidden_states_output(
-                inputs_dict, config, model_class, (padded_height, padded_width)
-            )
+            self.check_hidden_states_output(inputs_dict, config, model_class, (padded_height, padded_width))
 
             # check that output_hidden_states also work using config
             del inputs_dict["output_hidden_states"]
             config.output_hidden_states = True
-            self.check_hidden_states_output(
-                inputs_dict, config, model_class, (padded_height, padded_width)
-            )
+            self.check_hidden_states_output(inputs_dict, config, model_class, (padded_height, padded_width))
 
     @slow
     def test_model_from_pretrained(self):
@@ -441,9 +390,7 @@ class TFSwinModelIntegrationTest(unittest.TestCase):
 
     @slow
     def test_inference_image_classification_head(self):
-        model = TFSwinForImageClassification.from_pretrained(
-            "microsoft/swin-tiny-patch4-window7-224"
-        )
+        model = TFSwinForImageClassification.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
         image_processor = self.default_image_processor
 
         image = Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png")

@@ -13,23 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import sys
 import unittest
 
-git_repo_path = os.path.abspath(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-)
+
+git_repo_path = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.append(os.path.join(git_repo_path, "utils"))
 
-# Third Party
+import get_test_info  # noqa: E402
 from get_test_info import (  # noqa: E402
     get_model_to_test_mapping,
     get_model_to_tester_mapping,
     get_test_to_tester_mapping,
 )
-import get_test_info  # noqa: E402
+
 
 BERT_TEST_FILE = os.path.join("tests", "models", "bert", "test_modeling_bert.py")
 BLIP_TEST_FILE = os.path.join("tests", "models", "blip", "test_modeling_blip.py")
@@ -51,12 +49,8 @@ class GetTestInfoTester(unittest.TestCase):
             "BlipVisionModelTest": "BlipVisionModelTester",
         }
 
-        self.assertEqual(
-            get_test_info.to_json(bert_test_tester_mapping), EXPECTED_BERT_MAPPING
-        )
-        self.assertEqual(
-            get_test_info.to_json(blip_test_tester_mapping), EXPECTED_BLIP_MAPPING
-        )
+        self.assertEqual(get_test_info.to_json(bert_test_tester_mapping), EXPECTED_BERT_MAPPING)
+        self.assertEqual(get_test_info.to_json(blip_test_tester_mapping), EXPECTED_BLIP_MAPPING)
 
     def test_get_model_to_test_mapping(self):
         bert_model_test_mapping = get_model_to_test_mapping(BERT_TEST_FILE)
@@ -83,12 +77,8 @@ class GetTestInfoTester(unittest.TestCase):
             "BlipVisionModel": ["BlipVisionModelTest"],
         }
 
-        self.assertEqual(
-            get_test_info.to_json(bert_model_test_mapping), EXPECTED_BERT_MAPPING
-        )
-        self.assertEqual(
-            get_test_info.to_json(blip_model_test_mapping), EXPECTED_BLIP_MAPPING
-        )
+        self.assertEqual(get_test_info.to_json(bert_model_test_mapping), EXPECTED_BERT_MAPPING)
+        self.assertEqual(get_test_info.to_json(blip_model_test_mapping), EXPECTED_BLIP_MAPPING)
 
     def test_get_model_to_tester_mapping(self):
         bert_model_tester_mapping = get_model_to_tester_mapping(BERT_TEST_FILE)
@@ -115,9 +105,5 @@ class GetTestInfoTester(unittest.TestCase):
             "BlipVisionModel": ["BlipVisionModelTester"],
         }
 
-        self.assertEqual(
-            get_test_info.to_json(bert_model_tester_mapping), EXPECTED_BERT_MAPPING
-        )
-        self.assertEqual(
-            get_test_info.to_json(blip_model_tester_mapping), EXPECTED_BLIP_MAPPING
-        )
+        self.assertEqual(get_test_info.to_json(bert_model_tester_mapping), EXPECTED_BERT_MAPPING)
+        self.assertEqual(get_test_info.to_json(blip_model_tester_mapping), EXPECTED_BLIP_MAPPING)

@@ -15,21 +15,19 @@
 # limitations under the License.
 """Fine-tuning the library models for named entity recognition on CoNLL-2003."""
 
-# Standard
-from dataclasses import dataclass, field
-from importlib import import_module
-from typing import Dict, List, Optional, Tuple
 import logging
 import os
 import sys
+from dataclasses import dataclass, field
+from importlib import import_module
+from typing import Dict, List, Optional, Tuple
 
-# Third Party
+import numpy as np
 from seqeval.metrics import accuracy_score, f1_score, precision_score, recall_score
 from torch import nn
 from utils_ner import Split, TokenClassificationDataset, TokenClassificationTask
-import numpy as np
 
-# First Party
+import transformers
 from transformers import (
     AutoConfig,
     AutoModelForTokenClassification,
@@ -42,7 +40,7 @@ from transformers import (
     set_seed,
 )
 from transformers.trainer_utils import is_main_process
-import transformers
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,36 +52,23 @@ class ModelArguments:
     """
 
     model_name_or_path: str = field(
-        metadata={
-            "help": "Path to pretrained model or model identifier from huggingface.co/models"
-        }
+        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     config_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Pretrained config name or path if not the same as model_name"
-        },
+        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
     task_type: Optional[str] = field(
-        default="NER",
-        metadata={"help": "Task type to fine tune in training (e.g. NER, POS, etc)"},
+        default="NER", metadata={"help": "Task type to fine tune in training (e.g. NER, POS, etc)"}
     )
     tokenizer_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Pretrained tokenizer name or path if not the same as model_name"
-        },
+        default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
-    use_fast: bool = field(
-        default=False, metadata={"help": "Set this flag to use fast tokenization."}
-    )
+    use_fast: bool = field(default=False, metadata={"help": "Set this flag to use fast tokenization."})
     # If you want to tweak more attributes on your tokenizer, you should do it in a distinct script,
     # or just modify its tokenizer_config.json.
     cache_dir: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "Where do you want to store the pretrained models downloaded from huggingface.co"
-        },
+        metadata={"help": "Where do you want to store the pretrained models downloaded from huggingface.co"},
     )
 
 
@@ -94,15 +79,11 @@ class DataTrainingArguments:
     """
 
     data_dir: str = field(
-        metadata={
-            "help": "The input data dir. Should contain the .txt files for a CoNLL-2003-formatted task."
-        }
+        metadata={"help": "The input data dir. Should contain the .txt files for a CoNLL-2003-formatted task."}
     )
     labels: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "Path to a file containing all labels. If not specified, CoNLL-2003 labels are used."
-        },
+        metadata={"help": "Path to a file containing all labels. If not specified, CoNLL-2003 labels are used."},
     )
     max_seq_length: int = field(
         default=128,
@@ -114,8 +95,7 @@ class DataTrainingArguments:
         },
     )
     overwrite_cache: bool = field(
-        default=False,
-        metadata={"help": "Overwrite the cached training and evaluation sets"},
+        default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
 
 
@@ -124,15 +104,11 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser(
-        (ModelArguments, DataTrainingArguments, TrainingArguments)
-    )
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(
-            json_file=os.path.abspath(sys.argv[1])
-        )
+        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -150,9 +126,7 @@ def main():
     module = import_module("tasks")
     try:
         token_classification_task_clazz = getattr(module, model_args.task_type)
-        token_classification_task: TokenClassificationTask = (
-            token_classification_task_clazz()
-        )
+        token_classification_task: TokenClassificationTask = token_classification_task_clazz()
     except AttributeError:
         raise ValueError(
             f"Task {model_args.task_type} needs to be defined as a TokenClassificationTask subclass in {module}. "
@@ -195,18 +169,14 @@ def main():
     # download model & vocab.
 
     config = AutoConfig.from_pretrained(
-        model_args.config_name
-        if model_args.config_name
-        else model_args.model_name_or_path,
+        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         num_labels=num_labels,
         id2label=label_map,
         label2id={label: i for i, label in enumerate(labels)},
         cache_dir=model_args.cache_dir,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name
-        if model_args.tokenizer_name
-        else model_args.model_name_or_path,
+        model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
         use_fast=model_args.use_fast,
     )
@@ -247,9 +217,7 @@ def main():
         else None
     )
 
-    def align_predictions(
-        predictions: np.ndarray, label_ids: np.ndarray
-    ) -> Tuple[List[int], List[int]]:
+    def align_predictions(predictions: np.ndarray, label_ids: np.ndarray) -> Tuple[List[int], List[int]]:
         preds = np.argmax(predictions, axis=2)
 
         batch_size, seq_len = preds.shape
@@ -275,11 +243,7 @@ def main():
         }
 
     # Data collator
-    data_collator = (
-        DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8)
-        if training_args.fp16
-        else None
-    )
+    data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8) if training_args.fp16 else None
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -294,9 +258,7 @@ def main():
     # Training
     if training_args.do_train:
         trainer.train(
-            model_path=model_args.model_name_or_path
-            if os.path.isdir(model_args.model_name_or_path)
-            else None
+            model_path=model_args.model_name_or_path if os.path.isdir(model_args.model_name_or_path) else None
         )
         trainer.save_model()
         # For convenience, we also re-save the tokenizer to the same directory,
@@ -337,9 +299,7 @@ def main():
         predictions, label_ids, metrics = trainer.predict(test_dataset)
         preds_list, _ = align_predictions(predictions, label_ids)
 
-        output_test_results_file = os.path.join(
-            training_args.output_dir, "test_results.txt"
-        )
+        output_test_results_file = os.path.join(training_args.output_dir, "test_results.txt")
         if trainer.is_world_process_zero():
             with open(output_test_results_file, "w") as writer:
                 for key, value in metrics.items():
@@ -347,15 +307,11 @@ def main():
                     writer.write("%s = %s\n" % (key, value))
 
         # Save predictions
-        output_test_predictions_file = os.path.join(
-            training_args.output_dir, "test_predictions.txt"
-        )
+        output_test_predictions_file = os.path.join(training_args.output_dir, "test_predictions.txt")
         if trainer.is_world_process_zero():
             with open(output_test_predictions_file, "w") as writer:
                 with open(os.path.join(data_args.data_dir, "test.txt"), "r") as f:
-                    token_classification_task.write_predictions_to_file(
-                        writer, f, preds_list
-                    )
+                    token_classification_task.write_predictions_to_file(writer, f, preds_list)
 
     return results
 

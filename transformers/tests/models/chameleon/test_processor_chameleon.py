@@ -14,20 +14,17 @@
 # limitations under the License.
 """Testing suite for the PyTorch chameleon model."""
 
-# Standard
 import tempfile
 import unittest
 
-# First Party
 from transformers import ChameleonProcessor, LlamaTokenizer
 from transformers.testing_utils import get_tests_dir
 from transformers.utils import is_vision_available
 
-# Local
 from ...test_processing_common import ProcessorTesterMixin
 
+
 if is_vision_available():
-    # First Party
     from transformers import ChameleonImageProcessor
 
 
@@ -43,7 +40,5 @@ class ChameleonProcessorTest(ProcessorTesterMixin, unittest.TestCase):
         tokenizer = LlamaTokenizer(vocab_file=SAMPLE_VOCAB)
         tokenizer.pad_token_id = 0
         tokenizer.sep_token_id = 1
-        processor = self.processor_class(
-            image_processor=image_processor, tokenizer=tokenizer
-        )
+        processor = self.processor_class(image_processor=image_processor, tokenizer=tokenizer)
         processor.save_pretrained(self.tmpdirname)

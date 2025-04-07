@@ -18,10 +18,10 @@ This helper computes the "ideal" number of nodes to use in circle CI.
 For each job, we compute this parameter and pass it to the `generated_config.yaml`.
 """
 
-# Standard
 import json
 import math
 import os
+
 
 MAX_PARALLEL_NODES = 8  # TODO create a mapping!
 AVERAGE_TESTS_PER_NODES = 5

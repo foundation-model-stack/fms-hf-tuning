@@ -14,9 +14,9 @@
 # limitations under the License.
 """Switch Transformers model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -92,11 +92,7 @@ class SwitchTransformersConfig(PretrainedConfig):
 
     model_type = "switch_transformers"
     keys_to_ignore_at_inference = ["past_key_values"]
-    attribute_map = {
-        "hidden_size": "d_model",
-        "num_attention_heads": "num_heads",
-        "num_hidden_layers": "num_layers",
-    }
+    attribute_map = {"hidden_size": "d_model", "num_attention_heads": "num_heads", "num_hidden_layers": "num_layers"}
 
     def __init__(
         self,
@@ -147,19 +143,13 @@ class SwitchTransformersConfig(PretrainedConfig):
         if self.num_sparse_encoder_layers > 0:
             self.encoder_sparse_step = self.num_layers // self.num_sparse_encoder_layers
         else:
-            self.encoder_sparse_step = (
-                self.num_layers
-            )  # HACK: this will create 0 sparse layers
+            self.encoder_sparse_step = self.num_layers  # HACK: this will create 0 sparse layers
 
         # This tells us, each how many encoder layer we'll have to set a sparse layer.
         if self.num_sparse_decoder_layers > 0:
-            self.decoder_sparse_step = (
-                self.num_decoder_layers // self.num_sparse_decoder_layers
-            )
+            self.decoder_sparse_step = self.num_decoder_layers // self.num_sparse_decoder_layers
         else:
-            self.decoder_sparse_step = (
-                self.num_decoder_layers
-            )  # HACK: this will create 0 sparse layers
+            self.decoder_sparse_step = self.num_decoder_layers  # HACK: this will create 0 sparse layers
 
         self.num_heads = num_heads
         self.num_experts = num_experts
@@ -167,9 +157,7 @@ class SwitchTransformersConfig(PretrainedConfig):
         self.router_bias = router_bias
         self.router_jitter_noise = router_jitter_noise
         if router_dtype not in ["float32", "float16", "bfloat16"]:
-            raise ValueError(
-                f"`router_dtype` must be one of 'float32', 'float16' or 'bfloat16', got {router_dtype}"
-            )
+            raise ValueError(f"`router_dtype` must be one of 'float32', 'float16' or 'bfloat16', got {router_dtype}")
         self.router_dtype = router_dtype
 
         self.router_ignore_padding_tokens = router_ignore_padding_tokens

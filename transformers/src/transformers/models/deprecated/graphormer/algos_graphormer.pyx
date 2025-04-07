@@ -1,15 +1,13 @@
 # Copyright (c) Microsoft Corporation and HuggingFace
 # Licensed under the MIT License.
 
-# Third Party
 import cython
 
-# Third Party
-from cython.parallel cimport parallel, prange
 cimport numpy
+from cython.parallel cimport parallel, prange
 
-# Third Party
 import numpy as np
+
 
 # Reduce this number if matrices are too big for large graphs
 UNREACHABLE_NODE_DISTANCE = 510 

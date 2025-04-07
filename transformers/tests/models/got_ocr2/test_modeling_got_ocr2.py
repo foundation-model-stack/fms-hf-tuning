@@ -14,10 +14,8 @@
 # limitations under the License.
 """Testing suite for the PyTorch GotOcr2 model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers import (
     AutoProcessor,
     GotOcr2Config,
@@ -26,27 +24,21 @@ from transformers import (
 )
 from transformers.testing_utils import cleanup, require_torch, slow, torch_device
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
-from ...test_modeling_common import (
-    ModelTesterMixin,
-    _config_zero_init,
-    floats_tensor,
-    ids_tensor,
-)
+from ...test_modeling_common import ModelTesterMixin, _config_zero_init, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
-    from transformers import GotOcr2ForConditionalGeneration
+    from transformers import (
+        GotOcr2ForConditionalGeneration,
+    )
 
 
 if is_vision_available():
-    # First Party
     from transformers.image_utils import load_image
 
 
@@ -125,9 +117,7 @@ class GotOcr2VisionText2TextModelTester:
 
     def prepare_config_and_inputs(self):
         config = self.get_config()
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         return config, pixel_values
 
@@ -135,9 +125,7 @@ class GotOcr2VisionText2TextModelTester:
         config_and_inputs = self.prepare_config_and_inputs()
         config, pixel_values = config_and_inputs
         input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
-        attention_mask = torch.ones(
-            input_ids.shape, dtype=torch.long, device=torch_device
-        )
+        attention_mask = torch.ones(input_ids.shape, dtype=torch.long, device=torch_device)
 
         # input_ids[:, -1] = self.pad_token_id
         input_ids[input_ids == self.image_token_index] = self.pad_token_id
@@ -150,45 +138,10 @@ class GotOcr2VisionText2TextModelTester:
         }
         return config, inputs_dict
 
-    def create_and_check_model_fp16_forward(
-        self, config, input_ids, pixel_values, attention_mask
-    ):
-        model = GotOcr2ForConditionalGeneration(config=config)
-        model.to(torch_device)
-        model.half()
-        model.eval()
-        logits = model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            pixel_values=pixel_values.to(torch.bfloat16),
-            return_dict=True,
-        )["logits"]
-        self.parent.assertFalse(torch.isnan(logits).any().item())
-
-    def create_and_check_model_fp16_autocast_forward(
-        self, config, input_ids, pixel_values, attention_mask
-    ):
-        config.torch_dtype = torch.float16
-        model = GotOcr2ForConditionalGeneration(config=config)
-        model.to(torch_device)
-        model.eval()
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            logits = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                pixel_values=pixel_values.to(torch.bfloat16),
-                return_dict=True,
-            )["logits"]
-        self.parent.assertFalse(torch.isnan(logits).any().item())
-
 
 @require_torch
-class GotOcr2ModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
-    all_model_classes = (
-        (GotOcr2ForConditionalGeneration,) if is_torch_available() else ()
-    )
+class GotOcr2ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
+    all_model_classes = (GotOcr2ForConditionalGeneration,) if is_torch_available() else ()
     pipeline_model_mapping = (
         {
             "image-to-text": GotOcr2ForConditionalGeneration,
@@ -202,9 +155,7 @@ class GotOcr2ModelTest(
 
     def setUp(self):
         self.model_tester = GotOcr2VisionText2TextModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=GotOcr2Config, has_text_modality=False
-        )
+        self.config_tester = ConfigTester(self, config_class=GotOcr2Config, has_text_modality=False)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -294,9 +245,7 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_stop_strings(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_ocr/resolve/main/iam_picture.jpeg"
         )
@@ -319,19 +268,13 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_format(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/image_ocr.jpg"
         )
 
-        inputs = self.processor(image, return_tensors="pt", format=True).to(
-            torch_device
-        )
-        generate_ids = model.generate(
-            **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-        )
+        inputs = self.processor(image, return_tensors="pt", format=True).to(torch_device)
+        generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
         decoded_output = self.processor.decode(
             generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )
@@ -341,19 +284,13 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_fine_grained(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/multi_box.png"
         )
 
-        inputs = self.processor(image, return_tensors="pt", color="green").to(
-            torch_device
-        )
-        generate_ids = model.generate(
-            **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-        )
+        inputs = self.processor(image, return_tensors="pt", color="green").to(torch_device)
+        generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
         decoded_output = self.processor.decode(
             generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )
@@ -363,19 +300,13 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_crop_to_patches(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/one_column.png"
         )
 
-        inputs = self.processor(image, return_tensors="pt", crop_to_patches=True).to(
-            torch_device
-        )
-        generate_ids = model.generate(
-            **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-        )
+        inputs = self.processor(image, return_tensors="pt", crop_to_patches=True).to(torch_device)
+        generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
         decoded_output = self.processor.decode(
             generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )
@@ -385,9 +316,7 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_multi_pages(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image1 = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/one_column.png"
         )
@@ -395,12 +324,8 @@ class GotOcr2IntegrationTest(unittest.TestCase):
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/multi_box.png"
         )
 
-        inputs = self.processor(
-            [image1, image2], return_tensors="pt", multi_page=True
-        ).to(torch_device)
-        generate_ids = model.generate(
-            **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-        )
+        inputs = self.processor([image1, image2], return_tensors="pt", multi_page=True).to(torch_device)
+        generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
         decoded_output = self.processor.decode(
             generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )
@@ -410,9 +335,7 @@ class GotOcr2IntegrationTest(unittest.TestCase):
     @slow
     def test_small_model_integration_test_got_ocr_batched(self):
         model_id = "stepfun-ai/GOT-OCR-2.0-hf"
-        model = GotOcr2ForConditionalGeneration.from_pretrained(
-            model_id, device_map=torch_device
-        )
+        model = GotOcr2ForConditionalGeneration.from_pretrained(model_id, device_map=torch_device)
         image1 = load_image(
             "https://huggingface.co/datasets/hf-internal-testing/fixtures_got_ocr/resolve/main/multi_box.png"
         )
@@ -421,9 +344,7 @@ class GotOcr2IntegrationTest(unittest.TestCase):
         )
 
         inputs = self.processor([image1, image2], return_tensors="pt").to(torch_device)
-        generate_ids = model.generate(
-            **inputs, do_sample=False, num_beams=1, max_new_tokens=4
-        )
+        generate_ids = model.generate(**inputs, do_sample=False, num_beams=1, max_new_tokens=4)
         decoded_output = self.processor.batch_decode(
             generate_ids[:, inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )

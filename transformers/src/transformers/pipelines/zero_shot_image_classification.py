@@ -1,9 +1,7 @@
-# Standard
+import warnings
 from collections import UserDict
 from typing import List, Union
-import warnings
 
-# Local
 from ..utils import (
     add_end_docstrings,
     is_tf_available,
@@ -14,27 +12,19 @@ from ..utils import (
 )
 from .base import Pipeline, build_pipeline_init_args
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # Local
     from ..image_utils import load_image
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # Local
-    from ..models.auto.modeling_auto import (
-        MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES,
-    )
+    from ..models.auto.modeling_auto import MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
 if is_tf_available():
-    # Local
-    from ..models.auto.modeling_tf_auto import (
-        TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES,
-    )
+    from ..models.auto.modeling_tf_auto import TF_MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES
     from ..tf_utils import stable_softmax
 
 logger = logging.get_logger(__name__)
@@ -84,9 +74,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
             else MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES
         )
 
-    def __call__(
-        self, image: Union[str, List[str], "Image", List["Image"]] = None, **kwargs
-    ):
+    def __call__(self, image: Union[str, List[str], "Image", List["Image"]] = None, **kwargs):
         """
         Assign labels to the image(s) passed as inputs.
 
@@ -121,9 +109,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
         if "images" in kwargs:
             image = kwargs.pop("images")
         if image is None:
-            raise ValueError(
-                "Cannot call the zero-shot-image-classification pipeline without an images argument!"
-            )
+            raise ValueError("Cannot call the zero-shot-image-classification pipeline without an images argument!")
         return super().__call__(image, **kwargs)
 
     def _sanitize_parameters(self, tokenizer_kwargs=None, **kwargs):
@@ -161,13 +147,9 @@ class ZeroShotImageClassificationPipeline(Pipeline):
         sequences = [hypothesis_template.format(x) for x in candidate_labels]
         tokenizer_default_kwargs = {"padding": True}
         if "siglip" in self.model.config.model_type:
-            tokenizer_default_kwargs.update(
-                padding="max_length", max_length=64, truncation=True
-            )
+            tokenizer_default_kwargs.update(padding="max_length", max_length=64, truncation=True)
         tokenizer_default_kwargs.update(tokenizer_kwargs)
-        text_inputs = self.tokenizer(
-            sequences, return_tensors=self.framework, **tokenizer_default_kwargs
-        )
+        text_inputs = self.tokenizer(sequences, return_tensors=self.framework, **tokenizer_default_kwargs)
         inputs["text_inputs"] = [text_inputs]
         return inputs
 
@@ -209,8 +191,6 @@ class ZeroShotImageClassificationPipeline(Pipeline):
 
         result = [
             {"score": score, "label": candidate_label}
-            for score, candidate_label in sorted(
-                zip(scores, candidate_labels), key=lambda x: -x[0]
-            )
+            for score, candidate_label in sorted(zip(scores, candidate_labels), key=lambda x: -x[0])
         ]
         return result

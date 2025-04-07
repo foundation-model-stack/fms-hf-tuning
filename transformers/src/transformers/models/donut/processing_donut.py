@@ -16,13 +16,11 @@
 Processor class for Donut.
 """
 
-# Standard
-from contextlib import contextmanager
-from typing import List, Optional, Union
 import re
 import warnings
+from contextlib import contextmanager
+from typing import List, Optional, Union
 
-# Local
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
@@ -66,9 +64,7 @@ class DonutProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -90,26 +86,13 @@ class DonutProcessor(ProcessorMixin):
         When used in normal mode, this method forwards all its arguments to AutoImageProcessor's
         [`~AutoImageProcessor.__call__`] and returns its output. If used in the context
         [`~DonutProcessor.as_target_processor`] this method forwards all its arguments to DonutTokenizer's
-        [`~DonutTokenizer.__call__`]. Please refer to the doctsring of the above two methods for more information.
+        [`~DonutTokenizer.__call__`]. Please refer to the docstring of the above two methods for more information.
         """
-        # For backward compatibility
-        legacy = kwargs.pop("legacy", True)
-        if legacy:
-            # With `add_special_tokens=True`, the performance of donut are degraded when working with both images and text.
-            logger.warning_once(
-                "Legacy behavior is being used. The current behavior will be deprecated in version 5.0.0. "
-                "In the new behavior, if both images and text are provided, the default value of `add_special_tokens` "
-                "will be changed to `False` when calling the tokenizer if `add_special_tokens` is unset. "
-                "To test the new behavior, set `legacy=False`as a processor call argument."
-            )
-
         if self._in_target_context_manager:
             return self.current_processor(images, text, **kwargs)
 
         if images is None and text is None:
-            raise ValueError(
-                "You need to specify either an `images` or `text` input to process."
-            )
+            raise ValueError("You need to specify either an `images` or `text` input to process.")
 
         output_kwargs = self._merge_kwargs(
             DonutProcessorKwargs,
@@ -120,7 +103,7 @@ class DonutProcessor(ProcessorMixin):
         if images is not None:
             inputs = self.image_processor(images, **output_kwargs["images_kwargs"])
         if text is not None:
-            if not legacy and images is not None:
+            if images is not None:
                 output_kwargs["text_kwargs"].setdefault("add_special_tokens", False)
             encodings = self.tokenizer(text, **output_kwargs["text_kwargs"])
 
@@ -188,16 +171,12 @@ class DonutProcessor(ProcessorMixin):
                 start_token_escaped = re.escape(start_token)
                 end_token_escaped = re.escape(end_token)
                 content = re.search(
-                    f"{start_token_escaped}(.*?){end_token_escaped}",
-                    tokens,
-                    re.IGNORECASE | re.DOTALL,
+                    f"{start_token_escaped}(.*?){end_token_escaped}", tokens, re.IGNORECASE | re.DOTALL
                 )
                 if content is not None:
                     content = content.group(1).strip()
                     if r"<s_" in content and r"</s_" in content:  # non-leaf node
-                        value = self.token2json(
-                            content, is_inner_value=True, added_vocab=added_vocab
-                        )
+                        value = self.token2json(content, is_inner_value=True, added_vocab=added_vocab)
                         if value:
                             if len(value) == 1:
                                 value = value[0]
@@ -206,11 +185,7 @@ class DonutProcessor(ProcessorMixin):
                         output[key] = []
                         for leaf in content.split(r"<sep/>"):
                             leaf = leaf.strip()
-                            if (
-                                leaf in added_vocab
-                                and leaf[0] == "<"
-                                and leaf[-2:] == "/>"
-                            ):
+                            if leaf in added_vocab and leaf[0] == "<" and leaf[-2:] == "/>":
                                 leaf = leaf[1:-2]  # for categorical special tokens
                             output[key].append(leaf)
                         if len(output[key]) == 1:
@@ -218,9 +193,7 @@ class DonutProcessor(ProcessorMixin):
 
                 tokens = tokens[tokens.find(end_token) + len(end_token) :].strip()
                 if tokens[:6] == r"<sep/>":  # non-leaf nodes
-                    return [output] + self.token2json(
-                        tokens[6:], is_inner_value=True, added_vocab=added_vocab
-                    )
+                    return [output] + self.token2json(tokens[6:], is_inner_value=True, added_vocab=added_vocab)
 
         if len(output):
             return [output] if is_inner_value else output

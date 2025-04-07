@@ -14,9 +14,9 @@
 # limitations under the License.
 """Bamba model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -39,7 +39,7 @@ class BambaConfig(PretrainedConfig):
             `inputs_ids` passed when calling [`BambaModel`]
         tie_word_embeddings (`bool`, *optional*, defaults to `False`):
             Whether the model's input and output word embeddings should be tied. Note that this is only relevant if the
-            model has a output word embedding layer.
+            model has an output word embedding layer.
         hidden_size (`int`, *optional*, defaults to 4096):
             Dimension of the hidden representations.
         intermediate_size (`int`, *optional*, defaults to 14336):
@@ -85,7 +85,7 @@ class BambaConfig(PretrainedConfig):
         mamba_n_heads (`int`, *optional*, defaults to 128):
             The number of mamba heads used in the v2 implementation.
         mamba_d_head (`int`, *optional*, defaults to `"auto"`):
-            Head embeddding dimension size
+            Head embedding dimension size
         mamba_n_groups (`int`, *optional*, defaults to 1):
             The number of the mamba groups used in the v2 implementation.
         mamba_d_state (`int`, *optional*, defaults to 256):
@@ -175,9 +175,7 @@ class BambaConfig(PretrainedConfig):
             mamba_d_head = mamba_intermediate // mamba_n_heads
 
         if mamba_d_head * mamba_n_heads != mamba_intermediate:
-            raise ValueError(
-                "The dimensions for the Mamba head state do not match the model intermediate_size"
-            )
+            raise ValueError("The dimensions for the Mamba head state do not match the model intermediate_size")
 
         self.mamba_n_heads = mamba_n_heads
         self.mamba_d_head = mamba_d_head
@@ -200,9 +198,7 @@ class BambaConfig(PretrainedConfig):
     @property
     def layers_block_type(self):
         return [
-            "attention"
-            if (self.attn_layer_indices and i in self.attn_layer_indices)
-            else "mamba"
+            "attention" if (self.attn_layer_indices and i in self.attn_layer_indices) else "mamba"
             for i in range(self.num_hidden_layers)
         ]
 

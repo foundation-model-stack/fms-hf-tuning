@@ -14,15 +14,14 @@
 # limitations under the License.
 """Tokenization classes for RAG."""
 
-# Standard
-from typing import List, Optional
 import os
 import warnings
+from typing import List, Optional
 
-# Local
 from ...tokenization_utils_base import BatchEncoding
 from ...utils import logging
 from .configuration_rag import RagConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -35,13 +34,9 @@ class RagTokenizer:
 
     def save_pretrained(self, save_directory):
         if os.path.isfile(save_directory):
-            raise ValueError(
-                f"Provided path ({save_directory}) should be a directory, not a file"
-            )
+            raise ValueError(f"Provided path ({save_directory}) should be a directory, not a file")
         os.makedirs(save_directory, exist_ok=True)
-        question_encoder_path = os.path.join(
-            save_directory, "question_encoder_tokenizer"
-        )
+        question_encoder_path = os.path.join(save_directory, "question_encoder_tokenizer")
         generator_path = os.path.join(save_directory, "generator_tokenizer")
         self.question_encoder.save_pretrained(question_encoder_path)
         self.generator.save_pretrained(generator_path)
@@ -49,7 +44,6 @@ class RagTokenizer:
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
         # dynamically import AutoTokenizer
-        # Local
         from ..auto.tokenization_auto import AutoTokenizer
 
         config = kwargs.pop("config", None)
@@ -58,14 +52,10 @@ class RagTokenizer:
             config = RagConfig.from_pretrained(pretrained_model_name_or_path)
 
         question_encoder = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path,
-            config=config.question_encoder,
-            subfolder="question_encoder_tokenizer",
+            pretrained_model_name_or_path, config=config.question_encoder, subfolder="question_encoder_tokenizer"
         )
         generator = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path,
-            config=config.generator,
-            subfolder="generator_tokenizer",
+            pretrained_model_name_or_path, config=config.generator, subfolder="generator_tokenizer"
         )
         return cls(question_encoder=question_encoder, generator=generator)
 
@@ -91,7 +81,7 @@ class RagTokenizer:
         max_length: Optional[int] = None,
         max_target_length: Optional[int] = None,
         padding: str = "longest",
-        return_tensors: str = None,
+        return_tensors: Optional[str] = None,
         truncation: bool = True,
         **kwargs,
     ) -> BatchEncoding:

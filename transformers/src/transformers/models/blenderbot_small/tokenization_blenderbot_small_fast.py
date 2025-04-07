@@ -14,16 +14,14 @@
 # limitations under the License.
 """Fast tokenization class for BlenderbotSmall."""
 
-# Standard
 from typing import List, Optional
 
-# Third Party
 from tokenizers import ByteLevelBPETokenizer
 
-# Local
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_blenderbot_small import BlenderbotSmallTokenizer
+
 
 logger = logging.get_logger(__name__)
 

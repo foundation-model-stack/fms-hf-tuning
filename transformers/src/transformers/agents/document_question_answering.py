@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Standard
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +16,16 @@
 # limitations under the License.
 import re
 
-# Third Party
 import numpy as np
 import torch
 
-# Local
 from ..models.auto import AutoProcessor
 from ..models.vision_encoder_decoder import VisionEncoderDecoderModel
 from ..utils import is_vision_available
 from .tools import PipelineTool
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 
@@ -50,9 +47,7 @@ class DocumentQuestionAnsweringTool(PipelineTool):
 
     def __init__(self, *args, **kwargs):
         if not is_vision_available():
-            raise ValueError(
-                "Pillow must be installed to use the DocumentQuestionAnsweringTool."
-            )
+            raise ValueError("Pillow must be installed to use the DocumentQuestionAnsweringTool.")
 
         super().__init__(*args, **kwargs)
 
@@ -88,9 +83,7 @@ class DocumentQuestionAnsweringTool(PipelineTool):
         sequence = self.pre_processor.batch_decode(outputs)[0]
         sequence = sequence.replace(self.pre_processor.tokenizer.eos_token, "")
         sequence = sequence.replace(self.pre_processor.tokenizer.pad_token, "")
-        sequence = re.sub(
-            r"<.*?>", "", sequence, count=1
-        ).strip()  # remove first task start token
+        sequence = re.sub(r"<.*?>", "", sequence, count=1).strip()  # remove first task start token
         sequence = self.pre_processor.token2json(sequence)
 
         return sequence["answer"]

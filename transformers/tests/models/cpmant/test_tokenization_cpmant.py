@@ -13,18 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import unittest
 
-# First Party
-from transformers.models.cpmant.tokenization_cpmant import (
-    VOCAB_FILES_NAMES,
-    CpmAntTokenizer,
-)
+from transformers.models.cpmant.tokenization_cpmant import VOCAB_FILES_NAMES, CpmAntTokenizer
 from transformers.testing_utils import require_jieba, tooslow
 
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
@@ -34,8 +28,9 @@ class CPMAntTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     tokenizer_class = CpmAntTokenizer
     test_rust_tokenizer = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         vocab_tokens = [
             "<d>",
@@ -55,8 +50,8 @@ class CPMAntTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
             "n",
             "t",
         ]
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        with open(self.vocab_file, "w", encoding="utf-8") as vocab_writer:
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        with open(cls.vocab_file, "w", encoding="utf-8") as vocab_writer:
             vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
 
     @tooslow
@@ -70,9 +65,7 @@ class CPMAntTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         input_tokens = [tokenizer.bos_token] + tokens
 
         input_jieba_tokens = [6, 9802, 14962, 2082, 831, 244]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_jieba_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_jieba_tokens)
 
         reconstructed_text = tokenizer.decode(input_jieba_tokens)
         self.assertEqual(reconstructed_text, normalized_text)

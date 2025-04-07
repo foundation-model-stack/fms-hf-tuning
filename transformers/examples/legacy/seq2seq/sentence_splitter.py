@@ -11,14 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import re
 
-# Third Party
 from filelock import FileLock
 
+
 try:
-    # Third Party
     import nltk
 
     NLTK_AVAILABLE = True
@@ -33,7 +31,5 @@ if NLTK_AVAILABLE:
 def add_newline_to_end_of_each_sentence(x: str) -> str:
     """This was added to get rougeLsum scores matching published rougeL scores for BART and PEGASUS."""
     re.sub("<n>", "", x)  # remove pegasus newline char
-    assert (
-        NLTK_AVAILABLE
-    ), "nltk must be installed to separate newlines between sentences. (pip install nltk)"
+    assert NLTK_AVAILABLE, "nltk must be installed to separate newlines between sentences. (pip install nltk)"
     return "\n".join(nltk.sent_tokenize(x))

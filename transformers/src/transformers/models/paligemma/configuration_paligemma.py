@@ -13,13 +13,12 @@
 # limitations under the License.
 """PaliGemmamodel configuration"""
 
-# Standard
 import warnings
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 from ..auto import CONFIG_MAPPING, AutoConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -98,13 +97,9 @@ class PaliGemmaConfig(PretrainedConfig):
 
         if isinstance(self.vision_config, dict):
             vision_config["model_type"] = (
-                vision_config["model_type"]
-                if "model_type" in vision_config
-                else "siglip_vision_model"
+                vision_config["model_type"] if "model_type" in vision_config else "siglip_vision_model"
             )
-            self.vision_config = CONFIG_MAPPING[vision_config["model_type"]](
-                **vision_config
-            )
+            self.vision_config = CONFIG_MAPPING[vision_config["model_type"]](**vision_config)
         elif vision_config is None:
             self.vision_config = CONFIG_MAPPING["siglip_vision_model"](
                 intermediate_size=4096,
@@ -119,9 +114,7 @@ class PaliGemmaConfig(PretrainedConfig):
 
         self.text_config = text_config
         if isinstance(self.text_config, dict):
-            text_config["model_type"] = (
-                text_config["model_type"] if "model_type" in text_config else "gemma"
-            )
+            text_config["model_type"] = text_config["model_type"] if "model_type" in text_config else "gemma"
             self.text_config = CONFIG_MAPPING[text_config["model_type"]](**text_config)
         elif text_config is None:
             self.text_config = CONFIG_MAPPING["gemma"](
@@ -133,9 +126,7 @@ class PaliGemmaConfig(PretrainedConfig):
                 is_encoder_decoder=False,
                 vocab_size=vocab_size,
             )
-        self.text_config.num_image_tokens = (
-            self.vision_config.image_size // self.vision_config.patch_size
-        ) ** 2
+        self.text_config.num_image_tokens = (self.vision_config.image_size // self.vision_config.patch_size) ** 2
         self.vision_config.projection_dim = projection_dim
         super().__init__(**kwargs)
 

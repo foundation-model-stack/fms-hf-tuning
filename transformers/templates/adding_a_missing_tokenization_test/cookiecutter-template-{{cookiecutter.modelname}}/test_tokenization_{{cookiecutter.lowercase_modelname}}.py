@@ -15,56 +15,37 @@
 """ Testing suite for the {{cookiecutter.modelname}} tokenizer. """
 
 
-# Standard
 import unittest
 
 {% if cookiecutter.has_slow_class == "True" and  cookiecutter.has_fast_class == "True" -%}
-# First Party
-from transformers import (
-    {{cookiecutter.camelcase_modelname}}Tokenizer,
-    {{cookiecutter.camelcase_modelname}}TokenizerFast,
-)
-
+from transformers import {{cookiecutter.camelcase_modelname}}Tokenizer, {{cookiecutter.camelcase_modelname}}TokenizerFast
 {% elif  cookiecutter.has_slow_class == "True" -%}
-# First Party
 from transformers import {{cookiecutter.camelcase_modelname}}Tokenizer
-
 {% elif  cookiecutter.has_fast_class == "True" -%}
-# First Party
 from transformers import {{cookiecutter.camelcase_modelname}}TokenizerFast
-
 {% endif -%}
 {% if cookiecutter.has_fast_class == "True" and  cookiecutter.slow_tokenizer_use_sentencepiece == "True" -%}
-# First Party
 from transformers.testing_utils import require_sentencepiece, require_tokenizers
-
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
 @require_sentencepiece
 @require_tokenizers
 {% elif  cookiecutter.slow_tokenizer_use_sentencepiece == "True" -%}
-# First Party
 from transformers.testing_utils import require_sentencepiece
-
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
 @require_sentencepiece
 {% elif  cookiecutter.has_fast_class == "True" -%}
-# First Party
 from transformers.testing_utils import require_tokenizers
-
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
 
 
 @require_tokenizers
 {% else -%}
-# Local
 from ...test_tokenization_common import TokenizerTesterMixin
+
 
 {% endif -%}
 class {{cookiecutter.camelcase_modelname}}TokenizationTest(TokenizerTesterMixin, unittest.TestCase):

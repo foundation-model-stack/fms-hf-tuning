@@ -14,16 +14,15 @@
 # limitations under the License.
 
 
-# Standard
-from unittest.mock import patch
 import argparse
 import json
 import logging
 import os
 import sys
+from unittest.mock import patch
 
-# First Party
 from transformers.testing_utils import TestCasePlus, get_gpu_count, slow
+
 
 SRC_DIRS = [
     os.path.join(os.path.dirname(__file__), dirname)
@@ -40,7 +39,6 @@ sys.path.extend(SRC_DIRS)
 
 
 if SRC_DIRS is not None:
-    # Third Party
     import run_clm_flax
     import run_flax_glue
     import run_flax_ner

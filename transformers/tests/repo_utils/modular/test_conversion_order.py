@@ -1,13 +1,13 @@
-# Standard
 import os
 import sys
 import unittest
 
+
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.append(os.path.join(ROOT_DIR, "utils"))
 
-# Third Party
 import create_dependency_mapping  # noqa: E402
+
 
 # This is equivalent to `all` in the current library state (as of 09/01/2025)
 MODEL_ROOT = os.path.join("src", "transformers", "models")
@@ -22,6 +22,8 @@ FILES_TO_PARSE = [
     os.path.join(MODEL_ROOT, "olmo", "modular_olmo.py"),
     os.path.join(MODEL_ROOT, "rt_detr", "modular_rt_detr.py"),
     os.path.join(MODEL_ROOT, "qwen2", "modular_qwen2.py"),
+    os.path.join(MODEL_ROOT, "qwen3", "modular_qwen3.py"),
+    os.path.join(MODEL_ROOT, "qwen3", "modular_qwen3_moe.py"),
     os.path.join(MODEL_ROOT, "llava_next_video", "modular_llava_next_video.py"),
     os.path.join(MODEL_ROOT, "cohere2", "modular_cohere2.py"),
     os.path.join(MODEL_ROOT, "modernbert", "modular_modernbert.py"),
@@ -30,9 +32,7 @@ FILES_TO_PARSE = [
     os.path.join(MODEL_ROOT, "aria", "modular_aria.py"),
     os.path.join(MODEL_ROOT, "ijepa", "modular_ijepa.py"),
     os.path.join(MODEL_ROOT, "bamba", "modular_bamba.py"),
-    os.path.join(
-        MODEL_ROOT, "dinov2_with_registers", "modular_dinov2_with_registers.py"
-    ),
+    os.path.join(MODEL_ROOT, "dinov2_with_registers", "modular_dinov2_with_registers.py"),
     os.path.join(MODEL_ROOT, "instructblipvideo", "modular_instructblipvideo.py"),
     os.path.join(MODEL_ROOT, "glm", "modular_glm.py"),
     os.path.join(MODEL_ROOT, "phi", "modular_phi.py"),
@@ -52,9 +52,7 @@ class ConversionOrderTest(unittest.TestCase):
         # Find the order
         priority_list, _ = create_dependency_mapping.find_priority_list(FILES_TO_PARSE)
         # Extract just the model names
-        model_priority_list = [
-            file.rsplit("modular_")[-1].replace(".py", "") for file in priority_list
-        ]
+        model_priority_list = [file.rsplit("modular_")[-1].replace(".py", "") for file in priority_list]
 
         # These are based on what the current library order should be (as of 09/01/2025)
         self.assertTrue(appear_after("mixtral", "mistral", model_priority_list))

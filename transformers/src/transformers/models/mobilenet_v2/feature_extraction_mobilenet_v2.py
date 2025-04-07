@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for MobileNetV2."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_mobilenet_v2 import MobileNetV2ImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

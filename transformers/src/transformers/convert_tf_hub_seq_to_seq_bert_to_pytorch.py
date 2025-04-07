@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2020 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +13,8 @@
 # limitations under the License.
 """Convert Seq2Seq TF Hub checkpoint."""
 
-# Standard
 import argparse
 
-# Local
 from . import (
     BertConfig,
     BertGenerationConfig,
@@ -27,12 +24,11 @@ from . import (
     logging,
 )
 
+
 logging.set_verbosity_info()
 
 
-def convert_tf_checkpoint_to_pytorch(
-    tf_hub_path, pytorch_dump_path, is_encoder_named_decoder, vocab_size, is_encoder
-):
+def convert_tf_checkpoint_to_pytorch(tf_hub_path, pytorch_dump_path, is_encoder_named_decoder, vocab_size, is_encoder):
     # Initialise PyTorch model
     bert_config = BertConfig.from_pretrained(
         "google-bert/bert-large-cased",
@@ -68,30 +64,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Required parameters
     parser.add_argument(
-        "--tf_hub_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the TensorFlow checkpoint path.",
+        "--tf_hub_path", default=None, type=str, required=True, help="Path to the TensorFlow checkpoint path."
     )
     parser.add_argument(
-        "--pytorch_dump_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the output PyTorch model.",
+        "--pytorch_dump_path", default=None, type=str, required=True, help="Path to the output PyTorch model."
     )
     parser.add_argument(
         "--is_encoder_named_decoder",
         action="store_true",
         help="If decoder has to be renamed to encoder in PyTorch model.",
     )
-    parser.add_argument(
-        "--is_encoder", action="store_true", help="If model is an encoder."
-    )
-    parser.add_argument(
-        "--vocab_size", default=50358, type=int, help="Vocab size of model"
-    )
+    parser.add_argument("--is_encoder", action="store_true", help="If model is an encoder.")
+    parser.add_argument("--vocab_size", default=50358, type=int, help="Vocab size of model")
     args = parser.parse_args()
     convert_tf_checkpoint_to_pytorch(
         args.tf_hub_path,

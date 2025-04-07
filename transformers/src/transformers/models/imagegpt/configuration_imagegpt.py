@@ -14,17 +14,15 @@
 # limitations under the License.
 """OpenAI ImageGPT configuration"""
 
-# Standard
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Mapping, Optional
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import logging
 
+
 if TYPE_CHECKING:
-    # Local
     from ... import FeatureExtractionMixin, TensorType
 
 logger = logging.get_logger(__name__)
@@ -192,9 +190,7 @@ class ImageGPTOnnxConfig(OnnxConfig):
             Mapping[str, Tensor] holding the kwargs to provide to the model's forward function
         """
 
-        input_image = self._generate_dummy_images(
-            batch_size, num_channels, image_height, image_width
-        )
+        input_image = self._generate_dummy_images(batch_size, num_channels, image_height, image_width)
         inputs = dict(preprocessor(images=input_image, return_tensors=framework))
 
         return inputs

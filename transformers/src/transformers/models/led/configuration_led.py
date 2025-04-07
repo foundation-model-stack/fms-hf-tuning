@@ -14,12 +14,11 @@
 # limitations under the License.
 """LED model configuration"""
 
-# Standard
 from typing import List, Union
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 

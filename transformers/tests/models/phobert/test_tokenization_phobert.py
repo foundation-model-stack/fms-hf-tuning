@@ -13,18 +13,13 @@
 # limitations under the License.
 
 
-# Standard
 import os
 import unittest
+from functools import lru_cache
 
-# First Party
-from transformers.models.phobert.tokenization_phobert import (
-    VOCAB_FILES_NAMES,
-    PhobertTokenizer,
-)
+from transformers.models.phobert.tokenization_phobert import VOCAB_FILES_NAMES, PhobertTokenizer
 
-# Local
-from ...test_tokenization_common import TokenizerTesterMixin
+from ...test_tokenization_common import TokenizerTesterMixin, use_cache_if_possible
 
 
 class PhobertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
@@ -32,29 +27,32 @@ class PhobertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
     tokenizer_class = PhobertTokenizer
     test_rust_tokenizer = False
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
         # Adapted from Sennrich et al. 2015 and https://github.com/rsennrich/subword-nmt
         vocab = ["T@@", "i", "I", "R@@", "r", "e@@"]
         vocab_tokens = dict(zip(vocab, range(len(vocab))))
         merges = ["#version: 0.2", "l à</w>"]
-        self.special_tokens_map = {"unk_token": "<unk>"}
+        cls.special_tokens_map = {"unk_token": "<unk>"}
 
-        self.vocab_file = os.path.join(self.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
-        self.merges_file = os.path.join(
-            self.tmpdirname, VOCAB_FILES_NAMES["merges_file"]
-        )
+        cls.vocab_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["vocab_file"])
+        cls.merges_file = os.path.join(cls.tmpdirname, VOCAB_FILES_NAMES["merges_file"])
 
-        with open(self.vocab_file, "w", encoding="utf-8") as fp:
+        with open(cls.vocab_file, "w", encoding="utf-8") as fp:
             for token in vocab_tokens:
                 fp.write(f"{token} {vocab_tokens[token]}\n")
-        with open(self.merges_file, "w", encoding="utf-8") as fp:
+        with open(cls.merges_file, "w", encoding="utf-8") as fp:
             fp.write("\n".join(merges))
 
-    def get_tokenizer(self, **kwargs):
-        kwargs.update(self.special_tokens_map)
-        return PhobertTokenizer.from_pretrained(self.tmpdirname, **kwargs)
+    @classmethod
+    @use_cache_if_possible
+    @lru_cache(maxsize=64)
+    def get_tokenizer(cls, pretrained_name=None, **kwargs):
+        kwargs.update(cls.special_tokens_map)
+        pretrained_name = pretrained_name or cls.tmpdirname
+        return PhobertTokenizer.from_pretrained(pretrained_name, **kwargs)
 
     def get_input_output_texts(self, tokenizer):
         input_text = "Tôi là VinAI Research"
@@ -62,13 +60,9 @@ class PhobertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         return input_text, output_text
 
     def test_full_tokenizer(self):
-        tokenizer = PhobertTokenizer(
-            self.vocab_file, self.merges_file, **self.special_tokens_map
-        )
+        tokenizer = PhobertTokenizer(self.vocab_file, self.merges_file, **self.special_tokens_map)
         text = "Tôi là VinAI Research"
-        bpe_tokens = (
-            "T@@ ô@@ i l@@ à V@@ i@@ n@@ A@@ I R@@ e@@ s@@ e@@ a@@ r@@ c@@ h".split()
-        )
+        bpe_tokens = "T@@ ô@@ i l@@ à V@@ i@@ n@@ A@@ I R@@ e@@ s@@ e@@ a@@ r@@ c@@ h".split()
         tokens = tokenizer.tokenize(text)
         print(tokens)
         self.assertListEqual(tokens, bpe_tokens)
@@ -76,6 +70,4 @@ class PhobertTokenizationTest(TokenizerTesterMixin, unittest.TestCase):
         input_tokens = tokens + [tokenizer.unk_token]
 
         input_bpe_tokens = [4, 3, 5, 3, 3, 3, 3, 3, 3, 6, 7, 9, 3, 9, 3, 3, 3, 3, 3]
-        self.assertListEqual(
-            tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens
-        )
+        self.assertListEqual(tokenizer.convert_tokens_to_ids(input_tokens), input_bpe_tokens)

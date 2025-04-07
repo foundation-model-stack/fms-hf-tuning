@@ -14,24 +14,15 @@
 # limitations under the License.
 """Testing suite for the PyTorch emu3 model."""
 
-# Standard
 import unittest
 
-# Third Party
-from huggingface_hub import hf_hub_download
-from parameterized import parameterized
 import numpy as np
 import pytest
 import requests
+from huggingface_hub import hf_hub_download
+from parameterized import parameterized
 
-# First Party
-from transformers import (
-    Emu3Config,
-    Emu3TextConfig,
-    is_torch_available,
-    is_vision_available,
-    set_seed,
-)
+from transformers import Emu3Config, Emu3TextConfig, is_torch_available, is_vision_available, set_seed
 from transformers.testing_utils import (
     require_bitsandbytes,
     require_torch,
@@ -40,21 +31,18 @@ from transformers.testing_utils import (
     torch_device,
 )
 
-# Local
 from ...generation.test_utils import GenerationTesterMixin
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         Emu3ForCausalLM,
         Emu3ForConditionalGeneration,
@@ -134,9 +122,7 @@ class Emu3Text2TextModelTester:
 
 
 @require_torch
-class Emu3Text2TextModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class Emu3Text2TextModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (Emu3ForCausalLM,) if is_torch_available() else ()
     pipeline_model_mapping = (
         {
@@ -151,9 +137,7 @@ class Emu3Text2TextModelTest(
 
     def setUp(self):
         self.model_tester = Emu3Text2TextModelTester(self)
-        self.config_tester = ConfigTester(
-            self, config_class=Emu3TextConfig, hidden_size=37
-        )
+        self.config_tester = ConfigTester(self, config_class=Emu3TextConfig, hidden_size=37)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -162,22 +146,16 @@ class Emu3Text2TextModelTest(
     def test_model_rope_scaling(self, scaling_type):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()
         short_input = ids_tensor([1, 10], config.vocab_size)
-        long_input = ids_tensor(
-            [1, int(config.max_position_embeddings * 1.5)], config.vocab_size
-        )
+        long_input = ids_tensor([1, int(config.max_position_embeddings * 1.5)], config.vocab_size)
 
-        set_seed(
-            42
-        )  # Fixed seed at init time so the two models get the same random weights
+        set_seed(42)  # Fixed seed at init time so the two models get the same random weights
         original_model = Emu3TextModel(config)
         original_model.to(torch_device)
         original_model.eval()
         original_short_output = original_model(short_input).last_hidden_state
         original_long_output = original_model(long_input).last_hidden_state
 
-        set_seed(
-            42
-        )  # Fixed seed at init time so the two models get the same random weights
+        set_seed(42)  # Fixed seed at init time so the two models get the same random weights
         config.rope_scaling = {"type": scaling_type, "factor": 10.0}
         scaled_model = Emu3TextModel(config)
         scaled_model.to(torch_device)
@@ -188,18 +166,12 @@ class Emu3Text2TextModelTest(
         # Dynamic scaling does not change the RoPE embeddings until it receives an input longer than the original
         # maximum sequence length, so the outputs for the short input should match.
         if scaling_type == "dynamic":
-            torch.testing.assert_close(
-                original_short_output, scaled_short_output, rtol=1e-5, atol=1e-5
-            )
+            torch.testing.assert_close(original_short_output, scaled_short_output, rtol=1e-5, atol=1e-5)
         else:
-            self.assertFalse(
-                torch.allclose(original_short_output, scaled_short_output, atol=1e-5)
-            )
+            self.assertFalse(torch.allclose(original_short_output, scaled_short_output, atol=1e-5))
 
         # The output should be different for long inputs
-        self.assertFalse(
-            torch.allclose(original_long_output, scaled_long_output, atol=1e-5)
-        )
+        self.assertFalse(torch.allclose(original_long_output, scaled_long_output, atol=1e-5))
 
     @unittest.skip("Doesn't work, tensors are not almost same")  # TODO raushan fixme
     def test_custom_4d_attention_mask(self):
@@ -260,9 +232,7 @@ class Emu3Vision2TextModelTester:
     def prepare_config_and_inputs(self):
         config = self.get_config()
 
-        input_ids = ids_tensor(
-            [self.batch_size, self.seq_length], config.text_config.vocab_size
-        )
+        input_ids = ids_tensor([self.batch_size, self.seq_length], config.text_config.vocab_size)
         attention_mask = input_ids.ne(1).to(torch_device)
         input_ids[input_ids == self.image_token_id] = self.pad_token_id
         input_ids[:, : self.image_seq_length] = self.image_token_id
@@ -318,9 +288,7 @@ class Emu3Vision2TextModelTester:
             "channel_multiplier": self.vq_channel_multiplier,
             "hidden_size": self.base_channels,
         }
-        return Emu3Config(
-            text_config=text_config, vq_config=vq_config, vocabulary_map=vocab_map
-        )
+        return Emu3Config(text_config=text_config, vq_config=vq_config, vocabulary_map=vocab_map)
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -341,9 +309,7 @@ class Emu3Vision2TextModelTester:
 
 
 @require_torch
-class Emu3Vision2TextModelTest(
-    ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase
-):
+class Emu3Vision2TextModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, unittest.TestCase):
     all_model_classes = (Emu3ForConditionalGeneration,) if is_torch_available() else ()
     pipeline_model_mapping = {}
     test_headmasking = False
@@ -353,10 +319,7 @@ class Emu3Vision2TextModelTest(
     def setUp(self):
         self.model_tester = Emu3Vision2TextModelTester(self)
         self.config_tester = ConfigTester(
-            self,
-            config_class=Emu3Config,
-            has_text_modality=False,
-            common_properties=["vocabulary_map"],
+            self, config_class=Emu3Config, has_text_modality=False, common_properties=["vocabulary_map"]
         )
 
     def test_config(self):
@@ -438,19 +401,15 @@ class Emu3IntegrationTest(unittest.TestCase):
     @slow
     @require_bitsandbytes
     def test_model_generation(self):
-        model = Emu3ForConditionalGeneration.from_pretrained(
-            "BAAI/Emu3-Chat-hf", load_in_4bit=True
-        )
+        model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Chat-hf", load_in_4bit=True)
         processor = Emu3Processor.from_pretrained("BAAI/Emu3-Chat-hf")
 
-        image = Image.open(
-            requests.get("https://picsum.photos/id/237/200/200", stream=True).raw
-        )
+        image = Image.open(requests.get("https://picsum.photos/id/237/200/200", stream=True).raw)
         prompt = "USER: <image>Describe what do you see here and tell me about the history behind it? ASSISTANT:"
 
-        inputs = processor(images=image, text=prompt, return_tensors="pt").to(
-            model.device, torch.float16
-        )
+        inputs = processor(images=image, text=prompt, return_tensors="pt").to(model.device, torch.float16)
+
+        # greedy generation outputs
         EXPECTED_TEXT_COMPLETION = ['USER: 64*64Describe what do you see here and tell me about the history behind it? ASSISTANT: The image captures a moment of tranquility with a black Labrador Retriever resting on a wooden floor. The dog, with its glossy black coat, is lying down with its front legs stretched out in']  # fmt: skip
         generated_ids = model.generate(**inputs, max_new_tokens=40, do_sample=False)
         text = processor.batch_decode(generated_ids, skip_special_tokens=True)
@@ -460,26 +419,22 @@ class Emu3IntegrationTest(unittest.TestCase):
     @require_bitsandbytes
     @require_torch_large_gpu
     def test_model_generation_batched(self):
-        model = Emu3ForConditionalGeneration.from_pretrained(
-            "BAAI/Emu3-Chat-hf", load_in_4bit=True
-        )
+        model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Chat-hf", load_in_4bit=True)
         processor = Emu3Processor.from_pretrained("BAAI/Emu3-Chat-hf")
         processor.tokenizer.padding_side = "left"
 
-        image = Image.open(
-            requests.get("https://picsum.photos/id/237/50/50", stream=True).raw
-        )
-        image_2 = Image.open(
-            requests.get("https://picsum.photos/id/247/50/50", stream=True).raw
-        )
+        image = Image.open(requests.get("https://picsum.photos/id/237/50/50", stream=True).raw)
+        image_2 = Image.open(requests.get("https://picsum.photos/id/247/50/50", stream=True).raw)
         prompts = [
             "USER: <image>Describe what do you see here? ASSISTANT:",
             "USER: <image>What can you say about the image? ASSISTANT:",
         ]
 
-        inputs = processor(
-            images=[image, image_2], text=prompts, padding=True, return_tensors="pt"
-        ).to(model.device, torch.float16)
+        inputs = processor(images=[image, image_2], text=prompts, padding=True, return_tensors="pt").to(
+            model.device, torch.float16
+        )
+
+        # greedy generation outputs
         EXPECTED_TEXT_COMPLETION = [
             "USER: 64*64Describe what do you see here? ASSISTANT: The image depicts a black panther in a crouched position. The panther's body is elongated and curved, with its head lowered and ears pointed forward, suggesting alertness or focus.",
             'USER: 64*64What can you say about the image? ASSISTANT: The image depicts a serene natural landscape. The foreground consists of a grassy area with some patches of bare earth. The middle ground shows a steep, reddish-brown cliff, which could be a'
@@ -492,24 +447,16 @@ class Emu3IntegrationTest(unittest.TestCase):
     @require_bitsandbytes
     @require_torch_large_gpu
     def test_model_generation_multi_image(self):
-        model = Emu3ForConditionalGeneration.from_pretrained(
-            "BAAI/Emu3-Chat-hf", load_in_4bit=True
-        )
+        model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Chat-hf", load_in_4bit=True)
         processor = Emu3Processor.from_pretrained("BAAI/Emu3-Chat-hf")
 
-        image = Image.open(
-            requests.get("https://picsum.photos/id/237/50/50", stream=True).raw
-        )
-        image_2 = Image.open(
-            requests.get("https://picsum.photos/id/247/50/50", stream=True).raw
-        )
-        prompt = (
-            "USER: <image><image>What do these two images have in common? ASSISTANT:"
-        )
+        image = Image.open(requests.get("https://picsum.photos/id/237/50/50", stream=True).raw)
+        image_2 = Image.open(requests.get("https://picsum.photos/id/247/50/50", stream=True).raw)
+        prompt = "USER: <image><image>What do these two images have in common? ASSISTANT:"
 
-        inputs = processor(
-            images=[image, image_2], text=prompt, return_tensors="pt"
-        ).to(model.device, torch.float16)
+        inputs = processor(images=[image, image_2], text=prompt, return_tensors="pt").to(model.device, torch.float16)
+
+        # greedy generation outputs
         EXPECTED_TEXT_COMPLETION = ["USER: 64*6464*64What do these two images have in common? ASSISTANT: Both images feature a black animal, but they are not the same animal. The top image shows a close-up of a black cow's head, while the bottom image depicts a black cow in a natural"]  # fmt: skip
         generated_ids = model.generate(**inputs, max_new_tokens=40, do_sample=False)
         text = processor.batch_decode(generated_ids, skip_special_tokens=True)
@@ -519,9 +466,7 @@ class Emu3IntegrationTest(unittest.TestCase):
     @require_bitsandbytes
     @require_torch_large_gpu
     def test_model_generate_images(self):
-        model = Emu3ForConditionalGeneration.from_pretrained(
-            "BAAI/Emu3-Gen-hf", load_in_4bit=True
-        )
+        model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Gen-hf", load_in_4bit=True)
         processor = Emu3Processor.from_pretrained("BAAI/Emu3-Gen-hf")
 
         inputs = processor(
@@ -540,28 +485,14 @@ class Emu3IntegrationTest(unittest.TestCase):
         def prefix_allowed_tokens_fn(batch_id, input_ids):
             height, width = HEIGHT, WIDTH
             visual_tokens = VISUAL_TOKENS
-            image_wrapper_token_id = torch.tensor(
-                [processor.tokenizer.image_wrapper_token_id], device=model.device
-            )
-            eoi_token_id = torch.tensor(
-                [processor.tokenizer.eoi_token_id], device=model.device
-            )
-            eos_token_id = torch.tensor(
-                [processor.tokenizer.eos_token_id], device=model.device
-            )
-            pad_token_id = torch.tensor(
-                [processor.tokenizer.pad_token_id], device=model.device
-            )
-            eof_token_id = torch.tensor(
-                [processor.tokenizer.eof_token_id], device=model.device
-            )
-            eol_token_id = processor.tokenizer.encode(
-                "<|extra_200|>", return_tensors="pt"
-            )[0]
+            image_wrapper_token_id = torch.tensor([processor.tokenizer.image_wrapper_token_id], device=model.device)
+            eoi_token_id = torch.tensor([processor.tokenizer.eoi_token_id], device=model.device)
+            eos_token_id = torch.tensor([processor.tokenizer.eos_token_id], device=model.device)
+            pad_token_id = torch.tensor([processor.tokenizer.pad_token_id], device=model.device)
+            eof_token_id = torch.tensor([processor.tokenizer.eof_token_id], device=model.device)
+            eol_token_id = processor.tokenizer.encode("<|extra_200|>", return_tensors="pt")[0]
 
-            position = torch.nonzero(
-                input_ids == image_wrapper_token_id, as_tuple=True
-            )[0][0]
+            position = torch.nonzero(input_ids == image_wrapper_token_id, as_tuple=True)[0][0]
             offset = input_ids.shape[0] - position
             if offset % (width + 1) == 0:
                 return (eol_token_id,)
@@ -584,9 +515,7 @@ class Emu3IntegrationTest(unittest.TestCase):
         )
         self.assertTrue(out.shape[1] == 54)
 
-        image = model.decode_image_tokens(
-            out[:, inputs.input_ids.shape[1] :], height=HEIGHT, width=WIDTH
-        )
+        image = model.decode_image_tokens(out[:, inputs.input_ids.shape[1] :], height=HEIGHT, width=WIDTH)
         images = processor.postprocess(list(image.float()), return_tensors="np")
         self.assertTrue(images["pixel_values"].shape == (3, 40, 40))
         self.assertTrue(isinstance(images["pixel_values"], np.ndarray))

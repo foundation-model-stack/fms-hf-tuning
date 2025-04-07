@@ -14,15 +14,12 @@
 # limitations under the License.
 """Convert RoBERTa checkpoint."""
 
-# Standard
 import argparse
 
-# Third Party
-from torch import nn
 import pytorch_lightning as pl
 import torch
+from torch import nn
 
-# First Party
 from transformers import LongformerForQuestionAnswering, LongformerModel
 
 
@@ -39,17 +36,13 @@ class LightningModel(pl.LightningModule):
 
 
 def convert_longformer_qa_checkpoint_to_pytorch(
-    longformer_model: str,
-    longformer_question_answering_ckpt_path: str,
-    pytorch_dump_folder_path: str,
+    longformer_model: str, longformer_question_answering_ckpt_path: str, pytorch_dump_folder_path: str
 ):
     # load longformer model from model identifier
     longformer = LongformerModel.from_pretrained(longformer_model)
     lightning_model = LightningModel(longformer)
 
-    ckpt = torch.load(
-        longformer_question_answering_ckpt_path, map_location=torch.device("cpu")
-    )
+    ckpt = torch.load(longformer_question_answering_ckpt_path, map_location=torch.device("cpu"))
     lightning_model.load_state_dict(ckpt["state_dict"])
 
     # init longformer question answering model
@@ -57,9 +50,7 @@ def convert_longformer_qa_checkpoint_to_pytorch(
 
     # transfer weights
     longformer_for_qa.longformer.load_state_dict(lightning_model.model.state_dict())
-    longformer_for_qa.qa_outputs.load_state_dict(
-        lightning_model.qa_outputs.state_dict()
-    )
+    longformer_for_qa.qa_outputs.load_state_dict(lightning_model.qa_outputs.state_dict())
     longformer_for_qa.eval()
 
     # save model
@@ -86,15 +77,9 @@ if __name__ == "__main__":
         help="Path the official PyTorch Lightning Checkpoint.",
     )
     parser.add_argument(
-        "--pytorch_dump_folder_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Path to the output PyTorch model.",
+        "--pytorch_dump_folder_path", default=None, type=str, required=True, help="Path to the output PyTorch model."
     )
     args = parser.parse_args()
     convert_longformer_qa_checkpoint_to_pytorch(
-        args.longformer_model,
-        args.longformer_question_answering_ckpt_path,
-        args.pytorch_dump_folder_path,
+        args.longformer_model, args.longformer_question_answering_ckpt_path, args.pytorch_dump_folder_path
     )

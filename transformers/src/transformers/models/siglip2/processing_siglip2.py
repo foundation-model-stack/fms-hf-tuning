@@ -16,10 +16,8 @@
 Image/Text processor class for SigLIP2.
 """
 
-# Standard
 from typing import List, Optional, Union
 
-# Local
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
@@ -71,17 +69,8 @@ class Siglip2Processor(ProcessorMixin):
 
     def __call__(
         self,
-        images: Optional[
-            Union[ImageInput, List[ImageInput], List[List[ImageInput]]]
-        ] = None,
-        text: Optional[
-            Union[
-                TextInput,
-                "PreTokenizedInput",
-                List[TextInput],
-                List["PreTokenizedInput"],
-            ]
-        ] = None,
+        images: Optional[Union[ImageInput, List[ImageInput], List[List[ImageInput]]]] = None,
+        text: Optional[Union[TextInput, "PreTokenizedInput", List[TextInput], List["PreTokenizedInput"]]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[Siglip2ProcessorKwargs],
@@ -90,7 +79,7 @@ class Siglip2Processor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to GemmaTokenizerFast's [`~GemmaTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` argument to
-        Siglip2ImageProcessor's [`~Siglip2ImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        Siglip2ImageProcessor's [`~Siglip2ImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -141,17 +130,13 @@ class Siglip2Processor(ProcessorMixin):
         )
 
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
 
         if text is not None:
             encoding = self.tokenizer(text, **output_kwargs["text_kwargs"])
 
         if images is not None:
-            image_features = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_features = self.image_processor(images, **output_kwargs["images_kwargs"])
 
         if text is not None and images is not None:
             encoding.update(image_features)

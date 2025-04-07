@@ -14,13 +14,12 @@
 # limitations under the License.
 """LongT5 model configuration"""
 
-# Standard
 from typing import Mapping
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxSeq2SeqConfigWithPast
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -117,9 +116,7 @@ class LongT5Config(PretrainedConfig):
         self.d_ff = d_ff
         self.num_layers = num_layers
         # default = symmetry
-        self.num_decoder_layers = (
-            num_decoder_layers if num_decoder_layers is not None else self.num_layers
-        )
+        self.num_decoder_layers = num_decoder_layers if num_decoder_layers is not None else self.num_layers
         self.num_heads = num_heads
         self.local_radius = local_radius
         self.global_block_size = global_block_size
@@ -165,16 +162,10 @@ class LongT5OnnxConfig(OnnxSeq2SeqConfigWithPast):
         if self.use_past:
             common_inputs["attention_mask"][1] = "past_encoder_sequence + sequence"
             common_inputs["decoder_input_ids"] = {0: "batch"}
-            common_inputs["decoder_attention_mask"] = {
-                0: "batch",
-                1: "past_decoder_sequence + sequence",
-            }
+            common_inputs["decoder_attention_mask"] = {0: "batch", 1: "past_decoder_sequence + sequence"}
         else:
             common_inputs["decoder_input_ids"] = {0: "batch", 1: "decoder_sequence"}
-            common_inputs["decoder_attention_mask"] = {
-                0: "batch",
-                1: "decoder_sequence",
-            }
+            common_inputs["decoder_attention_mask"] = {0: "batch", 1: "decoder_sequence"}
 
         if self.use_past:
             self.fill_with_past_key_values_(common_inputs, direction="inputs")

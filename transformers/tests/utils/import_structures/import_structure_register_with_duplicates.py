@@ -14,7 +14,6 @@
 
 # fmt: off
 
-# First Party
 from transformers.utils.import_utils import export
 
 

@@ -14,12 +14,11 @@
 # limitations under the License.
 """Feature extractor class for OwlViT."""
 
-# Standard
 import warnings
 
-# Local
 from ...utils import logging
 from .image_processing_owlvit import OwlViTImageProcessor
+
 
 logger = logging.get_logger(__name__)
 

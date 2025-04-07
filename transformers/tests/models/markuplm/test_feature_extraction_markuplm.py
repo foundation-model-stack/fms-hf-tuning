@@ -14,18 +14,15 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_bs4
 from transformers.utils import is_bs4_available
 
-# Local
 from ...test_feature_extraction_common import FeatureExtractionSavingTestMixin
 
+
 if is_bs4_available():
-    # First Party
     from transformers import MarkupLMFeatureExtractor
 
 
@@ -76,9 +73,7 @@ def get_html_strings():
 
 
 @require_bs4
-class MarkupLMFeatureExtractionTest(
-    FeatureExtractionSavingTestMixin, unittest.TestCase
-):
+class MarkupLMFeatureExtractionTest(FeatureExtractionSavingTestMixin, unittest.TestCase):
     feature_extraction_class = MarkupLMFeatureExtractor if is_bs4_available() else None
 
     def setUp(self):

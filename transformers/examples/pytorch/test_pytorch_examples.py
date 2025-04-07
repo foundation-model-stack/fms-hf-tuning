@@ -14,14 +14,12 @@
 # limitations under the License.
 
 
-# Standard
-from unittest.mock import patch
 import json
 import logging
 import os
 import sys
+from unittest.mock import patch
 
-# First Party
 from transformers import ViTMAEForPreTraining, Wav2Vec2ForPreTraining
 from transformers.testing_utils import (
     CaptureLogger,
@@ -31,6 +29,7 @@ from transformers.testing_utils import (
     slow,
     torch_device,
 )
+
 
 SRC_DIRS = [
     os.path.join(os.path.dirname(__file__), dirname)
@@ -57,7 +56,6 @@ sys.path.extend(SRC_DIRS)
 
 
 if SRC_DIRS is not None:
-    # Third Party
     import run_audio_classification
     import run_clm
     import run_generation
@@ -478,9 +476,7 @@ class ExamplesTests(TestCasePlus):
         with patch.object(sys, "argv", testargs):
             run_speech_recognition_ctc_adapter.main()
             result = get_results(tmp_dir)
-            self.assertTrue(
-                os.path.isfile(os.path.join(tmp_dir, "./adapter.tur.safetensors"))
-            )
+            self.assertTrue(os.path.isfile(os.path.join(tmp_dir, "./adapter.tur.safetensors")))
             self.assertLess(result["eval_loss"], result["train_loss"])
 
     def test_run_speech_recognition_seq2seq(self):
@@ -671,7 +667,7 @@ class ExamplesTests(TestCasePlus):
             --per_device_train_batch_size 2
             --per_device_eval_batch_size 1
             --do_eval
-            --evaluation_strategy epoch
+            --eval_strategy epoch
             --seed 32
         """.split()
 

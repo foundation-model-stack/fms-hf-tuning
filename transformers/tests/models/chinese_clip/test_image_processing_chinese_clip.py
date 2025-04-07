@@ -14,21 +14,15 @@
 # limitations under the License.
 
 
-# Standard
 import unittest
 
-# First Party
 from transformers.testing_utils import require_torch, require_vision
 from transformers.utils import is_vision_available
 
-# Local
-from ...test_image_processing_common import (
-    ImageProcessingTestMixin,
-    prepare_image_inputs,
-)
+from ...test_image_processing_common import ImageProcessingTestMixin, prepare_image_inputs
+
 
 if is_vision_available():
-    # First Party
     from transformers import ChineseCLIPImageProcessor
 
 
@@ -82,9 +76,7 @@ class ChineseCLIPImageProcessingTester:
     def expected_output_image_shape(self, images):
         return 3, self.crop_size["height"], self.crop_size["width"]
 
-    def prepare_image_inputs(
-        self, equal_resolution=False, numpify=False, torchify=False
-    ):
+    def prepare_image_inputs(self, equal_resolution=False, numpify=False, torchify=False):
         return prepare_image_inputs(
             batch_size=self.batch_size,
             num_channels=self.num_channels,
@@ -99,15 +91,11 @@ class ChineseCLIPImageProcessingTester:
 @require_torch
 @require_vision
 class ChineseCLIPImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
-    image_processing_class = (
-        ChineseCLIPImageProcessor if is_vision_available() else None
-    )
+    image_processing_class = ChineseCLIPImageProcessor if is_vision_available() else None
 
     def setUp(self):
         super().setUp()
-        self.image_processor_tester = ChineseCLIPImageProcessingTester(
-            self, do_center_crop=True
-        )
+        self.image_processor_tester = ChineseCLIPImageProcessingTester(self, do_center_crop=True)
 
     @property
     def image_processor_dict(self):
@@ -125,15 +113,11 @@ class ChineseCLIPImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase
         self.assertTrue(hasattr(image_processing, "do_convert_rgb"))
 
     def test_image_processor_from_dict_with_kwargs(self):
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict)
         self.assertEqual(image_processor.size, {"height": 224, "width": 224})
         self.assertEqual(image_processor.crop_size, {"height": 18, "width": 18})
 
-        image_processor = self.image_processing_class.from_dict(
-            self.image_processor_dict, size=42, crop_size=84
-        )
+        image_processor = self.image_processing_class.from_dict(self.image_processor_dict, size=42, crop_size=84)
         self.assertEqual(image_processor.size, {"shortest_edge": 42})
         self.assertEqual(image_processor.crop_size, {"height": 84, "width": 84})
 
@@ -146,18 +130,12 @@ class ChineseCLIPImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase
 
 @require_torch
 @require_vision
-class ChineseCLIPImageProcessingTestFourChannels(
-    ImageProcessingTestMixin, unittest.TestCase
-):
-    image_processing_class = (
-        ChineseCLIPImageProcessor if is_vision_available() else None
-    )
+class ChineseCLIPImageProcessingTestFourChannels(ImageProcessingTestMixin, unittest.TestCase):
+    image_processing_class = ChineseCLIPImageProcessor if is_vision_available() else None
 
     def setUp(self):
         super().setUp()
-        self.image_processor_tester = ChineseCLIPImageProcessingTester(
-            self, num_channels=4, do_center_crop=True
-        )
+        self.image_processor_tester = ChineseCLIPImageProcessingTester(self, num_channels=4, do_center_crop=True)
         self.expected_encoded_image_num_channels = 3
 
     @property
@@ -175,15 +153,11 @@ class ChineseCLIPImageProcessingTestFourChannels(
         self.assertTrue(hasattr(image_processing, "image_std"))
         self.assertTrue(hasattr(image_processing, "do_convert_rgb"))
 
-    @unittest.skip(
-        reason="ChineseCLIPImageProcessor does not support 4 channels yet"
-    )  # FIXME Amy
+    @unittest.skip(reason="ChineseCLIPImageProcessor does not support 4 channels yet")  # FIXME Amy
     def test_call_numpy(self):
         return super().test_call_numpy()
 
-    @unittest.skip(
-        reason="ChineseCLIPImageProcessor does not support 4 channels yet"
-    )  # FIXME Amy
+    @unittest.skip(reason="ChineseCLIPImageProcessor does not support 4 channels yet")  # FIXME Amy
     def test_call_pytorch(self):
         return super().test_call_torch()
 

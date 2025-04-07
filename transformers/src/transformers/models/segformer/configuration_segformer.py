@@ -14,18 +14,16 @@
 # limitations under the License.
 """SegFormer model configuration"""
 
-# Standard
+import warnings
 from collections import OrderedDict
 from typing import Mapping
-import warnings
 
-# Third Party
 from packaging import version
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...onnx import OnnxConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -157,10 +155,7 @@ class SegformerOnnxConfig(OnnxConfig):
     def inputs(self) -> Mapping[str, Mapping[int, str]]:
         return OrderedDict(
             [
-                (
-                    "pixel_values",
-                    {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
-                ),
+                ("pixel_values", {0: "batch", 1: "num_channels", 2: "height", 3: "width"}),
             ]
         )
 

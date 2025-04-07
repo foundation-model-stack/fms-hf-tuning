@@ -12,30 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Standard
 import os
 import tempfile
 import unittest
 
-# First Party
 from transformers import FlaubertConfig, is_sacremoses_available, is_torch_available
-from transformers.testing_utils import (
-    require_torch,
-    require_torch_accelerator,
-    slow,
-    torch_device,
-)
+from transformers.testing_utils import require_torch, require_torch_accelerator, slow, torch_device
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, ids_tensor, random_attention_mask
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import (
         FlaubertForMultipleChoice,
         FlaubertForQuestionAnswering,
@@ -45,9 +36,7 @@ if is_torch_available():
         FlaubertModel,
         FlaubertWithLMHeadModel,
     )
-    from transformers.models.flaubert.modeling_flaubert import (
-        create_sinusoidal_embeddings,
-    )
+    from transformers.models.flaubert.modeling_flaubert import create_sinusoidal_embeddings
 
 
 class FlaubertModelTester:
@@ -123,20 +112,14 @@ class FlaubertModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor(
-                [self.batch_size, self.seq_length], self.n_langs
-            )
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.n_langs)
 
         sequence_labels = None
         token_labels = None
         is_impossible_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor(
-                [self.batch_size], self.type_sequence_label_size
-            )
-            token_labels = ids_tensor(
-                [self.batch_size, self.seq_length], self.num_labels
-            )
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
             is_impossible_labels = ids_tensor([self.batch_size], 2).float()
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
@@ -192,10 +175,7 @@ class FlaubertModelTester:
         result = model(input_ids, lengths=input_lengths, langs=token_type_ids)
         result = model(input_ids, langs=token_type_ids)
         result = model(input_ids)
-        self.parent.assertEqual(
-            result.last_hidden_state.shape,
-            (self.batch_size, self.seq_length, self.hidden_size),
-        )
+        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
 
     def create_and_check_flaubert_lm_head(
         self,
@@ -215,9 +195,7 @@ class FlaubertModelTester:
 
         result = model(input_ids, token_type_ids=token_type_ids, labels=token_labels)
         self.parent.assertEqual(result.loss.shape, ())
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
 
     def create_and_check_flaubert_simple_qa(
         self,
@@ -237,15 +215,9 @@ class FlaubertModelTester:
 
         result = model(input_ids)
 
-        result = model(
-            input_ids, start_positions=sequence_labels, end_positions=sequence_labels
-        )
-        self.parent.assertEqual(
-            result.start_logits.shape, (self.batch_size, self.seq_length)
-        )
-        self.parent.assertEqual(
-            result.end_logits.shape, (self.batch_size, self.seq_length)
-        )
+        result = model(input_ids, start_positions=sequence_labels, end_positions=sequence_labels)
+        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
+        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def create_and_check_flaubert_qa(
         self,
@@ -284,27 +256,18 @@ class FlaubertModelTester:
 
         (total_loss,) = result_with_labels.to_tuple()
 
-        result_with_labels = model(
-            input_ids, start_positions=sequence_labels, end_positions=sequence_labels
-        )
+        result_with_labels = model(input_ids, start_positions=sequence_labels, end_positions=sequence_labels)
 
         (total_loss,) = result_with_labels.to_tuple()
 
         self.parent.assertEqual(result_with_labels.loss.shape, ())
+        self.parent.assertEqual(result.start_top_log_probs.shape, (self.batch_size, model.config.start_n_top))
+        self.parent.assertEqual(result.start_top_index.shape, (self.batch_size, model.config.start_n_top))
         self.parent.assertEqual(
-            result.start_top_log_probs.shape,
-            (self.batch_size, model.config.start_n_top),
+            result.end_top_log_probs.shape, (self.batch_size, model.config.start_n_top * model.config.end_n_top)
         )
         self.parent.assertEqual(
-            result.start_top_index.shape, (self.batch_size, model.config.start_n_top)
-        )
-        self.parent.assertEqual(
-            result.end_top_log_probs.shape,
-            (self.batch_size, model.config.start_n_top * model.config.end_n_top),
-        )
-        self.parent.assertEqual(
-            result.end_top_index.shape,
-            (self.batch_size, model.config.start_n_top * model.config.end_n_top),
+            result.end_top_index.shape, (self.batch_size, model.config.start_n_top * model.config.end_n_top)
         )
         self.parent.assertEqual(result.cls_logits.shape, (self.batch_size,))
 
@@ -328,9 +291,7 @@ class FlaubertModelTester:
         result = model(input_ids, labels=sequence_labels)
 
         self.parent.assertEqual(result.loss.shape, ())
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.type_sequence_label_size)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
     def create_and_check_flaubert_token_classif(
         self,
@@ -350,9 +311,7 @@ class FlaubertModelTester:
         model.eval()
 
         result = model(input_ids, attention_mask=input_mask, labels=token_labels)
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.seq_length, self.num_labels)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
 
     def create_and_check_flaubert_multiple_choice(
         self,
@@ -370,24 +329,16 @@ class FlaubertModelTester:
         model = FlaubertForMultipleChoice(config=config)
         model.to(torch_device)
         model.eval()
-        multiple_choice_inputs_ids = (
-            input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_token_type_ids = (
-            token_type_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
-        multiple_choice_input_mask = (
-            input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
-        )
+        multiple_choice_inputs_ids = input_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_token_type_ids = token_type_ids.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
+        multiple_choice_input_mask = input_mask.unsqueeze(1).expand(-1, self.num_choices, -1).contiguous()
         result = model(
             multiple_choice_inputs_ids,
             attention_mask=multiple_choice_input_mask,
             token_type_ids=multiple_choice_token_type_ids,
             labels=choice_labels,
         )
-        self.parent.assertEqual(
-            result.logits.shape, (self.batch_size, self.num_choices)
-        )
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_choices))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -466,9 +417,7 @@ class FlaubertModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
 
     # Flaubert has 2 QA models -> need to manually set the correct labels for one of them here
     def _prepare_for_class(self, inputs_dict, model_class, return_labels=False):
-        inputs_dict = super()._prepare_for_class(
-            inputs_dict, model_class, return_labels=return_labels
-        )
+        inputs_dict = super()._prepare_for_class(inputs_dict, model_class, return_labels=return_labels)
 
         if return_labels:
             if model_class.__name__ == "FlaubertForQuestionAnswering":
@@ -496,15 +445,9 @@ class FlaubertModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
     def test_flaubert_model_with_sinusoidal_encodings(self):
         config = FlaubertConfig(sinusoidal_embeddings=True)
         model = FlaubertModel(config=config)
-        sinusoidal_pos_embds = torch.empty(
-            (config.max_position_embeddings, config.emb_dim), dtype=torch.float32
-        )
-        create_sinusoidal_embeddings(
-            config.max_position_embeddings, config.emb_dim, sinusoidal_pos_embds
-        )
-        self.model_tester.parent.assertTrue(
-            torch.equal(model.position_embeddings.weight, sinusoidal_pos_embds)
-        )
+        sinusoidal_pos_embds = torch.empty((config.max_position_embeddings, config.emb_dim), dtype=torch.float32)
+        create_sinusoidal_embeddings(config.max_position_embeddings, config.emb_dim, sinusoidal_pos_embds)
+        self.model_tester.parent.assertTrue(torch.equal(model.position_embeddings.weight, sinusoidal_pos_embds))
 
     def test_flaubert_lm_head(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
@@ -543,31 +486,20 @@ class FlaubertModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestCase
         for model_class in self.all_model_classes:
             # FlauBertForMultipleChoice behaves incorrectly in JIT environments.
             if model_class == FlaubertForMultipleChoice:
-                self.skipTest(
-                    reason="FlauBertForMultipleChoice behaves incorrectly in JIT environments."
-                )
+                self.skipTest(reason="FlauBertForMultipleChoice behaves incorrectly in JIT environments.")
 
             config.torchscript = True
             model = model_class(config=config)
 
             inputs_dict = self._prepare_for_class(inputs_dict, model_class)
             traced_model = torch.jit.trace(
-                model,
-                (
-                    inputs_dict["input_ids"].to("cpu"),
-                    inputs_dict["attention_mask"].to("cpu"),
-                ),
+                model, (inputs_dict["input_ids"].to("cpu"), inputs_dict["attention_mask"].to("cpu"))
             )
 
             with tempfile.TemporaryDirectory() as tmp:
                 torch.jit.save(traced_model, os.path.join(tmp, "traced_model.pt"))
-                loaded = torch.jit.load(
-                    os.path.join(tmp, "traced_model.pt"), map_location=torch_device
-                )
-                loaded(
-                    inputs_dict["input_ids"].to(torch_device),
-                    inputs_dict["attention_mask"].to(torch_device),
-                )
+                loaded = torch.jit.load(os.path.join(tmp, "traced_model.pt"), map_location=torch_device)
+                loaded(inputs_dict["input_ids"].to(torch_device), inputs_dict["attention_mask"].to(torch_device))
 
 
 @require_torch
@@ -575,23 +507,13 @@ class FlaubertModelIntegrationTest(unittest.TestCase):
     @slow
     def test_inference_no_head_absolute_embedding(self):
         model = FlaubertModel.from_pretrained("flaubert/flaubert_base_cased")
-        input_ids = torch.tensor(
-            [[0, 345, 232, 328, 740, 140, 1695, 69, 6078, 1588, 2]]
-        )
+        input_ids = torch.tensor([[0, 345, 232, 328, 740, 140, 1695, 69, 6078, 1588, 2]])
         with torch.no_grad():
             output = model(input_ids)[0]
         expected_shape = torch.Size((1, 11, 768))
         self.assertEqual(output.shape, expected_shape)
         expected_slice = torch.tensor(
-            [
-                [
-                    [-2.6251, -1.4298, -0.0227],
-                    [-2.8510, -1.6387, 0.2258],
-                    [-2.8114, -1.1832, -0.3066],
-                ]
-            ]
+            [[[-2.6251, -1.4298, -0.0227], [-2.8510, -1.6387, 0.2258], [-2.8114, -1.1832, -0.3066]]]
         )
 
-        torch.testing.assert_close(
-            output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(output[:, :3, :3], expected_slice, rtol=1e-4, atol=1e-4)

@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import (
     BertTokenizer,
     DataCollatorForLanguageModeling,
@@ -39,12 +36,11 @@ from transformers import (
 from transformers.testing_utils import require_tf, require_torch
 from transformers.utils import PaddingStrategy
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 if is_tf_available():
-    # Third Party
     import tensorflow as tf
 
 
@@ -69,28 +65,21 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["inputs"].shape, torch.Size([8, 6]))
 
         # With label_ids
-        features = [
-            {"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)
-        ]
+        features = [{"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)]
         batch = default_data_collator(features)
         self.assertTrue(batch["labels"].equal(torch.tensor([[0, 1, 2]] * 8)))
         self.assertEqual(batch["labels"].dtype, torch.long)
         self.assertEqual(batch["inputs"].shape, torch.Size([8, 6]))
 
         # Features can already be tensors
-        features = [
-            {"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)
-        ]
+        features = [{"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features)
         self.assertTrue(batch["labels"].equal(torch.tensor(list(range(8)))))
         self.assertEqual(batch["labels"].dtype, torch.long)
         self.assertEqual(batch["inputs"].shape, torch.Size([8, 10]))
 
         # Labels can already be tensors
-        features = [
-            {"label": torch.tensor(i), "inputs": np.random.randint(0, 10, [10])}
-            for i in range(8)
-        ]
+        features = [{"label": torch.tensor(i), "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features)
         self.assertEqual(batch["labels"].dtype, torch.long)
         self.assertTrue(batch["labels"].equal(torch.tensor(list(range(8)))))
@@ -127,13 +116,9 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         data_collator = DataCollatorWithPadding(tokenizer)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 10]))
 
@@ -151,34 +136,24 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         data_collator = DataCollatorForTokenClassification(tokenizer)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-100] * 3)
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, padding="max_length", max_length=10
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, padding="max_length", max_length=10)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 10]))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 10]))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, pad_to_multiple_of=8
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 8]))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 8]))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, label_pad_token_id=-1
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-1] * 3)
 
@@ -187,51 +162,36 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
 
     def test_data_collator_for_token_classification_works_with_pt_tensors(self):
         tokenizer = BertTokenizer(self.vocab_file)
         features = [
             {"input_ids": torch.tensor([0, 1, 2]), "labels": torch.tensor([0, 1, 2])},
-            {
-                "input_ids": torch.tensor([0, 1, 2, 3, 4, 5]),
-                "labels": torch.tensor([0, 1, 2, 3, 4, 5]),
-            },
+            {"input_ids": torch.tensor([0, 1, 2, 3, 4, 5]), "labels": torch.tensor([0, 1, 2, 3, 4, 5])},
         ]
 
         data_collator = DataCollatorForTokenClassification(tokenizer)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-100] * 3)
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, padding="max_length", max_length=10
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, padding="max_length", max_length=10)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 10]))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 10]))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, pad_to_multiple_of=8
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 8]))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 8]))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, label_pad_token_id=-1
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-1] * 3)
 
@@ -240,22 +200,14 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
 
     def _test_data_collator_for_seq2seq(self, to_torch):
         def create_features(to_torch):
             if to_torch:
                 features = [
-                    {
-                        "input_ids": torch.tensor(list(range(3))),
-                        "labels": torch.tensor(list(range(3))),
-                    },
-                    {
-                        "input_ids": torch.tensor(list(range(6))),
-                        "labels": torch.tensor(list(range(6))),
-                    },
+                    {"input_ids": torch.tensor(list(range(3))), "labels": torch.tensor(list(range(3)))},
+                    {"input_ids": torch.tensor(list(range(6))), "labels": torch.tensor(list(range(6)))},
                 ]
             else:
                 features = [
@@ -267,60 +219,37 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         tokenizer = BertTokenizer(self.vocab_file)
         features = create_features(to_torch)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.LONGEST
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-100] * 3)
         self.assertEqual(batch["labels"][1].tolist(), list(range(6)))
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 7]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 4,
-        )
-        self.assertEqual(
-            batch["input_ids"][1].tolist(),
-            list(range(6)) + [tokenizer.pad_token_id] * 1,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 4)
+        self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)) + [tokenizer.pad_token_id] * 1)
         self.assertEqual(batch["labels"].shape, torch.Size([2, 7]))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-100] * 4)
         self.assertEqual(batch["labels"][1].tolist(), list(range(6)) + [-100] * 1)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.DO_NOT_PAD
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.DO_NOT_PAD)
         with self.assertRaises(ValueError):
             # expects an error due to unequal shapes to create tensor
             data_collator(features)
         batch = data_collator([features[0], features[0]])
-        input_ids = (
-            features[0]["input_ids"]
-            if not to_torch
-            else features[0]["input_ids"].tolist()
-        )
-        labels = (
-            features[0]["labels"] if not to_torch else features[0]["labels"].tolist()
-        )
+        input_ids = features[0]["input_ids"] if not to_torch else features[0]["input_ids"].tolist()
+        labels = features[0]["labels"] if not to_torch else features[0]["labels"].tolist()
         self.assertEqual(batch["input_ids"][0].tolist(), input_ids)
         self.assertEqual(batch["input_ids"][1].tolist(), input_ids)
         self.assertEqual(batch["labels"][0].tolist(), labels)
         self.assertEqual(batch["labels"][1].tolist(), labels)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 8]))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 8]))
@@ -328,15 +257,10 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         # side effects on labels cause mismatch on longest strategy
         features = create_features(to_torch)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1)
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape, torch.Size([2, 6]))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-1] * 3)
@@ -347,10 +271,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, torch.Size([2, 6]))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
 
     def test_data_collator_for_seq2seq_with_lists(self):
         self._test_data_collator_for_seq2seq(to_torch=False)
@@ -369,9 +290,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape, torch.Size((2, 10)))
         self.assertEqual(batch["labels"].shape, torch.Size((2, 10)))
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, mlm=False, pad_to_multiple_of=8
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False, pad_to_multiple_of=8)
         batch = data_collator(no_pad_features)
         self.assertEqual(batch["input_ids"].shape, torch.Size((2, 16)))
         self.assertEqual(batch["labels"].shape, torch.Size((2, 16)))
@@ -395,9 +314,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         masked_tokens = batch["input_ids"] == tokenizer.mask_token_id
         self.assertTrue(torch.any(masked_tokens))
-        self.assertTrue(
-            all(x == -100 for x in batch["labels"][~masked_tokens].tolist())
-        )
+        self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
         batch = data_collator(pad_features)
         self.assertEqual(batch["input_ids"].shape, torch.Size((2, 10)))
@@ -405,9 +322,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         masked_tokens = batch["input_ids"] == tokenizer.mask_token_id
         self.assertTrue(torch.any(masked_tokens))
-        self.assertTrue(
-            all(x == -100 for x in batch["labels"][~masked_tokens].tolist())
-        )
+        self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
         data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8)
         batch = data_collator(no_pad_features)
@@ -416,9 +331,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         masked_tokens = batch["input_ids"] == tokenizer.mask_token_id
         self.assertTrue(torch.any(masked_tokens))
-        self.assertTrue(
-            all(x == -100 for x in batch["labels"][~masked_tokens].tolist())
-        )
+        self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
         batch = data_collator(pad_features)
         self.assertEqual(batch["input_ids"].shape, torch.Size((2, 16)))
@@ -426,21 +339,96 @@ class DataCollatorIntegrationTest(unittest.TestCase):
 
         masked_tokens = batch["input_ids"] == tokenizer.mask_token_id
         self.assertTrue(torch.any(masked_tokens))
-        self.assertTrue(
-            all(x == -100 for x in batch["labels"][~masked_tokens].tolist())
-        )
+        self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
     def test_data_collator_for_language_modeling(self):
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
 
         no_pad_features = [list(range(10)), list(range(10))]
         pad_features = [list(range(5)), list(range(10))]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
+
+    def test_data_collator_for_language_modeling_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForLanguageModeling instances
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42)
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape, torch.Size((2, 1000)))
+        self.assertEqual(batch_1["labels"].shape, torch.Size((2, 1000)))
+
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42)
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape, torch.Size((2, 1000)))
+        self.assertEqual(batch_2["labels"].shape, torch.Size((2, 1000)))
+
+        self.assertTrue(torch.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(torch.all(batch_1["labels"] == batch_2["labels"]))
+
+        # check if seed is respected in multiple workers situation
+        features = [{"input_ids": list(range(1000))} for _ in range(10)]
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            generator=torch.Generator().manual_seed(42),
+            collate_fn=DataCollatorForLanguageModeling(tokenizer, seed=42),
+        )
+
+        batch_3_input_ids = []
+        batch_3_labels = []
+        for batch in dataloader:
+            batch_3_input_ids.append(batch["input_ids"])
+            batch_3_labels.append(batch["labels"])
+
+        batch_3_input_ids = torch.stack(batch_3_input_ids)
+        batch_3_labels = torch.stack(batch_3_labels)
+        self.assertEqual(batch_3_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_3_labels.shape, torch.Size((5, 2, 1000)))
+
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            collate_fn=DataCollatorForLanguageModeling(tokenizer, seed=42),
+        )
+
+        batch_4_input_ids = []
+        batch_4_labels = []
+        for batch in dataloader:
+            batch_4_input_ids.append(batch["input_ids"])
+            batch_4_labels.append(batch["labels"])
+        batch_4_input_ids = torch.stack(batch_4_input_ids)
+        batch_4_labels = torch.stack(batch_4_labels)
+        self.assertEqual(batch_4_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_4_labels.shape, torch.Size((5, 2, 1000)))
+
+        self.assertTrue(torch.all(batch_3_input_ids == batch_4_input_ids))
+        self.assertTrue(torch.all(batch_3_labels == batch_4_labels))
+
+        # try with different seed
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            collate_fn=DataCollatorForLanguageModeling(tokenizer, seed=43),
+        )
+
+        batch_5_input_ids = []
+        batch_5_labels = []
+        for batch in dataloader:
+            batch_5_input_ids.append(batch["input_ids"])
+            batch_5_labels.append(batch["labels"])
+        batch_5_input_ids = torch.stack(batch_5_input_ids)
+        batch_5_labels = torch.stack(batch_5_labels)
+        self.assertEqual(batch_5_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_5_labels.shape, torch.Size((5, 2, 1000)))
+
+        self.assertFalse(torch.all(batch_3_input_ids == batch_5_input_ids))
+        self.assertFalse(torch.all(batch_3_labels == batch_5_labels))
 
     def test_data_collator_for_whole_word_mask(self):
         tokenizer = BertTokenizer(self.vocab_file)
@@ -457,12 +445,89 @@ class DataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape, torch.Size((2, 10)))
         self.assertEqual(batch["labels"].shape, torch.Size((2, 10)))
 
+    def test_data_collator_for_whole_word_mask_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForWholeWordMask instances
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42)
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape, torch.Size((2, 1000)))
+        self.assertEqual(batch_1["labels"].shape, torch.Size((2, 1000)))
+
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42)
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape, torch.Size((2, 1000)))
+        self.assertEqual(batch_2["labels"].shape, torch.Size((2, 1000)))
+
+        self.assertTrue(torch.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(torch.all(batch_1["labels"] == batch_2["labels"]))
+
+        # check if seed is respected in multiple workers situation
+        features = [{"input_ids": list(range(1000))} for _ in range(10)]
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            generator=torch.Generator().manual_seed(42),
+            collate_fn=DataCollatorForWholeWordMask(tokenizer, seed=42),
+        )
+
+        batch_3_input_ids = []
+        batch_3_labels = []
+        for batch in dataloader:
+            batch_3_input_ids.append(batch["input_ids"])
+            batch_3_labels.append(batch["labels"])
+
+        batch_3_input_ids = torch.stack(batch_3_input_ids)
+        batch_3_labels = torch.stack(batch_3_labels)
+        self.assertEqual(batch_3_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_3_labels.shape, torch.Size((5, 2, 1000)))
+
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            collate_fn=DataCollatorForWholeWordMask(tokenizer, seed=42),
+        )
+
+        batch_4_input_ids = []
+        batch_4_labels = []
+        for batch in dataloader:
+            batch_4_input_ids.append(batch["input_ids"])
+            batch_4_labels.append(batch["labels"])
+        batch_4_input_ids = torch.stack(batch_4_input_ids)
+        batch_4_labels = torch.stack(batch_4_labels)
+        self.assertEqual(batch_4_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_4_labels.shape, torch.Size((5, 2, 1000)))
+
+        self.assertTrue(torch.all(batch_3_input_ids == batch_4_input_ids))
+        self.assertTrue(torch.all(batch_3_labels == batch_4_labels))
+
+        # try with different seed
+        dataloader = torch.utils.data.DataLoader(
+            features,
+            batch_size=2,
+            num_workers=2,
+            collate_fn=DataCollatorForWholeWordMask(tokenizer, seed=43),
+        )
+
+        batch_5_input_ids = []
+        batch_5_labels = []
+        for batch in dataloader:
+            batch_5_input_ids.append(batch["input_ids"])
+            batch_5_labels.append(batch["labels"])
+        batch_5_input_ids = torch.stack(batch_5_input_ids)
+        batch_5_labels = torch.stack(batch_5_labels)
+        self.assertEqual(batch_5_input_ids.shape, torch.Size((5, 2, 1000)))
+        self.assertEqual(batch_5_labels.shape, torch.Size((5, 2, 1000)))
+
+        self.assertFalse(torch.all(batch_3_input_ids == batch_5_input_ids))
+        self.assertFalse(torch.all(batch_3_labels == batch_5_labels))
+
     def test_plm(self):
         tokenizer = BertTokenizer(self.vocab_file)
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
 
         data_collator = DataCollatorForPermutationLanguageModeling(tokenizer)
@@ -489,11 +554,7 @@ class DataCollatorIntegrationTest(unittest.TestCase):
     def test_nsp(self):
         tokenizer = BertTokenizer(self.vocab_file)
         features = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         data_collator = DataCollatorForLanguageModeling(tokenizer)
@@ -556,9 +617,7 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
         """used to convert `item` to `None` type"""
         return None
 
-    def _validate_original_data_against_collated_data(
-        self, collator, original_data, batch_data
-    ):
+    def _validate_original_data_against_collated_data(self, collator, original_data, batch_data):
         # we only care about side effects, the results are tested elsewhere
         collator(batch_data)
 
@@ -572,28 +631,15 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
                     self.assertEqual(original_val, batch_val)
 
     def _validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
-        self,
-        collator,
-        base_data,
-        input_key,
-        input_datatype,
-        label_key,
-        label_datatype,
-        ignore_label=False,
+        self, collator, base_data, input_key, input_datatype, label_key, label_datatype, ignore_label=False
     ):
         # using the arguments to recreate the features with their respective (potentially new) datatypes
         features_original = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
         features_batch = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
 
@@ -604,18 +650,12 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
                 batch.pop(label_key)
 
         self._validate_original_data_against_collated_data(
-            collator=collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_default_collator_immutability(self):
-        features_base_single_label = [
-            {"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
-        features_base_multiple_labels = [
-            {"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
+        features_base_single_label = [{"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
+        features_base_multiple_labels = [{"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
 
         for datatype_input, datatype_label in [
             (list, int),
@@ -633,10 +673,7 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (list, self._turn_to_none),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (list, self._turn_to_none)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                 collator=default_data_collator,
                 base_data=features_base_multiple_labels,
@@ -646,9 +683,7 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        features_base_single_label_alt = [
-            {"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)
-        ]
+        features_base_single_label_alt = [{"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)]
         self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
             collator=default_data_collator,
             base_data=features_base_single_label_alt,
@@ -661,26 +696,17 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
     def test_with_padding_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
-        features_original = [
-            {"input_ids": [0, 1, 2]},
-            {"input_ids": [0, 1, 2, 3, 4, 5]},
-        ]
+        features_original = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
         features_batch = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10)
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
         data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8)
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_for_token_classification_collator_immutability(self):
@@ -692,17 +718,12 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
         ]
         token_classification_collators = [
             DataCollatorForTokenClassification(tokenizer),
-            DataCollatorForTokenClassification(
-                tokenizer, padding="max_length", max_length=10
-            ),
+            DataCollatorForTokenClassification(tokenizer, padding="max_length", max_length=10),
             DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8),
             DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1),
         ]
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (torch.tensor, torch.tensor),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (torch.tensor, torch.tensor)]:
             for collator in token_classification_collators:
                 self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                     collator=collator,
@@ -732,21 +753,12 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
         ]
         seq2seq_collators = [
             DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST),
-            DataCollatorForSeq2Seq(
-                tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1
-            ),
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7),
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8),
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1),
         ]
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (torch.tensor, torch.tensor),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (torch.tensor, torch.tensor)]:
             for collator in seq2seq_collators:
                 self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                     collator=collator,
@@ -771,13 +783,8 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(3)), "labels": list(range(3))},
             {"input_ids": list(range(3)), "labels": list(range(3))},
         ]
-        seq2seq_no_padding_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.DO_NOT_PAD
-        )
-        for datatype_input, datatype_label in [
-            (list, list),
-            (torch.tensor, torch.tensor),
-        ]:
+        seq2seq_no_padding_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.DO_NOT_PAD)
+        for datatype_input, datatype_label in [(list, list), (torch.tensor, torch.tensor)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                 collator=seq2seq_no_padding_collator,
                 base_data=features_base_no_pad,
@@ -805,10 +812,7 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
             DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8),
         ]
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (torch.tensor, torch.tensor),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (torch.tensor, torch.tensor)]:
             for collator in lm_collators:
                 self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                     collator=collator,
@@ -837,9 +841,7 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(10)), "labels": (1,)},
             {"input_ids": list(range(10)), "labels": (1,)},
         ]
-        whole_word_masking_collator = DataCollatorForWholeWordMask(
-            tokenizer, return_tensors="pt"
-        )
+        whole_word_masking_collator = DataCollatorForWholeWordMask(tokenizer, return_tensors="pt")
 
         for datatype_input, datatype_label in [(list, list), (np.array, np.array)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
@@ -857,66 +859,38 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
 
         plm_collator = DataCollatorForPermutationLanguageModeling(tokenizer)
 
-        no_pad_features_original = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
-        no_pad_features_batch = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features_original = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
+        no_pad_features_batch = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=no_pad_features_original,
-            batch_data=no_pad_features_batch,
+            collator=plm_collator, original_data=no_pad_features_original, batch_data=no_pad_features_batch
         )
 
-        pad_features_original = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
-        pad_features_batch = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
+        pad_features_original = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
+        pad_features_batch = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=pad_features_original,
-            batch_data=pad_features_batch,
+            collator=plm_collator, original_data=pad_features_original, batch_data=pad_features_batch
         )
 
     def test_next_sentence_prediction_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
         features_original = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         features_batch = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
 
         nsp_collator = DataCollatorForLanguageModeling(tokenizer)
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
         nsp_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8)
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_sentence_order_prediction_collator_immutability(self):
@@ -941,16 +915,12 @@ class DataCollatorImmutabilityTest(unittest.TestCase):
 
         sop_collator = DataCollatorForLanguageModeling(tokenizer)
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )
 
         sop_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8)
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )
 
 
@@ -976,28 +946,21 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["inputs"].shape.as_list(), [8, 6])
 
         # With label_ids
-        features = [
-            {"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)
-        ]
+        features = [{"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)]
         batch = default_data_collator(features, return_tensors="tf")
         self.assertEqual(batch["labels"].numpy().tolist(), ([[0, 1, 2]] * 8))
         self.assertEqual(batch["labels"].dtype, tf.int64)
         self.assertEqual(batch["inputs"].shape.as_list(), [8, 6])
 
         # Features can already be tensors
-        features = [
-            {"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)
-        ]
+        features = [{"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features, return_tensors="tf")
         self.assertEqual(batch["labels"].numpy().tolist(), (list(range(8))))
         self.assertEqual(batch["labels"].dtype, tf.int64)
         self.assertEqual(batch["inputs"].shape.as_list(), [8, 10])
 
         # Labels can already be tensors
-        features = [
-            {"label": np.array(i), "inputs": np.random.randint(0, 10, [10])}
-            for i in range(8)
-        ]
+        features = [{"label": np.array(i), "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features, return_tensors="tf")
         self.assertEqual(batch["labels"].dtype, tf.int64)
         self.assertEqual(batch["labels"].numpy().tolist(), list(range(8)))
@@ -1008,10 +971,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         data_collator = default_data_collator
 
         # Confirms that numpy inputs are handled correctly even when scalars
-        features = [
-            {"input_ids": np.array([0, 1, 2, 3, 4]), "label": np.int64(i)}
-            for i in range(4)
-        ]
+        features = [{"input_ids": np.array([0, 1, 2, 3, 4]), "label": np.int64(i)} for i in range(4)]
         batch = data_collator(features, return_tensors="tf")
         self.assertEqual(batch["labels"].dtype, tf.int64)
 
@@ -1045,20 +1005,13 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         data_collator = DataCollatorWithPadding(tokenizer, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            [0, 1, 2] + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10, return_tensors="tf"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 10])
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, [2, 8])
 
@@ -1069,15 +1022,10 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
             {"input_ids": [0, 1, 2, 3, 4, 5], "labels": [0, 1, 2, 3, 4, 5]},
         ]
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, return_tensors="tf"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            [0, 1, 2] + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape.as_list(), [2, 6])
         self.assertEqual(batch["labels"][0].numpy().tolist(), [0, 1, 2] + [-100] * 3)
 
@@ -1088,22 +1036,15 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 10])
         self.assertEqual(batch["labels"].shape.as_list(), [2, 10])
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 8])
         self.assertEqual(batch["labels"].shape.as_list(), [2, 8])
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, label_pad_token_id=-1, return_tensors="tf"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            [0, 1, 2] + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape.as_list(), [2, 6])
         self.assertEqual(batch["labels"][0].numpy().tolist(), [0, 1, 2] + [-1] * 3)
 
@@ -1117,67 +1058,38 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         tokenizer = BertTokenizer(self.vocab_file)
         features = create_features()
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="tf"
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="tf")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].numpy().tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["labels"][0].numpy().tolist(), list(range(3)) + [-100] * 3
-        )
+        self.assertEqual(batch["labels"][0].numpy().tolist(), list(range(3)) + [-100] * 3)
         self.assertEqual(batch["labels"][1].numpy().tolist(), list(range(6)))
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=7,
-            return_tensors="tf",
+            tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7, return_tensors="tf"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 7])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 4,
-        )
-        self.assertEqual(
-            batch["input_ids"][1].numpy().tolist(),
-            list(range(6)) + [tokenizer.pad_token_id] * 1,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), list(range(3)) + [tokenizer.pad_token_id] * 4)
+        self.assertEqual(batch["input_ids"][1].numpy().tolist(), list(range(6)) + [tokenizer.pad_token_id] * 1)
         self.assertEqual(batch["labels"].shape.as_list(), [2, 7])
-        self.assertEqual(
-            batch["labels"][0].numpy().tolist(), list(range(3)) + [-100] * 4
-        )
-        self.assertEqual(
-            batch["labels"][1].numpy().tolist(), list(range(6)) + [-100] * 1
-        )
+        self.assertEqual(batch["labels"][0].numpy().tolist(), list(range(3)) + [-100] * 4)
+        self.assertEqual(batch["labels"][1].numpy().tolist(), list(range(6)) + [-100] * 1)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.DO_NOT_PAD, return_tensors="tf"
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.DO_NOT_PAD, return_tensors="tf")
         with self.assertRaises(ValueError):
             # expects an error due to unequal shapes to create tensor
             data_collator(features)
         batch = data_collator([features[0], features[0]])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(), features[0]["input_ids"]
-        )
-        self.assertEqual(
-            batch["input_ids"][1].numpy().tolist(), features[0]["input_ids"]
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), features[0]["input_ids"])
+        self.assertEqual(batch["input_ids"][1].numpy().tolist(), features[0]["input_ids"])
         self.assertEqual(batch["labels"][0].numpy().tolist(), features[0]["labels"])
         self.assertEqual(batch["labels"][1].numpy().tolist(), features[0]["labels"])
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.LONGEST,
-            pad_to_multiple_of=8,
-            return_tensors="tf",
+            tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8, return_tensors="tf"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 8])
@@ -1187,17 +1099,11 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         features = create_features()
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.LONGEST,
-            label_pad_token_id=-1,
-            return_tensors="tf",
+            tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1, return_tensors="tf"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].numpy().tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape.as_list(), [2, 6])
         self.assertEqual(batch["labels"][0].numpy().tolist(), list(range(3)) + [-1] * 3)
@@ -1208,16 +1114,11 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
 
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 6])
-        self.assertEqual(
-            batch["input_ids"][0].numpy().tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].numpy().tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
 
     def _test_no_pad_and_pad(self, no_pad_features, pad_features):
         tokenizer = BertTokenizer(self.vocab_file)
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, mlm=False, return_tensors="tf"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="tf")
         batch = data_collator(no_pad_features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 10])
         self.assertEqual(batch["labels"].shape.as_list(), [2, 10])
@@ -1238,9 +1139,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape.as_list(), [2, 16])
 
         tokenizer.pad_token = None
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, mlm=False, return_tensors="tf"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="tf")
         with self.assertRaises(ValueError):
             # Expect error due to padding token missing
             data_collator(pad_features)
@@ -1264,9 +1163,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertTrue(tf.reduce_any(masked_tokens))
         # self.assertTrue(all(x == -100 for x in batch["labels"].numpy()[~masked_tokens.numpy()].tolist()))
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         batch = data_collator(no_pad_features)
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 16])
         self.assertEqual(batch["labels"].shape.as_list(), [2, 16])
@@ -1287,9 +1184,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         """Test that the sum of mask_replace_prob and random_replace_prob exceeding 1 raises an error."""
         tokenizer = BertTokenizer(self.vocab_file)
         with self.assertRaises(ValueError):
-            DataCollatorForLanguageModeling(
-                tokenizer=tokenizer, mask_replace_prob=0.9, random_replace_prob=0.2
-            )
+            DataCollatorForLanguageModeling(tokenizer=tokenizer, mask_replace_prob=0.9, random_replace_prob=0.2)
 
     def test_all_mask_replacement(self):
         """Test behavior when mask_replace_prob=1."""
@@ -1297,10 +1192,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
 
         # pytorch call
         collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer,
-            mask_replace_prob=1,
-            random_replace_prob=0,
-            return_tensors="pt",
+            tokenizer=tokenizer, mask_replace_prob=1, random_replace_prob=0, return_tensors="pt"
         )
 
         inputs = torch.tensor([0, 1, 2, 3, 4, 5])
@@ -1308,19 +1200,11 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         batch = collator(features)
 
         # confirm that every token is either the original token or [MASK]
-        self.assertTrue(
-            torch.all(
-                (batch["input_ids"] == inputs)
-                | (batch["input_ids"] == tokenizer.mask_token_id)
-            )
-        )
+        self.assertTrue(torch.all((batch["input_ids"] == inputs) | (batch["input_ids"] == tokenizer.mask_token_id)))
 
         # tf call
         collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer,
-            mask_replace_prob=1,
-            random_replace_prob=0,
-            return_tensors="tf",
+            tokenizer=tokenizer, mask_replace_prob=1, random_replace_prob=0, return_tensors="tf"
         )
         inputs = tf.constant([0, 1, 2, 3, 4, 5])
         features = [{"input_ids": inputs} for _ in range(8)]
@@ -1329,41 +1213,56 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         # confirm that every token is either the original token or [MASK]
         self.assertTrue(
             tf.reduce_all(
-                (batch["input_ids"] == tf.cast(inputs, tf.int64))
-                | (batch["input_ids"] == tokenizer.mask_token_id)
+                (batch["input_ids"] == tf.cast(inputs, tf.int64)) | (batch["input_ids"] == tokenizer.mask_token_id)
             )
         )
 
         # numpy call
         collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer,
-            mask_replace_prob=1,
-            random_replace_prob=0,
-            return_tensors="np",
+            tokenizer=tokenizer, mask_replace_prob=1, random_replace_prob=0, return_tensors="np"
         )
         inputs = np.array([0, 1, 2, 3, 4, 5])
         features = [{"input_ids": inputs} for _ in range(8)]
         batch = collator(features)
 
         # confirm that every token is either the original token or [MASK]
-        self.assertTrue(
-            np.all(
-                (batch["input_ids"] == inputs)
-                | (batch["input_ids"] == tokenizer.mask_token_id)
-            )
-        )
+        self.assertTrue(np.all((batch["input_ids"] == inputs) | (batch["input_ids"] == tokenizer.mask_token_id)))
 
     def test_data_collator_for_language_modeling(self):
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
 
         no_pad_features = [list(range(10)), list(range(10))]
         pad_features = [list(range(5)), list(range(10))]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
+
+    def test_data_collator_for_language_modeling_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForLanguageModeling instances
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42, return_tensors="tf")
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_1["labels"].shape.as_list(), [2, 1000])
+
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42, return_tensors="tf")
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_2["labels"].shape.as_list(), [2, 1000])
+
+        self.assertTrue(np.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(np.all(batch_1["labels"] == batch_2["labels"]))
+
+        # try with different seed
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=43, return_tensors="tf")
+        batch_3 = data_collator(features)
+        self.assertEqual(batch_3["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_3["labels"].shape.as_list(), [2, 1000])
+
+        self.assertFalse(np.all(batch_1["input_ids"] == batch_3["input_ids"]))
+        self.assertFalse(np.all(batch_1["labels"] == batch_3["labels"]))
 
     def test_data_collator_for_whole_word_mask(self):
         tokenizer = BertTokenizer(self.vocab_file)
@@ -1380,17 +1279,39 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 10])
         self.assertEqual(batch["labels"].shape.as_list(), [2, 10])
 
+    def test_data_collator_for_whole_word_mask_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForWholeWordMask instances
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42, return_tensors="tf")
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_1["labels"].shape.as_list(), [2, 1000])
+
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42, return_tensors="tf")
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_2["labels"].shape.as_list(), [2, 1000])
+
+        self.assertTrue(np.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(np.all(batch_1["labels"] == batch_2["labels"]))
+
+        # try with different seed
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=43, return_tensors="tf")
+        batch_3 = data_collator(features)
+        self.assertEqual(batch_3["input_ids"].shape.as_list(), [2, 1000])
+        self.assertEqual(batch_3["labels"].shape.as_list(), [2, 1000])
+
+        self.assertFalse(np.all(batch_1["input_ids"] == batch_3["input_ids"]))
+        self.assertFalse(np.all(batch_1["labels"] == batch_3["labels"]))
+
     def test_plm(self):
         tokenizer = BertTokenizer(self.vocab_file)
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
 
-        data_collator = DataCollatorForPermutationLanguageModeling(
-            tokenizer, return_tensors="tf"
-        )
+        data_collator = DataCollatorForPermutationLanguageModeling(tokenizer, return_tensors="tf")
 
         batch = data_collator(pad_features)
         self.assertIsInstance(batch, dict)
@@ -1414,11 +1335,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
     def test_nsp(self):
         tokenizer = BertTokenizer(self.vocab_file)
         features = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="tf")
@@ -1429,9 +1346,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape.as_list(), [2, 5])
         self.assertEqual(batch["next_sentence_label"].shape.as_list(), [2])
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         batch = data_collator(features)
 
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 8])
@@ -1457,9 +1372,7 @@ class TFDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape.as_list(), [2, 5])
         self.assertEqual(batch["sentence_order_label"].shape.as_list(), [2])
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         batch = data_collator(features)
 
         self.assertEqual(batch["input_ids"].shape.as_list(), [2, 8])
@@ -1485,9 +1398,7 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
         """used to convert `item` to `None` type"""
         return None
 
-    def _validate_original_data_against_collated_data(
-        self, collator, original_data, batch_data
-    ):
+    def _validate_original_data_against_collated_data(self, collator, original_data, batch_data):
         # we only care about side effects, the results are tested elsewhere
         collator(batch_data)
 
@@ -1498,35 +1409,20 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
                 if isinstance(original_val, np.ndarray):
                     self.assertEqual(original_val.tolist(), batch_val.tolist())
                 elif isinstance(original_val, tf.Tensor):
-                    self.assertEqual(
-                        original_val.numpy().tolist(), batch_val.numpy().tolist()
-                    )
+                    self.assertEqual(original_val.numpy().tolist(), batch_val.numpy().tolist())
                 else:
                     self.assertEqual(original_val, batch_val)
 
     def _validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
-        self,
-        collator,
-        base_data,
-        input_key,
-        input_datatype,
-        label_key,
-        label_datatype,
-        ignore_label=False,
+        self, collator, base_data, input_key, input_datatype, label_key, label_datatype, ignore_label=False
     ):
         # using the arguments to recreate the features with their respective (potentially new) datatypes
         features_original = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
         features_batch = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
 
@@ -1537,18 +1433,12 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
                 batch.pop(label_key)
 
         self._validate_original_data_against_collated_data(
-            collator=collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_default_collator_immutability(self):
-        features_base_single_label = [
-            {"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
-        features_base_multiple_labels = [
-            {"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
+        features_base_single_label = [{"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
+        features_base_multiple_labels = [{"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
 
         for datatype_input, datatype_label in [
             (list, int),
@@ -1566,10 +1456,7 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (list, self._turn_to_none),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (list, self._turn_to_none)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                 collator=lambda x: default_data_collator(x, return_tensors="tf"),
                 base_data=features_base_multiple_labels,
@@ -1579,9 +1466,7 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        features_base_single_label_alt = [
-            {"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)
-        ]
+        features_base_single_label_alt = [{"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)]
         self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
             collator=lambda x: default_data_collator(x, return_tensors="tf"),
             base_data=features_base_single_label_alt,
@@ -1594,28 +1479,17 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
     def test_with_padding_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
-        features_original = [
-            {"input_ids": [0, 1, 2]},
-            {"input_ids": [0, 1, 2, 3, 4, 5]},
-        ]
+        features_original = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
         features_batch = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10, return_tensors="tf"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_for_token_classification_collator_immutability(self):
@@ -1627,15 +1501,9 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
         ]
         token_classification_collators = [
             DataCollatorForTokenClassification(tokenizer, return_tensors="tf"),
-            DataCollatorForTokenClassification(
-                tokenizer, padding="max_length", max_length=10, return_tensors="tf"
-            ),
-            DataCollatorForTokenClassification(
-                tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-            ),
-            DataCollatorForTokenClassification(
-                tokenizer, label_pad_token_id=-1, return_tensors="tf"
-            ),
+            DataCollatorForTokenClassification(tokenizer, padding="max_length", max_length=10, return_tensors="tf"),
+            DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8, return_tensors="tf"),
+            DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1, return_tensors="tf"),
         ]
 
         for datatype_input, datatype_label in [(list, list)]:
@@ -1667,26 +1535,13 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(6)), "labels": list(range(6))},
         ]
         seq2seq_collators = [
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="tf"),
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7, return_tensors="tf"),
             DataCollatorForSeq2Seq(
-                tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="tf"
+                tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8, return_tensors="tf"
             ),
             DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.MAX_LENGTH,
-                max_length=7,
-                return_tensors="tf",
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.LONGEST,
-                pad_to_multiple_of=8,
-                return_tensors="tf",
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.LONGEST,
-                label_pad_token_id=-1,
-                return_tensors="tf",
+                tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1, return_tensors="tf"
             ),
         ]
 
@@ -1741,13 +1596,9 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
         ]
         lm_collators = [
             DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="tf"),
-            DataCollatorForLanguageModeling(
-                tokenizer, mlm=False, pad_to_multiple_of=8, return_tensors="tf"
-            ),
+            DataCollatorForLanguageModeling(tokenizer, mlm=False, pad_to_multiple_of=8, return_tensors="tf"),
             DataCollatorForLanguageModeling(tokenizer, return_tensors="tf"),
-            DataCollatorForLanguageModeling(
-                tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-            ),
+            DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf"),
         ]
 
         for datatype_input, datatype_label in [(list, list)]:
@@ -1779,9 +1630,7 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(10)), "labels": (1,)},
             {"input_ids": list(range(10)), "labels": (1,)},
         ]
-        whole_word_masking_collator = DataCollatorForWholeWordMask(
-            tokenizer, return_tensors="tf"
-        )
+        whole_word_masking_collator = DataCollatorForWholeWordMask(tokenizer, return_tensors="tf")
 
         for datatype_input, datatype_label in [(list, list), (np.array, np.array)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
@@ -1797,72 +1646,40 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
     def test_permutation_language_modelling_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
-        plm_collator = DataCollatorForPermutationLanguageModeling(
-            tokenizer, return_tensors="tf"
+        plm_collator = DataCollatorForPermutationLanguageModeling(tokenizer, return_tensors="tf")
+
+        no_pad_features_original = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
+        no_pad_features_batch = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
+        self._validate_original_data_against_collated_data(
+            collator=plm_collator, original_data=no_pad_features_original, batch_data=no_pad_features_batch
         )
 
-        no_pad_features_original = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
-        no_pad_features_batch = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        pad_features_original = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
+        pad_features_batch = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=no_pad_features_original,
-            batch_data=no_pad_features_batch,
-        )
-
-        pad_features_original = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
-        pad_features_batch = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
-        self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=pad_features_original,
-            batch_data=pad_features_batch,
+            collator=plm_collator, original_data=pad_features_original, batch_data=pad_features_batch
         )
 
     def test_next_sentence_prediction_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
         features_original = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         features_batch = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
 
         nsp_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
-        nsp_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        nsp_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_sentence_order_prediction_collator_immutability(self):
@@ -1887,18 +1704,12 @@ class TFDataCollatorImmutabilityTest(unittest.TestCase):
 
         sop_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )
 
-        sop_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="tf"
-        )
+        sop_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="tf")
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )
 
 
@@ -1922,28 +1733,21 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["inputs"].shape, (8, 6))
 
         # With label_ids
-        features = [
-            {"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)
-        ]
+        features = [{"label_ids": [0, 1, 2], "inputs": [0, 1, 2, 3, 4, 5]} for i in range(8)]
         batch = default_data_collator(features, return_tensors="np")
         self.assertEqual(batch["labels"].tolist(), [[0, 1, 2]] * 8)
         self.assertEqual(batch["labels"].dtype, np.int64)
         self.assertEqual(batch["inputs"].shape, (8, 6))
 
         # Features can already be tensors
-        features = [
-            {"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)
-        ]
+        features = [{"label": i, "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features, return_tensors="np")
         self.assertEqual(batch["labels"].tolist(), list(range(8)))
         self.assertEqual(batch["labels"].dtype, np.int64)
         self.assertEqual(batch["inputs"].shape, (8, 10))
 
         # Labels can already be tensors
-        features = [
-            {"label": np.array(i), "inputs": np.random.randint(0, 10, [10])}
-            for i in range(8)
-        ]
+        features = [{"label": np.array(i), "inputs": np.random.randint(0, 10, [10])} for i in range(8)]
         batch = default_data_collator(features, return_tensors="np")
         self.assertEqual(batch["labels"].dtype, np.int64)
         self.assertEqual(batch["labels"].tolist(), (list(range(8))))
@@ -1980,19 +1784,13 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         data_collator = DataCollatorWithPadding(tokenizer, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10, return_tensors="np"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 10))
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 8))
 
@@ -2007,16 +1805,12 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (1, 16))
         self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            [10, 11, 12, 20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36],
+            batch["input_ids"][0].tolist(), [10, 11, 12, 20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36]
         )
         self.assertNotIn("attention_mask", batch)
         self.assertIn("position_ids", batch)
         self.assertEqual(batch["position_ids"].shape, (1, 16))
-        self.assertEqual(
-            batch["position_ids"][0].tolist(),
-            [0, 1, 2, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6],
-        )
+        self.assertEqual(batch["position_ids"][0].tolist(), [0, 1, 2, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6])
 
     def test_data_collator_for_token_classification(self):
         tokenizer = BertTokenizer(self.vocab_file)
@@ -2025,14 +1819,10 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
             {"input_ids": [0, 1, 2, 3, 4, 5], "labels": [0, 1, 2, 3, 4, 5]},
         ]
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, return_tensors="np"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, (2, 6))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-100] * 3)
 
@@ -2043,21 +1833,15 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape, (2, 10))
         self.assertEqual(batch["labels"].shape, (2, 10))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 8))
         self.assertEqual(batch["labels"].shape, (2, 8))
 
-        data_collator = DataCollatorForTokenClassification(
-            tokenizer, label_pad_token_id=-1, return_tensors="np"
-        )
+        data_collator = DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), [0, 1, 2] + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["labels"].shape, (2, 6))
         self.assertEqual(batch["labels"][0].tolist(), [0, 1, 2] + [-1] * 3)
 
@@ -2071,43 +1855,27 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         tokenizer = BertTokenizer(self.vocab_file)
         features = create_features()
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="np"
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="np")
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape, (2, 6))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-100] * 3)
         self.assertEqual(batch["labels"][1].tolist(), list(range(6)))
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.MAX_LENGTH,
-            max_length=7,
-            return_tensors="np",
+            tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7, return_tensors="np"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 7))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 4,
-        )
-        self.assertEqual(
-            batch["input_ids"][1].tolist(),
-            list(range(6)) + [tokenizer.pad_token_id] * 1,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 4)
+        self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)) + [tokenizer.pad_token_id] * 1)
         self.assertEqual(batch["labels"].shape, (2, 7))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-100] * 4)
         self.assertEqual(batch["labels"][1].tolist(), list(range(6)) + [-100] * 1)
 
-        data_collator = DataCollatorForSeq2Seq(
-            tokenizer, padding=PaddingStrategy.DO_NOT_PAD, return_tensors="np"
-        )
+        data_collator = DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.DO_NOT_PAD, return_tensors="np")
         # numpy doesn't have issues handling unequal shapes via `dtype=object`
         # with self.assertRaises(ValueError):
         #     data_collator(features)
@@ -2118,10 +1886,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"][1].tolist(), features[0]["labels"])
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.LONGEST,
-            pad_to_multiple_of=8,
-            return_tensors="np",
+            tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8, return_tensors="np"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 8))
@@ -2131,17 +1896,11 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         features = create_features()
 
         data_collator = DataCollatorForSeq2Seq(
-            tokenizer,
-            padding=PaddingStrategy.LONGEST,
-            label_pad_token_id=-1,
-            return_tensors="np",
+            tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1, return_tensors="np"
         )
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
         self.assertEqual(batch["input_ids"][1].tolist(), list(range(6)))
         self.assertEqual(batch["labels"].shape, (2, 6))
         self.assertEqual(batch["labels"][0].tolist(), list(range(3)) + [-1] * 3)
@@ -2152,16 +1911,11 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
 
         batch = data_collator(features)
         self.assertEqual(batch["input_ids"].shape, (2, 6))
-        self.assertEqual(
-            batch["input_ids"][0].tolist(),
-            list(range(3)) + [tokenizer.pad_token_id] * 3,
-        )
+        self.assertEqual(batch["input_ids"][0].tolist(), list(range(3)) + [tokenizer.pad_token_id] * 3)
 
     def _test_no_pad_and_pad(self, no_pad_features, pad_features):
         tokenizer = BertTokenizer(self.vocab_file)
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, mlm=False, return_tensors="np"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="np")
         batch = data_collator(no_pad_features)
         self.assertEqual(batch["input_ids"].shape, (2, 10))
         self.assertEqual(batch["labels"].shape, (2, 10))
@@ -2182,9 +1936,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape, (2, 16))
 
         tokenizer.pad_token = None
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, mlm=False, return_tensors="np"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="np")
         with self.assertRaises(ValueError):
             # Expect error due to padding token missing
             data_collator(pad_features)
@@ -2208,9 +1960,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertTrue(np.any(masked_tokens))
         # self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         batch = data_collator(no_pad_features)
         self.assertEqual(batch["input_ids"].shape, (2, 16))
         self.assertEqual(batch["labels"].shape, (2, 16))
@@ -2228,16 +1978,39 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         # self.assertTrue(all(x == -100 for x in batch["labels"][~masked_tokens].tolist()))
 
     def test_data_collator_for_language_modeling(self):
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
 
         no_pad_features = [list(range(10)), list(range(10))]
         pad_features = [list(range(5)), list(range(10))]
         self._test_no_pad_and_pad(no_pad_features, pad_features)
+
+    def test_data_collator_for_language_modeling_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForLanguageModeling instances
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42, return_tensors="np")
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_1["labels"].shape, (2, 1000))
+
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=42, return_tensors="np")
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_2["labels"].shape, (2, 1000))
+
+        self.assertTrue(np.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(np.all(batch_1["labels"] == batch_2["labels"]))
+
+        data_collator = DataCollatorForLanguageModeling(tokenizer, seed=43, return_tensors="np")
+        batch_3 = data_collator(features)
+        self.assertEqual(batch_3["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_3["labels"].shape, (2, 1000))
+
+        self.assertFalse(np.all(batch_1["input_ids"] == batch_3["input_ids"]))
+        self.assertFalse(np.all(batch_1["labels"] == batch_3["labels"]))
 
     def test_data_collator_for_whole_word_mask(self):
         tokenizer = BertTokenizer(self.vocab_file)
@@ -2254,17 +2027,38 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["input_ids"].shape, (2, 10))
         self.assertEqual(batch["labels"].shape, (2, 10))
 
+    def test_data_collator_for_whole_word_mask_with_seed(self):
+        tokenizer = BertTokenizer(self.vocab_file)
+        features = [{"input_ids": list(range(1000))}, {"input_ids": list(range(1000))}]
+
+        # check if seed is respected between two different DataCollatorForWholeWordMask instances
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42, return_tensors="np")
+        batch_1 = data_collator(features)
+        self.assertEqual(batch_1["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_1["labels"].shape, (2, 1000))
+
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=42, return_tensors="np")
+        batch_2 = data_collator(features)
+        self.assertEqual(batch_2["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_2["labels"].shape, (2, 1000))
+
+        self.assertTrue(np.all(batch_1["input_ids"] == batch_2["input_ids"]))
+        self.assertTrue(np.all(batch_1["labels"] == batch_2["labels"]))
+
+        data_collator = DataCollatorForWholeWordMask(tokenizer, seed=43, return_tensors="np")
+        batch_3 = data_collator(features)
+        self.assertEqual(batch_3["input_ids"].shape, (2, 1000))
+        self.assertEqual(batch_3["labels"].shape, (2, 1000))
+
+        self.assertFalse(np.all(batch_1["input_ids"] == batch_3["input_ids"]))
+        self.assertFalse(np.all(batch_1["labels"] == batch_3["labels"]))
+
     def test_plm(self):
         tokenizer = BertTokenizer(self.vocab_file)
-        no_pad_features = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        no_pad_features = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
         pad_features = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
 
-        data_collator = DataCollatorForPermutationLanguageModeling(
-            tokenizer, return_tensors="np"
-        )
+        data_collator = DataCollatorForPermutationLanguageModeling(tokenizer, return_tensors="np")
 
         batch = data_collator(pad_features)
         self.assertIsInstance(batch, dict)
@@ -2288,11 +2082,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
     def test_nsp(self):
         tokenizer = BertTokenizer(self.vocab_file)
         features = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="np")
@@ -2303,9 +2093,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape, (2, 5))
         self.assertEqual(batch["next_sentence_label"].shape, (2,))
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         batch = data_collator(features)
 
         self.assertEqual(batch["input_ids"].shape, (2, 8))
@@ -2331,9 +2119,7 @@ class NumpyDataCollatorIntegrationTest(unittest.TestCase):
         self.assertEqual(batch["labels"].shape, (2, 5))
         self.assertEqual(batch["sentence_order_label"].shape, (2,))
 
-        data_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         batch = data_collator(features)
 
         self.assertEqual(batch["input_ids"].shape, (2, 8))
@@ -2358,9 +2144,7 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
         """used to convert `item` to `None` type"""
         return None
 
-    def _validate_original_data_against_collated_data(
-        self, collator, original_data, batch_data
-    ):
+    def _validate_original_data_against_collated_data(self, collator, original_data, batch_data):
         # we only care about side effects, the results are tested elsewhere
         collator(batch_data)
 
@@ -2374,28 +2158,15 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
                     self.assertEqual(original_val, batch_val)
 
     def _validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
-        self,
-        collator,
-        base_data,
-        input_key,
-        input_datatype,
-        label_key,
-        label_datatype,
-        ignore_label=False,
+        self, collator, base_data, input_key, input_datatype, label_key, label_datatype, ignore_label=False
     ):
         # using the arguments to recreate the features with their respective (potentially new) datatypes
         features_original = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
         features_batch = [
-            {
-                label_key: label_datatype(sample[label_key]),
-                input_key: input_datatype(sample[input_key]),
-            }
+            {label_key: label_datatype(sample[label_key]), input_key: input_datatype(sample[input_key])}
             for sample in base_data
         ]
 
@@ -2406,18 +2177,12 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
                 batch.pop(label_key)
 
         self._validate_original_data_against_collated_data(
-            collator=collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_default_collator_immutability(self):
-        features_base_single_label = [
-            {"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
-        features_base_multiple_labels = [
-            {"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)
-        ]
+        features_base_single_label = [{"label": i, "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
+        features_base_multiple_labels = [{"label": (0, 1, 2), "inputs": (0, 1, 2, 3, 4, 5)} for i in range(4)]
 
         for datatype_input, datatype_label in [
             (list, int),
@@ -2435,10 +2200,7 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        for datatype_input, datatype_label in [
-            (list, list),
-            (list, self._turn_to_none),
-        ]:
+        for datatype_input, datatype_label in [(list, list), (list, self._turn_to_none)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
                 collator=lambda x: default_data_collator(x, return_tensors="np"),
                 base_data=features_base_multiple_labels,
@@ -2448,9 +2210,7 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
                 label_datatype=datatype_label,
             )
 
-        features_base_single_label_alt = [
-            {"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)
-        ]
+        features_base_single_label_alt = [{"input_ids": (0, 1, 2, 3, 4), "label": float(i)} for i in range(4)]
         self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
             collator=lambda x: default_data_collator(x, return_tensors="np"),
             base_data=features_base_single_label_alt,
@@ -2463,28 +2223,17 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
     def test_with_padding_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
-        features_original = [
-            {"input_ids": [0, 1, 2]},
-            {"input_ids": [0, 1, 2, 3, 4, 5]},
-        ]
+        features_original = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
         features_batch = [{"input_ids": [0, 1, 2]}, {"input_ids": [0, 1, 2, 3, 4, 5]}]
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, padding="max_length", max_length=10, return_tensors="np"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, padding="max_length", max_length=10, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
-        data_collator = DataCollatorWithPadding(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=data_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=data_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_for_token_classification_collator_immutability(self):
@@ -2496,15 +2245,9 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
         ]
         token_classification_collators = [
             DataCollatorForTokenClassification(tokenizer, return_tensors="np"),
-            DataCollatorForTokenClassification(
-                tokenizer, padding="max_length", max_length=10, return_tensors="np"
-            ),
-            DataCollatorForTokenClassification(
-                tokenizer, pad_to_multiple_of=8, return_tensors="np"
-            ),
-            DataCollatorForTokenClassification(
-                tokenizer, label_pad_token_id=-1, return_tensors="np"
-            ),
+            DataCollatorForTokenClassification(tokenizer, padding="max_length", max_length=10, return_tensors="np"),
+            DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=8, return_tensors="np"),
+            DataCollatorForTokenClassification(tokenizer, label_pad_token_id=-1, return_tensors="np"),
         ]
 
         for datatype_input, datatype_label in [(list, list)]:
@@ -2536,26 +2279,13 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(6)), "labels": list(range(6))},
         ]
         seq2seq_collators = [
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="np"),
+            DataCollatorForSeq2Seq(tokenizer, padding=PaddingStrategy.MAX_LENGTH, max_length=7, return_tensors="np"),
             DataCollatorForSeq2Seq(
-                tokenizer, padding=PaddingStrategy.LONGEST, return_tensors="np"
+                tokenizer, padding=PaddingStrategy.LONGEST, pad_to_multiple_of=8, return_tensors="np"
             ),
             DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.MAX_LENGTH,
-                max_length=7,
-                return_tensors="np",
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.LONGEST,
-                pad_to_multiple_of=8,
-                return_tensors="np",
-            ),
-            DataCollatorForSeq2Seq(
-                tokenizer,
-                padding=PaddingStrategy.LONGEST,
-                label_pad_token_id=-1,
-                return_tensors="np",
+                tokenizer, padding=PaddingStrategy.LONGEST, label_pad_token_id=-1, return_tensors="np"
             ),
         ]
 
@@ -2610,13 +2340,9 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
         ]
         lm_collators = [
             DataCollatorForLanguageModeling(tokenizer, mlm=False, return_tensors="np"),
-            DataCollatorForLanguageModeling(
-                tokenizer, mlm=False, pad_to_multiple_of=8, return_tensors="np"
-            ),
+            DataCollatorForLanguageModeling(tokenizer, mlm=False, pad_to_multiple_of=8, return_tensors="np"),
             DataCollatorForLanguageModeling(tokenizer, return_tensors="np"),
-            DataCollatorForLanguageModeling(
-                tokenizer, pad_to_multiple_of=8, return_tensors="np"
-            ),
+            DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np"),
         ]
 
         for datatype_input, datatype_label in [(list, list)]:
@@ -2648,9 +2374,7 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
             {"input_ids": list(range(10)), "labels": (1,)},
             {"input_ids": list(range(10)), "labels": (1,)},
         ]
-        whole_word_masking_collator = DataCollatorForWholeWordMask(
-            tokenizer, return_tensors="np"
-        )
+        whole_word_masking_collator = DataCollatorForWholeWordMask(tokenizer, return_tensors="np")
 
         for datatype_input, datatype_label in [(list, list), (np.array, np.array)]:
             self._validate_original_data_against_collated_data_on_specified_keys_and_datatypes(
@@ -2666,72 +2390,40 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
     def test_permutation_language_modelling_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
-        plm_collator = DataCollatorForPermutationLanguageModeling(
-            tokenizer, return_tensors="np"
+        plm_collator = DataCollatorForPermutationLanguageModeling(tokenizer, return_tensors="np")
+
+        no_pad_features_original = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
+        no_pad_features_batch = [{"input_ids": list(range(10))}, {"input_ids": list(range(10))}]
+        self._validate_original_data_against_collated_data(
+            collator=plm_collator, original_data=no_pad_features_original, batch_data=no_pad_features_batch
         )
 
-        no_pad_features_original = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
-        no_pad_features_batch = [
-            {"input_ids": list(range(10))},
-            {"input_ids": list(range(10))},
-        ]
+        pad_features_original = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
+        pad_features_batch = [{"input_ids": list(range(5))}, {"input_ids": list(range(10))}]
         self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=no_pad_features_original,
-            batch_data=no_pad_features_batch,
-        )
-
-        pad_features_original = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
-        pad_features_batch = [
-            {"input_ids": list(range(5))},
-            {"input_ids": list(range(10))},
-        ]
-        self._validate_original_data_against_collated_data(
-            collator=plm_collator,
-            original_data=pad_features_original,
-            batch_data=pad_features_batch,
+            collator=plm_collator, original_data=pad_features_original, batch_data=pad_features_batch
         )
 
     def test_next_sentence_prediction_collator_immutability(self):
         tokenizer = BertTokenizer(self.vocab_file)
 
         features_original = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
         features_batch = [
-            {
-                "input_ids": [0, 1, 2, 3, 4],
-                "token_type_ids": [0, 1, 2, 3, 4],
-                "next_sentence_label": i,
-            }
+            {"input_ids": [0, 1, 2, 3, 4], "token_type_ids": [0, 1, 2, 3, 4], "next_sentence_label": i}
             for i in range(2)
         ]
 
         nsp_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
-        nsp_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        nsp_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=nsp_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=nsp_collator, original_data=features_original, batch_data=features_batch
         )
 
     def test_sentence_order_prediction_collator_immutability(self):
@@ -2756,16 +2448,10 @@ class NumpyDataCollatorImmutabilityTest(unittest.TestCase):
 
         sop_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )
 
-        sop_collator = DataCollatorForLanguageModeling(
-            tokenizer, pad_to_multiple_of=8, return_tensors="np"
-        )
+        sop_collator = DataCollatorForLanguageModeling(tokenizer, pad_to_multiple_of=8, return_tensors="np")
         self._validate_original_data_against_collated_data(
-            collator=sop_collator,
-            original_data=features_original,
-            batch_data=features_batch,
+            collator=sop_collator, original_data=features_original, batch_data=features_batch
         )

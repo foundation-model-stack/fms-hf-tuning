@@ -1,9 +1,7 @@
-# Standard
 import os
 import tempfile
 import unittest
 
-# First Party
 from transformers import TrainingArguments
 
 

@@ -13,33 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
+import os
+import github
+import json
+from github import Github
+import re
 from collections import Counter
 from pathlib import Path
-import json
-import os
-import re
-
-# Third Party
-from github import Github
-import github
-
 
 def pattern_to_regex(pattern):
-    start_anchor = pattern.startswith("/")
-    pattern = re.escape(pattern)
+    if pattern.startswith("/"):
+        start_anchor = True
+        pattern = re.escape(pattern[1:])
+    else:
+        start_anchor = False
+        pattern = re.escape(pattern)
     # Replace `*` with "any number of non-slash characters"
     pattern = pattern.replace(r"\*", "[^/]*")
     if start_anchor:
-        pattern = "^" + pattern
+        pattern = r"^\/?" + pattern  # Allow an optional leading slash after the start of the string
     return pattern
-
 
 def get_file_owners(file_path, codeowners_lines):
     # Process lines in reverse (last matching pattern takes precedence)
     for line in reversed(codeowners_lines):
         # Skip comments and empty lines, strip inline comments
-        line = line.split("#")[0].strip()
+        line = line.split('#')[0].strip()
         if not line:
             continue
 
@@ -55,19 +54,18 @@ def get_file_owners(file_path, codeowners_lines):
             return owners  # Remember, can still be empty!
     return []  # Should never happen, but just in case
 
-
 def main():
     script_dir = Path(__file__).parent.absolute()
     with open(script_dir / "codeowners_for_review_action") as f:
         codeowners_lines = f.readlines()
 
-    g = Github(os.environ["GITHUB_TOKEN"])
+    g = Github(os.environ['GITHUB_TOKEN'])
     repo = g.get_repo("huggingface/transformers")
-    with open(os.environ["GITHUB_EVENT_PATH"]) as f:
+    with open(os.environ['GITHUB_EVENT_PATH']) as f:
         event = json.load(f)
 
     # The PR number is available in the event payload
-    pr_number = event["pull_request"]["number"]
+    pr_number = event['pull_request']['number']
     pr = repo.get_pull(pr_number)
     pr_author = pr.user.login
 
@@ -97,6 +95,7 @@ def main():
         pr.create_review_request(top_owners)
     except github.GithubException as e:
         print(f"Failed to request review for {top_owners}: {e}")
+
 
 
 if __name__ == "__main__":

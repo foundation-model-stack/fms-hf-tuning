@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
-from unittest.mock import patch
 import os
 import shutil
 import unittest
+from unittest.mock import patch
 
-# First Party
 from transformers.testing_utils import CaptureStd, require_torch
 
 
@@ -27,7 +25,6 @@ class CLITest(unittest.TestCase):
     @patch("sys.argv", ["fakeprogrampath", "env"])
     def test_cli_env(self):
         # test transformers-cli env
-        # First Party
         import transformers.commands.transformers_cli
 
         with CaptureStd() as cs:
@@ -37,40 +34,20 @@ class CLITest(unittest.TestCase):
         self.assertIn("Using distributed or parallel set-up in script?", cs.out)
 
     @require_torch
-    @patch(
-        "sys.argv",
-        [
-            "fakeprogrampath",
-            "download",
-            "hf-internal-testing/tiny-random-gptj",
-            "--cache-dir",
-            "/tmp",
-        ],
-    )
+    @patch("sys.argv", ["fakeprogrampath", "download", "hf-internal-testing/tiny-random-gptj", "--cache-dir", "/tmp"])
     def test_cli_download(self):
-        # First Party
         import transformers.commands.transformers_cli
 
         # # remove any previously downloaded model to start clean
-        shutil.rmtree(
-            "/tmp/models--hf-internal-testing--tiny-random-gptj", ignore_errors=True
-        )
+        shutil.rmtree("/tmp/models--hf-internal-testing--tiny-random-gptj", ignore_errors=True)
 
         # run the command
         transformers.commands.transformers_cli.main()
 
         # check if the model files are downloaded correctly on /tmp/models--hf-internal-testing--tiny-random-gptj
-        self.assertTrue(
-            os.path.exists("/tmp/models--hf-internal-testing--tiny-random-gptj/blobs")
-        )
-        self.assertTrue(
-            os.path.exists("/tmp/models--hf-internal-testing--tiny-random-gptj/refs")
-        )
-        self.assertTrue(
-            os.path.exists(
-                "/tmp/models--hf-internal-testing--tiny-random-gptj/snapshots"
-            )
-        )
+        self.assertTrue(os.path.exists("/tmp/models--hf-internal-testing--tiny-random-gptj/blobs"))
+        self.assertTrue(os.path.exists("/tmp/models--hf-internal-testing--tiny-random-gptj/refs"))
+        self.assertTrue(os.path.exists("/tmp/models--hf-internal-testing--tiny-random-gptj/snapshots"))
 
     @require_torch
     @patch(
@@ -85,31 +62,17 @@ class CLITest(unittest.TestCase):
         ],
     )
     def test_cli_download_trust_remote(self):
-        # First Party
         import transformers.commands.transformers_cli
 
         # # remove any previously downloaded model to start clean
-        shutil.rmtree(
-            "/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer",
-            ignore_errors=True,
-        )
+        shutil.rmtree("/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer", ignore_errors=True)
 
         # run the command
         transformers.commands.transformers_cli.main()
 
         # check if the model files are downloaded correctly on /tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer
+        self.assertTrue(os.path.exists("/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/blobs"))
+        self.assertTrue(os.path.exists("/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/refs"))
         self.assertTrue(
-            os.path.exists(
-                "/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/blobs"
-            )
-        )
-        self.assertTrue(
-            os.path.exists(
-                "/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/refs"
-            )
-        )
-        self.assertTrue(
-            os.path.exists(
-                "/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/snapshots"
-            )
+            os.path.exists("/tmp/models--hf-internal-testing--test_dynamic_model_with_tokenizer/snapshots")
         )

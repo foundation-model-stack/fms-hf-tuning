@@ -1,8 +1,6 @@
-# Standard
 import tempfile
 import unittest
 
-# First Party
 from transformers import LlavaConfig
 
 

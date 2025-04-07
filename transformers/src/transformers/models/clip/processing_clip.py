@@ -16,10 +16,8 @@
 Image/Text processor class for CLIP
 """
 
-# Standard
 import warnings
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...tokenization_utils_base import BatchEncoding
 
@@ -52,9 +50,7 @@ class CLIPProcessor(ProcessorMixin):
             )
             feature_extractor = kwargs.pop("feature_extractor")
 
-        image_processor = (
-            image_processor if image_processor is not None else feature_extractor
-        )
+        image_processor = image_processor if image_processor is not None else feature_extractor
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
         if tokenizer is None:
@@ -67,7 +63,7 @@ class CLIPProcessor(ProcessorMixin):
         Main method to prepare for the model one or several sequences(s) and image(s). This method forwards the `text`
         and `kwargs` arguments to CLIPTokenizerFast's [`~CLIPTokenizerFast.__call__`] if `text` is not `None` to encode
         the text. To prepare the image(s), this method forwards the `images` and `kwrags` arguments to
-        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the doctsring
+        CLIPImageProcessor's [`~CLIPImageProcessor.__call__`] if `images` is not `None`. Please refer to the docstring
         of the above two methods for more information.
 
         Args:
@@ -98,31 +94,19 @@ class CLIPProcessor(ProcessorMixin):
         """
         tokenizer_kwargs, image_processor_kwargs = {}, {}
         if kwargs:
-            tokenizer_kwargs = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in self.image_processor._valid_processor_keys
-            }
+            tokenizer_kwargs = {k: v for k, v in kwargs.items() if k not in self.image_processor._valid_processor_keys}
             image_processor_kwargs = {
-                k: v
-                for k, v in kwargs.items()
-                if k in self.image_processor._valid_processor_keys
+                k: v for k, v in kwargs.items() if k in self.image_processor._valid_processor_keys
             }
 
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
 
         if text is not None:
-            encoding = self.tokenizer(
-                text, return_tensors=return_tensors, **tokenizer_kwargs
-            )
+            encoding = self.tokenizer(text, return_tensors=return_tensors, **tokenizer_kwargs)
 
         if images is not None:
-            image_features = self.image_processor(
-                images, return_tensors=return_tensors, **image_processor_kwargs
-            )
+            image_features = self.image_processor(images, return_tensors=return_tensors, **image_processor_kwargs)
 
         if text is not None and images is not None:
             encoding["pixel_values"] = image_features.pixel_values
@@ -130,9 +114,7 @@ class CLIPProcessor(ProcessorMixin):
         elif text is not None:
             return encoding
         else:
-            return BatchEncoding(
-                data=dict(**image_features), tensor_type=return_tensors
-            )
+            return BatchEncoding(data=dict(**image_features), tensor_type=return_tensors)
 
     def batch_decode(self, *args, **kwargs):
         """

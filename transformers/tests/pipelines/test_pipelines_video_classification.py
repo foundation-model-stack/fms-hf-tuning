@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import unittest
 
-# Third Party
 from huggingface_hub import VideoClassificationOutputElement, hf_hub_download
 
-# First Party
-from transformers import (
-    MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING,
-    VideoMAEFeatureExtractor,
-)
+from transformers import MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING, VideoMAEFeatureExtractor
 from transformers.pipelines import VideoClassificationPipeline, pipeline
 from transformers.testing_utils import (
     compare_pipeline_output_to_hub_spec,
@@ -35,7 +29,6 @@ from transformers.testing_utils import (
     require_vision,
 )
 
-# Local
 from .test_pipelines_common import ANY
 
 
@@ -45,6 +38,15 @@ from .test_pipelines_common import ANY
 @require_av
 class VideoClassificationPipelineTests(unittest.TestCase):
     model_mapping = MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING
+    example_video_filepath = None
+
+    @classmethod
+    def _load_dataset(cls):
+        # Lazy loading of the dataset. Because it is a class method, it will only be loaded once per pytest process.
+        if cls.example_video_filepath is None:
+            cls.example_video_filepath = hf_hub_download(
+                repo_id="nateraw/video-demo", filename="archery.mp4", repo_type="dataset"
+            )
 
     def get_test_pipeline(
         self,
@@ -55,9 +57,7 @@ class VideoClassificationPipelineTests(unittest.TestCase):
         processor=None,
         torch_dtype="float32",
     ):
-        example_video_filepath = hf_hub_download(
-            repo_id="nateraw/video-demo", filename="archery.mp4", repo_type="dataset"
-        )
+        self._load_dataset()
         video_classifier = VideoClassificationPipeline(
             model=model,
             tokenizer=tokenizer,
@@ -68,8 +68,9 @@ class VideoClassificationPipelineTests(unittest.TestCase):
             top_k=2,
         )
         examples = [
-            example_video_filepath,
-            "https://huggingface.co/datasets/nateraw/video-demo/resolve/main/archery.mp4",
+            self.example_video_filepath,
+            # TODO: re-enable this once we have a stable hub solution for CI
+            # "https://huggingface.co/datasets/nateraw/video-demo/resolve/main/archery.mp4",
         ]
         return video_classifier, examples
 
@@ -85,9 +86,7 @@ class VideoClassificationPipelineTests(unittest.TestCase):
                 ],
             )
             for element in outputs:
-                compare_pipeline_output_to_hub_spec(
-                    element, VideoClassificationOutputElement
-                )
+                compare_pipeline_output_to_hub_spec(element, VideoClassificationOutputElement)
 
     @require_torch
     def test_small_model_pt(self):
@@ -96,27 +95,17 @@ class VideoClassificationPipelineTests(unittest.TestCase):
             size={"shortest_edge": 10}, crop_size={"height": 10, "width": 10}
         )
         video_classifier = pipeline(
-            "video-classification",
-            model=small_model,
-            feature_extractor=small_feature_extractor,
-            frame_sampling_rate=4,
+            "video-classification", model=small_model, feature_extractor=small_feature_extractor, frame_sampling_rate=4
         )
 
-        video_file_path = hf_hub_download(
-            repo_id="nateraw/video-demo", filename="archery.mp4", repo_type="dataset"
-        )
+        video_file_path = hf_hub_download(repo_id="nateraw/video-demo", filename="archery.mp4", repo_type="dataset")
         output = video_classifier(video_file_path, top_k=2)
         self.assertEqual(
             nested_simplify(output, decimals=4),
-            [
-                {"score": 0.5199, "label": "LABEL_0"},
-                {"score": 0.4801, "label": "LABEL_1"},
-            ],
+            [{"score": 0.5199, "label": "LABEL_0"}, {"score": 0.4801, "label": "LABEL_1"}],
         )
         for element in output:
-            compare_pipeline_output_to_hub_spec(
-                element, VideoClassificationOutputElement
-            )
+            compare_pipeline_output_to_hub_spec(element, VideoClassificationOutputElement)
 
         outputs = video_classifier(
             [
@@ -128,21 +117,13 @@ class VideoClassificationPipelineTests(unittest.TestCase):
         self.assertEqual(
             nested_simplify(outputs, decimals=4),
             [
-                [
-                    {"score": 0.5199, "label": "LABEL_0"},
-                    {"score": 0.4801, "label": "LABEL_1"},
-                ],
-                [
-                    {"score": 0.5199, "label": "LABEL_0"},
-                    {"score": 0.4801, "label": "LABEL_1"},
-                ],
+                [{"score": 0.5199, "label": "LABEL_0"}, {"score": 0.4801, "label": "LABEL_1"}],
+                [{"score": 0.5199, "label": "LABEL_0"}, {"score": 0.4801, "label": "LABEL_1"}],
             ],
         )
         for output in outputs:
             for element in output:
-                compare_pipeline_output_to_hub_spec(
-                    element, VideoClassificationOutputElement
-                )
+                compare_pipeline_output_to_hub_spec(element, VideoClassificationOutputElement)
 
     @require_tf
     @unittest.skip

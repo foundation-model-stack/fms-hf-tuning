@@ -16,15 +16,13 @@
 Image/Text processor class for OneFormer
 """
 
-# Standard
 from typing import List
 
-# Local
 from ...processing_utils import ProcessorMixin
 from ...utils import is_torch_available
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
 
@@ -50,12 +48,7 @@ class OneFormerProcessor(ProcessorMixin):
     tokenizer_class = ("CLIPTokenizer", "CLIPTokenizerFast")
 
     def __init__(
-        self,
-        image_processor=None,
-        tokenizer=None,
-        max_seq_length: int = 77,
-        task_seq_length: int = 77,
-        **kwargs,
+        self, image_processor=None, tokenizer=None, max_seq_length: int = 77, task_seq_length: int = 77, **kwargs
     ):
         if image_processor is None:
             raise ValueError("You need to specify an `image_processor`.")
@@ -71,9 +64,7 @@ class OneFormerProcessor(ProcessorMixin):
         if text_list is None:
             raise ValueError("tokens cannot be None.")
 
-        tokens = self.tokenizer(
-            text_list, padding="max_length", max_length=max_length, truncation=True
-        )
+        tokens = self.tokenizer(text_list, padding="max_length", max_length=max_length, truncation=True)
 
         attention_masks, input_ids = tokens["attention_mask"], tokens["input_ids"]
 
@@ -91,7 +82,7 @@ class OneFormerProcessor(ProcessorMixin):
         `task_inputs` and `kwargs` arguments to CLIPTokenizer's [`~CLIPTokenizer.__call__`] if `task_inputs` is not
         `None` to encode. To prepare the image(s), this method forwards the `images` and `kwargs` arguments to
         OneFormerImageProcessor's [`~OneFormerImageProcessor.__call__`] if `images` is not `None`. Please refer to the
-        doctsring of the above two methods for more information.
+        docstring of the above two methods for more information.
 
         Args:
             task_inputs (`str`, `List[str]`):
@@ -122,28 +113,20 @@ class OneFormerProcessor(ProcessorMixin):
         elif images is None:
             raise ValueError("You have to specify the image. Found None.")
 
-        if not all(
-            task in ["semantic", "instance", "panoptic"] for task in task_inputs
-        ):
+        if not all(task in ["semantic", "instance", "panoptic"] for task in task_inputs):
             raise ValueError("task_inputs must be semantic, instance, or panoptic.")
 
-        encoded_inputs = self.image_processor(
-            images, task_inputs, segmentation_maps, **kwargs
-        )
+        encoded_inputs = self.image_processor(images, task_inputs, segmentation_maps, **kwargs)
 
         if isinstance(task_inputs, str):
             task_inputs = [task_inputs]
 
-        if isinstance(task_inputs, List) and all(
-            isinstance(task_input, str) for task_input in task_inputs
-        ):
+        if isinstance(task_inputs, List) and all(isinstance(task_input, str) for task_input in task_inputs):
             task_token_inputs = []
             for task in task_inputs:
                 task_input = f"the task is {task}"
                 task_token_inputs.append(task_input)
-            encoded_inputs["task_inputs"] = self._preprocess_text(
-                task_token_inputs, max_length=self.task_seq_length
-            )
+            encoded_inputs["task_inputs"] = self._preprocess_text(task_token_inputs, max_length=self.task_seq_length)
         else:
             raise TypeError("Task Inputs should be a string or a list of strings.")
 
@@ -152,18 +135,14 @@ class OneFormerProcessor(ProcessorMixin):
 
             text_inputs = []
             for texts in texts_list:
-                text_input_list = self._preprocess_text(
-                    texts, max_length=self.max_seq_length
-                )
+                text_input_list = self._preprocess_text(texts, max_length=self.max_seq_length)
                 text_inputs.append(text_input_list.unsqueeze(0))
 
             encoded_inputs["text_inputs"] = torch.cat(text_inputs, dim=0)
 
         return encoded_inputs
 
-    def encode_inputs(
-        self, images=None, task_inputs=None, segmentation_maps=None, **kwargs
-    ):
+    def encode_inputs(self, images=None, task_inputs=None, segmentation_maps=None, **kwargs):
         """
         This method forwards all its arguments to [`OneFormerImageProcessor.encode_inputs`] and then tokenizes the
         task_inputs. Please refer to the docstring of this method for more information.
@@ -174,28 +153,20 @@ class OneFormerProcessor(ProcessorMixin):
         elif images is None:
             raise ValueError("You have to specify the image. Found None.")
 
-        if not all(
-            task in ["semantic", "instance", "panoptic"] for task in task_inputs
-        ):
+        if not all(task in ["semantic", "instance", "panoptic"] for task in task_inputs):
             raise ValueError("task_inputs must be semantic, instance, or panoptic.")
 
-        encoded_inputs = self.image_processor.encode_inputs(
-            images, task_inputs, segmentation_maps, **kwargs
-        )
+        encoded_inputs = self.image_processor.encode_inputs(images, task_inputs, segmentation_maps, **kwargs)
 
         if isinstance(task_inputs, str):
             task_inputs = [task_inputs]
 
-        if isinstance(task_inputs, List) and all(
-            isinstance(task_input, str) for task_input in task_inputs
-        ):
+        if isinstance(task_inputs, List) and all(isinstance(task_input, str) for task_input in task_inputs):
             task_token_inputs = []
             for task in task_inputs:
                 task_input = f"the task is {task}"
                 task_token_inputs.append(task_input)
-            encoded_inputs["task_inputs"] = self._preprocess_text(
-                task_token_inputs, max_length=self.task_seq_length
-            )
+            encoded_inputs["task_inputs"] = self._preprocess_text(task_token_inputs, max_length=self.task_seq_length)
         else:
             raise TypeError("Task Inputs should be a string or a list of strings.")
 
@@ -204,9 +175,7 @@ class OneFormerProcessor(ProcessorMixin):
 
             text_inputs = []
             for texts in texts_list:
-                text_input_list = self._preprocess_text(
-                    texts, max_length=self.max_seq_length
-                )
+                text_input_list = self._preprocess_text(texts, max_length=self.max_seq_length)
                 text_inputs.append(text_input_list.unsqueeze(0))
 
             encoded_inputs["text_inputs"] = torch.cat(text_inputs, dim=0)

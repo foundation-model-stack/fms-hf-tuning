@@ -14,9 +14,9 @@
 # limitations under the License.
 """SAM model configuration"""
 
-# Local
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+
 
 logger = logging.get_logger(__name__)
 
@@ -183,9 +183,27 @@ class SamVisionConfig(PretrainedConfig):
         mlp_dim (`int`, *optional*):
             The dimensionality of the MLP layer in the Transformer encoder. If `None`, defaults to `mlp_ratio *
             hidden_size`.
-    """
+
+    Example:
+
+    ```python
+    >>> from transformers import (
+    ...     SamVisionConfig,
+    ...     SamVisionModel,
+    ... )
+
+    >>> # Initializing a SamVisionConfig with `"facebook/sam-vit-huge"` style configuration
+    >>> configuration = SamVisionConfig()
+
+    >>> # Initializing a SamVisionModel (with random weights) from the `"facebook/sam-vit-huge"` style configuration
+    >>> model = SamVisionModel(configuration)
+
+    >>> # Accessing the model configuration
+    >>> configuration = model.config
+    ```"""
 
     base_config_key = "vision_config"
+    model_type = "sam_vision_model"
 
     def __init__(
         self,
@@ -300,12 +318,8 @@ class SamConfig(PretrainedConfig):
     ):
         super().__init__(**kwargs)
         vision_config = vision_config if vision_config is not None else {}
-        prompt_encoder_config = (
-            prompt_encoder_config if prompt_encoder_config is not None else {}
-        )
-        mask_decoder_config = (
-            mask_decoder_config if mask_decoder_config is not None else {}
-        )
+        prompt_encoder_config = prompt_encoder_config if prompt_encoder_config is not None else {}
+        mask_decoder_config = mask_decoder_config if mask_decoder_config is not None else {}
 
         if isinstance(vision_config, SamVisionConfig):
             vision_config = vision_config.to_dict()
@@ -320,9 +334,4 @@ class SamConfig(PretrainedConfig):
         self.initializer_range = initializer_range
 
 
-__all__ = [
-    "SamConfig",
-    "SamMaskDecoderConfig",
-    "SamPromptEncoderConfig",
-    "SamVisionConfig",
-]
+__all__ = ["SamConfig", "SamMaskDecoderConfig", "SamPromptEncoderConfig", "SamVisionConfig"]

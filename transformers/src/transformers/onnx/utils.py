@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 from ctypes import c_float, sizeof
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Union
 
+
 if TYPE_CHECKING:
-    # Local
     from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
 
 
@@ -36,9 +35,7 @@ class ParameterFormat(Enum):
         return sizeof(self.value)
 
 
-def compute_effective_axis_dimension(
-    dimension: int, fixed_dimension: int, num_token_to_add: int = 0
-) -> int:
+def compute_effective_axis_dimension(dimension: int, fixed_dimension: int, num_token_to_add: int = 0) -> int:
     """
 
     Args:
@@ -57,9 +54,7 @@ def compute_effective_axis_dimension(
     return dimension
 
 
-def compute_serialized_parameters_size(
-    num_parameters: int, dtype: ParameterFormat
-) -> int:
+def compute_serialized_parameters_size(num_parameters: int, dtype: ParameterFormat) -> int:
     """
     Compute the size taken by all the parameters in the given the storage format when serializing the model
 
@@ -73,9 +68,7 @@ def compute_serialized_parameters_size(
     return num_parameters * dtype.size
 
 
-def get_preprocessor(
-    model_name: str,
-) -> Optional[Union["AutoTokenizer", "AutoFeatureExtractor", "AutoProcessor"]]:
+def get_preprocessor(model_name: str) -> Optional[Union["AutoTokenizer", "AutoFeatureExtractor", "AutoProcessor"]]:
     """
     Gets a preprocessor (tokenizer, feature extractor or processor) that is available for `model_name`.
 
@@ -89,7 +82,6 @@ def get_preprocessor(
             `None` if no preprocessor is found.
     """
     # Avoid circular imports by only importing this here.
-    # Local
     from .. import AutoFeatureExtractor, AutoProcessor, AutoTokenizer  # tests_ignore
 
     try:

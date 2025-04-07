@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standard
 import os
 import shutil
 import tempfile
 import unittest
 
-# Third Party
 import numpy as np
 
-# First Party
 from transformers import AutoTokenizer, BarkProcessor
 from transformers.testing_utils import require_torch, slow
 
@@ -73,9 +70,7 @@ class BarkProcessorTest(unittest.TestCase):
             eos_token="(EOS)",
         )
 
-        self.assertEqual(
-            processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab()
-        )
+        self.assertEqual(processor.tokenizer.get_vocab(), tokenizer_add_kwargs.get_vocab())
 
     def test_speaker_embeddings(self):
         processor = BarkProcessor.from_pretrained(
@@ -98,10 +93,7 @@ class BarkProcessorTest(unittest.TestCase):
 
         processed_voice_preset = inputs["history_prompt"]
         for key in voice_preset:
-            self.assertListEqual(
-                voice_preset[key].tolist(),
-                processed_voice_preset.get(key, np.array([])).tolist(),
-            )
+            self.assertListEqual(voice_preset[key].tolist(), processed_voice_preset.get(key, np.array([])).tolist())
 
         # test loading voice preset from npz file
         tmpfilename = os.path.join(self.tmpdirname, "file.npz")
@@ -110,10 +102,7 @@ class BarkProcessorTest(unittest.TestCase):
         processed_voice_preset = inputs["history_prompt"]
 
         for key in voice_preset:
-            self.assertListEqual(
-                voice_preset[key].tolist(),
-                processed_voice_preset.get(key, np.array([])).tolist(),
-            )
+            self.assertListEqual(voice_preset[key].tolist(), processed_voice_preset.get(key, np.array([])).tolist())
 
         # test loading voice preset from the hub
         inputs = processor(text=self.input_string, voice_preset=self.voice_preset)
@@ -135,6 +124,4 @@ class BarkProcessorTest(unittest.TestCase):
         )
 
         for key in encoded_tok.keys():
-            self.assertListEqual(
-                encoded_tok[key], encoded_processor[key].squeeze().tolist()
-            )
+            self.assertListEqual(encoded_tok[key], encoded_processor[key].squeeze().tolist())

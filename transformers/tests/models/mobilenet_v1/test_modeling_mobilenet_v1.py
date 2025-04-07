@@ -14,32 +14,26 @@
 # limitations under the License.
 """Testing suite for the PyTorch MobileNetV1 model."""
 
-# Standard
 import unittest
 
-# First Party
 from transformers import MobileNetV1Config
 from transformers.testing_utils import require_torch, require_vision, slow, torch_device
 from transformers.utils import cached_property, is_torch_available, is_vision_available
 
-# Local
 from ...test_configuration_common import ConfigTester
 from ...test_modeling_common import ModelTesterMixin, floats_tensor, ids_tensor
 from ...test_pipeline_mixin import PipelineTesterMixin
 
+
 if is_torch_available():
-    # Third Party
     import torch
 
-    # First Party
     from transformers import MobileNetV1ForImageClassification, MobileNetV1Model
 
 
 if is_vision_available():
-    # Third Party
     from PIL import Image
 
-    # First Party
     from transformers import MobileNetV1ImageProcessor
 
 
@@ -88,17 +82,13 @@ class MobileNetV1ModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor(
-            [self.batch_size, self.num_channels, self.image_size, self.image_size]
-        )
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         pixel_labels = None
         if self.use_labels:
             labels = ids_tensor([self.batch_size], self.num_labels)
-            pixel_labels = ids_tensor(
-                [self.batch_size, self.image_size, self.image_size], self.num_labels
-            )
+            pixel_labels = ids_tensor([self.batch_size, self.image_size, self.image_size], self.num_labels)
 
         config = self.get_config()
 
@@ -131,9 +121,7 @@ class MobileNetV1ModelTester:
             ),
         )
 
-    def create_and_check_for_image_classification(
-        self, config, pixel_values, labels, pixel_labels
-    ):
+    def create_and_check_for_image_classification(self, config, pixel_values, labels, pixel_labels):
         config.num_labels = self.num_labels
         model = MobileNetV1ForImageClassification(config)
         model.to(torch_device)
@@ -155,16 +143,9 @@ class MobileNetV1ModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
     attention_mask and seq_length.
     """
 
-    all_model_classes = (
-        (MobileNetV1Model, MobileNetV1ForImageClassification)
-        if is_torch_available()
-        else ()
-    )
+    all_model_classes = (MobileNetV1Model, MobileNetV1ForImageClassification) if is_torch_available() else ()
     pipeline_model_mapping = (
-        {
-            "image-feature-extraction": MobileNetV1Model,
-            "image-classification": MobileNetV1ForImageClassification,
-        }
+        {"image-feature-extraction": MobileNetV1Model, "image-classification": MobileNetV1ForImageClassification}
         if is_torch_available()
         else {}
     )
@@ -177,9 +158,7 @@ class MobileNetV1ModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.TestC
 
     def setUp(self):
         self.model_tester = MobileNetV1ModelTester(self)
-        self.config_tester = MobileNetV1ConfigTester(
-            self, config_class=MobileNetV1Config, has_text_modality=False
-        )
+        self.config_tester = MobileNetV1ConfigTester(self, config_class=MobileNetV1Config, has_text_modality=False)
 
     def test_config(self):
         self.config_tester.run_common_tests()
@@ -249,16 +228,12 @@ class MobileNetV1ModelIntegrationTest(unittest.TestCase):
     @cached_property
     def default_image_processor(self):
         return (
-            MobileNetV1ImageProcessor.from_pretrained("google/mobilenet_v1_1.0_224")
-            if is_vision_available()
-            else None
+            MobileNetV1ImageProcessor.from_pretrained("google/mobilenet_v1_1.0_224") if is_vision_available() else None
         )
 
     @slow
     def test_inference_image_classification_head(self):
-        model = MobileNetV1ForImageClassification.from_pretrained(
-            "google/mobilenet_v1_1.0_224"
-        ).to(torch_device)
+        model = MobileNetV1ForImageClassification.from_pretrained("google/mobilenet_v1_1.0_224").to(torch_device)
 
         image_processor = self.default_image_processor
         image = prepare_img()
@@ -274,6 +249,4 @@ class MobileNetV1ModelIntegrationTest(unittest.TestCase):
 
         expected_slice = torch.tensor([-4.1739, -1.1233, 3.1205]).to(torch_device)
 
-        torch.testing.assert_close(
-            outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4
-        )
+        torch.testing.assert_close(outputs.logits[0, :3], expected_slice, rtol=1e-4, atol=1e-4)
