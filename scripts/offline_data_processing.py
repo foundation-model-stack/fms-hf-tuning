@@ -13,7 +13,7 @@ from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.sft_trainer import get_parser
 from tuning.utils.error_logging import USER_ERROR_EXIT_CODE, write_termination_log
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import set_special_tokens_dict
+from tuning.utils.tokenizer_data_utils import get_special_tokens_dict
 
 
 def save_dataset_shards(
@@ -87,7 +87,7 @@ def get_processed_dataset(
         tokenizer.chat_template = data_args.chat_template
 
     # Prepare special tokens dictionary
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
 

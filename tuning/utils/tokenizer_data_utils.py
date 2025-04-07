@@ -26,7 +26,7 @@ from tuning.config import configs
 logger = logging.getLogger(__name__)
 
 
-def set_special_tokens_dict(
+def get_special_tokens_dict(
     tokenizer_name_or_path: str, tokenizer: transformers.PreTrainedTokenizer
 ) -> dict:
     """Creates a special tokens dictionary and sets the special tokens,

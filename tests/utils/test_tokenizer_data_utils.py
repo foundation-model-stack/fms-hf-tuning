@@ -7,7 +7,7 @@ from tests.artifacts.testdata import MODEL_NAME
 # Local
 from tuning.config import configs
 from tuning.utils.tokenizer_data_utils import (
-    set_special_tokens_dict,
+    get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )
 
@@ -21,7 +21,7 @@ def test_setting_special_tokens_with_LlamaTokenizerFast():
     """
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
     assert special_tokens_dict == {
@@ -40,7 +40,7 @@ def test_setting_special_tokens_with_GPT2TokenizerFast():
     """
     tokenizer = AutoTokenizer.from_pretrained("ibm-granite/granite-3.1-8b-base")
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
     assert special_tokens_dict == {
@@ -57,7 +57,7 @@ def test_setting_special_tokens_with_GPTNeoXTokenizerFast():
     """
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
     assert special_tokens_dict == {
@@ -79,7 +79,7 @@ def test_setting_special_tokens_when_missing_all_special_tokens():
     tokenizer.pad_token = None
 
     model_args = configs.ModelArguments()
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
     assert special_tokens_dict == {
@@ -94,12 +94,12 @@ def test_setting_special_tokens_when_path_is_not_none():
     """
     A simple unit test that sets the `tokenizer_name_or_path` argument in
     `model_args` to a non None value. Since the argument is not None, almost
-    the entire `set_special_tokens_dict` function is skipped and the
+    the entire `get_special_tokens_dict` function is skipped and the
     special tokens dict is expected to be empty.
     """
     tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
     model_args = configs.ModelArguments(tokenizer_name_or_path="test_path")
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
     # Assert special_tokens_dict is empty

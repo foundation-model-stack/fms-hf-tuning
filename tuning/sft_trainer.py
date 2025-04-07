@@ -62,7 +62,7 @@ from tuning.utils.error_logging import (
 )
 from tuning.utils.logging import set_log_level
 from tuning.utils.tokenizer_data_utils import (
-    set_special_tokens_dict,
+    get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )
 
@@ -261,7 +261,7 @@ def train(
         tokenizer.chat_template = data_args.chat_template
 
     # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = set_special_tokens_dict(
+    special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
     )
 
