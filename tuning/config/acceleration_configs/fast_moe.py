@@ -14,10 +14,10 @@
 
 # Standard
 from dataclasses import dataclass
-from peft import PeftModel
 import os
 
 # Third Party
+from peft import LoraModel, PeftModel
 from transformers import (
     Trainer,
     TrainerCallback,
@@ -114,9 +114,10 @@ def get_callbacks(**kwargs):
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
                         # Save model config files
-                        if isinstance(self.trainer.model, PeftModel):
+                        if isinstance(self.trainer.model._fsdp_wrapped_module.base_model, LoraModel):
                             # Save PEFT adapter configuration
-                            PeftModel.save_pretrained(self.trainer.model, hf_converted_output_dir)
+                            self.trainer.model._fsdp_wrapped_module.base_model.save_pretrained(hf_converted_output_dir)
+
                         else:
                             self.trainer.model.config.save_pretrained(
                                 hf_converted_output_dir
