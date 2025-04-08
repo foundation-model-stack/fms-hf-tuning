@@ -131,6 +131,17 @@ class DataArguments:
         },
     )
 
+    def __post_init__(self):
+        def unescape(s):
+            if s is not None and isinstance(s, str):
+                return s.encode("utf-8").decode("unicode_escape")
+            return s
+
+        self.chat_template = unescape(self.chat_template)
+        self.data_formatter_template = unescape(self.data_formatter_template)
+        self.response_template = unescape(self.response_template)
+        self.instruction_template = unescape(self.instruction_template)
+
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
