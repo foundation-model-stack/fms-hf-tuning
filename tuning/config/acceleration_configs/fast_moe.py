@@ -119,7 +119,7 @@ def get_callbacks(**kwargs):
                         if hasattr(model, "module"):
                             model = model.module
 
-                        if model.peft_config:
+                        if hasattr(model, "peft_config"):
                             lora_config = model.peft_config["default"]
                             config_dict = lora_config.to_dict()
                             config_dict["target_modules"] = sorted(
