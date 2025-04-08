@@ -252,12 +252,12 @@ When working with multi-turn datasets, it's often necessary to extract specific 
 ```
 To extract and use the conversations field, pass the following flag when running:
 ```
---conversation_column "conversations"
+--dataset_conversation_field "conversations"
 ``` 
 
-Note: For most cases, users following Granite3.1 Instruct chat template are expected to pass `--conversation_column "messages"` while using multi-turn data.
+*Note:* For most cases, users using `Granite3.1+ Instruct` series models which already contain chat template should look to pass `--dataset_conversation_field "messages"` while using multi-turn data on the commandline or use `conversations_column` argument in the [data handler](https://github.com/foundation-model-stack/fms-hf-tuning/blob/30ceecc63f3e2bf3aadba2dfc3336b62187c240f/tests/artifacts/predefined_data_configs/mt_data_granite_3_1B_tokenize_and_mask_handler.yaml#L63) which processes chat template 
 
-It is recommended to inspect data format for passing the `--conversation_column` flag!
+We recommend inspecting the data and chat template to decide if you need to pass this flag.
 
 ### Guidelines
 
