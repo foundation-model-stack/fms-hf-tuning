@@ -39,6 +39,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
@@ -1258,6 +1259,14 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
             ],
             DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
         ),
+        (
+            [
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+            ],
+            DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
+        ),
     ],
 )
 def test_run_chat_style_ft_using_dataconfig_for_chat_template(
@@ -1768,7 +1777,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = dataset_text_field
         data_args.response_template = response_template
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL
+        data_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED_JSON
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):

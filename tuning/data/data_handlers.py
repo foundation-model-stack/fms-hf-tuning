@@ -24,6 +24,7 @@ import re
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
 from transformers import AutoTokenizer
+import torch
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
@@ -381,6 +382,128 @@ def skip_large_text(element: Dict[str, str], column_name: str, max_length: int):
     return len(element[column_name]) < max_length
 
 
+def tokenize_and_apply_chat_template_with_masking(
+    element: Dict[str, str],
+    tokenizer: AutoTokenizer,
+    max_seq_length: int = None,
+    conversation_column: str = "messages",
+    **kwargs,
+):
+    """Function to apply chat template to the dataset elements and
+       perform masking to ensure model is trained only on completions.
+       Assumes the dataset is modelled according to ChatML style format
+       like,
+       { messages: {'role': 'user', 'content': 'blah'}
+
+       Tokenizes the dataset and returns a tokenized element.
+       Requires that max_seq_length is passed to ensure truncation of
+       extra large samples. If samples are to be skipped truncated please
+       use filter data handler before using this to ensure skipping
+       of samples.
+
+       Expects to be run as a HF Map function.
+       Ensures that element contains `input_ids`, `labels` and
+       `attention_mask`
+       If used with `remove_columns=all` the dataset can be used
+       directly to train.
+    Args:
+        element: the HF Dataset samples
+        tokenizer: Tokenizer to be used.
+        max_seq_length: Max seq length of the tokens allowed.
+                        Required argument.
+        conversation_column: Name of the column which contains conversations
+                        Typically `messages`
+        kwargs: Unused by this function.
+    Returns:
+        Tokenized element which contains `input_ids` `labels` and `attention_mask`
+        with labels properly masked to train only on completions.
+    """
+
+    # This function is taken from OpenInstruct
+    # https://github.com/allenai/open-instruct/blob/\
+    #   d208aa371976a09152f61991951e981573e7582f/open_instruct/\
+    #   dataset_transformation.py#L632
+
+    messages = element[conversation_column]
+
+    if len(messages) == 0:
+        raise ValueError(
+            f"Contents of the column {conversation_column} must not be empty."
+        )
+
+    # Tokenize the whole sample
+    input_ids = tokenizer.apply_chat_template(
+        conversation=messages,
+        tokenize=True,
+        padding=False,
+        return_tensors="pt",
+        truncation=True,
+        max_length=max_seq_length,
+        add_generation_prompt=False,
+    )
+
+    # clone labels from input ids
+    labels = input_ids.clone()
+
+    # mask the non-assistant part for avoiding loss
+    for message_idx, message in enumerate(messages):
+        if message["role"] != "assistant":
+            # we calculate the start index of this non-assistant message
+            if message_idx == 0:
+                message_start_idx = 0
+            else:
+                message_start_idx = tokenizer.apply_chat_template(
+                    conversation=messages[
+                        :message_idx
+                    ],  # here marks the end of the previous messages
+                    tokenize=True,
+                    padding=False,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=max_seq_length,
+                    add_generation_prompt=False,
+                ).shape[1]
+            # next, we calculate the end index of this non-assistant message
+            if (
+                message_idx < len(messages) - 1
+                and messages[message_idx + 1]["role"] == "assistant"
+            ):
+                # for intermediate messages that follow with an assistant message,
+                # we need to set `add_generation_prompt=True` to avoid the assistant
+                # generation prefix being included in the loss (e.g., `<|assistant|>`)
+                message_end_idx = tokenizer.apply_chat_template(
+                    conversation=messages[: message_idx + 1],
+                    tokenize=True,
+                    return_tensors="pt",
+                    padding=False,
+                    truncation=True,
+                    max_length=max_seq_length,
+                    add_generation_prompt=True,
+                ).shape[1]
+            else:
+                # for the last message or the message that doesn't follow with
+                # an assistant message, we don't need to add the assistant generation prefix
+                message_end_idx = tokenizer.apply_chat_template(
+                    conversation=messages[: message_idx + 1],
+                    tokenize=True,
+                    return_tensors="pt",
+                    padding=False,
+                    truncation=True,
+                    max_length=max_seq_length,
+                    add_generation_prompt=False,
+                ).shape[1]
+            # set the label to -100 for the non-assistant part
+            labels[:, message_start_idx:message_end_idx] = -100
+            if max_seq_length and message_end_idx >= max_seq_length:
+                break
+    attention_mask = torch.ones_like(input_ids)
+    return {
+        "input_ids": input_ids.flatten(),
+        "labels": labels.flatten(),
+        "attention_mask": attention_mask.flatten(),
+    }
+
+
 AVAILABLE_DATA_HANDLERS = {
     "tokenize_and_apply_input_masking": DataHandler(
         op=tokenize_and_apply_input_masking,
@@ -404,6 +527,11 @@ AVAILABLE_DATA_HANDLERS = {
     ),
     "apply_tokenizer_chat_template": DataHandler(
         op=apply_tokenizer_chat_template,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+    ),
+    "tokenize_and_apply_chat_template_with_masking": DataHandler(
+        op=tokenize_and_apply_chat_template_with_masking,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
     ),
