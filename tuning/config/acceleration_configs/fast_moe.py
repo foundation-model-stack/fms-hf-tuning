@@ -126,7 +126,7 @@ def get_callbacks(**kwargs):
                                 list(config_dict["target_modules"])
                             )
                             if "router" in config_dict["target_modules"]:
-                                config_dict["target_modules"].append("input_linear, output_linear")
+                                config_dict["target_modules"].extend(["input_linear", "output_linear"])
                             with open(
                                 os.path.join(
                                     hf_converted_output_dir, "adapter_config.json"
