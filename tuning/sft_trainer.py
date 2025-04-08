@@ -31,10 +31,6 @@ from transformers import (
     AutoModelForVision2Seq,
     AutoProcessor,
     AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
     TrainerCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
@@ -71,7 +67,10 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.utils.tokenizer_data_utils import (
+    get_special_tokens_dict,
+    tokenizer_and_embedding_resize,
+)
 
 
 def train(
@@ -230,6 +229,7 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
+            use_cache=(not train_args.gradient_checkpointing),
         )
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
@@ -294,42 +294,9 @@ def train(
         tokenizer.chat_template = data_args.chat_template
 
     # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
-        # TODO: understand if we need to hardcode these here or just use defaults in model
-        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            special_tokens_dict["bos_token"] = "<s>"
-            special_tokens_dict["eos_token"] = "</s>"
-            special_tokens_dict["unk_token"] = "<unk>"
-            special_tokens_dict["pad_token"] = "<pad>"
-        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            special_tokens_dict["pad_token"] = "<pad>"
-
-    # add special tokens only when a custom tokenizer is not passed
-    if not model_args.tokenizer_name_or_path:
-        # TODO: we need to change this, perhaps follow what open instruct does?
-        if tokenizer.pad_token is None:
-            logger.warning("PAD token set to default, missing in tokenizer")
-            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-        if tokenizer.eos_token is None:
-            logger.warning("EOS token set to default, missing in tokenizer")
-            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-        if tokenizer.bos_token is None:
-            logger.warning("BOS token set to default, missing in tokenizer")
-            special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
-        if tokenizer.unk_token is None:
-            logger.warning("UNK token set to default, missing in tokenizer")
-            special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
-        if tokenizer.pad_token == tokenizer.eos_token:
-            logger.warning(
-                "PAD token set to default, to make it different from eos token"
-            )
-            if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
-                tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
-                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-            else:
-                tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
-                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+    special_tokens_dict = get_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
 
     # adds user specified special tokens to vocab
     if data_args.add_special_tokens:
