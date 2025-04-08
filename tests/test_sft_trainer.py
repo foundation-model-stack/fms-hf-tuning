@@ -1166,7 +1166,7 @@ def test_run_chat_style_ft_dataset_conversation_field():
             {%- endfor %}"
         data_args.response_template = "<|assistant|>"
         data_args.instruction_template = "<|user|>"
-        data_args.conversation_column = "conversations"
+        data_args.dataset_conversation_field = "conversations"
 
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
