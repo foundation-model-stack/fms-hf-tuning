@@ -125,13 +125,18 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
 
-def test_resume_training_from_checkpoint():
+@pytest.mark.parametrize(
+    "enable_reduce_loss_sum",
+    [False, True],
+)
+def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
     """
     Test tuning resumes from the latest checkpoint, creating new checkpoints and the
     checkpoints created before resuming tuning is not affected.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.enable_reduce_loss_sum = enable_reduce_loss_sum
         train_args.output_dir = tempdir
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)

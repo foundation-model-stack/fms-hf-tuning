@@ -27,6 +27,7 @@ from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
@@ -341,26 +342,26 @@ def train(
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
     if train_args.enable_reduce_loss_sum:
-        trainer = SumLossSFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=formatted_train_dataset,
-            eval_dataset=formatted_validation_dataset,
-            data_collator=data_collator,
-            args=training_args,
-            callbacks=trainer_callbacks,
-            peft_config=peft_config,
-        )
+        TrainerClass = SumLossSFTTrainer
     else:
-        trainer = SFTTrainer(
-            model=model,
-            tokenizer=tokenizer,
-            train_dataset=formatted_train_dataset,
-            eval_dataset=formatted_validation_dataset,
-            data_collator=data_collator,
-            args=training_args,
-            callbacks=trainer_callbacks,
-            peft_config=peft_config,
+        TrainerClass = SFTTrainer
+
+    trainer = TrainerClass(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=formatted_train_dataset,
+        eval_dataset=formatted_validation_dataset,
+        data_collator=data_collator,
+        args=training_args,
+        callbacks=trainer_callbacks,
+        peft_config=peft_config,
+    )
+
+    # Note this check has to be done post trainer initialization
+    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
+        raise ValueError(
+            "❌ Loaded model is PEFT model but both PEFT and sum loss should not be set together."
+            + "Set --enable_reduce_loss_sum to false and retry"
         )
 
     # We track additional metrics and experiment metadata after trainer object creation

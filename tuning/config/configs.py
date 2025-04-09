@@ -211,7 +211,10 @@ class TrainingArguments(transformers.TrainingArguments):
     enable_reduce_loss_sum: bool = field(
         default=False,
         metadata={
-            "help": "This function enables reduce_loss = sum in OpenInstruct style."
+            "help": "Pass `True` to enable use of sum loss reduction on the loss function. \
+                Please note this feature is experimental and not fully supported. \
+                One Known limitation of this function is PEFT PT so its disabled \
+                for all PEFT runs by the library internally."
         },
     )
 

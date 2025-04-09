@@ -7,6 +7,28 @@ logger = logging.get_logger(__name__)
 
 DEFAULT_LABELS_KEY = "labels"
 
+################### Some Notes on the below loss calculation. ##############################
+# This loss function just replaces trainer loss function to calculate sum reduction
+# over the model forward pass. This function is useful while using high amount of
+# gradient accumulation to ensure all tokens are accounted for equally.
+#
+# In HF Trainer performing a *true* reduce loss sum calculation requires to change
+# the trainier.training_step function as well to ensure the `backwards` call is done
+# on the combined `sum` loss rather than a loss which is scaled with respect to GAS.
+# See these lines - https://github.com/huggingface/transformers/blob/\
+#                           08e3217bafddc5d11ce0e7369bcfaaabe5501ba5/\
+#                           src/transformers/trainer.py#L3765C1-L3774C54
+#
+# The methodology we have is not too intrusive and not to change `training_step()` as
+# that is equivalent of almost recreating a training loop. Our approach is more towards
+# providing a close approximation to the reduce loss sum calculation.
+#
+# This feature is provided as an experimental feature and not fully claimed to be supported.
+#
+# Known limitation (will be fixed in the next releases) -
+#   Not fully tested and compatible with PEFT especially PEFT PT.
+#############################################################################################
+
 
 class SumLossSFTTrainer(SFTTrainer):
 
@@ -30,7 +52,9 @@ class SumLossSFTTrainer(SFTTrainer):
         self.model_accepts_loss_kwargs = False
         logger.info(
             "✅ Initialized SumLossSFTTrainer. "
-            + "Switching trainer loss function with cross entropy loss sum reduction"
+            + "Switching trainer loss function with cross entropy loss sum reduction.\n"
+            + "This is an experimental feature and should be used as such "
+            + " please report any issue you see with this function to the maintainers"
         )
 
     # Overrides trl/sft_trainer::SFTTrainer compute_loss function.
