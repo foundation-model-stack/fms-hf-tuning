@@ -485,5 +485,5 @@ def process_dataargs(
         dataset_text_field,
         data_collator,
         max_seq_length,
-        None,
+        dataset_kwargs,
     )

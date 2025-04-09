@@ -229,7 +229,6 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
-            use_cache=(not train_args.gradient_checkpointing),
         )
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
@@ -260,6 +259,7 @@ def train(
             cache_dir=train_args.cache_dir,
             use_fast=True,
             legacy=True,
+            use_cache=(not train_args.gradient_checkpointing),
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
@@ -373,7 +373,7 @@ def train(
 
     trainer = SFTTrainer(
         model=model,
-        processing_class=tokenizer,
+        processing_class=tokenizer if processor is None else processor,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
