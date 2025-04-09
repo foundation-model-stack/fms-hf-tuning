@@ -360,7 +360,7 @@ def train(
     # Note this check has to be done post trainer initialization
     if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
         raise ValueError(
-            "❌ Loaded model is PEFT model but both PEFT and sum loss should not be set together."
+            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
             + "Set --enable_reduce_loss_sum to false and retry"
         )
 
