@@ -69,7 +69,8 @@ class VisionDataCollator:
         # Extract lists of text and images across all examples in the batch
         batch_text = [feature[text_field] for feature in features]
         batch_image = [
-            feature[image_field] if isinstance(feature[image_field], list)
+            feature[image_field]
+            if isinstance(feature[image_field], list)
             else [feature[image_field]]
             for feature in features
         ]
