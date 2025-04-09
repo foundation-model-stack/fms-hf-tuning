@@ -51,6 +51,7 @@ from tests.artifacts.predefined_data_configs import (
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_MULTI_TURN_CONVERSATIONS,
     CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
     CUSTOM_TOKENIZER_TINYLLAMA,
@@ -124,13 +125,18 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
 
-def test_resume_training_from_checkpoint():
+@pytest.mark.parametrize(
+    "enable_reduce_loss_sum",
+    [False, True],
+)
+def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
     """
     Test tuning resumes from the latest checkpoint, creating new checkpoints and the
     checkpoints created before resuming tuning is not affected.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.enable_reduce_loss_sum = enable_reduce_loss_sum
         train_args.output_dir = tempdir
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
@@ -1113,6 +1119,59 @@ def test_run_chat_style_ft(dataset_path):
             {% endfor %}"
         data_args.response_template = "<|assistant|>"
         data_args.instruction_template = "<|user|>"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+def test_run_chat_style_ft_dataset_conversation_field():
+    """Check if we can perform an e2e run with chat template and multi turn chat training."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = CHAT_DATA_MULTI_TURN_CONVERSATIONS
+
+        # sampled chat template from granite3.1 instruct model
+        data_args.chat_template = "{%- for message in messages %}\
+            {%- if message['role'] == 'system' %}\
+            {{- '<|system|>\n' + message['content'] + '\n' }}\
+            {%- elif message['role'] == 'user' %}\
+            {{- '<|user|>\n' + message['content'] + '\n' }}\
+            {%- elif message['role'] == 'assistant' %}\
+            {%- if not loop.last %}\
+            {{- '<|assistant|>\n'  + message['content'] + eos_token + '\n' }}\
+            {%- else %}\
+            {{- '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {%- endif %}\
+            {%- endif %}\
+            {%- if loop.last and add_generation_prompt %}\
+            {{- '<|assistant|>\n' }}\
+            {%- endif %}\
+            {%- endfor %}"
+        data_args.response_template = "<|assistant|>"
+        data_args.instruction_template = "<|user|>"
+        data_args.dataset_conversation_field = "conversations"
 
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA

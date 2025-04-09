@@ -33,6 +33,7 @@ from transformers import (
     AutoTokenizer,
     TrainerCallback,
 )
+from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
@@ -59,6 +60,7 @@ from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
+from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
@@ -371,7 +373,12 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    trainer = SFTTrainer(
+    if train_args.enable_reduce_loss_sum:
+        TrainerClass = SumLossSFTTrainer
+    else:
+        TrainerClass = SFTTrainer
+
+    trainer = TrainerClass(
         model=model,
         processing_class=tokenizer if processor is None else processor,
         train_dataset=formatted_train_dataset,
@@ -381,6 +388,13 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
+
+    # Note this check has to be done post trainer initialization
+    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
+        raise ValueError(
+            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
+            + "Set --enable_reduce_loss_sum to false and retry"
+        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

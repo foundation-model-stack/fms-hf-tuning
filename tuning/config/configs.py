@@ -78,6 +78,13 @@ class DataArguments:
                     For running vision language model tuning pass the column name for text data."
         },
     )
+    dataset_conversation_field: str = field(
+        default=None,
+        metadata={
+            "help": "Training dataset text field containing multi-turn chat data. \
+                    Used as key to point multi-turn data field."
+        },
+    )
     validation_data_path: str = field(
         default=None,
         metadata={"help": "Path to the validation data in JSON/JSONL format."},
@@ -213,6 +220,15 @@ class TrainingArguments(transformers.TrainingArguments):
             By default, 'passive' level is set which keeps the \
             current log level for the Transformers library (which will be 'warning` by default) \
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
+        },
+    )
+    enable_reduce_loss_sum: bool = field(
+        default=False,
+        metadata={
+            "help": "Pass `True` to enable use of sum loss reduction on the loss function. \
+                Please note this feature is experimental and not fully supported. \
+                One Known limitation of this function is PEFT PT so its disabled \
+                for all PEFT runs by the library internally."
         },
     )
 
