@@ -190,6 +190,8 @@ def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
     fn_kwargs = {}
     fn_kwargs["dataset_text_field"] = data_args.dataset_text_field
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
+    if data_args.dataset_conversation_field is not None:
+        fn_kwargs["conversation_column"] = data_args.dataset_conversation_field
 
     kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
 
