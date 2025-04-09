@@ -9,7 +9,7 @@ These things are supported via what we call a [`data_config`](#data-config) whic
 
 ## Data Config
 
-Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config` flag. In this 
+Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config_path` flag. In this
 configuration users can describe multiple datasets, configurations on how to load the datasets and configuration on how to 
 process the datasets. Users can currently pass both YAML or JSON based configuration files as data_configs.
 

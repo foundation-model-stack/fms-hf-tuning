@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # Standard
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Union
+import argparse
 import os
 
 # Third Party
@@ -42,8 +44,15 @@ except ImportError:
 @parsable_dataclass
 @dataclass
 class FastMoe:
+    ep_degree: Union[int, bool] = 1
+    disable_distributed: bool = field(
+        default=False, metadata={"help": argparse.SUPPRESS}
+    )
 
-    ep_degree: int = 1
+    def __post_init__(self):
+        if isinstance(self.ep_degree, bool):
+            self.disable_distributed = self.ep_degree
+            self.ep_degree = 1
 
 
 @dataclass
