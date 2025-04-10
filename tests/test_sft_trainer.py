@@ -39,6 +39,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
+    DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_RENAME_RETAIN_COLUMNS,
@@ -50,6 +51,7 @@ from tests.artifacts.predefined_data_configs import (
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
+    CHAT_DATA_MULTI_TURN_CONVERSATIONS,
     CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
     CUSTOM_TOKENIZER_TINYLLAMA,
@@ -123,13 +125,18 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
 
-def test_resume_training_from_checkpoint():
+@pytest.mark.parametrize(
+    "enable_reduce_loss_sum",
+    [False, True],
+)
+def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
     """
     Test tuning resumes from the latest checkpoint, creating new checkpoints and the
     checkpoints created before resuming tuning is not affected.
     """
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.enable_reduce_loss_sum = enable_reduce_loss_sum
         train_args.output_dir = tempdir
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
@@ -1138,6 +1145,59 @@ def test_run_chat_style_ft(dataset_path):
         assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
+def test_run_chat_style_ft_dataset_conversation_field():
+    """Check if we can perform an e2e run with chat template and multi turn chat training."""
+    with tempfile.TemporaryDirectory() as tempdir:
+
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = CHAT_DATA_MULTI_TURN_CONVERSATIONS
+
+        # sampled chat template from granite3.1 instruct model
+        data_args.chat_template = "{%- for message in messages %}\
+            {%- if message['role'] == 'system' %}\
+            {{- '<|system|>\n' + message['content'] + '\n' }}\
+            {%- elif message['role'] == 'user' %}\
+            {{- '<|user|>\n' + message['content'] + '\n' }}\
+            {%- elif message['role'] == 'assistant' %}\
+            {%- if not loop.last %}\
+            {{- '<|assistant|>\n'  + message['content'] + eos_token + '\n' }}\
+            {%- else %}\
+            {{- '<|assistant|>\n'  + message['content'] + eos_token }}\
+            {%- endif %}\
+            {%- endif %}\
+            {%- if loop.last and add_generation_prompt %}\
+            {{- '<|assistant|>\n' }}\
+            {%- endif %}\
+            {%- endfor %}"
+        data_args.response_template = "<|assistant|>"
+        data_args.instruction_template = "<|user|>"
+        data_args.dataset_conversation_field = "conversations"
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = CUSTOM_TOKENIZER_TINYLLAMA
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
 def test_run_chat_style_add_special_tokens_ft():
     """Test to check an e2e multi turn chat training by adding special tokens via command line."""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -1258,6 +1318,14 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
             ],
             DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
         ),
+        (
+            [
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+                CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
+            ],
+            DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
+        ),
     ],
 )
 def test_run_chat_style_ft_using_dataconfig_for_chat_template(
@@ -1352,13 +1420,15 @@ def test_run_e2e_with_hf_dataset_id(data_args):
     reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
 )
 @pytest.mark.parametrize(
-    "dataset_path",
+    "dataset_path, ep_degree",
     [
-        TWITTER_COMPLAINTS_DATA_JSONL,
+        (TWITTER_COMPLAINTS_DATA_JSONL, 1),
+        (TWITTER_COMPLAINTS_DATA_JSONL, True),
+        (TWITTER_COMPLAINTS_DATA_JSONL, False),
     ],
 )
-def test_run_moe_ft_and_inference(dataset_path):
-    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
+    """Check if we can finetune a moe model with moe kernels and ep_degree=1"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
@@ -1366,7 +1436,7 @@ def test_run_moe_ft_and_inference(dataset_path):
         model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
@@ -1766,7 +1836,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = dataset_text_field
         data_args.response_template = response_template
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL
+        data_args.training_data_path = TWITTER_COMPLAINTS_TOKENIZED_JSON
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):

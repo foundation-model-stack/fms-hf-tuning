@@ -26,15 +26,8 @@ import traceback
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
-    TrainerCallback,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
@@ -61,6 +54,7 @@ from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
+from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
@@ -69,7 +63,10 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.utils.tokenizer_data_utils import (
+    get_special_tokens_dict,
+    tokenizer_and_embedding_resize,
+)
 
 
 def train(
@@ -224,6 +221,8 @@ def train(
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+        # avoid warning that use_cache is incompatible with gradient checkpointing
+        use_cache=(not train_args.gradient_checkpointing),
     )
 
     # TODO: Move these to a config as well
@@ -266,42 +265,9 @@ def train(
         tokenizer.chat_template = data_args.chat_template
 
     # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
-        # TODO: understand if we need to hardcode these here or just use defaults in model
-        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            special_tokens_dict["bos_token"] = "<s>"
-            special_tokens_dict["eos_token"] = "</s>"
-            special_tokens_dict["unk_token"] = "<unk>"
-            special_tokens_dict["pad_token"] = "<pad>"
-        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            special_tokens_dict["pad_token"] = "<pad>"
-
-    # add special tokens only when a custom tokenizer is not passed
-    if not model_args.tokenizer_name_or_path:
-        # TODO: we need to change this, perhaps follow what open instruct does?
-        if tokenizer.pad_token is None:
-            logger.warning("PAD token set to default, missing in tokenizer")
-            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-        if tokenizer.eos_token is None:
-            logger.warning("EOS token set to default, missing in tokenizer")
-            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-        if tokenizer.bos_token is None:
-            logger.warning("BOS token set to default, missing in tokenizer")
-            special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
-        if tokenizer.unk_token is None:
-            logger.warning("UNK token set to default, missing in tokenizer")
-            special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
-        if tokenizer.pad_token == tokenizer.eos_token:
-            logger.warning(
-                "PAD token set to default, to make it different from eos token"
-            )
-            if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
-                tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
-                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-            else:
-                tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
-                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+    special_tokens_dict = get_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
 
     # adds user specified special tokens to vocab
     if data_args.add_special_tokens:
@@ -375,7 +341,12 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    trainer = SFTTrainer(
+    if train_args.enable_reduce_loss_sum:
+        TrainerClass = SumLossSFTTrainer
+    else:
+        TrainerClass = SFTTrainer
+
+    trainer = TrainerClass(
         model=model,
         tokenizer=tokenizer,
         train_dataset=formatted_train_dataset,
@@ -385,6 +356,13 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
+
+    # Note this check has to be done post trainer initialization
+    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
+        raise ValueError(
+            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
+            + "Set --enable_reduce_loss_sum to false and retry"
+        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.
