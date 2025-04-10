@@ -98,7 +98,7 @@ def _process_dataconfig_file(
             )
         if is_multipack:
             logging.error("ValueError: multipack not compatible with streaming")
-            raise ValueError("multipack not compatible with streaming")
+            raise ValueError("Multipack is not compatible with streaming=true please set streaming=false or disable multipack sampler")
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
