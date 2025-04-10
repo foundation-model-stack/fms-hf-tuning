@@ -70,6 +70,7 @@ def _process_dataconfig_file(
     tokenizer: AutoTokenizer,
     additional_data_handlers: Dict[str, DataHandler] = None,
     processor: AutoProcessor = None,
+    is_multipack: bool = False,
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
     processor = get_datapreprocessor(
@@ -96,6 +97,16 @@ def _process_dataconfig_file(
             )
             raise ValueError(
                 "`--max_steps` must be set when streaming is set in data preprocessor config"
+            )
+        if is_multipack:
+            logging.error(
+                "Multipack is not compatible with streaming=true please set streaming=false "
+                "or disable multipack sampler"
+            )
+
+            raise ValueError(
+                "Multipack is not compatible with streaming=true please set streaming=false "
+                "or disable multipack sampler"
             )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
@@ -389,6 +400,7 @@ def process_dataargs(
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
+    is_multipack: bool = False,
 ):
     """
     Args:
@@ -404,6 +416,8 @@ def process_dataargs(
         processor:
             Model processor to combine text and image data if using
             multi-modal model. Defaults to None.
+        is_multipack: A bool representing is Multipack plugin is enabled.
+                         Defauts to False.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing
@@ -439,7 +453,7 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, train_args, tokenizer, additional_data_handlers, processor
+            data_args, train_args, tokenizer, additional_data_handlers, processor, is_multipack
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(

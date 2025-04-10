@@ -321,8 +321,10 @@ def train(
     logger.info("Packing is set to %s ", train_args.packing)
 
     is_padding_free = False
+    is_multipack = False
     if attention_and_distributed_packing_config is not None:
         is_padding_free = attention_and_distributed_packing_config.is_padding_free
+        is_multipack = attention_and_distributed_packing_config.is_multipack
 
     data_preprocessing_time = time.time()
     (
@@ -339,6 +341,7 @@ def train(
         additional_data_handlers,
         is_padding_free=is_padding_free,
         processor=processor,
+        is_multipack=is_multipack,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
