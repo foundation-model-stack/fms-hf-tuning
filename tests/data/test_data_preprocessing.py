@@ -206,6 +206,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -222,6 +223,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -1550,6 +1552,7 @@ def test_process_dataargs_pretokenized(data_args):
                     "output",
                     "input_ids",
                     "labels",
+                    "attention_mask",
                 ]
             ),
             "pretokenized_dataset",
