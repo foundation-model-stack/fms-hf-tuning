@@ -842,7 +842,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
         ),
     ],
 )
-def test_process_dataconfig_file_with_streaming_and_multipack_error(
+def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     data_config_path, data_path
 ):
     """Ensure that if multipack is passed with streaming, error is raised"""
