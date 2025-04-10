@@ -61,6 +61,7 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
+from tuning.config.acceleration_configs import AttentionAndDistributedPackingConfig
 from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
@@ -877,11 +878,19 @@ def test_process_dataconfig_file_with_streaming_and_multipack_error(
 
     TRAIN_ARGS = configs.TrainingArguments(
         output_dir="tmp",  # Not needed but positional
+        max_steps=1,
     )
+
+    attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+        None, None
+    )
+    attention_and_distributed_packing_config.multipack = 16
+
+    is_multipack = attention_and_distributed_packing_config.is_multipack
 
     with pytest.raises(ValueError):
         (train_set, _, _) = _process_dataconfig_file(
-            data_args, TRAIN_ARGS, tokenizer, is_multipack=True
+            data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
         )
 
 
