@@ -14,10 +14,12 @@
 
 # Standard
 from typing import Dict
+import copy
 import logging
 import math
 
 # Third Party
+from transformers.models.mllama.modeling_mllama import MllamaForConditionalGeneration
 import transformers
 
 # Local
@@ -104,7 +106,38 @@ def tokenizer_and_embedding_resize(
     )
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
-    model.resize_token_embeddings(embedding_size)
+
+    if isinstance(model, MllamaForConditionalGeneration):
+        # Get new input embedding size
+        current_input_embeddings = model.get_input_embeddings()
+        current_output_embeddings = model.get_output_embeddings()
+        input_embedding_size = current_input_embeddings.weight.shape[0] + (
+            embedding_size - current_output_embeddings.weight.shape[0]
+        )
+
+        # Save current input embedding
+        resized_input_embeddings = model._get_resized_embeddings(
+            current_input_embeddings,
+            new_num_tokens=input_embedding_size,
+            mean_resizing=True,
+        )
+        resized_input_embeddings = copy.deepcopy(resized_input_embeddings)
+        resized_input_embeddings.requires_grad_(
+            current_input_embeddings.weight.requires_grad
+        )
+
+        # Resize input and output embeddings
+        model.resize_token_embeddings(embedding_size)
+
+        # Set new input embedding
+        model.set_input_embeddings(resized_input_embeddings)
+
+        # Resize vocab size when embeddings updated for Mllama models
+        if model.language_model.vocab_size != embedding_size:
+            model.language_model.vocab_size = embedding_size
+    else:
+        model.resize_token_embeddings(embedding_size)
+
     if num_new_tokens > 0:
         input_embeddings = model.get_input_embeddings().weight.data
         output_embeddings = model.get_output_embeddings().weight.data
@@ -118,4 +151,5 @@ def tokenizer_and_embedding_resize(
 
         input_embeddings[-num_new_tokens:] = input_embeddings_avg
         output_embeddings[-num_new_tokens:] = output_embeddings_avg
+
     return {"num_new_tokens": num_new_tokens, "new_embedding_size": embedding_size}
