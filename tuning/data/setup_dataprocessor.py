@@ -336,8 +336,8 @@ def process_dataargs(
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
     additional_data_handlers: Dict[str, DataHandler] = None,
-    is_multipack: bool = False,
     is_padding_free: bool = False,
+    is_multipack: bool = False,
 ):
     """
     Args:
@@ -350,6 +350,8 @@ def process_dataargs(
             which need to be registered with the data preprocessor
         is_padding_free: A bool representing if Padding free plugin is enabled.
                          Defaults to False.
+        is_multipack: A bool representing is Multipack plugin is enabled.
+                         Defauts to False.
     Returns:
         Tuple(Dataset, Dataset, str, DataCollator, int, Dict)
             tuple containing

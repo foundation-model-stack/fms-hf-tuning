@@ -308,8 +308,8 @@ def train(
         tokenizer,
         train_args,
         additional_data_handlers,
-        is_multipack=is_multipack,
         is_padding_free=is_padding_free,
+        is_multipack=is_multipack,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
