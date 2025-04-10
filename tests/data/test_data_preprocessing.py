@@ -61,6 +61,7 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.config import configs
+from tuning.config.acceleration_configs import AttentionAndDistributedPackingConfig
 from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
@@ -830,6 +831,67 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
 
     with pytest.raises(ValueError):
         (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+    ],
+)
+def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
+    data_config_path, data_path
+):
+    """Ensure that if multipack is passed with streaming, error is raised"""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+        max_steps=1,
+    )
+
+    attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+        None, None
+    )
+    attention_and_distributed_packing_config.multipack = 16
+
+    is_multipack = attention_and_distributed_packing_config.is_multipack
+
+    with pytest.raises(ValueError):
+        (train_set, _, _) = _process_dataconfig_file(
+            data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
+        )
 
 
 @pytest.mark.parametrize(

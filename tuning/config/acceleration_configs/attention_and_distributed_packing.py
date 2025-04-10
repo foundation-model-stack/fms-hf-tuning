@@ -51,3 +51,7 @@ class AttentionAndDistributedPackingConfig:
     @property
     def is_padding_free(self):
         return self.padding_free is not None
+
+    @property
+    def is_multipack(self):
+        return self.multipack is not None

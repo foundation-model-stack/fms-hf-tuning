@@ -885,17 +885,18 @@ Notes:
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
  make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
  * `fused_ops_and_kernels` works for full-finetuning, LoRA, QLoRA and GPTQ-LORA, 
-    - pass `--fast_kernels True True True` for full finetuning/LoRA
-    - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
-    - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Pass `--fast_kernels True True True` for full finetuning/LoRA
+    - Pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
+    - Pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
     - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
  * Notes on Padding Free
-    - works for both *single* and *multi-gpu*. 
-    - works on both *pretokenized* and *untokenized* datasets
-    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+    - Works for both *single* and *multi-gpu*. 
+    - Works on both *pretokenized* and *untokenized* datasets
+    - Verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
  * Notes on Multipack
-    - works only for *multi-gpu*.
-    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+    - Works only for *multi-gpu*.
+    - Currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+    - Streaming datasets or use of `IterableDatasets` is not compatible with the fms-acceleration multipack plugin because multipack sampler has to run thorugh the full dataset every epoch. Using multipack and streaming together will raise an error.
  * Notes on Fast MoE
     - `--fast_moe` takes either an integer or boolean value.
       - When an integer `n` is passed, it enables expert parallel sharding with the expert parallel degree as `n` along with Scatter MoE kernels enabled.
