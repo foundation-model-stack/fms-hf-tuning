@@ -16,6 +16,7 @@
 from dataclasses import dataclass, field
 from typing import Union
 import argparse
+import json
 import os
 
 # Third Party
@@ -121,10 +122,29 @@ def get_callbacks(**kwargs):
                             args,
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
-                        # Save model config files
-                        self.trainer.model.config.save_pretrained(
-                            hf_converted_output_dir
-                        )
+
+                        # Unwrap FSDP module
+                        model = self.trainer.model
+                        if hasattr(model, "module"):
+                            model = model.module
+
+                        if hasattr(model, "peft_config"):
+                            lora_config = model.peft_config["default"]
+                            config_dict = lora_config.to_dict()
+                            config_dict["target_modules"] = sorted(
+                                list(config_dict["target_modules"])
+                            )
+                            with open(
+                                os.path.join(
+                                    hf_converted_output_dir, "adapter_config.json"
+                                ),
+                                "w",
+                                encoding="utf-8",
+                            ) as f:
+                                json.dump(config_dict, f, indent=2)
+
+                        else:
+                            model.config.save_pretrained(hf_converted_output_dir)
 
                     except Exception as e:
                         raise ValueError(
