@@ -831,6 +831,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     with pytest.raises(ValueError):
         (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
+
 @pytest.mark.parametrize(
     "data_config_path, data_path",
     [
@@ -879,7 +880,9 @@ def test_process_dataconfig_file_with_streaming_and_multipack_error(
     )
 
     with pytest.raises(ValueError):
-        (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer, is_multipack=True)
+        (train_set, _, _) = _process_dataconfig_file(
+            data_args, TRAIN_ARGS, tokenizer, is_multipack=True
+        )
 
 
 @pytest.mark.parametrize(
