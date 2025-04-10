@@ -139,7 +139,7 @@ def get_callbacks(**kwargs):
                                     hf_converted_output_dir, "adapter_config.json"
                                 ),
                                 "w",
-                                encoding="utf-8"
+                                encoding="utf-8",
                             ) as f:
                                 json.dump(config_dict, f, indent=2)
 
