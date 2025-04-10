@@ -98,11 +98,13 @@ def _process_dataconfig_file(
             )
         if is_multipack:
             logging.error(
-                "Multipack is not compatible with IterableDatasets (streaming=true) please set streaming=false or disable multipack sampler"
+                "Multipack is not compatible with streaming=true please set streaming=false "
+                "or disable multipack sampler"
             )
 
             raise ValueError(
-                "Multipack is not compatible with streaming=true please set streaming=false or disable multipack sampler"
+                "Multipack is not compatible with streaming=true please set streaming=false "
+                "or disable multipack sampler"
             )
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
