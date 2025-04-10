@@ -97,7 +97,8 @@ def _process_dataconfig_file(
                 "`--max_steps` must be set when streaming is set in data preprocessor config"
             )
         if is_multipack:
-            logging.error("ValueError: multipack not compatible with streaming")
+            logging.error("Multipack is not compatible with IterableDatasets (streaming=true) please set streaming=false or disable multipack sampler")
+
             raise ValueError("Multipack is not compatible with streaming=true please set streaming=false or disable multipack sampler")
     train_dataset = processor.process_dataset_configs(data_config.datasets)
 
