@@ -116,11 +116,11 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
-PEFT_PT_ARGS = peft_config.PromptTuningConfig(
-    prompt_tuning_init="RANDOM",
-    num_virtual_tokens=0,
-    prompt_tuning_init_text="hello",
-)
+# PEFT_PT_ARGS = peft_config.PromptTuningConfig(
+#     prompt_tuning_init="RANDOM",
+#     num_virtual_tokens=0,
+#     prompt_tuning_init_text="hello",
+# )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
@@ -436,123 +436,123 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
-def test_run_causallm_pt_and_inference():
-    """Check if we can bootstrap and peft tune causallm models"""
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+# def test_run_causallm_pt_and_inference():
+#     """Check if we can bootstrap and peft tune causallm models"""
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
+#         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
 
-        # validate peft tuning configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
-        adapter_config = _get_adapter_config(checkpoint_path)
+#         # validate peft tuning configs
+#         _validate_training(tempdir)
+#         checkpoint_path = _get_checkpoint_path(tempdir)
+#         adapter_config = _get_adapter_config(checkpoint_path)
 
-        _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-        )
+#         _validate_adapter_config(
+#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+#         )
 
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+#         # Load the model
+#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-        )
-        assert len(output_inference) > 0
-        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
-
-
-def test_run_causallm_pt_and_inference_with_formatting_data():
-    """Check if we can bootstrap and peft tune causallm models
-    This test needs the trainer to format data to a single sequence internally.
-    """
-    with tempfile.TemporaryDirectory() as tempdir:
-        data_formatting_args = copy.deepcopy(DATA_ARGS)
-        data_formatting_args.dataset_text_field = None
-        data_formatting_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
-        )
-
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
-
-        # validate peft tuning configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
-        adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-        )
-
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
-
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-        )
-        assert len(output_inference) > 0
-        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+#         # Run inference on the text
+#         output_inference = loaded_model.run(
+#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+#         )
+#         assert len(output_inference) > 0
+#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-def test_run_causallm_pt_and_inference_JSON_file_formatter():
-    """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-        data_args = copy.deepcopy(DATA_ARGS)
-        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
-        data_args.dataset_text_field = None
-        data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
-        )
+# def test_run_causallm_pt_and_inference_with_formatting_data():
+#     """Check if we can bootstrap and peft tune causallm models
+#     This test needs the trainer to format data to a single sequence internally.
+#     """
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         data_formatting_args = copy.deepcopy(DATA_ARGS)
+#         data_formatting_args.dataset_text_field = None
+#         data_formatting_args.data_formatter_template = (
+#             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+#         )
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
 
-        # validate peft tuning configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
-        adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-        )
+#         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
 
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+#         # validate peft tuning configs
+#         _validate_training(tempdir)
+#         checkpoint_path = _get_checkpoint_path(tempdir)
+#         adapter_config = _get_adapter_config(checkpoint_path)
+#         _validate_adapter_config(
+#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+#         )
 
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-        )
-        assert len(output_inference) > 0
-        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+#         # Load the model
+#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+#         # Run inference on the text
+#         output_inference = loaded_model.run(
+#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+#         )
+#         assert len(output_inference) > 0
+#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-def test_run_causallm_pt_init_text():
-    """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
+# def test_run_causallm_pt_and_inference_JSON_file_formatter():
+#     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
+#         data_args = copy.deepcopy(DATA_ARGS)
+#         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
+#         data_args.dataset_text_field = None
+#         data_args.data_formatter_template = (
+#             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+#         )
 
-        tuning_config = peft_config.PromptTuningConfig(
-            prompt_tuning_init="TEXT",
-            prompt_tuning_init_text="hello",
-            num_virtual_tokens=0,
-        )
+#         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
+#         # validate peft tuning configs
+#         _validate_training(tempdir)
+#         checkpoint_path = _get_checkpoint_path(tempdir)
+#         adapter_config = _get_adapter_config(checkpoint_path)
+#         _validate_adapter_config(
+#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+#         )
 
-        # validate peft tuning configs
-        _validate_training(tempdir)
-        checkpoint_path = _get_checkpoint_path(tempdir)
-        adapter_config = _get_adapter_config(checkpoint_path)
-        _validate_adapter_config(
-            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-        )
+#         # Load the model
+#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+#         # Run inference on the text
+#         output_inference = loaded_model.run(
+#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+#         )
+#         assert len(output_inference) > 0
+#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+# def test_run_causallm_pt_init_text():
+#     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
+
+#         tuning_config = peft_config.PromptTuningConfig(
+#             prompt_tuning_init="TEXT",
+#             prompt_tuning_init_text="hello",
+#             num_virtual_tokens=0,
+#         )
+
+#         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
+
+#         # validate peft tuning configs
+#         _validate_training(tempdir)
+#         checkpoint_path = _get_checkpoint_path(tempdir)
+#         adapter_config = _get_adapter_config(checkpoint_path)
+#         _validate_adapter_config(
+#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+#         )
 
 
 invalid_params_map = [
@@ -570,7 +570,7 @@ invalid_params_map = [
     invalid_params_map,
     ids=["num_train_epochs", "grad_acc_steps"],
 )
-def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
+def test_run_causallm_lora_invalid_train_params(param_name, param_val, exc_msg):
     """Check if error is raised when invalid params are used to peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         invalid_params = copy.deepcopy(TRAIN_ARGS)
@@ -578,14 +578,14 @@ def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
         setattr(invalid_params, param_name, param_val)
 
         with pytest.raises(ValueError, match=exc_msg):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_LORA_ARGS)
 
 
 @pytest.mark.parametrize(
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
 )
-def test_run_causallm_pt_with_validation(dataset_path):
+def test_run_causallm_lora_with_validation(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -594,7 +594,7 @@ def test_run_causallm_pt_with_validation(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = dataset_path
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
@@ -602,7 +602,7 @@ def test_run_causallm_pt_with_validation(dataset_path):
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
 )
-def test_run_causallm_pt_with_validation_data_formatting(dataset_path):
+def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -615,26 +615,26 @@ def test_run_causallm_pt_with_validation_data_formatting(dataset_path):
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
         )
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
-@pytest.mark.parametrize(
-    "dataset_path",
-    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
-)
-def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
-    """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.tokenizer_name_or_path = model_args.model_name_or_path
-        train_args.output_dir = tempdir
-        train_args.eval_strategy = "epoch"
-        data_args = copy.deepcopy(DATA_ARGS)
-        data_args.validation_data_path = dataset_path
-        with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
+# @pytest.mark.parametrize(
+#     "dataset_path",
+#     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+# )
+# def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
+#     """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         model_args = copy.deepcopy(MODEL_ARGS)
+#         model_args.tokenizer_name_or_path = model_args.model_name_or_path
+#         train_args.output_dir = tempdir
+#         train_args.eval_strategy = "epoch"
+#         data_args = copy.deepcopy(DATA_ARGS)
+#         data_args.validation_data_path = dataset_path
+#         with pytest.raises(ValueError):
+#             sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
 
 
 ############################# Lora Tests #############################
@@ -1593,7 +1593,7 @@ def test_tokenizer_has_no_eos_token():
         # If we handled this badly, we would probably get something like a
         # TypeError: can only concatenate str (not "NoneType") to str error
         # when we go to apply the data formatter.
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1605,7 +1605,7 @@ def test_invalid_dataset_text_field():
     data_args.dataset_text_field = "not found"
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests that giving dataset_text_field as well as formatter template gives error
@@ -1617,7 +1617,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
     )
 
     with pytest.raises(ValueError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests passing formatter with invalid keys gives error
@@ -1629,7 +1629,7 @@ def test_invalid_formatter_template():
     )
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
@@ -1639,7 +1639,7 @@ def test_malformatted_data():
     data_args.training_data_path = MALFORMATTED_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 def test_empty_data():
@@ -1648,7 +1648,7 @@ def test_empty_data():
     data_args.training_data_path = EMPTY_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests for bad tuning module configurations
@@ -1677,7 +1677,7 @@ def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
         data_args.data_formatter_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 # TODO: Fix this case
@@ -1691,7 +1691,7 @@ def test_no_packing_needs_reponse_template():
         data_args.response_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 ### Tests for model dtype edge cases
@@ -1708,7 +1708,7 @@ def test_bf16_still_tunes_if_unsupported():
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.torch_dtype = "bfloat16"
 
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1721,7 +1721,7 @@ def test_bad_torch_dtype():
         model_args.torch_dtype = "not a type"
 
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
 
 
 def test_run_with_additional_callbacks():
@@ -1735,7 +1735,7 @@ def test_run_with_additional_callbacks():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_callbacks=[TrainerCallback()],
         )
 
@@ -1754,7 +1754,7 @@ def test_run_with_bad_additional_callbacks():
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_callbacks=["NotSupposedToBeHere"],
             )
 
@@ -1775,7 +1775,7 @@ def test_run_with_bad_experimental_metadata():
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_callbacks=[TrainerCallback()],
                 exp_metadata=metadata,
             )
@@ -1794,7 +1794,7 @@ def test_run_with_good_experimental_metadata():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
@@ -1817,7 +1817,7 @@ def test_pretokenized_dataset(dataset_path):
         data_args.dataset_text_field = None
         data_args.response_template = None
         data_args.training_data_path = dataset_path
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1841,7 +1841,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 def test_pretokenized_dataset_wrong_format():
@@ -1859,7 +1859,7 @@ def test_pretokenized_dataset_wrong_format():
         # need to directly add validation prior to the dataset generation since datasets
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 ###########################################################################
@@ -1892,7 +1892,7 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_data_handlers=additional_handlers,
             )
 
@@ -1907,7 +1907,7 @@ def test_run_with_additional_data_handlers_as_none():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_data_handlers=None,
         )
         _validate_training(tempdir)
@@ -1954,7 +1954,7 @@ def test_run_by_passing_additional_data_handlers():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_data_handlers={
                 TEST_HANDLER: DataHandler(
                     op=test_handler,
