@@ -118,7 +118,7 @@ TRAIN_ARGS = configs.TrainingArguments(
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
-    num_virtual_tokens=8,
+    num_virtual_tokens=0,
     prompt_tuning_init_text="hello",
 )
 
