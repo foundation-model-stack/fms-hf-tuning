@@ -351,7 +351,7 @@ def train(
 
     trainer = TrainerClass(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
