@@ -541,6 +541,7 @@ def test_run_causallm_pt_init_text():
         tuning_config = peft_config.PromptTuningConfig(
             prompt_tuning_init="TEXT",
             prompt_tuning_init_text="hello",
+            num_virtual_tokens=0,
         )
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)

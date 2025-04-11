@@ -65,7 +65,7 @@ BASE_PEFT_KWARGS = {
     **{
         "peft_method": "pt",
         "prompt_tuning_init": "RANDOM",
-        "num_virtual_tokens": 8,
+        "num_virtual_tokens": 0,
         "prompt_tuning_init_text": "hello",
         "save_strategy": "epoch",
         "output_dir": "tmp",
