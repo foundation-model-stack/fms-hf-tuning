@@ -1,0 +1,11 @@
+# Configurations to accelerate data packing/padding in training
+training:
+
+  # dataloader configurations
+  dataloader:
+
+    # multipack dataloader
+    multipack:
+
+      # number of processes used to calculate dataset lengths
+      num_processes: 16

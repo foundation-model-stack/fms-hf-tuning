@@ -1,0 +1,127 @@
+# CI for specifically ensuring integrations work fine (`transformers` mainly) on GPUs
+# Useful tips:
+#  - `working-directory` should be set to the root of the repo, which is cloned on the actual CI runner.
+#    It follows the directory structure of `actions-runner/_work/{repo_name}/{repo_name}/{cloned_repo} on
+#    prem, but in Actions setting `working-directory` looks just in the `{repo_name}` level.
+#  - New integrations to test should have its own job, and follow a strategy method where we check both
+#    the pypi and github versions.
+#  - Workflow call lets this be called from `build_and_run_tests.yml`
+#  - When using a docker container, it's recommended to set `--shm-size`, we use 16gb.
+name: Integration Tests (push to "main")
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  HF_HOME: ~/hf_cache
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-trainer-tests:
+    container:
+      image: huggingface/accelerate:gpu-deepspeed-nightly
+      options: --gpus all --shm-size "16gb"
+    runs-on:
+      group: aws-g6-12xlarge-plus
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda_visible_devices: [
+          "0",
+          "0,1"
+        ]
+    steps:
+      - name: Install transformers
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/transformers --depth 1;
+          cd transformers;
+          pip install .[torch,deepspeed-testing];
+          cd ..;
+
+      - name: Install accelerate
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }} ;
+          pip install -e .[testing];
+          pip uninstall comet_ml wandb dvclive -y
+          cd ..;
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run trainer tests
+        working-directory: transformers/
+        env:
+          CUDA_VISIBLE_DEVICES: ${{ matrix.cuda_visible_devices }}
+          WANDB_DISABLED: true
+        run: |
+          source activate accelerate;
+          pytest -sv tests/trainer
+
+      - name: Run deepspeed tests
+        working-directory: transformers/
+        env:
+          CUDA_VISIBLE_DEVICES: ${{ matrix.cuda_visible_devices }}
+          WANDB_DISABLED: true
+        if: always()
+        run: |
+          source activate accelerate;
+          pytest -sv tests/deepspeed
+
+      - name: Run transformers examples tests
+        working-directory: transformers/
+        env:
+          CUDA_VISIBLE_DEVICES: ${{ matrix.cuda_visible_devices }}
+          WANDB_DISABLED: true
+        run: |
+          source activate accelerate
+          pip install -r examples/pytorch/_tests_requirements.txt
+          pytest -sv examples/pytorch/test_accelerate_examples.py examples/pytorch/test_pytorch_examples.py
+
+  run-skorch-tests:
+    container:
+      image: huggingface/accelerate:gpu-nightly
+      options: --gpus all --shm-size "16gb"
+    runs-on:
+      group: aws-g6-12xlarge-plus
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Install accelerate
+        run:
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }};
+          pip install -e .[testing];
+          cd ..
+
+      - name: Install skorch
+        run: |
+          source activate accelerate
+          git clone https://github.com/skorch-dev/skorch;
+          cd skorch;
+          git config --global --add safe.directory '*'
+          git checkout master && git pull
+          pip install .[testing]
+          pip install flaky
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run skorch tests
+        working-directory: skorch/
+        run: |
+          source activate accelerate;
+          pytest -sv -k TestAccelerate
