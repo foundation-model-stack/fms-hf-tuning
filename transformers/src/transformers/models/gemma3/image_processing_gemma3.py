@@ -40,7 +40,12 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+from ...utils import (
+    TensorType,
+    filter_out_non_signature_kwargs,
+    is_vision_available,
+    logging,
+)
 
 
 logger = logging.get_logger(__name__)
@@ -165,8 +170,12 @@ class Gemma3ImageProcessor(BaseImageProcessor):
                 return []
 
             # Select ideal number of crops close to the image aspect ratio and such that crop_size > min_crop_size.
-            num_crops_w = int(math.floor(width / height + 0.5))  # Half round up rounding.
-            num_crops_w = min(int(math.floor(width / pan_and_scan_min_crop_size)), num_crops_w)
+            num_crops_w = int(
+                math.floor(width / height + 0.5)
+            )  # Half round up rounding.
+            num_crops_w = min(
+                int(math.floor(width / pan_and_scan_min_crop_size)), num_crops_w
+            )
 
             # Make sure the number of crops is in range [2, pan_and_scan_max_num_crops].
             num_crops_w = max(2, num_crops_w)
@@ -181,7 +190,9 @@ class Gemma3ImageProcessor(BaseImageProcessor):
 
             # Select ideal number of crops close to the image aspect ratio and such that crop_size > min_crop_size.
             num_crops_h = int(math.floor(height / width + 0.5))
-            num_crops_h = min(int(math.floor(height / pan_and_scan_min_crop_size)), num_crops_h)
+            num_crops_h = min(
+                int(math.floor(height / pan_and_scan_min_crop_size)), num_crops_h
+            )
 
             # Make sure the number of crops is in range [2, pan_and_scan_max_num_crops].
             num_crops_h = max(2, num_crops_h)
@@ -201,12 +212,16 @@ class Gemma3ImageProcessor(BaseImageProcessor):
         if input_data_format == ChannelDimension.LAST:
             image_crops = [
                 image[pos_h : pos_h + crop_size_h, pos_w : pos_w + crop_size_w]
-                for pos_h, pos_w in itertools.product(crop_positions_h, crop_positions_w)
+                for pos_h, pos_w in itertools.product(
+                    crop_positions_h, crop_positions_w
+                )
             ]
         else:
             image_crops = [
                 image[:, pos_h : pos_h + crop_size_h, pos_w : pos_w + crop_size_w]
-                for pos_h, pos_w in itertools.product(crop_positions_h, crop_positions_w)
+                for pos_h, pos_w in itertools.product(
+                    crop_positions_h, crop_positions_w
+                )
             ]
 
         return image_crops
@@ -316,17 +331,27 @@ class Gemma3ImageProcessor(BaseImageProcessor):
         size = get_size_dict(size, param_name="size", default_to_square=False)
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
-        do_convert_rgb = do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
-        do_pan_and_scan = do_pan_and_scan if do_pan_and_scan is not None else self.do_pan_and_scan
+        do_convert_rgb = (
+            do_convert_rgb if do_convert_rgb is not None else self.do_convert_rgb
+        )
+        do_pan_and_scan = (
+            do_pan_and_scan if do_pan_and_scan is not None else self.do_pan_and_scan
+        )
         pan_and_scan_min_crop_size = (
-            pan_and_scan_min_crop_size if pan_and_scan_min_crop_size is not None else self.pan_and_scan_min_crop_size
+            pan_and_scan_min_crop_size
+            if pan_and_scan_min_crop_size is not None
+            else self.pan_and_scan_min_crop_size
         )
         pan_and_scan_max_num_crops = (
-            pan_and_scan_max_num_crops if pan_and_scan_max_num_crops is not None else self.pan_and_scan_max_num_crops
+            pan_and_scan_max_num_crops
+            if pan_and_scan_max_num_crops is not None
+            else self.pan_and_scan_max_num_crops
         )
         pan_and_scan_min_ratio_to_activate = (
             pan_and_scan_min_ratio_to_activate
@@ -387,18 +412,30 @@ class Gemma3ImageProcessor(BaseImageProcessor):
             if do_resize:
                 height, width = size["height"], size["width"]
                 image = resize(
-                    image=image, size=(height, width), resample=resample, input_data_format=input_data_format
+                    image=image,
+                    size=(height, width),
+                    resample=resample,
+                    input_data_format=input_data_format,
                 )
 
             if do_rescale:
-                image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
+                image = self.rescale(
+                    image=image,
+                    scale=rescale_factor,
+                    input_data_format=input_data_format,
+                )
 
             if do_normalize:
                 image = self.normalize(
-                    image=image, mean=image_mean, std=image_std, input_data_format=input_data_format
+                    image=image,
+                    mean=image_mean,
+                    std=image_std,
+                    input_data_format=input_data_format,
                 )
 
-            image = to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
+            image = to_channel_dimension_format(
+                image, data_format, input_channel_dim=input_data_format
+            )
             processed_images.append(image)
 
         data = {"pixel_values": processed_images, "num_crops": num_crops}

@@ -97,8 +97,12 @@ def convert_config(original_config: dict):
     # Keep only some of the subdict
     keep_audio_embd_layer = ["downsample_rate"]
     keep_vision_embd_layer = ["crop_size"]
-    audio_embd_layer = {k: v for k, v in audio_embd_layer.items() if k in keep_audio_embd_layer}
-    vision_embd_layer = {k: v for k, v in vision_embd_layer.items() if k in keep_vision_embd_layer}
+    audio_embd_layer = {
+        k: v for k, v in audio_embd_layer.items() if k in keep_audio_embd_layer
+    }
+    vision_embd_layer = {
+        k: v for k, v in vision_embd_layer.items() if k in keep_vision_embd_layer
+    }
 
     audio_config = original_config.pop("audio_processor")["config"]
     # remove
@@ -114,8 +118,12 @@ def convert_config(original_config: dict):
     audio_config["hidden_size"] = audio_config.pop("attention_dim")
     audio_config["num_attention_heads"] = audio_config.pop("attention_heads")
     audio_config["intermediate_size"] = audio_config.pop("linear_units")
-    audio_config["nemo_conv_channels"] = audio_config.pop("nemo_conv_settings")["conv_channels"]
-    audio_config["bias_max_distance"] = audio_config.pop("relative_attention_bias_args")["t5_bias_max_distance"]
+    audio_config["nemo_conv_channels"] = audio_config.pop("nemo_conv_settings")[
+        "conv_channels"
+    ]
+    audio_config["bias_max_distance"] = audio_config.pop(
+        "relative_attention_bias_args"
+    )["t5_bias_max_distance"]
     # add
     audio_config = {**audio_config, **audio_embd_layer}
 
@@ -126,7 +134,9 @@ def convert_config(original_config: dict):
     # Add 2nd eos to config
     original_config["eos_token_id"] = [199999, 200020]
 
-    new_config = Phi4MultimodalConfig(**original_config, vision_config=vision_config, audio_config=audio_config)
+    new_config = Phi4MultimodalConfig(
+        **original_config, vision_config=vision_config, audio_config=audio_config
+    )
     return new_config
 
 
@@ -150,7 +160,9 @@ def convert_and_write_model(input_dir: str, output_dir: str):
     # Load weights into model and resave them
     with torch.device("meta"):
         model = Phi4MultimodalForCausalLM(config)
-    missing, unexpected = model.load_state_dict(full_state_dict, strict=False, assign=True)
+    missing, unexpected = model.load_state_dict(
+        full_state_dict, strict=False, assign=True
+    )
     # The lm_head is missing because it's tied
     if missing != ["lm_head.weight"]:
         raise ValueError("Missing keys:\n{missing}")
@@ -167,7 +179,10 @@ def convert_and_save_processor(input_dir: str, output_dir: str):
     del processor.image_processor.auto_map
     del processor.audio_processor.auto_map
     processor.chat_template = processor.tokenizer.chat_template
-    processor.tokenizer.extra_special_tokens = {"image_token": "<|endoftext10|>", "audio_token": "<|endoftext11|>"}
+    processor.tokenizer.extra_special_tokens = {
+        "image_token": "<|endoftext10|>",
+        "audio_token": "<|endoftext11|>",
+    }
     processor.save_pretrained(output_dir)
 
 
@@ -203,8 +218,14 @@ def extract_adapters_data(input_dir: str, output_dir: str):
     )
     vision_lora_config.save_pretrained(os.path.join(output_dir, "vision-lora"))
 
-    save_file(speech_lora, os.path.join(output_dir, "speech-lora", "adapter_model.safetensors"))
-    save_file(vision_lora, os.path.join(output_dir, "vision-lora", "adapter_model.safetensors"))
+    save_file(
+        speech_lora,
+        os.path.join(output_dir, "speech-lora", "adapter_model.safetensors"),
+    )
+    save_file(
+        vision_lora,
+        os.path.join(output_dir, "vision-lora", "adapter_model.safetensors"),
+    )
 
 
 def main():

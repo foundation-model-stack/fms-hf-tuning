@@ -153,8 +153,12 @@ class FuyuConfig(PretrainedConfig):
                 "eos_token_id": eos_token_id,
                 "tie_word_embeddings": tie_word_embeddings,
             }
-            logger.info("text_config is None. initializing the text model with default values.")
-        text_model_type = text_config["model_type"] if "model_type" in text_config else "persimmon"
+            logger.info(
+                "text_config is None. initializing the text model with default values."
+            )
+        text_model_type = (
+            text_config["model_type"] if "model_type" in text_config else "persimmon"
+        )
         self.text_config = CONFIG_MAPPING[text_model_type](**text_config)
 
         self._vocab_size = vocab_size
@@ -203,8 +207,14 @@ class FuyuConfig(PretrainedConfig):
             raise ValueError(
                 f"`rope_scaling`'s type field must be one of ['linear', 'dynamic'], got {rope_scaling_type}"
             )
-        if rope_scaling_factor is None or not isinstance(rope_scaling_factor, float) or rope_scaling_factor <= 1.0:
-            raise ValueError(f"`rope_scaling`'s factor field must be a float > 1, got {rope_scaling_factor}")
+        if (
+            rope_scaling_factor is None
+            or not isinstance(rope_scaling_factor, float)
+            or rope_scaling_factor <= 1.0
+        ):
+            raise ValueError(
+                f"`rope_scaling`'s factor field must be a float > 1, got {rope_scaling_factor}"
+            )
 
 
 __all__ = ["FuyuConfig"]

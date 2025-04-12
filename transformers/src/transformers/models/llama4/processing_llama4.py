@@ -157,7 +157,11 @@ class Llama4Processor(ProcessorMixin):
     def __call__(
         self,
         images: Optional[ImageInput] = None,
-        text: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]] = None,
+        text: Optional[
+            Union[
+                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+            ]
+        ] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[Llama4ProcessorKwargs],
@@ -208,14 +212,20 @@ class Llama4Processor(ProcessorMixin):
         image_inputs = {}
         if images is not None:
             images = make_flat_list_of_images(images)
-            image_inputs = self.image_processor(images=images, **output_kwargs["images_kwargs"])
+            image_inputs = self.image_processor(
+                images=images, **output_kwargs["images_kwargs"]
+            )
             image_height, image_width = image_inputs["pixel_values"][0].shape[-2:]
             num_patches_per_chunk = int(
-                (image_height // self.patch_size) * (image_width // self.patch_size) // self.downsample_ratio
+                (image_height // self.patch_size)
+                * (image_width // self.patch_size)
+                // self.downsample_ratio
             )
             aspect_ratios = image_inputs.pop("aspect_ratios")
 
-            total_placeholders = sum(prompt.count(self.fake_image_token) for prompt in text)
+            total_placeholders = sum(
+                prompt.count(self.fake_image_token) for prompt in text
+            )
             if total_placeholders != len(images):
                 raise ValueError(
                     f"Found {total_placeholders} placeholders across the batch, "
@@ -243,7 +253,9 @@ class Llama4Processor(ProcessorMixin):
                 processed_text.append("".join(new_prompt))
 
             if image_index != len(images):
-                raise ValueError("Number of image placeholders in the prompt does not match the number of images.")
+                raise ValueError(
+                    "Number of image placeholders in the prompt does not match the number of images."
+                )
 
             text = processed_text
 

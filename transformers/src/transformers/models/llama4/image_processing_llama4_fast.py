@@ -114,7 +114,9 @@ class Llama4ImageProcessorKwargs(DefaultFastImageProcessorKwargs):
     resize_to_max_canvas: Optional[bool]
 
 
-def split_to_tiles(images: torch.Tensor, num_tiles_height: int, num_tiles_width: int) -> torch.Tensor:
+def split_to_tiles(
+    images: torch.Tensor, num_tiles_height: int, num_tiles_width: int
+) -> torch.Tensor:
     # Split image into number of required tiles (width x height)
     batch_size, num_channels, height, width = images.size()
     images = images.view(
@@ -139,7 +141,9 @@ def split_to_tiles(images: torch.Tensor, num_tiles_height: int, num_tiles_width:
 
 
 @lru_cache(maxsize=1)
-def find_supported_resolutions(max_num_chunks: int, patch_size: SizeDict) -> torch.Tensor:
+def find_supported_resolutions(
+    max_num_chunks: int, patch_size: SizeDict
+) -> torch.Tensor:
     """
     Computes all of the allowed resolutions for a fixed number of chunks
     and patch_size. Useful for when dividing an image into chunks.
@@ -226,7 +230,9 @@ def pad_to_best_fit(
     target_height, target_width = target_size
     paste_x_right = target_width - width
     paste_y_right = target_height - height
-    padded_images = F.pad(images, padding=[0, 0, paste_x_right, paste_y_right], fill=background_color)
+    padded_images = F.pad(
+        images, padding=[0, 0, paste_x_right, paste_y_right], fill=background_color
+    )
 
     return padded_images
 
@@ -396,7 +402,9 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
             but never upsample, unless the image is smaller than the patch size.
         """,
     )
-    def preprocess(self, images: ImageInput, **kwargs: Unpack[Llama4ImageProcessorKwargs]) -> BatchFeature:
+    def preprocess(
+        self, images: ImageInput, **kwargs: Unpack[Llama4ImageProcessorKwargs]
+    ) -> BatchFeature:
         return super().preprocess(images, **kwargs)
 
     def _preprocess(
@@ -414,7 +422,9 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
         return_tensors: Optional[Union[str, TensorType]],
         **kwargs,
     ) -> BatchFeature:
-        possible_resolutions = find_supported_resolutions(max_num_chunks=max_patches, patch_size=size)
+        possible_resolutions = find_supported_resolutions(
+            max_num_chunks=max_patches, patch_size=size
+        )
         possible_resolutions = torch.tensor(possible_resolutions)
         # process images by batch, grouped by shape
         grouped_images, grouped_images_index = group_images_by_shape(images)
@@ -422,18 +432,29 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
         grouped_aspect_ratios = {}
         for shape, stacked_images in grouped_images.items():
             image_size = stacked_images.shape[-2:]
-            target_size = get_best_fit(image_size, possible_resolutions, resize_to_max_canvas=resize_to_max_canvas)
+            target_size = get_best_fit(
+                image_size,
+                possible_resolutions,
+                resize_to_max_canvas=resize_to_max_canvas,
+            )
             # If target_size requires upscaling, we might want to limit the upscaling to max_upscaling_size
             max_upscaling_size = None if resize_to_max_canvas else size.height
             if max_upscaling_size is not None:
-                new_target_height = min(max(image_size[0], max_upscaling_size), target_size[0])
-                new_target_width = min(max(image_size[1], max_upscaling_size), target_size[1])
+                new_target_height = min(
+                    max(image_size[0], max_upscaling_size), target_size[0]
+                )
+                new_target_width = min(
+                    max(image_size[1], max_upscaling_size), target_size[1]
+                )
                 target_size_without_distortion = (new_target_height, new_target_width)
 
             # resize to target_size while preserving aspect ratio
-            new_size_without_distortion = get_max_res_without_distortion(image_size, target_size_without_distortion)
+            new_size_without_distortion = get_max_res_without_distortion(
+                image_size, target_size_without_distortion
+            )
             new_size_without_distortion = SizeDict(
-                height=max(new_size_without_distortion[0], 1), width=max(new_size_without_distortion[1], 1)
+                height=max(new_size_without_distortion[0], 1),
+                width=max(new_size_without_distortion[1], 1),
             )
             processed_images = self.resize(
                 stacked_images,
@@ -444,7 +465,12 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
             # pad to target_size to be able to split into tiles
             processed_images = pad_to_best_fit(processed_images, target_size)
             processed_images = self.rescale_and_normalize(
-                processed_images, do_rescale, rescale_factor, do_normalize, image_mean, image_std
+                processed_images,
+                do_rescale,
+                rescale_factor,
+                do_normalize,
+                image_mean,
+                image_std,
             )
 
             ratio_h, ratio_w = (
@@ -454,7 +480,9 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
             # split into tiles
             processed_images = split_to_tiles(processed_images, ratio_h, ratio_w)
             grouped_processed_images[shape] = processed_images
-            grouped_aspect_ratios[shape] = torch.tensor([[ratio_h, ratio_w]] * stacked_images.shape[0])
+            grouped_aspect_ratios[shape] = torch.tensor(
+                [[ratio_h, ratio_w]] * stacked_images.shape[0]
+            )
 
             # add a global tile to the processed tile if there are more than one tile
             if ratio_h * ratio_w > 1:
@@ -464,16 +492,32 @@ class Llama4ImageProcessorFast(BaseImageProcessorFast):
                     interpolation=interpolation,
                 )
                 global_tiles = self.rescale_and_normalize(
-                    global_tiles, do_rescale, rescale_factor, do_normalize, image_mean, image_std
+                    global_tiles,
+                    do_rescale,
+                    rescale_factor,
+                    do_normalize,
+                    image_mean,
+                    image_std,
                 )
-                grouped_processed_images[shape] = torch.cat([processed_images, global_tiles.unsqueeze(1)], dim=1)
-        processed_images = reorder_images(grouped_processed_images, grouped_images_index)
+                grouped_processed_images[shape] = torch.cat(
+                    [processed_images, global_tiles.unsqueeze(1)], dim=1
+                )
+        processed_images = reorder_images(
+            grouped_processed_images, grouped_images_index
+        )
         aspect_ratios_list = reorder_images(grouped_aspect_ratios, grouped_images_index)
 
-        processed_images = torch.cat(processed_images, dim=0) if return_tensors else processed_images
-        aspect_ratios = torch.stack(aspect_ratios_list, dim=0) if return_tensors else aspect_ratios_list
+        processed_images = (
+            torch.cat(processed_images, dim=0) if return_tensors else processed_images
+        )
+        aspect_ratios = (
+            torch.stack(aspect_ratios_list, dim=0)
+            if return_tensors
+            else aspect_ratios_list
+        )
         return BatchFeature(
-            data={"pixel_values": processed_images, "aspect_ratios": aspect_ratios}, tensor_type=return_tensors
+            data={"pixel_values": processed_images, "aspect_ratios": aspect_ratios},
+            tensor_type=return_tensors,
         )
 
 

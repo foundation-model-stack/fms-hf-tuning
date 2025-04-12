@@ -166,16 +166,22 @@ class GraniteSpeechConfig(PretrainedConfig):
         **kwargs,
     ):
         if isinstance(text_config, dict):
-            text_config["model_type"] = text_config["model_type"] if "model_type" in text_config else "granite"
+            text_config["model_type"] = (
+                text_config["model_type"] if "model_type" in text_config else "granite"
+            )
             text_config = CONFIG_MAPPING[text_config["model_type"]](**text_config)
         elif text_config is None:
             text_config = CONFIG_MAPPING["granite"]()
 
         if isinstance(projector_config, dict):
             projector_config["model_type"] = (
-                projector_config["model_type"] if "model_type" in projector_config else "blip_2_qformer"
+                projector_config["model_type"]
+                if "model_type" in projector_config
+                else "blip_2_qformer"
             )
-            projector_config = CONFIG_MAPPING[projector_config["model_type"]](**projector_config)
+            projector_config = CONFIG_MAPPING[projector_config["model_type"]](
+                **projector_config
+            )
         elif projector_config is None:
             projector_config = CONFIG_MAPPING["blip_2_qformer"]()
 

@@ -159,8 +159,8 @@ def get_concat_dim(key):
         "feed_forward.down_proj",
         "global_gate_stats",
         # vision dim1 sharded stuff
-        "mlp.fc2.weight", # covers all rowparallels across vis
-        ]  # fmt: off
+        "mlp.fc2.weight",  # covers all rowparallels across vis
+    ]  # fmt: off
     if any(re.search(pattern, key) for pattern in concat_dim_1):
         return 1
     return 0
@@ -355,11 +355,19 @@ def write_model(
             new_key = new_keys[key]
             print(key, new_key)
             if not is_param_same_across_shards(new_key):
-                current_parameter = [chunk.pop(key) for chunk in loaded if not isinstance(chunk[key], io.BytesIO)]
+                current_parameter = [
+                    chunk.pop(key)
+                    for chunk in loaded
+                    if not isinstance(chunk[key], io.BytesIO)
+                ]
             else:
                 print(f"{key} (now {new_key}) is the same across all shards.")
                 replicated_params.append((key, new_key))
-                current_parameter = [loaded[0].pop(key)] if not isinstance(loaded[0][key], io.BytesIO) else []
+                current_parameter = (
+                    [loaded[0].pop(key)]
+                    if not isinstance(loaded[0][key], io.BytesIO)
+                    else []
+                )
 
             if "running_gate_stats_3E" in key:
                 new_keys.pop(new_key)
@@ -381,12 +389,20 @@ def write_model(
                         ]
                     )
                     queries.append(query.reshape(num_heads_per_shard, -1, dim))
-                    keys.append(key_.reshape(num_key_value_heads // num_shards, -1, dim))
-                    values.append(value.reshape(num_key_value_heads // num_shards, -1, dim))
+                    keys.append(
+                        key_.reshape(num_key_value_heads // num_shards, -1, dim)
+                    )
+                    values.append(
+                        value.reshape(num_key_value_heads // num_shards, -1, dim)
+                    )
 
                 queries = torch.cat(queries, dim=0).reshape(dim, dim)
-                keys = torch.cat(keys, dim=0).reshape(num_key_value_heads * dim_per_head, dim)
-                values = torch.cat(values, dim=0).reshape(num_key_value_heads * dim_per_head, dim)
+                keys = torch.cat(keys, dim=0).reshape(
+                    num_key_value_heads * dim_per_head, dim
+                )
+                values = torch.cat(values, dim=0).reshape(
+                    num_key_value_heads * dim_per_head, dim
+                )
                 # queries = permute_for_rope(queries, num_heads, dim, dim)
                 # keys = permute_for_rope(keys, num_key_value_heads, num_key_value_heads*dim_per_head, dim)
 
@@ -409,10 +425,16 @@ def write_model(
                         list(k.reshape(num_experts, -1, k.shape[-1]).unbind(0))
                     )  # [#expert * IN, OUT] -> #experts * [IN, OUT]
                 for i in range(num_experts):
-                    expert = torch.cat([expert_list[i] for expert_list in expert_lists], dim=concat_dim)
+                    expert = torch.cat(
+                        [expert_list[i] for expert_list in expert_lists], dim=concat_dim
+                    )
                     expert_key = new_key.replace("experts.", f"experts.{i}.")
-                    state_dict[expert_key] = expert.transpose(0, 1).contiguous()  # [OUT, IN]
-                    tqdm.write(f"Processing: {key.ljust(50)}  ->\t {expert_key}, {state_dict[expert_key].shape}")
+                    state_dict[expert_key] = expert.transpose(
+                        0, 1
+                    ).contiguous()  # [OUT, IN]
+                    tqdm.write(
+                        f"Processing: {key.ljust(50)}  ->\t {expert_key}, {state_dict[expert_key].shape}"
+                    )
             elif re.search(r"(gate|up)_proj", new_key):
                 path = new_key.split(".")
                 gate_key = re.sub(r"(gate|up)_proj", lambda m: "gate_proj", new_key)
@@ -421,17 +443,23 @@ def write_model(
                     state_dict[new_key] = torch.cat(current_parameter, dim=concat_dim)
                 elif new_key == up_key:
                     if "experts" not in new_key:
-                        state_dict[new_key] = torch.cat(current_parameter, dim=concat_dim)
+                        state_dict[new_key] = torch.cat(
+                            current_parameter, dim=concat_dim
+                        )
                     else:
                         gate_proj = state_dict.pop(gate_key)
                         gate_proj = [
-                            gate_proj.reshape(num_experts, -1, 8, 1024)[:, :, k, :].reshape(num_experts, -1, 1024)
+                            gate_proj.reshape(num_experts, -1, 8, 1024)[
+                                :, :, k, :
+                            ].reshape(num_experts, -1, 1024)
                             for k in range(8)
                         ]
                         gate_proj = torch.cat(gate_proj, dim=-1)
 
                         up_proj = [
-                            k.reshape(num_experts, -1, 8, 1024).reshape(num_experts, -1, 1024)
+                            k.reshape(num_experts, -1, 8, 1024).reshape(
+                                num_experts, -1, 1024
+                            )
                             for k in current_parameter
                         ]
                         up_proj = torch.cat(up_proj, dim=-1)
@@ -440,16 +468,24 @@ def write_model(
                         new_key = new_key.replace("up_proj", "gate_up_proj")
                         state_dict[new_key] = gate_up_proj.contiguous()
 
-                    tqdm.write(f"Processing: {key.ljust(50)}  ->\t {new_key}, {state_dict[new_key].shape}")
+                    tqdm.write(
+                        f"Processing: {key.ljust(50)}  ->\t {new_key}, {state_dict[new_key].shape}"
+                    )
             elif "down_proj" in new_key:
                 current_parameter = torch.cat(current_parameter, dim=concat_dim)
                 if "experts" in new_key:
                     p = []
                     for i in range(8):
-                        p += [current_parameter.reshape(8, -1, 5120)[i, :, :].view(num_experts, -1, 5120)]
+                        p += [
+                            current_parameter.reshape(8, -1, 5120)[i, :, :].view(
+                                num_experts, -1, 5120
+                            )
+                        ]
                     current_parameter = torch.cat(p, dim=1)
                 state_dict[new_key] = current_parameter.contiguous()
-                tqdm.write(f"Processing: {key.ljust(50)}  ->\t {new_key}, {state_dict[new_key].shape}")
+                tqdm.write(
+                    f"Processing: {key.ljust(50)}  ->\t {new_key}, {state_dict[new_key].shape}"
+                )
             elif "router" in new_key:
                 current_parameter = torch.cat(current_parameter, dim=concat_dim)
                 state_dict[new_key] = current_parameter.transpose(0, 1)
@@ -467,7 +503,9 @@ def write_model(
             elif new_key == "vision_model.patch_embedding.linear.weight":
                 current_parameter = torch.cat(current_parameter, dim=concat_dim).clone()
                 # We don't reshape the patch embedding as we're using unfolded convolution as well
-                state_dict[new_key] = current_parameter  # .reshape(-1, 3, vision_patch_size, vision_patch_size)
+                state_dict[
+                    new_key
+                ] = current_parameter  # .reshape(-1, 3, vision_patch_size, vision_patch_size)
             # generic concat for weights/select one for biases
             elif isinstance(current_parameter, list) and len(current_parameter) > 0:
                 if not is_param_same_across_shards(new_key):
@@ -508,7 +546,10 @@ def write_model(
     with torch.no_grad():
         # TODO test if we can do `tp_plan="auto"``
         model = Llama4ForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch.bfloat16, device_map="auto", attn_implementation="eager"
+            model_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            attn_implementation="eager",
         )
 
         model.generation_config.top_p = 0.9
@@ -536,16 +577,36 @@ def write_model(
 
 
 BOS_ADDED_TOKEN = AddedToken(
-    "<|begin_of_text|>", single_word=False, lstrip=False, rstrip=False, normalized=False, special=True
+    "<|begin_of_text|>",
+    single_word=False,
+    lstrip=False,
+    rstrip=False,
+    normalized=False,
+    special=True,
 )
 EOS_ADDED_TOKEN = AddedToken(
-    "<|end_of_text|>", single_word=False, lstrip=False, rstrip=False, normalized=False, special=True
+    "<|end_of_text|>",
+    single_word=False,
+    lstrip=False,
+    rstrip=False,
+    normalized=False,
+    special=True,
 )
-EOT_ADDED_TOKEN = AddedToken("<|eot|>", single_word=False, lstrip=False, rstrip=False, normalized=False, special=True)
+EOT_ADDED_TOKEN = AddedToken(
+    "<|eot|>",
+    single_word=False,
+    lstrip=False,
+    rstrip=False,
+    normalized=False,
+    special=True,
+)
 
 
 def get_reserved_special_tokens(name, count, start_index=0):
-    return [f"<|{name}_reserved_special_token_{i}|>" for i in range(start_index, start_index + count)]
+    return [
+        f"<|{name}_reserved_special_token_{i}|>"
+        for i in range(start_index, start_index + count)
+    ]
 
 
 # 200005, ..., 200079
@@ -587,7 +648,9 @@ LLAMA4_VISION_SPECIAL_TOKENS = [
     "vision", 1041, 7
 )  # <|vision_reserved_special_token_7|>, ..., <|vision_reserved_special_token_1047|>
 
-LLAMA4_SPECIAL_TOKENS = LLAMA4_TEXT_POST_TRAIN_SPECIAL_TOKENS + LLAMA4_VISION_SPECIAL_TOKENS
+LLAMA4_SPECIAL_TOKENS = (
+    LLAMA4_TEXT_POST_TRAIN_SPECIAL_TOKENS + LLAMA4_VISION_SPECIAL_TOKENS
+)
 
 BASIC_SPECIAL_TOKENS = [
     "<|begin_of_text|>",
@@ -634,7 +697,9 @@ class Llama4Converter(TikTokenConverter):
         self.update_post_processor(self.converted_tokenizer)
         # finer special_tokens_map.json
         self.converted_tokenizer._bos_token = BOS_ADDED_TOKEN
-        self.converted_tokenizer._eos_token = EOT_ADDED_TOKEN if instruct else EOS_ADDED_TOKEN
+        self.converted_tokenizer._eos_token = (
+            EOT_ADDED_TOKEN if instruct else EOS_ADDED_TOKEN
+        )
 
     # We can't do this while building the tokenizer because we have no easy access to the bos token id
     def update_post_processor(self, tokenizer):
@@ -645,7 +710,10 @@ class Llama4Converter(TikTokenConverter):
                     single="<|begin_of_text|> $A",
                     pair="<|begin_of_text|>:0 $A:0 <|begin_of_text|>:1 $B:1",
                     special_tokens=[
-                        ("<|begin_of_text|>", tokenizer.convert_tokens_to_ids("<|begin_of_text|>")),
+                        (
+                            "<|begin_of_text|>",
+                            tokenizer.convert_tokens_to_ids("<|begin_of_text|>"),
+                        ),
                     ],
                 ),
             ]
@@ -697,7 +765,10 @@ if __name__ == "__main__":
         help="Location to write HF model and tokenizer",
     )
     parser.add_argument(
-        "--safe_serialization", default=True, type=bool, help="Whether or not to save using `safetensors`."
+        "--safe_serialization",
+        default=True,
+        type=bool,
+        help="Whether or not to save using `safetensors`.",
     )
     parser.add_argument(
         "--special_tokens",

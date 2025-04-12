@@ -95,7 +95,9 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
             target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
 
             # find the closest aspect ratio to the target
-            target_aspect_ratio = self.find_closest_aspect_ratio(aspect_ratio, target_ratios, orig_width, orig_height)
+            target_aspect_ratio = self.find_closest_aspect_ratio(
+                aspect_ratio, target_ratios, orig_width, orig_height
+            )
 
             # calculate the target width and height
             target_width = image_size * target_aspect_ratio[0]
@@ -117,7 +119,12 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
             padding_width = target_width - int(orig_width * ratio_height)
             padding_height = 0
 
-        attention_mask = torch.ones((int(mask_size * target_aspect_ratio[1]), int(mask_size * target_aspect_ratio[0])))
+        attention_mask = torch.ones(
+            (
+                int(mask_size * target_aspect_ratio[1]),
+                int(mask_size * target_aspect_ratio[0]),
+            )
+        )
         if padding_width >= patch_size:
             attention_mask[:, -math.floor(padding_width / patch_size) :] = 0
         if padding_height >= patch_size:
@@ -127,7 +134,9 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
             raise ValueError(f"the aspect ratio is very extreme {new_size}")
 
         image = F.resize(image, [new_size[1], new_size[0]])
-        resized_img = F.pad(image, [0, 0, padding_width, padding_height], fill=[255, 255, 255])
+        resized_img = F.pad(
+            image, [0, 0, padding_width, padding_height], fill=[255, 255, 255]
+        )
 
         return resized_img, attention_mask
 
@@ -137,14 +146,18 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         """
         B, _, H, W = images.shape
         if B < max_crops:
-            pad = torch.zeros(max_crops - B, 3, H, W, dtype=images.dtype, device=images.device)
+            pad = torch.zeros(
+                max_crops - B, 3, H, W, dtype=images.dtype, device=images.device
+            )
             images = torch.cat([images, pad], dim=0)
         return images
 
     def pad_mask_to_max_num_crops(self, masks, max_crops=5):
         B, H, W = masks.shape
         if B < max_crops:
-            pad = torch.ones(max_crops - B, H, W, dtype=masks.dtype, device=masks.device)
+            pad = torch.ones(
+                max_crops - B, H, W, dtype=masks.dtype, device=masks.device
+            )
             masks = torch.cat([masks, pad], dim=0)
         return masks
 
@@ -186,8 +199,12 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         image_size = self.image_size
         patch_size = self.patch_size
         mask_size = image_size // patch_size
-        imgs_and_masks = [self.dynamic_preprocess(image, max_num=self.dynamic_hd) for image in images]
-        images, image_attention_masks = [x[0] for x in imgs_and_masks], [x[1] for x in imgs_and_masks]
+        imgs_and_masks = [
+            self.dynamic_preprocess(image, max_num=self.dynamic_hd) for image in images
+        ]
+        images, image_attention_masks = [x[0] for x in imgs_and_masks], [
+            x[1] for x in imgs_and_masks
+        ]
 
         images = [F.to_tensor(image) for image in images]
         hd_images = [F.normalize(image, image_mean, image_std) for image in images]
@@ -202,11 +219,15 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
 
         shapes = [[image.size(1), image.size(2)] for image in hd_images]
         mask_shapes = [[mask.size(0), mask.size(1)] for mask in image_attention_masks]
-        global_attention_mask = [torch.ones((1, mask_size, mask_size)) for _ in hd_images]
+        global_attention_mask = [
+            torch.ones((1, mask_size, mask_size)) for _ in hd_images
+        ]
 
         hd_images_reshape = []
         for im, (h, w) in zip(hd_images, shapes):
-            im = im.reshape(1, 3, h // image_size, image_size, w // image_size, image_size)
+            im = im.reshape(
+                1, 3, h // image_size, image_size, w // image_size, image_size
+            )
             im = im.permute(0, 2, 4, 1, 3, 5)
             im = im.reshape(-1, 3, image_size, image_size)
             hd_images_reshape.append(im.contiguous())
@@ -222,27 +243,40 @@ class Phi4MultimodalImageProcessorFast(BaseImageProcessorFast):
         for mask, (h, w) in zip(attention_masks_reshape, mask_shapes):
             mask = mask[:, 0::2, 0::2]
             mask = mask.reshape(
-                h // mask_size, w // mask_size, mask_size // 2 + mask_size % 2, mask_size // 2 + mask_size % 2
+                h // mask_size,
+                w // mask_size,
+                mask_size // 2 + mask_size % 2,
+                mask_size // 2 + mask_size % 2,
             )
             mask = mask.transpose(1, 2)
-            mask = mask.reshape(mask.size(0) * mask.size(1), mask.size(2) * mask.size(3))
+            mask = mask.reshape(
+                mask.size(0) * mask.size(1), mask.size(2) * mask.size(3)
+            )
             downsample_attention_masks.append(mask)
 
         num_img_tokens = [
-            256 + 1 + int(mask.sum().item()) + int(mask[:, 0].sum().item()) + 16 for mask in downsample_attention_masks
+            256 + 1 + int(mask.sum().item()) + int(mask[:, 0].sum().item()) + 16
+            for mask in downsample_attention_masks
         ]
 
         hd_images_reshape = [
-            torch.cat([_global_image] + [_im], dim=0) for _global_image, _im in zip(global_image, hd_images_reshape)
+            torch.cat([_global_image] + [_im], dim=0)
+            for _global_image, _im in zip(global_image, hd_images_reshape)
         ]
         hd_masks_reshape = [
             torch.cat([_global_mask] + [_mask], dim=0)
-            for _global_mask, _mask in zip(global_attention_mask, attention_masks_reshape)
+            for _global_mask, _mask in zip(
+                global_attention_mask, attention_masks_reshape
+            )
         ]
         max_crops = max([img.size(0) for img in hd_images_reshape])
-        image_transformed = [self.pad_to_max_num_crops(im, max_crops) for im in hd_images_reshape]
+        image_transformed = [
+            self.pad_to_max_num_crops(im, max_crops) for im in hd_images_reshape
+        ]
         image_transformed = torch.stack(image_transformed, dim=0)
-        mask_transformed = [self.pad_mask_to_max_num_crops(mask, max_crops) for mask in hd_masks_reshape]
+        mask_transformed = [
+            self.pad_mask_to_max_num_crops(mask, max_crops) for mask in hd_masks_reshape
+        ]
         mask_transformed = torch.stack(mask_transformed, dim=0)
 
         returned_input_image_embeds = image_transformed

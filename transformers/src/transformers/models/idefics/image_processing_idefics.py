@@ -89,7 +89,9 @@ class IdeficsImageProcessor(BaseImageProcessor):
 
         self.image_size = image_size
         self.image_num_channels = image_num_channels
-        self.image_mean = image_mean if image_mean is not None else IDEFICS_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IDEFICS_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IDEFICS_STANDARD_STD
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
@@ -141,11 +143,17 @@ class IdeficsImageProcessor(BaseImageProcessor):
 
         """
         image_size = image_size if image_size is not None else self.image_size
-        image_num_channels = image_num_channels if image_num_channels is not None else self.image_num_channels
+        image_num_channels = (
+            image_num_channels
+            if image_num_channels is not None
+            else self.image_num_channels
+        )
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         size = (image_size, image_size)
 
         if isinstance(images, list) and len(images) == 0:
@@ -182,8 +190,12 @@ class IdeficsImageProcessor(BaseImageProcessor):
         images = [resize(x, size, resample=PILImageResampling.BICUBIC) for x in images]
         images = [self.rescale(image=image, scale=rescale_factor) for image in images]
         images = [self.normalize(x, mean=image_mean, std=image_std) for x in images]
-        images = [to_channel_dimension_format(x, ChannelDimension.FIRST) for x in images]
-        images = BatchFeature(data={"pixel_values": images}, tensor_type=return_tensors)["pixel_values"]
+        images = [
+            to_channel_dimension_format(x, ChannelDimension.FIRST) for x in images
+        ]
+        images = BatchFeature(
+            data={"pixel_values": images}, tensor_type=return_tensors
+        )["pixel_values"]
 
         return images
 
