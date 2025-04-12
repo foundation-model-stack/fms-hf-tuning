@@ -91,7 +91,10 @@ def main(
         with distributed_state.split_between_processes(prompts_raw) as prompts:
             generator = torch.manual_seed(seed)
             images = pipeline(
-                prompts, num_inference_steps=num_inference_steps, guidance_scale=guidance_scale, generator=generator
+                prompts,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=guidance_scale,
+                generator=generator,
             ).images
             input_prompts.extend(prompts)
 

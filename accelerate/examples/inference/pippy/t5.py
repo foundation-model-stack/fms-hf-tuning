@@ -70,7 +70,10 @@ model = prepare_pippy(
 
 # The model expects a tuple during real inference
 # with the data on the first device
-args = (example_inputs["input_ids"].to("cuda:0"), example_inputs["decoder_input_ids"].to("cuda:0"))
+args = (
+    example_inputs["input_ids"].to("cuda:0"),
+    example_inputs["decoder_input_ids"].to("cuda:0"),
+)
 
 # Take an average of 5 times
 # Measure first batch

@@ -24,7 +24,9 @@ class RegressionDataset:
         rng = np.random.default_rng(seed)
         self.length = length
         self.x = rng.normal(size=(length,)).astype(np.float32)
-        self.y = a * self.x + b + rng.normal(scale=0.1, size=(length,)).astype(np.float32)
+        self.y = (
+            a * self.x + b + rng.normal(scale=0.1, size=(length,)).astype(np.float32)
+        )
 
     def __len__(self):
         return self.length
@@ -42,7 +44,9 @@ class RegressionModel4XPU(torch.nn.Module):
 
     def forward(self, x=None):
         if self.first_batch:
-            print(f"Model dtype: {self.a.dtype}, {self.b.dtype}. Input dtype: {x.dtype}")
+            print(
+                f"Model dtype: {self.a.dtype}, {self.b.dtype}. Input dtype: {x.dtype}"
+            )
             self.first_batch = False
         return x * self.a[0] + self.b[0]
 
@@ -56,7 +60,9 @@ class RegressionModel(torch.nn.Module):
 
     def forward(self, x=None):
         if self.first_batch:
-            print(f"Model dtype: {self.a.dtype}, {self.b.dtype}. Input dtype: {x.dtype}")
+            print(
+                f"Model dtype: {self.a.dtype}, {self.b.dtype}. Input dtype: {x.dtype}"
+            )
             self.first_batch = False
         return x * self.a + self.b
 
@@ -66,7 +72,10 @@ def mocked_dataloaders(accelerator, batch_size: int = 16):
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
-    data_files = {"train": "tests/test_samples/MRPC/train.csv", "validation": "tests/test_samples/MRPC/dev.csv"}
+    data_files = {
+        "train": "tests/test_samples/MRPC/train.csv",
+        "validation": "tests/test_samples/MRPC/dev.csv",
+    }
     datasets = load_dataset("csv", data_files=data_files)
     label_list = datasets["train"].unique("label")
 
@@ -75,7 +84,11 @@ def mocked_dataloaders(accelerator, batch_size: int = 16):
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
         outputs = tokenizer(
-            examples["sentence1"], examples["sentence2"], truncation=True, max_length=None, padding="max_length"
+            examples["sentence1"],
+            examples["sentence2"],
+            truncation=True,
+            max_length=None,
+            padding="max_length",
         )
         if "label" in examples:
             outputs["labels"] = [label_to_id[l] for l in examples["label"]]
@@ -91,12 +104,21 @@ def mocked_dataloaders(accelerator, batch_size: int = 16):
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
         if accelerator.distributed_type == DistributedType.XLA:
-            return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
+            return tokenizer.pad(
+                examples, padding="max_length", max_length=128, return_tensors="pt"
+            )
         return tokenizer.pad(examples, padding="longest", return_tensors="pt")
 
     # Instantiate dataloaders.
-    train_dataloader = DataLoader(tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=2)
-    eval_dataloader = DataLoader(tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=1)
+    train_dataloader = DataLoader(
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=2
+    )
+    eval_dataloader = DataLoader(
+        tokenized_datasets["validation"],
+        shuffle=False,
+        collate_fn=collate_fn,
+        batch_size=1,
+    )
 
     return train_dataloader, eval_dataloader
 
@@ -108,12 +130,20 @@ def mocked_dataloaders_for_autoregressive_models(accelerator, batch_size: int = 
     tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-360M")
     tokenizer.pad_token = tokenizer.eos_token
 
-    data_files = {"train": "tests/test_samples/MRPC/train.csv", "validation": "tests/test_samples/MRPC/dev.csv"}
+    data_files = {
+        "train": "tests/test_samples/MRPC/train.csv",
+        "validation": "tests/test_samples/MRPC/dev.csv",
+    }
     datasets = load_dataset("csv", data_files=data_files)
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(examples["sentence1"], truncation=True, max_length=None, return_attention_mask=False)
+        outputs = tokenizer(
+            examples["sentence1"],
+            truncation=True,
+            max_length=None,
+            return_attention_mask=False,
+        )
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
@@ -151,12 +181,21 @@ def mocked_dataloaders_for_autoregressive_models(accelerator, batch_size: int = 
         batch["labels"] = batch["input_ids"][:, 1:]
         batch["input_ids"] = batch["input_ids"][:, :-1]
 
-        batch["labels"] = torch.where(batch["labels"] == tokenizer.pad_token_id, -100, batch["labels"])
+        batch["labels"] = torch.where(
+            batch["labels"] == tokenizer.pad_token_id, -100, batch["labels"]
+        )
 
         return batch
 
     # Instantiate dataloaders.
-    train_dataloader = DataLoader(tokenized_datasets["train"], shuffle=False, collate_fn=collate_fn, batch_size=2)
-    eval_dataloader = DataLoader(tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=1)
+    train_dataloader = DataLoader(
+        tokenized_datasets["train"], shuffle=False, collate_fn=collate_fn, batch_size=2
+    )
+    eval_dataloader = DataLoader(
+        tokenized_datasets["validation"],
+        shuffle=False,
+        collate_fn=collate_fn,
+        batch_size=1,
+    )
 
     return train_dataloader, eval_dataloader

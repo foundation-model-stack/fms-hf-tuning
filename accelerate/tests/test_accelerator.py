@@ -24,9 +24,18 @@ import torch
 from parameterized import parameterized
 from torch.utils.data import DataLoader, TensorDataset
 
-from accelerate import DistributedType, infer_auto_device_map, init_empty_weights, load_checkpoint_and_dispatch
+from accelerate import (
+    DistributedType,
+    infer_auto_device_map,
+    init_empty_weights,
+    load_checkpoint_and_dispatch,
+)
 from accelerate.accelerator import Accelerator
-from accelerate.data_loader import DataLoaderDispatcher, DataLoaderShard, skip_first_batches
+from accelerate.data_loader import (
+    DataLoaderDispatcher,
+    DataLoaderShard,
+    skip_first_batches,
+)
 from accelerate.state import GradientState, PartialState
 from accelerate.test_utils import (
     require_bnb,
@@ -47,9 +56,16 @@ from accelerate.test_utils.testing import (
     require_non_torch_xla,
     require_torchdata_stateful_dataloader,
 )
-from accelerate.utils import FP8RecipeKwargs, is_torchdata_stateful_dataloader_available, patch_environment
+from accelerate.utils import (
+    FP8RecipeKwargs,
+    is_torchdata_stateful_dataloader_available,
+    patch_environment,
+)
 from accelerate.utils.dataclasses import DataLoaderConfiguration
-from accelerate.utils.modeling import get_state_dict_from_offload, load_checkpoint_in_model
+from accelerate.utils.modeling import (
+    get_state_dict_from_offload,
+    load_checkpoint_in_model,
+)
 from accelerate.utils.random import set_seed
 
 
@@ -72,7 +88,9 @@ class ModelWithTiedWeights(torch.nn.Module):
 def create_components(tied_weights=False):
     model = ModelWithTiedWeights() if tied_weights else torch.nn.Linear(2, 4)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1.0)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=2, epochs=1)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=0.01, steps_per_epoch=2, epochs=1
+    )
     train_dl = DataLoader(TensorDataset(torch.tensor([1, 2, 3])))
     valid_dl = DataLoader(TensorDataset(torch.tensor([4, 5, 6])))
     return model, optimizer, scheduler, train_dl, valid_dl
@@ -89,7 +107,9 @@ class ModelForTest(torch.nn.Module):
         return self.linear2(self.batchnorm(self.linear1(x)))
 
 
-def create_dataloaders_for_test(batch_size=3, n_train_batches: int = 12, n_valid_batches: int = 2, num_workers=0):
+def create_dataloaders_for_test(
+    batch_size=3, n_train_batches: int = 12, n_valid_batches: int = 2, num_workers=0
+):
     "Generates a tuple of dummy DataLoaders to test with"
 
     def get_dataset(n_batches):
@@ -99,8 +119,12 @@ def create_dataloaders_for_test(batch_size=3, n_train_batches: int = 12, n_valid
 
     train_dataset = get_dataset(n_train_batches)
     valid_dataset = get_dataset(n_valid_batches)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=num_workers)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, num_workers=num_workers
+    )
+    valid_dataloader = DataLoader(
+        valid_dataset, batch_size=batch_size, num_workers=num_workers
+    )
     return (train_dataloader, valid_dataloader)
 
 
@@ -125,7 +149,9 @@ def parameterized_custom_name_func(func, param_num, param):
     if len(param.args) > 2:
         param_based_name += f"_num_workers_{param.args[2]}"
     if len(param.args) > 3:
-        param_based_name += "_dispatch_batches" if param.args[3] is True else "_no_dispatch_batches"
+        param_based_name += (
+            "_dispatch_batches" if param.args[3] is True else "_no_dispatch_batches"
+        )
     return f"{func.__name__}_{param_based_name}"
 
 
@@ -161,7 +187,9 @@ class AcceleratorTester(AccelerateTestCase):
         with self.assertRaises(AttributeError) as cm:
             accelerator.state.someotherthing
         assert "'AcceleratorState' object has no attribute" in str(cm.exception)
-        assert "This happens if `AcceleratorState._reset_state()`" not in str(cm.exception)
+        assert "This happens if `AcceleratorState._reset_state()`" not in str(
+            cm.exception
+        )
 
         with self.assertRaises(AttributeError) as cm:
             accelerator.state._reset_state()
@@ -176,7 +204,14 @@ class AcceleratorTester(AccelerateTestCase):
     def test_accelerator_can_be_reinstantiated(self):
         _ = Accelerator()
         assert PartialState._shared_state["_cpu"] is False
-        assert PartialState._shared_state["device"].type in ["cuda", "mps", "npu", "xpu", "xla", "hpu"]
+        assert PartialState._shared_state["device"].type in [
+            "cuda",
+            "mps",
+            "npu",
+            "xpu",
+            "xla",
+            "hpu",
+        ]
         with self.assertRaises(ValueError):
             _ = Accelerator(cpu=True)
 
@@ -255,14 +290,21 @@ class AcceleratorTester(AccelerateTestCase):
         def noop(*args, **kwargs):
             pass
 
-        with patch("torch.cuda.set_device", noop), patch_environment(ACCELERATE_TORCH_DEVICE="cuda:64"):
+        with patch("torch.cuda.set_device", noop), patch_environment(
+            ACCELERATE_TORCH_DEVICE="cuda:64"
+        ):
             accelerator = Accelerator()
             assert str(accelerator.state.device) == "cuda:64"
 
-    @parameterized.expand([(True, True), (True, False), (False, False)], name_func=parameterized_custom_name_func)
+    @parameterized.expand(
+        [(True, True), (True, False), (False, False)],
+        name_func=parameterized_custom_name_func,
+    )
     def test_save_load_model(self, use_safetensors, tied_weights):
         accelerator = Accelerator()
-        model, optimizer, scheduler, train_dl, valid_dl = create_components(tied_weights)
+        model, optimizer, scheduler, train_dl, valid_dl = create_components(
+            tied_weights
+        )
         accelerator.prepare(model, optimizer, scheduler, train_dl, valid_dl)
 
         model_signature = get_signature(model)
@@ -285,7 +327,9 @@ class AcceleratorTester(AccelerateTestCase):
 
         model_signature = get_signature(model)
         with tempfile.TemporaryDirectory() as tmpdirname:
-            accelerator.save_model(model, tmpdirname, safe_serialization=use_safetensors)
+            accelerator.save_model(
+                model, tmpdirname, safe_serialization=use_safetensors
+            )
             # make sure loaded weights match
             load_checkpoint_in_model(model, tmpdirname)
             assert abs(model_signature - get_signature(model)) < 1e-3
@@ -299,7 +343,12 @@ class AcceleratorTester(AccelerateTestCase):
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             # By setting it to 100, we will split the model int 3 shards
-            accelerator.save_model(model, tmpdirname, safe_serialization=use_safetensors, max_shard_size=100)
+            accelerator.save_model(
+                model,
+                tmpdirname,
+                safe_serialization=use_safetensors,
+                max_shard_size=100,
+            )
             # make sure loaded weights match
             load_checkpoint_in_model(model, tmpdirname)
             output = model(inputs)
@@ -318,7 +367,9 @@ class AcceleratorTester(AccelerateTestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             accelerator.save_model(model, tmp_dir, safe_serialization=use_safetensors)
             # load and save offloaded model
-            load_checkpoint_and_dispatch(model, tmp_dir, device_map=device_map, offload_folder=tmp_dir)
+            load_checkpoint_and_dispatch(
+                model, tmp_dir, device_map=device_map, offload_folder=tmp_dir
+            )
             accelerator.save_model(model, tmp_dir, safe_serialization=use_safetensors)
 
             # load weights that were saved from the offloaded model
@@ -337,12 +388,20 @@ class AcceleratorTester(AccelerateTestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             accelerator.save_model(model, tmp_dir, safe_serialization=use_safetensors)
             # load model with offloaded layers
-            load_checkpoint_and_dispatch(model, tmp_dir, device_map=device_map, offload_folder=tmp_dir)
+            load_checkpoint_and_dispatch(
+                model, tmp_dir, device_map=device_map, offload_folder=tmp_dir
+            )
             cpu_onloaded_layer = get_state_dict_from_offload(
-                model.linear2, "linear2.weight", {"linear2.weight": ""}, device_to_put_offload="cpu"
+                model.linear2,
+                "linear2.weight",
+                {"linear2.weight": ""},
+                device_to_put_offload="cpu",
             )
             device_onloaded_layer = get_state_dict_from_offload(
-                model.linear2, "linear2.weight", {"linear2.weight": ""}, device_to_put_offload=0
+                model.linear2,
+                "linear2.weight",
+                {"linear2.weight": ""},
+                device_to_put_offload=0,
             )
             cpu_onloaded_layer_weight = cpu_onloaded_layer["linear2.weight"]
             device_onloaded_layer_weight = device_onloaded_layer["linear2.weight"]
@@ -424,7 +483,14 @@ class AcceleratorTester(AccelerateTestCase):
         dummy_obj = None
 
         # This should work
-        model, optimizer, scheduler, train_dl, valid_dl, dummy_obj = accelerator.prepare(
+        (
+            model,
+            optimizer,
+            scheduler,
+            train_dl,
+            valid_dl,
+            dummy_obj,
+        ) = accelerator.prepare(
             model, optimizer, scheduler, train_dl, valid_dl, dummy_obj
         )
         assert dummy_obj is None
@@ -436,27 +502,34 @@ class AcceleratorTester(AccelerateTestCase):
         dummy_obj = [1, 2, 3]
 
         # This should work
-        model, optimizer, scheduler, train_dl, valid_dl, dummy_obj = accelerator.prepare(
+        (
+            model,
+            optimizer,
+            scheduler,
+            train_dl,
+            valid_dl,
+            dummy_obj,
+        ) = accelerator.prepare(
             model, optimizer, scheduler, train_dl, valid_dl, dummy_obj
         )
-        assert getattr(dummy_obj, "_is_accelerate_prepared", False) is False, (
-            "Dummy object should have `_is_accelerate_prepared` set to `True`"
-        )
-        assert getattr(model, "_is_accelerate_prepared", False) is True, (
-            "Model is missing `_is_accelerator_prepared` or is set to `False`"
-        )
-        assert getattr(optimizer, "_is_accelerate_prepared", False) is True, (
-            "Optimizer is missing `_is_accelerator_prepared` or is set to `False`"
-        )
-        assert getattr(scheduler, "_is_accelerate_prepared", False) is True, (
-            "Scheduler is missing `_is_accelerator_prepared` or is set to `False`"
-        )
-        assert getattr(train_dl, "_is_accelerate_prepared", False) is True, (
-            "Train Dataloader is missing `_is_accelerator_prepared` or is set to `False`"
-        )
-        assert getattr(valid_dl, "_is_accelerate_prepared", False) is True, (
-            "Valid Dataloader is missing `_is_accelerator_prepared` or is set to `False`"
-        )
+        assert (
+            getattr(dummy_obj, "_is_accelerate_prepared", False) is False
+        ), "Dummy object should have `_is_accelerate_prepared` set to `True`"
+        assert (
+            getattr(model, "_is_accelerate_prepared", False) is True
+        ), "Model is missing `_is_accelerator_prepared` or is set to `False`"
+        assert (
+            getattr(optimizer, "_is_accelerate_prepared", False) is True
+        ), "Optimizer is missing `_is_accelerator_prepared` or is set to `False`"
+        assert (
+            getattr(scheduler, "_is_accelerate_prepared", False) is True
+        ), "Scheduler is missing `_is_accelerator_prepared` or is set to `False`"
+        assert (
+            getattr(train_dl, "_is_accelerate_prepared", False) is True
+        ), "Train Dataloader is missing `_is_accelerator_prepared` or is set to `False`"
+        assert (
+            getattr(valid_dl, "_is_accelerate_prepared", False) is True
+        ), "Valid Dataloader is missing `_is_accelerator_prepared` or is set to `False`"
 
     @require_cuda_or_xpu
     @slow
@@ -494,7 +567,10 @@ class AcceleratorTester(AccelerateTestCase):
             device_map["lm_head"] = "cpu"
 
         model = AutoModelForCausalLM.from_pretrained(
-            "EleutherAI/gpt-neo-125m", device_map=device_map, load_in_8bit=True, llm_int8_enable_fp32_cpu_offload=True
+            "EleutherAI/gpt-neo-125m",
+            device_map=device_map,
+            load_in_8bit=True,
+            llm_int8_enable_fp32_cpu_offload=True,
         )
 
         # This should not work and get value error
@@ -517,7 +593,9 @@ class AcceleratorTester(AccelerateTestCase):
         elif torch_device == "xpu":
             PartialState._shared_state = {"distributed_type": DistributedType.MULTI_XPU}
         else:
-            raise ValueError(f"{torch_device} is not supported in test_accelerator_bnb_multi_device.")
+            raise ValueError(
+                f"{torch_device} is not supported in test_accelerator_bnb_multi_device."
+            )
 
         with init_empty_weights():
             model = AutoModelForCausalLM.from_pretrained(
@@ -629,7 +707,9 @@ class AcceleratorTester(AccelerateTestCase):
 
         distributed_model = torch.nn.DataParallel(model)
         distributed_compiled_model = torch.compile(distributed_model)
-        unwrapped_model = accelerator.unwrap_model(distributed_compiled_model, keep_torch_compile=True)
+        unwrapped_model = accelerator.unwrap_model(
+            distributed_compiled_model, keep_torch_compile=True
+        )
 
         assert compiled_model._orig_mod == unwrapped_model._orig_mod
 
@@ -641,7 +721,9 @@ class AcceleratorTester(AccelerateTestCase):
 
         distributed_model = torch.nn.DataParallel(model)
         distributed_compiled_model = torch.compile(distributed_model)
-        unwrapped_model = accelerator.unwrap_model(distributed_compiled_model, keep_torch_compile=False)
+        unwrapped_model = accelerator.unwrap_model(
+            distributed_compiled_model, keep_torch_compile=False
+        )
 
         assert compiled_model._orig_mod == unwrapped_model
 
@@ -657,7 +739,9 @@ class AcceleratorTester(AccelerateTestCase):
 
         # Currently, StatefulDataLoader doesn't seem to support pickling, so we aren't testing that functionality
         # TODO: Add support for pickling StatefulDataLoader
-        dataloader_config = DataLoaderConfiguration(dispatch_batches=dispatch_batches, use_stateful_dataloader=False)
+        dataloader_config = DataLoaderConfiguration(
+            dispatch_batches=dispatch_batches, use_stateful_dataloader=False
+        )
         accelerator = Accelerator(dataloader_config=dataloader_config)
 
         original_dl, _ = accelerator.prepare(dl, skip_dl)
@@ -720,17 +804,25 @@ class AcceleratorTester(AccelerateTestCase):
         name_func=parameterized_custom_name_func,
     )
     @require_torchdata_stateful_dataloader
-    def test_save_model_with_stateful_dataloader(self, use_safetensors, tied_weights, num_workers, dispatch_batches):
+    def test_save_model_with_stateful_dataloader(
+        self, use_safetensors, tied_weights, num_workers, dispatch_batches
+    ):
         """
         Test that saving and loading a model with a stateful dataloader returns the same model,
         and that the dataloader's iterator is restored properly."""
         set_seed(42)
         n_train_batches = 64  # Use enough batches to ensure we can get partial iterations on large compute
-        dataloader_config = DataLoaderConfiguration(dispatch_batches=dispatch_batches, use_stateful_dataloader=True)
+        dataloader_config = DataLoaderConfiguration(
+            dispatch_batches=dispatch_batches, use_stateful_dataloader=True
+        )
         accelerator = Accelerator(dataloader_config=dataloader_config)
 
-        model, optimizer, scheduler, train_dl, valid_dl = create_components(tied_weights)
-        train_dl, valid_dl = create_dataloaders_for_test(n_train_batches=n_train_batches, num_workers=num_workers)
+        model, optimizer, scheduler, train_dl, valid_dl = create_components(
+            tied_weights
+        )
+        train_dl, valid_dl = create_dataloaders_for_test(
+            n_train_batches=n_train_batches, num_workers=num_workers
+        )
         model = ModelForTest()
 
         (
@@ -759,7 +851,9 @@ class AcceleratorTester(AccelerateTestCase):
                 prepared_optimizer.zero_grad()
                 if step == num_batches_to_skip - 1:
                     # Save the state once we've gone through a few batches
-                    accelerator.save_state(f"{tmpdirname}/state", safe_serialization=use_safetensors)
+                    accelerator.save_state(
+                        f"{tmpdirname}/state", safe_serialization=use_safetensors
+                    )
                 if step >= num_batches_to_skip:
                     untrained_batches.append(batch)
 
@@ -808,7 +902,9 @@ class AcceleratorTester(AccelerateTestCase):
                 factory_kwargs = {"device": device, "dtype": dtype}
                 super().__init__()
                 self.centroid = torch.nn.Embedding(1, 2)
-                self.indices = torch.nn.Parameter(torch.empty((1, 2, 2), **factory_kwargs))
+                self.indices = torch.nn.Parameter(
+                    torch.empty((1, 2, 2), **factory_kwargs)
+                )
 
             def forward(self, x):
                 orig_shape = x.shape

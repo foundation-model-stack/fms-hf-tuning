@@ -119,7 +119,10 @@ def get_character():
         combo = get_raw_chars()
         if ord(combo) == KEYMAP["mod_int"]:
             key = get_raw_chars()
-            if ord(key) >= KEYMAP["arrow_begin"] - ARROW_KEY_FLAG and ord(key) <= KEYMAP["arrow_end"] - ARROW_KEY_FLAG:
+            if (
+                ord(key) >= KEYMAP["arrow_begin"] - ARROW_KEY_FLAG
+                and ord(key) <= KEYMAP["arrow_end"] - ARROW_KEY_FLAG
+            ):
                 return chr(ord(key) + ARROW_KEY_FLAG)
             else:
                 return KEYMAP["undefined"]

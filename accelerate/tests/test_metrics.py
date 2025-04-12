@@ -33,12 +33,19 @@ from accelerate.utils import patch_environment
 
 
 @require_huggingface_suite
-@unittest.skipIf(version.parse(np.__version__) >= version.parse("2.0"), "Test requires numpy version < 2.0")
+@unittest.skipIf(
+    version.parse(np.__version__) >= version.parse("2.0"),
+    "Test requires numpy version < 2.0",
+)
 class MetricTester(unittest.TestCase):
     def setUp(self):
-        self.test_file_path = path_in_accelerate_package("test_utils", "scripts", "external_deps", "test_metrics.py")
+        self.test_file_path = path_in_accelerate_package(
+            "test_utils", "scripts", "external_deps", "test_metrics.py"
+        )
 
-        from accelerate.test_utils.scripts.external_deps import test_metrics  # noqa: F401
+        from accelerate.test_utils.scripts.external_deps import (
+            test_metrics,
+        )  # noqa: F401
 
         self.test_metrics = test_metrics
 

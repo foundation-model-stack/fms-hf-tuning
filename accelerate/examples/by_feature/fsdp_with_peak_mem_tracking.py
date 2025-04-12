@@ -20,7 +20,10 @@ import evaluate
 import psutil
 import torch
 from datasets import load_dataset
-from torch.distributed.fsdp.fully_sharded_data_parallel import FullOptimStateDictConfig, FullStateDictConfig
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    FullOptimStateDictConfig,
+    FullStateDictConfig,
+)
 from torch.utils.data import DataLoader
 from transformers import (
     AutoModelForSequenceClassification,
@@ -146,7 +149,9 @@ def training_function(config, args):
     # Pass the advanced FSDP settings not part of the accelerate config by creating fsdp_plugin
     fsdp_plugin = FullyShardedDataParallelPlugin(
         state_dict_config=FullStateDictConfig(offload_to_cpu=False, rank0_only=False),
-        optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=False, rank0_only=False),
+        optim_state_dict_config=FullOptimStateDictConfig(
+            offload_to_cpu=False, rank0_only=False
+        ),
     )
 
     # Initialize accelerator
@@ -190,7 +195,12 @@ def training_function(config, args):
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
+        outputs = tokenizer(
+            examples["sentence1"],
+            examples["sentence2"],
+            truncation=True,
+            max_length=None,
+        )
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
@@ -208,13 +218,18 @@ def training_function(config, args):
 
     # If the batch size is too big we use gradient accumulation
     gradient_accumulation_steps = 1
-    if batch_size > MAX_GPU_BATCH_SIZE and accelerator.distributed_type != DistributedType.XLA:
+    if (
+        batch_size > MAX_GPU_BATCH_SIZE
+        and accelerator.distributed_type != DistributedType.XLA
+    ):
         gradient_accumulation_steps = batch_size // MAX_GPU_BATCH_SIZE
         batch_size = MAX_GPU_BATCH_SIZE
 
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
-        max_length = 128 if accelerator.distributed_type == DistributedType.XLA else None
+        max_length = (
+            128 if accelerator.distributed_type == DistributedType.XLA else None
+        )
         # When using mixed precision we want round multiples of 8/16
         if accelerator.mixed_precision == "fp8":
             pad_to_multiple_of = 16
@@ -233,10 +248,16 @@ def training_function(config, args):
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
+        tokenized_datasets["train"],
+        shuffle=True,
+        collate_fn=collate_fn,
+        batch_size=batch_size,
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
+        tokenized_datasets["validation"],
+        shuffle=False,
+        collate_fn=collate_fn,
+        batch_size=EVAL_BATCH_SIZE,
     )
 
     set_seed(seed)
@@ -249,25 +270,42 @@ def training_function(config, args):
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.003,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]
 
-    optimizer = torch.optim.AdamW(params=optimizer_grouped_parameters, lr=lr, weight_decay=2e-4)
+    optimizer = torch.optim.AdamW(
+        params=optimizer_grouped_parameters, lr=lr, weight_decay=2e-4
+    )
 
     # Instantiate scheduler
     lr_scheduler = get_linear_schedule_with_warmup(
         optimizer=optimizer,
         num_warmup_steps=10,
-        num_training_steps=(len(train_dataloader) * num_epochs) // gradient_accumulation_steps,
+        num_training_steps=(len(train_dataloader) * num_epochs)
+        // gradient_accumulation_steps,
     )
 
-    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+    (
+        model,
+        optimizer,
+        train_dataloader,
+        eval_dataloader,
+        lr_scheduler,
+    ) = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
@@ -283,7 +321,9 @@ def training_function(config, args):
             # Get the most recent checkpoint
             dirs = [f.name for f in os.scandir(os.getcwd()) if f.is_dir()]
             dirs.sort(key=os.path.getctime)
-            path = dirs[-1]  # Sorts folders by date modified, most recent checkpoint is the last
+            path = dirs[
+                -1
+            ]  # Sorts folders by date modified, most recent checkpoint is the last
         # Extract `epoch_{i}` or `step_{i}`
         training_difference = os.path.splitext(path)[0]
 
@@ -333,9 +373,15 @@ def training_function(config, args):
                         accelerator.save_state(output_dir)
         # New Code #
         # Printing the GPU memory usage details such as allocated memory, peak memory, and total memory usage
-        accelerator.print(f"Memory before entering the train : {b2mb(tracemalloc.begin)}")
-        accelerator.print(f"Memory consumed at the end of the train (end-begin): {tracemalloc.used}")
-        accelerator.print(f"Peak Memory consumed during the train (max-begin): {tracemalloc.peaked}")
+        accelerator.print(
+            f"Memory before entering the train : {b2mb(tracemalloc.begin)}"
+        )
+        accelerator.print(
+            f"Memory consumed at the end of the train (end-begin): {tracemalloc.used}"
+        )
+        accelerator.print(
+            f"Peak Memory consumed during the train (max-begin): {tracemalloc.peaked}"
+        )
         accelerator.print(
             f"Total Peak Memory consumed during the train (max): {tracemalloc.peaked + b2mb(tracemalloc.begin)}"
         )
@@ -343,7 +389,8 @@ def training_function(config, args):
         if args.with_tracking:
             accelerator.log(
                 {
-                    "train_total_peak_memory": tracemalloc.peaked + b2mb(tracemalloc.begin),
+                    "train_total_peak_memory": tracemalloc.peaked
+                    + b2mb(tracemalloc.begin),
                 },
                 step=epoch,
             )
@@ -358,7 +405,9 @@ def training_function(config, args):
                 with torch.no_grad():
                     outputs = model(**batch)
                 predictions = outputs.logits.argmax(dim=-1)
-                predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
+                predictions, references = accelerator.gather_for_metrics(
+                    (predictions, batch["labels"])
+                )
                 metric.add_batch(
                     predictions=predictions,
                     references=references,
@@ -384,9 +433,15 @@ def training_function(config, args):
                 accelerator.save_state(output_dir)
         # New Code #
         # Printing the GPU memory usage details such as allocated memory, peak memory, and total memory usage
-        accelerator.print(f"Memory before entering the eval : {b2mb(tracemalloc.begin)}")
-        accelerator.print(f"Memory consumed at the end of the eval (end-begin): {tracemalloc.used}")
-        accelerator.print(f"Peak Memory consumed during the eval (max-begin): {tracemalloc.peaked}")
+        accelerator.print(
+            f"Memory before entering the eval : {b2mb(tracemalloc.begin)}"
+        )
+        accelerator.print(
+            f"Memory consumed at the end of the eval (end-begin): {tracemalloc.used}"
+        )
+        accelerator.print(
+            f"Peak Memory consumed during the eval (max-begin): {tracemalloc.peaked}"
+        )
         accelerator.print(
             f"Total Peak Memory consumed during the eval (max): {tracemalloc.peaked + b2mb(tracemalloc.begin)}"
         )
@@ -394,7 +449,8 @@ def training_function(config, args):
         if args.with_tracking:
             accelerator.log(
                 {
-                    "eval_total_peak_memory": tracemalloc.peaked + b2mb(tracemalloc.begin),
+                    "eval_total_peak_memory": tracemalloc.peaked
+                    + b2mb(tracemalloc.begin),
                 },
                 step=epoch,
             )
@@ -413,7 +469,9 @@ def main():
         "between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10."
         "and an Nvidia Ampere GPU.",
     )
-    parser.add_argument("--cpu", action="store_true", help="If passed, will train on the CPU.")
+    parser.add_argument(
+        "--cpu", action="store_true", help="If passed, will train on the CPU."
+    )
     parser.add_argument(
         "--checkpointing_steps",
         type=str,

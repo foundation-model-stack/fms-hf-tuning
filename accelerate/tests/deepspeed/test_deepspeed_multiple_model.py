@@ -34,7 +34,11 @@ from accelerate.test_utils.testing import (
 )
 from accelerate.test_utils.training import RegressionDataset
 from accelerate.utils import patch_environment
-from accelerate.utils.deepspeed import DummyOptim, DummyScheduler, get_active_deepspeed_plugin
+from accelerate.utils.deepspeed import (
+    DummyOptim,
+    DummyScheduler,
+    get_active_deepspeed_plugin,
+)
 
 
 GPT2_TINY = "hf-internal-testing/tiny-random-gpt2"
@@ -44,7 +48,9 @@ GPT2_TINY = "hf-internal-testing/tiny-random-gpt2"
 @require_non_cpu
 class DeepSpeedConfigIntegration(AccelerateTestCase):
     parser = launch_command_parser()
-    test_scripts_folder = path_in_accelerate_package("test_utils", "scripts", "external_deps")
+    test_scripts_folder = path_in_accelerate_package(
+        "test_utils", "scripts", "external_deps"
+    )
 
     def setUp(self):
         super().setUp()
@@ -82,7 +88,9 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             hf_ds_config=self.config_zero2,
         )
         ds_zero3 = DeepSpeedPlugin(
-            hf_ds_config=self.config_zero3 if not zero3_inference else self.config_zero3_inference,
+            hf_ds_config=self.config_zero3
+            if not zero3_inference
+            else self.config_zero3_inference,
         )
         return {"zero2": ds_zero2, "zero3": ds_zero3}
 
@@ -160,7 +168,9 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
             dataset = RegressionDataset()
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
-            model1, optimizer, scheduler, dataloader = accelerator.prepare(model1, optimizer, scheduler, dataloader)
+            model1, optimizer, scheduler, dataloader = accelerator.prepare(
+                model1, optimizer, scheduler, dataloader
+            )
             accelerator.state.select_deepspeed_plugin("zero3")
             model2 = self.model_init()
             with self.assertLogs(level="WARNING") as captured:

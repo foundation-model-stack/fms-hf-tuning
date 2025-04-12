@@ -35,7 +35,9 @@ from accelerate.utils import patch_environment
 @run_first
 @slow
 class TPIntegrationTest(TempDirTestCase):
-    test_scripts_folder = path_in_accelerate_package("test_utils", "scripts", "external_deps")
+    test_scripts_folder = path_in_accelerate_package(
+        "test_utils", "scripts", "external_deps"
+    )
 
     def setUp(self):
         super().setUp()
@@ -48,7 +50,9 @@ class TPIntegrationTest(TempDirTestCase):
 
     def test_working_of_tp(self):
         self.test_file_path = self.test_scripts_folder / "test_performance.py"
-        cmd = get_launch_command(num_processes=self.test_tp_size, num_machines=1, machine_rank=0)
+        cmd = get_launch_command(
+            num_processes=self.test_tp_size, num_machines=1, machine_rank=0
+        )
         cmd.extend(
             [
                 self.test_file_path,

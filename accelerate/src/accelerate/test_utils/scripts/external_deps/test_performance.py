@@ -22,7 +22,11 @@ import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    get_linear_schedule_with_warmup,
+)
 
 from accelerate import Accelerator, DistributedType
 from accelerate.utils import SAFE_WEIGHTS_NAME, TorchTensorParallelPlugin, set_seed
@@ -33,7 +37,9 @@ MAX_GPU_BATCH_SIZE = 16
 EVAL_BATCH_SIZE = 32
 
 
-def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"):
+def get_dataloaders(
+    accelerator: Accelerator, batch_size: int = 16, model_name: str = "bert-base-cased"
+):
     """
     Creates a set of `DataLoader`s for the `glue` dataset.
 
@@ -50,12 +56,20 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: 
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
+        outputs = tokenizer(
+            examples["sentence1"],
+            examples["sentence2"],
+            truncation=True,
+            max_length=None,
+        )
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
     tokenized_datasets = datasets.map(
-        tokenize_function, batched=True, remove_columns=["idx", "sentence1", "sentence2"], load_from_cache_file=False
+        tokenize_function,
+        batched=True,
+        remove_columns=["idx", "sentence1", "sentence2"],
+        load_from_cache_file=False,
     )
 
     # We also rename the 'label' column to 'labels' which is the expected name for labels by the models of the
@@ -65,15 +79,23 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: 
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
         if accelerator.distributed_type == DistributedType.XLA:
-            return tokenizer.pad(examples, padding="max_length", max_length=128, return_tensors="pt")
+            return tokenizer.pad(
+                examples, padding="max_length", max_length=128, return_tensors="pt"
+            )
         return tokenizer.pad(examples, padding="longest", return_tensors="pt")
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
+        tokenized_datasets["train"],
+        shuffle=True,
+        collate_fn=collate_fn,
+        batch_size=batch_size,
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
+        tokenized_datasets["validation"],
+        shuffle=False,
+        collate_fn=collate_fn,
+        batch_size=EVAL_BATCH_SIZE,
     )
 
     return train_dataloader, eval_dataloader
@@ -81,7 +103,9 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, model_name: 
 
 def training_function(config, args):
     # Initialize accelerator
-    accelerator = Accelerator(torch_tp_plugin=TorchTensorParallelPlugin(tp_size=args.tp_size))
+    accelerator = Accelerator(
+        torch_tp_plugin=TorchTensorParallelPlugin(tp_size=args.tp_size)
+    )
 
     # Sample hyper-parameters for learning rate, batch size, seed and a few other HPs
     lr = config["lr"]
@@ -91,7 +115,9 @@ def training_function(config, args):
     model_name = args.model_name_or_path
 
     set_seed(seed)
-    train_dataloader, eval_dataloader = get_dataloaders(accelerator, batch_size, model_name)
+    train_dataloader, eval_dataloader = get_dataloaders(
+        accelerator, batch_size, model_name
+    )
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name, return_dict=True, tp_plan=args.tp_plan, tp_size=args.tp_size
@@ -125,12 +151,20 @@ def training_function(config, args):
         )
         linear_decay_scheduler = True
     else:
-        lr_scheduler = DummyScheduler(optimizer, total_num_steps=max_training_steps, warmup_num_steps=0)
+        lr_scheduler = DummyScheduler(
+            optimizer, total_num_steps=max_training_steps, warmup_num_steps=0
+        )
 
     # Prepare everything
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
-    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+    (
+        model,
+        optimizer,
+        train_dataloader,
+        eval_dataloader,
+        lr_scheduler,
+    ) = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
@@ -142,7 +176,13 @@ def training_function(config, args):
     best_performance = 0
     performance_metric = {}
     expected_lr_after_first_optim_step = lr * (
-        1 - 1 / (max_training_steps / accelerator.num_processes / accelerator.gradient_accumulation_steps)
+        1
+        - 1
+        / (
+            max_training_steps
+            / accelerator.num_processes
+            / accelerator.gradient_accumulation_steps
+        )
     )
     lr_scheduler_check_completed = False
     for epoch in range(starting_epoch, num_epochs):
@@ -154,7 +194,9 @@ def training_function(config, args):
                 accelerator.backward(loss)
                 context = nullcontext
                 if args.tp_plan is not None:
-                    from torch.distributed._tensor.experimental import implicit_replication
+                    from torch.distributed._tensor.experimental import (
+                        implicit_replication,
+                    )
 
                     context = implicit_replication
                 with context():
@@ -169,9 +211,10 @@ def training_function(config, args):
                     and linear_decay_scheduler
                     and accelerator.state.mixed_precision == "no"
                 ):
-                    assert lr_scheduler.get_last_lr()[0] == expected_lr_after_first_optim_step, (
-                        f"Wrong lr found at second step, expected {expected_lr_after_first_optim_step}, got {lr_scheduler.get_last_lr()[0]}"
-                    )
+                    assert (
+                        lr_scheduler.get_last_lr()[0]
+                        == expected_lr_after_first_optim_step
+                    ), f"Wrong lr found at second step, expected {expected_lr_after_first_optim_step}, got {lr_scheduler.get_last_lr()[0]}"
                     lr_scheduler_check_completed = True
 
         model.eval()
@@ -188,8 +231,12 @@ def training_function(config, args):
             )  # If we are in a multiprocess environment, the last batch has duplicates
             if accelerator.use_distributed:
                 if step == len(eval_dataloader) - 1:
-                    predictions = predictions[: len(eval_dataloader.dataset) - samples_seen]
-                    references = references[: len(eval_dataloader.dataset) - samples_seen]
+                    predictions = predictions[
+                        : len(eval_dataloader.dataset) - samples_seen
+                    ]
+                    references = references[
+                        : len(eval_dataloader.dataset) - samples_seen
+                    ]
                 else:
                     samples_seen += references.shape[0]
             metric.add_batch(
@@ -207,14 +254,14 @@ def training_function(config, args):
 
     # check that the LR is 0
     if linear_decay_scheduler and accelerator.state.mixed_precision == "no":
-        assert lr_scheduler.get_last_lr()[0] == 0, (
-            f"Wrong lr found at last step, expected 0, got {lr_scheduler.get_last_lr()[0]}"
-        )
+        assert (
+            lr_scheduler.get_last_lr()[0] == 0
+        ), f"Wrong lr found at last step, expected 0, got {lr_scheduler.get_last_lr()[0]}"
 
     if args.performance_lower_bound is not None:
-        assert args.performance_lower_bound <= best_performance, (
-            f"Best performance metric {best_performance} is lower than the lower bound {args.performance_lower_bound}"
-        )
+        assert (
+            args.performance_lower_bound <= best_performance
+        ), f"Best performance metric {best_performance} is lower than the lower bound {args.performance_lower_bound}"
 
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
@@ -227,14 +274,16 @@ def training_function(config, args):
         accelerator.save_model(model, args.output_dir)
     accelerator.wait_for_everyone()
     if args.tp_plan is None:
-        assert Path(args.output_dir, SAFE_WEIGHTS_NAME).exists(), (
-            "Model was not saved when calling `Accelerator.save_model`"
-        )
+        assert Path(
+            args.output_dir, SAFE_WEIGHTS_NAME
+        ).exists(), "Model was not saved when calling `Accelerator.save_model`"
     accelerator.end_training()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Simple example of training script tracking peak GPU memory usage.")
+    parser = argparse.ArgumentParser(
+        description="Simple example of training script tracking peak GPU memory usage."
+    )
     parser.add_argument(
         "--model_name_or_path",
         type=str,

@@ -34,7 +34,9 @@ def map_pytorch_optim_to_deepspeed(optimizer):
     Returns the DeepSeedCPUOptimizer (deepspeed.ops) version of the optimizer.
     """
 
-    defaults = {k: v for k, v in optimizer.defaults.items() if k in ["lr", "weight_decay"]}
+    defaults = {
+        k: v for k, v in optimizer.defaults.items() if k in ["lr", "weight_decay"]
+    }
 
     # Select the DeepSpeedCPUOptimizer based on the original optimizer class.
     # DeepSpeedCPUAdam is the default
@@ -81,7 +83,9 @@ def map_pytorch_optim_to_deepspeed(optimizer):
             optimizer_class = DeepSpeedCPUAdagrad
 
     # For DeepSpeedCPULion
-    if is_bnb_available(min_version="0.38.0") and compare_versions("deepspeed", ">=", "0.11.0"):
+    if is_bnb_available(min_version="0.38.0") and compare_versions(
+        "deepspeed", ">=", "0.11.0"
+    ):
         from bitsandbytes.optim import Lion, Lion32bit
 
         if isinstance(optimizer, (Lion, Lion32bit)):
@@ -113,7 +117,9 @@ def get_active_deepspeed_plugin(state):
         )
     if not isinstance(state.deepspeed_plugins, dict):
         return state.deepspeed_plugins
-    return next(plugin for plugin in state.deepspeed_plugins.values() if plugin.selected)
+    return next(
+        plugin for plugin in state.deepspeed_plugins.values() if plugin.selected
+    )
 
 
 class HfDeepSpeedConfig:
@@ -148,7 +154,9 @@ class HfDeepSpeedConfig:
                     config = json.loads(config_file_or_dict)
                 except json.JSONDecodeError:
                     # If that fails, try base64 decoding
-                    config_decoded = base64.urlsafe_b64decode(config_file_or_dict).decode("utf-8")
+                    config_decoded = base64.urlsafe_b64decode(
+                        config_file_or_dict
+                    ).decode("utf-8")
                     config = json.loads(config_decoded)
             except (UnicodeDecodeError, AttributeError, ValueError):
                 raise ValueError(
@@ -215,7 +223,9 @@ class HfDeepSpeedConfig:
             config = config.get(node)
             if config is None:
                 if must_exist:
-                    raise ValueError(f"Can't find {ds_key_long} entry in the config: {self.config}")
+                    raise ValueError(
+                        f"Can't find {ds_key_long} entry in the config: {self.config}"
+                    )
                 else:
                     return
 
@@ -363,7 +373,14 @@ class DummyScheduler:
             Other arguments.
     """
 
-    def __init__(self, optimizer, total_num_steps=None, warmup_num_steps=0, lr_scheduler_callable=None, **kwargs):
+    def __init__(
+        self,
+        optimizer,
+        total_num_steps=None,
+        warmup_num_steps=0,
+        lr_scheduler_callable=None,
+        **kwargs,
+    ):
         self.optimizer = optimizer
         self.total_num_steps = total_num_steps
         self.warmup_num_steps = warmup_num_steps

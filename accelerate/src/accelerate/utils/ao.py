@@ -86,7 +86,9 @@ def filter_first_and_last_linear_layers(module, fqn: str) -> bool:
             The fully qualified name of the layer.
     """
     first_linear, last_linear = find_first_last_linear_layers(module)
-    return filter_linear_layers(module, fqn, layers_to_filter=[first_linear, last_linear])
+    return filter_linear_layers(
+        module, fqn, layers_to_filter=[first_linear, last_linear]
+    )
 
 
 @torchao_required
@@ -135,5 +137,9 @@ def convert_model_to_fp8_ao(
 
     first_linear, last_linear = find_first_last_linear_layers(model)
     if module_filter_func is None:
-        module_filter_func = partial(filter_linear_layers, layers_to_filter=[first_linear, last_linear])
-    convert_to_float8_training(model, module_filter_fn=module_filter_func, config=config)
+        module_filter_func = partial(
+            filter_linear_layers, layers_to_filter=[first_linear, last_linear]
+        )
+    convert_to_float8_training(
+        model, module_filter_fn=module_filter_func, config=config
+    )

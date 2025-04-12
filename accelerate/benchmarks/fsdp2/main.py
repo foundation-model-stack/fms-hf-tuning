@@ -69,12 +69,16 @@ def main():
     evaluations = [
         functools.partial(
             evaluate,
-            init_fn=functools.partial(prepare_torch, post_shard_optimizer=False, apply_optimizer_fix=True),
+            init_fn=functools.partial(
+                prepare_torch, post_shard_optimizer=False, apply_optimizer_fix=True
+            ),
             run_name="Optimizer Before FSDP (w/ fix)",
         ),
         functools.partial(
             evaluate,
-            init_fn=functools.partial(prepare_torch, post_shard_optimizer=False, apply_optimizer_fix=False),
+            init_fn=functools.partial(
+                prepare_torch, post_shard_optimizer=False, apply_optimizer_fix=False
+            ),
             run_name="Optimizer Before FSDP (w/o fix)",
         ),
         functools.partial(

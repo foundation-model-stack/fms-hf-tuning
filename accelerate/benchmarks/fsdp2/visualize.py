@@ -20,7 +20,9 @@ import matplotlib.pyplot as plt
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", type=str, help="Directory containing the memory usage data")
+    parser.add_argument(
+        "--dir", type=str, help="Directory containing the memory usage data"
+    )
     parser.add_argument(
         "--memory_threshold",
         type=int,
@@ -57,7 +59,9 @@ def compare_memory_usage(data, labels, memory_threshold, filter_partition):
 
     fig1, ax1 = plt.subplots(figsize=(15, 5))
     for data_item, label, color in zip(data, labels, colors):
-        timestamps, allocated = filter_data(data_item, memory_threshold, filter_partition, "allocated_memory")
+        timestamps, allocated = filter_data(
+            data_item, memory_threshold, filter_partition, "allocated_memory"
+        )
         ax1.plot(timestamps, allocated, label=label, color=color, linewidth=2)
 
     ax1.set_xlabel("Time (s)", fontsize=12)
@@ -71,7 +75,9 @@ def compare_memory_usage(data, labels, memory_threshold, filter_partition):
 
     fig2, ax2 = plt.subplots(figsize=(15, 5))
     for data_item, label, color in zip(data, labels, colors):
-        timestamps, reserved = filter_data(data_item, memory_threshold, filter_partition, "reserved_memory")
+        timestamps, reserved = filter_data(
+            data_item, memory_threshold, filter_partition, "reserved_memory"
+        )
         ax2.plot(timestamps, reserved, label=label, color=color, linewidth=2)
 
     ax2.set_xlabel("Time (s)", fontsize=12)
@@ -101,7 +107,12 @@ if __name__ == "__main__":
     with open(f"{DIR}/accelerate_memory_usage.json") as f:
         accelerate = json.load(f)
 
-    data = [optimizer_before_fsdp_not_fixed, optimizer_before_fsdp_fixed, optimizer_after_fsdp, accelerate]
+    data = [
+        optimizer_before_fsdp_not_fixed,
+        optimizer_before_fsdp_fixed,
+        optimizer_after_fsdp,
+        accelerate,
+    ]
     labels = [
         "Optimizer Before FSDP (w/o fix)",
         "Optimizer Before FSDP (w/ fix)",
@@ -109,6 +120,8 @@ if __name__ == "__main__":
         "Accelerate",
     ]
 
-    fig1, fig2 = compare_memory_usage(data, labels, args.memory_threshold, args.filter_partition)
+    fig1, fig2 = compare_memory_usage(
+        data, labels, args.memory_threshold, args.filter_partition
+    )
     fig1.savefig(f"{DIR}/allocated_memory.png")
     fig2.savefig(f"{DIR}/reserved_memory.png")

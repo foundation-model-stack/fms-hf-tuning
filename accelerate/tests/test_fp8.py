@@ -43,34 +43,44 @@ from accelerate.utils import (
 
 
 def can_convert_te_model():
-    accelerator_kwargs = {"mixed_precision": "fp8", "kwargs_handlers": [FP8RecipeKwargs(backend="TE")]}
+    accelerator_kwargs = {
+        "mixed_precision": "fp8",
+        "kwargs_handlers": [FP8RecipeKwargs(backend="TE")],
+    }
     accelerator = Accelerator(**accelerator_kwargs)
     dataloader = torch.utils.data.DataLoader(torch.randn(10, 32), batch_size=2)
     model = torch.nn.Sequential(torch.nn.Linear(32, 32), torch.nn.Linear(32, 16))
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
-    model, optimizer, dataloader, scheduler = accelerator.prepare(model, optimizer, dataloader, scheduler)
+    model, optimizer, dataloader, scheduler = accelerator.prepare(
+        model, optimizer, dataloader, scheduler
+    )
     assert has_transformer_engine_layers(model)
 
 
 def maintain_proper_deepspeed_config(expected_version):
-    assert AcceleratorState().deepspeed_plugin.zero_stage == expected_version, (
-        f"Expected zero stage {expected_version} but got {AcceleratorState().deepspeed_plugin.zero_stage}"
-    )
+    assert (
+        AcceleratorState().deepspeed_plugin.zero_stage == expected_version
+    ), f"Expected zero stage {expected_version} but got {AcceleratorState().deepspeed_plugin.zero_stage}"
 
 
 def can_convert_ao_model():
     from transformers import AutoModelForSequenceClassification
 
-    accelerator_kwargs = {"mixed_precision": "fp8", "kwargs_handlers": [AORecipeKwargs()]}
+    accelerator_kwargs = {
+        "mixed_precision": "fp8",
+        "kwargs_handlers": [AORecipeKwargs()],
+    }
     accelerator = Accelerator(**accelerator_kwargs)
     dataloader = torch.utils.data.DataLoader(torch.randn(10, 32), batch_size=2)
     model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased")
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.1)
 
-    model, optimizer, dataloader, scheduler = accelerator.prepare(model, optimizer, dataloader, scheduler)
+    model, optimizer, dataloader, scheduler = accelerator.prepare(
+        model, optimizer, dataloader, scheduler
+    )
     assert has_ao_layers(model)
 
 
@@ -116,7 +126,10 @@ class TestTransformerEngine(unittest.TestCase):
             ds_config = json.dumps(ds_config)
 
             command = get_launch_command(
-                num_processes=2, monitor_interval=0.1, use_deepspeed=True, deepspeed_config_file=ds_config
+                num_processes=2,
+                monitor_interval=0.1,
+                use_deepspeed=True,
+                deepspeed_config_file=ds_config,
             )
             command += ["-m", "tests.test_fp8"]
             run_command(command)
@@ -164,7 +177,10 @@ class TestTorchAO(unittest.TestCase):
             ds_config = json.dumps(ds_config)
 
             command = get_launch_command(
-                num_processes=2, monitor_interval=0.1, use_deepspeed=True, deepspeed_config_file=ds_config
+                num_processes=2,
+                monitor_interval=0.1,
+                use_deepspeed=True,
+                deepspeed_config_file=ds_config,
             )
             command += ["-m", "tests.test_fp8"]
             run_command(command)

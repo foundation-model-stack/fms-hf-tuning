@@ -39,7 +39,13 @@ def get_model_and_data_for_text(model_name, device, num_processes: int = 2):
     #     config_args["pad_token_id"] = 0
     model_config = config(**config_args)
     model = initializer(model_config)
-    kwargs = dict(low=0, high=model_config.vocab_size, device=device, dtype=torch.int64, requires_grad=False)
+    kwargs = dict(
+        low=0,
+        high=model_config.vocab_size,
+        device=device,
+        dtype=torch.int64,
+        requires_grad=False,
+    )
     trace_input = torch.randint(size=(1, seq_len), **kwargs)
     inference_inputs = torch.randint(size=(num_processes, seq_len), **kwargs)
     return model, trace_input, inference_inputs
@@ -48,8 +54,14 @@ def get_model_and_data_for_text(model_name, device, num_processes: int = 2):
 def test_bert(batch_size: int = 2):
     set_seed(42)
     state = PartialState()
-    model, trace_input, inference_inputs = get_model_and_data_for_text("bert", "cpu", batch_size)
-    model = prepare_pippy(model, example_args=(trace_input,), no_split_module_classes=model._no_split_modules)
+    model, trace_input, inference_inputs = get_model_and_data_for_text(
+        "bert", "cpu", batch_size
+    )
+    model = prepare_pippy(
+        model,
+        example_args=(trace_input,),
+        no_split_module_classes=model._no_split_modules,
+    )
     # For inference args need to be a tuple
     inputs = inference_inputs.to(torch_device)
     with torch.no_grad():
@@ -64,8 +76,14 @@ def test_bert(batch_size: int = 2):
 def test_gpt2(batch_size: int = 2):
     set_seed(42)
     state = PartialState()
-    model, trace_input, inference_inputs = get_model_and_data_for_text("gpt2", "cpu", batch_size)
-    model = prepare_pippy(model, example_args=(trace_input,), no_split_module_classes=model._no_split_modules)
+    model, trace_input, inference_inputs = get_model_and_data_for_text(
+        "gpt2", "cpu", batch_size
+    )
+    model = prepare_pippy(
+        model,
+        example_args=(trace_input,),
+        no_split_module_classes=model._no_split_modules,
+    )
     # For inference args need to be a tuple
     inputs = inference_inputs.to(torch_device)
     with torch.no_grad():
@@ -102,7 +120,10 @@ if __name__ == "__main__":
     state = PartialState()
     state.print("Testing pippy integration...")
     try:
-        if state.distributed_type in [DistributedType.MULTI_GPU, DistributedType.MULTI_HPU]:
+        if state.distributed_type in [
+            DistributedType.MULTI_GPU,
+            DistributedType.MULTI_HPU,
+        ]:
             state.print("Testing GPT2...")
             test_gpt2()
             # Issue: When modifying the tokenizer for batch GPT2 inference, there's an issue

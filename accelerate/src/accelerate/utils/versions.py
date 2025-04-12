@@ -23,7 +23,9 @@ from .constants import STR_OPERATION_TO_FUNC
 torch_version = parse(importlib.metadata.version("torch"))
 
 
-def compare_versions(library_or_version: Union[str, Version], operation: str, requirement_version: str):
+def compare_versions(
+    library_or_version: Union[str, Version], operation: str, requirement_version: str
+):
     """
     Compares a library version to some requirement using a given operation.
 
@@ -36,7 +38,9 @@ def compare_versions(library_or_version: Union[str, Version], operation: str, re
             The version to compare the library version against
     """
     if operation not in STR_OPERATION_TO_FUNC.keys():
-        raise ValueError(f"`operation` must be one of {list(STR_OPERATION_TO_FUNC.keys())}, received {operation}")
+        raise ValueError(
+            f"`operation` must be one of {list(STR_OPERATION_TO_FUNC.keys())}, received {operation}"
+        )
     operation = STR_OPERATION_TO_FUNC[operation]
     if isinstance(library_or_version, str):
         library_or_version = parse(importlib.metadata.version(library_or_version))

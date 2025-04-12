@@ -20,9 +20,22 @@ import torch
 from huggingface_hub.utils import GatedRepoError, RepositoryNotFoundError
 
 import accelerate.commands.test as accelerate_test_cmd
-from accelerate.commands.config.config_args import BaseConfig, ClusterConfig, SageMakerConfig, load_config_from_file
-from accelerate.commands.estimate import estimate_command, estimate_command_parser, gather_data
-from accelerate.commands.launch import _validate_launch_command, launch_command, launch_command_parser
+from accelerate.commands.config.config_args import (
+    BaseConfig,
+    ClusterConfig,
+    SageMakerConfig,
+    load_config_from_file,
+)
+from accelerate.commands.estimate import (
+    estimate_command,
+    estimate_command_parser,
+    gather_data,
+)
+from accelerate.commands.launch import (
+    _validate_launch_command,
+    launch_command,
+    launch_command_parser,
+)
 from accelerate.commands.to_fsdp2 import to_fsdp2_command, to_fsdp2_command_parser
 from accelerate.commands.tpu import tpu_command_launcher, tpu_command_parser
 from accelerate.test_utils.testing import (
@@ -47,7 +60,9 @@ class AccelerateLauncherTester(unittest.TestCase):
     """
 
     test_file_path = path_in_accelerate_package("test_utils", "scripts", "test_cli.py")
-    notebook_launcher_path = path_in_accelerate_package("test_utils", "scripts", "test_notebook.py")
+    notebook_launcher_path = path_in_accelerate_package(
+        "test_utils", "scripts", "test_notebook.py"
+    )
 
     config_folder = Path.home() / ".cache/huggingface/accelerate"
     config_file = "default_config.yaml"
@@ -72,7 +87,9 @@ class AccelerateLauncherTester(unittest.TestCase):
         args = ["--monitor_interval", "0.1", str(self.test_file_path)]
         if torch.cuda.is_available() and (torch.cuda.device_count() > 1):
             args = ["--multi_gpu"] + args
-        args = self.parser.parse_args(["--monitor_interval", "0.1", str(self.test_file_path)])
+        args = self.parser.parse_args(
+            ["--monitor_interval", "0.1", str(self.test_file_path)]
+        )
         launch_command(args)
 
     @run_first
@@ -82,7 +99,9 @@ class AccelerateLauncherTester(unittest.TestCase):
             if any(invalid_config in str(config) for invalid_config in invalid_configs):
                 continue
             with self.subTest(config_file=config):
-                args = self.parser.parse_args(["--config_file", str(config), str(self.test_file_path)])
+                args = self.parser.parse_args(
+                    ["--config_file", str(config), str(self.test_file_path)]
+                )
                 launch_command(args)
 
     @run_first
@@ -92,7 +111,9 @@ class AccelerateLauncherTester(unittest.TestCase):
             ValueError,
             msg="The config file at 'invalid_keys.yaml' had unknown keys ('another_invalid_key', 'invalid_key')",
         ):
-            args = self.parser.parse_args(["--config_file", str(config_path), str(self.test_file_path)])
+            args = self.parser.parse_args(
+                ["--config_file", str(config_path), str(self.test_file_path)]
+            )
             launch_command(args)
 
     @run_first
@@ -128,11 +149,22 @@ class AccelerateLauncherTester(unittest.TestCase):
 
         # Mock out the check for mpirun version to simulate Intel MPI
         with patch("accelerate.utils.launch.which", return_value=True):
-            with patch("accelerate.utils.launch.subprocess.check_output", return_value=b"Intel MPI"):
+            with patch(
+                "accelerate.utils.launch.subprocess.check_output",
+                return_value=b"Intel MPI",
+            ):
                 cmd, _ = prepare_simple_launcher_cmd_env(args)
 
         # Verify the mpirun command args
-        expected_mpirun_cmd = ["mpirun", "-f", "/home/user/hostfile", "-ppn", "4", "-n", "16"]
+        expected_mpirun_cmd = [
+            "mpirun",
+            "-f",
+            "/home/user/hostfile",
+            "-ppn",
+            "4",
+            "-n",
+            "16",
+        ]
         self.assertGreater(len(cmd), len(expected_mpirun_cmd))
         generated_mpirun_cmd = cmd[0 : len(expected_mpirun_cmd)]
         self.assertEqual(expected_mpirun_cmd, generated_mpirun_cmd)
@@ -185,7 +217,14 @@ class LaunchArgTester(unittest.TestCase):
         assert result.multi_gpu is True
         assert result.num_processes == 4
         # And use a mix
-        args = ["--multi-gpu", "--use-deepspeed", "--use-fsdp", "--num_processes", "4", "test.py"]
+        args = [
+            "--multi-gpu",
+            "--use-deepspeed",
+            "--use-fsdp",
+            "--num_processes",
+            "4",
+            "test.py",
+        ]
         result = self.parser.parse_args(args)
         assert result.multi_gpu is True
         assert result.use_deepspeed is True
@@ -203,7 +242,14 @@ class LaunchArgTester(unittest.TestCase):
         assert result.multi_gpu is True
         assert result.num_processes == 4
         # And use a mix
-        args = ["--multi_gpu", "--use_deepspeed", "--use_fsdp", "--num-processes", "4", "test.py"]
+        args = [
+            "--multi_gpu",
+            "--use_deepspeed",
+            "--use_fsdp",
+            "--num-processes",
+            "4",
+            "test.py",
+        ]
         result = self.parser.parse_args(args)
         assert result.multi_gpu is True
         assert result.use_deepspeed is True
@@ -218,9 +264,13 @@ class LaunchArgTester(unittest.TestCase):
                 bad_arg = f"--{arg.replace('_', '-')}"
                 # Need an exception for `num-processes` since it's in the docstring
                 if bad_arg == "--num-processes":
-                    assert help_return.count(bad_arg) == 1, f"Found {bad_arg} in `accelerate launch -h`"
+                    assert (
+                        help_return.count(bad_arg) == 1
+                    ), f"Found {bad_arg} in `accelerate launch -h`"
                 else:
-                    assert bad_arg not in help_return, f"Found {bad_arg} in `accelerate launch -h`"
+                    assert (
+                        bad_arg not in help_return
+                    ), f"Found {bad_arg} in `accelerate launch -h`"
 
 
 class ClusterConfigTester(unittest.TestCase):
@@ -291,7 +341,9 @@ class ClusterConfigTester(unittest.TestCase):
         assert config.ec2_instance_type == "MY_TYPE"
         assert config.iam_role_name == "MY_ROLE"
 
-        config = load_config_from_file(str(self.test_config_path / "0_30_0_sagemaker.yaml"))
+        config = load_config_from_file(
+            str(self.test_config_path / "0_30_0_sagemaker.yaml")
+        )
 
 
 class TpuConfigTester(unittest.TestCase):
@@ -312,10 +364,21 @@ class TpuConfigTester(unittest.TestCase):
 
     def test_base(self):
         args = self.parser.parse_args(
-            ["--command", self.command, "--tpu_zone", self.tpu_zone, "--tpu_name", self.tpu_name, "--debug"]
+            [
+                "--command",
+                self.command,
+                "--tpu_zone",
+                self.tpu_zone,
+                "--tpu_name",
+                self.tpu_name,
+                "--debug",
+            ]
         )
         output = capture_call_output(tpu_command_launcher, args)
-        assert f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all" in output
+        assert (
+            f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all"
+            in output
+        )
 
     def test_base_backward_compatibility(self):
         args = self.parser.parse_args(
@@ -332,10 +395,15 @@ class TpuConfigTester(unittest.TestCase):
             ]
         )
         output = capture_call_output(tpu_command_launcher, args)
-        assert f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all" in output
+        assert (
+            f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all"
+            in output
+        )
 
     def test_with_config_file(self):
-        args = self.parser.parse_args(["--config_file", "tests/test_configs/latest.yaml", "--debug"])
+        args = self.parser.parse_args(
+            ["--config_file", "tests/test_configs/latest.yaml", "--debug"]
+        )
         output = capture_call_output(tpu_command_launcher, args)
         assert (
             f'{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; echo "hello world"; echo "this is a second command" --worker all'
@@ -344,10 +412,19 @@ class TpuConfigTester(unittest.TestCase):
 
     def test_with_config_file_and_command(self):
         args = self.parser.parse_args(
-            ["--config_file", "tests/test_configs/latest.yaml", "--command", self.command, "--debug"]
+            [
+                "--config_file",
+                "tests/test_configs/latest.yaml",
+                "--command",
+                self.command,
+                "--debug",
+            ]
         )
         output = capture_call_output(tpu_command_launcher, args)
-        assert f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all" in output
+        assert (
+            f"{self.gcloud} test-tpu --zone us-central1-a --command {self.base_output}; ls --worker all"
+            in output
+        )
 
     def test_with_config_file_and_multiple_command(self):
         args = self.parser.parse_args(
@@ -369,7 +446,13 @@ class TpuConfigTester(unittest.TestCase):
 
     def test_with_config_file_and_command_file(self):
         args = self.parser.parse_args(
-            ["--config_file", "tests/test_configs/latest.yaml", "--command_file", self.command_file, "--debug"]
+            [
+                "--config_file",
+                "tests/test_configs/latest.yaml",
+                "--command_file",
+                self.command_file,
+                "--debug",
+            ]
         )
         output = capture_call_output(tpu_command_launcher, args)
         assert (
@@ -399,7 +482,12 @@ class TpuConfigTester(unittest.TestCase):
 
     def test_accelerate_install(self):
         args = self.parser.parse_args(
-            ["--config_file", "tests/test_configs/latest.yaml", "--install_accelerate", "--debug"]
+            [
+                "--config_file",
+                "tests/test_configs/latest.yaml",
+                "--install_accelerate",
+                "--debug",
+            ]
         )
         output = capture_call_output(tpu_command_launcher, args)
         assert (
@@ -437,26 +525,34 @@ class ModelEstimatorTester(unittest.TestCase):
 
     def test_invalid_model_name(self):
         with self.assertRaises(
-            RepositoryNotFoundError, msg="Repo for model `somebrokenname` does not exist on the Hub"
+            RepositoryNotFoundError,
+            msg="Repo for model `somebrokenname` does not exist on the Hub",
         ):
             args = self.parser.parse_args(["somebrokenname"])
             estimate_command(args)
 
     @require_timm
     def test_invalid_model_name_timm(self):
-        with self.assertRaises(RuntimeError, msg="Tried to load `muellerzr/dummy` with `timm` but"):
+        with self.assertRaises(
+            RuntimeError, msg="Tried to load `muellerzr/dummy` with `timm` but"
+        ):
             args = self.parser.parse_args(["muellerzr/dummy", "--library_name", "timm"])
             estimate_command(args)
 
     @require_transformers
     def test_invalid_model_name_transformers(self):
-        with self.assertRaises(RuntimeError, msg="Tried to load `muellerzr/dummy` with `transformers` but"):
-            args = self.parser.parse_args(["muellerzr/dummy", "--library_name", "transformers"])
+        with self.assertRaises(
+            RuntimeError, msg="Tried to load `muellerzr/dummy` with `transformers` but"
+        ):
+            args = self.parser.parse_args(
+                ["muellerzr/dummy", "--library_name", "transformers"]
+            )
             estimate_command(args)
 
     def test_no_metadata(self):
         with self.assertRaises(
-            ValueError, msg="Model `muellerzr/dummy` does not have any library metadata on the Hub"
+            ValueError,
+            msg="Model `muellerzr/dummy` does not have any library metadata on the Hub",
         ):
             args = self.parser.parse_args(["muellerzr/dummy"])
             estimate_command(args)
@@ -478,17 +574,23 @@ class ModelEstimatorTester(unittest.TestCase):
             gather_data(args)
 
         # Verify it works with the flag
-        args = self.parser.parse_args(["hf-internal-testing/test_dynamic_model", "--trust_remote_code"])
+        args = self.parser.parse_args(
+            ["hf-internal-testing/test_dynamic_model", "--trust_remote_code"]
+        )
         gather_data(args)
 
     @require_transformers
     def test_explicit_dtypes(self):
-        args = self.parser.parse_args(["bert-base-cased", "--dtypes", "float32", "float16"])
+        args = self.parser.parse_args(
+            ["bert-base-cased", "--dtypes", "float32", "float16"]
+        )
         output = gather_data(args)
         # The largest layer and total size of the model in bytes
         largest_layer, total_size = 90669056, 433249280
         # Check that full precision -> int4 is calculating correctly
-        assert len(output) == 2, f"Output was missing a precision, expected 2 but received {len(output)}"
+        assert (
+            len(output) == 2
+        ), f"Output was missing a precision, expected 2 but received {len(output)}"
 
         for i, factor in enumerate([1, 2]):
             precision = 32 // factor
@@ -497,17 +599,19 @@ class ModelEstimatorTester(unittest.TestCase):
             total_size_estimate = total_size / factor
             total_training_size_estimate = total_size_estimate * 4
 
-            assert precision_str == output[i][0], f"Output is missing precision `{precision_str}`"
-            assert largest_layer_estimate == output[i][1], (
-                f"Calculation for largest layer size in `{precision_str}` is incorrect."
-            )
+            assert (
+                precision_str == output[i][0]
+            ), f"Output is missing precision `{precision_str}`"
+            assert (
+                largest_layer_estimate == output[i][1]
+            ), f"Calculation for largest layer size in `{precision_str}` is incorrect."
 
-            assert total_size_estimate == output[i][2], (
-                f"Calculation for total size in `{precision_str}` is incorrect."
-            )
-            assert total_training_size_estimate == max(output[i][3].values()), (
-                f"Calculation for total training size in `{precision_str}` is incorrect."
-            )
+            assert (
+                total_size_estimate == output[i][2]
+            ), f"Calculation for total size in `{precision_str}` is incorrect."
+            assert total_training_size_estimate == max(
+                output[i][3].values()
+            ), f"Calculation for total training size in `{precision_str}` is incorrect."
 
     @require_transformers
     def test_transformers_model(self):
@@ -515,35 +619,41 @@ class ModelEstimatorTester(unittest.TestCase):
         output = gather_data(args)
         # The largest layer and total size of the model in bytes
         largest_layer, total_size = 90669056, 433249280
-        assert largest_layer == output[0][1], (
-            f"Calculation for largest layer size in `fp32` is incorrect, expected {largest_layer} but received {output[0][1]}"
-        )
-        assert total_size == output[0][2], (
-            f"Calculation for total size in `fp32` is incorrect, expected {total_size} but received {output[0][2]}"
-        )
+        assert (
+            largest_layer == output[0][1]
+        ), f"Calculation for largest layer size in `fp32` is incorrect, expected {largest_layer} but received {output[0][1]}"
+        assert (
+            total_size == output[0][2]
+        ), f"Calculation for total size in `fp32` is incorrect, expected {total_size} but received {output[0][2]}"
 
     @require_transformers
     def test_no_split_modules(self):
         # idefics-80b-instruct has ["IdeficsDecoderLayer", "IdeficsGatedCrossAttentionLayer"]
-        args = self.parser.parse_args(["HuggingFaceM4/idefics-80b-instruct", "--dtypes", "float32"])
+        args = self.parser.parse_args(
+            ["HuggingFaceM4/idefics-80b-instruct", "--dtypes", "float32"]
+        )
         output = gather_data(args)
         # without factoring in `no_split` modules, the largest layer is 721420288 bytes
-        assert output[0][1] != 721420288, "Largest layer calculation incorrect, did not factor in `no_split` modules."
+        assert (
+            output[0][1] != 721420288
+        ), "Largest layer calculation incorrect, did not factor in `no_split` modules."
         # the real answer is 3240165632 bytes
         assert output[0][1] == 3240165632
 
     @require_timm
     def test_timm_model(self):
-        args = self.parser.parse_args(["timm/resnet50.a1_in1k", "--library_name", "timm"])
+        args = self.parser.parse_args(
+            ["timm/resnet50.a1_in1k", "--library_name", "timm"]
+        )
         output = gather_data(args)
         # The largest layer and total size of the model in bytes
         largest_layer, total_size = 9437184, 102441032
-        assert largest_layer == output[0][1], (
-            f"Calculation for largest layer size in `fp32` is incorrect, expected {largest_layer} but received {output[0][1]}"
-        )
-        assert total_size == output[0][2], (
-            f"Calculation for total size in `fp32` is incorrect, expected {total_size} but received {output[0][2]}"
-        )
+        assert (
+            largest_layer == output[0][1]
+        ), f"Calculation for largest layer size in `fp32` is incorrect, expected {largest_layer} but received {output[0][1]}"
+        assert (
+            total_size == output[0][2]
+        ), f"Calculation for total size in `fp32` is incorrect, expected {total_size} but received {output[0][2]}"
 
 
 class ToFSDP2Tester(unittest.TestCase):
@@ -557,38 +667,55 @@ class ToFSDP2Tester(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if (cls.test_config_path / "latest_fsdp.yaml").exists():
-            cls.original_config = load_config_from_file(str(cls.test_config_path / "latest_fsdp.yaml"))
+            cls.original_config = load_config_from_file(
+                str(cls.test_config_path / "latest_fsdp.yaml")
+            )
 
     @classmethod
     def tearDownClass(cls):
         if cls.original_config is not None:
-            cls.original_config.to_yaml_file(str(cls.test_config_path / "latest_fsdp.yaml"))
+            cls.original_config.to_yaml_file(
+                str(cls.test_config_path / "latest_fsdp.yaml")
+            )
 
     def tearDown(self):
         if (self.test_config_path / "output.yaml").exists():
             (self.test_config_path / "output.yaml").unlink()
 
     def test_nonexistent_config_file(self):
-        with self.assertRaises(FileNotFoundError, msg="Config file `nonexistent.yaml` not found"):
+        with self.assertRaises(
+            FileNotFoundError, msg="Config file `nonexistent.yaml` not found"
+        ):
             args = self.parser.parse_args(["--config_file", "nonexistent.yaml"])
             to_fsdp2_command(args)
 
     def test_no_output_without_overwrite(self):
-        with self.assertRaises(ValueError, msg="If --overwrite is not set, --output_file must be provided"):
-            args = self.parser.parse_args(["--config_file", str(self.test_config_path / "latest_fsdp.yaml")])
+        with self.assertRaises(
+            ValueError, msg="If --overwrite is not set, --output_file must be provided"
+        ):
+            args = self.parser.parse_args(
+                ["--config_file", str(self.test_config_path / "latest_fsdp.yaml")]
+            )
             to_fsdp2_command(args)
 
     @patch("pathlib.Path.exists")
     def test_overwrite_when_output_file_exists(self, mock_exists):
         mock_exists.side_effect = (
-            lambda: str(mock_exists._mock_self) == "output.yaml" or mock_exists._mock_self.exists()
+            lambda: str(mock_exists._mock_self) == "output.yaml"
+            or mock_exists._mock_self.exists()
         )
 
         with self.assertRaises(
-            FileExistsError, msg="Output file `output.yaml` already exists and --overwrite is not set"
+            FileExistsError,
+            msg="Output file `output.yaml` already exists and --overwrite is not set",
         ):
             args = self.parser.parse_args(
-                ["--config_file", str(self.test_config_path / "latest_fsdp.yaml"), "--output_file", "output.yaml"]
+                [
+                    "--config_file",
+                    str(self.test_config_path / "latest_fsdp.yaml"),
+                    "--output_file",
+                    "output.yaml",
+                ]
             )
             to_fsdp2_command(args)
 
@@ -619,11 +746,15 @@ class ToFSDP2Tester(unittest.TestCase):
 
         mock_config = {"fsdp_config": {"fsdp_version": 2}}
 
-        with patch("accelerate.commands.to_fsdp2.load_config", return_value=mock_config):
+        with patch(
+            "accelerate.commands.to_fsdp2.load_config", return_value=mock_config
+        ):
             with self.assertLogs(level="WARNING") as cm:
                 to_fsdp2_command(args)
 
-            assert "Config already specfies FSDP2, skipping conversion..." in cm.output[0]
+            assert (
+                "Config already specfies FSDP2, skipping conversion..." in cm.output[0]
+            )
 
     # Has to be the last test because it overwrites the config file
     def test_fsdp2_overwrite(self):
