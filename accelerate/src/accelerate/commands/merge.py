@@ -25,10 +25,7 @@ This is a CPU-bound process and requires enough RAM to load the entire model sta
 
 def merge_command(args):
     merge_fsdp_weights(
-        args.checkpoint_directory,
-        args.output_path,
-        not args.unsafe_serialization,
-        args.remove_checkpoint_dir,
+        args.checkpoint_directory, args.output_path, not args.unsafe_serialization, args.remove_checkpoint_dir
     )
 
 
@@ -38,11 +35,7 @@ def merge_command_parser(subparsers=None):
     else:
         parser = CustomArgumentParser(description=description)
 
-    parser.add_argument(
-        "checkpoint_directory",
-        type=str,
-        help="A directory containing sharded weights saved by FSDP.",
-    )
+    parser.add_argument("checkpoint_directory", type=str, help="A directory containing sharded weights saved by FSDP.")
     parser.add_argument(
         "output_path",
         type=str,

@@ -20,12 +20,7 @@ import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    get_constant_schedule,
-    set_seed,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer, get_constant_schedule, set_seed
 
 from accelerate import Accelerator, DistributedType
 
@@ -51,9 +46,7 @@ from accelerate import Accelerator, DistributedType
 EVAL_BATCH_SIZE = 32
 
 
-def get_dataloaders(
-    accelerator: Accelerator, batch_size: int = 16, max_training_samples=500
-):
+def get_dataloaders(accelerator: Accelerator, batch_size: int = 16, max_training_samples=500):
     """
     Creates a set of `DataLoader`s for the `Salesforce/wikitext` dataset,
     using "HuggingFaceTB/SmolLM-360M" as the tokenizer.
@@ -72,12 +65,7 @@ def get_dataloaders(
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["text"],
-            truncation=True,
-            max_length=None,
-            return_attention_mask=False,
-        )
+        outputs = tokenizer(examples["text"], truncation=True, max_length=None, return_attention_mask=False)
         return outputs
 
     # Filter out empty texts
@@ -129,24 +117,16 @@ def get_dataloaders(
         batch["labels"] = batch["input_ids"][:, 1:]
         batch["input_ids"] = batch["input_ids"][:, :-1]
 
-        batch["labels"] = torch.where(
-            batch["labels"] == tokenizer.pad_token_id, -100, batch["labels"]
-        )
+        batch["labels"] = torch.where(batch["labels"] == tokenizer.pad_token_id, -100, batch["labels"])
 
         return batch
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
+        tokenized_datasets["train"], shuffle=False, collate_fn=collate_fn, batch_size=batch_size
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     return train_dataloader, eval_dataloader
@@ -154,9 +134,7 @@ def get_dataloaders(
 
 # For testing only
 if os.environ.get("TESTING_MOCKED_DATALOADERS", None) == "1":
-    from accelerate.test_utils.training import (
-        mocked_dataloaders_for_autoregressive_models,
-    )
+    from accelerate.test_utils.training import mocked_dataloaders_for_autoregressive_models
 
     get_dataloaders = mocked_dataloaders_for_autoregressive_models  # noqa: F811
 
@@ -177,14 +155,9 @@ def training_function(config, args):
         )
     else:
         accelerator = Accelerator(
-            cpu=args.cpu,
-            mixed_precision=args.mixed_precision,
-            gradient_accumulation_steps=gradient_accumulation_steps,
+            cpu=args.cpu, mixed_precision=args.mixed_precision, gradient_accumulation_steps=gradient_accumulation_steps
         )
-    if (
-        accelerator.distributed_type == DistributedType.XLA
-        and gradient_accumulation_steps > 1
-    ):
+    if accelerator.distributed_type == DistributedType.XLA and gradient_accumulation_steps > 1:
         raise NotImplementedError(
             "Gradient accumulation on TPUs is currently not supported. Pass `gradient_accumulation_steps=1`"
         )
@@ -226,22 +199,14 @@ def training_function(config, args):
     # Prepare everything
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = accelerator.prepare(
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
     num_samples_in_epoch = len(train_dataloader)
     remainder = num_samples_in_epoch % gradient_accumulation_steps
     remainder = remainder if remainder != 0 else gradient_accumulation_steps
-    total_gradient_updates = math.ceil(
-        num_samples_in_epoch / gradient_accumulation_steps
-    )
+    total_gradient_updates = math.ceil(num_samples_in_epoch / gradient_accumulation_steps)
 
     total_batched_samples = 0
     # Now we train the model
@@ -253,21 +218,15 @@ def training_function(config, args):
             # we need to pre-load the full local batch - i.e the next per_device_batch_size * accumulation_steps samples
             batch_samples = []
             num_batches_in_step = (
-                gradient_accumulation_steps
-                if update_step != (total_gradient_updates - 1)
-                else remainder
+                gradient_accumulation_steps if update_step != (total_gradient_updates - 1) else remainder
             )
             for _ in range(num_batches_in_step):
                 batch_samples += [next(training_iterator)]
             # get local num items in batch
-            local_num_items_in_batch = sum(
-                [(batch["labels"].ne(-100)).sum() for batch in batch_samples]
-            )
+            local_num_items_in_batch = sum([(batch["labels"].ne(-100)).sum() for batch in batch_samples])
 
             # to compute it correctly in a multi-device DDP training, we need to gather the total number of items in the full batch.
-            num_items_in_batch = (
-                accelerator.gather(local_num_items_in_batch).sum().item()
-            )
+            num_items_in_batch = accelerator.gather(local_num_items_in_batch).sum().item()
             losses = []
             for i, batch in enumerate(batch_samples):
                 # if we perform gradient accumulation in a multi-devices set-up, we want to avoid unecessary communications when accumulating
@@ -280,17 +239,13 @@ def training_function(config, args):
                 with ctx():
                     total_batched_samples += 1
 
-                    outputs = model(
-                        **batch, use_cache=False, num_items_in_batch=num_items_in_batch
-                    )
+                    outputs = model(**batch, use_cache=False, num_items_in_batch=num_items_in_batch)
                     loss = outputs.loss
 
                     # We multiply by num_processes because the DDP calculates the average gradient across all devices whereas dividing by num_items_in_batch already takes into account all devices
                     # Same reason for gradient_accumulation_steps, but this times it's Accelerate that calculate the average gradient across the accumulated steps
                     # Because the loss is already divided by `num_items_in_batch` in the `transformers` code, we don't need to do it again
-                    loss = (
-                        loss * gradient_accumulation_steps * accelerator.num_processes
-                    )
+                    loss = loss * gradient_accumulation_steps * accelerator.num_processes
                     accelerator.backward(loss)
                     losses.append(loss.detach())
 
@@ -304,11 +259,7 @@ def training_function(config, args):
                 accelerator.num_processes * gradient_accumulation_steps
             )
 
-            grad_norm = (
-                grad_norm.detach().item()
-                if isinstance(grad_norm, torch.Tensor)
-                else grad_norm
-            )
+            grad_norm = grad_norm.detach().item() if isinstance(grad_norm, torch.Tensor) else grad_norm
             accelerator.print(
                 f"epoch {epoch} - update step {update_step}:: grad norm: {grad_norm} ::train loss: {losses}"
             )
@@ -337,9 +288,7 @@ def training_function(config, args):
             perplexity = float("inf")
 
         # Use accelerator.print to print only on the main process.
-        accelerator.print(
-            f"epoch {epoch}:: eval perplexity: {perplexity} eval_loss: {eval_loss}"
-        )
+        accelerator.print(f"epoch {epoch}:: eval perplexity: {perplexity} eval_loss: {eval_loss}")
         if args.with_wandb_tracking:
             accelerator.log(
                 {
@@ -377,22 +326,14 @@ def main():
         help="The size of each minibatch",
     )
 
-    parser.add_argument(
-        "--cpu", action="store_true", help="If passed, will train on the CPU."
-    )
+    parser.add_argument("--cpu", action="store_true", help="If passed, will train on the CPU.")
     parser.add_argument(
         "--with_wandb_tracking",
         action="store_true",
         help="Whether to load in wandb from the environment and use them for logging.",
     )
     args = parser.parse_args()
-    config = {
-        "lr": 2e-5,
-        "num_epochs": 3,
-        "seed": 42,
-        "batch_size": args.per_device_batch_size,
-        "max_grad_norm": 1.0,
-    }
+    config = {"lr": 2e-5, "num_epochs": 3, "seed": 42, "batch_size": args.per_device_batch_size, "max_grad_norm": 1.0}
     training_function(config, args)
 
 

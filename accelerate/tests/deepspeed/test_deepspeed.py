@@ -41,12 +41,7 @@ from accelerate.test_utils.testing import (
     slow,
 )
 from accelerate.test_utils.training import RegressionDataset, RegressionModel
-from accelerate.utils import (
-    is_bf16_available,
-    is_fp16_available,
-    patch_environment,
-    set_seed,
-)
+from accelerate.utils import is_bf16_available, is_fp16_available, patch_environment, set_seed
 from accelerate.utils.dataclasses import DeepSpeedPlugin
 from accelerate.utils.deepspeed import (
     DeepSpeedEngineWrapper,
@@ -83,12 +78,7 @@ CONFIG_WITH_HIDDEN_SIZES = "config_with_hidden_sizes"
 stages = [ZERO2, ZERO3]
 optims = [CUSTOM_OPTIMIZER, DS_OPTIMIZER]
 schedulers = [CUSTOM_SCHEDULER, DS_SCHEDULER]
-model_types = [
-    NO_CONFIG,
-    CONFIG_WITH_NO_HIDDEN_SIZE,
-    CONFIG_WITH_HIDDEN_SIZE,
-    CONFIG_WITH_HIDDEN_SIZES,
-]
+model_types = [NO_CONFIG, CONFIG_WITH_NO_HIDDEN_SIZE, CONFIG_WITH_HIDDEN_SIZE, CONFIG_WITH_HIDDEN_SIZES]
 
 dtypes = []
 if is_bf16_available():
@@ -136,9 +126,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             config_zero3 = json.load(f)
             # The following setting slows things down, so don't enable it by default unless needed by a test.
             # It's in the file as a demo for users since we want everything to work out of the box even if slower.
-            config_zero3["zero_optimization"][
-                "stage3_gather_16bit_weights_on_model_save"
-            ] = False
+            config_zero3["zero_optimization"]["stage3_gather_16bit_weights_on_model_save"] = False
 
         self.ds_config_dict = dict(zero2=config_zero2, zero3=config_zero3)
 
@@ -184,9 +172,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         deepspeed_plugin.deepspeed_config = None
 
         # Test config files are loaded correctly
-        deepspeed_plugin = DeepSpeedPlugin(
-            hf_ds_config=self.ds_config_file[stage], zero3_init_flag=True
-        )
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=self.ds_config_file[stage], zero3_init_flag=True)
         if stage == ZERO2:
             assert not deepspeed_plugin.zero3_init_flag
         elif stage == ZERO3:
@@ -198,9 +184,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             del ds_config["gradient_accumulation_steps"]
             with open(os.path.join(dirpath, "ds_config.json"), "w") as out_file:
                 json.dump(ds_config, out_file)
-            deepspeed_plugin = DeepSpeedPlugin(
-                hf_ds_config=os.path.join(dirpath, "ds_config.json")
-            )
+            deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=os.path.join(dirpath, "ds_config.json"))
             assert deepspeed_plugin.deepspeed_config["gradient_accumulation_steps"] == 1
             deepspeed_plugin.deepspeed_config = None
 
@@ -211,13 +195,8 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             with open(os.path.join(dirpath, "ds_config.json"), "w") as out_file:
                 json.dump(ds_config, out_file)
             with self.assertRaises(ValueError) as cm:
-                deepspeed_plugin = DeepSpeedPlugin(
-                    hf_ds_config=os.path.join(dirpath, "ds_config.json")
-                )
-            assert (
-                "Please specify the ZeRO optimization config in the DeepSpeed config."
-                in str(cm.exception)
-            )
+                deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=os.path.join(dirpath, "ds_config.json"))
+            assert "Please specify the ZeRO optimization config in the DeepSpeed config." in str(cm.exception)
             deepspeed_plugin.deepspeed_config = None
 
         # Test `deepspeed_config_process`
@@ -255,9 +234,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             new_kwargs.update(mismatches)
             deepspeed_plugin.deepspeed_config_process(**new_kwargs)
         for key in mismatches.keys():
-            assert key in str(
-                cm.exception
-            ), f"{key} is not in the exception message: {cm.exception}"
+            assert key in str(cm.exception), f"{key} is not in the exception message: {cm.exception}"
 
         # Test `ValueError` is raised if some config file fields with `auto` value is missing in `kwargs`
         deepspeed_plugin.deepspeed_config["optimizer"]["params"]["lr"] = "auto"
@@ -279,9 +256,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             zero3_init_flag=True,
         )
         with patch_environment(**self.dist_env):
-            state = Accelerator(
-                mixed_precision=dtype, deepspeed_plugin=deepspeed_plugin
-            ).state
+            state = Accelerator(mixed_precision=dtype, deepspeed_plugin=deepspeed_plugin).state
             assert state.deepspeed_plugin.deepspeed_config[dtype]["enabled"]
 
     def test_init_zero3(self):
@@ -301,9 +276,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
             assert is_deepspeed_zero3_enabled()
 
-    @parameterized.expand(
-        optim_scheduler_params, name_func=parameterized_custom_name_func
-    )
+    @parameterized.expand(optim_scheduler_params, name_func=parameterized_custom_name_func)
     @require_fp16
     def test_prepare_deepspeed(self, optim_type, scheduler_type):
         # 1. Testing with one of the ZeRO Stages is enough to test the `_prepare_deepspeed` function.
@@ -337,9 +310,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 zero3_init_flag=False,
             )
             with patch_environment(**self.dist_env):
-                accelerator = Accelerator(
-                    mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin
-                )
+                accelerator = Accelerator(mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin)
 
                 train_set = RegressionDataset(length=80)
                 eval_set = RegressionDataset(length=20)
@@ -357,36 +328,15 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 dummy_lr_scheduler = DummyScheduler(dummy_optimizer)
 
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        dummy_optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, dummy_optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
-                assert (
-                    "You cannot create a `DummyOptim` without specifying an optimizer in the config file."
-                    in str(cm.exception)
+                assert "You cannot create a `DummyOptim` without specifying an optimizer in the config file." in str(
+                    cm.exception
                 )
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        dummy_lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                     )
                 assert (
                     "Either specify a scheduler in the config file or "
@@ -395,9 +345,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 )
 
                 with self.assertRaises(ValueError) as cm:
-                    model, optimizer, lr_scheduler = accelerator.prepare(
-                        model, optimizer, lr_scheduler
-                    )
+                    model, optimizer, lr_scheduler = accelerator.prepare(model, optimizer, lr_scheduler)
                 assert (
                     "When using DeepSpeed, `accelerate.prepare()` requires you to pass at least one of training or evaluation dataloaders "
                     "with `batch_size` attribute returning an integer value "
@@ -406,13 +354,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                     in str(cm.exception)
                 )
 
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
                     model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
                 )
                 assert accelerator.deepspeed_config["zero_allow_untested_optimizer"]
@@ -420,17 +362,13 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 assert type(model) is DeepSpeedEngine
                 assert type(optimizer) is DeepSpeedOptimizerWrapper
                 assert type(lr_scheduler) is AcceleratedScheduler
-                assert (
-                    type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
-                )
+                assert type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
 
         elif optim_type == DS_OPTIMIZER and scheduler_type == DS_SCHEDULER:
             # Test DeepSpeed optimizer + DeepSpeed scheduler
             deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=self.ds_config_file[ZERO2])
             with patch_environment(**self.dist_env):
-                accelerator = Accelerator(
-                    deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16"
-                )
+                accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16")
                 train_set = RegressionDataset(length=80)
                 eval_set = RegressionDataset(length=20)
                 train_dataloader = DataLoader(train_set, batch_size=10, shuffle=True)
@@ -452,89 +390,42 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 )
                 accelerator.state.deepspeed_plugin.deepspeed_config_process(**kwargs)
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        dummy_lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                     )
-                assert (
-                    "You cannot specify an optimizer in the config file and in the code at the same time"
-                    in str(cm.exception)
+                assert "You cannot specify an optimizer in the config file and in the code at the same time" in str(
+                    cm.exception
                 )
 
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        dummy_optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, dummy_optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
-                assert (
-                    "You cannot specify a scheduler in the config file and in the code at the same time"
-                    in str(cm.exception)
+                assert "You cannot specify a scheduler in the config file and in the code at the same time" in str(
+                    cm.exception
                 )
 
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        dummy_optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, dummy_optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
-                assert (
-                    "You cannot specify a scheduler in the config file and in the code at the same time"
-                    in str(cm.exception)
+                assert "You cannot specify a scheduler in the config file and in the code at the same time" in str(
+                    cm.exception
                 )
 
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
-                    model,
-                    dummy_optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    dummy_lr_scheduler,
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                    model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                 )
                 assert type(model) is DeepSpeedEngine
                 assert type(optimizer) is DeepSpeedOptimizerWrapper
                 assert type(lr_scheduler) is DeepSpeedSchedulerWrapper
-                assert (
-                    type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
-                )
+                assert type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
 
         elif optim_type == CUSTOM_OPTIMIZER and scheduler_type == DS_SCHEDULER:
             # Test custom optimizer + DeepSpeed scheduler
             deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=self.ds_config_file[ZERO2])
             with patch_environment(**self.dist_env):
-                accelerator = Accelerator(
-                    deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16"
-                )
+                accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16")
                 train_set = RegressionDataset(length=80)
                 eval_set = RegressionDataset(length=20)
                 train_dataloader = DataLoader(train_set, batch_size=10, shuffle=True)
@@ -556,32 +447,18 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 )
                 accelerator.state.deepspeed_plugin.deepspeed_config_process(**kwargs)
                 del accelerator.state.deepspeed_plugin.deepspeed_config["optimizer"]
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    dummy_lr_scheduler,
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                    model, optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                 )
                 assert type(model) is DeepSpeedEngine
                 assert type(optimizer) is DeepSpeedOptimizerWrapper
                 assert type(lr_scheduler) is DeepSpeedSchedulerWrapper
-                assert (
-                    type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
-                )
+                assert type(accelerator.deepspeed_engine_wrapped) is DeepSpeedEngineWrapper
         elif optim_type == DS_OPTIMIZER and scheduler_type is CUSTOM_SCHEDULER:
             # Test deepspeed optimizer + custom scheduler
             deepspeed_plugin = DeepSpeedPlugin(hf_ds_config=self.ds_config_file[ZERO2])
             with patch_environment(**self.dist_env):
-                accelerator = Accelerator(
-                    deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16"
-                )
+                accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16")
                 train_set = RegressionDataset(length=80)
                 eval_set = RegressionDataset(length=20)
                 train_dataloader = DataLoader(train_set, batch_size=10, shuffle=True)
@@ -604,18 +481,8 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                 accelerator.state.deepspeed_plugin.deepspeed_config_process(**kwargs)
                 del accelerator.state.deepspeed_plugin.deepspeed_config["scheduler"]
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        dummy_optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, dummy_optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
                 assert (
                     "You can only specify `accelerate.utils.DummyScheduler` in the code when using `accelerate.utils.DummyOptim`."
@@ -624,18 +491,8 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
                 # passing `DummyScheduler` without `lr_scheduler_callable` should fail
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        dummy_optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        dummy_lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                     )
                 assert (
                     "Either specify a scheduler in the config file or "
@@ -652,21 +509,9 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
                         num_training_steps=1000,
                     )
 
-                dummy_lr_scheduler = DummyScheduler(
-                    dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable
-                )
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
-                    model,
-                    dummy_optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    dummy_lr_scheduler,
+                dummy_lr_scheduler = DummyScheduler(dummy_optimizer, lr_scheduler_callable=_lr_scheduler_callable)
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                    model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
                 )
 
     def test_dataloader_with_batch_sampler(self):
@@ -680,23 +525,15 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             zero3_init_flag=False,
         )
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin
-            )
+            accelerator = Accelerator(mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin)
 
             train_set = RegressionDataset(length=80)
             eval_set = RegressionDataset(length=20)
             train_dataloader = DataLoader(
-                train_set,
-                batch_sampler=BatchSampler(
-                    RandomSampler(train_set), batch_size=10, drop_last=False
-                ),
+                train_set, batch_sampler=BatchSampler(RandomSampler(train_set), batch_size=10, drop_last=False)
             )
             eval_dataloader = DataLoader(
-                eval_set,
-                batch_sampler=BatchSampler(
-                    SequentialSampler(eval_set), batch_size=10, drop_last=False
-                ),
+                eval_set, batch_sampler=BatchSampler(SequentialSampler(eval_set), batch_size=10, drop_last=False)
             )
             model = AutoModel.from_pretrained(GPT2_TINY)
             optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
@@ -708,13 +545,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             )
 
             with self.assertRaises(ValueError) as cm:
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
                     model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
                 )
             assert (
@@ -747,9 +578,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         }
 
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16"
-            )
+            accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision="fp16")
             kwargs["train_batch_size"] = (
                 kwargs["train_micro_batch_size_per_gpu"]
                 * deepspeed_plugin.deepspeed_config["gradient_accumulation_steps"]
@@ -766,11 +595,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             dummy_lr_scheduler = DummyScheduler(dummy_optimizer)
 
             model, _, train_dataloader, eval_dataloader, _ = accelerator.prepare(
-                model,
-                dummy_optimizer,
-                train_dataloader,
-                eval_dataloader,
-                dummy_lr_scheduler,
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
             )
             with self.assertRaises(ValueError) as cm:
                 accelerator.get_state_dict(model)
@@ -797,19 +622,11 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True)
             eval_dataloader = DataLoader(eval_set, batch_size=32, shuffle=False)
             model = AutoModelForCausalLM.from_pretrained("gpt2")
-            dummy_optimizer = DummyOptim(
-                params=model.parameters(), lr=5e-5, weight_decay=1e-4
-            )
-            dummy_lr_scheduler = DummyScheduler(
-                dummy_optimizer, warmup_num_steps=10, total_num_steps=1000
-            )
+            dummy_optimizer = DummyOptim(params=model.parameters(), lr=5e-5, weight_decay=1e-4)
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, warmup_num_steps=10, total_num_steps=1000)
             hidden_size = model.config.hidden_size
             model, _, train_dataloader, eval_dataloader, _ = accelerator.prepare(
-                model,
-                dummy_optimizer,
-                train_dataloader,
-                eval_dataloader,
-                dummy_lr_scheduler,
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
             )
             config = accelerator.deepspeed_config
             assert config["train_micro_batch_size_per_gpu"] == 16
@@ -823,18 +640,10 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             assert config["scheduler"]["params"]["warmup_num_steps"] == 10
 
             assert config["gradient_clipping"] == 1.0
-            assert config["zero_optimization"]["reduce_bucket_size"] == (
-                hidden_size * hidden_size
-            )
-            assert config["zero_optimization"]["stage3_prefetch_bucket_size"] == int(
-                (0.9 * hidden_size) * hidden_size
-            )
-            assert config["zero_optimization"][
-                "stage3_param_persistence_threshold"
-            ] == (10 * hidden_size)
-            assert not config["zero_optimization"][
-                "stage3_gather_16bit_weights_on_model_save"
-            ]
+            assert config["zero_optimization"]["reduce_bucket_size"] == (hidden_size * hidden_size)
+            assert config["zero_optimization"]["stage3_prefetch_bucket_size"] == int((0.9 * hidden_size) * hidden_size)
+            assert config["zero_optimization"]["stage3_param_persistence_threshold"] == (10 * hidden_size)
+            assert not config["zero_optimization"]["stage3_gather_16bit_weights_on_model_save"]
 
     @parameterized.expand(model_types, name_func=parameterized_custom_name_func)
     @require_fp16
@@ -848,9 +657,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         del deepspeed_plugin.deepspeed_config["optimizer"]
         del deepspeed_plugin.deepspeed_config["scheduler"]
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin
-            )
+            accelerator = Accelerator(mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin)
             train_set = RegressionDataset(length=80)
             eval_set = RegressionDataset(length=20)
             train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True)
@@ -874,56 +681,26 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
             if model_type == NO_CONFIG:
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
                 msg = "Can't find `model.config` entry"
                 assert msg in str(cm.exception)
             elif model_type == CONFIG_WITH_NO_HIDDEN_SIZE:
                 with self.assertRaises(ValueError) as cm:
-                    (
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
-                    ) = accelerator.prepare(
-                        model,
-                        optimizer,
-                        train_dataloader,
-                        eval_dataloader,
-                        lr_scheduler,
+                    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+                        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
                     )
                 msg = "Can find neither `model.config.hidden_size` nor `model.config.hidden_sizes`"
                 assert msg in str(cm.exception)
             else:
-                (
-                    model,
-                    optimizer,
-                    train_dataloader,
-                    eval_dataloader,
-                    lr_scheduler,
-                ) = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
                     model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
                 )
                 zero_opt = accelerator.deepspeed_config["zero_optimization"]
                 assert zero_opt["reduce_bucket_size"] == (hidden_size * hidden_size)
-                assert zero_opt["stage3_prefetch_bucket_size"] == int(
-                    (0.9 * hidden_size) * hidden_size
-                )
-                assert zero_opt["stage3_param_persistence_threshold"] == (
-                    10 * hidden_size
-                )
+                assert zero_opt["stage3_prefetch_bucket_size"] == int((0.9 * hidden_size) * hidden_size)
+                assert zero_opt["stage3_param_persistence_threshold"] == (10 * hidden_size)
 
     @parameterized.expand(dtypes, name_func=parameterized_custom_name_func)
     def test_autofill_dsconfig_from_ds_plugin(self, dtype):
@@ -934,9 +711,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             del ds_config["bf16"]
         ds_config[dtype]["enabled"] = "auto"
         ds_config["zero_optimization"]["stage"] = "auto"
-        ds_config["zero_optimization"][
-            "stage3_gather_16bit_weights_on_model_save"
-        ] = "auto"
+        ds_config["zero_optimization"]["stage3_gather_16bit_weights_on_model_save"] = "auto"
         ds_config["zero_optimization"]["offload_optimizer"]["device"] = "auto"
         ds_config["zero_optimization"]["offload_param"]["device"] = "auto"
         ds_config["gradient_accumulation_steps"] = "auto"
@@ -954,27 +729,21 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         )
 
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                deepspeed_plugin=deepspeed_plugin, mixed_precision=dtype
-            )
+            accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision=dtype)
             config = accelerator.state.deepspeed_plugin.deepspeed_config
             assert config["gradient_clipping"] == 1.0
             assert config["gradient_accumulation_steps"] == 2
             assert config["zero_optimization"]["stage"] == 2
             assert config["zero_optimization"]["offload_optimizer"]["device"] == "cpu"
             assert config["zero_optimization"]["offload_param"]["device"] == "cpu"
-            assert config["zero_optimization"][
-                "stage3_gather_16bit_weights_on_model_save"
-            ]
+            assert config["zero_optimization"]["stage3_gather_16bit_weights_on_model_save"]
             assert config[dtype]["enabled"]
 
         AcceleratorState._reset_state(True)
         diff_dtype = "bf16" if dtype == "fp16" else "fp16"
         with patch_environment(**self.dist_env):
             with self.assertRaises(ValueError) as cm:
-                accelerator = Accelerator(
-                    deepspeed_plugin=deepspeed_plugin, mixed_precision=diff_dtype
-                )
+                accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision=diff_dtype)
             assert (
                 f"`--mixed_precision` arg cannot be set to `{diff_dtype}` when `{dtype}` is set in the DeepSpeed config file."
                 in str(cm.exception)
@@ -984,9 +753,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         AcceleratorState._reset_state(True)
         deepspeed_plugin = DeepSpeedPlugin(zero_stage=2, gradient_accumulation_steps=4)
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                deepspeed_plugin=deepspeed_plugin, mixed_precision=dtype
-            )
+            accelerator = Accelerator(deepspeed_plugin=deepspeed_plugin, mixed_precision=dtype)
             deepspeed_plugin = accelerator.state.deepspeed_plugin
             assert deepspeed_plugin.deepspeed_config["gradient_accumulation_steps"] == 4
 
@@ -1003,36 +770,26 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
         )
         with patch_environment(**self.dist_env):
             accelerator = Accelerator(
-                deepspeed_plugin=deepspeed_plugin,
-                mixed_precision=dtype,
-                gradient_accumulation_steps=8,
+                deepspeed_plugin=deepspeed_plugin, mixed_precision=dtype, gradient_accumulation_steps=8
             )
             train_set = RegressionDataset(length=80)
             eval_set = RegressionDataset(length=20)
             train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True)
             eval_dataloader = DataLoader(eval_set, batch_size=32, shuffle=False)
             model = AutoModelForCausalLM.from_pretrained("gpt2")
-            dummy_optimizer = DummyOptim(
-                params=model.parameters(), lr=5e-5, weight_decay=1e-4
-            )
-            dummy_lr_scheduler = DummyScheduler(
-                dummy_optimizer, warmup_num_steps=10, total_num_steps=1000
-            )
+            dummy_optimizer = DummyOptim(params=model.parameters(), lr=5e-5, weight_decay=1e-4)
+            dummy_lr_scheduler = DummyScheduler(dummy_optimizer, warmup_num_steps=10, total_num_steps=1000)
             model, _, train_dataloader, eval_dataloader, _ = accelerator.prepare(
-                model,
-                dummy_optimizer,
-                train_dataloader,
-                eval_dataloader,
-                dummy_lr_scheduler,
+                model, dummy_optimizer, train_dataloader, eval_dataloader, dummy_lr_scheduler
             )
             deepspeed_plugin = accelerator.state.deepspeed_plugin
             assert deepspeed_plugin.deepspeed_config["gradient_accumulation_steps"] == 8
 
     def test_ds_config_assertions(self):
         ambiguous_env = self.dist_env.copy()
-        ambiguous_env[
-            "ACCELERATE_CONFIG_DS_FIELDS"
-        ] = "gradient_accumulation_steps,gradient_clipping,zero_stage,offload_optimizer_device,offload_param_device,zero3_save_16bit_model,mixed_precision"
+        ambiguous_env["ACCELERATE_CONFIG_DS_FIELDS"] = (
+            "gradient_accumulation_steps,gradient_clipping,zero_stage,offload_optimizer_device,offload_param_device,zero3_save_16bit_model,mixed_precision"
+        )
 
         with patch_environment(**ambiguous_env):
             with self.assertRaises(ValueError) as cm:
@@ -1091,9 +848,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 
     @require_fp16
     def test_prepare_deepspeed_prepare_moe(self):
-        if compare_versions("transformers", "<", "4.40") and compare_versions(
-            "deepspeed", "<", "0.14"
-        ):
+        if compare_versions("transformers", "<", "4.40") and compare_versions("deepspeed", "<", "0.14"):
             return
         deepspeed_plugin = DeepSpeedPlugin(
             zero3_init_flag=True,
@@ -1106,17 +861,11 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
             transformer_moe_cls_names="Qwen2MoeSparseMoeBlock",
         )
         with patch_environment(**self.dist_env):
-            accelerator = Accelerator(
-                mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin
-            )
-            accelerator.state.deepspeed_plugin.deepspeed_config[
-                "train_micro_batch_size_per_gpu"
-            ] = 1
+            accelerator = Accelerator(mixed_precision="fp16", deepspeed_plugin=deepspeed_plugin)
+            accelerator.state.deepspeed_plugin.deepspeed_config["train_micro_batch_size_per_gpu"] = 1
             model = AutoModelForCausalLM.from_pretrained(QWEN_MOE)
             model = accelerator.prepare(model)
-            from transformers.models.qwen2_moe.modeling_qwen2_moe import (
-                Qwen2MoeSparseMoeBlock,
-            )
+            from transformers.models.qwen2_moe.modeling_qwen2_moe import Qwen2MoeSparseMoeBlock
 
             for module in model.modules():
                 if isinstance(module, Qwen2MoeSparseMoeBlock):
@@ -1125,9 +874,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
     @run_first
     @require_fp16
     def test_basic_run(self):
-        test_file_path = path_in_accelerate_package(
-            "test_utils", "scripts", "external_deps", "test_performance.py"
-        )
+        test_file_path = path_in_accelerate_package("test_utils", "scripts", "external_deps", "test_performance.py")
         with tempfile.TemporaryDirectory() as dirpath:
             cmd = [
                 "accelerate",
@@ -1155,9 +902,7 @@ class DeepSpeedConfigIntegration(AccelerateTestCase):
 @require_deepspeed
 @require_multi_device
 class DeepSpeedIntegrationTest(TempDirTestCase):
-    test_scripts_folder = path_in_accelerate_package(
-        "test_utils", "scripts", "external_deps"
-    )
+    test_scripts_folder = path_in_accelerate_package("test_utils", "scripts", "external_deps")
 
     def setUp(self):
         super().setUp()
@@ -1206,9 +951,7 @@ class DeepSpeedIntegrationTest(TempDirTestCase):
                 continue
             cmd_stage = cmd.copy()
             cmd_stage.extend([f"--zero_stage={stage}"])
-            cmd_stage.extend(
-                ["--offload_optimizer_device=none", "--offload_param_device=none"]
-            )
+            cmd_stage.extend(["--offload_optimizer_device=none", "--offload_param_device=none"])
             if self.zero3_offload_config:
                 with open(self.ds_config_file[ZERO3], encoding="utf-8") as f:
                     ds_config = json.load(f)
@@ -1253,9 +996,7 @@ class DeepSpeedIntegrationTest(TempDirTestCase):
                 continue
             cmd_stage = cmd.copy()
             cmd_stage.extend([f"--zero_stage={stage}"])
-            cmd_stage.extend(
-                ["--offload_optimizer_device=none", "--offload_param_device=none"]
-            )
+            cmd_stage.extend(["--offload_optimizer_device=none", "--offload_param_device=none"])
             if self.zero3_offload_config:
                 with open(self.ds_config_file[ZERO3], encoding="utf-8") as f:
                     ds_config = json.load(f)
@@ -1385,12 +1126,6 @@ class DeepSpeedIntegrationTest(TempDirTestCase):
     @require_huggingface_suite
     def test_zero3_integration(self):
         self.test_file_path = self.test_scripts_folder / "test_zero3_integration.py"
-        cmd = [
-            "accelerate",
-            "launch",
-            "--num_processes=2",
-            "--num_machines=1",
-            self.test_file_path,
-        ]
+        cmd = ["accelerate", "launch", "--num_processes=2", "--num_machines=1", self.test_file_path]
         with patch_environment(omp_num_threads=1):
             execute_subprocess_async(cmd)

@@ -14,13 +14,12 @@
 
 from manim import *
 
-
 class Stage4(Scene):
     def construct(self):
 
         step_1 = MarkupText(
             f"To understand the next part fully, let's define two terms,\n<span fgcolor='{RED}'>`batch_size`</span> and <span fgcolor='{BLUE}'>`global_batch_size`</span>:",
-            font_size=18,
+            font_size=18
         )
         step_1.move_to([0, 1.5, 0])
         # <span fgcolor='{YELLOW}'>●</span>
@@ -41,7 +40,13 @@ class Stage4(Scene):
         self.play(
             Write(step_1, run_time=4),
         )
-        self.play(Write(step_2, run_time=4))
-        self.play(Write(step_3, run_time=4))
-        self.play(Write(step_4, run_time=6))
+        self.play(
+            Write(step_2, run_time=4)
+        )
+        self.play(
+            Write(step_3, run_time=4)
+        )
+        self.play(
+            Write(step_4, run_time=6)
+        )
         self.wait()

@@ -21,6 +21,4 @@ if is_rich_available():
     install(show_locals=False)
 
 else:
-    raise ModuleNotFoundError(
-        "To use the rich extension, install rich with `pip install rich`"
-    )
+    raise ModuleNotFoundError("To use the rich extension, install rich with `pip install rich`")

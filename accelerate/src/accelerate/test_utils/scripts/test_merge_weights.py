@@ -19,10 +19,7 @@ from pathlib import Path
 
 import torch
 from safetensors.torch import load_file
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-    ShardingStrategy,
-    StateDictType,
-)
+from torch.distributed.fsdp.fully_sharded_data_parallel import ShardingStrategy, StateDictType
 from torch.utils.data import DataLoader
 
 from accelerate import Accelerator, FullyShardedDataParallelPlugin
@@ -54,8 +51,7 @@ def setup():
     if AcceleratorState._shared_state != {}:
         AcceleratorState()._reset_state()
     plugin = FullyShardedDataParallelPlugin(
-        sharding_strategy=ShardingStrategy.FULL_SHARD,
-        state_dict_type=StateDictType.SHARDED_STATE_DICT,
+        sharding_strategy=ShardingStrategy.FULL_SHARD, state_dict_type=StateDictType.SHARDED_STATE_DICT
     )
     model = TinyModel()
     with patch_environment(fsdp_auto_wrap_policy="SIZE_BASED_WRAP"):
@@ -128,9 +124,7 @@ def test_merge_weights_pytorch(model, path):
 
 
 def test_merge_weights_command_pytorch(model, path):
-    args = parser.parse_args(
-        [str(path / "pytorch_model_fsdp_0"), str(path), "--unsafe_serialization"]
-    )
+    args = parser.parse_args([str(path / "pytorch_model_fsdp_0"), str(path), "--unsafe_serialization"])
     merge_command(args)
     check_pytorch_weights(path, model)
 

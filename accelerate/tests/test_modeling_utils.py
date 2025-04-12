@@ -78,25 +78,14 @@ class NestedModelForTest(nn.Module):
 
 
 class LinearWithNonPersistentBuffers(nn.Module):
-    def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-        bias: bool = True,
-        device=None,
-        dtype=None,
-    ) -> None:
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.register_buffer(
-            "weight", torch.empty((out_features, in_features), **factory_kwargs)
-        )
+        self.register_buffer("weight", torch.empty((out_features, in_features), **factory_kwargs))
         if bias:
-            self.register_buffer(
-                "bias", torch.empty(out_features, **factory_kwargs), persistent=False
-            )
+            self.register_buffer("bias", torch.empty(out_features, **factory_kwargs), persistent=False)
         else:
             self.register_buffer("bias", None)
 
@@ -115,9 +104,7 @@ class ModelSeveralDtypes(nn.Module):
 
 
 def sequential_model(num_layers):
-    layers = OrderedDict(
-        [(f"linear{i}", nn.Linear(1000, 1000)) for i in range(1, num_layers + 1)]
-    )
+    layers = OrderedDict([(f"linear{i}", nn.Linear(1000, 1000)) for i in range(1, num_layers + 1)])
     return nn.Sequential(layers)
 
 
@@ -134,9 +121,7 @@ class ModelingUtilsTester(unittest.TestCase):
                     # We need a `value` to set the weight back on device1
                     set_module_tensor_to_device(model.linear1, "weight", device1)
 
-                set_module_tensor_to_device(
-                    model.linear1, "weight", device1, value=torch.randn(4, 3)
-                )
+                set_module_tensor_to_device(model.linear1, "weight", device1, value=torch.randn(4, 3))
             else:
                 set_module_tensor_to_device(model.linear1, "weight", device1)
             assert model.linear1.weight.device == torch.device(device1)
@@ -149,9 +134,7 @@ class ModelingUtilsTester(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     # We need a `value` to set the weight back on device1
                     set_module_tensor_to_device(model, "linear1.weight", device1)
-                set_module_tensor_to_device(
-                    model, "linear1.weight", device1, value=torch.randn(4, 3)
-                )
+                set_module_tensor_to_device(model, "linear1.weight", device1, value=torch.randn(4, 3))
             else:
                 set_module_tensor_to_device(model, "linear1.weight", device1)
             assert model.linear1.weight.device == torch.device(device1)
@@ -165,12 +148,8 @@ class ModelingUtilsTester(unittest.TestCase):
             if torch.device(device2) == torch.device("meta"):
                 with self.assertRaises(ValueError):
                     # We need a `value` to set the weight back on device1
-                    set_module_tensor_to_device(
-                        model.batchnorm, "running_mean", device1
-                    )
-                set_module_tensor_to_device(
-                    model.batchnorm, "running_mean", device1, value=torch.randn(4)
-                )
+                    set_module_tensor_to_device(model.batchnorm, "running_mean", device1)
+                set_module_tensor_to_device(model.batchnorm, "running_mean", device1, value=torch.randn(4))
             else:
                 set_module_tensor_to_device(model.batchnorm, "running_mean", device1)
             assert model.batchnorm.running_mean.device == torch.device(device1)
@@ -182,13 +161,9 @@ class ModelingUtilsTester(unittest.TestCase):
             if torch.device(device2) == torch.device("meta"):
                 with self.assertRaises(ValueError):
                     # We need a `value` to set the weight back on CPU
-                    set_module_tensor_to_device(
-                        model, "batchnorm.running_mean", device1
-                    )
+                    set_module_tensor_to_device(model, "batchnorm.running_mean", device1)
 
-                set_module_tensor_to_device(
-                    model, "batchnorm.running_mean", device1, value=torch.randn(4)
-                )
+                set_module_tensor_to_device(model, "batchnorm.running_mean", device1, value=torch.randn(4))
             else:
                 set_module_tensor_to_device(model, "batchnorm.running_mean", device1)
             assert model.batchnorm.running_mean.device == torch.device(device1)
@@ -211,19 +186,11 @@ class ModelingUtilsTester(unittest.TestCase):
     @require_multi_device
     def test_set_module_tensor_between_gpus(self):
         model = ModelForTest().to(torch_device)
-        self.check_set_module_tensor_for_device(
-            model, torch_device, torch_device.replace("0", "1")
-        )
+        self.check_set_module_tensor_for_device(model, torch_device, torch_device.replace("0", "1"))
 
     def test_set_module_tensor_sets_dtype(self):
         model = ModelForTest()
-        set_module_tensor_to_device(
-            model,
-            "linear1.weight",
-            "cpu",
-            value=model.linear1.weight,
-            dtype=torch.float16,
-        )
+        set_module_tensor_to_device(model, "linear1.weight", "cpu", value=model.linear1.weight, dtype=torch.float16)
         assert model.linear1.weight.dtype == torch.float16
 
     def test_set_module_tensor_checks_shape(self):
@@ -279,14 +246,10 @@ class ModelingUtilsTester(unittest.TestCase):
 
         model = LinearWithNonPersistentBuffers(10, 10)
 
-        named_tensors = named_module_tensors(
-            model, include_buffers=True, remove_non_persistent=False
-        )
+        named_tensors = named_module_tensors(model, include_buffers=True, remove_non_persistent=False)
         assert [name for name, _ in named_tensors] == ["weight", "bias"]
 
-        named_tensors = named_module_tensors(
-            model, include_buffers=True, remove_non_persistent=True
-        )
+        named_tensors = named_module_tensors(model, include_buffers=True, remove_non_persistent=True)
         assert [name for name, _ in named_tensors] == ["weight"]
 
     def test_find_tied_parameters(self):
@@ -297,9 +260,7 @@ class ModelingUtilsTester(unittest.TestCase):
         assert find_tied_parameters(model) == [["linear1.weight", "linear2.weight"]]
 
         model.linear4.weight = model.linear1.weight
-        assert find_tied_parameters(model) == [
-            ["linear1.weight", "linear2.weight", "linear4.weight"]
-        ]
+        assert find_tied_parameters(model) == [["linear1.weight", "linear2.weight", "linear4.weight"]]
 
         model = sequential_model(5)
         model.linear1.weight = model.linear4.weight
@@ -311,15 +272,9 @@ class ModelingUtilsTester(unittest.TestCase):
             ["linear2.weight", "linear3.weight", "linear5.weight"],
         ]
 
-        model = nn.Sequential(
-            OrderedDict(
-                [("block1", sequential_model(4)), ("block2", sequential_model(4))]
-            )
-        )
+        model = nn.Sequential(OrderedDict([("block1", sequential_model(4)), ("block2", sequential_model(4))]))
         model.block1.linear1.weight = model.block2.linear1.weight
-        assert find_tied_parameters(model) == [
-            ["block1.linear1.weight", "block2.linear1.weight"]
-        ]
+        assert find_tied_parameters(model) == [["block1.linear1.weight", "block2.linear1.weight"]]
 
         layer = nn.Linear(10, 10)
         model = nn.Sequential(layer, layer)
@@ -332,55 +287,32 @@ class ModelingUtilsTester(unittest.TestCase):
         assert model.linear1.weight is model.linear2.weight
 
         model = sequential_model(3)
-        retie_parameters(
-            model, [["linear1.weight", "linear2.weight", "linear3.weight"]]
-        )
+        retie_parameters(model, [["linear1.weight", "linear2.weight", "linear3.weight"]])
 
         assert model.linear1.weight is model.linear2.weight
         assert model.linear1.weight is model.linear3.weight
 
         model = sequential_model(5)
         retie_parameters(
-            model,
-            [
-                ["linear1.weight", "linear4.weight"],
-                ["linear2.weight", "linear3.weight", "linear5.weight"],
-            ],
+            model, [["linear1.weight", "linear4.weight"], ["linear2.weight", "linear3.weight", "linear5.weight"]]
         )
 
         assert model.linear1.weight is model.linear4.weight
         assert model.linear2.weight is model.linear3.weight
         assert model.linear2.weight is model.linear5.weight
 
-        model = nn.Sequential(
-            OrderedDict(
-                [("block1", sequential_model(4)), ("block2", sequential_model(4))]
-            )
-        )
+        model = nn.Sequential(OrderedDict([("block1", sequential_model(4)), ("block2", sequential_model(4))]))
         retie_parameters(model, [["block1.linear1.weight", "block2.linear1.weight"]])
 
         assert model.block1.linear1.weight is model.block2.linear1.weight
 
     def test_compute_module_sizes(self):
         model = ModelForTest()
-        expected_sizes = {
-            "": 236,
-            "linear1": 64,
-            "linear1.weight": 48,
-            "linear1.bias": 16,
-        }
+        expected_sizes = {"": 236, "linear1": 64, "linear1.weight": 48, "linear1.bias": 16}
+        expected_sizes.update({"linear2": 100, "linear2.weight": 80, "linear2.bias": 20})
+        expected_sizes.update({"batchnorm": 72, "batchnorm.weight": 16, "batchnorm.bias": 16})
         expected_sizes.update(
-            {"linear2": 100, "linear2.weight": 80, "linear2.bias": 20}
-        )
-        expected_sizes.update(
-            {"batchnorm": 72, "batchnorm.weight": 16, "batchnorm.bias": 16}
-        )
-        expected_sizes.update(
-            {
-                "batchnorm.running_mean": 16,
-                "batchnorm.running_var": 16,
-                "batchnorm.num_batches_tracked": 8,
-            }
+            {"batchnorm.running_mean": 16, "batchnorm.running_var": 16, "batchnorm.num_batches_tracked": 8}
         )
 
         module_sizes = compute_module_sizes(model)
@@ -432,9 +364,7 @@ class ModelingUtilsTester(unittest.TestCase):
             json.dump(index, f)
 
         for module, fname in module_index.items():
-            state_dict = {
-                k: v for k, v in model.state_dict().items() if k.startswith(module)
-            }
+            state_dict = {k: v for k, v in model.state_dict().items() if k.startswith(module)}
             full_fname = os.path.join(tmp_dir, fname)
             torch.save(state_dict, full_fname)
 
@@ -502,9 +432,7 @@ class ModelingUtilsTester(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "pt_model.bin")
             torch.save(model.state_dict(), fname)
-            load_checkpoint_in_model(
-                model, fname, device_map=device_map, offload_folder=tmp_dir
-            )
+            load_checkpoint_in_model(model, fname, device_map=device_map, offload_folder=tmp_dir)
         assert model.linear1.weight.device == torch.device("cpu")
         assert model.batchnorm.weight.device == torch.device("meta")
         # Buffers are not offloaded by default
@@ -515,13 +443,7 @@ class ModelingUtilsTester(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "pt_model.bin")
             torch.save(model.state_dict(), fname)
-            load_checkpoint_in_model(
-                model,
-                fname,
-                device_map=device_map,
-                offload_folder=tmp_dir,
-                offload_buffers=True,
-            )
+            load_checkpoint_in_model(model, fname, device_map=device_map, offload_folder=tmp_dir, offload_buffers=True)
         assert model.linear1.weight.device == torch.device("cpu")
         assert model.batchnorm.weight.device == torch.device("meta")
         assert model.batchnorm.running_mean.device == torch.device("meta")
@@ -540,9 +462,7 @@ class ModelingUtilsTester(unittest.TestCase):
             load_checkpoint_in_model(model, fname, device_map=device_map)
         assert model.linear1.weight.device == torch.device(torch_device)
         assert model.batchnorm.weight.device == torch.device("cpu")
-        assert model.linear2.weight.device == torch.device(
-            torch_device.replace("0", "1")
-        )
+        assert model.linear2.weight.device == torch.device(torch_device.replace("0", "1"))
 
         # Check with sharded index
         model = ModelForTest()
@@ -553,9 +473,7 @@ class ModelingUtilsTester(unittest.TestCase):
 
         assert model.linear1.weight.device == torch.device(torch_device)
         assert model.batchnorm.weight.device == torch.device("cpu")
-        assert model.linear2.weight.device == torch.device(
-            torch_device.replace("0", "1")
-        )
+        assert model.linear2.weight.device == torch.device(torch_device.replace("0", "1"))
 
         # Check with sharded checkpoint
         model = ModelForTest()
@@ -565,9 +483,7 @@ class ModelingUtilsTester(unittest.TestCase):
 
         assert model.linear1.weight.device == torch.device(torch_device)
         assert model.batchnorm.weight.device == torch.device("cpu")
-        assert model.linear2.weight.device == torch.device(
-            torch_device.replace("0", "1")
-        )
+        assert model.linear2.weight.device == torch.device(torch_device.replace("0", "1"))
 
     def test_load_checkpoint_in_model_dtype(self):
         with tempfile.NamedTemporaryFile(suffix=".pt") as tmpfile:
@@ -576,11 +492,7 @@ class ModelingUtilsTester(unittest.TestCase):
 
             new_model = ModelSeveralDtypes()
             load_checkpoint_in_model(
-                new_model,
-                tmpfile.name,
-                offload_state_dict=True,
-                dtype=torch.float16,
-                device_map={"": "cpu"},
+                new_model, tmpfile.name, offload_state_dict=True, dtype=torch.float16, device_map={"": "cpu"}
             )
 
             assert new_model.int_param.dtype == torch.int64
@@ -603,23 +515,15 @@ class ModelingUtilsTester(unittest.TestCase):
                 self.assertTrue(any("were not used when" in out for out in cm.output))
 
             with self.assertRaises((ValueError, RuntimeError)):
-                load_checkpoint_in_model(
-                    model, tmpfile.name, device_map=device_map, strict=True
-                )
+                load_checkpoint_in_model(model, tmpfile.name, device_map=device_map, strict=True)
 
     def test_clean_device_map(self):
         # Regroup everything if all is on the same device
         assert clean_device_map({"a": 0, "b": 0, "c": 0}) == {"": 0}
         # Regroups children of level 1 on the same device
-        assert clean_device_map({"a.x": 0, "a.y": 0, "b.x": 1, "b.y": 1, "c": 1}) == {
-            "a": 0,
-            "b": 1,
-            "c": 1,
-        }
+        assert clean_device_map({"a.x": 0, "a.y": 0, "b.x": 1, "b.y": 1, "c": 1}) == {"a": 0, "b": 1, "c": 1}
         # Regroups children of level 2 on the same device
-        assert clean_device_map(
-            {"a.x": 0, "a.y": 0, "b.x.0": 1, "b.x.1": 1, "b.y.0": 2, "b.y.1": 2, "c": 2}
-        ) == {
+        assert clean_device_map({"a.x": 0, "a.y": 0, "b.x.0": 1, "b.x.1": 1, "b.y.0": 2, "b.y.1": 2, "c": 2}) == {
             "a": 0,
             "b.x": 1,
             "b.y": 2,
@@ -653,13 +557,7 @@ class ModelingUtilsTester(unittest.TestCase):
         # When splitting a bigger model, the split is done at the layer level
         model = nn.Sequential(ModelForTest(), ModelForTest(), ModelForTest())
         device_map = infer_auto_device_map(model, max_memory={0: 500, 1: 500})
-        assert device_map == {
-            "0": 0,
-            "1.linear1": 0,
-            "1.batchnorm": 0,
-            "1.linear2": 1,
-            "2": 1,
-        }
+        assert device_map == {"0": 0, "1.linear1": 0, "1.batchnorm": 0, "1.linear2": 1, "2": 1}
 
         # With no_split_module_classes, it's done at that module level
         model = nn.Sequential(ModelForTest(), ModelForTest(), ModelForTest())
@@ -670,23 +568,11 @@ class ModelingUtilsTester(unittest.TestCase):
 
     def test_infer_auto_device_map_with_tied_weights(self):
         model = nn.Sequential(
-            OrderedDict(
-                [
-                    ("layer1", ModelForTest()),
-                    ("layer2", ModelForTest()),
-                    ("layer3", ModelForTest()),
-                ]
-            )
+            OrderedDict([("layer1", ModelForTest()), ("layer2", ModelForTest()), ("layer3", ModelForTest())])
         )
         model.layer3.linear2.weight = model.layer1.linear2.weight
         device_map = infer_auto_device_map(model, max_memory={0: 400, 1: 500})
-        expected = {
-            "layer1": 0,
-            "layer3.linear2": 0,
-            "layer2": 1,
-            "layer3.linear1": 1,
-            "layer3.batchnorm": 1,
-        }
+        expected = {"layer1": 0, "layer3.linear2": 0, "layer2": 1, "layer3.linear1": 1, "layer3.batchnorm": 1}
         assert device_map == expected
 
         # With three weights tied together
@@ -761,10 +647,7 @@ class ModelingUtilsTester(unittest.TestCase):
 
         model = Model()
 
-        device_memory = {
-            0: 4,
-            "cpu": 96000,
-        }  # Low memory device, just to force splitting and trigger the error
+        device_memory = {0: 4, "cpu": 96000}  # Low memory device, just to force splitting and trigger the error
         infer_auto_device_map(model, device_memory)
 
     @require_huggingface_suite
@@ -776,9 +659,7 @@ class ModelingUtilsTester(unittest.TestCase):
             model = AutoModelForSeq2SeqLM.from_config(config)
         model.tie_weights()
 
-        special_dtypes = {
-            n: torch.float32 for n, _ in model.named_parameters() if "wo" in n
-        }
+        special_dtypes = {n: torch.float32 for n, _ in model.named_parameters() if "wo" in n}
         max_memory = {0: 10**10, 1: 10**10, "cpu": 10**10}
         device_map = infer_auto_device_map(
             model,
@@ -812,9 +693,7 @@ class ModelingUtilsTester(unittest.TestCase):
         # Should NOT print a warning in such case
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            device_map = infer_auto_device_map(
-                model, max_memory={0: 400, "cpu": "1GB"}, offload_buffers=True
-            )
+            device_map = infer_auto_device_map(model, max_memory={0: 400, "cpu": "1GB"}, offload_buffers=True)
         assert len(w) == 0
         assert device_map == {"linear1": 0, "batchnorm": "cpu", "linear2": "cpu"}
 
@@ -833,56 +712,29 @@ class ModelingUtilsTester(unittest.TestCase):
         # Should NOT print a warning in such case
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            device_map = infer_auto_device_map(
-                model, max_memory={0: 400, 1: 400, "cpu": "1GB"}
-            )
+            device_map = infer_auto_device_map(model, max_memory={0: 400, 1: 400, "cpu": "1GB"})
         assert len(w) == 0
-        assert device_map == {
-            "linear1": 0,
-            "batchnorm": 1,
-            "linear2": "cpu",
-            "linear3": "cpu",
-        }
+        assert device_map == {"linear1": 0, "batchnorm": 1, "linear2": "cpu", "linear3": "cpu"}
 
         # Now we have two devices, but neither the first nor the second device can hold all remaining buffers
         # Should print a warning as intended in such case
         with self.assertWarns(Warning):
-            device_map = infer_auto_device_map(
-                model, max_memory={0: 400, 1: 200, "cpu": "1GB"}
-            )
-        assert device_map == {
-            "linear1": 0,
-            "batchnorm": 1,
-            "linear2": "cpu",
-            "linear3": "cpu",
-        }
+            device_map = infer_auto_device_map(model, max_memory={0: 400, 1: 200, "cpu": "1GB"})
+        assert device_map == {"linear1": 0, "batchnorm": 1, "linear2": "cpu", "linear3": "cpu"}
 
         # Now we have two devices, neither can hold all the buffers, but we are using the offload_buffers=True
         # Should NOT print a warning in such case
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            device_map = infer_auto_device_map(
-                model, max_memory={0: 400, 1: 200, "cpu": "1GB"}, offload_buffers=True
-            )
+            device_map = infer_auto_device_map(model, max_memory={0: 400, 1: 200, "cpu": "1GB"}, offload_buffers=True)
         assert len(w) == 0
-        assert device_map == {
-            "linear1": 0,
-            "batchnorm": 1,
-            "linear2": "cpu",
-            "linear3": "cpu",
-        }
+        assert device_map == {"linear1": 0, "batchnorm": 1, "linear2": "cpu", "linear3": "cpu"}
 
     def test_infer_auto_device_map_with_fallback_allocation(self):
         # Create a model where modules cannot be allocated without fallback_allocation
         # Define the inner module with its layers
         inner_module = nn.Sequential(
-            OrderedDict(
-                [
-                    ("linear1", nn.Linear(10, 4)),
-                    ("linear2", nn.Linear(4, 4)),
-                    ("linear3", nn.Linear(4, 8)),
-                ]
-            )
+            OrderedDict([("linear1", nn.Linear(10, 4)), ("linear2", nn.Linear(4, 4)), ("linear3", nn.Linear(4, 8))])
         )
 
         # Wrap the inner module in another module
@@ -892,9 +744,7 @@ class ModelingUtilsTester(unittest.TestCase):
 
         # Without fallback_allocation
         with self.assertLogs() as cm:
-            device_map = infer_auto_device_map(
-                model, max_memory=max_memory, fallback_allocation=False
-            )
+            device_map = infer_auto_device_map(model, max_memory=max_memory, fallback_allocation=False)
             # No module should be assigned to device 0
             assert all(device != 0 for device in device_map.values())
             # Check for warning about insufficient memory
@@ -903,9 +753,7 @@ class ModelingUtilsTester(unittest.TestCase):
         # With fallback_allocation
         try:
             with self.assertLogs() as cm:
-                device_map = infer_auto_device_map(
-                    model, max_memory=max_memory, fallback_allocation=True
-                )
+                device_map = infer_auto_device_map(model, max_memory=max_memory, fallback_allocation=True)
                 self.assertFalse(any("insufficient memory" in out for out in cm.output))
         except AssertionError:
             # No logs exist; test passes implicitly
@@ -913,22 +761,14 @@ class ModelingUtilsTester(unittest.TestCase):
         # At least one submodule should be assigned to device 0
         assert any(device == 0 for device in device_map.values())
 
-        expected_device_map = {
-            "module.linear1": "disk",
-            "module.linear2": 0,
-            "module.linear3": "disk",
-        }
+        expected_device_map = {"module.linear1": "disk", "module.linear2": 0, "module.linear3": "disk"}
         assert device_map == expected_device_map
 
     def test_infer_auto_device_map_with_fallback_allocation_no_fit(self):
         # Create a model where even the smallest submodules cannot fit
         inner_module = nn.Sequential(
             OrderedDict(
-                [
-                    ("linear1", nn.Linear(10, 10)),
-                    ("linear2", nn.Linear(10, 10)),
-                    ("linear3", nn.Linear(10, 10)),
-                ]
+                [("linear1", nn.Linear(10, 10)), ("linear2", nn.Linear(10, 10)), ("linear3", nn.Linear(10, 10))]
             )
         )
 
@@ -940,9 +780,7 @@ class ModelingUtilsTester(unittest.TestCase):
         # With fallback_allocation
         try:
             with self.assertLogs() as cm:
-                device_map = infer_auto_device_map(
-                    model, max_memory=max_memory, fallback_allocation=True
-                )
+                device_map = infer_auto_device_map(model, max_memory=max_memory, fallback_allocation=True)
                 # No module should be assigned to device 0
                 assert all(device != 0 for device in device_map.values())
                 # Check for warning about insufficient memory
@@ -960,25 +798,15 @@ class ModelingUtilsTester(unittest.TestCase):
                 self.submodule2 = nn.Linear(20, 20)
 
         model = nn.Sequential(
-            OrderedDict(
-                [
-                    ("module1", CustomModule()),
-                    ("module2", CustomModule()),
-                    ("module3", CustomModule()),
-                ]
-            )
+            OrderedDict([("module1", CustomModule()), ("module2", CustomModule()), ("module3", CustomModule())])
         )
 
         max_memory = {0: 5000}
 
         # With fallback_allocation
-        device_map = infer_auto_device_map(
-            model, max_memory=max_memory, fallback_allocation=True
-        )
+        device_map = infer_auto_device_map(model, max_memory=max_memory, fallback_allocation=True)
         # Check that at least some parameters are assigned to device 0
-        assigned_to_device_0 = [
-            name for name, device in device_map.items() if device == 0
-        ]
+        assigned_to_device_0 = [name for name, device in device_map.items() if device == 0]
         assert len(assigned_to_device_0) > 0
 
     def test_infer_auto_device_map_with_fallback_allocation_tied_weights(self):
@@ -995,9 +823,7 @@ class ModelingUtilsTester(unittest.TestCase):
         max_memory = {0: 600}
 
         # With fallback_allocation
-        device_map = infer_auto_device_map(
-            model, max_memory=max_memory, fallback_allocation=True
-        )
+        device_map = infer_auto_device_map(model, max_memory=max_memory, fallback_allocation=True)
         # Check that tied modules are assigned correctly
         expected_device_map = {"": 0}
         assert device_map == expected_device_map
@@ -1006,11 +832,7 @@ class ModelingUtilsTester(unittest.TestCase):
         # Create a model with buffers
         model = nn.Sequential(
             OrderedDict(
-                [
-                    ("linear1", nn.Linear(10, 10)),
-                    ("batchnorm", nn.BatchNorm1d(10)),
-                    ("linear2", nn.Linear(10, 10)),
-                ]
+                [("linear1", nn.Linear(10, 10)), ("batchnorm", nn.BatchNorm1d(10)), ("linear2", nn.Linear(10, 10))]
             )
         )
         model.linear1.register_buffer("buffer1", torch.zeros(5))
@@ -1022,18 +844,12 @@ class ModelingUtilsTester(unittest.TestCase):
         # With fallback_allocation and offload_buffers=False
         with self.assertWarns(Warning) as cm:
             device_map = infer_auto_device_map(
-                model,
-                max_memory=max_memory,
-                fallback_allocation=True,
-                offload_buffers=False,
+                model, max_memory=max_memory, fallback_allocation=True, offload_buffers=False
             )
 
         # Check that the warning contains the expected message
         warning_message = str(cm.warning)
-        assert (
-            "offload_buffers" in warning_message
-            or "Current model requires" in warning_message
-        )
+        assert "offload_buffers" in warning_message or "Current model requires" in warning_message
 
         # Verify that the entire model is assigned to device 0
         expected_device_map = {"batchnorm": 0, "linear1": "disk", "linear2": "disk"}
@@ -1100,11 +916,7 @@ class ModelingUtilsTester(unittest.TestCase):
         tied_params = tied_parameters[0][1:]
         module_size = weight_size + bias_size
 
-        (
-            module_size_with_ties,
-            tied_module_names,
-            tied_modules,
-        ) = get_module_size_with_ties(
+        module_size_with_ties, tied_module_names, tied_modules = get_module_size_with_ties(
             tied_params, module_size, module_sizes, modules_to_treat
         )
         # The expected lists are ordered using as key the module names, to follow
@@ -1120,20 +932,14 @@ class ModelingUtilsTester(unittest.TestCase):
     @require_non_cpu
     def test_load_state_dict(self):
         state_dict = {k: torch.randn(4, 5) for k in ["a", "b", "c"]}
-        device_maps = [
-            {"a": "cpu", "b": 0, "c": "disk"},
-            {"a": 0, "b": 0, "c": "disk"},
-            {"a": 0, "b": 0, "c": 0},
-        ]
+        device_maps = [{"a": "cpu", "b": 0, "c": "disk"}, {"a": 0, "b": 0, "c": "disk"}, {"a": 0, "b": 0, "c": 0}]
 
         for device_map in device_maps:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 checkpoint_file = os.path.join(tmp_dir, "model.safetensors")
                 save_file(state_dict, checkpoint_file, metadata={"format": "pt"})
 
-                loaded_state_dict = load_state_dict(
-                    checkpoint_file, device_map=device_map
-                )
+                loaded_state_dict = load_state_dict(checkpoint_file, device_map=device_map)
 
             for param, device in device_map.items():
                 device = device if device != "disk" else "cpu"

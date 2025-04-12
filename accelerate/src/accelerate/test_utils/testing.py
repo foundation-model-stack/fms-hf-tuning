@@ -122,9 +122,7 @@ def get_launch_command(**kwargs) -> list:
     return command
 
 
-DEFAULT_LAUNCH_COMMAND = get_launch_command(
-    num_processes=device_count, monitor_interval=0.1
-)
+DEFAULT_LAUNCH_COMMAND = get_launch_command(num_processes=device_count, monitor_interval=0.1)
 
 
 def parse_flag_from_env(key, default=False):
@@ -163,9 +161,7 @@ def require_cpu(test_case):
     """
     Decorator marking a test that must be only ran on the CPU. These tests are skipped when a GPU is available.
     """
-    return unittest.skipUnless(torch_device == "cpu", "test requires only a CPU")(
-        test_case
-    )
+    return unittest.skipUnless(torch_device == "cpu", "test requires only a CPU")(test_case)
 
 
 def require_non_cpu(test_case):
@@ -181,9 +177,7 @@ def require_cuda(test_case):
     Decorator marking a test that requires CUDA. These tests are skipped when there are no GPU available or when
     TorchXLA is available.
     """
-    return unittest.skipUnless(
-        is_cuda_available() and not is_torch_xla_available(), "test requires a GPU"
-    )(test_case)
+    return unittest.skipUnless(is_cuda_available() and not is_torch_xla_available(), "test requires a GPU")(test_case)
 
 
 def require_cuda_or_hpu(test_case):
@@ -192,8 +186,7 @@ def require_cuda_or_hpu(test_case):
     TorchXLA is available.
     """
     return unittest.skipUnless(
-        (is_cuda_available() and not is_torch_xla_available()) or is_hpu_available(),
-        "test requires a GPU or HPU",
+        (is_cuda_available() and not is_torch_xla_available()) or is_hpu_available(), "test requires a GPU or HPU"
     )(test_case)
 
 
@@ -211,27 +204,21 @@ def require_cuda_or_xpu(test_case):
     """
     cuda_condition = is_cuda_available() and not is_torch_xla_available()
     xpu_condition = is_xpu_available()
-    return unittest.skipUnless(
-        cuda_condition or xpu_condition, "test requires a CUDA GPU or XPU"
-    )(test_case)
+    return unittest.skipUnless(cuda_condition or xpu_condition, "test requires a CUDA GPU or XPU")(test_case)
 
 
 def require_non_xpu(test_case):
     """
     Decorator marking a test that should be skipped for XPU.
     """
-    return unittest.skipUnless(torch_device != "xpu", "test requires a non-XPU")(
-        test_case
-    )
+    return unittest.skipUnless(torch_device != "xpu", "test requires a non-XPU")(test_case)
 
 
 def require_non_hpu(test_case):
     """
     Decorator marking a test that should be skipped for HPU.
     """
-    return unittest.skipUnless(torch_device != "hpu", "test requires a non-HPU")(
-        test_case
-    )
+    return unittest.skipUnless(torch_device != "hpu", "test requires a non-HPU")(test_case)
 
 
 def require_fp16(test_case):
@@ -239,9 +226,7 @@ def require_fp16(test_case):
     Decorator marking a test that requires FP16. These tests are skipped when FP16 is not supported.
     """
 
-    return unittest.skipUnless(is_fp16_available(), "test requires FP16 support")(
-        test_case
-    )
+    return unittest.skipUnless(is_fp16_available(), "test requires FP16 support")(test_case)
 
 
 def require_fp8(test_case):
@@ -295,9 +280,7 @@ def require_mps(test_case):
     Decorator marking a test that requires MPS backend. These tests are skipped when torch doesn't support `mps`
     backend.
     """
-    return unittest.skipUnless(
-        is_mps_available(), "test requires a `mps` backend support in `torch`"
-    )(test_case)
+    return unittest.skipUnless(is_mps_available(), "test requires a `mps` backend support in `torch`")(test_case)
 
 
 def require_huggingface_suite(test_case):
@@ -314,63 +297,49 @@ def require_transformers(test_case):
     """
     Decorator marking a test that requires transformers. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(
-        is_transformers_available(), "test requires the transformers library"
-    )(test_case)
+    return unittest.skipUnless(is_transformers_available(), "test requires the transformers library")(test_case)
 
 
 def require_timm(test_case):
     """
     Decorator marking a test that requires timm. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(is_timm_available(), "test requires the timm library")(
-        test_case
-    )
+    return unittest.skipUnless(is_timm_available(), "test requires the timm library")(test_case)
 
 
 def require_torchvision(test_case):
     """
     Decorator marking a test that requires torchvision. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(
-        is_torchvision_available(), "test requires the torchvision library"
-    )(test_case)
+    return unittest.skipUnless(is_torchvision_available(), "test requires the torchvision library")(test_case)
 
 
 def require_triton(test_case):
     """
     Decorator marking a test that requires triton. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(
-        is_triton_available(), "test requires the triton library"
-    )(test_case)
+    return unittest.skipUnless(is_triton_available(), "test requires the triton library")(test_case)
 
 
 def require_schedulefree(test_case):
     """
     Decorator marking a test that requires schedulefree. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(
-        is_schedulefree_available(), "test requires the schedulefree library"
-    )(test_case)
+    return unittest.skipUnless(is_schedulefree_available(), "test requires the schedulefree library")(test_case)
 
 
 def require_bnb(test_case):
     """
     Decorator marking a test that requires bitsandbytes. These tests are skipped when they are not.
     """
-    return unittest.skipUnless(
-        is_bnb_available(), "test requires the bitsandbytes library"
-    )(test_case)
+    return unittest.skipUnless(is_bnb_available(), "test requires the bitsandbytes library")(test_case)
 
 
 def require_tpu(test_case):
     """
     Decorator marking a test that requires TPUs. These tests are skipped when there are no TPUs available.
     """
-    return unittest.skipUnless(
-        is_torch_xla_available(check_is_tpu=True), "test requires TPU"
-    )(test_case)
+    return unittest.skipUnless(is_torch_xla_available(check_is_tpu=True), "test requires TPU")(test_case)
 
 
 def require_non_torch_xla(test_case):
@@ -378,9 +347,7 @@ def require_non_torch_xla(test_case):
     Decorator marking a test as requiring an environment without TorchXLA. These tests are skipped when TorchXLA is
     available.
     """
-    return unittest.skipUnless(
-        not is_torch_xla_available(), "test requires an env without TorchXLA"
-    )(test_case)
+    return unittest.skipUnless(not is_torch_xla_available(), "test requires an env without TorchXLA")(test_case)
 
 
 def require_single_device(test_case):
@@ -389,8 +356,7 @@ def require_single_device(test_case):
     accelerator available or number of devices is more than one.
     """
     return unittest.skipUnless(
-        torch_device != "cpu" and device_count == 1,
-        "test requires a single device accelerator",
+        torch_device != "cpu" and device_count == 1, "test requires a single device accelerator"
     )(test_case)
 
 
@@ -399,9 +365,7 @@ def require_single_gpu(test_case):
     Decorator marking a test that requires CUDA on a single GPU. These tests are skipped when there are no GPU
     available or number of GPUs is more than one.
     """
-    return unittest.skipUnless(torch.cuda.device_count() == 1, "test requires a GPU")(
-        test_case
-    )
+    return unittest.skipUnless(torch.cuda.device_count() == 1, "test requires a GPU")(test_case)
 
 
 def require_single_xpu(test_case):
@@ -409,9 +373,7 @@ def require_single_xpu(test_case):
     Decorator marking a test that requires CUDA on a single XPU. These tests are skipped when there are no XPU
     available or number of xPUs is more than one.
     """
-    return unittest.skipUnless(torch.xpu.device_count() == 1, "test requires a XPU")(
-        test_case
-    )
+    return unittest.skipUnless(torch.xpu.device_count() == 1, "test requires a XPU")(test_case)
 
 
 def require_multi_device(test_case):
@@ -419,9 +381,7 @@ def require_multi_device(test_case):
     Decorator marking a test that requires a multi-device setup. These tests are skipped on a machine without multiple
     devices.
     """
-    return unittest.skipUnless(
-        device_count > 1, "test requires multiple hardware accelerators"
-    )(test_case)
+    return unittest.skipUnless(device_count > 1, "test requires multiple hardware accelerators")(test_case)
 
 
 def require_multi_gpu(test_case):
@@ -429,9 +389,7 @@ def require_multi_gpu(test_case):
     Decorator marking a test that requires a multi-GPU setup. These tests are skipped on a machine without multiple
     GPUs.
     """
-    return unittest.skipUnless(
-        torch.cuda.device_count() > 1, "test requires multiple GPUs"
-    )(test_case)
+    return unittest.skipUnless(torch.cuda.device_count() > 1, "test requires multiple GPUs")(test_case)
 
 
 def require_multi_xpu(test_case):
@@ -439,9 +397,7 @@ def require_multi_xpu(test_case):
     Decorator marking a test that requires a multi-XPU setup. These tests are skipped on a machine without multiple
     XPUs.
     """
-    return unittest.skipUnless(
-        torch.xpu.device_count() > 1, "test requires multiple XPUs"
-    )(test_case)
+    return unittest.skipUnless(torch.xpu.device_count() > 1, "test requires multiple XPUs")(test_case)
 
 
 def require_multi_gpu_or_xpu(test_case):
@@ -450,8 +406,7 @@ def require_multi_gpu_or_xpu(test_case):
     GPUs or XPUs.
     """
     return unittest.skipUnless(
-        (is_cuda_available() or is_xpu_available()) and device_count > 1,
-        "test requires multiple GPUs or XPUs",
+        (is_cuda_available() or is_xpu_available()) and device_count > 1, "test requires multiple GPUs or XPUs"
     )(test_case)
 
 
@@ -459,18 +414,14 @@ def require_deepspeed(test_case):
     """
     Decorator marking a test that requires DeepSpeed installed. These tests are skipped when DeepSpeed isn't installed
     """
-    return unittest.skipUnless(is_deepspeed_available(), "test requires DeepSpeed")(
-        test_case
-    )
+    return unittest.skipUnless(is_deepspeed_available(), "test requires DeepSpeed")(test_case)
 
 
 def require_tp(test_case):
     """
     Decorator marking a test that requires TP installed. These tests are skipped when TP isn't installed
     """
-    return unittest.skipUnless(
-        is_torch_version(">=", "2.3.0"), "test requires torch version >= 2.3.0"
-    )(test_case)
+    return unittest.skipUnless(is_torch_version(">=", "2.3.0"), "test requires torch version >= 2.3.0")(test_case)
 
 
 def require_torch_min_version(test_case=None, version=None):
@@ -480,9 +431,7 @@ def require_torch_min_version(test_case=None, version=None):
     """
     if test_case is None:
         return partial(require_torch_min_version, version=version)
-    return unittest.skipUnless(
-        is_torch_version(">=", version), f"test requires torch version >= {version}"
-    )(test_case)
+    return unittest.skipUnless(is_torch_version(">=", version), f"test requires torch version >= {version}")(test_case)
 
 
 def require_tensorboard(test_case):
@@ -490,9 +439,7 @@ def require_tensorboard(test_case):
     Decorator marking a test that requires tensorboard installed. These tests are skipped when tensorboard isn't
     installed
     """
-    return unittest.skipUnless(is_tensorboard_available(), "test requires Tensorboard")(
-        test_case
-    )
+    return unittest.skipUnless(is_tensorboard_available(), "test requires Tensorboard")(test_case)
 
 
 def require_wandb(test_case):
@@ -506,27 +453,21 @@ def require_comet_ml(test_case):
     """
     Decorator marking a test that requires comet_ml installed. These tests are skipped when comet_ml isn't installed
     """
-    return unittest.skipUnless(is_comet_ml_available(), "test requires comet_ml")(
-        test_case
-    )
+    return unittest.skipUnless(is_comet_ml_available(), "test requires comet_ml")(test_case)
 
 
 def require_clearml(test_case):
     """
     Decorator marking a test that requires clearml installed. These tests are skipped when clearml isn't installed
     """
-    return unittest.skipUnless(is_clearml_available(), "test requires clearml")(
-        test_case
-    )
+    return unittest.skipUnless(is_clearml_available(), "test requires clearml")(test_case)
 
 
 def require_dvclive(test_case):
     """
     Decorator marking a test that requires dvclive installed. These tests are skipped when dvclive isn't installed
     """
-    return unittest.skipUnless(is_dvclive_available(), "test requires dvclive")(
-        test_case
-    )
+    return unittest.skipUnless(is_dvclive_available(), "test requires dvclive")(test_case)
 
 
 def require_pandas(test_case):
@@ -548,9 +489,7 @@ def require_pippy(test_case):
     Decorator marking a test that requires pippy installed. These tests are skipped when pippy isn't installed It is
     also checked if the test is running on a Gaudi1 device which doesn't support pippy.
     """
-    return unittest.skipUnless(
-        is_pippy_available() and not is_habana_gaudi1(), "test requires pippy"
-    )(test_case)
+    return unittest.skipUnless(is_pippy_available() and not is_habana_gaudi1(), "test requires pippy")(test_case)
 
 
 def require_import_timer(test_case):
@@ -558,9 +497,7 @@ def require_import_timer(test_case):
     Decorator marking a test that requires tuna interpreter installed. These tests are skipped when tuna isn't
     installed
     """
-    return unittest.skipUnless(
-        is_import_timer_available(), "test requires tuna interpreter"
-    )(test_case)
+    return unittest.skipUnless(is_import_timer_available(), "test requires tuna interpreter")(test_case)
 
 
 def require_transformer_engine(test_case):
@@ -568,18 +505,14 @@ def require_transformer_engine(test_case):
     Decorator marking a test that requires transformers engine installed. These tests are skipped when transformers
     engine isn't installed
     """
-    return unittest.skipUnless(
-        is_transformer_engine_available(), "test requires transformers engine"
-    )(test_case)
+    return unittest.skipUnless(is_transformer_engine_available(), "test requires transformers engine")(test_case)
 
 
 def require_torchao(test_case):
     """
     Decorator marking a test that requires torchao installed. These tests are skipped when torchao isn't installed
     """
-    return unittest.skipUnless(is_torchao_available(), "test requires torchao")(
-        test_case
-    )
+    return unittest.skipUnless(is_torchao_available(), "test requires torchao")(test_case)
 
 
 def require_matplotlib(test_case):
@@ -587,14 +520,11 @@ def require_matplotlib(test_case):
     Decorator marking a test that requires matplotlib installed. These tests are skipped when matplotlib isn't
     installed
     """
-    return unittest.skipUnless(is_matplotlib_available(), "test requires matplotlib")(
-        test_case
-    )
+    return unittest.skipUnless(is_matplotlib_available(), "test requires matplotlib")(test_case)
 
 
 _atleast_one_tracker_available = (
-    any([is_wandb_available(), is_tensorboard_available()])
-    and not is_comet_ml_available()
+    any([is_wandb_available(), is_tensorboard_available()]) and not is_comet_ml_available()
 )
 
 
@@ -617,8 +547,7 @@ def require_torchdata_stateful_dataloader(test_case):
 
     """
     return unittest.skipUnless(
-        is_torchdata_stateful_dataloader_available(),
-        "test requires torchdata.stateful_dataloader",
+        is_torchdata_stateful_dataloader_available(), "test requires torchdata.stateful_dataloader"
     )(test_case)
 
 
@@ -747,9 +676,7 @@ async def _read_stream(stream, callback):
             break
 
 
-async def _stream_subprocess(
-    cmd, env=None, stdin=None, timeout=None, quiet=False, echo=False
-) -> _RunOutput:
+async def _stream_subprocess(cmd, env=None, stdin=None, timeout=None, quiet=False, echo=False) -> _RunOutput:
     if echo:
         print("\nRunning: ", " ".join(cmd))
 
@@ -782,34 +709,22 @@ async def _stream_subprocess(
     # XXX: the timeout doesn't seem to make any difference here
     await asyncio.wait(
         [
-            asyncio.create_task(
-                _read_stream(
-                    p.stdout, lambda l: tee(l, out, sys.stdout, label="stdout:")
-                )
-            ),
-            asyncio.create_task(
-                _read_stream(
-                    p.stderr, lambda l: tee(l, err, sys.stderr, label="stderr:")
-                )
-            ),
+            asyncio.create_task(_read_stream(p.stdout, lambda l: tee(l, out, sys.stdout, label="stdout:"))),
+            asyncio.create_task(_read_stream(p.stderr, lambda l: tee(l, err, sys.stderr, label="stderr:"))),
         ],
         timeout=timeout,
     )
     return _RunOutput(await p.wait(), out, err)
 
 
-def execute_subprocess_async(
-    cmd: list, env=None, stdin=None, timeout=180, quiet=False, echo=True
-) -> _RunOutput:
+def execute_subprocess_async(cmd: list, env=None, stdin=None, timeout=180, quiet=False, echo=True) -> _RunOutput:
     # Cast every path in `cmd` to a string
     for i, c in enumerate(cmd):
         if isinstance(c, Path):
             cmd[i] = str(c)
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(
-        _stream_subprocess(
-            cmd, env=env, stdin=stdin, timeout=timeout, quiet=quiet, echo=echo
-        )
+        _stream_subprocess(cmd, env=env, stdin=stdin, timeout=timeout, quiet=quiet, echo=echo)
     )
 
     cmd_str = " ".join(cmd)
@@ -899,17 +814,11 @@ def assert_exception(exception_class: Exception, msg: str = None) -> bool:
         yield
         was_ran = True
     except Exception as e:
-        assert isinstance(
-            e, exception_class
-        ), f"Expected exception of type {exception_class} but got {type(e)}"
+        assert isinstance(e, exception_class), f"Expected exception of type {exception_class} but got {type(e)}"
         if msg is not None:
-            assert msg in str(
-                e
-            ), f"Expected message '{msg}' to be in exception but got '{str(e)}'"
+            assert msg in str(e), f"Expected message '{msg}' to be in exception but got '{str(e)}'"
     if was_ran:
-        raise AssertionError(
-            f"Expected exception of type {exception_class} but ran without issue."
-        )
+        raise AssertionError(f"Expected exception of type {exception_class} but ran without issue.")
 
 
 def capture_call_output(func, *args, **kwargs):

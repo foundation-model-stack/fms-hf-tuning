@@ -60,10 +60,7 @@ def is_compiled_module(module):
 
 
 def extract_model_from_parallel(
-    model,
-    keep_fp32_wrapper: bool = True,
-    keep_torch_compile: bool = True,
-    recursive: bool = False,
+    model, keep_fp32_wrapper: bool = True, keep_torch_compile: bool = True, recursive: bool = False
 ):
     """
     Extract a model from its distributed containers.
@@ -94,13 +91,8 @@ def extract_model_from_parallel(
 
         options += (DeepSpeedEngine,)
 
-    if (
-        is_torch_version(">=", FSDP_PYTORCH_VERSION)
-        and is_torch_distributed_available()
-    ):
-        from torch.distributed.fsdp.fully_sharded_data_parallel import (
-            FullyShardedDataParallel as FSDP,
-        )
+    if is_torch_version(">=", FSDP_PYTORCH_VERSION) and is_torch_distributed_available():
+        from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
 
         options += (FSDP,)
 
@@ -187,10 +179,7 @@ def clean_state_dict_for_safetensors(state_dict: dict):
         logger.warning(
             f"Removed shared tensor {warn_names} while saving. This should be OK, but check by verifying that you don't receive any warning while reloading",
         )
-    state_dict = {
-        k: v.contiguous() if isinstance(v, torch.Tensor) else v
-        for k, v in state_dict.items()
-    }
+    state_dict = {k: v.contiguous() if isinstance(v, torch.Tensor) else v for k, v in state_dict.items()}
     return state_dict
 
 

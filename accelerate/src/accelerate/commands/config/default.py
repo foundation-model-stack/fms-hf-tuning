@@ -33,9 +33,7 @@ from .config_utils import SubcommandHelpFormatter
 description = "Create a default config file for Accelerate with only a few flags set."
 
 
-def write_basic_config(
-    mixed_precision="no", save_location: str = default_json_config_file
-):
+def write_basic_config(mixed_precision="no", save_location: str = default_json_config_file):
     """
     Creates and saves a basic cluster config to be used on a local machine with potentially multiple GPUs. Will also
     set CPU if it is a CPU-only machine.
@@ -133,12 +131,7 @@ def write_basic_config(
 
 
 def default_command_parser(parser, parents):
-    parser = parser.add_parser(
-        "default",
-        parents=parents,
-        help=description,
-        formatter_class=SubcommandHelpFormatter,
-    )
+    parser = parser.add_parser("default", parents=parents, help=description, formatter_class=SubcommandHelpFormatter)
     parser.add_argument(
         "--config_file",
         default=default_json_config_file,

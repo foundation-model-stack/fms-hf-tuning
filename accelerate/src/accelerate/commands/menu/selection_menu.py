@@ -21,15 +21,7 @@ import sys
 
 from ...utils.imports import _is_package_available
 from . import cursor, input
-from .helpers import (
-    Direction,
-    clear_line,
-    forceWrite,
-    linebreak,
-    move_cursor,
-    reset_cursor,
-    writeColor,
-)
+from .helpers import Direction, clear_line, forceWrite, linebreak, move_cursor, reset_cursor, writeColor
 from .keymap import KEYMAP
 
 
@@ -126,15 +118,9 @@ class BulletMenu:
             linebreak()
             forceWrite(self.prompt, "\n")
             if in_colab:
-                forceWrite(
-                    "Please input a choice index (starting from 0), and press enter",
-                    "\n",
-                )
+                forceWrite("Please input a choice index (starting from 0), and press enter", "\n")
             else:
-                forceWrite(
-                    "Please select a choice using the arrow or number keys, and selecting with enter",
-                    "\n",
-                )
+                forceWrite("Please select a choice using the arrow or number keys, and selecting with enter", "\n")
         self.position = default_choice
         for i in range(len(self.choices)):
             self.print_choice(i)

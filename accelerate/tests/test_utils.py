@@ -64,9 +64,7 @@ from accelerate.utils.operations import is_namedtuple
 if is_torch_xla_available():
     import torch_xla.distributed.spmd as xs
     import torch_xla.runtime as xr
-    from torch_xla.experimental.spmd_fully_sharded_data_parallel import (
-        SpmdFullyShardedDataParallel as FSDPv2,
-    )
+    from torch_xla.experimental.spmd_fully_sharded_data_parallel import SpmdFullyShardedDataParallel as FSDPv2
 
 ExampleNamedTuple = namedtuple("ExampleNamedTuple", "a b c")
 
@@ -99,9 +97,7 @@ class UtilsTester(unittest.TestCase):
         assert torch.equal(result2["b"][1].cpu(), tensor)
         assert result2["c"] == 1
 
-        result3 = send_to_device(
-            ExampleNamedTuple(a=tensor, b=[tensor, tensor], c=1), device
-        )
+        result3 = send_to_device(ExampleNamedTuple(a=tensor, b=[tensor, tensor], c=1), device)
         assert isinstance(result3, ExampleNamedTuple)
         assert torch.equal(result3.a.cpu(), tensor)
         assert isinstance(result3.b, list)
@@ -109,9 +105,7 @@ class UtilsTester(unittest.TestCase):
         assert torch.equal(result3.b[1].cpu(), tensor)
         assert result3.c == 1
 
-        result4 = send_to_device(
-            UserDict({"a": tensor, "b": [tensor, tensor], "c": 1}), device
-        )
+        result4 = send_to_device(UserDict({"a": tensor, "b": [tensor, tensor], "c": 1}), device)
         assert isinstance(result4, UserDict)
         assert torch.equal(result4["a"].cpu(), tensor)
         assert isinstance(result4["b"], list)
@@ -121,9 +115,7 @@ class UtilsTester(unittest.TestCase):
 
     def test_honor_type(self):
         with self.assertRaises(TypeError) as cm:
-            _ = recursively_apply(
-                torch.tensor, (torch.tensor(1), 1), error_on_other_type=True
-            )
+            _ = recursively_apply(torch.tensor, (torch.tensor(1), 1), error_on_other_type=True)
         assert (
             str(cm.exception)
             == "Unsupported types (<class 'int'>) passed to `tensor`. Only nested list/tuple/dicts of objects that are valid for `is_torch_tensor` should be passed."
@@ -136,16 +128,8 @@ class UtilsTester(unittest.TestCase):
         tensor = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
         assert listify(tensor) == [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]
 
-        tensor = torch.tensor(
-            [
-                [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
-                [[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]],
-            ]
-        )
-        assert listify(tensor) == [
-            [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]],
-            [[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]],
-        ]
+        tensor = torch.tensor([[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], [[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]]])
+        assert listify(tensor) == [[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], [[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]]]
 
     def test_patch_environment(self):
         with patch_environment(aa=1, BB=2):
@@ -188,9 +172,7 @@ class UtilsTester(unittest.TestCase):
         key, value = os.environ.copy().popitem()
         with pytest.raises(RuntimeError), clear_environment():
             assert key not in os.environ
-            assert not os.getenv(
-                key
-            )  # test the environment is actually cleared  # noqa: TID251
+            assert not os.getenv(key)  # test the environment is actually cleared  # noqa: TID251
             raise RuntimeError("Oopsy daisy!")
         # Test values are restored
         assert os.getenv(key) == os.environ[key] == value  # noqa: TID251
@@ -206,9 +188,7 @@ class UtilsTester(unittest.TestCase):
     def test_can_undo_fp16_conversion(self):
         model = RegressionModel()
         model._original_forward = model.forward
-        model.forward = torch.autocast(device_type=torch_device, dtype=torch.float16)(
-            model.forward
-        )
+        model.forward = torch.autocast(device_type=torch_device, dtype=torch.float16)(model.forward)
         model.forward = convert_outputs_to_fp32(model.forward)
         model = extract_model_from_parallel(model, keep_fp32_wrapper=False)
         _ = pickle.dumps(model)
@@ -218,9 +198,7 @@ class UtilsTester(unittest.TestCase):
     def test_dynamo(self):
         model = RegressionModel()
         model._original_forward = model.forward
-        model.forward = torch.autocast(device_type=torch_device, dtype=torch.float16)(
-            model.forward
-        )
+        model.forward = torch.autocast(device_type=torch_device, dtype=torch.float16)(model.forward)
         model.forward = convert_outputs_to_fp32(model.forward)
         model.forward = torch.compile(model.forward, backend="inductor")
         inputs = torch.randn(4, 10).to(torch_device)
@@ -246,13 +224,7 @@ class UtilsTester(unittest.TestCase):
         orig_state_dict_keys = list(model.state_dict().keys())
         num_devices = xr.global_runtime_device_count()
         # Set environment for FSDPv2 to be active
-        xs.set_global_mesh(
-            xs.Mesh(
-                np.array(range(num_devices)),
-                (num_devices, 1),
-                axis_names=("fsdp", "tensor"),
-            )
-        )
+        xs.set_global_mesh(xs.Mesh(np.array(range(num_devices)), (num_devices, 1), axis_names=("fsdp", "tensor")))
 
         def nested_wrap(model):
             layer = model.wte
@@ -263,12 +235,8 @@ class UtilsTester(unittest.TestCase):
         wrapped_model = nested_wrap(model)
         unwrapped_model = extract_model_from_parallel(wrapped_model, recursive=True)
         unwrapped_state_dict_keys = list(unwrapped_model.state_dict().keys())
-        for original_key, new_key in zip(
-            orig_state_dict_keys, unwrapped_state_dict_keys
-        ):
-            assert (
-                original_key == new_key
-            ), f"Keys did not align: {original_key} != {new_key}"
+        for original_key, new_key in zip(orig_state_dict_keys, unwrapped_state_dict_keys):
+            assert original_key == new_key, f"Keys did not align: {original_key} != {new_key}"
 
     def test_dynamo_extract_model_keep_torch_compile(self):
         model = RegressionModel()
@@ -277,9 +245,7 @@ class UtilsTester(unittest.TestCase):
         # could also do a test with DistributedDataParallel, but difficult to run on CPU or single GPU
         distributed_model = torch.nn.parallel.DataParallel(model)
         distributed_compiled_model = torch.compile(distributed_model)
-        compiled_model_unwrapped = extract_model_from_parallel(
-            distributed_compiled_model, keep_torch_compile=True
-        )
+        compiled_model_unwrapped = extract_model_from_parallel(distributed_compiled_model, keep_torch_compile=True)
 
         assert compiled_model._orig_mod == compiled_model_unwrapped._orig_mod
 
@@ -290,45 +256,32 @@ class UtilsTester(unittest.TestCase):
         # could also do a test with DistributedDataParallel, but difficult to run on CPU or single GPU
         distributed_model = torch.nn.parallel.DataParallel(model)
         distributed_compiled_model = torch.compile(distributed_model)
-        compiled_model_unwrapped = extract_model_from_parallel(
-            distributed_compiled_model, keep_torch_compile=False
-        )
+        compiled_model_unwrapped = extract_model_from_parallel(distributed_compiled_model, keep_torch_compile=False)
 
         assert compiled_model._orig_mod == compiled_model_unwrapped
 
     def test_find_device(self):
         assert find_device([1, "a", torch.tensor([1, 2, 3])]) == torch.device("cpu")
-        assert find_device({"a": 1, "b": torch.tensor([1, 2, 3])}) == torch.device(
-            "cpu"
-        )
+        assert find_device({"a": 1, "b": torch.tensor([1, 2, 3])}) == torch.device("cpu")
         assert find_device([1, "a"]) is None
 
     def test_check_os_kernel_no_warning_when_release_gt_min(self):
         # min version is 5.5
-        with patch(
-            "platform.uname",
-            return_value=Mock(release="5.15.0-35-generic", system="Linux"),
-        ):
+        with patch("platform.uname", return_value=Mock(release="5.15.0-35-generic", system="Linux")):
             with warnings.catch_warnings(record=True) as w:
                 check_os_kernel()
             assert len(w) == 0
 
     def test_check_os_kernel_no_warning_when_not_linux(self):
         # system must be Linux
-        with patch(
-            "platform.uname",
-            return_value=Mock(release="5.4.0-35-generic", system="Darwin"),
-        ):
+        with patch("platform.uname", return_value=Mock(release="5.4.0-35-generic", system="Darwin")):
             with warnings.catch_warnings(record=True) as w:
                 check_os_kernel()
             assert len(w) == 0
 
     def test_check_os_kernel_warning_when_release_lt_min(self):
         # min version is 5.5
-        with patch(
-            "platform.uname",
-            return_value=Mock(release="5.4.0-35-generic", system="Linux"),
-        ):
+        with patch("platform.uname", return_value=Mock(release="5.4.0-35-generic", system="Linux")):
             with self.assertLogs() as ctx:
                 check_os_kernel()
             assert len(ctx.records) == 1
@@ -469,11 +422,7 @@ class UtilsTester(unittest.TestCase):
         self.assertFalse(is_namedtuple(object()))
 
     def test_convert_dict_to_env_variables(self):
-        env = {
-            "ACCELERATE_DEBUG_MODE": "1",
-            "BAD_ENV_NAME": "<mything",
-            "OTHER_ENV": "2",
-        }
+        env = {"ACCELERATE_DEBUG_MODE": "1", "BAD_ENV_NAME": "<mything", "OTHER_ENV": "2"}
         with self.assertLogs("accelerate.utils.environment", level="WARNING"):
             valid_env_items = convert_dict_to_env_variables(env)
         assert valid_env_items == ["ACCELERATE_DEBUG_MODE=1\n", "OTHER_ENV=2\n"]

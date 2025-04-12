@@ -48,12 +48,7 @@ class OffloadTester(unittest.TestCase):
             assert os.path.isfile(index_file)
             # TODO: add tests on what is inside the index
 
-            for key in [
-                "linear1.weight",
-                "linear1.bias",
-                "linear2.weight",
-                "linear2.bias",
-            ]:
+            for key in ["linear1.weight", "linear1.bias", "linear2.weight", "linear2.bias"]:
                 weight_file = os.path.join(tmp_dir, f"{key}.dat")
                 assert os.path.isfile(weight_file)
                 # TODO: add tests on the fact weights are properly loaded
@@ -67,9 +62,7 @@ class OffloadTester(unittest.TestCase):
                 index = offload_weight(weight, "weight", tmp_dir, {})
                 weight_file = os.path.join(tmp_dir, "weight.dat")
                 assert os.path.isfile(weight_file)
-                assert index == {
-                    "weight": {"shape": [2, 3], "dtype": str(dtype).split(".")[1]}
-                }
+                assert index == {"weight": {"shape": [2, 3], "dtype": str(dtype).split(".")[1]}}
 
                 new_weight = load_offloaded_weight(weight_file, index["weight"])
                 assert torch.equal(weight, new_weight)
@@ -82,9 +75,7 @@ class OffloadTester(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             offload_state_dict(tmp_dir, disk_part)
-            weight_map = OffloadedWeightsLoader(
-                state_dict=cpu_part, save_folder=tmp_dir
-            )
+            weight_map = OffloadedWeightsLoader(state_dict=cpu_part, save_folder=tmp_dir)
 
             # Every key is there with the right value
             assert sorted(weight_map) == sorted(state_dict.keys())
@@ -96,9 +87,7 @@ class OffloadTester(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             offload_state_dict(tmp_dir, disk_part)
-            weight_map = OffloadedWeightsLoader(
-                state_dict=cpu_part, save_folder=tmp_dir
-            )
+            weight_map = OffloadedWeightsLoader(state_dict=cpu_part, save_folder=tmp_dir)
 
             # Every key is there with the right value
             assert sorted(weight_map) == sorted(state_dict.keys())
@@ -108,9 +97,7 @@ class OffloadTester(unittest.TestCase):
         with TemporaryDirectory() as tmp_dir:
             offload_state_dict(tmp_dir, state_dict)
             # Duplicates are removed
-            weight_map = OffloadedWeightsLoader(
-                state_dict=cpu_part, save_folder=tmp_dir
-            )
+            weight_map = OffloadedWeightsLoader(state_dict=cpu_part, save_folder=tmp_dir)
 
             # Every key is there with the right value
             assert sorted(weight_map) == sorted(state_dict.keys())

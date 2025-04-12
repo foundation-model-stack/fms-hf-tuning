@@ -65,9 +65,7 @@ class MockLaunchConfig(SageMakerConfig):
 class SageMakerLaunch(unittest.TestCase):
     def test_args_convert(self):
         # If no defaults are changed, `to_kwargs` returns an empty dict.
-        converted_args = _convert_nargs_to_dict(
-            MockLaunchConfig.success_training_script_args
-        )
+        converted_args = _convert_nargs_to_dict(MockLaunchConfig.success_training_script_args)
         assert isinstance(converted_args["model_name_or_path"], str)
         assert isinstance(converted_args["do_train"], bool)
         assert isinstance(converted_args["epochs"], int)

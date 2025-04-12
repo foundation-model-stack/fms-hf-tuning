@@ -63,29 +63,20 @@ def _set_model_state_dict(model, state_dict, adapter_only=False):
     if adapter_only and is_peft_model(model):
         from peft import set_peft_model_state_dict
 
-        return set_peft_model_state_dict(
-            model, state_dict, adapter_name=model.active_adapter
-        )
+        return set_peft_model_state_dict(model, state_dict, adapter_name=model.active_adapter)
     else:
         return model.load_state_dict(state_dict)
 
 
-def save_fsdp_model(
-    fsdp_plugin, accelerator, model, output_dir, model_index=0, adapter_only=False
-):
+def save_fsdp_model(fsdp_plugin, accelerator, model, output_dir, model_index=0, adapter_only=False):
     # Note: We import here to reduce import time from general modules, and isolate outside dependencies
     import torch.distributed.checkpoint as dist_cp
     from torch.distributed.checkpoint.default_planner import DefaultSavePlanner
-    from torch.distributed.fsdp.fully_sharded_data_parallel import (
-        FullyShardedDataParallel as FSDP,
-    )
+    from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
     from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 
     os.makedirs(output_dir, exist_ok=True)
-    if (
-        fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT
-        and fsdp_plugin.fsdp_version == 1
-    ):
+    if fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT and fsdp_plugin.fsdp_version == 1:
         # FSDP raises error when single GPU is used with `offload_to_cpu=True` for FULL_STATE_DICT
         # so, only enable it when num_processes>1
         is_multi_process = accelerator.num_processes > 1
@@ -94,10 +85,7 @@ def save_fsdp_model(
 
     ctx = (
         FSDP.state_dict_type(
-            model,
-            fsdp_plugin.state_dict_type,
-            fsdp_plugin.state_dict_config,
-            fsdp_plugin.optim_state_dict_config,
+            model, fsdp_plugin.state_dict_type, fsdp_plugin.state_dict_config, fsdp_plugin.optim_state_dict_config
         )
         if fsdp_plugin.fsdp_version == 1
         else nullcontext()
@@ -106,11 +94,7 @@ def save_fsdp_model(
     with ctx:
         state_dict = _get_model_state_dict(model, adapter_only=adapter_only)
         if fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT:
-            weights_name = (
-                f"{FSDP_MODEL_NAME}.bin"
-                if model_index == 0
-                else f"{FSDP_MODEL_NAME}_{model_index}.bin"
-            )
+            weights_name = f"{FSDP_MODEL_NAME}.bin" if model_index == 0 else f"{FSDP_MODEL_NAME}_{model_index}.bin"
             output_model_file = os.path.join(output_dir, weights_name)
             if accelerator.process_index == 0:
                 logger.info(f"Saving model to {output_model_file}")
@@ -141,22 +125,15 @@ def save_fsdp_model(
             logger.info(f"Model saved to {ckpt_dir}")
 
 
-def load_fsdp_model(
-    fsdp_plugin, accelerator, model, input_dir, model_index=0, adapter_only=False
-):
+def load_fsdp_model(fsdp_plugin, accelerator, model, input_dir, model_index=0, adapter_only=False):
     # Note: We import here to reduce import time from general modules, and isolate outside dependencies
     import torch.distributed.checkpoint as dist_cp
     from torch.distributed.checkpoint.default_planner import DefaultLoadPlanner
-    from torch.distributed.fsdp.fully_sharded_data_parallel import (
-        FullyShardedDataParallel as FSDP,
-    )
+    from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
     from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 
     accelerator.wait_for_everyone()
-    if (
-        fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT
-        and fsdp_plugin.fsdp_version == 1
-    ):
+    if fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT and fsdp_plugin.fsdp_version == 1:
         # FSDP raises error when single GPU is used with `offload_to_cpu=True` for FULL_STATE_DICT
         # so, only enable it when num_processes>1
         is_multi_process = accelerator.num_processes > 1
@@ -165,10 +142,7 @@ def load_fsdp_model(
 
     ctx = (
         FSDP.state_dict_type(
-            model,
-            fsdp_plugin.state_dict_type,
-            fsdp_plugin.state_dict_config,
-            fsdp_plugin.optim_state_dict_config,
+            model, fsdp_plugin.state_dict_type, fsdp_plugin.state_dict_config, fsdp_plugin.optim_state_dict_config
         )
         if fsdp_plugin.fsdp_version == 1
         else nullcontext()
@@ -183,11 +157,7 @@ def load_fsdp_model(
                         "initializing FSDP object"
                     )
                 return
-            weights_name = (
-                f"{FSDP_MODEL_NAME}.bin"
-                if model_index == 0
-                else f"{FSDP_MODEL_NAME}_{model_index}.bin"
-            )
+            weights_name = f"{FSDP_MODEL_NAME}.bin" if model_index == 0 else f"{FSDP_MODEL_NAME}_{model_index}.bin"
             input_model_file = os.path.join(input_dir, weights_name)
             logger.info(f"Loading model from {input_model_file}")
             state_dict = torch.load(input_model_file)
@@ -209,9 +179,7 @@ def load_fsdp_model(
                 else input_dir
             )
             logger.info(f"Loading model from {ckpt_dir}")
-            state_dict = {
-                "model": _get_model_state_dict(model, adapter_only=adapter_only)
-            }
+            state_dict = {"model": _get_model_state_dict(model, adapter_only=adapter_only)}
             dist_cp.load_state_dict(
                 state_dict=state_dict,
                 storage_reader=dist_cp.FileSystemReader(ckpt_dir),
@@ -221,9 +189,7 @@ def load_fsdp_model(
             logger.info(f"Model loaded from {ckpt_dir}")
 
         if fsdp_plugin.fsdp_version == 1:
-            load_result = _set_model_state_dict(
-                model, state_dict, adapter_only=adapter_only
-            )
+            load_result = _set_model_state_dict(model, state_dict, adapter_only=adapter_only)
         else:
             from torch.distributed.checkpoint.state_dict import set_model_state_dict
 
@@ -231,25 +197,18 @@ def load_fsdp_model(
     return load_result
 
 
-def save_fsdp_optimizer(
-    fsdp_plugin, accelerator, optimizer, model, output_dir, optimizer_index=0
-):
+def save_fsdp_optimizer(fsdp_plugin, accelerator, optimizer, model, output_dir, optimizer_index=0):
     # Note: We import here to reduce import time from general modules, and isolate outside dependencies
     import torch.distributed.checkpoint as dist_cp
     from torch.distributed.checkpoint.default_planner import DefaultSavePlanner
-    from torch.distributed.fsdp.fully_sharded_data_parallel import (
-        FullyShardedDataParallel as FSDP,
-    )
+    from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
     from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 
     os.makedirs(output_dir, exist_ok=True)
 
     ctx = (
         FSDP.state_dict_type(
-            model,
-            fsdp_plugin.state_dict_type,
-            fsdp_plugin.state_dict_config,
-            fsdp_plugin.optim_state_dict_config,
+            model, fsdp_plugin.state_dict_type, fsdp_plugin.state_dict_config, fsdp_plugin.optim_state_dict_config
         )
         if fsdp_plugin.fsdp_version == 1
         else nullcontext()
@@ -264,9 +223,7 @@ def save_fsdp_optimizer(
         if fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT:
             if accelerator.process_index == 0:
                 optim_state_name = (
-                    f"{OPTIMIZER_NAME}.bin"
-                    if optimizer_index == 0
-                    else f"{OPTIMIZER_NAME}_{optimizer_index}.bin"
+                    f"{OPTIMIZER_NAME}.bin" if optimizer_index == 0 else f"{OPTIMIZER_NAME}_{optimizer_index}.bin"
                 )
                 output_optimizer_file = os.path.join(output_dir, optim_state_name)
                 logger.info(f"Saving Optimizer state to {output_optimizer_file}")
@@ -284,30 +241,17 @@ def save_fsdp_optimizer(
             logger.info(f"Optimizer state saved in {ckpt_dir}")
 
 
-def load_fsdp_optimizer(
-    fsdp_plugin,
-    accelerator,
-    optimizer,
-    model,
-    input_dir,
-    optimizer_index=0,
-    adapter_only=False,
-):
+def load_fsdp_optimizer(fsdp_plugin, accelerator, optimizer, model, input_dir, optimizer_index=0, adapter_only=False):
     # Note: We import here to reduce import time from general modules, and isolate outside dependencies
     import torch.distributed.checkpoint as dist_cp
     from torch.distributed.checkpoint.optimizer import load_sharded_optimizer_state_dict
-    from torch.distributed.fsdp.fully_sharded_data_parallel import (
-        FullyShardedDataParallel as FSDP,
-    )
+    from torch.distributed.fsdp.fully_sharded_data_parallel import FullyShardedDataParallel as FSDP
     from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 
     accelerator.wait_for_everyone()
     ctx = (
         FSDP.state_dict_type(
-            model,
-            fsdp_plugin.state_dict_type,
-            fsdp_plugin.state_dict_config,
-            fsdp_plugin.optim_state_dict_config,
+            model, fsdp_plugin.state_dict_type, fsdp_plugin.state_dict_config, fsdp_plugin.optim_state_dict_config
         )
         if fsdp_plugin.fsdp_version == 1
         else nullcontext()
@@ -315,14 +259,9 @@ def load_fsdp_optimizer(
     with ctx:
         if fsdp_plugin.state_dict_type == StateDictType.FULL_STATE_DICT:
             optim_state = None
-            if (
-                accelerator.process_index == 0
-                or not fsdp_plugin.optim_state_dict_config.rank0_only
-            ):
+            if accelerator.process_index == 0 or not fsdp_plugin.optim_state_dict_config.rank0_only:
                 optimizer_name = (
-                    f"{OPTIMIZER_NAME}.bin"
-                    if optimizer_index == 0
-                    else f"{OPTIMIZER_NAME}_{optimizer_index}.bin"
+                    f"{OPTIMIZER_NAME}.bin" if optimizer_index == 0 else f"{OPTIMIZER_NAME}_{optimizer_index}.bin"
                 )
                 input_optimizer_file = os.path.join(input_dir, optimizer_name)
                 logger.info(f"Loading Optimizer state from {input_optimizer_file}")
@@ -337,9 +276,7 @@ def load_fsdp_optimizer(
             logger.info(f"Loading Optimizer from {ckpt_dir}")
             if fsdp_plugin.fsdp_version == 1:
                 optim_state = load_sharded_optimizer_state_dict(
-                    model_state_dict=_get_model_state_dict(
-                        model, adapter_only=adapter_only
-                    ),
+                    model_state_dict=_get_model_state_dict(model, adapter_only=adapter_only),
                     optimizer_key="optimizer",
                     storage_reader=dist_cp.FileSystemReader(ckpt_dir),
                 )
@@ -353,9 +290,7 @@ def load_fsdp_optimizer(
             optim_state = optim_state["optimizer"]
             logger.info(f"Optimizer loaded from {ckpt_dir}")
         if fsdp_plugin.fsdp_version == 1:
-            flattened_osd = FSDP.optim_state_dict_to_load(
-                model=model, optim=optimizer, optim_state_dict=optim_state
-            )
+            flattened_osd = FSDP.optim_state_dict_to_load(model=model, optim=optimizer, optim_state_dict=optim_state)
             optimizer.load_state_dict(flattened_osd)
         else:
             # we can't do `set_state_dict` here because it does a step of the optimizer which breaks with grad-scaler
@@ -363,9 +298,7 @@ def load_fsdp_optimizer(
             optimizer.load_state_dict(optim_state)
 
 
-def _distributed_checkpoint_to_merged_weights(
-    checkpoint_dir: str, save_path: str, safe_serialization: bool = True
-):
+def _distributed_checkpoint_to_merged_weights(checkpoint_dir: str, save_path: str, safe_serialization: bool = True):
     """
     Passthrough to `torch.distributed.checkpoint.format_utils.dcp_to_torch_save`
 
@@ -384,11 +317,7 @@ def _distributed_checkpoint_to_merged_weights(
         planner=dist_cp_format_utils._EmptyStateDictLoadPlanner(),
         no_dist=True,
     )
-    save_path = (
-        save_path / SAFE_WEIGHTS_NAME
-        if safe_serialization
-        else save_path / WEIGHTS_NAME
-    )
+    save_path = save_path / SAFE_WEIGHTS_NAME if safe_serialization else save_path / WEIGHTS_NAME
 
     # To handle if state is a dict like {model: {...}}
     if len(state_dict.keys()) == 1:
@@ -398,10 +327,7 @@ def _distributed_checkpoint_to_merged_weights(
 
 
 def merge_fsdp_weights(
-    checkpoint_dir: str,
-    output_path: str,
-    safe_serialization: bool = True,
-    remove_checkpoint_dir: bool = False,
+    checkpoint_dir: str, output_path: str, safe_serialization: bool = True, remove_checkpoint_dir: bool = False
 ):
     """
     Merge the weights from sharded FSDP model checkpoints into a single combined checkpoint. Should be used if
@@ -432,16 +358,12 @@ def merge_fsdp_weights(
         optimizer_path_exists = (checkpoint_dir / "optimizer_0").exists()
         err = f"Tried to load from {checkpoint_dir} but couldn't find a valid metadata file."
         if model_path_exists and optimizer_path_exists:
-            err += (
-                " However, potential model and optimizer checkpoint directories exist."
-            )
+            err += " However, potential model and optimizer checkpoint directories exist."
             err += f"Please pass in either {checkpoint_dir}/pytorch_model_fsdp_0 or {checkpoint_dir}/optimizer_0"
             err += "instead."
         elif model_path_exists:
             err += " However, a potential model checkpoint directory exists."
-            err += (
-                f"Please try passing in {checkpoint_dir}/pytorch_model_fsdp_0 instead."
-            )
+            err += f"Please try passing in {checkpoint_dir}/pytorch_model_fsdp_0 instead."
         elif optimizer_path_exists:
             err += " However, a potential optimizer checkpoint directory exists."
             err += f"Please try passing in {checkpoint_dir}/optimizer_0 instead."
@@ -451,9 +373,7 @@ def merge_fsdp_weights(
     state = PartialState()
     if state.is_main_process:
         logger.info(f"Merging FSDP weights from {checkpoint_dir}")
-        save_path = _distributed_checkpoint_to_merged_weights(
-            checkpoint_dir, output_path, safe_serialization
-        )
+        save_path = _distributed_checkpoint_to_merged_weights(checkpoint_dir, output_path, safe_serialization)
         logger.info(f"Successfully merged FSDP weights and saved to {save_path}")
         if remove_checkpoint_dir:
             logger.info(f"Removing old checkpoint directory {checkpoint_dir}")
@@ -461,9 +381,7 @@ def merge_fsdp_weights(
     state.wait_for_everyone()
 
 
-def ensure_weights_retied(
-    param_init_fn, model: torch.nn.Module, device: torch.cuda.device
-):
+def ensure_weights_retied(param_init_fn, model: torch.nn.Module, device: torch.cuda.device):
     _tied_names = getattr(model, "_tied_weights_keys", None)
     if not _tied_names:
         # if no tied names just passthrough
@@ -524,29 +442,21 @@ def fsdp2_load_full_state_dict(accelerator, model: torch.nn.Module, full_sd: dic
 
     sharded_sd = model.state_dict()
     if accelerator.is_main_process:
-        for (param_name, full_param), sharded_param in zip(
-            full_sd.items(), sharded_sd.values()
-        ):
+        for (param_name, full_param), sharded_param in zip(full_sd.items(), sharded_sd.values()):
             full_param = full_param.detach().cuda()
             mesh = sharded_param.device_mesh
             dist.broadcast(full_param, src=0, group=mesh.get_group())
-            sharded_tensor = distribute_tensor(
-                full_param, mesh, sharded_param.placements
-            )
+            sharded_tensor = distribute_tensor(full_param, mesh, sharded_param.placements)
             sharded_sd[param_name] = sharded_tensor
     else:
         for param_name, sharded_param in sharded_sd.items():
-            full_tensor = torch.empty(
-                sharded_param.size(), device="cuda", dtype=sharded_param.dtype
-            )
+            full_tensor = torch.empty(sharded_param.size(), device="cuda", dtype=sharded_param.dtype)
             mesh = sharded_param.device_mesh
             dist.broadcast(full_tensor, src=0, group=mesh.get_group())
-            sharded_tensor = distribute_tensor(
-                full_tensor, mesh, sharded_param.placements
-            )
+            sharded_tensor = distribute_tensor(full_tensor, mesh, sharded_param.placements)
             sharded_sd[param_name] = sharded_tensor
 
-    model.load_state_dict(sharded_sd)
+    model.load_state_dict(sharded_sd, assign=True)
 
 
 def fsdp2_switch_optimizer_parameters(optimizer: torch.optim.Optimizer, mapping: dict):
@@ -597,10 +507,7 @@ def fsdp2_prepare_model(accelerator, model: torch.nn.Module) -> torch.nn.Module:
 
     original_sd = model.state_dict()
 
-    from torch.distributed.fsdp.wrap import (
-        size_based_auto_wrap_policy,
-        transformer_auto_wrap_policy,
-    )
+    from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, transformer_auto_wrap_policy
 
     # We need the `auto_wrap_policy` original type to create a custom poilicy function for sharding
     # This is because `fully_shard` doesn't support old auto wrap policies, rather we have to imitate the behaviour
@@ -638,9 +545,7 @@ def fsdp2_prepare_model(accelerator, model: torch.nn.Module) -> torch.nn.Module:
         "mp_policy": fsdp2_plugin.mixed_precision_policy or MixedPrecisionPolicy(),
     }
 
-    auto_wrap_policy = fsdp2_prepare_auto_wrap_policy(
-        fsdp2_plugin, auto_wrap_policy_type, model
-    )
+    auto_wrap_policy = fsdp2_prepare_auto_wrap_policy(fsdp2_plugin, auto_wrap_policy_type, model)
     if auto_wrap_policy is not None:
         # We skip the model itself, as that one is always wrapped
         for module in get_module_children_bottom_up(model)[:-1]:
@@ -696,11 +601,8 @@ def fsdp2_prepare_auto_wrap_policy(
         for layer_class in transformer_cls_names_to_wrap:
             transformer_cls = get_module_class_from_name(model, layer_class)
             if transformer_cls is None:
-                raise ValueError(
-                    f"Could not find the transformer layer class {layer_class} in the model."
-                )
+                raise ValueError(f"Could not find the transformer layer class {layer_class} in the model.")
             transformer_cls_to_wrap.add(transformer_cls)
-
         def policy(module: torch.nn.Module) -> bool:
             if fsdp2_plugin.transformer_cls_names_to_wrap is None:
                 return False
@@ -710,7 +612,6 @@ def fsdp2_prepare_auto_wrap_policy(
 
         def policy(module: torch.nn.Module) -> bool:
             return module.numel() > fsdp2_plugin.min_num_params
-
     else:
         return None
 

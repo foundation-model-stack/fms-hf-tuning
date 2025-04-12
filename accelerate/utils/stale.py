@@ -36,11 +36,7 @@ def main():
     open_issues = repo.get_issues(state="open")
 
     for issue in open_issues:
-        comments = sorted(
-            [comment for comment in issue.get_comments()],
-            key=lambda i: i.created_at,
-            reverse=True,
-        )
+        comments = sorted([comment for comment in issue.get_comments()], key=lambda i: i.created_at, reverse=True)
         last_comment = comments[0] if len(comments) > 0 else None
         current_time = dt.now(timezone.utc)
         days_since_updated = (current_time - issue.updated_at).days
@@ -50,18 +46,14 @@ def main():
             and last_comment.user.login == "github-actions[bot]"
             and days_since_updated > 7
             and days_since_creation >= 30
-            and not any(
-                label.name.lower() in LABELS_TO_EXEMPT for label in issue.get_labels()
-            )
+            and not any(label.name.lower() in LABELS_TO_EXEMPT for label in issue.get_labels())
         ):
             # Close issue since it has been 7 days of inactivity since bot mention.
             issue.edit(state="closed")
         elif (
             days_since_updated > 23
             and days_since_creation >= 30
-            and not any(
-                label.name.lower() in LABELS_TO_EXEMPT for label in issue.get_labels()
-            )
+            and not any(label.name.lower() in LABELS_TO_EXEMPT for label in issue.get_labels())
         ):
             # Add stale comment
             issue.create_comment(

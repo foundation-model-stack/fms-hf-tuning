@@ -23,16 +23,12 @@ from .operations import GatheredParameters
 # Do not import `transformer_engine` at package level to avoid potential issues
 
 
-def convert_model(
-    model, to_transformer_engine=True, _convert_linear=True, _convert_ln=True
-):
+def convert_model(model, to_transformer_engine=True, _convert_linear=True, _convert_ln=True):
     """
     Recursively converts the linear and layernorm layers of a model to their `transformers_engine` counterpart.
     """
     if not is_fp8_available():
-        raise ImportError(
-            "Using `convert_model` requires transformer_engine to be installed."
-        )
+        raise ImportError("Using `convert_model` requires transformer_engine to be installed.")
 
     if is_hpu_available():
         import intel_transformer_engine as te
@@ -50,10 +46,7 @@ def convert_model(
                 if any(p % 16 != 0 for p in module.weight.shape):
                     return
                 te_module = te.Linear(
-                    module.in_features,
-                    module.out_features,
-                    bias=has_bias,
-                    params_dtype=module.weight.dtype,
+                    module.in_features, module.out_features, bias=has_bias, params_dtype=module.weight.dtype
                 )
                 te_module.weight.copy_(module.weight)
                 if has_bias:
@@ -63,42 +56,23 @@ def convert_model(
         # Note: @xrsrke (Phuc) found that te.LayerNorm doesn't have any real memory savings or speedups over nn.LayerNorm
         elif isinstance(module, nn.LayerNorm) and to_transformer_engine and _convert_ln:
             with GatheredParameters([module.weight, module.bias], modifier_rank=0):
-                te_module = te.LayerNorm(
-                    module.normalized_shape[0],
-                    eps=module.eps,
-                    params_dtype=module.weight.dtype,
-                )
+                te_module = te.LayerNorm(module.normalized_shape[0], eps=module.eps, params_dtype=module.weight.dtype)
                 te_module.weight.copy_(module.weight)
                 te_module.bias.copy_(module.bias)
 
             setattr(model, name, te_module)
-        elif (
-            isinstance(module, te.Linear)
-            and not to_transformer_engine
-            and _convert_linear
-        ):
+        elif isinstance(module, te.Linear) and not to_transformer_engine and _convert_linear:
             has_bias = module.bias is not None
             new_module = nn.Linear(
-                module.in_features,
-                module.out_features,
-                bias=has_bias,
-                params_dtype=module.weight.dtype,
+                module.in_features, module.out_features, bias=has_bias, params_dtype=module.weight.dtype
             )
             new_module.weight.copy_(module.weight)
             if has_bias:
                 new_module.bias.copy_(module.bias)
 
             setattr(model, name, new_module)
-        elif (
-            isinstance(module, te.LayerNorm)
-            and not to_transformer_engine
-            and _convert_ln
-        ):
-            new_module = nn.LayerNorm(
-                module.normalized_shape[0],
-                eps=module.eps,
-                params_dtype=module.weight.dtype,
-            )
+        elif isinstance(module, te.LayerNorm) and not to_transformer_engine and _convert_ln:
+            new_module = nn.LayerNorm(module.normalized_shape[0], eps=module.eps, params_dtype=module.weight.dtype)
             new_module.weight.copy_(module.weight)
             new_module.bias.copy_(module.bias)
 
@@ -117,9 +91,7 @@ def has_transformer_engine_layers(model):
     Returns whether a given model has some `transformer_engine` layer or not.
     """
     if not is_fp8_available():
-        raise ImportError(
-            "Using `has_transformer_engine_layers` requires transformer_engine to be installed."
-        )
+        raise ImportError("Using `has_transformer_engine_layers` requires transformer_engine to be installed.")
 
     if is_hpu_available():
         import intel_transformer_engine as te
@@ -143,9 +115,7 @@ def contextual_fp8_autocast(model_forward, fp8_recipe, use_during_eval=False):
     disable FP8 autocast during eval mode, which is generally better for more accurate metrics.
     """
     if not is_fp8_available():
-        raise ImportError(
-            "Using `contextual_fp8_autocast` requires transformer_engine to be installed."
-        )
+        raise ImportError("Using `contextual_fp8_autocast` requires transformer_engine to be installed.")
 
     if is_hpu_available():
         from intel_transformer_engine import fp8_autocast
@@ -168,9 +138,7 @@ def apply_fp8_autowrap(model, fp8_recipe_handler):
     Applies FP8 context manager to the model's forward method
     """
     if not is_fp8_available():
-        raise ImportError(
-            "Using `apply_fp8_autowrap` requires transformer_engine to be installed."
-        )
+        raise ImportError("Using `apply_fp8_autowrap` requires transformer_engine to be installed.")
 
     if is_hpu_available():
         import intel_transformer_engine.recipe as te_recipe

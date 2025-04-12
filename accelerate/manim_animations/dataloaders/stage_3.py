@@ -14,12 +14,11 @@
 
 from manim import *
 
-
 class Stage3(Scene):
     def construct(self):
         step_1 = MarkupText(
             f"To combat this, Accelerate employs one of two different\nSampler wrapper methods depending on the scenario:",
-            font_size=24,
+            font_size=24
         )
         step_1.move_to([0, 1.5, 0])
         self.add(step_1)

@@ -14,19 +14,18 @@
 
 from manim import *
 
-
 class Stage01(Scene):
     def construct(self):
         mascot = ImageMobject("mascot_bookie.png")
-        mascot.scale(0.35)
-        mascot.move_to([-3.75, -1, 0])
+        mascot.scale(.35)
+        mascot.move_to([-3.75,-1,0])
         text = Paragraph(
-            "Distributed Training,\nHugging Face Accelerate,\nand PyTorch DataLoaders\n\nHow do they all interact?",
+            "Distributed Training,\nHugging Face Accelerate,\nand PyTorch DataLoaders\n\nHow do they all interact?", 
             font_size=36,
             line_spacing=1,
             alignment="center",
             weight=BOLD,
         )
-        text.move_to([1.75, 0.5, 0])
+        text.move_to([1.75,.5,0])
         self.add(mascot)
         self.add(text)
