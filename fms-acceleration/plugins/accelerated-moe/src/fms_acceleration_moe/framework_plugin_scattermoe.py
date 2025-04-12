@@ -94,7 +94,9 @@ class ScatterMoEAccelerationPlugin(AccelerationPlugin):
         # this change is not for production
         # this is meant only for llama4
         if model.config.architectures is None:
-            model.config.architectures = set(["Llama4ForCausalLM", "Llama4ForConditionalGeneration"])
+            model.config.architectures = set(
+                ["Llama4ForCausalLM", "Llama4ForConditionalGeneration"]
+            )
 
         self._moe_component_module_names = prepare_scattermoe(
             model,

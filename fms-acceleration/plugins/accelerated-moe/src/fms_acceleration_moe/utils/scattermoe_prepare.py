@@ -145,7 +145,7 @@ def prepare_scattermoe(
 
     # NOTE:
     # this change was needed since cpu ram efficient loading is faulty with FSDPv2
-    # therefore for now we will load the models to cpu so that we at least dont 
+    # therefore for now we will load the models to cpu so that we at least dont
     # end up with cuda OOM.
     # large models can easily be trained now by bumping up your cpu memory
     # once fsdpv2 fix falls in place we will revert this change back to its original form
@@ -254,7 +254,7 @@ def prepare_scattermoe(
                 module_name,
                 router_name,
                 "|".join(expert_name),
-                "shared_expert"
+                "shared_expert",
             )
 
             # the parent module
@@ -318,7 +318,9 @@ def prepare_scattermoe(
                         device_mesh[key_ep] if device_mesh is not None else None
                     ),
                     lora_config=lora_config,
-                    shared_expert_cls=get_shared_expert_cls_from_archs(model.config.architectures),
+                    shared_expert_cls=get_shared_expert_cls_from_archs(
+                        model.config.architectures
+                    ),
                     shared_expert_args={"config": model.config.text_config},
                 )  #
 

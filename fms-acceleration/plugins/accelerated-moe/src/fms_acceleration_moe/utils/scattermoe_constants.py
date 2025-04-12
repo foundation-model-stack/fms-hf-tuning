@@ -69,7 +69,7 @@ SCATTERMOE_SPEC_HAS_GATE = "Gated"
 #   or all "combined" into a single 3D linear module.
 
 # llama4 NOTE
-# gate_up_proj down_proj are common and can be confused with shard expert which 
+# gate_up_proj down_proj are common and can be confused with shard expert which
 # is also present in the moe module
 # therefore we had to provide in module.module format to be more specific
 
@@ -112,8 +112,8 @@ SCATTERMOE_CONVERSION_SPEC = {
 }
 
 # NOTE
-# we handle if shared expert is being used or not 
-# we only support shared expert when its part of moe module and not outside 
+# we handle if shared expert is being used or not
+# we only support shared expert when its part of moe module and not outside
 # like in the case of granite moe shared arch
 
 # architecture with specific shared expert class mapping
@@ -139,6 +139,7 @@ def get_scattermoe_conv_spec_from_archs(architectures: List[str]):
         f"In order to configure ScatterMoe for archs '{architectures}' "
         "the conversion spect must be updated in scattermoe_constants.py"
     )
+
 
 # helper to return shared expert class based on architectures
 def get_shared_expert_cls_from_archs(architectures: List[str]):

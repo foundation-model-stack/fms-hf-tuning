@@ -117,7 +117,9 @@ def should_reduce_batch_size(exception: Exception) -> bool:
 
 
 def find_executable_batch_size(
-    function: callable = None, starting_batch_size: int = 128, reduce_batch_size_fn: callable = None
+    function: callable = None,
+    starting_batch_size: int = 128,
+    reduce_batch_size_fn: callable = None,
 ):
     """
     A basic decorator that will try to execute `function`. If it fails from exceptions related to out-of-memory or
@@ -146,7 +148,9 @@ def find_executable_batch_size(
     ```
     """
     if function is None:
-        return functools.partial(find_executable_batch_size, starting_batch_size=starting_batch_size)
+        return functools.partial(
+            find_executable_batch_size, starting_batch_size=starting_batch_size
+        )
 
     batch_size = starting_batch_size
     if reduce_batch_size_fn is None:
@@ -162,7 +166,9 @@ def find_executable_batch_size(
         params = list(inspect.signature(function).parameters.keys())
         # Guard against user error
         if len(params) < (len(args) + 1):
-            arg_str = ", ".join([f"{arg}={value}" for arg, value in zip(params[1:], args[1:])])
+            arg_str = ", ".join(
+                [f"{arg}={value}" for arg, value in zip(params[1:], args[1:])]
+            )
             raise TypeError(
                 f"Batch size was passed into `{function.__name__}` as the first argument when called."
                 f"Remove this as the decorator already does so: `{function.__name__}({arg_str})`"
@@ -184,7 +190,9 @@ def find_executable_batch_size(
 
 def get_xpu_available_memory(device_index: int):
     if is_ipex_available():
-        ipex_version = version.parse(importlib.metadata.version("intel_extension_for_pytorch"))
+        ipex_version = version.parse(
+            importlib.metadata.version("intel_extension_for_pytorch")
+        )
         if compare_versions(ipex_version, ">=", "2.5"):
             from intel_extension_for_pytorch.xpu import mem_get_info
 

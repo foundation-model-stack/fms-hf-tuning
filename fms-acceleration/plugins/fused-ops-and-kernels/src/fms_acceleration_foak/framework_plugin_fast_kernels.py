@@ -119,15 +119,15 @@ class FastKernelsAccelerationPlugin(AccelerationPlugin):
         self.configurations["fast_loss"] = self._check_config_and_maybe_check_values(
             key="fast_loss", values=[False, True, "fused_ce_liger"], default=False
         )
-        self.configurations["fast_rms_layernorm"] = (
-            self._check_config_and_maybe_check_values(
-                key="fast_rms_layernorm", values=[False, True], default=False
-            )
+        self.configurations[
+            "fast_rms_layernorm"
+        ] = self._check_config_and_maybe_check_values(
+            key="fast_rms_layernorm", values=[False, True], default=False
         )
-        self.configurations["fast_rope_embeddings"] = (
-            self._check_config_and_maybe_check_values(
-                key="fast_rope_embeddings", values=[False, True], default=False
-            )
+        self.configurations[
+            "fast_rope_embeddings"
+        ] = self._check_config_and_maybe_check_values(
+            key="fast_rope_embeddings", values=[False, True], default=False
         )
 
     @property

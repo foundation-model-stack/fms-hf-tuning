@@ -109,7 +109,10 @@ class Data2VecAudioPositionalConvEmbedding(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.layers = nn.ModuleList(
-            [Data2VecAudioPositionalConvLayer(config) for _ in range(config.num_conv_pos_embeddings)]
+            [
+                Data2VecAudioPositionalConvLayer(config)
+                for _ in range(config.num_conv_pos_embeddings)
+            ]
         )
 
     def forward(self, hidden_states):
@@ -124,7 +127,10 @@ class Data2VecAudioFeatureEncoder(Wav2Vec2FeatureEncoder, nn.Module):
     def __init__(self, config):
         nn.Module.__init__()
         self.conv_layers = nn.ModuleList(
-            [Data2VecAudioConvLayer(config, layer_id=i) for i in range(config.num_feat_extract_layers)]
+            [
+                Data2VecAudioConvLayer(config, layer_id=i)
+                for i in range(config.num_feat_extract_layers)
+            ]
         )
         self.gradient_checkpointing = False
         self._requires_grad = True
@@ -177,7 +183,9 @@ class Data2VecAudioPreTrainedModel(PreTrainedModel, Wav2Vec2PreTrainedModel):
             nn.init.kaiming_normal_(module.weight)
 
             if module.bias is not None:
-                k = math.sqrt(module.groups / (module.in_channels * module.kernel_size[0]))
+                k = math.sqrt(
+                    module.groups / (module.in_channels * module.kernel_size[0])
+                )
                 nn.init.uniform_(module.bias, a=-k, b=k)
 
     def _get_adapters(self):
@@ -260,7 +268,9 @@ class Data2VecAudioModel(Data2VecAudioPreTrainedModel, Wav2Vec2Model):
 
         # model only needs masking vector if mask prob is > 0.0
         if config.mask_time_prob > 0.0 or config.mask_feature_prob > 0.0:
-            self.masked_spec_embed = nn.Parameter(torch.Tensor(config.hidden_size).uniform_())
+            self.masked_spec_embed = nn.Parameter(
+                torch.Tensor(config.hidden_size).uniform_()
+            )
 
         self.encoder = Data2VecAudioEncoder(config)
 
@@ -310,7 +320,9 @@ class Data2VecAudioForCTC(Data2VecAudioPreTrainedModel, Wav2Vec2ForCTC):
                 "or define `vocab_size` of your model's configuration."
             )
         output_hidden_size = (
-            config.output_hidden_size if hasattr(config, "add_adapter") and config.add_adapter else config.hidden_size
+            config.output_hidden_size
+            if hasattr(config, "add_adapter") and config.add_adapter
+            else config.hidden_size
         )
         self.lm_head = nn.Linear(output_hidden_size, config.vocab_size)
 

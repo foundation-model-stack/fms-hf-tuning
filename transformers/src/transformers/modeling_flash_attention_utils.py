@@ -42,13 +42,21 @@ if is_flash_attn_2_available():
 if is_torch_npu_available():
     from torch_npu import npu_rotary_mul as apply_rotary_emb  # noqa
 
-    from .integrations.npu_flash_attention import index_first_axis, pad_input, unpad_input
+    from .integrations.npu_flash_attention import (
+        index_first_axis,
+        pad_input,
+        unpad_input,
+    )
     from .integrations.npu_flash_attention import npu_flash_attn_func as flash_attn_func
-    from .integrations.npu_flash_attention import npu_flash_attn_varlen_func as flash_attn_varlen_func
+    from .integrations.npu_flash_attention import (
+        npu_flash_attn_varlen_func as flash_attn_varlen_func,
+    )
 
 
 if flash_attn_func:
-    _flash_supports_window_size = "window_size" in list(inspect.signature(flash_attn_func).parameters)
+    _flash_supports_window_size = "window_size" in list(
+        inspect.signature(flash_attn_func).parameters
+    )
 
 
 def is_flash_attn_available():
@@ -74,14 +82,18 @@ def flash_attn_supports_top_left_mask():
 
     if is_torch_npu_available():
         # down-right mask is used on Ascend NPU by default, set env `NPU_FA2_SPARSE_MODE=2` to activate top-left mask.
-        from .integrations.npu_flash_attention import is_npu_fa2_top_left_aligned_causal_mask
+        from .integrations.npu_flash_attention import (
+            is_npu_fa2_top_left_aligned_causal_mask,
+        )
 
         return is_npu_fa2_top_left_aligned_causal_mask()
 
     return False
 
 
-def _get_unpad_data(attention_mask: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, int]:
+def _get_unpad_data(
+    attention_mask: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, int]:
     """
     Retrieves indexing data required to repad unpadded (ragged) tensors.
 
@@ -150,12 +162,18 @@ def _upad_input(
     indices_k, cu_seqlens_k, max_seqlen_in_batch_k = _get_unpad_data(attention_mask)
     batch_size, kv_seq_len, num_key_value_heads, head_dim = key_layer.shape
 
-    key_layer = index_first_axis(key_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k)
+    key_layer = index_first_axis(
+        key_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim),
+        indices_k,
+    )
     value_layer = index_first_axis(
-        value_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k
+        value_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim),
+        indices_k,
     )
     if query_length == kv_seq_len:
-        query_layer = index_first_axis(query_layer.reshape(batch_size * kv_seq_len, -1, head_dim), indices_k)
+        query_layer = index_first_axis(
+            query_layer.reshape(batch_size * kv_seq_len, -1, head_dim), indices_k
+        )
         cu_seqlens_q = cu_seqlens_k
         max_seqlen_in_batch_q = max_seqlen_in_batch_k
         indices_q = indices_k
@@ -169,7 +187,9 @@ def _upad_input(
     else:
         # The -q_len: slice assumes left padding.
         attention_mask = attention_mask[:, -query_length:]
-        query_layer, indices_q, cu_seqlens_q, max_seqlen_in_batch_q, *_ = unpad_input(query_layer, attention_mask)
+        query_layer, indices_q, cu_seqlens_q, max_seqlen_in_batch_q, *_ = unpad_input(
+            query_layer, attention_mask
+        )
 
     return (
         query_layer,
@@ -217,18 +237,29 @@ def prepare_fa2_from_position_ids(query, key, value, position_ids):
     key = key.contiguous().view(-1, key.size(-2), key.size(-1))
     value = value.contiguous().view(-1, value.size(-2), value.size(-1))
     position_ids = position_ids.flatten()
-    indices_q = torch.arange(position_ids.size(0), device=position_ids.device, dtype=torch.int32)
+    indices_q = torch.arange(
+        position_ids.size(0), device=position_ids.device, dtype=torch.int32
+    )
 
     cu_seq_lens = torch.cat(
         (
             indices_q[position_ids == 0],
-            torch.tensor(position_ids.size(), device=position_ids.device, dtype=torch.int32),
+            torch.tensor(
+                position_ids.size(), device=position_ids.device, dtype=torch.int32
+            ),
         )
     )
 
     max_length = position_ids.max() + 1
 
-    return (query, key, value, indices_q, (cu_seq_lens, cu_seq_lens), (max_length, max_length))
+    return (
+        query,
+        key,
+        value,
+        indices_q,
+        (cu_seq_lens, cu_seq_lens),
+        (max_length, max_length),
+    )
 
 
 def fa_peft_integration_check(
@@ -330,9 +361,13 @@ def _flash_attention_forward(
 
     # Assuming 4D tensors, key_states.shape[1] is the key/value sequence length (source length).
     use_sliding_windows = (
-        _flash_supports_window_size and sliding_window is not None and key_states.shape[1] > sliding_window
+        _flash_supports_window_size
+        and sliding_window is not None
+        and key_states.shape[1] > sliding_window
     )
-    flash_kwargs = {"window_size": (sliding_window, sliding_window)} if use_sliding_windows else {}
+    flash_kwargs = (
+        {"window_size": (sliding_window, sliding_window)} if use_sliding_windows else {}
+    )
 
     if flash_241:
         if deterministic is None:
@@ -350,7 +385,14 @@ def _flash_attention_forward(
     # Contains at least one padding token in the sequence
     if attention_mask is not None:
         batch_size = query_states.shape[0]
-        query_states, key_states, value_states, indices_q, cu_seq_lens, max_seq_lens = _upad_input(
+        (
+            query_states,
+            key_states,
+            value_states,
+            indices_q,
+            cu_seq_lens,
+            max_seq_lens,
+        ) = _upad_input(
             query_states, key_states, value_states, attention_mask, query_length
         )
         cu_seqlens_q, cu_seqlens_k = cu_seq_lens
@@ -375,22 +417,36 @@ def _flash_attention_forward(
     # then we probably have one sequence, otherwise it is packed. Additionally check we are in pre-fill/training stage.
     # Use `flash_attn_varlen_func` to prevent cross-example attention and also allow padding free approach
     elif position_ids is not None and (
-        max_length_q is not None or (query_length != 1 and not (torch.diff(position_ids, dim=-1) >= 0).all())
+        max_length_q is not None
+        or (query_length != 1 and not (torch.diff(position_ids, dim=-1) >= 0).all())
     ):
         batch_size = query_states.size(0)
 
         if cu_seq_lens_q is None or cu_seq_lens_k is None:
-            query_states, key_states, value_states, indices_q, cu_seq_lens, max_seq_lens = (
-                prepare_fa2_from_position_ids(query_states, key_states, value_states, position_ids)
+            (
+                query_states,
+                key_states,
+                value_states,
+                indices_q,
+                cu_seq_lens,
+                max_seq_lens,
+            ) = prepare_fa2_from_position_ids(
+                query_states, key_states, value_states, position_ids
             )
 
             cu_seq_lens_q, cu_seq_lens_k = cu_seq_lens
             max_length_q, max_length_k = max_seq_lens
 
         else:
-            query_states = query_states.reshape(-1, query_states.size(-2), query_states.size(-1))
-            key_states = key_states.reshape(-1, key_states.size(-2), key_states.size(-1))
-            value_states = value_states.reshape(-1, value_states.size(-2), value_states.size(-1))
+            query_states = query_states.reshape(
+                -1, query_states.size(-2), query_states.size(-1)
+            )
+            key_states = key_states.reshape(
+                -1, key_states.size(-2), key_states.size(-1)
+            )
+            value_states = value_states.reshape(
+                -1, value_states.size(-2), value_states.size(-1)
+            )
 
         attn_output = flash_attn_varlen_func(
             query_states,
@@ -406,11 +462,19 @@ def _flash_attention_forward(
             **flash_kwargs,
         )
 
-        attn_output = attn_output.view(batch_size, -1, attn_output.size(-2), attn_output.size(-1))
+        attn_output = attn_output.view(
+            batch_size, -1, attn_output.size(-2), attn_output.size(-1)
+        )
 
     else:
         attn_output = flash_attn_func(
-            query_states, key_states, value_states, dropout, softmax_scale=softmax_scale, causal=causal, **flash_kwargs
+            query_states,
+            key_states,
+            value_states,
+            dropout,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            **flash_kwargs,
         )
 
     return attn_output

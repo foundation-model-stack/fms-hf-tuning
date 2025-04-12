@@ -32,18 +32,34 @@ SAFE_WEIGHTS_INDEX_NAME = f"{SAFE_WEIGHTS_NAME}.index.json"
 SAGEMAKER_PYTORCH_VERSION = "1.10.2"
 SAGEMAKER_PYTHON_VERSION = "py38"
 SAGEMAKER_TRANSFORMERS_VERSION = "4.17.0"
-SAGEMAKER_PARALLEL_EC2_INSTANCES = ["ml.p3.16xlarge", "ml.p3dn.24xlarge", "ml.p4dn.24xlarge"]
-FSDP_SHARDING_STRATEGY = ["FULL_SHARD", "SHARD_GRAD_OP", "NO_SHARD", "HYBRID_SHARD", "HYBRID_SHARD_ZERO2"]
+SAGEMAKER_PARALLEL_EC2_INSTANCES = [
+    "ml.p3.16xlarge",
+    "ml.p3dn.24xlarge",
+    "ml.p4dn.24xlarge",
+]
+FSDP_SHARDING_STRATEGY = [
+    "FULL_SHARD",
+    "SHARD_GRAD_OP",
+    "NO_SHARD",
+    "HYBRID_SHARD",
+    "HYBRID_SHARD_ZERO2",
+]
 FSDP_AUTO_WRAP_POLICY = ["TRANSFORMER_BASED_WRAP", "SIZE_BASED_WRAP", "NO_WRAP"]
 FSDP_BACKWARD_PREFETCH = ["BACKWARD_PRE", "BACKWARD_POST", "NO_PREFETCH"]
 FSDP_STATE_DICT_TYPE = ["FULL_STATE_DICT", "LOCAL_STATE_DICT", "SHARDED_STATE_DICT"]
 FSDP2_STATE_DICT_TYPE = ["SHARDED_STATE_DICT"]
-FSDP_PYTORCH_VERSION = (
-    "2.1.0.a0+32f93b1"  # Technically should be 2.1.0, but MS-AMP uses this specific prerelease in their Docker image.
-)
+FSDP_PYTORCH_VERSION = "2.1.0.a0+32f93b1"  # Technically should be 2.1.0, but MS-AMP uses this specific prerelease in their Docker image.
 FSDP2_PYTORCH_VERSION = "2.6.0"
 FSDP_MODEL_NAME = "pytorch_model_fsdp"
-DEEPSPEED_MULTINODE_LAUNCHERS = ["pdsh", "standard", "openmpi", "mvapich", "mpich", "nossh", "slurm"]
+DEEPSPEED_MULTINODE_LAUNCHERS = [
+    "pdsh",
+    "standard",
+    "openmpi",
+    "mvapich",
+    "mpich",
+    "nossh",
+    "slurm",
+]
 TORCH_DYNAMO_MODES = ["default", "reduce-overhead", "max-autotune"]
 ELASTIC_LOG_LINE_PREFIX_TEMPLATE_PYTORCH_VERSION = "2.2.0"
 XPU_PROFILING_AVAILABLE_PYTORCH_VERSION = "2.4.0"
@@ -51,7 +67,14 @@ MITA_PROFILING_AVAILABLE_PYTORCH_VERSION = "2.1.0"
 BETA_TP_AVAILABLE_PYTORCH_VERSION = "2.3.0"
 BETA_TP_AVAILABLE_TRANSFORMERS_VERSION = "4.52.0"
 
-STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<=": op.le, "<": op.lt}
+STR_OPERATION_TO_FUNC = {
+    ">": op.gt,
+    ">=": op.ge,
+    "==": op.eq,
+    "!=": op.ne,
+    "<=": op.le,
+    "<": op.lt,
+}
 
 # These are the args for `torch.distributed.launch` for pytorch < 1.9
 TORCH_LAUNCH_PARAMS = [

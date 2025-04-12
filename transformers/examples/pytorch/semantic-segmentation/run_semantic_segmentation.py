@@ -52,7 +52,10 @@ logger = logging.getLogger(__name__)
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.52.0.dev0")
 
-require_version("datasets>=2.0.0", "To fix: pip install -r examples/pytorch/semantic-segmentation/requirements.txt")
+require_version(
+    "datasets>=2.0.0",
+    "To fix: pip install -r examples/pytorch/semantic-segmentation/requirements.txt",
+)
 
 
 def reduce_labels_transform(labels: np.ndarray, **kwargs) -> np.ndarray:
@@ -85,7 +88,10 @@ class DataTrainingArguments:
         },
     )
     dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={
+            "help": "The configuration name of the dataset to use (via the datasets library)."
+        },
     )
     train_val_split: Optional[float] = field(
         default=0.15, metadata={"help": "Percent to split off of train for validation."}
@@ -110,15 +116,21 @@ class DataTrainingArguments:
     )
     do_reduce_labels: Optional[bool] = field(
         default=False,
-        metadata={"help": "Whether or not to reduce all labels by 1 and replace background by 255."},
+        metadata={
+            "help": "Whether or not to reduce all labels by 1 and replace background by 255."
+        },
     )
     reduce_labels: Optional[bool] = field(
         default=False,
-        metadata={"help": "Whether or not to reduce all labels by 1 and replace background by 255."},
+        metadata={
+            "help": "Whether or not to reduce all labels by 1 and replace background by 255."
+        },
     )
 
     def __post_init__(self):
-        if self.dataset_name is None and (self.train_dir is None and self.validation_dir is None):
+        if self.dataset_name is None and (
+            self.train_dir is None and self.validation_dir is None
+        ):
             raise ValueError(
                 "You must specify either a dataset name from the hub or a train and/or validation directory."
             )
@@ -138,19 +150,31 @@ class ModelArguments:
 
     model_name_or_path: str = field(
         default="nvidia/mit-b0",
-        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
+        metadata={
+            "help": "Path to pretrained model or model identifier from huggingface.co/models"
+        },
     )
     config_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
+        default=None,
+        metadata={
+            "help": "Pretrained config name or path if not the same as model_name"
+        },
     )
     cache_dir: Optional[str] = field(
-        default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
+        default=None,
+        metadata={
+            "help": "Where do you want to store the pretrained models downloaded from s3"
+        },
     )
     model_revision: str = field(
         default="main",
-        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
+        metadata={
+            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
+        },
     )
-    image_processor_name: str = field(default=None, metadata={"help": "Name or path of preprocessor config."})
+    image_processor_name: str = field(
+        default=None, metadata={"help": "Name or path of preprocessor config."}
+    )
     token: str = field(
         default=None,
         metadata={
@@ -177,11 +201,15 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser(
+        (ModelArguments, DataTrainingArguments, TrainingArguments)
+    )
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1])
+        )
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -215,14 +243,20 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+    if (
+        os.path.isdir(training_args.output_dir)
+        and training_args.do_train
+        and not training_args.overwrite_output_dir
+    ):
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
             raise ValueError(
                 f"Output directory ({training_args.output_dir}) already exists and is not empty. "
                 "Use --overwrite_output_dir to overcome."
             )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+        elif (
+            last_checkpoint is not None and training_args.resume_from_checkpoint is None
+        ):
             logger.info(
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
@@ -233,7 +267,9 @@ def main():
     # download the dataset.
     # TODO support datasets from local folders
     dataset = load_dataset(
-        data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
+        data_args.dataset_name,
+        cache_dir=model_args.cache_dir,
+        trust_remote_code=model_args.trust_remote_code,
     )
 
     # Rename column names to standardized names (only "image" and "label" need to be present)
@@ -243,7 +279,9 @@ def main():
         dataset = dataset.rename_columns({"annotation": "label"})
 
     # If we don't have a validation split, split off a percentage of train as validation.
-    data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
+    data_args.train_val_split = (
+        None if "validation" in dataset.keys() else data_args.train_val_split
+    )
     if isinstance(data_args.train_val_split, float) and data_args.train_val_split > 0.0:
         split = dataset["train"].train_test_split(data_args.train_val_split)
         dataset["train"] = split["train"]
@@ -290,8 +328,12 @@ def main():
         per_category_accuracy = metrics.pop("per_category_accuracy").tolist()
         per_category_iou = metrics.pop("per_category_iou").tolist()
 
-        metrics.update({f"accuracy_{id2label[i]}": v for i, v in enumerate(per_category_accuracy)})
-        metrics.update({f"iou_{id2label[i]}": v for i, v in enumerate(per_category_iou)})
+        metrics.update(
+            {f"accuracy_{id2label[i]}": v for i, v in enumerate(per_category_accuracy)}
+        )
+        metrics.update(
+            {f"iou_{id2label[i]}": v for i, v in enumerate(per_category_iou)}
+        )
 
         return metrics
 
@@ -325,7 +367,10 @@ def main():
     # Define transforms to be applied to each image and target.
     if "shortest_edge" in image_processor.size:
         # We instead set the target size as (shortest_edge, shortest_edge) to here to ensure all images are batchable.
-        height, width = image_processor.size["shortest_edge"], image_processor.size["shortest_edge"]
+        height, width = (
+            image_processor.size["shortest_edge"],
+            image_processor.size["shortest_edge"],
+        )
     else:
         height, width = image_processor.size["height"], image_processor.size["width"]
     train_transforms = A.Compose(
@@ -336,10 +381,17 @@ def main():
                 p=1.0,
             ),
             # pad image with 255, because it is ignored by loss
-            A.PadIfNeeded(min_height=height, min_width=width, border_mode=0, value=255, p=1.0),
+            A.PadIfNeeded(
+                min_height=height, min_width=width, border_mode=0, value=255, p=1.0
+            ),
             A.RandomCrop(height=height, width=width, p=1.0),
             A.HorizontalFlip(p=0.5),
-            A.Normalize(mean=image_processor.image_mean, std=image_processor.image_std, max_pixel_value=255.0, p=1.0),
+            A.Normalize(
+                mean=image_processor.image_mean,
+                std=image_processor.image_std,
+                max_pixel_value=255.0,
+                p=1.0,
+            ),
             ToTensorV2(),
         ]
     )
@@ -351,7 +403,12 @@ def main():
                 p=1.0,
             ),
             A.Resize(height=height, width=width, p=1.0),
-            A.Normalize(mean=image_processor.image_mean, std=image_processor.image_std, max_pixel_value=255.0, p=1.0),
+            A.Normalize(
+                mean=image_processor.image_mean,
+                std=image_processor.image_std,
+                max_pixel_value=255.0,
+                p=1.0,
+            ),
             ToTensorV2(),
         ]
     )
@@ -360,7 +417,9 @@ def main():
         pixel_values = []
         labels = []
         for image, target in zip(example_batch["image"], example_batch["label"]):
-            transformed = transforms(image=np.array(image.convert("RGB")), mask=np.array(target))
+            transformed = transforms(
+                image=np.array(image.convert("RGB")), mask=np.array(target)
+            )
             pixel_values.append(transformed["image"])
             labels.append(transformed["mask"])
 
@@ -380,7 +439,9 @@ def main():
             raise ValueError("--do_train requires a train dataset")
         if data_args.max_train_samples is not None:
             dataset["train"] = (
-                dataset["train"].shuffle(seed=training_args.seed).select(range(data_args.max_train_samples))
+                dataset["train"]
+                .shuffle(seed=training_args.seed)
+                .select(range(data_args.max_train_samples))
             )
         # Set the training transforms
         dataset["train"].set_transform(preprocess_train_batch_fn)
@@ -390,7 +451,9 @@ def main():
             raise ValueError("--do_eval requires a validation dataset")
         if data_args.max_eval_samples is not None:
             dataset["validation"] = (
-                dataset["validation"].shuffle(seed=training_args.seed).select(range(data_args.max_eval_samples))
+                dataset["validation"]
+                .shuffle(seed=training_args.seed)
+                .select(range(data_args.max_eval_samples))
             )
         # Set the validation transforms
         dataset["validation"].set_transform(preprocess_val_batch_fn)

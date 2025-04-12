@@ -116,7 +116,9 @@ def make_flex_block_causal_mask(
         key_length = total_seq_len
     if not query_length:
         query_length = total_seq_len
-    attention_mask_2d = torch.nn.functional.pad(attention_mask_2d, value=0, pad=(0, key_length))
+    attention_mask_2d = torch.nn.functional.pad(
+        attention_mask_2d, value=0, pad=(0, key_length)
+    )
     device = attention_mask_2d.device
     document_ids = attention_mask_2d.clone()
 
@@ -138,7 +140,9 @@ def make_flex_block_causal_mask(
         for an illustration.
         """
         causal_mask = q_idx >= kv_idx  # not valid when decoding
-        document_mask = document_ids[batch_idx, q_idx] == document_ids[batch_idx, kv_idx]
+        document_mask = (
+            document_ids[batch_idx, q_idx] == document_ids[batch_idx, kv_idx]
+        )
         padding_mask = attention_mask_2d[batch_idx, q_idx] > 0
         final_mask = causal_mask & padding_mask & document_mask
         return final_mask
@@ -151,6 +155,7 @@ def make_flex_block_causal_mask(
             offset_q = q_idx + q_offset
             offset_kv = kv_idx + kv_offset
             return causal_mask_mod(batch_idx, head_idx, offset_q, offset_kv)
+
     else:
         mask_mod = causal_mask_mod
     return create_block_causal_mask_flex(
@@ -190,7 +195,9 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand(
+        batch, num_key_value_heads, n_rep, slen, head_dim
+    )
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 

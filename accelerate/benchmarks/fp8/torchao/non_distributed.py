@@ -43,7 +43,9 @@ def evaluate_model(model, dataloader, metric, accelerator=None):
         predictions = outputs.logits.argmax(dim=-1)
         references = batch["labels"]
         if accelerator is not None and accelerator.num_processes > 1:
-            predictions, references = accelerator.gather_for_metrics((predictions, references))
+            predictions, references = accelerator.gather_for_metrics(
+                (predictions, references)
+            )
         metric.add_batch(predictions=predictions, references=references)
     return metric.compute()
 
@@ -61,7 +63,13 @@ def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=Non
 
 def train_baseline():
     set_seed(42)
-    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = get_training_utilities(MODEL_NAME)
+    (
+        model,
+        optimizer,
+        train_dataloader,
+        eval_dataloader,
+        lr_scheduler,
+    ) = get_training_utilities(MODEL_NAME)
     first_linear = None
     last_linear = None
     for name, module in model.named_modules():
@@ -70,7 +78,9 @@ def train_baseline():
                 first_linear = name
             last_linear = name
 
-    func = partial(filter_linear_layers, first_layer_name=first_linear, last_layer_name=last_linear)
+    func = partial(
+        filter_linear_layers, first_layer_name=first_linear, last_layer_name=last_linear
+    )
     model.to("cuda")
     convert_to_float8_training(model, module_filter_fn=func)
     base_model_results = evaluate_model(model, eval_dataloader, METRIC)
@@ -87,12 +97,12 @@ def train_baseline():
 
     trained_model_results = evaluate_model(model, eval_dataloader, METRIC)
 
-    assert trained_model_results["accuracy"] > base_model_results["accuracy"], (
-        f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
-    )
-    assert trained_model_results["f1"] > base_model_results["f1"], (
-        f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
-    )
+    assert (
+        trained_model_results["accuracy"] > base_model_results["accuracy"]
+    ), f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
+    assert (
+        trained_model_results["f1"] > base_model_results["f1"]
+    ), f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
 
     return base_model_results, trained_model_results
 
@@ -100,9 +110,13 @@ def train_baseline():
 def train_integration():
     set_seed(42)
     accelerator = Accelerator(mixed_precision="fp8", kwargs_handlers=[AORecipeKwargs()])
-    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = get_training_utilities(
-        MODEL_NAME, accelerator=accelerator
-    )
+    (
+        model,
+        optimizer,
+        train_dataloader,
+        eval_dataloader,
+        lr_scheduler,
+    ) = get_training_utilities(MODEL_NAME, accelerator=accelerator)
     model = accelerator.prepare(model)
     base_model_results = evaluate_model(model, eval_dataloader, METRIC)
     model.train()
@@ -117,12 +131,12 @@ def train_integration():
 
     trained_model_results = evaluate_model(model, eval_dataloader, METRIC)
 
-    assert trained_model_results["accuracy"] > base_model_results["accuracy"], (
-        f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
-    )
-    assert trained_model_results["f1"] > base_model_results["f1"], (
-        f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
-    )
+    assert (
+        trained_model_results["accuracy"] > base_model_results["accuracy"]
+    ), f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
+    assert (
+        trained_model_results["f1"] > base_model_results["f1"]
+    ), f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
 
     return base_model_results, trained_model_results
 
@@ -131,15 +145,15 @@ if __name__ == "__main__":
     baseline_not_trained, baseline_trained = train_baseline()
     AcceleratorState._reset_state(True)
     accelerator_not_trained, accelerator_trained = train_integration()
-    assert baseline_not_trained["accuracy"] == accelerator_not_trained["accuracy"], (
-        f"Accuracy should be the same for the baseline and accelerator: {baseline_not_trained['accuracy']} == {accelerator_not_trained['accuracy']}"
-    )
-    assert baseline_not_trained["f1"] == accelerator_not_trained["f1"], (
-        f"F1 score should be the same for the baseline and accelerator: {baseline_not_trained['f1']} == {accelerator_not_trained['f1']}"
-    )
-    assert baseline_trained["accuracy"] == accelerator_trained["accuracy"], (
-        f"Accuracy should be the same for the baseline and accelerator: {baseline_trained['accuracy']} == {accelerator_trained['accuracy']}"
-    )
-    assert baseline_trained["f1"] == accelerator_trained["f1"], (
-        f"F1 score should be the same for the baseline and accelerator: {baseline_trained['f1']} == {accelerator_trained['f1']}"
-    )
+    assert (
+        baseline_not_trained["accuracy"] == accelerator_not_trained["accuracy"]
+    ), f"Accuracy should be the same for the baseline and accelerator: {baseline_not_trained['accuracy']} == {accelerator_not_trained['accuracy']}"
+    assert (
+        baseline_not_trained["f1"] == accelerator_not_trained["f1"]
+    ), f"F1 score should be the same for the baseline and accelerator: {baseline_not_trained['f1']} == {accelerator_not_trained['f1']}"
+    assert (
+        baseline_trained["accuracy"] == accelerator_trained["accuracy"]
+    ), f"Accuracy should be the same for the baseline and accelerator: {baseline_trained['accuracy']} == {accelerator_trained['accuracy']}"
+    assert (
+        baseline_trained["f1"] == accelerator_trained["f1"]
+    ), f"F1 score should be the same for the baseline and accelerator: {baseline_trained['f1']} == {accelerator_trained['f1']}"

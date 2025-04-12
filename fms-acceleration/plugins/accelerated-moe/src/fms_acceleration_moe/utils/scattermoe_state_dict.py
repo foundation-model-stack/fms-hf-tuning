@@ -86,7 +86,7 @@ def get_checkpoint_meta_from_sharded_safetensor(
     instance_name: str,  # e.g., block_sparse_moe
     router_name: str = "gate",  # e.g., named "gate" within block_sparse_moe
     expert_name: str = "experts",  # e.g., named "experts" within block_sparse_moe
-    shared_expert_name: str = None, # e.g. named "shared_expert" within moe module
+    shared_expert_name: str = None,  # e.g. named "shared_expert" within moe module
     expert_map: Dict = None,  # map -> [w1,w2,w3]
 ) -> Dict[str, List[Tuple]]:
     """
@@ -166,7 +166,10 @@ def get_checkpoint_meta_from_sharded_safetensor(
         shared_expert_name_re = ""
         if shared_expert_name is not None:
             shared_expert_name_re = f"|{shared_expert_name}"
-        m = re.match(f"({router_name}|{expert_name}{shared_expert_name_re})\.?(\d+)?\.?(\w+)?", rel_k)
+        m = re.match(
+            f"({router_name}|{expert_name}{shared_expert_name_re})\.?(\d+)?\.?(\w+)?",
+            rel_k,
+        )
         if m is None:
             print("rel_k", rel_k)
             raise ValueError(
@@ -210,7 +213,7 @@ def _maybe_reshape_scattermoe_expert_weights(
     # NOTE
     # changes here would break for other common moe models
     # since these have been changed specific to llama4
-    # however, later in final version we should ideally control these operations 
+    # however, later in final version we should ideally control these operations
     # based on model mentioning it as a config in scattermoe_constants
     if _is_w1 or _is_w2 or _is_w3:
         if len(param.shape) == 2:
@@ -230,9 +233,9 @@ def _maybe_reshape_scattermoe_expert_weights(
 
         # have to transpose for weights since scattermoe accepts the differen
         # order
-        # NOTE: 
+        # NOTE:
         # breaking change for other moe models
-        # this has to be controllable through scattermoe constants mentioning 
+        # this has to be controllable through scattermoe constants mentioning
         # how dimensions are arranged for experts in the original model
         # llama4 does not need permute
         # param = param.permute(0, 2, 1)

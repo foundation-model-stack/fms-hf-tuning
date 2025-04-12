@@ -29,8 +29,15 @@ from torch.distributed.fsdp.wrap import _recursive_wrap, transformer_auto_wrap_p
 from torch.nn.parallel import DistributedDataParallel
 
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-from accelerate.test_utils import execute_subprocess_async, get_torch_dist_unique_port, require_multi_gpu
-from accelerate.test_utils.testing import require_torch_min_version, require_transformers
+from accelerate.test_utils import (
+    execute_subprocess_async,
+    get_torch_dist_unique_port,
+    require_multi_gpu,
+)
+from accelerate.test_utils.testing import (
+    require_torch_min_version,
+    require_transformers,
+)
 from accelerate.utils.imports import is_transformers_available
 
 
@@ -87,10 +94,14 @@ def load_checkpoint_and_dispatch_fsdp2():
     )
 
     fsdp2_model._apply(
-        lambda t: torch.empty_like(t, device=device) if t.device == torch.device("meta") else t.to(device)
+        lambda t: torch.empty_like(t, device=device)
+        if t.device == torch.device("meta")
+        else t.to(device)
     )
 
-    load_checkpoint_and_dispatch(fsdp2_model, model_path, strict=True, broadcast_from_rank0=True)
+    load_checkpoint_and_dispatch(
+        fsdp2_model, model_path, strict=True, broadcast_from_rank0=True
+    )
 
     for (name, tensor), (fsdp2_name, fsdp2_tensor) in zip(
         itertools.chain(model.named_parameters(), model.named_buffers()),
@@ -115,10 +126,14 @@ def load_checkpoint_and_dispatch_no_broadcast_from_rank0():
         assert isinstance(broadcasted_model, nn.Module)
 
     broadcasted_model._apply(
-        lambda t: torch.empty_like(t, device=device) if t.device == torch.device("meta") else t.to(device)
+        lambda t: torch.empty_like(t, device=device)
+        if t.device == torch.device("meta")
+        else t.to(device)
     )
 
-    load_checkpoint_and_dispatch(broadcasted_model, model_path, strict=True, broadcast_from_rank0=True)
+    load_checkpoint_and_dispatch(
+        broadcasted_model, model_path, strict=True, broadcast_from_rank0=True
+    )
 
     with init_empty_weights():
         config = AutoConfig.from_pretrained(pretrained_model_name_or_path)
@@ -127,17 +142,31 @@ def load_checkpoint_and_dispatch_no_broadcast_from_rank0():
         assert isinstance(non_broadcasted_model, nn.Module)
 
     non_broadcasted_model._apply(
-        lambda t: torch.empty_like(t, device=device) if t.device == torch.device("meta") else t.to(device)
+        lambda t: torch.empty_like(t, device=device)
+        if t.device == torch.device("meta")
+        else t.to(device)
     )
 
-    load_checkpoint_and_dispatch(non_broadcasted_model, model_path, strict=True, broadcast_from_rank0=False)
+    load_checkpoint_and_dispatch(
+        non_broadcasted_model, model_path, strict=True, broadcast_from_rank0=False
+    )
 
-    for (broadcasted_name, broadcasted_tensor), (non_broadcasted_name, non_broadcasted_tensor) in zip(
-        itertools.chain(broadcasted_model.named_parameters(), broadcasted_model.named_buffers()),
-        itertools.chain(non_broadcasted_model.named_parameters(), non_broadcasted_model.named_buffers()),
+    for (broadcasted_name, broadcasted_tensor), (
+        non_broadcasted_name,
+        non_broadcasted_tensor,
+    ) in zip(
+        itertools.chain(
+            broadcasted_model.named_parameters(), broadcasted_model.named_buffers()
+        ),
+        itertools.chain(
+            non_broadcasted_model.named_parameters(),
+            non_broadcasted_model.named_buffers(),
+        ),
     ):
         assert broadcasted_name == non_broadcasted_name
-        torch.testing.assert_close(broadcasted_tensor, non_broadcasted_tensor, msg=broadcasted_name)
+        torch.testing.assert_close(
+            broadcasted_tensor, non_broadcasted_tensor, msg=broadcasted_name
+        )
 
 
 @manage_process_group
@@ -157,15 +186,21 @@ def load_checkpoint_and_dispatch_ddp():
         assert isinstance(ddp_model, nn.Module)
 
     ddp_model._apply(
-        lambda t: torch.empty_like(t, device=device) if t.device == torch.device("meta") else t.to(device)
+        lambda t: torch.empty_like(t, device=device)
+        if t.device == torch.device("meta")
+        else t.to(device)
     )
     ddp_model = DistributedDataParallel(ddp_model)
 
-    load_checkpoint_and_dispatch(ddp_model.module, model_path, strict=True, broadcast_from_rank0=True)
+    load_checkpoint_and_dispatch(
+        ddp_model.module, model_path, strict=True, broadcast_from_rank0=True
+    )
 
     for (name, tensor), (ddp_name, ddp_tensor) in zip(
         itertools.chain(model.named_parameters(), model.named_buffers()),
-        itertools.chain(ddp_model.module.named_parameters(), ddp_model.module.named_buffers()),
+        itertools.chain(
+            ddp_model.module.named_parameters(), ddp_model.module.named_buffers()
+        ),
     ):
         assert name == ddp_name
         torch.testing.assert_close(tensor, ddp_tensor, msg=ddp_name)

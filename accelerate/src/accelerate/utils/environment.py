@@ -49,10 +49,16 @@ def convert_dict_to_env_variables(current_env: dict):
     forbidden_chars = [";", "\n", "<", ">", " "]
     valid_env_items = []
     for key, value in current_env.items():
-        if all(char not in (key + value) for char in forbidden_chars) and len(key) >= 1 and len(value) >= 1:
+        if (
+            all(char not in (key + value) for char in forbidden_chars)
+            and len(key) >= 1
+            and len(value) >= 1
+        ):
             valid_env_items.append(f"{key}={value}\n")
         else:
-            logger.warning(f"WARNING: Skipping {key}={value} as it contains forbidden characters or missing values.")
+            logger.warning(
+                f"WARNING: Skipping {key}={value} as it contains forbidden characters or missing values."
+            )
     return valid_env_items
 
 
@@ -83,7 +89,9 @@ def get_int_from_env(env_keys, default):
 def parse_flag_from_env(key, default=False):
     """Returns truthy value for `key` from the env if available else the default."""
     value = os.environ.get(key, str(default))
-    return str_to_bool(value) == 1  # As its name indicates `str_to_bool` actually returns an int...
+    return (
+        str_to_bool(value) == 1
+    )  # As its name indicates `str_to_bool` actually returns an int...
 
 
 def parse_choice_from_env(key, default="no"):
@@ -121,7 +129,8 @@ def get_gpu_info():
     """
     # Returns as list of `n` GPUs and their names
     output = subprocess.check_output(
-        [_nvidia_smi(), "--query-gpu=count,name", "--format=csv,noheader"], universal_newlines=True
+        [_nvidia_smi(), "--query-gpu=count,name", "--format=csv,noheader"],
+        universal_newlines=True,
     )
     output = output.strip()
     gpus = output.split(os.linesep)
@@ -138,7 +147,8 @@ def get_driver_version():
     In the case of multiple GPUs, will return the first.
     """
     output = subprocess.check_output(
-        [_nvidia_smi(), "--query-gpu=driver_version", "--format=csv,noheader"], universal_newlines=True
+        [_nvidia_smi(), "--query-gpu=driver_version", "--format=csv,noheader"],
+        universal_newlines=True,
     )
     output = output.strip()
     return output.split(os.linesep)[0]
@@ -183,7 +193,8 @@ def check_cuda_fp8_capability():
     try:
         # try to get the compute capability from nvidia-smi
         output = subprocess.check_output(
-            [_nvidia_smi(), "--query-gpu=compute_capability", "--format=csv,noheader"], universal_newlines=True
+            [_nvidia_smi(), "--query-gpu=compute_capability", "--format=csv,noheader"],
+            universal_newlines=True,
         )
         output = output.strip()
         # we take the first GPU's compute capability
@@ -205,9 +216,16 @@ class CPUInformation:
     """
 
     rank: int = field(default=0, metadata={"help": "The rank of the current process."})
-    world_size: int = field(default=1, metadata={"help": "The total number of processes in the world."})
-    local_rank: int = field(default=0, metadata={"help": "The rank of the current process on the local node."})
-    local_world_size: int = field(default=1, metadata={"help": "The total number of processes on the local node."})
+    world_size: int = field(
+        default=1, metadata={"help": "The total number of processes in the world."}
+    )
+    local_rank: int = field(
+        default=0,
+        metadata={"help": "The rank of the current process on the local node."},
+    )
+    local_world_size: int = field(
+        default=1, metadata={"help": "The total number of processes on the local node."}
+    )
 
 
 def get_cpu_distributed_information() -> CPUInformation:
@@ -216,21 +234,36 @@ def get_cpu_distributed_information() -> CPUInformation:
     dataclass.
     """
     information = {}
-    information["rank"] = get_int_from_env(["RANK", "PMI_RANK", "OMPI_COMM_WORLD_RANK", "MV2_COMM_WORLD_RANK"], 0)
+    information["rank"] = get_int_from_env(
+        ["RANK", "PMI_RANK", "OMPI_COMM_WORLD_RANK", "MV2_COMM_WORLD_RANK"], 0
+    )
     information["world_size"] = get_int_from_env(
         ["WORLD_SIZE", "PMI_SIZE", "OMPI_COMM_WORLD_SIZE", "MV2_COMM_WORLD_SIZE"], 1
     )
     information["local_rank"] = get_int_from_env(
-        ["LOCAL_RANK", "MPI_LOCALRANKID", "OMPI_COMM_WORLD_LOCAL_RANK", "MV2_COMM_WORLD_LOCAL_RANK"], 0
+        [
+            "LOCAL_RANK",
+            "MPI_LOCALRANKID",
+            "OMPI_COMM_WORLD_LOCAL_RANK",
+            "MV2_COMM_WORLD_LOCAL_RANK",
+        ],
+        0,
     )
     information["local_world_size"] = get_int_from_env(
-        ["LOCAL_WORLD_SIZE", "MPI_LOCALNRANKS", "OMPI_COMM_WORLD_LOCAL_SIZE", "MV2_COMM_WORLD_LOCAL_SIZE"],
+        [
+            "LOCAL_WORLD_SIZE",
+            "MPI_LOCALNRANKS",
+            "OMPI_COMM_WORLD_LOCAL_SIZE",
+            "MV2_COMM_WORLD_LOCAL_SIZE",
+        ],
         1,
     )
     return CPUInformation(**information)
 
 
-def override_numa_affinity(local_process_index: int, verbose: Optional[bool] = None) -> None:
+def override_numa_affinity(
+    local_process_index: int, verbose: Optional[bool] = None
+) -> None:
     """
     Overrides whatever NUMA affinity is set for the current process. This is very taxing and requires recalculating the
     affinity to set, ideally you should use `utils.environment.set_numa_affinity` instead.
@@ -266,7 +299,9 @@ def override_numa_affinity(local_process_index: int, verbose: Optional[bool] = N
         os.sched_setaffinity(0, affinity_to_set)
         if verbose:
             cpu_cores = os.sched_getaffinity(0)
-            logger.info(f"Assigning {len(cpu_cores)} cpu cores to process {local_process_index}: {cpu_cores}")
+            logger.info(
+                f"Assigning {len(cpu_cores)} cpu cores to process {local_process_index}: {cpu_cores}"
+            )
 
 
 @lru_cache
@@ -411,11 +446,15 @@ def purge_accelerate_environment(func_or_cls):
         for name in dir(test_class_instance):
             if name.startswith("test"):
                 method = getattr(test_class_instance, name)
-                if callable(method) and not hasattr(method, "_accelerate_is_purged_environment_wrapped"):
+                if callable(method) and not hasattr(
+                    method, "_accelerate_is_purged_environment_wrapped"
+                ):
                     setattr(test_class_instance, name, wrap_function(method))
         return test_class_instance
 
     # Handle inheritance
     wrap_test_methods(func_or_cls)
-    func_or_cls.__init_subclass__ = classmethod(lambda cls, **kw: wrap_test_methods(cls))
+    func_or_cls.__init_subclass__ = classmethod(
+        lambda cls, **kw: wrap_test_methods(cls)
+    )
     return func_or_cls

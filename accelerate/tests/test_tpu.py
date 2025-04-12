@@ -16,11 +16,17 @@ import os
 import sys
 import unittest
 
-from accelerate.test_utils import execute_subprocess_async, path_in_accelerate_package, require_tpu
+from accelerate.test_utils import (
+    execute_subprocess_async,
+    path_in_accelerate_package,
+    require_tpu,
+)
 
 
 class MultiTPUTester(unittest.TestCase):
-    test_file_path = path_in_accelerate_package("test_utils", "scripts", "test_script.py")
+    test_file_path = path_in_accelerate_package(
+        "test_utils", "scripts", "test_script.py"
+    )
     test_dir = os.path.dirname(__file__)
 
     @require_tpu

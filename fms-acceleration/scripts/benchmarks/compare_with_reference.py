@@ -64,21 +64,19 @@ def compare_results(df, ref, plot_columns, threshold_ratio=0.1):
         df_series = df[column].fillna(0)
         # Extract outliers base on some threshold % difference on referance
         cmp = ref_series.to_frame()
-        cmp['metric'] = column
-        cmp = cmp.join(df_series.to_frame(), lsuffix='_ref')
-        cmp = cmp.rename(columns={f'{column}_ref': 'reference', column: 'new'})
-        cmp['ds'] = cmp.apply(
-            lambda x: (
-                abs(x.reference - x.new) / (x.reference + 1e-9)
-            ), axis=1
+        cmp["metric"] = column
+        cmp = cmp.join(df_series.to_frame(), lsuffix="_ref")
+        cmp = cmp.rename(columns={f"{column}_ref": "reference", column: "new"})
+        cmp["ds"] = cmp.apply(
+            lambda x: (abs(x.reference - x.new) / (x.reference + 1e-9)), axis=1
         )
         outliers = cmp[cmp.ds > threshold_ratio]
-        outliers = outliers.drop('ds', axis=1)
+        outliers = outliers.drop("ds", axis=1)
 
         plot_chart(
             ax,
-            cmp['reference'],
-            cmp['new'],
+            cmp["reference"],
+            cmp["new"],
             title=f"Metric: {column}",
             xlabel="Reference",
             ylabel="New",
@@ -112,20 +110,23 @@ def main(
 
     # NOTE: this is a bit of a hack, if the new bench is a smaller bench, then we
     # supplement the data from the raw summary
-    new_benchmark_filepath = os.path.join(result_dir, BENCHMARK_FILENAME) 
+    new_benchmark_filepath = os.path.join(result_dir, BENCHMARK_FILENAME)
     try:
-        df, args_df  = read_df(new_benchmark_filepath, indices, plot_columns)
+        df, args_df = read_df(new_benchmark_filepath, indices, plot_columns)
     except KeyError:
         raw_filepath = os.path.join(result_dir, RAW_FILENAME)
-        print (
+        print(
             f"New '{new_benchmark_filepath}' is probably a partial bench. Supplementing "
             f"missing columns from raw data '{raw_filepath}'."
         )
         df2 = pd.read_csv(new_benchmark_filepath)
         df = pd.read_csv(raw_filepath)
         df, args_df = read_df(
-            pd.concat([df, df2[[x for x in df2.columns if x not in df.columns]]], axis=1),
-            indices, plot_columns
+            pd.concat(
+                [df, df2[[x for x in df2.columns if x not in df.columns]]], axis=1
+            ),
+            indices,
+            plot_columns,
         )
 
     # Analyse between both sets of results and retrieve outliers
@@ -133,9 +134,9 @@ def main(
     outliers_df, outliers, charts = compare_results(
         df, ref, plot_columns, threshold_ratio=threshold_ratio
     )
-    # this logic is brittle and will not hold if new benchmark is not 
+    # this logic is brittle and will not hold if new benchmark is not
     # of the exact same format as the reference benchmark,
-    # so put a try-catch. 
+    # so put a try-catch.
     try:
         # Find arguments that are different between ref and new
         # to highlight as possible cause of anomaly
@@ -147,8 +148,8 @@ def main(
             outliers_df = outliers_df.set_index(indices).merge(
                 diff, left_index=True, right_index=True
             )
-    except ValueError: 
-        print (
+    except ValueError:
+        print(
             f"New '{new_benchmark_filepath}' is probably a partial bench. So unable"
             "to properly compare if the arguments are consistent with old bench."
         )
@@ -186,8 +187,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--plot_columns", 
-        default=DEFAULT_PLOT_COLUMNS, 
+        "--plot_columns",
+        default=DEFAULT_PLOT_COLUMNS,
         nargs="+",
         help="list of metric names in benchmark results to analyze visually",
     )

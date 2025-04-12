@@ -1,4 +1,4 @@
-# taken from 
+# taken from
 # https://github.com/jeromeku/unsloth/commit/
 # 2839d390ef3bb318904289bfb9a7751a782c4e44
 
@@ -11,9 +11,11 @@ from auto_gptq.nn_modules.qlinear.qlinear_triton import (
     quant_matmul_inference_only_248,
     transpose_quant_matmul_248,
 )
+
 # fixed by aaron.chew1@sg.ibm.com
 from auto_gptq.nn_modules.qlinear.qlinear_tritonv2 import (
-    QuantLinearFunction, quant_matmul_248
+    QuantLinearFunction,
+    quant_matmul_248,
 )
 
 logger = logging.getLogger(__name__)

@@ -67,7 +67,9 @@ except ImportError:
 
     class LayerRepository:
         def __init__(self, *args, **kwargs):
-            raise RuntimeError("LayerRepository requires `kernels` to be installed. Run `pip install kernels`.")
+            raise RuntimeError(
+                "LayerRepository requires `kernels` to be installed. Run `pip install kernels`."
+            )
 
     def replace_kernel_forward_from_hub(*args, **kwargs):
         raise RuntimeError(
@@ -75,7 +77,9 @@ except ImportError:
         )
 
     def register_kernel_mapping(*args, **kwargs):
-        raise RuntimeError("register_kernel_mapping requires `kernels` to be installed. Run `pip install kernels`.")
+        raise RuntimeError(
+            "register_kernel_mapping requires `kernels` to be installed. Run `pip install kernels`."
+        )
 
     _hub_kernels_available = False
 

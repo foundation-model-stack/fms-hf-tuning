@@ -74,14 +74,25 @@ class ModelForTest(nn.Module):
 
 
 class LinearWithNonPersistentBuffers(nn.Module):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        device=None,
+        dtype=None,
+    ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.register_buffer("weight", torch.ones((out_features, in_features), **factory_kwargs))
+        self.register_buffer(
+            "weight", torch.ones((out_features, in_features), **factory_kwargs)
+        )
         if bias:
-            self.register_buffer("bias", torch.ones(out_features, **factory_kwargs), persistent=False)
+            self.register_buffer(
+                "bias", torch.ones(out_features, **factory_kwargs), persistent=False
+            )
         else:
             self.register_buffer("bias", None)
 
@@ -226,7 +237,11 @@ class BigModelingTester(unittest.TestCase):
 
         device = torch.device(torch_device)
 
-        cpu_offload(model, execution_device=device, preload_module_classes=["ModuleWithUnusedSubModules"])
+        cpu_offload(
+            model,
+            execution_device=device,
+            preload_module_classes=["ModuleWithUnusedSubModules"],
+        )
         output = model(x)
         torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
 
@@ -246,12 +261,17 @@ class BigModelingTester(unittest.TestCase):
     @require_non_cpu
     def test_cpu_offload_gpt2(self):
         tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(torch_device)
+        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(
+            torch_device
+        )
 
         gpt2 = AutoModelForCausalLM.from_pretrained("gpt2")
         cpu_offload(gpt2, execution_device=0)
         outputs = gpt2.generate(inputs["input_ids"], max_new_tokens=10)
-        assert tokenizer.decode(outputs[0].tolist()) == "Hello world! My name is Kiyoshi, and I'm a student at"
+        assert (
+            tokenizer.decode(outputs[0].tolist())
+            == "Hello world! My name is Kiyoshi, and I'm a student at"
+        )
 
     def test_disk_offload(self):
         model = ModelForTest()
@@ -282,7 +302,10 @@ class BigModelingTester(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             disk_offload(
-                model, tmp_dir, execution_device=device, preload_module_classes=["ModuleWithUnusedSubModules"]
+                model,
+                tmp_dir,
+                execution_device=device,
+                preload_module_classes=["ModuleWithUnusedSubModules"],
             )
             output = model(x)
             torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
@@ -305,13 +328,18 @@ class BigModelingTester(unittest.TestCase):
     @require_non_cpu
     def test_disk_offload_gpt2(self):
         tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(torch_device)
+        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(
+            torch_device
+        )
 
         gpt2 = AutoModelForCausalLM.from_pretrained("gpt2")
         with TemporaryDirectory() as tmp_dir:
             disk_offload(gpt2, tmp_dir, execution_device=0)
             outputs = gpt2.generate(inputs["input_ids"], max_new_tokens=10)
-            assert tokenizer.decode(outputs[0].tolist()) == "Hello world! My name is Kiyoshi, and I'm a student at"
+            assert (
+                tokenizer.decode(outputs[0].tolist())
+                == "Hello world! My name is Kiyoshi, and I'm a student at"
+            )
 
     @require_non_cpu
     def test_dispatch_model_and_remove_hook(self):
@@ -423,7 +451,9 @@ class BigModelingTester(unittest.TestCase):
 
         # If this does OOM: there is an issue in somewhere in dispatch_model, memory of tied weights is duplicated.
         oom_error = (
-            torch.OutOfMemoryError if is_torch_version(">=", "2.5.0") else torch_accelerator_module.OutOfMemoryError
+            torch.OutOfMemoryError
+            if is_torch_version(">=", "2.5.0")
+            else torch_accelerator_module.OutOfMemoryError
         )
         try:
             dispatch_model(model, device_map)
@@ -498,16 +528,24 @@ class BigModelingTester(unittest.TestCase):
         n_vals = (free_memory_bytes - required_memory_bytes - int(150e6)) // (32 // 8)
         foo = torch.rand(n_vals, device=torch_device)  # noqa: F841
 
-        free_memory_bytes_before_dispatch = torch_accelerator_module.mem_get_info(torch_device)[0]
+        free_memory_bytes_before_dispatch = torch_accelerator_module.mem_get_info(
+            torch_device
+        )[0]
         dispatch_model(model, device_map)
-        free_memory_bytes_after_dispatch = torch_accelerator_module.mem_get_info(torch_device)[0]
+        free_memory_bytes_after_dispatch = torch_accelerator_module.mem_get_info(
+            torch_device
+        )[0]
 
-        assert (free_memory_bytes_after_dispatch - free_memory_bytes_before_dispatch) * 1e-6 < 130
+        assert (
+            free_memory_bytes_after_dispatch - free_memory_bytes_before_dispatch
+        ) * 1e-6 < 130
 
         original_pointer = model.compute1._hf_hook.weights_map["weight"].data_ptr()
 
         oom_error = (
-            torch.OutOfMemoryError if is_torch_version(">=", "2.5.0") else torch_accelerator_module.OutOfMemoryError
+            torch.OutOfMemoryError
+            if is_torch_version(">=", "2.5.0")
+            else torch_accelerator_module.OutOfMemoryError
         )
         with torch.no_grad():
             try:
@@ -523,12 +561,23 @@ class BigModelingTester(unittest.TestCase):
 
         torch_accelerator_module.empty_cache()
 
-        free_memory_bytes_after_infer = torch_accelerator_module.mem_get_info(torch_device)[0]
+        free_memory_bytes_after_infer = torch_accelerator_module.mem_get_info(
+            torch_device
+        )[0]
 
         # Check that we have no more references on GPU for the offloaded tied weight.
-        assert len(model.compute1.weight_submodule._hf_hook.tied_params_map[original_pointer]) == 0
+        assert (
+            len(
+                model.compute1.weight_submodule._hf_hook.tied_params_map[
+                    original_pointer
+                ]
+            )
+            == 0
+        )
         assert len(model.compute1._hf_hook.tied_params_map[original_pointer]) == 0
-        assert (free_memory_bytes_after_infer - free_memory_bytes_after_dispatch) * 1e-6 < 130
+        assert (
+            free_memory_bytes_after_infer - free_memory_bytes_after_dispatch
+        ) * 1e-6 < 130
 
         # Test is flacky otherwise.
         del model
@@ -603,7 +652,9 @@ class BigModelingTester(unittest.TestCase):
             dispatch_model(model, device_map, offload_dir=tmp_dir)
             free_memory_bytes_after_dispatch = torch.cuda.mem_get_info("cuda:0")[0]
 
-            assert (free_memory_bytes_after_dispatch - free_memory_bytes_before_dispatch) * 1e-6 < 130
+            assert (
+                free_memory_bytes_after_dispatch - free_memory_bytes_before_dispatch
+            ) * 1e-6 < 130
 
             with torch.no_grad():
                 try:
@@ -623,25 +674,39 @@ class BigModelingTester(unittest.TestCase):
 
             # Check that we have no more references on GPU for the offloaded tied weight.
             n_non_empty = 0
-            for pointer, pointer_dict in model.compute1.weight_submodule._hf_hook.tied_params_map.items():
+            for (
+                pointer,
+                pointer_dict,
+            ) in model.compute1.weight_submodule._hf_hook.tied_params_map.items():
                 if len(pointer_dict) > 0:
                     n_non_empty += 1
             assert n_non_empty == 1  # `compute` layer one.
 
             n_non_empty = 0
-            for pointer, pointer_dict in model.compute1._hf_hook.tied_params_map.items():
+            for (
+                pointer,
+                pointer_dict,
+            ) in model.compute1._hf_hook.tied_params_map.items():
                 if len(pointer_dict) > 0:
                     n_non_empty += 1
             assert n_non_empty == 1  # `compute` layer one.
 
-            assert (free_memory_bytes_after_infer - free_memory_bytes_after_dispatch) * 1e-6 < 130
+            assert (
+                free_memory_bytes_after_infer - free_memory_bytes_after_dispatch
+            ) * 1e-6 < 130
 
     @require_non_hpu  # hpu does not support device indexing "hpu:1"
     @require_multi_device
     def test_dispatch_model_multi_devices(self):
         model = BiggerModelForTest()
 
-        device_map = {"linear1": "cpu", "linear2": "disk", "batchnorm": "cpu", "linear3": 0, "linear4": 1}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "disk",
+            "batchnorm": "cpu",
+            "linear3": 0,
+            "linear4": 1,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
@@ -699,7 +764,9 @@ class BigModelingTester(unittest.TestCase):
     @require_multi_device
     def test_dispatch_model_gpt2_on_two_devices(self):
         tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(torch_device)
+        inputs = tokenizer("Hello world! My name is", return_tensors="pt").to(
+            torch_device
+        )
 
         gpt2 = AutoModelForCausalLM.from_pretrained("gpt2")
         # Dispatch on GPUs 0 and 1
@@ -714,7 +781,10 @@ class BigModelingTester(unittest.TestCase):
 
         gpt2 = dispatch_model(gpt2, device_map)
         outputs = gpt2.generate(inputs["input_ids"], max_new_tokens=10)
-        assert tokenizer.decode(outputs[0].tolist()) == "Hello world! My name is Kiyoshi, and I'm a student at"
+        assert (
+            tokenizer.decode(outputs[0].tolist())
+            == "Hello world! My name is Kiyoshi, and I'm a student at"
+        )
 
         # Dispatch with a bit of CPU offload
         gpt2 = AutoModelForCausalLM.from_pretrained("gpt2")
@@ -722,7 +792,10 @@ class BigModelingTester(unittest.TestCase):
             device_map[f"transformer.h.{i}"] = "cpu"
         gpt2 = dispatch_model(gpt2, device_map)
         outputs = gpt2.generate(inputs["input_ids"], max_new_tokens=10)
-        assert tokenizer.decode(outputs[0].tolist()) == "Hello world! My name is Kiyoshi, and I'm a student at"
+        assert (
+            tokenizer.decode(outputs[0].tolist())
+            == "Hello world! My name is Kiyoshi, and I'm a student at"
+        )
         # Dispatch with a bit of CPU and disk offload
         gpt2 = AutoModelForCausalLM.from_pretrained("gpt2")
         for i in range(2):
@@ -730,24 +803,38 @@ class BigModelingTester(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             state_dict = {
-                k: p for k, p in gpt2.state_dict().items() if "transformer.h.0" in k or "transformer.h.1" in k
+                k: p
+                for k, p in gpt2.state_dict().items()
+                if "transformer.h.0" in k or "transformer.h.1" in k
             }
             offload_state_dict(tmp_dir, state_dict)
             gpt2 = dispatch_model(gpt2, device_map, offload_dir=tmp_dir)
             outputs = gpt2.generate(inputs["input_ids"], max_new_tokens=10)
-            assert tokenizer.decode(outputs[0].tolist()) == "Hello world! My name is Kiyoshi, and I'm a student at"
+            assert (
+                tokenizer.decode(outputs[0].tolist())
+                == "Hello world! My name is Kiyoshi, and I'm a student at"
+            )
 
     @require_non_cpu
     def test_dispatch_model_with_unused_submodules(self):
         model = ModelWithUnusedSubModulesForTest()
-        device_map = {"linear1": "cpu", "linear2": "disk", "batchnorm": "cpu", "linear3": 0, "linear4": 0}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "disk",
+            "batchnorm": "cpu",
+            "linear3": 0,
+            "linear4": 0,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
 
         with TemporaryDirectory() as tmp_dir:
             dispatch_model(
-                model, device_map, offload_dir=tmp_dir, preload_module_classes=["ModuleWithUnusedSubModules"]
+                model,
+                device_map,
+                offload_dir=tmp_dir,
+                preload_module_classes=["ModuleWithUnusedSubModules"],
             )
             output = model(x)
             torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
@@ -757,14 +844,23 @@ class BigModelingTester(unittest.TestCase):
     def test_dispatch_model_with_unused_submodules_multi_device(self):
         model = ModelWithUnusedSubModulesForTest()
 
-        device_map = {"linear1": "cpu", "linear2": "disk", "batchnorm": "cpu", "linear3": 0, "linear4": 1}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "disk",
+            "batchnorm": "cpu",
+            "linear3": 0,
+            "linear4": 1,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
 
         with TemporaryDirectory() as tmp_dir:
             dispatch_model(
-                model, device_map, offload_dir=tmp_dir, preload_module_classes=["ModuleWithUnusedSubModules"]
+                model,
+                device_map,
+                offload_dir=tmp_dir,
+                preload_module_classes=["ModuleWithUnusedSubModules"],
             )
             output = model(x)
             torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
@@ -794,7 +890,9 @@ class BigModelingTester(unittest.TestCase):
             torch.save(model.state_dict(), checkpoint)
 
             new_model = ModelForTest()
-            new_model = load_checkpoint_and_dispatch(new_model, checkpoint, device_map=device_map)
+            new_model = load_checkpoint_and_dispatch(
+                new_model, checkpoint, device_map=device_map
+            )
 
         # CPU-offloaded weights are on the meta device while waiting for the forward pass.
         assert new_model.linear1.weight.device == torch.device("meta")
@@ -811,7 +909,9 @@ class BigModelingTester(unittest.TestCase):
             torch.save(model.state_dict(), checkpoint)
 
             new_model = ModelForTest()
-            new_model = load_checkpoint_and_dispatch(new_model, checkpoint, device_map=None)
+            new_model = load_checkpoint_and_dispatch(
+                new_model, checkpoint, device_map=None
+            )
 
         for (name, tensor), (new_name, new_tensor) in zip(
             itertools.chain(model.named_parameters(), model.named_buffers()),
@@ -825,7 +925,13 @@ class BigModelingTester(unittest.TestCase):
     def test_load_checkpoint_and_dispatch_multi_device(self):
         model = BiggerModelForTest()
 
-        device_map = {"linear1": "cpu", "linear2": "cpu", "batchnorm": 0, "linear3": 0, "linear4": 1}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "cpu",
+            "batchnorm": 0,
+            "linear3": 0,
+            "linear4": 1,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
@@ -835,13 +941,17 @@ class BigModelingTester(unittest.TestCase):
             torch.save(model.state_dict(), checkpoint)
 
             new_model = BiggerModelForTest()
-            new_model = load_checkpoint_and_dispatch(new_model, checkpoint, device_map=device_map)
+            new_model = load_checkpoint_and_dispatch(
+                new_model, checkpoint, device_map=device_map
+            )
 
         # CPU-offloaded weights are on the meta device while waiting for the forward pass.
         assert new_model.linear1.weight.device == torch.device("meta")
         assert new_model.linear2.weight.device == torch.device("meta")
         assert new_model.linear3.weight.device == torch.device(torch_device)
-        assert new_model.linear4.weight.device == torch.device(torch_device.replace(":0", ":1"))
+        assert new_model.linear4.weight.device == torch.device(
+            torch_device.replace(":0", ":1")
+        )
 
         output = new_model(x)
         torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
@@ -849,7 +959,13 @@ class BigModelingTester(unittest.TestCase):
     @require_non_cpu
     def test_load_checkpoint_and_dispatch_with_unused_submodules(self):
         model = ModelWithUnusedSubModulesForTest()
-        device_map = {"linear1": "cpu", "linear2": "cpu", "batchnorm": 0, "linear3": 0, "linear4": 0}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "cpu",
+            "batchnorm": 0,
+            "linear3": 0,
+            "linear4": 0,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
@@ -860,7 +976,10 @@ class BigModelingTester(unittest.TestCase):
 
             new_model = ModelWithUnusedSubModulesForTest()
             new_model = load_checkpoint_and_dispatch(
-                new_model, checkpoint, device_map=device_map, preload_module_classes=["ModuleWithUnusedSubModules"]
+                new_model,
+                checkpoint,
+                device_map=device_map,
+                preload_module_classes=["ModuleWithUnusedSubModules"],
             )
 
         # CPU-offloaded weights are on the meta device while waiting for the forward pass.
@@ -877,7 +996,13 @@ class BigModelingTester(unittest.TestCase):
     def test_load_checkpoint_and_dispatch_multi_device_with_unused_submodules(self):
         model = ModelWithUnusedSubModulesForTest()
 
-        device_map = {"linear1": "cpu", "linear2": "cpu", "batchnorm": 0, "linear3": 0, "linear4": 1}
+        device_map = {
+            "linear1": "cpu",
+            "linear2": "cpu",
+            "batchnorm": 0,
+            "linear3": 0,
+            "linear4": 1,
+        }
 
         x = torch.randn(2, 3)
         expected = model(x)
@@ -888,14 +1013,19 @@ class BigModelingTester(unittest.TestCase):
 
             new_model = ModelWithUnusedSubModulesForTest()
             new_model = load_checkpoint_and_dispatch(
-                new_model, checkpoint, device_map=device_map, preload_module_classes=["ModuleWithUnusedSubModules"]
+                new_model,
+                checkpoint,
+                device_map=device_map,
+                preload_module_classes=["ModuleWithUnusedSubModules"],
             )
 
         # CPU-offloaded weights are on the meta device while waiting for the forward pass.
         assert new_model.linear1.linear.weight.device == torch.device("meta")
         assert new_model.linear2.linear.weight.device == torch.device("meta")
         assert new_model.linear3.linear.weight.device == torch.device(torch_device)
-        assert new_model.linear4.linear.weight.device == torch.device(torch_device.replace(":0", ":1"))
+        assert new_model.linear4.linear.weight.device == torch.device(
+            torch_device.replace(":0", ":1")
+        )
 
         output = new_model(x)
         torch.testing.assert_close(expected, output.cpu(), atol=ATOL, rtol=RTOL)
@@ -942,11 +1072,15 @@ class BigModelingTester(unittest.TestCase):
         from transformers.utils.bitsandbytes import replace_with_bnb_linear
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         model_path = hf_hub_download("bigscience/bloom-560m", "pytorch_model.bin")
@@ -973,11 +1107,15 @@ class BigModelingTester(unittest.TestCase):
         from transformers.utils.bitsandbytes import replace_with_bnb_linear
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         model_path = hf_hub_download("bigscience/bloom-560m", "pytorch_model.bin")
@@ -993,10 +1131,14 @@ class BigModelingTester(unittest.TestCase):
         assert model.h[0].self_attention.query_key_value.weight.device.index == 0
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         # test with str device map
@@ -1010,10 +1152,14 @@ class BigModelingTester(unittest.TestCase):
         assert model.h[0].self_attention.query_key_value.weight.device.index == 0
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         # test with torch.device device map
@@ -1036,12 +1182,16 @@ class BigModelingTester(unittest.TestCase):
         from transformers.utils.bitsandbytes import replace_with_bnb_linear
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         quantization_config = BitsAndBytesConfig(load_in_4bit=True)
 
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         model_path = hf_hub_download("bigscience/bloom-560m", "pytorch_model.bin")
@@ -1057,10 +1207,14 @@ class BigModelingTester(unittest.TestCase):
         assert model.h[0].self_attention.query_key_value.weight.device.index == 0
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         # test with str device map
@@ -1074,10 +1228,14 @@ class BigModelingTester(unittest.TestCase):
         assert model.h[0].self_attention.query_key_value.weight.device.index == 0
 
         with init_empty_weights():
-            model = AutoModel.from_config(AutoConfig.from_pretrained("bigscience/bloom-560m"))
+            model = AutoModel.from_config(
+                AutoConfig.from_pretrained("bigscience/bloom-560m")
+            )
 
         model = replace_with_bnb_linear(
-            model, modules_to_not_convert=["lm_head"], quantization_config=quantization_config
+            model,
+            modules_to_not_convert=["lm_head"],
+            quantization_config=quantization_config,
         )
 
         # test with torch.device device map

@@ -26,7 +26,13 @@ import torch
 from accelerate import __version__ as version
 from accelerate.commands.config import default_config_file, load_config_from_file
 
-from ..utils import is_mlu_available, is_musa_available, is_npu_available, is_sdaa_available, is_xpu_available
+from ..utils import (
+    is_mlu_available,
+    is_musa_available,
+    is_npu_available,
+    is_sdaa_available,
+    is_xpu_available,
+)
 
 
 def env_command_parser(subparsers=None):
@@ -36,7 +42,9 @@ def env_command_parser(subparsers=None):
         parser = argparse.ArgumentParser("Accelerate env command")
 
     parser.add_argument(
-        "--config_file", default=None, help="The config file to use for the default values in the launching script."
+        "--config_file",
+        default=None,
+        help="The config file to use for the default values in the launching script.",
     )
 
     if subparsers is not None:
@@ -66,7 +74,9 @@ def env_command(args):
     elif os.name == "posix":
         command = ["which", "accelerate"]
     if command is not None:
-        bash_location = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT).strip()
+        bash_location = subprocess.check_output(
+            command, text=True, stderr=subprocess.STDOUT
+        ).strip()
     info = {
         "`Accelerate` version": version,
         "Platform": platform.platform(),
@@ -95,7 +105,11 @@ def env_command(args):
     print("\nCopy-and-paste the text below in your GitHub issue\n")
     print("\n".join([f"- {prop}: {val}" for prop, val in info.items()]))
 
-    print("- `Accelerate` default config:" if args.config_file is None else "- `Accelerate` config passed:")
+    print(
+        "- `Accelerate` default config:"
+        if args.config_file is None
+        else "- `Accelerate` config passed:"
+    )
     accelerate_config_str = (
         "\n".join([f"\t- {prop}: {val}" for prop, val in accelerate_config.items()])
         if isinstance(accelerate_config, dict)

@@ -102,7 +102,9 @@ def load_and_quantize_model(
     modules_on_cpu = []
     # custom device map
     if isinstance(device_map, dict) and len(device_map.keys()) > 1:
-        modules_on_cpu = [key for key, value in device_map.items() if value in ["disk", "cpu"]]
+        modules_on_cpu = [
+            key for key, value in device_map.items() if value in ["disk", "cpu"]
+        ]
 
     # We keep some modules such as the lm_head in their original dtype for numerical stability reasons
     if bnb_quantization_config.skip_modules is None:
@@ -130,11 +132,18 @@ def load_and_quantize_model(
             "It is not recommended to quantize a loaded model. "
             "The model should be instantiated under the `init_empty_weights` context manager."
         )
-        model = replace_with_bnb_layers(model, bnb_quantization_config, modules_to_not_convert=modules_to_not_convert)
+        model = replace_with_bnb_layers(
+            model,
+            bnb_quantization_config,
+            modules_to_not_convert=modules_to_not_convert,
+        )
         # convert param to the right dtype
         dtype = bnb_quantization_config.torch_dtype
         for name, param in model.state_dict().items():
-            if any(module_to_keep_in_fp32 in name for module_to_keep_in_fp32 in keep_in_fp32_modules):
+            if any(
+                module_to_keep_in_fp32 in name
+                for module_to_keep_in_fp32 in keep_in_fp32_modules
+            ):
                 param.to(torch.float32)
                 if param.dtype != torch.float32:
                     name = name.replace(".weight", "").replace(".bias", "")
@@ -167,7 +176,9 @@ def load_and_quantize_model(
     else:
         with init_empty_weights():
             model = replace_with_bnb_layers(
-                model, bnb_quantization_config, modules_to_not_convert=modules_to_not_convert
+                model,
+                bnb_quantization_config,
+                modules_to_not_convert=modules_to_not_convert,
             )
         device_map = get_quantized_model_device_map(
             model,
@@ -176,7 +187,11 @@ def load_and_quantize_model(
             max_memory=max_memory,
             no_split_module_classes=no_split_module_classes,
         )
-        if offload_state_dict is None and device_map is not None and "disk" in device_map.values():
+        if (
+            offload_state_dict is None
+            and device_map is not None
+            and "disk" in device_map.values()
+        ):
             offload_state_dict = True
 
         offload = any(x in list(device_map.values()) for x in ["cpu", "disk"])
@@ -195,7 +210,11 @@ def load_and_quantize_model(
 
 
 def get_quantized_model_device_map(
-    model, bnb_quantization_config, device_map=None, max_memory=None, no_split_module_classes=None
+    model,
+    bnb_quantization_config,
+    device_map=None,
+    max_memory=None,
+    no_split_module_classes=None,
 ):
     if device_map is None:
         if torch.cuda.is_available():
@@ -204,7 +223,9 @@ def get_quantized_model_device_map(
             device_map = {"": torch.xpu.current_device()}
         else:
             raise RuntimeError("No GPU found. A GPU is needed for quantization.")
-        logger.info("The device_map was not initialized.Setting device_map to `{'':torch.cuda.current_device()}`.")
+        logger.info(
+            "The device_map was not initialized.Setting device_map to `{'':torch.cuda.current_device()}`."
+        )
 
     if isinstance(device_map, str):
         if device_map not in ["auto", "balanced", "balanced_low_0", "sequential"]:
@@ -248,10 +269,15 @@ def get_quantized_model_device_map(
 
     if isinstance(device_map, dict):
         # check if don't have any quantized module on the cpu
-        modules_not_to_convert = bnb_quantization_config.skip_modules + bnb_quantization_config.keep_in_fp32_modules
+        modules_not_to_convert = (
+            bnb_quantization_config.skip_modules
+            + bnb_quantization_config.keep_in_fp32_modules
+        )
 
         device_map_without_some_modules = {
-            key: device_map[key] for key in device_map.keys() if key not in modules_not_to_convert
+            key: device_map[key]
+            for key in device_map.keys()
+            if key not in modules_not_to_convert
         }
         for device in ["cpu", "disk"]:
             if device in device_map_without_some_modules.values():
@@ -274,7 +300,9 @@ def get_quantized_model_device_map(
     return device_map
 
 
-def replace_with_bnb_layers(model, bnb_quantization_config, modules_to_not_convert=None, current_key_name=None):
+def replace_with_bnb_layers(
+    model, bnb_quantization_config, modules_to_not_convert=None, current_key_name=None
+):
     """
     A helper function to replace all `torch.nn.Linear` modules by `bnb.nn.Linear8bit` modules or by `bnb.nn.Linear4bit`
     modules from the `bitsandbytes`library. The function will be run recursively and replace `torch.nn.Linear` modules.
@@ -331,7 +359,8 @@ def _replace_with_bnb_layers(
             proceed = True
             for key in modules_to_not_convert:
                 if (
-                    (key in current_key_name_str) and (key + "." in current_key_name_str)
+                    (key in current_key_name_str)
+                    and (key + "." in current_key_name_str)
                 ) or key == current_key_name_str:
                     proceed = False
                     break
@@ -355,7 +384,9 @@ def _replace_with_bnb_layers(
                         quant_type=bnb_quantization_config.bnb_4bit_quant_type,
                     )
                 else:
-                    raise ValueError("load_in_8bit and load_in_4bit can't be both False")
+                    raise ValueError(
+                        "load_in_8bit and load_in_4bit can't be both False"
+                    )
                 bnb_module.weight.data = module.weight.data
                 if module.bias is not None:
                     bnb_module.bias.data = module.bias.data
@@ -364,7 +395,10 @@ def _replace_with_bnb_layers(
                 has_been_replaced = True
         if len(list(module.children())) > 0:
             _, _has_been_replaced = _replace_with_bnb_layers(
-                module, bnb_quantization_config, modules_to_not_convert, current_key_name
+                module,
+                bnb_quantization_config,
+                modules_to_not_convert,
+                current_key_name,
             )
             has_been_replaced = has_been_replaced | _has_been_replaced
         # Remove the last key for recursion
@@ -385,7 +419,9 @@ def get_keys_to_not_convert(model):
     """
     # Create a copy of the model
     with init_empty_weights():
-        tied_model = deepcopy(model)  # this has 0 cost since it is done inside `init_empty_weights` context manager`
+        tied_model = deepcopy(
+            model
+        )  # this has 0 cost since it is done inside `init_empty_weights` context manager`
 
     tied_params = find_tied_parameters(tied_model)
     # For compatibility with Accelerate < 0.18
@@ -439,7 +475,9 @@ def get_parameter_device(parameter: nn.Module):
     return next(parameter.parameters()).device
 
 
-def quantize_and_offload_8bit(model, param, param_name, new_dtype, offload_folder, offload_index, fp16_statistics):
+def quantize_and_offload_8bit(
+    model, param, param_name, new_dtype, offload_folder, offload_index, fp16_statistics
+):
     # if it is not quantized, we quantize and offload the quantized weights and the SCB stats
     if fp16_statistics is None:
         set_module_tensor_to_device(model, param_name, 0, dtype=new_dtype, value=param)
@@ -455,7 +493,12 @@ def quantize_and_offload_8bit(model, param, param_name, new_dtype, offload_folde
             tensor_name = splits[-1]
         # offload weights
         module._parameters[tensor_name].requires_grad = False
-        offload_weight(module._parameters[tensor_name], param_name, offload_folder, index=offload_index)
+        offload_weight(
+            module._parameters[tensor_name],
+            param_name,
+            offload_folder,
+            index=offload_index,
+        )
         if hasattr(module._parameters[tensor_name], "SCB"):
             offload_weight(
                 module._parameters[tensor_name].SCB,
@@ -465,6 +508,13 @@ def quantize_and_offload_8bit(model, param, param_name, new_dtype, offload_folde
             )
     else:
         offload_weight(param, param_name, offload_folder, index=offload_index)
-        offload_weight(fp16_statistics, param_name.replace("weight", "SCB"), offload_folder, index=offload_index)
+        offload_weight(
+            fp16_statistics,
+            param_name.replace("weight", "SCB"),
+            offload_folder,
+            index=offload_index,
+        )
 
-    set_module_tensor_to_device(model, param_name, "meta", dtype=new_dtype, value=torch.empty(*param.size()))
+    set_module_tensor_to_device(
+        model, param_name, "meta", dtype=new_dtype, value=torch.empty(*param.size())
+    )

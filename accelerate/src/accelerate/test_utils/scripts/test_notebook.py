@@ -58,21 +58,38 @@ def test_can_initialize():
     notebook_launcher(basic_function, (), num_processes=NUM_PROCESSES)
 
 
-@mark.skipif(NUM_PROCESSES < 2, reason="Need at least 2 processes to test static rendezvous backends")
+@mark.skipif(
+    NUM_PROCESSES < 2,
+    reason="Need at least 2 processes to test static rendezvous backends",
+)
 def test_static_rdzv_backend():
-    notebook_launcher(basic_function, (), num_processes=NUM_PROCESSES, rdzv_backend="static")
+    notebook_launcher(
+        basic_function, (), num_processes=NUM_PROCESSES, rdzv_backend="static"
+    )
 
 
-@mark.skipif(NUM_PROCESSES < 2, reason="Need at least 2 processes to test c10d rendezvous backends")
+@mark.skipif(
+    NUM_PROCESSES < 2,
+    reason="Need at least 2 processes to test c10d rendezvous backends",
+)
 def test_c10d_rdzv_backend():
-    notebook_launcher(basic_function, (), num_processes=NUM_PROCESSES, rdzv_backend="c10d")
+    notebook_launcher(
+        basic_function, (), num_processes=NUM_PROCESSES, rdzv_backend="c10d"
+    )
 
 
-@mark.skipif(NUM_PROCESSES < 2, reason="Need at least 2 processes to test fault tolerance")
+@mark.skipif(
+    NUM_PROCESSES < 2, reason="Need at least 2 processes to test fault tolerance"
+)
 def test_fault_tolerant(max_restarts: int = 3):
     queue = Queue()
     queue.put(max_restarts)
-    notebook_launcher(tough_nut_function, (queue,), num_processes=NUM_PROCESSES, max_restarts=max_restarts)
+    notebook_launcher(
+        tough_nut_function,
+        (queue,),
+        num_processes=NUM_PROCESSES,
+        max_restarts=max_restarts,
+    )
 
 
 @mark.skipif(NUM_PROCESSES < 2, reason="Need at least 2 processes to test monitoring")
@@ -85,7 +102,9 @@ def test_monitoring(monitor_interval: float = 0.01, sleep_sec: int = 100):
             num_processes=NUM_PROCESSES,
             monitor_interval=monitor_interval,
         )
-    assert time.time() - start_time < sleep_sec, "Monitoring did not stop the process in time."
+    assert (
+        time.time() - start_time < sleep_sec
+    ), "Monitoring did not stop the process in time."
 
 
 @require_bnb

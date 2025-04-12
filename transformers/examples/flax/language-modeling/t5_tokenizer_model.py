@@ -3,7 +3,15 @@ import json
 from collections.abc import Iterator
 from typing import Union
 
-from tokenizers import AddedToken, Regex, Tokenizer, decoders, normalizers, pre_tokenizers, trainers
+from tokenizers import (
+    AddedToken,
+    Regex,
+    Tokenizer,
+    decoders,
+    normalizers,
+    pre_tokenizers,
+    trainers,
+)
 from tokenizers.implementations.base_tokenizer import BaseTokenizer
 from tokenizers.models import Unigram
 from tokenizers.processors import TemplateProcessing
@@ -48,19 +56,23 @@ class SentencePieceUnigramTokenizer(BaseTokenizer):
         tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
             [
                 pre_tokenizers.Metaspace(
-                    replacement=replacement, prepend_scheme="always" if add_prefix_space else "never"
+                    replacement=replacement,
+                    prepend_scheme="always" if add_prefix_space else "never",
                 ),
                 pre_tokenizers.Digits(individual_digits=True),
                 pre_tokenizers.Punctuation(),
             ]
         )
         tokenizer.decoder = decoders.Metaspace(
-            replacement=replacement, prepend_scheme="always" if add_prefix_space else "never"
+            replacement=replacement,
+            prepend_scheme="always" if add_prefix_space else "never",
         )
 
         tokenizer.post_processor = TemplateProcessing(
             single=f"$A {self.special_tokens['eos']['token']}",
-            special_tokens=[(self.special_tokens["eos"]["token"], self.special_tokens["eos"]["id"])],
+            special_tokens=[
+                (self.special_tokens["eos"]["token"], self.special_tokens["eos"]["id"])
+            ],
         )
 
         parameters = {

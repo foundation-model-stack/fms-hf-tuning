@@ -51,7 +51,13 @@ class LocalSGD:
             self._sync_and_avg_model_params()
             self.model_sync_obj.__exit__(type, value, tb)
 
-    def __init__(self, accelerator: Accelerator, model: torch.nn.Module, local_sgd_steps: int, enabled: bool = True):
+    def __init__(
+        self,
+        accelerator: Accelerator,
+        model: torch.nn.Module,
+        local_sgd_steps: int,
+        enabled: bool = True,
+    ):
         """
         Constructor.
 
@@ -76,7 +82,9 @@ class LocalSGD:
             DistributedType.MULTI_MUSA,
             DistributedType.MULTI_NPU,
         ]:
-            raise NotImplementedError("LocalSGD is supported only for CPUs and GPUs (no DeepSpeed or MegatronLM)")
+            raise NotImplementedError(
+                "LocalSGD is supported only for CPUs and GPUs (no DeepSpeed or MegatronLM)"
+            )
         self.enabled = enabled and accelerator.distributed_type != DistributedType.NO
         self.num_steps = 0
         if self.enabled:

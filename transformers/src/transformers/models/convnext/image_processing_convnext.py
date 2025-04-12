@@ -38,7 +38,12 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import TensorType, filter_out_non_signature_kwargs, is_vision_available, logging
+from ...utils import (
+    TensorType,
+    filter_out_non_signature_kwargs,
+    is_vision_available,
+    logging,
+)
 from ...utils.import_utils import requires
 
 
@@ -113,7 +118,9 @@ class ConvNextImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        self.image_mean = (
+            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
+        )
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
 
     def resize(
@@ -149,14 +156,19 @@ class ConvNextImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size, default_to_square=False)
         if "shortest_edge" not in size:
-            raise ValueError(f"Size dictionary must contain 'shortest_edge' key. Got {size.keys()}")
+            raise ValueError(
+                f"Size dictionary must contain 'shortest_edge' key. Got {size.keys()}"
+            )
         shortest_edge = size["shortest_edge"]
 
         if shortest_edge < 384:
             # maintain same ratio, resizing shortest edge to shortest_edge/crop_pct
             resize_shortest_edge = int(shortest_edge / crop_pct)
             resize_size = get_resize_output_image_size(
-                image, size=resize_shortest_edge, default_to_square=False, input_data_format=input_data_format
+                image,
+                size=resize_shortest_edge,
+                default_to_square=False,
+                input_data_format=input_data_format,
             )
             image = resize(
                 image=image,
@@ -254,7 +266,9 @@ class ConvNextImageProcessor(BaseImageProcessor):
         crop_pct = crop_pct if crop_pct is not None else self.crop_pct
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
+        rescale_factor = (
+            rescale_factor if rescale_factor is not None else self.rescale_factor
+        )
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -297,25 +311,41 @@ class ConvNextImageProcessor(BaseImageProcessor):
         if do_resize:
             images = [
                 self.resize(
-                    image=image, size=size, crop_pct=crop_pct, resample=resample, input_data_format=input_data_format
+                    image=image,
+                    size=size,
+                    crop_pct=crop_pct,
+                    resample=resample,
+                    input_data_format=input_data_format,
                 )
                 for image in images
             ]
 
         if do_rescale:
             images = [
-                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
+                self.rescale(
+                    image=image,
+                    scale=rescale_factor,
+                    input_data_format=input_data_format,
+                )
                 for image in images
             ]
 
         if do_normalize:
             images = [
-                self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
+                self.normalize(
+                    image=image,
+                    mean=image_mean,
+                    std=image_std,
+                    input_data_format=input_data_format,
+                )
                 for image in images
             ]
 
         images = [
-            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format) for image in images
+            to_channel_dimension_format(
+                image, data_format, input_channel_dim=input_data_format
+            )
+            for image in images
         ]
 
         data = {"pixel_values": images}

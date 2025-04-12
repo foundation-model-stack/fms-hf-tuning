@@ -60,14 +60,15 @@ def _build_data_formatting_func(
     if tokenize and response_template is not None:
         loss_masking = instruction_mask_loss(tokenizer, response_template)
     elif tokenize and response_template is None:
-        assert response_field is not None, \
-            "response_field must be specified if tokenize=True and response_template=None."
+        assert (
+            response_field is not None
+        ), "response_field must be specified if tokenize=True and response_template=None."
 
     def _format(example):
         # `nonlocal` is used because the format_fn will be passed to dataset.map and
         # `loss_masking` needs to be bounded by `nonlocal` otherwise the spawned
         # processes will have no reference to it
-        nonlocal loss_masking 
+        nonlocal loss_masking
         formatted_and_maybe_tokenized = tokenizer.apply_chat_template(
             [example], tokenize=tokenize
         )
@@ -82,10 +83,11 @@ def _build_data_formatting_func(
                 "in the chat template."
             )
             # NOTE: in this case not handling attention mask
-            response = tokenizer(example[response_field])['input_ids']
+            response = tokenizer(example[response_field])["input_ids"]
             return {
                 key: formatted_and_maybe_tokenized + response,
-                'labels': [ ignore_index ] * len(formatted_and_maybe_tokenized) + response
+                "labels": [ignore_index] * len(formatted_and_maybe_tokenized)
+                + response,
             }
 
         if not loss_masking:

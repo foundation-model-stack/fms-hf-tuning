@@ -146,16 +146,26 @@ class AyaVisionProcessor(ProcessorMixin):
         img_string = f"{self.start_of_img_token}"
         if num_patches > 1:
             for idx in range(1, num_patches):
-                img_string += f"{self.tile_token}_{idx}" + f"{self.img_patch_token}" * img_patches_per_tile
+                img_string += (
+                    f"{self.tile_token}_{idx}"
+                    + f"{self.img_patch_token}" * img_patches_per_tile
+                )
 
-        img_string += f"{self.tile_global_token}" + f"{self.img_patch_token}" * img_patches_per_tile
+        img_string += (
+            f"{self.tile_global_token}"
+            + f"{self.img_patch_token}" * img_patches_per_tile
+        )
         img_string += f"{self.end_of_img_token}"
         return img_string
 
     def __call__(
         self,
         images: Optional[ImageInput] = None,
-        text: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]] = None,
+        text: Optional[
+            Union[
+                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+            ]
+        ] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[AyaVisionProcessorKwargs],
@@ -206,7 +216,9 @@ class AyaVisionProcessor(ProcessorMixin):
         image_inputs = {}
         if images is not None:
             images = make_flat_list_of_images(images)
-            image_inputs = self.image_processor(images=images, **output_kwargs["images_kwargs"])
+            image_inputs = self.image_processor(
+                images=images, **output_kwargs["images_kwargs"]
+            )
             num_patches = image_inputs.pop("num_patches")
             image_index = 0
             processed_text = []
@@ -220,7 +232,9 @@ class AyaVisionProcessor(ProcessorMixin):
                 processed_text.append(new_prompt)
 
             if image_index != len(images):
-                raise ValueError("Number of image placeholders in the prompt does not match the number of images.")
+                raise ValueError(
+                    "Number of image placeholders in the prompt does not match the number of images."
+                )
 
             text = processed_text
 

@@ -75,32 +75,48 @@ def set_seed(seed: int, device_specific: bool = False, deterministic: bool = Fal
         torch.use_deterministic_algorithms(True)
 
 
-def synchronize_rng_state(rng_type: Optional[RNGType] = None, generator: Optional[torch.Generator] = None):
+def synchronize_rng_state(
+    rng_type: Optional[RNGType] = None, generator: Optional[torch.Generator] = None
+):
     # Get the proper rng state
     if rng_type == RNGType.TORCH:
         rng_state = torch.get_rng_state()
     elif rng_type == RNGType.CUDA:
         rng_state = torch.cuda.get_rng_state()
     elif rng_type == RNGType.XLA:
-        assert is_torch_xla_available(), "Can't synchronize XLA seeds as torch_xla is unavailable."
+        assert (
+            is_torch_xla_available()
+        ), "Can't synchronize XLA seeds as torch_xla is unavailable."
         rng_state = torch.tensor(xm.get_rng_state())
     elif rng_type == RNGType.NPU:
-        assert is_npu_available(), "Can't synchronize NPU seeds on an environment without NPUs."
+        assert (
+            is_npu_available()
+        ), "Can't synchronize NPU seeds on an environment without NPUs."
         rng_state = torch.npu.get_rng_state()
     elif rng_type == RNGType.MLU:
-        assert is_mlu_available(), "Can't synchronize MLU seeds on an environment without MLUs."
+        assert (
+            is_mlu_available()
+        ), "Can't synchronize MLU seeds on an environment without MLUs."
         rng_state = torch.mlu.get_rng_state()
     elif rng_type == RNGType.SDAA:
-        assert is_sdaa_available(), "Can't synchronize SDAA seeds on an environment without SDAAs."
+        assert (
+            is_sdaa_available()
+        ), "Can't synchronize SDAA seeds on an environment without SDAAs."
         rng_state = torch.sdaa.get_rng_state()
     elif rng_type == RNGType.MUSA:
-        assert is_musa_available(), "Can't synchronize MUSA seeds on an environment without MUSAs."
+        assert (
+            is_musa_available()
+        ), "Can't synchronize MUSA seeds on an environment without MUSAs."
         rng_state = torch.musa.get_rng_state()
     elif rng_type == RNGType.XPU:
-        assert is_xpu_available(), "Can't synchronize XPU seeds on an environment without XPUs."
+        assert (
+            is_xpu_available()
+        ), "Can't synchronize XPU seeds on an environment without XPUs."
         rng_state = torch.xpu.get_rng_state()
     elif rng_type == RNGType.HPU:
-        assert is_hpu_available(), "Can't synchronize HPU seeds on an environment without HPUs."
+        assert (
+            is_hpu_available()
+        ), "Can't synchronize HPU seeds on an environment without HPUs."
         rng_state = torch.hpu.get_rng_state()
     elif rng_type == RNGType.GENERATOR:
         assert generator is not None, "Need a generator to synchronize its seed."
@@ -151,6 +167,8 @@ def synchronize_rng_state(rng_type: Optional[RNGType] = None, generator: Optiona
         generator.set_state(rng_state)
 
 
-def synchronize_rng_states(rng_types: list[Union[str, RNGType]], generator: Optional[torch.Generator] = None):
+def synchronize_rng_states(
+    rng_types: list[Union[str, RNGType]], generator: Optional[torch.Generator] = None
+):
     for rng_type in rng_types:
         synchronize_rng_state(RNGType(rng_type), generator=generator)

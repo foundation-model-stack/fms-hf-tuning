@@ -103,7 +103,9 @@ def init_on_device(device: "torch.device", include_buffers: bool = False):
             param_cls = type(module._parameters[name])
             kwargs = module._parameters[name].__dict__
             kwargs["requires_grad"] = param.requires_grad
-            module._parameters[name] = param_cls(module._parameters[name].to(device), **kwargs)
+            module._parameters[name] = param_cls(
+                module._parameters[name].to(device), **kwargs
+            )
 
     def register_empty_buffer(module, name, buffer, persistent=True):
         old_register_buffer(module, name, buffer, persistent=persistent)
@@ -131,13 +133,20 @@ def init_on_device(device: "torch.device", include_buffers: bool = False):
         if include_buffers:
             nn.Module.register_buffer = register_empty_buffer
         for torch_function_name in tensor_constructors_to_patch.keys():
-            setattr(torch, torch_function_name, patch_tensor_constructor(getattr(torch, torch_function_name)))
+            setattr(
+                torch,
+                torch_function_name,
+                patch_tensor_constructor(getattr(torch, torch_function_name)),
+            )
         yield
     finally:
         nn.Module.register_parameter = old_register_parameter
         if include_buffers:
             nn.Module.register_buffer = old_register_buffer
-        for torch_function_name, old_torch_function in tensor_constructors_to_patch.items():
+        for (
+            torch_function_name,
+            old_torch_function,
+        ) in tensor_constructors_to_patch.items():
             setattr(torch, torch_function_name, old_torch_function)
 
 
@@ -179,7 +188,9 @@ def find_tied_parameters(model: "nn.Module", **kwargs):
     no_duplicate_named_parameters = dict(model.named_parameters(remove_duplicate=True))
 
     # the difference of the two sets will give us the tied parameters
-    tied_param_names = set(all_named_parameters.keys()) - set(no_duplicate_named_parameters.keys())
+    tied_param_names = set(all_named_parameters.keys()) - set(
+        no_duplicate_named_parameters.keys()
+    )
 
     # 'tied_param_names' contains the names of parameters that are tied in the model, but we do not know
     # which names refer to the same parameter. To identify this, we need to group them together.
@@ -193,4 +204,6 @@ def find_tied_parameters(model: "nn.Module", **kwargs):
                     tied_param_groups[param_name] = []
                 tied_param_groups[param_name].append(tied_param_name)
 
-    return [sorted([weight] + list(set(tied))) for weight, tied in tied_param_groups.items()]
+    return [
+        sorted([weight] + list(set(tied))) for weight, tied in tied_param_groups.items()
+    ]

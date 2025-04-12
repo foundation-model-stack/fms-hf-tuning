@@ -20,7 +20,12 @@ import torch
 from datasets import load_dataset
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup, set_seed
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    get_linear_schedule_with_warmup,
+    set_seed,
+)
 
 from accelerate import Accelerator, DistributedType
 from accelerate.utils import find_executable_batch_size
@@ -68,7 +73,12 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
+        outputs = tokenizer(
+            examples["sentence1"],
+            examples["sentence2"],
+            truncation=True,
+            max_length=None,
+        )
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
@@ -86,7 +96,9 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
 
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
-        max_length = 128 if accelerator.distributed_type == DistributedType.XLA else None
+        max_length = (
+            128 if accelerator.distributed_type == DistributedType.XLA else None
+        )
         # When using mixed precision we want round multiples of 8/16
         if accelerator.mixed_precision == "fp8":
             pad_to_multiple_of = 16
@@ -105,10 +117,16 @@ def get_dataloaders(accelerator: Accelerator, batch_size: int = 16):
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
+        tokenized_datasets["train"],
+        shuffle=True,
+        collate_fn=collate_fn,
+        batch_size=batch_size,
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
+        tokenized_datasets["validation"],
+        shuffle=False,
+        collate_fn=collate_fn,
+        batch_size=EVAL_BATCH_SIZE,
     )
 
     return train_dataloader, eval_dataloader
@@ -151,7 +169,9 @@ def training_function(config, args):
         set_seed(seed)
 
         # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-        model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", return_dict=True)
+        model = AutoModelForSequenceClassification.from_pretrained(
+            "bert-base-cased", return_dict=True
+        )
 
         # We could avoid this line since the accelerator is set with `device_placement=True` (default value).
         # Note that if you are placing tensors on devices manually, this line absolutely needs to be before the optimizer
@@ -172,7 +192,13 @@ def training_function(config, args):
         # Prepare everything
         # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
         # prepare method.
-        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+        (
+            model,
+            optimizer,
+            train_dataloader,
+            eval_dataloader,
+            lr_scheduler,
+        ) = accelerator.prepare(
             model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
         )
 
@@ -196,7 +222,9 @@ def training_function(config, args):
                 with torch.no_grad():
                     outputs = model(**batch)
                 predictions = outputs.logits.argmax(dim=-1)
-                predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
+                predictions, references = accelerator.gather_for_metrics(
+                    (predictions, batch["labels"])
+                )
                 metric.add_batch(
                     predictions=predictions,
                     references=references,
@@ -224,7 +252,9 @@ def main():
         "between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10."
         "and an Nvidia Ampere GPU.",
     )
-    parser.add_argument("--cpu", action="store_true", help="If passed, will train on the CPU.")
+    parser.add_argument(
+        "--cpu", action="store_true", help="If passed, will train on the CPU."
+    )
     args = parser.parse_args()
     config = {"lr": 2e-5, "num_epochs": 3, "seed": 42, "batch_size": 16}
     training_function(config, args)

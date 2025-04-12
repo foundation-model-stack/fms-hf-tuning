@@ -54,7 +54,10 @@ class DummyDataset(Dataset):
         else:
             index = list(index)
 
-        batch = [{"index": i, "label": i % 2, "random_augmentation": torch.rand(1).item()} for i in index]
+        batch = [
+            {"index": i, "label": i % 2, "random_augmentation": torch.rand(1).item()}
+            for i in index
+        ]
 
         if squeeze:
             batch = batch[0]
@@ -73,12 +76,18 @@ class DummyIterableDataset(IterableDataset):
 def create_accelerator(even_batches=True):
     dataloader_config = DataLoaderConfiguration(even_batches=even_batches)
     accelerator = Accelerator(dataloader_config=dataloader_config)
-    assert accelerator.num_processes == 2, "this script expects that two GPUs are available"
+    assert (
+        accelerator.num_processes == 2
+    ), "this script expects that two GPUs are available"
     return accelerator
 
 
 def create_dataloader(
-    accelerator: Accelerator, dataset_size: int, batch_size: int, iterable: bool = False, shuffle: bool = False
+    accelerator: Accelerator,
+    dataset_size: int,
+    batch_size: int,
+    iterable: bool = False,
+    shuffle: bool = False,
 ):
     """
     Create a simple DataLoader to use during the test cases
@@ -107,7 +116,9 @@ def verify_dataloader_batch_sizes(
     """
     A helper function for verifying the batch sizes coming from a prepared dataloader in each process
     """
-    dl = create_dataloader(accelerator=accelerator, dataset_size=dataset_size, batch_size=batch_size)
+    dl = create_dataloader(
+        accelerator=accelerator, dataset_size=dataset_size, batch_size=batch_size
+    )
 
     batch_sizes = [len(batch[0]) for batch in dl]
 
@@ -201,7 +212,9 @@ def test_join_can_override_even_batches():
     train_dl = create_dataloader(accelerator, dataset_size=3, batch_size=1)
     valid_dl = create_dataloader(accelerator, dataset_size=3, batch_size=1)
 
-    with accelerator.join_uneven_inputs([ddp_model], even_batches=overridden_even_batches):
+    with accelerator.join_uneven_inputs(
+        [ddp_model], even_batches=overridden_even_batches
+    ):
         train_dl_overridden_value = train_dl.batch_sampler.even_batches
         valid_dl_overridden_value = valid_dl.batch_sampler.even_batches
 
@@ -223,7 +236,9 @@ def test_join_can_override_for_mixed_type_dataloaders():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         try:
-            with accelerator.join_uneven_inputs([ddp_model], even_batches=overridden_even_batches):
+            with accelerator.join_uneven_inputs(
+                [ddp_model], even_batches=overridden_even_batches
+            ):
                 batch_dl_overridden_value = batch_dl.batch_sampler.even_batches
         except AttributeError:
             # ensure attribute error is not raised when processing iterable dl
@@ -270,9 +285,9 @@ def test_data_loader(data_loader, accelerator):
     sorted_all_examples = sorted(all_examples)
 
     # Check if all elements are present in the sorted list of iterated samples
-    assert len(set(sorted_all_examples)) == NUM_ELEMENTS, (
-        "Not all the dataset elements have been iterated in an epoch due to duplication of samples across processes."
-    )
+    assert (
+        len(set(sorted_all_examples)) == NUM_ELEMENTS
+    ), "Not all the dataset elements have been iterated in an epoch due to duplication of samples across processes."
 
 
 def test_stateful_dataloader(accelerator):
@@ -284,13 +299,21 @@ def test_stateful_dataloader(accelerator):
     """
     old_dataloader_config = accelerator.dataloader_config
     try:
-        accelerator.dataloader_config = DataLoaderConfiguration(use_stateful_dataloader=True)
+        accelerator.dataloader_config = DataLoaderConfiguration(
+            use_stateful_dataloader=True
+        )
         prepared_dl = create_dataloader(
-            accelerator, dataset_size=32 * accelerator.num_processes, batch_size=4, iterable=True, shuffle=True
+            accelerator,
+            dataset_size=32 * accelerator.num_processes,
+            batch_size=4,
+            iterable=True,
+            shuffle=True,
         )
         untrained_batches = []
         # Calculate what step that will be
-        total_batches = 32 * accelerator.num_processes // (4 * accelerator.num_processes)
+        total_batches = (
+            32 * accelerator.num_processes // (4 * accelerator.num_processes)
+        )
         last_batch_num = total_batches - 1
         for step, batch in enumerate(prepared_dl):
             # Step just before
@@ -322,13 +345,21 @@ def test_stateful_dataloader_save_state(accelerator):
     old_dataloader_config = accelerator.dataloader_config
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            accelerator.dataloader_config = DataLoaderConfiguration(use_stateful_dataloader=True)
+            accelerator.dataloader_config = DataLoaderConfiguration(
+                use_stateful_dataloader=True
+            )
             prepared_dl = create_dataloader(
-                accelerator, dataset_size=32 * accelerator.num_processes, batch_size=4, iterable=True, shuffle=True
+                accelerator,
+                dataset_size=32 * accelerator.num_processes,
+                batch_size=4,
+                iterable=True,
+                shuffle=True,
             )
             untrained_batches = []
             # Calculate what step that will be
-            total_batches = 32 * accelerator.num_processes // (4 * accelerator.num_processes)
+            total_batches = (
+                32 * accelerator.num_processes // (4 * accelerator.num_processes)
+            )
             last_batch_num = total_batches - 1
             for step, batch in enumerate(prepared_dl):
                 # Step just before
@@ -354,7 +385,9 @@ def main():
     accelerator = create_accelerator()
     torch.manual_seed(accelerator.process_index)
 
-    accelerator.print("Test that even_batches variable ensures uniform batches across processes")
+    accelerator.print(
+        "Test that even_batches variable ensures uniform batches across processes"
+    )
     test_default_ensures_even_batch_sizes()
 
     accelerator.print("Run tests with even_batches disabled")
@@ -369,7 +402,9 @@ def main():
     accelerator.print("Test overriding even_batches for mixed dataloader types")
     test_join_can_override_for_mixed_type_dataloaders()
 
-    accelerator.print("Test overriding even_batches raises a warning for iterable dataloaders")
+    accelerator.print(
+        "Test overriding even_batches raises a warning for iterable dataloaders"
+    )
     test_join_raises_warning_for_iterable_when_overriding_even_batches()
 
     accelerator.print("Test join with non DDP distributed raises warning")
@@ -384,21 +419,35 @@ def main():
     dataset = DummyDataset()
 
     accelerator.print("Test DataLoader with shuffle=False")
-    loader = DataLoader(dataset, shuffle=False, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS)
+    loader = DataLoader(
+        dataset, shuffle=False, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS
+    )
     test_data_loader(loader, accelerator)
 
     accelerator.print("Test DataLoader with shuffle=True")
-    loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS)
+    loader = DataLoader(
+        dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS
+    )
     test_data_loader(loader, accelerator)
 
     accelerator.print("Test DataLoader with batch_sampler")
-    sampler = BatchSampler(RandomSampler(dataset), batch_size=BATCH_SIZE, drop_last=False)
+    sampler = BatchSampler(
+        RandomSampler(dataset), batch_size=BATCH_SIZE, drop_last=False
+    )
     loader = DataLoader(dataset, batch_sampler=sampler, num_workers=NUM_WORKERS)
     test_data_loader(loader, accelerator)
 
     accelerator.print("Test DataLoader with sampler as an instance of `BatchSampler`")
-    sampler = BatchSampler(RandomSampler(dataset), batch_size=BATCH_SIZE, drop_last=False)
-    loader = DataLoader(dataset, sampler=sampler, batch_size=None, collate_fn=default_collate, num_workers=NUM_WORKERS)
+    sampler = BatchSampler(
+        RandomSampler(dataset), batch_size=BATCH_SIZE, drop_last=False
+    )
+    loader = DataLoader(
+        dataset,
+        sampler=sampler,
+        batch_size=None,
+        collate_fn=default_collate,
+        num_workers=NUM_WORKERS,
+    )
     test_data_loader(loader, accelerator)
     test_stateful_dataloader(accelerator)
     test_stateful_dataloader_save_state(accelerator)

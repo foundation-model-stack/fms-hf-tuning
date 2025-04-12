@@ -31,7 +31,9 @@ def update_config(args):
     if config_file is None and Path(default_config_file).exists():
         config_file = default_config_file
     elif not Path(config_file).exists():
-        raise ValueError(f"The passed config file located at {config_file} doesn't exist.")
+        raise ValueError(
+            f"The passed config file located at {config_file} doesn't exist."
+        )
     config = load_config_from_file(config_file)
 
     if config_file.endswith(".json"):
@@ -42,7 +44,12 @@ def update_config(args):
 
 
 def update_command_parser(parser, parents):
-    parser = parser.add_parser("update", parents=parents, help=description, formatter_class=SubcommandHelpFormatter)
+    parser = parser.add_parser(
+        "update",
+        parents=parents,
+        help=description,
+        formatter_class=SubcommandHelpFormatter,
+    )
     parser.add_argument(
         "--config_file",
         default=None,

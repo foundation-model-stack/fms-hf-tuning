@@ -129,7 +129,9 @@ class DeiTConfig(PretrainedConfig):
         self.num_channels = num_channels
         self.qkv_bias = qkv_bias
         self.encoder_stride = encoder_stride
-        self.pooler_output_size = pooler_output_size if pooler_output_size else hidden_size
+        self.pooler_output_size = (
+            pooler_output_size if pooler_output_size else hidden_size
+        )
         self.pooler_act = pooler_act
 
 
@@ -140,7 +142,10 @@ class DeiTOnnxConfig(OnnxConfig):
     def inputs(self) -> Mapping[str, Mapping[int, str]]:
         return OrderedDict(
             [
-                ("pixel_values", {0: "batch", 1: "num_channels", 2: "height", 3: "width"}),
+                (
+                    "pixel_values",
+                    {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
+                ),
             ]
         )
 

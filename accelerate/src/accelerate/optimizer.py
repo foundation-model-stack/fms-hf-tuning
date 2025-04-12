@@ -17,7 +17,12 @@ import inspect
 import torch
 
 from .state import AcceleratorState, GradientState
-from .utils import DistributedType, honor_type, is_lomo_available, is_torch_xla_available
+from .utils import (
+    DistributedType,
+    honor_type,
+    is_lomo_available,
+    is_torch_xla_available,
+)
 
 
 if is_torch_xla_available():
@@ -62,7 +67,9 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
         if self.scaler is not None:
             self._accelerate_step_called = False
             self._optimizer_original_step_method = self.optimizer.step
-            self._optimizer_patched_step_method = patch_optimizer_step(self, self.optimizer.step)
+            self._optimizer_patched_step_method = patch_optimizer_step(
+                self, self.optimizer.step
+            )
 
         # Handle device placement
         if device_placement:
@@ -101,7 +108,10 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
         self.optimizer.add_param_group(param_group)
 
     def load_state_dict(self, state_dict):
-        if self.accelerator_state.distributed_type == DistributedType.XLA and self.device_placement:
+        if (
+            self.accelerator_state.distributed_type == DistributedType.XLA
+            and self.device_placement
+        ):
             xm.send_cpu_data_to_device(state_dict, self.accelerator_state.device)
         self.optimizer.load_state_dict(state_dict)
 
@@ -110,14 +120,18 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
 
     def zero_grad(self, set_to_none=None):
         if self.gradient_state.sync_gradients:
-            accept_arg = "set_to_none" in inspect.signature(self.optimizer.zero_grad).parameters
+            accept_arg = (
+                "set_to_none" in inspect.signature(self.optimizer.zero_grad).parameters
+            )
             if accept_arg:
                 if set_to_none is None:
                     set_to_none = True
                 self.optimizer.zero_grad(set_to_none=set_to_none)
             else:
                 if set_to_none is not None:
-                    raise ValueError("`set_to_none` for Optimizer.zero_grad` is not supported by this optimizer.")
+                    raise ValueError(
+                        "`set_to_none` for Optimizer.zero_grad` is not supported by this optimizer."
+                    )
                 self.optimizer.zero_grad()
 
     def train(self):
@@ -181,7 +195,9 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
 
     def _switch_parameters(self, parameters_map):
         for param_group in self.optimizer.param_groups:
-            param_group["params"] = [parameters_map.get(p, p) for p in param_group["params"]]
+            param_group["params"] = [
+                parameters_map.get(p, p) for p in param_group["params"]
+            ]
 
     @property
     def step_was_skipped(self):
@@ -201,7 +217,9 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
         if self.scaler is not None:
             self._accelerate_step_called = False
             self._optimizer_original_step_method = self.optimizer.step
-            self._optimizer_patched_step_method = patch_optimizer_step(self, self.optimizer.step)
+            self._optimizer_patched_step_method = patch_optimizer_step(
+                self, self.optimizer.step
+            )
 
 
 def patch_optimizer_step(accelerated_optimizer: AcceleratedOptimizer, method):

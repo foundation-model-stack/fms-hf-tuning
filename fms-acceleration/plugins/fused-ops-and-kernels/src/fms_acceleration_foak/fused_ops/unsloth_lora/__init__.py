@@ -14,9 +14,15 @@
 
 from .swiglu import swiglu_fg_kernel, swiglu_DWf_DW_dfg_kernel
 from .geglu import (
-	geglu_exact_forward_kernel,
-	geglu_exact_backward_kernel,
-	geglu_approx_forward_kernel,
-	geglu_approx_backward_kernel,
+    geglu_exact_forward_kernel,
+    geglu_exact_backward_kernel,
+    geglu_approx_forward_kernel,
+    geglu_approx_backward_kernel,
 )
-from .utils import fast_dequantize, fast_gemv, QUANT_STATE, fast_linear_forward, matmul_lora
+from .utils import (
+    fast_dequantize,
+    fast_gemv,
+    QUANT_STATE,
+    fast_linear_forward,
+    matmul_lora,
+)
