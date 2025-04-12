@@ -211,18 +211,35 @@ def train(
         quantized_lora_config,
         fusedops_kernels_config,
     ).get_framework()
+    # Third Party
+    from transformers import AutoModelForImageTextToText
 
-    model_loader = AutoModelForCausalLM.from_pretrained
+    # NOTE
+    # will break for other models
+    # somehow we should choose this based on the model
+    # using AutoConfig and then choose the model_loader?
+    # I will improve in final version
+    model_loader = AutoModelForImageTextToText.from_pretrained
     if framework is not None and framework.requires_custom_loading:
         model_loader = framework.model_loader  # drop-in new loader
+    attn_impl = None
+    if model_args.use_flex_attn and model_args.use_flash_attn:
+        raise ValueError(
+            "both flex and flash attention cannot be used at the same time."
+        )
+    if model_args.use_flash_attn:
+        attn_impl = "flash_attention_2"
+    if model_args.use_flex_attn:
+        attn_impl = "flex_attention"
     model_load_time = time.time()
     model = model_loader(
         model_args.model_name_or_path,
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
-        attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
+        attn_implementation=attn_impl,
         # avoid warning that use_cache is incompatible with gradient checkpointing
-        use_cache=(not train_args.gradient_checkpointing),
+        # NOTE: use cache not supported in llama4
+        # use_cache=(not train_args.gradient_checkpointing),
     )
 
     # TODO: Move these to a config as well
@@ -379,11 +396,12 @@ def train(
                     "Exception while saving additional metrics and metadata %s",
                     repr(e),
                 )
-
-    if trainer.is_fsdp_enabled and peft_config is not None:
-        trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
-            model
-        )
+    # NOTE:
+    # not needed for fsdpv2 and would break fsdpv2 + lora runs
+    # if trainer.is_fsdp_enabled and peft_config is not None:
+    #     trainer.accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(
+    #         model
+    #     )
 
     if framework is not None:
         accelerator = None if not is_accelerate_available() else trainer.accelerator

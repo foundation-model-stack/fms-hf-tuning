@@ -40,6 +40,11 @@ class ModelArguments:
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
     )
+    # llama4 supports flex attention only
+    use_flex_attn: bool = field(
+        default=False,
+        metadata={"help": "Use Flex attention v2 from transformers, default is False"},
+    )
     torch_dtype: Optional[Union[torch.dtype, str]] = torch.bfloat16
     embedding_size_multiple_of: Optional[int] = field(
         default=1,
