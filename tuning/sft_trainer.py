@@ -134,6 +134,14 @@ def train(
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
+    if (not isinstance(model_args.model_name_or_path, str)) or (
+        model_args.model_name_or_path == ""
+    ):
+        raise ValueError(
+            "model_name_or_path has to be a string containing a valid"
+            + " HuggingFace Hub model name or the path to a checkpoint folder"
+        )
+
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
