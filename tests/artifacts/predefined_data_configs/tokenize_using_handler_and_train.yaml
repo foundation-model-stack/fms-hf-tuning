@@ -15,7 +15,6 @@ datasets:
             max_length: 1024
       - name: duplicate_columns
         arguments:
-          remove_columns: all
           batched: true
           fn_kwargs:
             old_column: "input_ids"
