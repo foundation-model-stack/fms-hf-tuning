@@ -108,7 +108,7 @@ def test_successful_ft():
         _validate_training_output(checkpoint, "ft")
 
 
-@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_successful_pt():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:

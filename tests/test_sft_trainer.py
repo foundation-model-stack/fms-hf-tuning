@@ -436,7 +436,7 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
-@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -465,7 +465,7 @@ def test_run_causallm_pt_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -501,7 +501,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -535,6 +535,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_init_text():
     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -622,7 +623,7 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
         _validate_training(tempdir, check_eval=True)
 
 
-@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 @pytest.mark.parametrize(
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
