@@ -56,9 +56,9 @@ def get_data_collator(
     """
 
     if packing:
-        # With SFTTrainer, packing for a tokenized dataset uses default Collator,
-        # DataCollatorForLanguageModeling, whereas packing for a non-tokenized dataset
-        # doesn't require a collator.
+        # With SFTTrainer, packing for both tokenized and non tokenized dataset use 
+        # default collator, DataCollatorForLanguageModeling, and we do not need to 
+        # pass any explicit collator in that case.
         return None
 
     if is_padding_free:
