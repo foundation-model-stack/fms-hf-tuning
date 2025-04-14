@@ -33,7 +33,6 @@ from transformers import (
     AutoTokenizer,
     TrainerCallback,
 )
-from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer

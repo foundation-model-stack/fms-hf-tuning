@@ -453,7 +453,12 @@ def process_dataargs(
 
     if data_args.data_config_path:
         train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
-            data_args, train_args, tokenizer, additional_data_handlers, processor, is_multipack
+            data_args,
+            train_args,
+            tokenizer,
+            additional_data_handlers,
+            processor,
+            is_multipack,
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
