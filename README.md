@@ -10,7 +10,6 @@
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
   - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
-  - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
 - [Extended Pre-Training](#extended-pre-training)
@@ -754,54 +753,6 @@ Note that with LoRA tuning technique, setting `all-linear` on `target_modules` r
 
 _________________________
 
-### Prompt Tuning:
-
-Specify `peft_method` to `'pt'` . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L63).
-```py
-# prompt_tuning_init can be either "TEXT" or "RANDOM"
-prompt_tuning_init: str = "TEXT"
-num_virtual_tokens: int = 8
-# prompt_tuning_init_text only applicable if prompt_tuning_init= "TEXT"
-prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
-tokenizer_name_or_path: str = "llama-7b-hf"
-```
-
-Example command you can run:  
-
-```bash
-python tuning/sft_trainer.py  \
---model_name_or_path $MODEL_PATH  \
---training_data_path $TRAIN_DATA_PATH  \
---output_dir $OUTPUT_PATH  \
---num_train_epochs 5  \
---per_device_train_batch_size 1  \
---learning_rate 0.03  \
---response_template "\n### Label:"  \
---dataset_text_field "output" \
---peft_method pt \
---tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
---prompt_tuning_init "RANDOM" \
---prompt_tuning_init_text "From the following input, identify target sentiment of following types: neutral, negative, positive"
-```
-
-Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
-```json
-{
-    "model_name_or_path": $MODEL_PATH,
-    "training_data_path": $TRAIN_DATA_PATH,
-    "output_dir": $OUTPUT_PATH,
-    "num_train_epochs": 5.0,
-    "per_device_train_batch_size": 1,
-    "learning_rate": 0.03,
-    "response_template": "\n### Label:",
-    "dataset_text_field": "output",
-    "peft_method": "pt",
-    "tokenizer_name_or_path": $MODEL_PATH,
-    "prompt_tuning_init": "RANDOM",
-    "prompt_tuning_init_text": "From the following input, identify target sentiment of following types: neutral, negative, positive"
-}
-```
-
 ### Fine Tuning:
 
 Set `peft_method` to `'None'` or do not provide `peft_method` flag.
@@ -1040,7 +991,5 @@ Further details on enabling and using the trackers mentioned above can be found 
 
 
 ## More Examples
-
-[Prompt Tuning on Twitter Complaints](examples/prompt_tuning_twitter_complaints/README.md)
 
 A good simple example can be found [here](examples/kfto-kueue-sft-trainer.yaml) which launches a Kubernetes-native `PyTorchJob` using the [Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) with [Kueue](https://github.com/kubernetes-sigs/kueue) for the queue management of tuning jobs.
