@@ -116,11 +116,11 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
-# PEFT_PT_ARGS = peft_config.PromptTuningConfig(
-#     prompt_tuning_init="RANDOM",
-#     num_virtual_tokens=0,
-#     prompt_tuning_init_text="hello",
-# )
+PEFT_PT_ARGS = peft_config.PromptTuningConfig(
+    prompt_tuning_init="RANDOM",
+    num_virtual_tokens=0,
+    prompt_tuning_init_text="hello",
+)
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
 
@@ -436,123 +436,126 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
-# def test_run_causallm_pt_and_inference():
-#     """Check if we can bootstrap and peft tune causallm models"""
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         train_args = copy.deepcopy(TRAIN_ARGS)
-#         train_args.output_dir = tempdir
+@pytest.mark.skipif(True, reason="This test is always skipped")
+def test_run_causallm_pt_and_inference():
+    """Check if we can bootstrap and peft tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
 
-#         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
 
-#         # validate peft tuning configs
-#         _validate_training(tempdir)
-#         checkpoint_path = _get_checkpoint_path(tempdir)
-#         adapter_config = _get_adapter_config(checkpoint_path)
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
 
-#         _validate_adapter_config(
-#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-#         )
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+        )
 
-#         # Load the model
-#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
 
-#         # Run inference on the text
-#         output_inference = loaded_model.run(
-#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-#         )
-#         assert len(output_inference) > 0
-#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
-
-
-# def test_run_causallm_pt_and_inference_with_formatting_data():
-#     """Check if we can bootstrap and peft tune causallm models
-#     This test needs the trainer to format data to a single sequence internally.
-#     """
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         data_formatting_args = copy.deepcopy(DATA_ARGS)
-#         data_formatting_args.dataset_text_field = None
-#         data_formatting_args.data_formatter_template = (
-#             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
-#         )
-
-#         train_args = copy.deepcopy(TRAIN_ARGS)
-#         train_args.output_dir = tempdir
-
-#         sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
-
-#         # validate peft tuning configs
-#         _validate_training(tempdir)
-#         checkpoint_path = _get_checkpoint_path(tempdir)
-#         adapter_config = _get_adapter_config(checkpoint_path)
-#         _validate_adapter_config(
-#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-#         )
-
-#         # Load the model
-#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
-
-#         # Run inference on the text
-#         output_inference = loaded_model.run(
-#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-#         )
-#         assert len(output_inference) > 0
-#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-# def test_run_causallm_pt_and_inference_JSON_file_formatter():
-#     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         train_args = copy.deepcopy(TRAIN_ARGS)
-#         train_args.output_dir = tempdir
-#         data_args = copy.deepcopy(DATA_ARGS)
-#         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
-#         data_args.dataset_text_field = None
-#         data_args.data_formatter_template = (
-#             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
-#         )
+@pytest.mark.skipif(True, reason="This test is always skipped")
+def test_run_causallm_pt_and_inference_with_formatting_data():
+    """Check if we can bootstrap and peft tune causallm models
+    This test needs the trainer to format data to a single sequence internally.
+    """
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+        data_formatting_args.dataset_text_field = None
+        data_formatting_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
-#         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
 
-#         # validate peft tuning configs
-#         _validate_training(tempdir)
-#         checkpoint_path = _get_checkpoint_path(tempdir)
-#         adapter_config = _get_adapter_config(checkpoint_path)
-#         _validate_adapter_config(
-#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-#         )
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
 
-#         # Load the model
-#         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+        )
 
-#         # Run inference on the text
-#         output_inference = loaded_model.run(
-#             "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
-#         )
-#         assert len(output_inference) > 0
-#         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-# def test_run_causallm_pt_init_text():
-#     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         train_args = copy.deepcopy(TRAIN_ARGS)
-#         train_args.output_dir = tempdir
+@pytest.mark.skipif(True, reason="This test is always skipped")
+def test_run_causallm_pt_and_inference_JSON_file_formatter():
+    """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = (
+            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        )
 
-#         tuning_config = peft_config.PromptTuningConfig(
-#             prompt_tuning_init="TEXT",
-#             prompt_tuning_init_text="hello",
-#             num_virtual_tokens=0,
-#         )
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
-#         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+        )
 
-#         # validate peft tuning configs
-#         _validate_training(tempdir)
-#         checkpoint_path = _get_checkpoint_path(tempdir)
-#         adapter_config = _get_adapter_config(checkpoint_path)
-#         _validate_adapter_config(
-#             adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
-#         )
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+
+def test_run_causallm_pt_init_text():
+    """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        tuning_config = peft_config.PromptTuningConfig(
+            prompt_tuning_init="TEXT",
+            prompt_tuning_init_text="hello",
+            num_virtual_tokens=0,
+        )
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
+
+        # validate peft tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(
+            adapter_config, "PROMPT_TUNING", MODEL_ARGS.model_name_or_path
+        )
 
 
 invalid_params_map = [
@@ -619,22 +622,23 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
         _validate_training(tempdir, check_eval=True)
 
 
-# @pytest.mark.parametrize(
-#     "dataset_path",
-#     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
-# )
-# def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
-#     """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         train_args = copy.deepcopy(TRAIN_ARGS)
-#         model_args = copy.deepcopy(MODEL_ARGS)
-#         model_args.tokenizer_name_or_path = model_args.model_name_or_path
-#         train_args.output_dir = tempdir
-#         train_args.eval_strategy = "epoch"
-#         data_args = copy.deepcopy(DATA_ARGS)
-#         data_args.validation_data_path = dataset_path
-#         with pytest.raises(ValueError):
-#             sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
+@pytest.mark.skipif(True, reason="This test is always skipped")
+@pytest.mark.parametrize(
+    "dataset_path",
+    [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
+)
+def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
+    """Check if we fail when custom tokenizer not having pad token is used in prompt tuning"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.tokenizer_name_or_path = model_args.model_name_or_path
+        train_args.output_dir = tempdir
+        train_args.eval_strategy = "epoch"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.validation_data_path = dataset_path
+        with pytest.raises(ValueError):
+            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
 
 
 ############################# Lora Tests #############################

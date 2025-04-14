@@ -60,17 +60,17 @@ BASE_KWARGS = {
     "torch_dtype": "float32",
     "max_seq_length": 4096,
 }
-# BASE_PEFT_KWARGS = {
-#     **BASE_KWARGS,
-#     **{
-#         "peft_method": "pt",
-#         "prompt_tuning_init": "RANDOM",
-#         "num_virtual_tokens": 8,
-#         "prompt_tuning_init_text": "hello",
-#         "save_strategy": "epoch",
-#         "output_dir": "tmp",
-#     },
-# }
+BASE_PEFT_KWARGS = {
+    **BASE_KWARGS,
+    **{
+        "peft_method": "pt",
+        "prompt_tuning_init": "RANDOM",
+        "num_virtual_tokens": 8,
+        "prompt_tuning_init_text": "hello",
+        "save_strategy": "epoch",
+        "output_dir": "tmp",
+    },
+}
 BASE_LORA_KWARGS = {
     **BASE_KWARGS,
     **{
@@ -108,18 +108,19 @@ def test_successful_ft():
         _validate_training_output(checkpoint, "ft")
 
 
-# def test_successful_pt():
-#     """Check if we can bootstrap and peft tune causallm models"""
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         setup_env(tempdir)
-#         TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
-#         serialized_args = serialize_args(TRAIN_KWARGS)
-#         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+@pytest.mark.skipif(True, reason="This test is always skipped")
+def test_successful_pt():
+    """Check if we can bootstrap and peft tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        setup_env(tempdir)
+        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
+        serialized_args = serialize_args(TRAIN_KWARGS)
+        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
 
-#         assert main() == 0
-#         _validate_termination_files_when_tuning_succeeds(tempdir)
-#         checkpoint = os.path.join(tempdir, get_highest_checkpoint(tempdir))
-#         _validate_training_output(checkpoint, "pt")
+        assert main() == 0
+        _validate_termination_files_when_tuning_succeeds(tempdir)
+        checkpoint = os.path.join(tempdir, get_highest_checkpoint(tempdir))
+        _validate_training_output(checkpoint, "pt")
 
 
 def test_successful_lora():
