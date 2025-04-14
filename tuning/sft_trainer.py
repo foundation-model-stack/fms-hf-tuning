@@ -30,7 +30,6 @@ from trl import SFTConfig, SFTTrainer
 
 # First Party
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
-from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 import transformers
@@ -372,7 +371,7 @@ def train(
 
     trainer = TrainerClass(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
@@ -380,13 +379,6 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
-
-    # Note this check has to be done post trainer initialization
-    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
-        raise ValueError(
-            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
-            + "Set --enable_reduce_loss_sum to false and retry"
-        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.
