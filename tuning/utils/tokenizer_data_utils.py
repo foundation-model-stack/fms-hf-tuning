@@ -107,24 +107,10 @@ def tokenizer_and_embedding_resize(
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
 
+    # For Mllama models, we need to resize the input and output embeddings
+    # separately, as the model has a different input and output embeddings.
     if isinstance(model, MllamaForConditionalGeneration):
-        # Get new input embedding size
-        current_input_embeddings = model.get_input_embeddings()
-        current_output_embeddings = model.get_output_embeddings()
-        input_embedding_size = current_input_embeddings.weight.shape[0] + (
-            embedding_size - current_output_embeddings.weight.shape[0]
-        )
-
-        # Save current input embedding
-        resized_input_embeddings = model._get_resized_embeddings(
-            current_input_embeddings,
-            new_num_tokens=input_embedding_size,
-            mean_resizing=True,
-        )
-        resized_input_embeddings = copy.deepcopy(resized_input_embeddings)
-        resized_input_embeddings.requires_grad_(
-            current_input_embeddings.weight.requires_grad
-        )
+        resized_input_embeddings = get_resized_input_embeddings(model, embedding_size)
 
         # Resize input and output embeddings
         model.resize_token_embeddings(embedding_size)
@@ -153,3 +139,32 @@ def tokenizer_and_embedding_resize(
         output_embeddings[-num_new_tokens:] = output_embeddings_avg
 
     return {"num_new_tokens": num_new_tokens, "new_embedding_size": embedding_size}
+
+
+def get_resized_input_embeddings(model, embedding_size):
+    """Get resized input embeddings for Mllama models.
+    Args:
+        model: Mllama models.
+        embedding_size: Size of the new embeddings.
+    Returns:
+        resized_input_embeddings: Resized input embeddings.
+    """
+    # Get current input and output embeddings
+    # and their respective vocab sizes
+    current_input_embeddings = model.get_input_embeddings()
+    current_output_embeddings = model.get_output_embeddings()
+    input_embedding_size = current_input_embeddings.weight.shape[0] + (
+        embedding_size - current_output_embeddings.weight.shape[0]
+    )
+
+    # Save current input embedding
+    resized_input_embeddings = model._get_resized_embeddings(
+        current_input_embeddings,
+        new_num_tokens=input_embedding_size,
+        mean_resizing=True,
+    )
+    resized_input_embeddings = copy.deepcopy(resized_input_embeddings)
+    resized_input_embeddings.requires_grad_(
+        current_input_embeddings.weight.requires_grad
+    )
+    return resized_input_embeddings

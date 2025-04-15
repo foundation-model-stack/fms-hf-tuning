@@ -345,8 +345,7 @@ def _process_raw_data_args(
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
             data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
         )
-    # TODO: Better way to handle vision this elif condition
-    elif data_args.dataset_text_field and data_args.dataset_image_field:
+    elif processor and data_args.dataset_text_field and data_args.dataset_image_field:
 
         handlers, dataset_text_field = _get_vision_dataset_handlers(
             data_args, processor_kwargs

@@ -230,8 +230,7 @@ def train(
     processor = None
     try:
         # try to load vision model
-        model_loader = AutoModelForVision2Seq.from_pretrained
-        model = model_loader(
+        model = AutoModelForVision2Seq.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=train_args.cache_dir,
             torch_dtype=get_torch_dtype(model_args.torch_dtype),

@@ -69,6 +69,11 @@ def get_data_collator(
     """
 
     if processor:
+        if is_padding_free or packing:
+            raise ValueError(
+                "Vision model tuning does not support packing or padding_free tuning."
+                "Please set packing=False and is_padding_free=False."
+            )
         return VisionDataCollator(processor)
 
     if packing:

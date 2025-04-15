@@ -18,18 +18,11 @@ from tuning.utils.utils import try_convert_bytes_dict_to_pil
 
 class VisionDataCollator:
     """
-    A data collator specialized for multi-modal (text + image) inputs.
+    A data collator specialized for vision model (text + image) inputs.
     It uses a processor (e.g., LlavaProcessor or MllamaProcessor) to
     combine text and images into model-ready tensors.
 
-    For padding-free tuning, configure the processor's arguments
-    in `processor_kwargs`, for example:
-        processor_kwargs = {
-            "padding": False,
-            "max_length": 1024,
-            ...
-        }
-
+    Padding-free tuning is not supported.
     Args:
         processor: A processor (like `LlavaProcessor`, `MllamaProcessor`, etc.).
     """
