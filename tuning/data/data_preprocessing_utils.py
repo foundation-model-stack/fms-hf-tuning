@@ -56,13 +56,9 @@ def get_data_collator(
     """
 
     if packing:
-        if is_traindata_tokenized:
-            # packing with tokenized dataset requires seq2seq collator.
-            return DataCollatorForSeq2Seq(
-                tokenizer=tokenizer, padding=False, max_length=max_seq_length
-            )
-
-        # packing for non tokenized dataset doesn't require a collator with SFTrainer.
+        # With SFTTrainer, packing for both tokenized and non tokenized dataset use
+        # default collator, DataCollatorForLanguageModeling, and we do not need to
+        # pass any explicit collator in that case.
         return None
 
     if is_padding_free:

@@ -27,7 +27,6 @@ from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
-from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
@@ -128,6 +127,14 @@ def train(
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
+    if (not isinstance(model_args.model_name_or_path, str)) or (
+        model_args.model_name_or_path == ""
+    ):
+        raise ValueError(
+            "model_name_or_path has to be a string containing a valid"
+            + " HuggingFace Hub model name or the path to a checkpoint folder"
+        )
+
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
@@ -290,8 +297,10 @@ def train(
     logger.info("Packing is set to %s ", train_args.packing)
 
     is_padding_free = False
+    is_multipack = False
     if attention_and_distributed_packing_config is not None:
         is_padding_free = attention_and_distributed_packing_config.is_padding_free
+        is_multipack = attention_and_distributed_packing_config.is_multipack
 
     data_preprocessing_time = time.time()
     (
@@ -307,6 +316,7 @@ def train(
         train_args,
         additional_data_handlers,
         is_padding_free=is_padding_free,
+        is_multipack=is_multipack,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
@@ -348,7 +358,7 @@ def train(
 
     trainer = TrainerClass(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
@@ -356,13 +366,6 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
-
-    # Note this check has to be done post trainer initialization
-    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
-        raise ValueError(
-            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
-            + "Set --enable_reduce_loss_sum to false and retry"
-        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

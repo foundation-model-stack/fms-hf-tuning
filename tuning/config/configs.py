@@ -35,7 +35,7 @@ DEFAULT_UNK_TOKEN = "<unk>"
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default=None)
     use_flash_attn: bool = field(
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
