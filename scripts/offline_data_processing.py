@@ -5,13 +5,7 @@ import sys
 import traceback
 
 # Third Party
-from transformers import (
-    AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
-)
+from transformers import AutoTokenizer
 
 # Local
 from tuning.config import configs
@@ -19,6 +13,7 @@ from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.sft_trainer import get_parser
 from tuning.utils.error_logging import USER_ERROR_EXIT_CODE, write_termination_log
 from tuning.utils.logging import set_log_level
+from tuning.utils.tokenizer_data_utils import get_special_tokens_dict
 
 
 def save_dataset_shards(
@@ -92,36 +87,9 @@ def get_processed_dataset(
         tokenizer.chat_template = data_args.chat_template
 
     # Prepare special tokens dictionary
-    special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
-        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            special_tokens_dict["bos_token"] = "<s>"
-            special_tokens_dict["eos_token"] = "</s>"
-            special_tokens_dict["unk_token"] = "<unk>"
-            special_tokens_dict["pad_token"] = "<pad>"
-        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            special_tokens_dict["pad_token"] = "<pad>"
-
-        if tokenizer.pad_token is None:
-            logger.warning(
-                "PAD token not found in tokenizer; setting PAD token to default."
-            )
-            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-        if tokenizer.eos_token is None:
-            logger.warning(
-                "EOS token not found in tokenizer; setting EOS token to default."
-            )
-            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-        if tokenizer.pad_token == tokenizer.eos_token:
-            logger.warning(
-                "PAD token and EOS token are the same. Overriding accordingly."
-            )
-            if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
-                tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
-                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-            else:
-                tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
-                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+    special_tokens_dict = get_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
 
     # adds user specified special tokens to vocab
     if data_args.add_special_tokens:
@@ -132,7 +100,10 @@ def get_processed_dataset(
 
     if special_tokens_dict:
         logger.info("Adding special tokens: %s", special_tokens_dict)
-        tokenizer.add_special_tokens(special_tokens_dict)
+        tokenizer.add_special_tokens(
+            special_tokens_dict=special_tokens_dict,
+            replace_additional_special_tokens=False,
+        )
 
     # Process data using the provided arguments and tokenizer
     logger.info("Calling process_dataargs to format datasets.")
