@@ -1468,7 +1468,12 @@ def test_run_moe_lora_and_inference(dataset_path):
         train_args.output_dir = tempdir
         lora_args = copy.deepcopy(PEFT_LORA_ARGS)
         lora_args.r = 16
-        lora_args.target_modules = ["q_proj", "v_proj", "o_proj", "k_proj"] # Router doesn't work with LoRA test inference
+        lora_args.target_modules = [
+            "q_proj",
+            "v_proj",
+            "o_proj",
+            "k_proj",
+        ]  # Router doesn't work with LoRA test inference
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=False))
         sft_trainer.train(
             model_args,
@@ -1481,7 +1486,7 @@ def test_run_moe_lora_and_inference(dataset_path):
             checkpoint_path=os.path.join(
                 _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
             ),
-            base_model_name_or_path="ibm-granite/granite-3.1-1b-a400m-base"
+            base_model_name_or_path="ibm-granite/granite-3.1-1b-a400m-base",
         )
 
 
