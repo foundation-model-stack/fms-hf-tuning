@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 class DataPreProcessor:
 
     tokenizer = None
-    image_processor = None
+    processor = None
     data_config: DataConfig = None
     processor_config: DataPreProcessorConfig = None
     registered_handlers: Dict[str, DataHandler] = None
@@ -52,10 +52,10 @@ class DataPreProcessor:
         self,
         processor_config: DataPreProcessorConfig,
         tokenizer: AutoTokenizer,
-        image_processor: AutoProcessor = None,
+        processor: AutoProcessor = None,
     ):
         self.tokenizer = tokenizer
-        self.image_processor = image_processor
+        self.processor = processor
         self.processor_config = processor_config
 
         # Initialize other objects
@@ -376,7 +376,7 @@ class DataPreProcessor:
                             kwargs["fn_kwargs"] = {}
 
                         kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
-                        kwargs["fn_kwargs"]["processor"] = self.image_processor
+                        kwargs["fn_kwargs"]["processor"] = self.processor
                         kwargs["fn_kwargs"]["column_names"] = column_names
 
                         kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
@@ -457,13 +457,13 @@ class DataPreProcessor:
 def get_datapreprocessor(
     processor_config: DataPreProcessorConfig,
     tokenizer: AutoTokenizer,
-    image_processor: AutoProcessor = None,
+    processor: AutoProcessor = None,
     additional_data_handlers: Dict[str, DataHandler] = None,
 ) -> DataPreProcessor:
-    processor = DataPreProcessor(
+    data_processor = DataPreProcessor(
         processor_config=processor_config,
         tokenizer=tokenizer,
-        image_processor=image_processor,
+        processor=processor,
     )
-    processor.register_data_handlers(additional_data_handlers)
-    return processor
+    data_processor.register_data_handlers(additional_data_handlers)
+    return data_processor

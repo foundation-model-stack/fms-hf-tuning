@@ -627,7 +627,7 @@ AVAILABLE_DATA_HANDLERS = {
     "prepare_multimodal_data_processor": DataHandler(
         op=prepare_multimodal_data_processor,
         handler_type=DataHandlerType.MAP,
-        allows_batching=True,
+        allows_batching=False,
     ),
     "tokenize": DataHandler(
         op=tokenize,

@@ -238,6 +238,8 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
+            # avoid warning that use_cache is incompatible with gradient checkpointing
+            use_cache=(not train_args.gradient_checkpointing),
         )
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
@@ -256,6 +258,8 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
+            # avoid warning that use_cache is incompatible with gradient checkpointing
+            use_cache=(not train_args.gradient_checkpointing),
         )
 
         # TODO: Move these to a config as well
@@ -268,7 +272,6 @@ def train(
             cache_dir=train_args.cache_dir,
             use_fast=True,
             legacy=True,
-            use_cache=(not train_args.gradient_checkpointing),
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())

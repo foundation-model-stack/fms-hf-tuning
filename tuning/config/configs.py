@@ -145,12 +145,6 @@ class DataArguments:
             Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
-    use_streaming_dataset: bool = field(
-        default=False,
-        metadata={
-            "help": "Use of Streaming with Iterable dataset to be enabled, default is False"
-        },
-    )
 
     def __post_init__(self):
         def unescape(s):

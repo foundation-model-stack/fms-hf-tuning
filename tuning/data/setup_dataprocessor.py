@@ -49,10 +49,10 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
 
     if isinstance(data, str):
         # Create a data processor with default processor config
-        processor = get_datapreprocessor(
+        data_processor = get_datapreprocessor(
             processor_config=DataPreProcessorConfig(), tokenizer=None
         )
-        data = processor.load_dataset(
+        data = data_processor.load_dataset(
             None,
             streaming=False,
             splitName="train[:1]",
@@ -73,23 +73,23 @@ def _process_dataconfig_file(
     is_multipack: bool = False,
 ):
     data_config = load_and_validate_data_config(data_args.data_config_path)
-    processor = get_datapreprocessor(
+    data_processor = get_datapreprocessor(
         processor_config=data_config.dataprocessor,
         tokenizer=tokenizer,
-        image_processor=processor,
+        processor=processor,
         additional_data_handlers=additional_data_handlers,
     )
 
-    if processor.processor_config.chat_template is not None:
+    if data_processor.processor_config.chat_template is not None:
         if tokenizer.chat_template:
             logger.warning(
                 "replacing existing chat_template %s with data config's chat_template %s",
                 tokenizer.chat_template,
-                processor.processor_config.chat_template,
+                data_processor.processor_config.chat_template,
             )
-        tokenizer.chat_template = processor.processor_config.chat_template
+        tokenizer.chat_template = data_processor.processor_config.chat_template
 
-    if processor.processor_config.streaming:
+    if data_processor.processor_config.streaming:
         if train_args.max_steps < 1:
             logging.error(
                 "ValueError: `--max_steps` must be set when streaming is set in data \
@@ -108,7 +108,7 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
-    train_dataset = processor.process_dataset_configs(data_config.datasets)
+    train_dataset = data_processor.process_dataset_configs(data_config.datasets)
 
     return (train_dataset, None, data_args.dataset_text_field)
 
@@ -239,17 +239,16 @@ def _get_vision_dataset_handlers(data_args, processor_kwargs):
     handlers = []
 
     # First data handler configuration
-    fn_kwargs1 = {
+    handler_fn_kwargs1 = {
         "dataset_text_field": data_args.dataset_text_field,
         "conversation_column": data_args.dataset_text_field,
     }
-    kwargs1 = {
-        "fn_kwargs": fn_kwargs1,
-        "batched": False,
+    handler_kwargs1 = {
+        "fn_kwargs": handler_fn_kwargs1,
         "remove_columns": None,
     }
     handlers.append(
-        DataHandlerConfig("apply_tokenizer_chat_template", arguments=kwargs1)
+        DataHandlerConfig("apply_tokenizer_chat_template", arguments=handler_kwargs1)
     )
 
     # Second data handler configuration
@@ -262,8 +261,6 @@ def _get_vision_dataset_handlers(data_args, processor_kwargs):
     }
     kwargs2 = {
         "fn_kwargs": fn_kwargs2,
-        "batched": False,
-        "num_proc": None,
     }
     handlers.append(
         DataHandlerConfig("prepare_multimodal_data_processor", arguments=kwargs2)
@@ -297,11 +294,10 @@ def _process_raw_data_args(
 
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
-    default_processor_config.streaming = data_args.use_streaming_dataset
     data_processor = get_datapreprocessor(
         processor_config=default_processor_config,
         tokenizer=tokenizer,
-        image_processor=processor,
+        processor=processor,
         additional_data_handlers=additional_data_handlers,
     )
     assert isinstance(
@@ -488,6 +484,7 @@ def process_dataargs(
     )
 
     dataset_kwargs = {}
+    # For vision model tuning prepare_dataset is skipped.
     if processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True
 
