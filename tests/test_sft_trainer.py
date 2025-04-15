@@ -27,7 +27,10 @@ import tempfile
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
+from PIL import Image
+from transformers import AutoProcessor
 from transformers.trainer_callback import TrainerCallback
+import numpy as np
 import pytest
 import torch
 import transformers
@@ -90,6 +93,7 @@ from tuning.data.data_handlers import (
     DataHandlerType,
     add_tokenizer_eos_token,
 )
+from tuning.utils.collators import VisionDataCollator
 from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_ARGS = configs.ModelArguments(
@@ -123,6 +127,7 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+LLAMA_VISION_MODEL_NAME = "tests/artifacts/tiny-llama-vision-model"
 
 
 @pytest.mark.parametrize(
@@ -1969,3 +1974,51 @@ def test_run_by_passing_additional_data_handlers():
             },
         )
         _validate_training(tempdir)
+
+
+def test_vision_data_collator():
+    """Test the VisionDataCollator with dummy Image data."""
+
+    processor = AutoProcessor.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    collator = VisionDataCollator(processor)
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = True
+    image_size = (32, 32)
+
+    def generate_pil_image(size=image_size):
+        """Generate a dummy image array of the specified size and return PIL Image."""
+        image_array = np.random.randint(0, 256, size=(*size, 3), dtype=np.uint8)
+        return Image.fromarray(image_array)
+
+    image1 = generate_pil_image()
+    image2 = generate_pil_image()
+
+    features = [
+        {
+            "processor_kwargs": processor_kwargs,
+            "fields_name": {
+                "dataset_text_field": "text",
+                "dataset_image_field": "image",
+            },
+            "text": "Describe the image.",
+            "image": [image1],
+        },
+        {
+            "processor_kwargs": processor_kwargs,
+            "fields_name": {
+                "dataset_text_field": "text",
+                "dataset_image_field": "image",
+            },
+            "text": "What is in the image?",
+            "image": [image2],
+        },
+    ]
+
+    # Call the collator which returns a batch dictionary containing "input_ids" and "labels"
+    batch = collator(features)
+
+    assert "input_ids" in batch
+    assert "labels" in batch
+    assert "attention_mask" in batch
+    assert batch["input_ids"].shape == batch["labels"].shape
