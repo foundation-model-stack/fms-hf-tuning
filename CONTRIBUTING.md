@@ -34,6 +34,7 @@ When your contribution is ready, you can create a pull request. Pull requests ar
 1. It's best to break your contribution into smaller PRs with incremental changes, and include a good description of the changes in the PR description. 
 2. We require new unit tests to be contributed with any new functionality added.
 3. We require each feature to be documented as part of the PR. If certain feature is experimental and not documented it will be announced as a dev preview.
+4. We require any new unit tests that are gated by conditions such as package availability must be executed, and details of those along with a screenshot of the test results should be included in the PR description.
 
 Before sending pull requests, make sure your changes pass formatting, linting and unit tests. These checks will run with the pull request builds. Alternatively, you can run the checks manually on your local machine [as specified below](#development).
 
