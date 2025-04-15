@@ -26,11 +26,13 @@ import traceback
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
+from trl import SFTConfig, SFTTrainer
+
+# First Party
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 from transformers.trainer import _is_peft_model
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
-from trl import SFTConfig, SFTTrainer
 import transformers
 
 # Local
@@ -211,7 +213,7 @@ def train(
         quantized_lora_config,
         fusedops_kernels_config,
     ).get_framework()
-    # Third Party
+    # First Party
     from transformers import AutoModelForImageTextToText
 
     # NOTE
@@ -237,6 +239,8 @@ def train(
         cache_dir=train_args.cache_dir,
         torch_dtype=get_torch_dtype(model_args.torch_dtype),
         attn_implementation=attn_impl,
+        tp_size=model_args.tp_size,
+        tp_plan="auto" if model_args.tp_size else None,
         # avoid warning that use_cache is incompatible with gradient checkpointing
         # NOTE: use cache not supported in llama4
         # use_cache=(not train_args.gradient_checkpointing),

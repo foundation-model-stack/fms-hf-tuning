@@ -18,6 +18,8 @@ from typing import List, Optional, Union
 
 # Third Party
 import torch
+
+# First Party
 import transformers
 
 # Local
@@ -65,6 +67,10 @@ class ModelArguments:
                 otherwise, it defaults to model_name_or_path with special tokens for specific \
                 tokenizer classes."
         },
+    )
+    tp_size: int = field(
+        default=None,
+        metadata={"help": "tp size"},
     )
 
 
