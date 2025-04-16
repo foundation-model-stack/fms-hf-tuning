@@ -235,7 +235,14 @@ def test_resize_llama_vision_model():
     assert "<unk>" in tokenizer.get_vocab()
     assert resize_result["num_new_tokens"] == 1
 
-    # 2 new tokens were added: <unk> and <image>
+    # Resizing adds 2 tokens (<unk> and <image>) because the tokenizer vocab size (128257)
+    # is 1 greater than the output embedding size (128256),
+    # i.e., len(tokenizer) == model.get_output_embeddings().weight.shape[0] + 1.
+
+    # When special_tokens_dict only contains <unk>, the embedding size calculation
+    # increases the embedding size from 128256 to 128258 (adding 2 tokens in total).
+    # Consequently, the model's input embeddings are resized with an increase of 2 tokens as well.
+
     assert (
         resized_output_embeddings.weight.shape[0]
         == current_output_embeddings.weight.shape[0] + 2

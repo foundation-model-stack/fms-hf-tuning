@@ -252,7 +252,7 @@ def _get_vision_dataset_handlers(data_args, processor_kwargs):
     )
 
     # Second data handler configuration
-    fn_kwargs2 = {
+    handler_fn_kwargs2 = {
         "fields_name": {
             "dataset_text_field": data_args.dataset_text_field,
             "dataset_image_field": data_args.dataset_image_field,
@@ -260,7 +260,7 @@ def _get_vision_dataset_handlers(data_args, processor_kwargs):
         "processor_kwargs": processor_kwargs,
     }
     kwargs2 = {
-        "fn_kwargs": fn_kwargs2,
+        "fn_kwargs": handler_fn_kwargs2,
     }
     handlers.append(
         DataHandlerConfig("prepare_multimodal_data_processor", arguments=kwargs2)

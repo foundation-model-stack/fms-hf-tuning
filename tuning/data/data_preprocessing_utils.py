@@ -26,7 +26,7 @@ from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
-from tuning.utils.collators import VisionDataCollator
+from tuning.data.collators import VisionDataCollator
 
 logger = logging.getLogger(__name__)
 
