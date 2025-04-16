@@ -55,6 +55,7 @@ def custom_bwd(bwd):
 
 
 class AllToAllOp(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, x, output_split_sizes, input_split_sizes, group, async_op):
         out = torch.empty(
@@ -106,6 +107,7 @@ def all_to_all(x, output_split_sizes, input_split_sizes, group, async_op=False):
 
 # Autograd wrapper for scatter kernel.
 class ScatterOp(torch.autograd.Function):
+
     @staticmethod
     @custom_fwd
     def forward(ctx, x, indices, bin_ids, weights, bins, top_k):
@@ -160,6 +162,7 @@ def scatter(
 
 # Autograd wrapper for gather kernel.
 class GatherOp(torch.autograd.Function):
+
     @staticmethod
     @custom_fwd
     def forward(ctx, x, indices, bin_ids, bins, top_k):

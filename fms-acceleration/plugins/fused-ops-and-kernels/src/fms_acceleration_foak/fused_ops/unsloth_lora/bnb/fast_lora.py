@@ -56,132 +56,74 @@ class LoRA_MLP(torch.autograd.Function):
 
     Don't forget to see our blog post for more details!
     """
-
     @staticmethod
-    @torch.amp.custom_fwd(device_type="cuda")
-    def forward(
-        ctx,
-        X: torch.Tensor,
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        upW,
-        upW_quant,
-        up_bias,
-        upA,
-        upB,
-        upS,
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        _forward_function,
-        _backward_function,
-        dropout_gate=None,
-        dropout_up=None,
-        dropout_down=None,
-    ):
+    @torch.amp.custom_fwd(device_type='cuda')
+    def forward(ctx, X : torch.Tensor,
+                gateW, gateW_quant, gate_bias, gateA, gateB, gateS,
+                  upW,   upW_quant, up_bias, upA,   upB,   upS,
+                downW, downW_quant, down_bias, downA, downB, downS,
+                _forward_function, _backward_function,
+                dropout_gate=None, dropout_up=None, dropout_down=None,
+                ):
         dtype = X.dtype
 
-        e = matmul_lora(
-            X, gateW, gateW_quant, gateA, gateB, gateS, dropout=dropout_gate
-        )
-        g = matmul_lora(X, upW, upW_quant, upA, upB, upS, dropout=dropout_up)
-        if gate_bias is not None:
-            e += gate_bias
-        if up_bias is not None:
-            g += up_bias
+        e = matmul_lora(X, gateW, gateW_quant, gateA, gateB, gateS, dropout=dropout_gate)
+        g = matmul_lora(X,   upW,   upW_quant,   upA,   upB,   upS, dropout=dropout_up)
+        if gate_bias is not None: e += gate_bias
+        if up_bias is not None: g += up_bias
         h = _forward_function(e, g)
-        i = matmul_lora(
-            h, downW, downW_quant, downA, downB, downS, dropout=dropout_down
-        )
-        if down_bias is not None:
-            i += down_bias
+        i = matmul_lora(h, downW, downW_quant, downA, downB, downS, dropout=dropout_down)
+        if down_bias is not None: i += down_bias
 
         # Extract post-dropout X for use in backward computation
         _dropped_X = []
-        for _dropout in [dropout_gate, dropout_up, dropout_down]:
+        for _dropout in [
+            dropout_gate, dropout_up, dropout_down
+        ]:
             if _dropout is not None:
                 # then matmul_lora must have attached the X
                 _dropped_X.append(_dropout.X)
-                del _dropout.X  # remove it
+                del _dropout.X # remove it
             else:
                 # otherwise will use X
                 _dropped_X.append(X)
 
         ctx.custom_saved_tensors = (
-            gateW,
-            gateW_quant,
-            gateS,
-            upW,
-            upW_quant,
-            upS,
-            downW,
-            downW_quant,
-            downS,
+            gateW, gateW_quant, gateS,
+            upW, upW_quant, upS,
+            downW, downW_quant, downS,
             _backward_function,
         )
         ctx.save_for_backward(
-            gateA, gateB, upA, upB, downA, downB, X, e, g, *_dropped_X
+            gateA, gateB, upA, upB, downA, downB,
+            X, e, g, *_dropped_X
         )
 
         return i
-
     pass
 
-    @staticmethod
-    @torch.amp.custom_bwd(device_type="cuda")
-    def backward(ctx, dY: torch.Tensor):
-        (
-            gateW,
-            gateW_quant,
-            gateS,
-            upW,
-            upW_quant,
-            upS,
-            downW,
-            downW_quant,
-            downS,
-            _backward_function,
-        ) = ctx.custom_saved_tensors
-        (
-            gateA,
-            gateB,
-            upA,
-            upB,
-            downA,
-            downB,
-            X,
-            e,
-            g,
-            gateX,
-            upX,
-            downX,
-        ) = ctx.saved_tensors
 
-        gateA, gateB, upA, upB, downA, downB = (
-            gateA.t(),
-            gateB.t(),
-            upA.t(),
-            upB.t(),
-            downA.t(),
-            downB.t(),
-        )
+    @staticmethod
+    @torch.amp.custom_bwd(device_type='cuda')
+    def backward(ctx, dY : torch.Tensor):
+        gateW, gateW_quant, gateS, upW, upW_quant, upS, downW, downW_quant, downS, \
+            _backward_function = ctx.custom_saved_tensors
+        gateA, gateB, upA, upB, downA, downB, \
+            X, e, g, gateX, upX, downX  = ctx.saved_tensors
+
+        gateA, gateB, upA, upB, downA, downB = \
+            gateA.t(), gateB.t(), upA.t(), upB.t(), downA.t(), downB.t()
 
         batch, seq_len, hd = X.shape
         dY = dY.view(-1, dY.shape[-1])
-        X = X.view(-1, X.shape[-1])
-        e = e.view(-1, e.shape[-1])
-        g = g.view(-1, g.shape[-1])
+        X  = X .view(-1, X .shape[-1])
+        e  = e .view(-1, e .shape[-1])
+        g  = g .view(-1, g .shape[-1])
         dtype = X.dtype
 
         DW = matmul_lora(
-            dY, downW.t(), downW_quant, downB, downA, downS, dropout=(downX != 0)
+            dY, downW.t(), downW_quant, downB, downA, downS, 
+            dropout=(downX !=0)
         )
         DW, e, g = _backward_function(DW, e, g)
         h, df, de = DW, e, g
@@ -193,10 +135,10 @@ class LoRA_MLP(torch.autograd.Function):
         d_downB *= downS
 
         # Up projection LoRA weights
-        d_upA = upX.t() @ (df @ upB.t())
-        d_upB = (upA.t() @ upX.t()) @ df
-        d_upA *= upS
-        d_upB *= upS
+        d_upA   = upX.t() @ (df @ upB.t())
+        d_upB   = (upA.t() @ upX.t()) @ df
+        d_upA  *= upS
+        d_upB  *= upS
 
         # Gate projection LoRA weights
         d_gateA = gateX.t() @ (de @ gateB.t())
@@ -207,7 +149,7 @@ class LoRA_MLP(torch.autograd.Function):
         # dX  = matmul_lora(df, upW.t(), upW_quant, upB, upA, upS)
         # dX += matmul_lora(de, gateW.t(), gateW_quant, gateB, gateA, gateS)
         upW = fast_dequantize(upW.t(), upW_quant)
-        dX = torch.matmul(df, upW.t(), out=X)
+        dX = torch.matmul(df, upW.t(), out = X)
         del upW
         dX += (upX != 0) * (df @ upB.to(dtype).t() @ (upS * upA.to(dtype).t()))
 
@@ -219,207 +161,62 @@ class LoRA_MLP(torch.autograd.Function):
         # gateW, gateW_quant, gate_bias, gateA, gateB, gateS,
         #  upW,    upW_quant, up_bias,   upA,   upB,   upS,
         # downW, downW_quant, down_bias, downA, downB, downS,
-        return (
-            dX.view(batch, seq_len, hd),
-            None,
-            None,
-            None,
-            d_gateA.t(),
-            d_gateB.t(),
-            None,
-            None,
-            None,
-            None,
-            d_upA.t(),
-            d_upB.t(),
-            None,
-            None,
-            None,
-            None,
-            d_downA.t(),
-            d_downB.t(),
-            None,
-            None,
-            None,  # _backward and _forward
-            None,
-            None,
-            None,  # dropout modules
+        return (dX.view(batch, seq_len, hd), \
+            None, None, None, d_gateA.t(), d_gateB.t(), None, \
+            None, None, None,   d_upA.t(),   d_upB.t(), None, \
+            None, None, None, d_downA.t(), d_downB.t(), None, \
+            None, None, # _backward and _forward
+            None, None, None, # dropout modules
         )
-
     pass
-
-
 pass
 
 
 from ..swiglu import swiglu_fg_kernel, swiglu_DWf_DW_dfg_kernel
-
-
 def apply_lora_mlp_swiglu(self, X):
-    (
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        dropout_gate,
-    ) = get_lora_parameters(self.gate_proj)
-    upW, upW_quant, up_bias, upA, upB, upS, dropout_up = get_lora_parameters(
-        self.up_proj
-    )
-    (
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        dropout_down,
-    ) = get_lora_parameters(self.down_proj)
-    out = LoRA_MLP.apply(
-        X,
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        upW,
-        upW_quant,
-        up_bias,
-        upA,
-        upB,
-        upS,
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        swiglu_fg_kernel,
-        swiglu_DWf_DW_dfg_kernel,
-        dropout_gate,
-        dropout_up,
-        dropout_down,
-    )
+    gateW, gateW_quant, gate_bias, gateA, gateB, gateS, dropout_gate = get_lora_parameters(self.gate_proj)
+    upW,     upW_quant, up_bias,   upA,   upB,   upS, dropout_up = get_lora_parameters(self.  up_proj)
+    downW, downW_quant, down_bias, downA, downB, downS, dropout_down = get_lora_parameters(self.down_proj)
+    out = LoRA_MLP.apply(X,
+                         gateW, gateW_quant, gate_bias, gateA, gateB, gateS,
+                         upW,     upW_quant, up_bias, upA,   upB,   upS,
+                         downW, downW_quant, down_bias, downA, downB, downS,
+                         swiglu_fg_kernel, swiglu_DWf_DW_dfg_kernel,
+                         dropout_gate, dropout_up, dropout_down,
+                         )
     return out
-
-
 pass
 
 
 from ..geglu import geglu_exact_forward_kernel, geglu_exact_backward_kernel
-
-
 def apply_lora_mlp_geglu_exact(self, X):
-    (
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        dropout_gate,
-    ) = get_lora_parameters(self.gate_proj)
-    upW, upW_quant, up_bias, upA, upB, upS, dropout_up = get_lora_parameters(
-        self.up_proj
-    )
-    (
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        dropout_down,
-    ) = get_lora_parameters(self.down_proj)
-    out = LoRA_MLP.apply(
-        X,
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        upW,
-        upW_quant,
-        up_bias,
-        upA,
-        upB,
-        upS,
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        geglu_exact_forward_kernel,
-        geglu_exact_backward_kernel,
-        dropout_gate,
-        dropout_up,
-        dropout_down,
-    )
+    gateW, gateW_quant, gate_bias, gateA, gateB, gateS, dropout_gate = get_lora_parameters(self.gate_proj)
+    upW,     upW_quant, up_bias,   upA,   upB,   upS, dropout_up = get_lora_parameters(self.  up_proj)
+    downW, downW_quant, down_bias, downA, downB, downS, dropout_down = get_lora_parameters(self.down_proj)
+    out = LoRA_MLP.apply(X,
+                         gateW, gateW_quant, gate_bias, gateA, gateB, gateS,
+                         upW,     upW_quant, up_bias, upA,   upB,   upS,
+                         downW, downW_quant, down_bias, downA, downB, downS,
+                         geglu_exact_forward_kernel, geglu_exact_backward_kernel,
+                         dropout_gate, dropout_up, dropout_down,
+                         )
     return out
-
-
 pass
 
 
 from ..geglu import geglu_approx_forward_kernel, geglu_approx_backward_kernel
-
-
 def apply_lora_mlp_geglu_approx(self, X):
-    (
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        dropout_gate,
-    ) = get_lora_parameters(self.gate_proj)
-    upW, upW_quant, up_bias, upA, upB, upS, dropout_up = get_lora_parameters(
-        self.up_proj
-    )
-    (
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        dropout_down,
-    ) = get_lora_parameters(self.down_proj)
-    out = LoRA_MLP.apply(
-        X,
-        gateW,
-        gateW_quant,
-        gate_bias,
-        gateA,
-        gateB,
-        gateS,
-        upW,
-        upW_quant,
-        up_bias,
-        upA,
-        upB,
-        upS,
-        downW,
-        downW_quant,
-        down_bias,
-        downA,
-        downB,
-        downS,
-        geglu_approx_forward_kernel,
-        geglu_approx_backward_kernel,
-        dropout_gate,
-        dropout_up,
-        dropout_down,
-    )
+    gateW, gateW_quant, gate_bias, gateA, gateB, gateS, dropout_gate = get_lora_parameters(self.gate_proj)
+    upW,     upW_quant, up_bias,   upA,   upB,   upS, dropout_up = get_lora_parameters(self.  up_proj)
+    downW, downW_quant, down_bias, downA, downB, downS, dropout_down = get_lora_parameters(self.down_proj)
+    out = LoRA_MLP.apply(X,
+                         gateW, gateW_quant, gate_bias, gateA, gateB, gateS,
+                         upW,     upW_quant, up_bias, upA,   upB,   upS,
+                         downW, downW_quant, down_bias, downA, downB, downS,
+                         geglu_approx_forward_kernel, geglu_approx_backward_kernel,
+                         dropout_gate, dropout_up, dropout_down,
+                         )
     return out
-
-
 pass
 
 
@@ -453,87 +250,64 @@ class LoRA_QKV(torch.autograd.Function):
     dC/dAv =       X.T @ D(Wv) @ B.T
     dC/dBv = A.T @ X.T @ D(Wv)
     """
-
     @staticmethod
-    @torch.amp.custom_fwd(device_type="cuda")
-    def forward(
-        ctx,
-        X: torch.Tensor,
-        QW,
-        QW_quant,
-        Q_bias,
-        QA,
-        QB,
-        QS,
-        KW,
-        KW_quant,
-        K_bias,
-        KA,
-        KB,
-        KS,
-        VW,
-        VW_quant,
-        V_bias,
-        VA,
-        VB,
-        VS,
-        dropout_Q=None,
-        dropout_K=None,
-        dropout_V=None,
-    ):
+    @torch.amp.custom_fwd(device_type='cuda')
+    def forward(ctx, X : torch.Tensor,
+                QW, QW_quant, Q_bias, QA, QB, QS,
+                KW, KW_quant, K_bias, KA, KB, KS,
+                VW, VW_quant, V_bias, VA, VB, VS,
+                dropout_Q=None, dropout_K=None, dropout_V=None
+                ):
         dtype = X.dtype
 
         Q = matmul_lora(X, QW, QW_quant, QA, QB, QS, dropout=dropout_Q)
         K = matmul_lora(X, KW, KW_quant, KA, KB, KS, dropout=dropout_K)
         V = matmul_lora(X, VW, VW_quant, VA, VB, VS, dropout=dropout_V)
 
-        if Q_bias is not None:
-            Q += Q_bias
-        if K_bias is not None:
-            K += K_bias
-        if V_bias is not None:
-            V += V_bias
+        if Q_bias is not None: Q += Q_bias
+        if K_bias is not None: K += K_bias
+        if V_bias is not None: V += V_bias
 
         # Extract post-dropout X for use in backward computation
         _dropped_X = []
-        for _dropout in [dropout_Q, dropout_K, dropout_V]:
+        for _dropout in [
+            dropout_Q, dropout_K, dropout_V
+        ]:
             if _dropout is not None:
                 # then matmul_lora must have attached the X
                 _dropped_X.append(_dropout.X)
-                del _dropout.X  # remove it
+                del _dropout.X # remove it
             else:
                 # otherwise will use X
                 _dropped_X.append(X)
 
         ctx.custom_saved_tensors = (
-            QW,
-            QW_quant,
-            QS,
-            KW,
-            KW_quant,
-            KS,
-            VW,
-            VW_quant,
-            VS,
+            QW, QW_quant, QS,
+            KW, KW_quant, KS,
+            VW, VW_quant, VS,
         )
-        ctx.save_for_backward(X, QA, QB, KA, KB, VA, VB, *_dropped_X)
+        ctx.save_for_backward(
+            X, QA, QB, KA, KB, VA, VB,
+           *_dropped_X 
+        )
         return Q, K, V
-
     pass
 
     @staticmethod
-    @torch.amp.custom_bwd(device_type="cuda")
+    @torch.amp.custom_bwd(device_type='cuda')
     def backward(ctx, dQ, dK, dV):
-        QW, QW_quant, QS, KW, KW_quant, KS, VW, VW_quant, VS = ctx.custom_saved_tensors
+        QW, QW_quant, QS, KW, KW_quant, KS, VW, VW_quant, VS = \
+            ctx.custom_saved_tensors
         X, QA, QB, KA, KB, VA, VB, QX, KX, VX = ctx.saved_tensors
 
-        QA, QB, KA, KB, VA, VB = QA.t(), QB.t(), KA.t(), KB.t(), VA.t(), VB.t()
+        QA, QB, KA, KB, VA, VB = \
+            QA.t(), QB.t(), KA.t(), KB.t(), VA.t(), VB.t()
 
         batch, seq_len, hd = X.shape
         dQ = dQ.view(-1, dQ.shape[-1])
-        dK = dK.reshape(-1, dK.shape[-1])  # view doesn't work on K.T
+        dK = dK.reshape(-1, dK.shape[-1]) # view doesn't work on K.T
         dV = dV.view(-1, dV.shape[-1])
-        X = X.view(-1, X.shape[-1])
+        X  = X .view(-1, X .shape[-1])
         dtype = X.dtype
 
         ### Weight projection LoRA weights
@@ -560,7 +334,7 @@ class LoRA_QKV(torch.autograd.Function):
         # Combine derivatives to find dX
         # dQ
         QW = fast_dequantize(QW.t(), QW_quant)
-        dX = torch.matmul(dQ, QW.t(), out=X)
+        dX = torch.matmul(dQ, QW.t(), out = X)
         del QW
         dX += (QX != 0) * (dQ @ QB.to(dtype).t() @ (QS * QA.to(dtype).t()))
 
@@ -579,34 +353,12 @@ class LoRA_QKV(torch.autograd.Function):
         # QW, QW_quant, Q_bias, QA, QB, QS,
         # KW, KW_quant, K_bias, KA, KB, KS,
         # VW, VW_quant, V_bias, VA, VB, VS,
-        return (
-            dX.view(batch, seq_len, hd),
-            None,
-            None,
-            None,
-            d_QA.t(),
-            d_QB.t(),
-            None,
-            None,
-            None,
-            None,
-            d_KA.t(),
-            d_KB.t(),
-            None,
-            None,
-            None,
-            None,
-            d_VA.t(),
-            d_VB.t(),
-            None,
-            None,
-            None,
-            None,
-        )  # dropout
-
+        return dX.view(batch, seq_len, hd), \
+            None, None, None, d_QA.t(), d_QB.t(), None, \
+            None, None, None, d_KA.t(), d_KB.t(), None, \
+            None, None, None, d_VA.t(), d_VB.t(), None, \
+            None, None, None # dropout
     pass
-
-
 pass
 
 
@@ -614,33 +366,13 @@ def apply_lora_qkv(self, X):
     QW, QW_quant, Q_bias, QA, QB, QS, dropoutQ = get_lora_parameters(self.q_proj)
     KW, KW_quant, K_bias, KA, KB, KS, dropoutK = get_lora_parameters(self.k_proj)
     VW, VW_quant, V_bias, VA, VB, VS, dropoutV = get_lora_parameters(self.v_proj)
-    Q, K, V = LoRA_QKV.apply(
-        X,
-        QW,
-        QW_quant,
-        Q_bias,
-        QA,
-        QB,
-        QS,
-        KW,
-        KW_quant,
-        K_bias,
-        KA,
-        KB,
-        KS,
-        VW,
-        VW_quant,
-        V_bias,
-        VA,
-        VB,
-        VS,
-        dropoutQ,
-        dropoutK,
-        dropoutV,
+    Q, K, V = LoRA_QKV.apply(X,
+        QW, QW_quant, Q_bias, QA, QB, QS,
+        KW, KW_quant, K_bias, KA, KB, KS,
+        VW, VW_quant, V_bias, VA, VB, VS,
+        dropoutQ, dropoutK, dropoutV,
     )
     return Q, K, V
-
-
 pass
 
 
@@ -671,14 +403,13 @@ class LoRA_W(torch.autograd.Function):
     dC/dAv =       X.T @ D(Wv) @ B.T
     dC/dBv = A.T @ X.T @ D(Wv)
     """
-
     @staticmethod
-    @torch.amp.custom_fwd(device_type="cuda")
-    def forward(ctx, X: torch.Tensor, W, W_quant, bias, A, B, S, dropout_O):
+    @torch.amp.custom_fwd(device_type='cuda')
+    def forward(ctx, X : torch.Tensor,
+                W, W_quant, bias, A, B, S, dropout_O):
         dtype = X.dtype
         XW = matmul_lora(X, W, W_quant, A, B, S, dropout=dropout_O)
-        if bias is not None:
-            XW += bias
+        if bias is not None: XW += bias
 
         # Extract post-dropout X for use in backward computation
         if dropout_O is not None:
@@ -686,27 +417,22 @@ class LoRA_W(torch.autograd.Function):
             del dropout_O.X
         else:
             _dropped_X = X
-        ctx.custom_saved_tensors = (
-            W,
-            W_quant,
-            S,
-        )
+        ctx.custom_saved_tensors = (W, W_quant, S,)
         ctx.save_for_backward(A, B, X, _dropped_X)
         return XW
-
     pass
 
     @staticmethod
-    @torch.amp.custom_bwd(device_type="cuda")
-    def backward(ctx, dY: torch.Tensor):
+    @torch.amp.custom_bwd(device_type='cuda')
+    def backward(ctx, dY : torch.Tensor):
         W, W_quant, S = ctx.custom_saved_tensors
         A, B, X, OX = ctx.saved_tensors
 
         A, B = A.t(), B.t()
 
         batch, seq_len, hd = X.shape
-        dY = dY.reshape(-1, dY.shape[-1])  # Must be reshape
-        X = X.reshape(-1, X.shape[-1])  # Must be reshape
+        dY = dY.reshape(-1, dY.shape[-1]) # Must be reshape
+        X  = X .reshape(-1, X .shape[-1]) # Must be reshape
         dtype = X.dtype
 
         ### Weight projection LoRA weights
@@ -725,27 +451,16 @@ class LoRA_W(torch.autograd.Function):
         # W, W_quant, A, B, S
         return (
             dX.view(batch, seq_len, hd),
-            None,
-            None,
-            None,
-            d_A.t(),
-            d_B.t(),
-            None,
-            None,  # dropout modules
+            None, None, None, d_A.t(), d_B.t(), None,
+            None, # dropout modules
         )
-
     pass
-
-
 pass
-
 
 def apply_lora_o(self, X):
     OW, OW_quant, Obias, OA, OB, OS, dropoutO = get_lora_parameters(self.o_proj)
     O = LoRA_W.apply(X, OW, OW_quant, Obias, OA, OB, OS, dropoutO)
     return O
-
-
 pass
 
 # added by flim@sg.ibm.com

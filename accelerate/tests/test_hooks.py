@@ -170,9 +170,7 @@ class HooksModelTester(unittest.TestCase):
         assert model.linear1.weight.device == torch.device(torch_device)
         assert model.batchnorm.weight.device == torch.device(torch_device)
         assert model.batchnorm.running_mean.device == torch.device(torch_device)
-        assert model.linear2.weight.device == torch.device(
-            torch_device.replace(":0", ":1")
-        )
+        assert model.linear2.weight.device == torch.device(torch_device.replace(":0", ":1"))
 
         # We can still make a forward pass. The input does not need to be on any particular device
         x = torch.randn(2, 3)
@@ -280,9 +278,7 @@ class HooksModelTester(unittest.TestCase):
         assert model.linear2.weight.device == torch.device("cpu")
 
         # Now test with buffers included in the offload
-        attach_align_device_hook(
-            model, execution_device=execution_device, offload=True, offload_buffers=True
-        )
+        attach_align_device_hook(model, execution_device=execution_device, offload=True, offload_buffers=True)
 
         # Parameters have been offloaded, so on the meta device, buffers included
         assert model.linear1.weight.device == torch.device("meta")
@@ -311,10 +307,7 @@ class HooksModelTester(unittest.TestCase):
         # This will move each submodule on different devices
         execution_device = torch_device
         attach_align_device_hook(
-            model,
-            execution_device=execution_device,
-            offload=True,
-            weights_map=model.state_dict(),
+            model, execution_device=execution_device, offload=True, weights_map=model.state_dict()
         )
 
         # Parameters have been offloaded, so on the meta device
@@ -389,10 +382,7 @@ class HooksModelTester(unittest.TestCase):
 
             graph_model.graph.inserting_after(linear2_node)
             new_node = graph_model.graph.create_node(
-                op="call_function",
-                target=torch.sigmoid,
-                args=(linear2_node,),
-                name="relu",
+                op="call_function", target=torch.sigmoid, args=(linear2_node,), name="relu"
             )
 
             output_node = None

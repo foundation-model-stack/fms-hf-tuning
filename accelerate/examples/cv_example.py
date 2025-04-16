@@ -85,11 +85,7 @@ def training_function(config, args):
         image_size = (image_size, image_size)
 
     # Grab all the image filenames
-    file_names = [
-        os.path.join(args.data_dir, fname)
-        for fname in os.listdir(args.data_dir)
-        if fname.endswith(".jpg")
-    ]
+    file_names = [os.path.join(args.data_dir, fname) for fname in os.listdir(args.data_dir) if fname.endswith(".jpg")]
 
     # Build the label correspondences
     all_labels = [extract_label(fname) for fname in file_names]
@@ -108,26 +104,16 @@ def training_function(config, args):
     # For training we use a simple RandomResizedCrop
     train_tfm = Compose([RandomResizedCrop(image_size, scale=(0.5, 1.0)), ToTensor()])
     train_dataset = PetsDataset(
-        [file_names[i] for i in train_split],
-        image_transform=train_tfm,
-        label_to_id=label_to_id,
+        [file_names[i] for i in train_split], image_transform=train_tfm, label_to_id=label_to_id
     )
 
     # For evaluation, we use a deterministic Resize
     eval_tfm = Compose([Resize(image_size), ToTensor()])
-    eval_dataset = PetsDataset(
-        [file_names[i] for i in eval_split],
-        image_transform=eval_tfm,
-        label_to_id=label_to_id,
-    )
+    eval_dataset = PetsDataset([file_names[i] for i in eval_split], image_transform=eval_tfm, label_to_id=label_to_id)
 
     # Instantiate dataloaders.
-    train_dataloader = DataLoader(
-        train_dataset, shuffle=True, batch_size=batch_size, num_workers=4
-    )
-    eval_dataloader = DataLoader(
-        eval_dataset, shuffle=False, batch_size=batch_size, num_workers=4
-    )
+    train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size, num_workers=4)
+    eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size, num_workers=4)
 
     # Instantiate the model (we build the model here so that the seed also control new weights initialization)
     model = create_model("resnet50d", pretrained=True, num_classes=len(label_to_id))
@@ -144,34 +130,19 @@ def training_function(config, args):
         param.requires_grad = True
 
     # We normalize the batches of images to be a bit faster.
-    mean = torch.tensor(model.default_cfg["mean"])[None, :, None, None].to(
-        accelerator.device
-    )
-    std = torch.tensor(model.default_cfg["std"])[None, :, None, None].to(
-        accelerator.device
-    )
+    mean = torch.tensor(model.default_cfg["mean"])[None, :, None, None].to(accelerator.device)
+    std = torch.tensor(model.default_cfg["std"])[None, :, None, None].to(accelerator.device)
 
     # Instantiate optimizer
     optimizer = torch.optim.Adam(params=model.parameters(), lr=lr / 25)
 
     # Instantiate learning rate scheduler
-    lr_scheduler = OneCycleLR(
-        optimizer=optimizer,
-        max_lr=lr,
-        epochs=num_epochs,
-        steps_per_epoch=len(train_dataloader),
-    )
+    lr_scheduler = OneCycleLR(optimizer=optimizer, max_lr=lr, epochs=num_epochs, steps_per_epoch=len(train_dataloader))
 
     # Prepare everything
     # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
     # prepare method.
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = accelerator.prepare(
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
     )
 
@@ -199,9 +170,7 @@ def training_function(config, args):
             with torch.no_grad():
                 outputs = model(inputs)
             predictions = outputs.argmax(dim=-1)
-            predictions, references = accelerator.gather_for_metrics(
-                (predictions, batch["label"])
-            )
+            predictions, references = accelerator.gather_for_metrics((predictions, batch["label"]))
             accurate_preds = predictions == references
             num_elems += accurate_preds.shape[0]
             accurate += accurate_preds.long().sum()
@@ -230,17 +199,9 @@ def main():
         default=None,
         help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
     )
-    parser.add_argument(
-        "--cpu", action="store_true", help="If passed, will train on the CPU."
-    )
+    parser.add_argument("--cpu", action="store_true", help="If passed, will train on the CPU.")
     args = parser.parse_args()
-    config = {
-        "lr": 3e-2,
-        "num_epochs": 3,
-        "seed": 42,
-        "batch_size": 64,
-        "image_size": 224,
-    }
+    config = {"lr": 3e-2, "num_epochs": 3, "seed": 42, "batch_size": 64, "image_size": 224}
     training_function(config, args)
 
 

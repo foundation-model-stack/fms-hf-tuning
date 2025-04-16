@@ -34,10 +34,7 @@ hf_table_format = TableFormat(
 failed = []
 group_info = []
 
-no_error_payload = {
-    "type": "section",
-    "text": {"type": "plain_text", "text": "No failed tests! 🤗", "emoji": True},
-}
+no_error_payload = {"type": "section", "text": {"type": "plain_text", "text": "No failed tests! 🤗", "emoji": True}}
 
 payload = [
     {
@@ -153,9 +150,7 @@ if os.environ.get("TEST_TYPE", "") != "":
             ],
         }
         payload.append(date_report)
-    response = client.chat_postMessage(
-        channel="#accelerate-ci-daily", text=message, blocks=payload
-    )
+    response = client.chat_postMessage(channel="#accelerate-ci-daily", text=message, blocks=payload)
     ts = response.data["ts"]
     for failed_file in all_files2failed:
         for test_location, test_failures in failed_file.items():

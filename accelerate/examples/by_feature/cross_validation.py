@@ -23,12 +23,7 @@ from datasets import DatasetDict, load_dataset
 from sklearn.model_selection import StratifiedKFold
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    get_linear_schedule_with_warmup,
-    set_seed,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup, set_seed
 
 from accelerate import Accelerator, DistributedType
 
@@ -65,11 +60,7 @@ EVAL_BATCH_SIZE = 32
 
 
 def get_fold_dataloaders(
-    accelerator: Accelerator,
-    dataset: DatasetDict,
-    train_idxs: list[int],
-    valid_idxs: list[int],
-    batch_size: int = 16,
+    accelerator: Accelerator, dataset: DatasetDict, train_idxs: list[int], valid_idxs: list[int], batch_size: int = 16
 ):
     """
     Gets a set of train, valid, and test dataloaders for a particular fold
@@ -95,12 +86,7 @@ def get_fold_dataloaders(
 
     def tokenize_function(examples):
         # max_length=None => use the model max length (it's actually the default)
-        outputs = tokenizer(
-            examples["sentence1"],
-            examples["sentence2"],
-            truncation=True,
-            max_length=None,
-        )
+        outputs = tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, max_length=None)
         return outputs
 
     # Apply the method we just defined to all the examples in all the splits of the dataset
@@ -118,9 +104,7 @@ def get_fold_dataloaders(
 
     def collate_fn(examples):
         # On TPU it's best to pad everything to the same length or training will be very slow.
-        max_length = (
-            128 if accelerator.distributed_type == DistributedType.XLA else None
-        )
+        max_length = 128 if accelerator.distributed_type == DistributedType.XLA else None
         # When using mixed precision we want round multiples of 8/16
         if accelerator.mixed_precision == "fp8":
             pad_to_multiple_of = 16
@@ -139,23 +123,14 @@ def get_fold_dataloaders(
 
     # Instantiate dataloaders.
     train_dataloader = DataLoader(
-        tokenized_datasets["train"],
-        shuffle=True,
-        collate_fn=collate_fn,
-        batch_size=batch_size,
+        tokenized_datasets["train"], shuffle=True, collate_fn=collate_fn, batch_size=batch_size
     )
     eval_dataloader = DataLoader(
-        tokenized_datasets["validation"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["validation"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     test_dataloader = DataLoader(
-        tokenized_datasets["test"],
-        shuffle=False,
-        collate_fn=collate_fn,
-        batch_size=EVAL_BATCH_SIZE,
+        tokenized_datasets["test"], shuffle=False, collate_fn=collate_fn, batch_size=EVAL_BATCH_SIZE
     )
 
     return train_dataloader, eval_dataloader, test_dataloader
@@ -180,10 +155,7 @@ def training_function(config, args):
 
     # If the batch size is too big we use gradient accumulation
     gradient_accumulation_steps = 1
-    if (
-        batch_size > MAX_GPU_BATCH_SIZE
-        and accelerator.distributed_type != DistributedType.XLA
-    ):
+    if batch_size > MAX_GPU_BATCH_SIZE and accelerator.distributed_type != DistributedType.XLA:
         gradient_accumulation_steps = batch_size // MAX_GPU_BATCH_SIZE
         batch_size = MAX_GPU_BATCH_SIZE
 
@@ -191,9 +163,7 @@ def training_function(config, args):
 
     # New Code #
     # Create our folds:
-    folds = kfold.split(
-        np.zeros(datasets["train"].num_rows), datasets["train"]["label"]
-    )
+    folds = kfold.split(np.zeros(datasets["train"].num_rows), datasets["train"]["label"])
     test_references = []
     # Iterate over them
     for i, (train_idxs, valid_idxs) in enumerate(folds):
@@ -204,9 +174,7 @@ def training_function(config, args):
             valid_idxs,
         )
         # Instantiate the model (we build the model here so that the seed also control new weights initialization)
-        model = AutoModelForSequenceClassification.from_pretrained(
-            "bert-base-cased", return_dict=True
-        )
+        model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", return_dict=True)
 
         # We could avoid this line since the accelerator is set with `device_placement=True` (default value).
         # Note that if you are placing tensors on devices manually, this line absolutely needs to be before the optimizer
@@ -220,20 +188,13 @@ def training_function(config, args):
         lr_scheduler = get_linear_schedule_with_warmup(
             optimizer=optimizer,
             num_warmup_steps=100,
-            num_training_steps=(len(train_dataloader) * num_epochs)
-            // gradient_accumulation_steps,
+            num_training_steps=(len(train_dataloader) * num_epochs) // gradient_accumulation_steps,
         )
 
         # Prepare everything
         # There is no specific order to remember, we just need to unpack the objects in the same order we gave them to the
         # prepare method.
-        (
-            model,
-            optimizer,
-            train_dataloader,
-            eval_dataloader,
-            lr_scheduler,
-        ) = accelerator.prepare(
+        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
             model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
         )
 
@@ -259,9 +220,7 @@ def training_function(config, args):
                 with torch.no_grad():
                     outputs = model(**batch)
                 predictions = outputs.logits.argmax(dim=-1)
-                predictions, references = accelerator.gather_for_metrics(
-                    (predictions, batch["labels"])
-                )
+                predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
                 metric.add_batch(
                     predictions=predictions,
                     references=references,
@@ -280,9 +239,7 @@ def training_function(config, args):
             with torch.no_grad():
                 outputs = model(**batch)
             predictions = outputs.logits
-            predictions, references = accelerator.gather_for_metrics(
-                (predictions, batch["labels"])
-            )
+            predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
             fold_predictions.append(predictions.cpu())
             if i == 0:
                 # We need all of the test predictions
@@ -294,12 +251,7 @@ def training_function(config, args):
     # New Code #
     # Finally we check the accuracy of our folded results:
     test_references = torch.cat(test_references, dim=0)
-    preds = (
-        torch.stack(test_predictions, dim=0)
-        .sum(dim=0)
-        .div(int(args.num_folds))
-        .argmax(dim=-1)
-    )
+    preds = torch.stack(test_predictions, dim=0).sum(dim=0).div(int(args.num_folds)).argmax(dim=-1)
     test_metric = metric.compute(predictions=preds, references=test_references)
     accelerator.print("Average test metrics from all folds:", test_metric)
     accelerator.end_training()
@@ -316,16 +268,9 @@ def main():
         "between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10."
         "and an Nvidia Ampere GPU.",
     )
-    parser.add_argument(
-        "--cpu", action="store_true", help="If passed, will train on the CPU."
-    )
+    parser.add_argument("--cpu", action="store_true", help="If passed, will train on the CPU.")
     # New Code #
-    parser.add_argument(
-        "--num_folds",
-        type=int,
-        default=3,
-        help="The number of splits to perform across the dataset",
-    )
+    parser.add_argument("--num_folds", type=int, default=3, help="The number of splits to perform across the dataset")
     args = parser.parse_args()
     config = {"lr": 2e-5, "num_epochs": 3, "seed": 42, "batch_size": 16}
     training_function(config, args)

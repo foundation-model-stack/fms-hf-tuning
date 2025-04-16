@@ -41,20 +41,12 @@ from accelerate.utils.transformer_engine import convert_model
 MODEL_NAME = "bert-base-cased"
 METRIC = evaluate.load("glue", "mrpc")
 
-FSDP_WRAP_POLICY = partial(
-    transformer_auto_wrap_policy, transformer_layer_cls={BertLayer}
-)
+FSDP_WRAP_POLICY = partial(transformer_auto_wrap_policy, transformer_layer_cls={BertLayer})
 
 
 def train_baseline():
     set_seed(42)
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = get_training_utilities(MODEL_NAME)
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = get_training_utilities(MODEL_NAME)
     accelerator = Accelerator()
     device = accelerator.device
     model.to(device)
@@ -65,11 +57,7 @@ def train_baseline():
     with torch.no_grad():
         convert_model(model)
 
-    FP8_RECIPE_KWARGS = {
-        "fp8_format": te_recipe.Format.HYBRID,
-        "amax_history_len": 32,
-        "amax_compute_algo": "max",
-    }
+    FP8_RECIPE_KWARGS = {"fp8_format": te_recipe.Format.HYBRID, "amax_history_len": 32, "amax_compute_algo": "max"}
     fp8_recipe = DelayedScaling(**FP8_RECIPE_KWARGS)
 
     new_named_params = get_named_parameters(model)
@@ -78,9 +66,7 @@ def train_baseline():
     model = FSDP(
         model,
         use_orig_params=True,
-        mixed_precision=MixedPrecision(
-            param_dtype=torch.bfloat16, reduce_dtype=torch.float32
-        ),
+        mixed_precision=MixedPrecision(param_dtype=torch.bfloat16, reduce_dtype=torch.float32),
         auto_wrap_policy=FSDP_WRAP_POLICY,
     )
 
@@ -88,9 +74,7 @@ def train_baseline():
     for param_group in optimizer.param_groups:
         param_group["params"] = [mapping[p] for p in param_group["params"]]
 
-    base_model_results = evaluate_model(
-        model, eval_dataloader, METRIC, accelerator=accelerator
-    )
+    base_model_results = evaluate_model(model, eval_dataloader, METRIC, accelerator=accelerator)
     model.train()
 
     for _ in range(2):
@@ -105,51 +89,35 @@ def train_baseline():
             optimizer.zero_grad()
             lr_scheduler.step()
 
-    trained_model_results = evaluate_model(
-        model, eval_dataloader, METRIC, accelerator=accelerator
-    )
+    trained_model_results = evaluate_model(model, eval_dataloader, METRIC, accelerator=accelerator)
 
-    assert (
-        trained_model_results["accuracy"] > base_model_results["accuracy"]
-    ), f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
-    assert (
-        trained_model_results["f1"] > base_model_results["f1"]
-    ), f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
+    assert trained_model_results["accuracy"] > base_model_results["accuracy"], (
+        f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
+    )
+    assert trained_model_results["f1"] > base_model_results["f1"], (
+        f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
+    )
 
     return base_model_results, trained_model_results
 
 
 def train_integration():
-    FP8_RECIPE_KWARGS = {
-        "fp8_format": "HYBRID",
-        "amax_history_len": 32,
-        "amax_compute_algo": "max",
-    }
+    FP8_RECIPE_KWARGS = {"fp8_format": "HYBRID", "amax_history_len": 32, "amax_compute_algo": "max"}
     kwargs_handlers = [FP8RecipeKwargs(backend="TE", **FP8_RECIPE_KWARGS)]
     AcceleratorState()._reset_state(True)
     fsdp_plugin = FSDPPlugin(
         auto_wrap_policy=FSDP_WRAP_POLICY,
         use_orig_params=True,
-        mixed_precision_policy=MixedPrecision(
-            param_dtype=torch.bfloat16, reduce_dtype=torch.float32
-        ),
+        mixed_precision_policy=MixedPrecision(param_dtype=torch.bfloat16, reduce_dtype=torch.float32),
     )
-    accelerator = Accelerator(
-        mixed_precision="fp8", fsdp_plugin=fsdp_plugin, kwargs_handlers=kwargs_handlers
-    )
+    accelerator = Accelerator(mixed_precision="fp8", fsdp_plugin=fsdp_plugin, kwargs_handlers=kwargs_handlers)
     set_seed(42)
-    (
-        model,
-        optimizer,
-        train_dataloader,
-        eval_dataloader,
-        lr_scheduler,
-    ) = get_training_utilities(MODEL_NAME, accelerator=accelerator)
+    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = get_training_utilities(
+        MODEL_NAME, accelerator=accelerator
+    )
 
     model, optimizer = accelerator.prepare(model, optimizer)
-    base_model_results = evaluate_model(
-        model, eval_dataloader, METRIC, accelerator=accelerator
-    )
+    base_model_results = evaluate_model(model, eval_dataloader, METRIC, accelerator=accelerator)
     model.train()
 
     for _ in range(2):
@@ -161,16 +129,14 @@ def train_integration():
             optimizer.zero_grad()
             lr_scheduler.step()
 
-    trained_model_results = evaluate_model(
-        model, eval_dataloader, METRIC, accelerator=accelerator
-    )
+    trained_model_results = evaluate_model(model, eval_dataloader, METRIC, accelerator=accelerator)
 
-    assert (
-        trained_model_results["accuracy"] > base_model_results["accuracy"]
-    ), f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
-    assert (
-        trained_model_results["f1"] > base_model_results["f1"]
-    ), f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
+    assert trained_model_results["accuracy"] > base_model_results["accuracy"], (
+        f"Accuracy should be higher for the trained model: {trained_model_results['accuracy']} > {base_model_results['accuracy']}"
+    )
+    assert trained_model_results["f1"] > base_model_results["f1"], (
+        f"F1 score should be higher for the trained model: {trained_model_results['f1']} > {base_model_results['f1']}"
+    )
 
     return base_model_results, trained_model_results
 
@@ -179,17 +145,17 @@ if __name__ == "__main__":
     baseline_not_trained, baseline_trained = train_baseline()
     accelerator_not_trained, accelerator_trained = train_integration()
 
-    assert (
-        baseline_not_trained["accuracy"] == accelerator_not_trained["accuracy"]
-    ), f"Accuracy should be the same for the baseline and accelerator: {baseline_not_trained['accuracy']} == {accelerator_not_trained['accuracy']}"
-    assert (
-        baseline_not_trained["f1"] == accelerator_not_trained["f1"]
-    ), f"F1 score should be the same for the baseline and accelerator: {baseline_not_trained['f1']} == {accelerator_not_trained['f1']}"
-    assert (
-        baseline_trained["accuracy"] == accelerator_trained["accuracy"]
-    ), f"Accuracy should be the same for the baseline and accelerator: {baseline_trained['accuracy']} == {accelerator_trained['accuracy']}"
-    assert (
-        baseline_trained["f1"] == accelerator_trained["f1"]
-    ), f"F1 score should be the same for the baseline and accelerator: {baseline_trained['f1']} == {accelerator_trained['f1']}"
+    assert baseline_not_trained["accuracy"] == accelerator_not_trained["accuracy"], (
+        f"Accuracy should be the same for the baseline and accelerator: {baseline_not_trained['accuracy']} == {accelerator_not_trained['accuracy']}"
+    )
+    assert baseline_not_trained["f1"] == accelerator_not_trained["f1"], (
+        f"F1 score should be the same for the baseline and accelerator: {baseline_not_trained['f1']} == {accelerator_not_trained['f1']}"
+    )
+    assert baseline_trained["accuracy"] == accelerator_trained["accuracy"], (
+        f"Accuracy should be the same for the baseline and accelerator: {baseline_trained['accuracy']} == {accelerator_trained['accuracy']}"
+    )
+    assert baseline_trained["f1"] == accelerator_trained["f1"], (
+        f"F1 score should be the same for the baseline and accelerator: {baseline_trained['f1']} == {accelerator_trained['f1']}"
+    )
 
     torch.distributed.destroy_process_group()

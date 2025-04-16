@@ -299,9 +299,7 @@ except OptionalDependencyNotAvailable:
     from .utils import dummy_sentencepiece_and_tokenizers_objects
 
     _import_structure["utils.dummy_sentencepiece_and_tokenizers_objects"] = [
-        name
-        for name in dir(dummy_sentencepiece_and_tokenizers_objects)
-        if not name.startswith("_")
+        name for name in dir(dummy_sentencepiece_and_tokenizers_objects) if not name.startswith("_")
     ]
 else:
     _import_structure["convert_slow_tokenizer"] = [
@@ -343,9 +341,7 @@ try:
 except OptionalDependencyNotAvailable:
     from .utils import dummy_pt_objects
 
-    _import_structure["utils.dummy_pt_objects"] = [
-        name for name in dir(dummy_pt_objects) if not name.startswith("_")
-    ]
+    _import_structure["utils.dummy_pt_objects"] = [name for name in dir(dummy_pt_objects) if not name.startswith("_")]
 else:
     _import_structure["model_debugging_utils"] = [
         "model_addition_debugger",
@@ -444,10 +440,7 @@ else:
 
     _import_structure["modeling_flash_attention_utils"] = []
     _import_structure["modeling_outputs"] = []
-    _import_structure["modeling_rope_utils"] = [
-        "ROPE_INIT_FUNCTIONS",
-        "dynamic_rope_update",
-    ]
+    _import_structure["modeling_rope_utils"] = ["ROPE_INIT_FUNCTIONS", "dynamic_rope_update"]
     _import_structure["modeling_utils"] = ["PreTrainedModel", "AttentionInterface"]
     _import_structure["optimization"] = [
         "Adafactor",
@@ -479,9 +472,7 @@ try:
 except OptionalDependencyNotAvailable:
     from .utils import dummy_tf_objects
 
-    _import_structure["utils.dummy_tf_objects"] = [
-        name for name in dir(dummy_tf_objects) if not name.startswith("_")
-    ]
+    _import_structure["utils.dummy_tf_objects"] = [name for name in dir(dummy_tf_objects) if not name.startswith("_")]
 else:
     _import_structure["activations_tf"] = []
     _import_structure["generation"].extend(
@@ -1019,9 +1010,7 @@ else:
 
     _import_structure = {k: set(v) for k, v in _import_structure.items()}
 
-    import_structure = define_import_structure(
-        Path(__file__).parent / "models", prefix="models"
-    )
+    import_structure = define_import_structure(Path(__file__).parent / "models", prefix="models")
     import_structure[frozenset({})].update(_import_structure)
 
     sys.modules[__name__] = _LazyModule(

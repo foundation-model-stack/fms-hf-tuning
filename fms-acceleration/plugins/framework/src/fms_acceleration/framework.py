@@ -191,7 +191,7 @@ class AccelerationFramework:
         # get the config
         archs = model.config.architectures
         # NOTE
-        # specific handling code for llama4
+        # specific handling code for llama4 
         # may or may not break for other models
         # ideally not good looking piece of code
         # we will improve it in final version

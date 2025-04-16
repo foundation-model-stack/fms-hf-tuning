@@ -110,19 +110,13 @@ class Phi4MultimodalProcessor(ProcessorMixin):
             - **audio_embed_sizes** -- List of integers specifying the size of each audio in `input_audio_embeds`.
         """
 
-        output_kwargs = self._merge_kwargs(
-            Phi4MultimodalProcessorKwargs, self.tokenizer.init_kwargs, **kwargs
-        )
+        output_kwargs = self._merge_kwargs(Phi4MultimodalProcessorKwargs, self.tokenizer.init_kwargs, **kwargs)
         image_kwargs = output_kwargs["images_kwargs"]
         audio_kwargs = output_kwargs["audio_kwargs"]
         text_kwargs = output_kwargs["text_kwargs"]
 
-        image_inputs = (
-            self.image_processor(images, **image_kwargs) if images is not None else {}
-        )
-        audio_inputs = (
-            self.audio_processor(audio, **audio_kwargs) if audio is not None else {}
-        )
+        image_inputs = self.image_processor(images, **image_kwargs) if images is not None else {}
+        audio_inputs = self.audio_processor(audio, **audio_kwargs) if audio is not None else {}
 
         # We pop here for images as we don't need it later
         num_img_tokens = image_inputs.pop("num_img_tokens", [])
@@ -132,9 +126,7 @@ class Phi4MultimodalProcessor(ProcessorMixin):
         if isinstance(text, str):
             text = [text]
         elif not isinstance(text, list) and not isinstance(text[0], str):
-            raise ValueError(
-                "Invalid input text. Please provide a string, or a list of strings"
-            )
+            raise ValueError("Invalid input text. Please provide a string, or a list of strings")
 
         image_token = self.tokenizer.image_token
         audio_token = self.tokenizer.audio_token
@@ -156,20 +148,10 @@ class Phi4MultimodalProcessor(ProcessorMixin):
         image_count_iter = iter(num_img_tokens)
         audio_count_iter = iter(audio_embed_sizes)
         processed_text = [
-            re.sub(
-                re.escape(image_token),
-                lambda _: image_token * next(image_count_iter),
-                t,
-            )
-            for t in text
+            re.sub(re.escape(image_token), lambda _: image_token * next(image_count_iter), t) for t in text
         ]
         processed_text = [
-            re.sub(
-                re.escape(audio_token),
-                lambda _: audio_token * next(audio_count_iter),
-                t,
-            )
-            for t in processed_text
+            re.sub(re.escape(audio_token), lambda _: audio_token * next(audio_count_iter), t) for t in processed_text
         ]
 
         text_inputs = self.tokenizer(processed_text, **text_kwargs)
@@ -202,13 +184,7 @@ class Phi4MultimodalProcessor(ProcessorMixin):
         tokenizer_input_names = self.tokenizer.model_input_names
         image_processor_input_names = self.image_processor.model_input_names
         audio_processor_input_names = self.audio_processor.model_input_names
-        return list(
-            dict.fromkeys(
-                tokenizer_input_names
-                + image_processor_input_names
-                + audio_processor_input_names
-            )
-        )
+        return list(dict.fromkeys(tokenizer_input_names + image_processor_input_names + audio_processor_input_names))
 
 
 __all__ = ["Phi4MultimodalProcessor"]

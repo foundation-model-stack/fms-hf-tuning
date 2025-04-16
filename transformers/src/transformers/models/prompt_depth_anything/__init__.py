@@ -19,9 +19,7 @@ from ...utils.import_utils import define_import_structure
 
 if TYPE_CHECKING:
     from .configuration_prompt_depth_anything import PromptDepthAnythingConfig
-    from .image_processing_prompt_depth_anything import (
-        PromptDepthAnythingImageProcessor,
-    )
+    from .image_processing_prompt_depth_anything import PromptDepthAnythingImageProcessor
     from .modeling_prompt_depth_anything import (
         PromptDepthAnythingForDepthEstimation,
         PromptDepthAnythingPreTrainedModel,
@@ -30,6 +28,4 @@ else:
     import sys
 
     _file = globals()["__file__"]
-    sys.modules[__name__] = _LazyModule(
-        __name__, _file, define_import_structure(_file), module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, _file, define_import_structure(_file), module_spec=__spec__)

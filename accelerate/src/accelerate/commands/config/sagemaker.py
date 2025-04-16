@@ -41,18 +41,13 @@ def _create_iam_role_for_sagemaker(role_name):
     sagemaker_trust_policy = {
         "Version": "2012-10-17",
         "Statement": [
-            {
-                "Effect": "Allow",
-                "Principal": {"Service": "sagemaker.amazonaws.com"},
-                "Action": "sts:AssumeRole",
-            }
+            {"Effect": "Allow", "Principal": {"Service": "sagemaker.amazonaws.com"}, "Action": "sts:AssumeRole"}
         ],
     }
     try:
         # create the role, associated with the chosen trust policy
         iam_client.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(sagemaker_trust_policy, indent=2),
+            RoleName=role_name, AssumeRolePolicyDocument=json.dumps(sagemaker_trust_policy, indent=2)
         )
         policy_document = {
             "Version": "2012-10-17",
@@ -107,9 +102,7 @@ def get_sagemaker_input():
     )
     aws_profile = None
     if credentials_configuration == 0:
-        aws_profile = _ask_field(
-            "Enter your AWS Profile name: [default] ", default="default"
-        )
+        aws_profile = _ask_field("Enter your AWS Profile name: [default] ", default="default")
         os.environ["AWS_PROFILE"] = aws_profile
     else:
         print(
@@ -134,9 +127,7 @@ def get_sagemaker_input():
         iam_role_name = _ask_field("Enter your IAM role name: ")
     else:
         iam_role_name = "accelerate_sagemaker_execution_role"
-        print(
-            f'Accelerate will create an iam role "{iam_role_name}" using the provided credentials'
-        )
+        print(f'Accelerate will create an iam role "{iam_role_name}" using the provided credentials')
         _create_iam_role_for_sagemaker(iam_role_name)
 
     is_custom_docker_image = _ask_field(
@@ -224,15 +215,11 @@ def get_sagemaker_input():
     ec2_instance_query = "Which EC2 instance type you want to use for your training?"
     if distributed_type != SageMakerDistributedType.NO:
         ec2_instance_type = _ask_options(
-            ec2_instance_query,
-            SAGEMAKER_PARALLEL_EC2_INSTANCES,
-            lambda x: SAGEMAKER_PARALLEL_EC2_INSTANCES[int(x)],
+            ec2_instance_query, SAGEMAKER_PARALLEL_EC2_INSTANCES, lambda x: SAGEMAKER_PARALLEL_EC2_INSTANCES[int(x)]
         )
     else:
         ec2_instance_query += "? [ml.p3.2xlarge]:"
-        ec2_instance_type = _ask_field(
-            ec2_instance_query, lambda x: str(x).lower(), default="ml.p3.2xlarge"
-        )
+        ec2_instance_type = _ask_field(ec2_instance_query, lambda x: str(x).lower(), default="ml.p3.2xlarge")
 
     debug = False
     if distributed_type != SageMakerDistributedType.NO:
@@ -244,10 +231,7 @@ def get_sagemaker_input():
         )
 
     num_machines = 1
-    if distributed_type in (
-        SageMakerDistributedType.DATA_PARALLEL,
-        SageMakerDistributedType.MODEL_PARALLEL,
-    ):
+    if distributed_type in (SageMakerDistributedType.DATA_PARALLEL, SageMakerDistributedType.MODEL_PARALLEL):
         num_machines = _ask_field(
             "How many machines do you want use? [1]: ",
             int,

@@ -42,7 +42,7 @@ def main(
     try:
         df = df.drop("output_dir", axis=1)
     except KeyError:
-        pass  # output_dir not found
+        pass # output_dir not found
 
     df.reindex(sorted(df.columns), axis=1).to_csv(output_filename, index=False)
     print("***************** Report Created ******************")

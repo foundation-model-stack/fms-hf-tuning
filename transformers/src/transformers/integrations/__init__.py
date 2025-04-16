@@ -13,12 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_torch_available,
-    is_torch_greater_or_equal,
-)
+from ..utils import OptionalDependencyNotAvailable, _LazyModule, is_torch_available, is_torch_greater_or_equal
 
 
 _import_structure = {
@@ -58,11 +53,7 @@ _import_structure = {
         "unset_hf_deepspeed_config",
     ],
     "eetq": ["replace_with_eetq_linear"],
-    "fbgemm_fp8": [
-        "FbgemmFp8Linear",
-        "FbgemmFp8Llama4TextExperts",
-        "replace_with_fbgemm_fp8_linear",
-    ],
+    "fbgemm_fp8": ["FbgemmFp8Linear", "FbgemmFp8Llama4TextExperts", "replace_with_fbgemm_fp8_linear"],
     "finegrained_fp8": ["FP8Linear", "replace_with_fp8_linear"],
     "fsdp": ["is_fsdp_managed_module"],
     "ggml": [
@@ -201,11 +192,7 @@ if TYPE_CHECKING:
         unset_hf_deepspeed_config,
     )
     from .eetq import replace_with_eetq_linear
-    from .fbgemm_fp8 import (
-        FbgemmFp8Linear,
-        FbgemmFp8Llama4TextExperts,
-        replace_with_fbgemm_fp8_linear,
-    )
+    from .fbgemm_fp8 import FbgemmFp8Linear, FbgemmFp8Llama4TextExperts, replace_with_fbgemm_fp8_linear
     from .finegrained_fp8 import FP8Linear, replace_with_fp8_linear
     from .fsdp import is_fsdp_managed_module
     from .ggml import (
@@ -215,12 +202,7 @@ if TYPE_CHECKING:
         load_dequant_gguf_tensor,
         load_gguf,
     )
-    from .higgs import (
-        HiggsLinear,
-        dequantize_higgs,
-        quantize_with_higgs,
-        replace_with_higgs_linear,
-    )
+    from .higgs import HiggsLinear, dequantize_higgs, quantize_with_higgs, replace_with_higgs_linear
     from .hqq import prepare_for_hqq_linear
     from .hub_kernels import (
         LayerRepository,
@@ -280,10 +262,7 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .executorch import (
-            TorchExportableModuleWithStaticCache,
-            convert_and_export_with_cache,
-        )
+        from .executorch import TorchExportableModuleWithStaticCache, convert_and_export_with_cache
 
     try:
         if not is_torch_greater_or_equal("2.3"):
@@ -307,6 +286,4 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

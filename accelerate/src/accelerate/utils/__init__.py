@@ -11,11 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .ao import (
-    convert_model_to_fp8_ao,
-    filter_first_and_last_linear_layers,
-    has_ao_layers,
-)
+from .ao import convert_model_to_fp8_ao, filter_first_and_last_linear_layers, has_ao_layers
 from .constants import (
     MITA_PROFILING_AVAILABLE_PYTORCH_VERSION,
     MODEL_NAME,
@@ -265,9 +261,7 @@ if is_megatron_lm_available():
     )
     from .megatron_lm import initialize as megatron_lm_initialize
     from .megatron_lm import prepare_data_loader as megatron_lm_prepare_data_loader
-    from .megatron_lm import (
-        prepare_model_optimizer_scheduler as megatron_lm_prepare_model_optimizer_scheduler,
-    )
+    from .megatron_lm import prepare_model_optimizer_scheduler as megatron_lm_prepare_model_optimizer_scheduler
     from .megatron_lm import prepare_optimizer as megatron_lm_prepare_optimizer
     from .megatron_lm import prepare_scheduler as megatron_lm_prepare_scheduler
 from .memory import find_executable_batch_size, release_memory

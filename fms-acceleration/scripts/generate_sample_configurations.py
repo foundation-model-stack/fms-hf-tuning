@@ -152,9 +152,9 @@ KEY_AADP_MULTIPACK = "aadp-multipack"
 KEY_FAST_KERNELS = "foak-fast-kernels"
 KEY_FAST_KERNELS_LIGER = "foak-fast-kernels-liger"
 KEY_SCATTERMOE_EP1 = "moe-scattermoe-ep1"
-KEY_SCATTERMOE_EP2 = "moe-scattermoe-ep2"
-KEY_SCATTERMOE_EP4 = "moe-scattermoe-ep4"
-KEY_SCATTERMOE_EP8 = "moe-scattermoe-ep8"
+KEY_SCATTERMOE_EP2 = 'moe-scattermoe-ep2'
+KEY_SCATTERMOE_EP4 = 'moe-scattermoe-ep4'
+KEY_SCATTERMOE_EP8 = 'moe-scattermoe-ep8'
 
 CONFIGURATIONS = {
     KEY_AUTO_GPTQ: "plugins/accelerated-peft/configs/autogptq.yaml",
@@ -218,75 +218,24 @@ COMBINATIONS = [
     ("accelerated-peft-autogptq-foak-liger", (KEY_AUTO_GPTQ, KEY_AUTO_GPTQ_FOAK_LIGER)),
     ("accelerated-peft-bnb-nf4-foak-liger", (KEY_BNB_NF4, KEY_BNB_NF4_FOAK_LIGER)),
     ("aadp-padding-free", (KEY_AADP_PADDING_FREE,)),
-    ("accelerated-peft-autogptq-padding-free", (KEY_AADP_PADDING_FREE, KEY_AUTO_GPTQ)),
-    ("accelerated-peft-bnb-nf4-padding-free", (KEY_AADP_PADDING_FREE, KEY_BNB_NF4)),
-    (
-        "accelerated-peft-autogptq-foak-padding-free",
-        (KEY_AADP_PADDING_FREE, KEY_AUTO_GPTQ, KEY_AUTO_GPTQ_FOAK),
-    ),
-    (
-        "accelerated-peft-bnb-nf4-foak-padding-free",
-        (KEY_AADP_PADDING_FREE, KEY_BNB_NF4, KEY_BNB_NF4_FOAK),
-    ),
+    ("accelerated-peft-autogptq-padding-free", (KEY_AADP_PADDING_FREE,KEY_AUTO_GPTQ)),
+    ("accelerated-peft-bnb-nf4-padding-free", (KEY_AADP_PADDING_FREE,KEY_BNB_NF4)),
+    ("accelerated-peft-autogptq-foak-padding-free", (KEY_AADP_PADDING_FREE,KEY_AUTO_GPTQ, KEY_AUTO_GPTQ_FOAK)),
+    ("accelerated-peft-bnb-nf4-foak-padding-free", (KEY_AADP_PADDING_FREE,KEY_BNB_NF4, KEY_BNB_NF4_FOAK)),
     ("aadp-padding-free-multipack", (KEY_AADP_PADDING_FREE, KEY_AADP_MULTIPACK)),
     ("foak-fast-kernels", (KEY_FAST_KERNELS,)),
     ("foak-fast-kernels-liger", (KEY_FAST_KERNELS_LIGER,)),
     ("moe-scattermoe-granite-ep1", (KEY_SCATTERMOE_EP1,)),
-    (
-        "moe-scattermoe-granite-ep1-padding-free",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_SCATTERMOE_EP1,
-        ),
-    ),
-    (
-        "moe-scattermoe-granite-ep1-padding-free-foak",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_FAST_KERNELS,
-            KEY_SCATTERMOE_EP1,
-        ),
-    ),
+    ("moe-scattermoe-granite-ep1-padding-free", (KEY_AADP_PADDING_FREE, KEY_SCATTERMOE_EP1,)),
+    ("moe-scattermoe-granite-ep1-padding-free-foak", (KEY_AADP_PADDING_FREE, KEY_FAST_KERNELS, KEY_SCATTERMOE_EP1,)),
     ("moe-scattermoe-granite-ep2", (KEY_SCATTERMOE_EP2,)),
-    (
-        "moe-scattermoe-granite-ep2-padding-free",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_SCATTERMOE_EP2,
-        ),
-    ),
-    (
-        "moe-scattermoe-granite-ep2-padding-free-foak",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_FAST_KERNELS,
-            KEY_SCATTERMOE_EP2,
-        ),
-    ),
+    ("moe-scattermoe-granite-ep2-padding-free", (KEY_AADP_PADDING_FREE, KEY_SCATTERMOE_EP2,)),
+    ("moe-scattermoe-granite-ep2-padding-free-foak", (KEY_AADP_PADDING_FREE, KEY_FAST_KERNELS, KEY_SCATTERMOE_EP2,)),
     ("moe-scattermoe-granite-ep4", (KEY_SCATTERMOE_EP4,)),
-    (
-        "moe-scattermoe-granite-ep4-padding-free",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_SCATTERMOE_EP4,
-        ),
-    ),
-    (
-        "moe-scattermoe-granite-ep4-padding-free-foak",
-        (
-            KEY_AADP_PADDING_FREE,
-            KEY_FAST_KERNELS,
-            KEY_SCATTERMOE_EP4,
-        ),
-    ),
+    ("moe-scattermoe-granite-ep4-padding-free", (KEY_AADP_PADDING_FREE, KEY_SCATTERMOE_EP4,)),
+    ("moe-scattermoe-granite-ep4-padding-free-foak", (KEY_AADP_PADDING_FREE, KEY_FAST_KERNELS, KEY_SCATTERMOE_EP4,)),
     ("moe-scattermoe-granite-ep8", (KEY_SCATTERMOE_EP8,)),
-    (
-        "moe-scattermoe-granite-ep8-foak",
-        (
-            KEY_FAST_KERNELS,
-            KEY_SCATTERMOE_EP8,
-        ),
-    ),
+    ("moe-scattermoe-granite-ep8-foak", (KEY_FAST_KERNELS, KEY_SCATTERMOE_EP8,)),
 ]
 
 # TODO: throw error if merge conflicts

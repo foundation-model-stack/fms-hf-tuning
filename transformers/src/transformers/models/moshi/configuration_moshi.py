@@ -128,11 +128,7 @@ class MoshiDepthConfig(PretrainedConfig):
         self.input_size = input_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
-        self.num_key_value_heads = (
-            num_key_value_heads
-            if num_key_value_heads is not None
-            else num_attention_heads
-        )
+        self.num_key_value_heads = num_key_value_heads if num_key_value_heads is not None else num_attention_heads
         self.max_position_embeddings = max_position_embeddings
         self.hidden_act = hidden_act
         self.head_dim = head_dim or hidden_size // num_attention_heads
@@ -268,11 +264,7 @@ class MoshiConfig(PretrainedConfig):
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
-        self.num_key_value_heads = (
-            num_key_value_heads
-            if num_key_value_heads is not None
-            else num_attention_heads
-        )
+        self.num_key_value_heads = num_key_value_heads if num_key_value_heads is not None else num_attention_heads
         self.max_position_embeddings = max_position_embeddings
         self.rope_theta = rope_theta
         self.hidden_act = hidden_act
@@ -290,9 +282,7 @@ class MoshiConfig(PretrainedConfig):
         audio_encoder_config = kwargs.pop("audio_encoder_config", {})
         audio_encoder_model_type = audio_encoder_config.pop("model_type", "mimi")
 
-        self.audio_encoder_config = AutoConfig.for_model(
-            audio_encoder_model_type, **audio_encoder_config
-        )
+        self.audio_encoder_config = AutoConfig.for_model(audio_encoder_model_type, **audio_encoder_config)
 
         if self.num_codebooks > self.audio_encoder_config.num_codebooks:
             raise ValueError(
@@ -300,9 +290,7 @@ class MoshiConfig(PretrainedConfig):
             )
 
         self.audio_vocab_size = (
-            self.audio_encoder_config.codebook_size
-            if audio_vocab_size is None
-            else audio_vocab_size
+            self.audio_encoder_config.codebook_size if audio_vocab_size is None else audio_vocab_size
         )
 
         depth_decoder_config = kwargs.pop("depth_decoder_config", {})

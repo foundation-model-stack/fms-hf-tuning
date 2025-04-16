@@ -104,10 +104,7 @@ class MvpConfig(PretrainedConfig):
 
     model_type = "mvp"
     keys_to_ignore_at_inference = ["past_key_values"]
-    attribute_map = {
-        "num_attention_heads": "encoder_attention_heads",
-        "hidden_size": "d_model",
-    }
+    attribute_map = {"num_attention_heads": "encoder_attention_heads", "hidden_size": "d_model"}
 
     def __init__(
         self,
@@ -160,9 +157,7 @@ class MvpConfig(PretrainedConfig):
         self.classifier_dropout = classifier_dropout
         self.use_cache = use_cache
         self.num_hidden_layers = encoder_layers
-        self.scale_embedding = (
-            scale_embedding  # scale factor will be sqrt(d_model) if True
-        )
+        self.scale_embedding = scale_embedding  # scale factor will be sqrt(d_model) if True
         self.use_prompt = use_prompt
         self.prompt_length = prompt_length
         self.prompt_mid_dim = prompt_mid_dim
@@ -177,9 +172,7 @@ class MvpConfig(PretrainedConfig):
             **kwargs,
         )
 
-        if self.forced_bos_token_id is None and kwargs.get(
-            "force_bos_token_to_be_generated", False
-        ):
+        if self.forced_bos_token_id is None and kwargs.get("force_bos_token_to_be_generated", False):
             self.forced_bos_token_id = self.bos_token_id
             warnings.warn(
                 f"Please make sure the config includes `forced_bos_token_id={self.bos_token_id}` in future versions. "

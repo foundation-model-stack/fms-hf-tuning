@@ -240,8 +240,8 @@ class Llama4TextConfig(PretrainedConfig):
     keys_to_ignore_at_inference = ["past_key_values"]
     base_model_tp_plan = {
         "layers.*.self_attn.q_proj": "colwise",
-        "layers.*.self_attn.k_proj": "colwise",
-        "layers.*.self_attn.v_proj": "colwise",
+        "layers.*.self_attn.k_proj": "colwise_rep",
+        "layers.*.self_attn.v_proj": "colwise_rep",
         "layers.*.self_attn.o_proj": "rowwise",
         "layers.*.input_layernorm.weight": "sequence_parallel",
         "layers.*.post_attention_layernorm.weight": "sequence_parallel",
@@ -328,11 +328,7 @@ class Llama4TextConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.rope_theta = rope_theta
         self.attention_dropout = attention_dropout
-        self.head_dim = (
-            head_dim
-            if head_dim is not None
-            else self.hidden_size // self.num_attention_heads
-        )
+        self.head_dim = head_dim if head_dim is not None else self.hidden_size // self.num_attention_heads
         self.use_qk_norm = use_qk_norm
 
         self.num_experts_per_tok = num_experts_per_tok
@@ -342,26 +338,17 @@ class Llama4TextConfig(PretrainedConfig):
         self.router_aux_loss_coef = router_aux_loss_coef
         self.router_jitter_noise = router_jitter_noise
         default_no_rope_layers = [
-            int((layer_idx + 1) % no_rope_layer_interval != 0)
-            for layer_idx in range(self.num_hidden_layers)
+            int((layer_idx + 1) % no_rope_layer_interval != 0) for layer_idx in range(self.num_hidden_layers)
         ]
 
         # no_rope_layers == [] is invalid as we cannot have 0 layers
-        self.no_rope_layers = (
-            no_rope_layers if no_rope_layers else default_no_rope_layers
-        )
+        self.no_rope_layers = no_rope_layers if no_rope_layers else default_no_rope_layers
 
         self.interleave_moe_layer_step = interleave_moe_layer_step
         self.moe_layers = (
             moe_layers
             if moe_layers is not None
-            else list(
-                range(
-                    interleave_moe_layer_step - 1,
-                    num_hidden_layers,
-                    interleave_moe_layer_step,
-                )
-            )
+            else list(range(interleave_moe_layer_step - 1, num_hidden_layers, interleave_moe_layer_step))
         )
         self.attention_chunk_size = attention_chunk_size
 

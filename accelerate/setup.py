@@ -22,13 +22,7 @@ extras["quality"] = [
     "ruff ~= 0.11.2",
 ]
 extras["docs"] = []
-extras["test_prod"] = [
-    "pytest>=7.2.0,<=8.0.0",
-    "pytest-xdist",
-    "pytest-subtests",
-    "parameterized",
-    "pytest-order",
-]
+extras["test_prod"] = ["pytest>=7.2.0,<=8.0.0", "pytest-xdist", "pytest-subtests", "parameterized", "pytest-order"]
 extras["test_dev"] = [
     "datasets",
     "diffusers",
@@ -46,14 +40,7 @@ extras["testing"] = extras["test_prod"] + extras["test_dev"]
 extras["deepspeed"] = ["deepspeed"]
 extras["rich"] = ["rich"]
 
-extras["test_trackers"] = [
-    "wandb",
-    "comet-ml",
-    "tensorboard",
-    "dvclive",
-    "mlflow",
-    "matplotlib",
-]
+extras["test_trackers"] = ["wandb", "comet-ml", "tensorboard", "dvclive", "mlflow", "matplotlib"]
 extras["dev"] = extras["quality"] + extras["testing"] + extras["rich"]
 
 extras["sagemaker"] = [

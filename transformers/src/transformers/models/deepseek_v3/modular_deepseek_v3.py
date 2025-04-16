@@ -86,9 +86,7 @@ class DeepseekV3MLP(nn.Module):
         super().__init__()
         self.config = config
         self.hidden_size = config.hidden_size if hidden_size is None else hidden_size
-        self.intermediate_size = (
-            config.intermediate_size if intermediate_size is None else intermediate_size
-        )
+        self.intermediate_size = config.intermediate_size if intermediate_size is None else intermediate_size
 
         self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
         self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
@@ -111,22 +109,14 @@ class DeepseekV3TopkRouter(nn.Module):
         self.topk_group = config.topk_group
         self.norm_topk_prob = config.norm_topk_prob
 
-        self.weight = nn.Parameter(
-            torch.empty((self.n_routed_experts, config.hidden_size))
-        )
-        self.register_buffer(
-            "e_score_correction_bias", torch.zeros((self.n_routed_experts))
-        )
+        self.weight = nn.Parameter(torch.empty((self.n_routed_experts, config.hidden_size)))
+        self.register_buffer("e_score_correction_bias", torch.zeros((self.n_routed_experts)))
 
     @torch.no_grad()
     def get_topk_indices(self, scores):
-        scores_for_choice = scores.view(
-            -1, self.n_routed_experts
-        ) + self.e_score_correction_bias.unsqueeze(0)
+        scores_for_choice = scores.view(-1, self.n_routed_experts) + self.e_score_correction_bias.unsqueeze(0)
         group_scores = (
-            scores_for_choice.view(
-                -1, self.n_group, self.n_routed_experts // self.n_group
-            )
+            scores_for_choice.view(-1, self.n_group, self.n_routed_experts // self.n_group)
             .topk(2, dim=-1)[0]
             .sum(dim=-1)
         )
@@ -139,16 +129,12 @@ class DeepseekV3TopkRouter(nn.Module):
             .reshape(-1, self.n_routed_experts)
         )
         scores_for_choice = scores_for_choice.masked_fill(~score_mask.bool(), 0.0)
-        topk_indices = torch.topk(
-            scores_for_choice, k=self.top_k, dim=-1, sorted=False
-        )[1]
+        topk_indices = torch.topk(scores_for_choice, k=self.top_k, dim=-1, sorted=False)[1]
         return topk_indices
 
     def forward(self, hidden_states):
         hidden_states = hidden_states.view(-1, self.config.hidden_size)
-        router_logits = F.linear(
-            hidden_states.type(torch.float32), self.weight.type(torch.float32)
-        )
+        router_logits = F.linear(hidden_states.type(torch.float32), self.weight.type(torch.float32))
         scores = router_logits.sigmoid()
         topk_indices = self.get_topk_indices(scores)
         topk_weights = scores.gather(1, topk_indices)
@@ -175,24 +161,16 @@ class DeepseekV3MoE(nn.Module):
         )
         self.gate = DeepseekV3TopkRouter(config)
         self.shared_experts = DeepseekV3MLP(
-            config=config,
-            intermediate_size=config.moe_intermediate_size * config.n_shared_experts,
+            config=config, intermediate_size=config.moe_intermediate_size * config.n_shared_experts
         )
 
-    def moe(
-        self,
-        hidden_states: torch.Tensor,
-        topk_indices: torch.Tensor,
-        topk_weights: torch.Tensor,
-    ):
+    def moe(self, hidden_states: torch.Tensor, topk_indices: torch.Tensor, topk_weights: torch.Tensor):
         r"""
         CALL FOR CONTRIBUTION! I don't have time to optimise this right now, but expert weights need to be fused
         to not have to do a loop here (deepseek has 256 experts soooo yeah).
         """
         final_hidden_states = torch.zeros_like(hidden_states, dtype=topk_weights.dtype)
-        expert_mask = torch.nn.functional.one_hot(
-            topk_indices, num_classes=len(self.experts)
-        )
+        expert_mask = torch.nn.functional.one_hot(topk_indices, num_classes=len(self.experts))
         expert_mask = expert_mask.permute(2, 0, 1)
 
         for expert_idx in range(len(self.experts)):
@@ -217,9 +195,7 @@ class DeepseekV3MoE(nn.Module):
         orig_shape = hidden_states.shape
         topk_indices, topk_weights = self.gate(hidden_states)
         hidden_states = hidden_states.view(-1, hidden_states.shape[-1])
-        hidden_states = self.moe(hidden_states, topk_indices, topk_weights).view(
-            *orig_shape
-        )
+        hidden_states = self.moe(hidden_states, topk_indices, topk_weights).view(*orig_shape)
         hidden_states = hidden_states + self.shared_experts(residuals)
         return hidden_states
 
@@ -231,9 +207,7 @@ class DeepseekV3Attention(nn.Module):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
-        self.num_key_value_groups = (
-            config.num_attention_heads // config.num_key_value_heads
-        )
+        self.num_key_value_groups = config.num_attention_heads // config.num_key_value_heads
         self.attention_dropout = config.attention_dropout
         self.num_heads = config.num_attention_heads
         self.rope_theta = config.rope_theta
@@ -245,13 +219,9 @@ class DeepseekV3Attention(nn.Module):
         self.qk_head_dim = config.qk_head_dim
 
         self.is_causal = True
-        self.q_a_proj = nn.Linear(
-            config.hidden_size, config.q_lora_rank, bias=config.attention_bias
-        )
+        self.q_a_proj = nn.Linear(config.hidden_size, config.q_lora_rank, bias=config.attention_bias)
         self.q_a_layernorm = DeepseekV3RMSNorm(config.q_lora_rank)
-        self.q_b_proj = nn.Linear(
-            config.q_lora_rank, self.num_heads * self.qk_head_dim, bias=False
-        )
+        self.q_b_proj = nn.Linear(config.q_lora_rank, self.num_heads * self.qk_head_dim, bias=False)
 
         self.kv_a_proj_with_mqa = nn.Linear(
             config.hidden_size,
@@ -290,40 +260,21 @@ class DeepseekV3Attention(nn.Module):
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         batch_size, seq_length = hidden_states.shape[:-1]
         query_shape = (batch_size, seq_length, -1, self.qk_head_dim)
-        key_shape = (
-            batch_size,
-            seq_length,
-            -1,
-            self.qk_nope_head_dim + self.v_head_dim,
-        )
+        key_shape = (batch_size, seq_length, -1, self.qk_nope_head_dim + self.v_head_dim)
 
-        q_states = (
-            self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))
-            .view(query_shape)
-            .transpose(1, 2)
-        )
-        q_pass, q_rot = torch.split(
-            q_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1
-        )
+        q_states = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states))).view(query_shape).transpose(1, 2)
+        q_pass, q_rot = torch.split(q_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
 
         compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
-        k_pass, k_rot = torch.split(
-            compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1
-        )
+        k_pass, k_rot = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
 
-        k_pass = (
-            self.kv_b_proj(self.kv_a_layernorm(k_pass)).view(key_shape).transpose(1, 2)
-        )
-        k_pass, value_states = torch.split(
-            k_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1
-        )
+        k_pass = self.kv_b_proj(self.kv_a_layernorm(k_pass)).view(key_shape).transpose(1, 2)
+        k_pass, value_states = torch.split(k_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
 
         k_rot = k_rot.view(batch_size, 1, seq_length, self.qk_rope_head_dim)
 
         cos, sin = position_embeddings
-        if (
-            self.config.rope_interleave
-        ):  # support using interleaved weights for efficiency
+        if self.config.rope_interleave:  # support using interleaved weights for efficiency
             q_rot, k_rot = apply_rotary_pos_emb_interleave(q_rot, k_rot, cos, sin)
         else:
             q_rot, k_rot = apply_rotary_pos_emb(q_rot, k_rot, cos, sin)
@@ -335,29 +286,20 @@ class DeepseekV3Attention(nn.Module):
         if past_key_value is not None:
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-            key_states, value_states = past_key_value.update(
-                key_states, value_states, self.layer_idx, cache_kwargs
-            )
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        if (
-            self.config._attn_implementation == "flash_attention_2"
-            and self.qk_head_dim != self.v_head_dim
-        ):
+        if self.config._attn_implementation == "flash_attention_2" and self.qk_head_dim != self.v_head_dim:
             value_states = F.pad(value_states, [0, self.qk_head_dim - self.v_head_dim])
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
-            if self.config._attn_implementation == "sdpa" and kwargs.get(
-                "output_attentions", False
-            ):
+            if self.config._attn_implementation == "sdpa" and kwargs.get("output_attentions", False):
                 logger.warning_once(
                     "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
                     'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
                 )
             else:
-                attention_interface = ALL_ATTENTION_FUNCTIONS[
-                    self.config._attn_implementation
-                ]
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -370,10 +312,7 @@ class DeepseekV3Attention(nn.Module):
             **kwargs,
         )
 
-        if (
-            self.config._attn_implementation == "flash_attention_2"
-            and self.qk_head_dim != self.v_head_dim
-        ):
+        if self.config._attn_implementation == "flash_attention_2" and self.qk_head_dim != self.v_head_dim:
             attn_output = attn_output[:, :, :, : self.v_head_dim]
 
         attn_output = attn_output.reshape(batch_size, seq_length, -1).contiguous()
@@ -393,12 +332,8 @@ class DeepseekV3DecoderLayer(LlamaDecoderLayer, nn.Module):
         else:
             self.mlp = DeepseekV3MLP(config)
 
-        self.input_layernorm = DeepseekV3RMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
-        self.post_attention_layernorm = DeepseekV3RMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
+        self.input_layernorm = DeepseekV3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = DeepseekV3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
 
 class DeepseekV3PreTrainedModel(LlamaPreTrainedModel):

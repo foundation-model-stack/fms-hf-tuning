@@ -55,12 +55,8 @@ class MegaLM(nn.Module):
     def __init__(self, mega_args, depth, vocab_size):
         super().__init__()
         self.mega_args = mega_args
-        self.embedding_layer = nn.Embedding(
-            vocab_size, self.mega_args.encoder_embed_dim
-        )
-        self.encoders = nn.ModuleList(
-            [MegaEncoderLayer(self.mega_args) for _ in range(depth)]
-        )
+        self.embedding_layer = nn.Embedding(vocab_size, self.mega_args.encoder_embed_dim)
+        self.encoders = nn.ModuleList([MegaEncoderLayer(self.mega_args) for _ in range(depth)])
         self.depth = depth
 
     def forward(self, input_ids, attention_mask, batch_first=True, ignore_mask_value=0):
@@ -120,16 +116,12 @@ class OriginalMegaForMaskedLM(nn.Module):
         If `batch_first` (default to align with Hugging Face tokenizer behavior), output will have the shape (Batch
         size, Sequence length, Vocab size); otherwise (S, B, V)
         """
-        encoder_output = self.mega(
-            input_ids, attention_mask, batch_first, ignore_mask_value
-        )
+        encoder_output = self.mega(input_ids, attention_mask, batch_first, ignore_mask_value)
         return self.mlm_head(self.dropout(encoder_output))
 
 
 # code to convert the checkpoint located in the user-specified location
-def convert_checkpoint_to_huggingface(
-    pretrained_checkpoint_path, output_path, includes_tokenizer
-):
+def convert_checkpoint_to_huggingface(pretrained_checkpoint_path, output_path, includes_tokenizer):
     with open(os.path.join(pretrained_checkpoint_path, "model_args.pkl"), "rb") as f:
         mega_original_args = pkl.load(f)
 
@@ -141,9 +133,7 @@ def convert_checkpoint_to_huggingface(
         "Original Mega encoder:",
         original_mlm.mega.load_state_dict(
             torch.load(
-                os.path.join(pretrained_checkpoint_path, "encoder_weights.pt"),
-                map_location="cpu",
-                weights_only=True,
+                os.path.join(pretrained_checkpoint_path, "encoder_weights.pt"), map_location="cpu", weights_only=True
             )
         ),
     )
@@ -151,9 +141,7 @@ def convert_checkpoint_to_huggingface(
         "Original Mega MLM layer:",
         original_mlm.mlm_head.load_state_dict(
             torch.load(
-                os.path.join(pretrained_checkpoint_path, "mlm_head_weights.pt"),
-                map_location="cpu",
-                weights_only=True,
+                os.path.join(pretrained_checkpoint_path, "mlm_head_weights.pt"), map_location="cpu", weights_only=True
             )
         ),
     )
@@ -193,9 +181,7 @@ def convert_checkpoint_to_huggingface(
 
     # the originl checkpoint just uses nn.Embedding for the word embeddings
     # we use a wrapper module for embeddings to add support for positional embeddings
-    hf_mlm.mega.embedding_layer.word_embeddings.weight = (
-        original_mlm.mega.embedding_layer.weight
-    )
+    hf_mlm.mega.embedding_layer.word_embeddings.weight = original_mlm.mega.embedding_layer.weight
 
     # modify the state dictionary of the original checkpoint to account for naming issues in the Hugging Face
     # ecosystem -- any names containing "beta" or "gamma" aren't safe to use and are renamed upon _load_pretrained,
@@ -211,9 +197,7 @@ def convert_checkpoint_to_huggingface(
         if "beta" in module_name:
             # EMA sub-layers were always called "move" in the original repo
             if "move.beta" in module_name:
-                new_module_name = module_name.replace(
-                    "move.beta", "ema_gate.ema_expansion_matrix"
-                )
+                new_module_name = module_name.replace("move.beta", "ema_gate.ema_expansion_matrix")
             elif "mega_layer.beta" in module_name:
                 new_module_name = module_name.replace("beta", "qk_bias")
             else:
@@ -221,9 +205,7 @@ def convert_checkpoint_to_huggingface(
         # beta is used in EMA and MovingAverageGatedAttention, and must be renamed due to flax/tf weights
         elif "gamma" in module_name:
             if "move.gamma" in module_name:
-                new_module_name = module_name.replace(
-                    "move.gamma", "ema_gate.kernel_projection_matrix"
-                )
+                new_module_name = module_name.replace("move.gamma", "ema_gate.kernel_projection_matrix")
             elif "mega_layer.gamma" in module_name:
                 new_module_name = module_name.replace("gamma", "qk_weight")
             else:
@@ -233,14 +215,10 @@ def convert_checkpoint_to_huggingface(
             new_module_name = module_name.replace("move.alpha", "ema_gate.decay_factor")
         # delta is only used in EMA; renaming to improve readability
         elif "move.delta" in module_name:
-            new_module_name = module_name.replace(
-                "move.delta", "ema_gate.damping_factor"
-            )
+            new_module_name = module_name.replace("move.delta", "ema_gate.damping_factor")
         # omega is only used in EMA; renaming to improve readability
         elif "omega" in module_name:
-            new_module_name = module_name.replace(
-                "move.omega", "ema_gate.residual_weight"
-            )
+            new_module_name = module_name.replace("move.omega", "ema_gate.residual_weight")
 
         if new_module_name:
             updated_keys[module_name] = new_module_name
@@ -261,9 +239,7 @@ def convert_checkpoint_to_huggingface(
         "HF Mega MLM layer:",
         hf_mlm.mlm_head.load_state_dict(
             torch.load(
-                os.path.join(pretrained_checkpoint_path, "mlm_head_weights.pt"),
-                map_location="cpu",
-                weights_only=True,
+                os.path.join(pretrained_checkpoint_path, "mlm_head_weights.pt"), map_location="cpu", weights_only=True
             )
         ),
     )
@@ -275,9 +251,7 @@ def convert_checkpoint_to_huggingface(
     input_mask[:, -10:] = 0
 
     # run forward passes
-    original_output = original_mlm(
-        input_ids, input_mask, batch_first=True, ignore_mask_value=0
-    )
+    original_output = original_mlm(input_ids, input_mask, batch_first=True, ignore_mask_value=0)
     hf_output = hf_mlm(input_ids, input_mask)[0]
 
     # print shapes and diff
@@ -290,9 +264,7 @@ def convert_checkpoint_to_huggingface(
         print("Yay!")
         hf_mlm.save_pretrained(output_path)
     else:
-        raise RuntimeError(
-            f"Something's broken :(\nOriginal:\n{original_output}\n\nHF\n{hf_output}\n{hf_mlm}"
-        )
+        raise RuntimeError(f"Something's broken :(\nOriginal:\n{original_output}\n\nHF\n{hf_output}\n{hf_mlm}")
 
     if includes_tokenizer:
         print("Transferring tokenizer")
@@ -312,11 +284,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--output_path",
-        default=None,
-        type=str,
-        required=True,
-        help="Location to save the Hugging Face version",
+        "--output_path", default=None, type=str, required=True, help="Location to save the Hugging Face version"
     )
 
     parser.add_argument(
@@ -327,6 +295,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    convert_checkpoint_to_huggingface(
-        args.pretrained_checkpoint_path, args.output_path, args.includes_tokenizer
-    )
+    convert_checkpoint_to_huggingface(args.pretrained_checkpoint_path, args.output_path, args.includes_tokenizer)

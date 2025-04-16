@@ -14,13 +14,7 @@
 
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    OptionalDependencyNotAvailable,
-    _LazyModule,
-    is_flax_available,
-    is_tf_available,
-    is_torch_available,
-)
+from ..utils import OptionalDependencyNotAvailable, _LazyModule, is_flax_available, is_tf_available, is_torch_available
 
 
 _import_structure = {
@@ -32,12 +26,7 @@ _import_structure = {
         "SynthIDTextWatermarkingConfig",
         "WatermarkingConfig",
     ],
-    "streamers": [
-        "AsyncTextIteratorStreamer",
-        "BaseStreamer",
-        "TextIteratorStreamer",
-        "TextStreamer",
-    ],
+    "streamers": ["AsyncTextIteratorStreamer", "BaseStreamer", "TextIteratorStreamer", "TextStreamer"],
 }
 
 try:
@@ -208,12 +197,7 @@ if TYPE_CHECKING:
         SynthIDTextWatermarkingConfig,
         WatermarkingConfig,
     )
-    from .streamers import (
-        AsyncTextIteratorStreamer,
-        BaseStreamer,
-        TextIteratorStreamer,
-        TextStreamer,
-    )
+    from .streamers import AsyncTextIteratorStreamer, BaseStreamer, TextIteratorStreamer, TextStreamer
 
     try:
         if not is_torch_available():
@@ -221,18 +205,8 @@ if TYPE_CHECKING:
     except OptionalDependencyNotAvailable:
         pass
     else:
-        from .beam_constraints import (
-            Constraint,
-            ConstraintListState,
-            DisjunctiveConstraint,
-            PhrasalConstraint,
-        )
-        from .beam_search import (
-            BeamHypotheses,
-            BeamScorer,
-            BeamSearchScorer,
-            ConstrainedBeamSearchScorer,
-        )
+        from .beam_constraints import Constraint, ConstraintListState, DisjunctiveConstraint, PhrasalConstraint
+        from .beam_search import BeamHypotheses, BeamScorer, BeamSearchScorer, ConstrainedBeamSearchScorer
         from .candidate_generator import (
             AssistedCandidateGenerator,
             CandidateGenerator,
@@ -367,15 +341,8 @@ if TYPE_CHECKING:
             FlaxTopPLogitsWarper,
             FlaxWhisperTimeStampLogitsProcessor,
         )
-        from .flax_utils import (
-            FlaxBeamSearchOutput,
-            FlaxGenerationMixin,
-            FlaxGreedySearchOutput,
-            FlaxSampleOutput,
-        )
+        from .flax_utils import FlaxBeamSearchOutput, FlaxGenerationMixin, FlaxGreedySearchOutput, FlaxSampleOutput
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__, globals()["__file__"], _import_structure, module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

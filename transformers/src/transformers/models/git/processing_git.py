@@ -20,12 +20,7 @@ from typing import List, Optional, Union
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
-from ...processing_utils import (
-    ProcessingKwargs,
-    ProcessorMixin,
-    Unpack,
-    _validate_images_text_input_order,
-)
+from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack, _validate_images_text_input_order
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import logging
 
@@ -62,11 +57,7 @@ class GitProcessor(ProcessorMixin):
     def __call__(
         self,
         images: Optional[ImageInput] = None,
-        text: Optional[
-            Union[
-                TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-            ]
-        ] = None,
+        text: Optional[Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]]] = None,
         audio=None,
         videos=None,
         **kwargs: Unpack[GitProcessorKwargs],
@@ -105,9 +96,7 @@ class GitProcessor(ProcessorMixin):
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
         """
         if text is None and images is None:
-            raise ValueError(
-                "You have to specify either text or images. Both cannot be none."
-            )
+            raise ValueError("You have to specify either text or images. Both cannot be none.")
 
         # check if images and text inputs are reversed for BC
         images, text = _validate_images_text_input_order(images, text)
@@ -123,14 +112,10 @@ class GitProcessor(ProcessorMixin):
             text_features = self.tokenizer(text, **output_kwargs["text_kwargs"])
             data.update(text_features)
         if images is not None:
-            image_features = self.image_processor(
-                images, **output_kwargs["images_kwargs"]
-            )
+            image_features = self.image_processor(images, **output_kwargs["images_kwargs"])
             data.update(image_features)
 
-        return BatchFeature(
-            data=data, tensor_type=output_kwargs["common_kwargs"].get("return_tensors")
-        )
+        return BatchFeature(data=data, tensor_type=output_kwargs["common_kwargs"].get("return_tensors"))
 
     def batch_decode(self, *args, **kwargs):
         """

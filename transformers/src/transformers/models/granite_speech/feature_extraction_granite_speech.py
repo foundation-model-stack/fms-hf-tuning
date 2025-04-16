@@ -86,9 +86,9 @@ class GraniteSpeechFeatureExtractor(FeatureExtractionMixin):
         # has the same dimensionality as input_features, or compute it in
         # the model based on the audio embedding sizes (since we do not
         # have an attention mask for the audio features to infer padding from).
-        speech_inputs["input_features_mask"] = torch.arange(
-            max(audio_embed_sizes)
-        ).view(1, -1) < torch.tensor(audio_embed_sizes).view(-1, 1)
+        speech_inputs["input_features_mask"] = torch.arange(max(audio_embed_sizes)).view(1, -1) < torch.tensor(
+            audio_embed_sizes
+        ).view(-1, 1)
         return BatchFeature(data=speech_inputs)
 
     def _ensure_melspec_transform_is_initialized(self):
@@ -148,9 +148,7 @@ class GraniteSpeechFeatureExtractor(FeatureExtractionMixin):
                 Sequence of one or more raw audio lengths.
         """
         hop_length = self.melspec_kwargs["hop_length"]
-        effective_window_size = (
-            self.projector_window_size // self.projector_downsample_rate
-        )
+        effective_window_size = self.projector_window_size // self.projector_downsample_rate
 
         projector_lengths = []
         for raw_length in audio_lengths:
@@ -165,9 +163,7 @@ class GraniteSpeechFeatureExtractor(FeatureExtractionMixin):
 
         return projector_lengths
 
-    def _get_audios_and_audio_lengths(
-        self, audios: AudioInput
-    ) -> Sequence["torch.Tensor", Sequence[int]]:
+    def _get_audios_and_audio_lengths(self, audios: AudioInput) -> Sequence["torch.Tensor", Sequence[int]]:
         """
         Coerces audio inputs to torch tensors and extracts audio lengths prior to stacking.
 
@@ -188,36 +184,25 @@ class GraniteSpeechFeatureExtractor(FeatureExtractionMixin):
             if audios.ndim == 1:
                 audios = audios.unsqueeze(0)
             if not torch.is_floating_point(audios):
-                raise ValueError(
-                    "Invalid audio provided. Audio should be a floating point between 0 and 1"
-                )
+                raise ValueError("Invalid audio provided. Audio should be a floating point between 0 and 1")
 
             if audios.shape[0] > 1:
-                logger.warning(
-                    "Audio samples are already collated; assuming they all have the same length"
-                )
+                logger.warning("Audio samples are already collated; assuming they all have the same length")
             lengths = [audios.shape[-1]] * audios.shape[0]
             return audios, lengths
 
         elif isinstance(audios, Sequence) and isinstance(audios[0], torch.Tensor):
             if not torch.is_floating_point(audios[0]):
-                raise ValueError(
-                    "Invalid audio provided. Audio should be a floating point between 0 and 1"
-                )
+                raise ValueError("Invalid audio provided. Audio should be a floating point between 0 and 1")
             lengths = [audio.shape[-1] for audio in audios]
             padding = [max(lengths) - length for length in lengths]
             # ensure all audios have a batch dimension:
             audios = [audio.view(1, -1) for audio in audios]
-            padded = [
-                torch.nn.functional.pad(audio, (0, pad))
-                for audio, pad in zip(audios, padding)
-            ]
+            padded = [torch.nn.functional.pad(audio, (0, pad)) for audio, pad in zip(audios, padding)]
             audios = torch.cat(padded, dim=0)
             return audios, lengths
 
-        raise TypeError(
-            "Invalid audio provided. Audio should be a one or more torch tensors or numpy arrays"
-        )
+        raise TypeError("Invalid audio provided. Audio should be a one or more torch tensors or numpy arrays")
 
 
 __all__ = ["GraniteSpeechFeatureExtractor"]

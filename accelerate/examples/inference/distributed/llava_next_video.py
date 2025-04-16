@@ -52,11 +52,7 @@ def save_results(output_queue: queue.Queue, output_dir: pathlib.Path):
             example_file = f"example_{count}"
             temp_dir = os.path.join(output_dir, example_file)
 
-            metadata = {
-                "prompt": prompt,
-                "video": video,
-                "generated_text": generated_text,
-            }
+            metadata = {"prompt": prompt, "video": video, "generated_text": generated_text}
             with open(temp_dir, "w") as f:
                 json.dump(metadata, f, indent=4)
             count += 1
@@ -120,9 +116,7 @@ def process_videos(video_paths, processor, prompt, frames_per_video):
         try:
             with av.open(video_path) as container:
                 total_frames = container.streams.video[0].frames
-                indices = np.arange(
-                    0, total_frames, total_frames / frames_per_video
-                ).astype(int)
+                indices = np.arange(0, total_frames, total_frames / frames_per_video).astype(int)
                 clip = read_video_pyav(container, indices)
 
                 processed = processor(text=prompt, videos=clip, return_tensors="pt")
@@ -157,10 +151,7 @@ def main(
 
     processor = LlavaNextVideoProcessor.from_pretrained(model_name)
     model = LlavaNextVideoForConditionalGeneration.from_pretrained(
-        model_name,
-        torch_dtype=DTYPE_MAP[dtype],
-        low_cpu_mem_usage=low_mem,
-        device_map=distributed_state.device,
+        model_name, torch_dtype=DTYPE_MAP[dtype], low_cpu_mem_usage=low_mem, device_map=distributed_state.device
     )
 
     if distributed_state.is_main_process:
@@ -170,9 +161,7 @@ def main(
         else:
             print(f"Directory '{save_dir}' already exists.")
 
-    videos_dir = snapshot_download(
-        repo_id="malterei/LLaVA-Video-small-swift", repo_type="dataset"
-    )
+    videos_dir = snapshot_download(repo_id="malterei/LLaVA-Video-small-swift", repo_type="dataset")
     video_paths = get_video_paths(videos_dir)
     processed_videos = process_videos(video_paths, processor, prompt, frames_per_video)
     batches = get_batches(processed_videos, batch_size)
@@ -186,14 +175,10 @@ def main(
                 for batch in batched_inputs:
                     output = model.generate(
                         input_ids=batch["input_ids"].to(distributed_state.device),
-                        pixel_values_videos=batch["pixel_values_videos"].to(
-                            distributed_state.device, model.dtype
-                        ),
+                        pixel_values_videos=batch["pixel_values_videos"].to(distributed_state.device, model.dtype),
                         max_new_tokens=max_new_tokens,
                     )
-                    generated_text = processor.batch_decode(
-                        output, skip_special_tokens=True
-                    )
+                    generated_text = processor.batch_decode(output, skip_special_tokens=True)
                     output_queue.put((prompt, batch["video"], generated_text))
         finally:
             output_queue.put(None)

@@ -72,9 +72,7 @@ def _get_resize_output_image_size(
     multiple: int,
     input_data_format: Optional[Union[str, ChannelDimension]] = None,
 ) -> Tuple[int, int]:
-    output_size = (
-        (output_size, output_size) if isinstance(output_size, int) else output_size
-    )
+    output_size = (output_size, output_size) if isinstance(output_size, int) else output_size
 
     input_height, input_width = get_image_size(input_image, input_data_format)
     output_height, output_width = output_size
@@ -92,9 +90,7 @@ def _get_resize_output_image_size(
             # fit height
             scale_width = scale_height
 
-    new_height = _constrain_to_multiple_of(
-        scale_height * input_height, multiple=multiple
-    )
+    new_height = _constrain_to_multiple_of(scale_height * input_height, multiple=multiple)
     new_width = _constrain_to_multiple_of(scale_width * input_width, multiple=multiple)
 
     return (new_height, new_width)
@@ -171,9 +167,7 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
         self.do_rescale = do_rescale
         self.rescale_factor = rescale_factor
         self.do_normalize = do_normalize
-        self.image_mean = (
-            image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
-        )
+        self.image_mean = image_mean if image_mean is not None else IMAGENET_STANDARD_MEAN
         self.image_std = image_std if image_std is not None else IMAGENET_STANDARD_STD
         self.do_pad = do_pad
         self.size_divisor = size_divisor
@@ -213,9 +207,7 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
         """
         size = get_size_dict(size)
         if "height" not in size or "width" not in size:
-            raise ValueError(
-                f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}"
-            )
+            raise ValueError(f"The size dictionary must contain the keys 'height' and 'width'. Got {size.keys()}")
 
         output_size = _get_resize_output_image_size(
             image,
@@ -277,9 +269,7 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
         pad_size_top, pad_size_bottom = _get_pad(width, size_divisor)
 
         padded_image = pad(
-            image,
-            ((pad_size_left, pad_size_right), (pad_size_top, pad_size_bottom)),
-            data_format=data_format,
+            image, ((pad_size_left, pad_size_right), (pad_size_top, pad_size_bottom)), data_format=data_format
         )
         return padded_image
 
@@ -366,21 +356,11 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
         do_resize = do_resize if do_resize is not None else self.do_resize
         size = size if size is not None else self.size
         size = get_size_dict(size)
-        keep_aspect_ratio = (
-            keep_aspect_ratio
-            if keep_aspect_ratio is not None
-            else self.keep_aspect_ratio
-        )
-        ensure_multiple_of = (
-            ensure_multiple_of
-            if ensure_multiple_of is not None
-            else self.ensure_multiple_of
-        )
+        keep_aspect_ratio = keep_aspect_ratio if keep_aspect_ratio is not None else self.keep_aspect_ratio
+        ensure_multiple_of = ensure_multiple_of if ensure_multiple_of is not None else self.ensure_multiple_of
         resample = resample if resample is not None else self.resample
         do_rescale = do_rescale if do_rescale is not None else self.do_rescale
-        rescale_factor = (
-            rescale_factor if rescale_factor is not None else self.rescale_factor
-        )
+        rescale_factor = rescale_factor if rescale_factor is not None else self.rescale_factor
         do_normalize = do_normalize if do_normalize is not None else self.do_normalize
         image_mean = image_mean if image_mean is not None else self.image_mean
         image_std = image_std if image_std is not None else self.image_std
@@ -432,30 +412,17 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
                 )
 
             if do_rescale:
-                image = self.rescale(
-                    image=image,
-                    scale=rescale_factor,
-                    input_data_format=input_data_format,
-                )
+                image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
 
             if do_normalize:
                 image = self.normalize(
-                    image=image,
-                    mean=image_mean,
-                    std=image_std,
-                    input_data_format=input_data_format,
+                    image=image, mean=image_mean, std=image_std, input_data_format=input_data_format
                 )
 
             if do_pad:
-                image = self.pad_image(
-                    image=image,
-                    size_divisor=size_divisor,
-                    input_data_format=input_data_format,
-                )
+                image = self.pad_image(image=image, size_divisor=size_divisor, input_data_format=input_data_format)
 
-            image = to_channel_dimension_format(
-                image, data_format, input_channel_dim=input_data_format
-            )
+            image = to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
             preprocessed_images.append(image)
 
         images = preprocessed_images
@@ -484,9 +451,7 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
                     # We can simply select one pixel and set it to a small value.
                     depth[0, 0] = depth[0, 0] + 1e-6
                 depth = depth[..., None].astype(np.float32)
-                depth = to_channel_dimension_format(
-                    depth, data_format, input_channel_dim=input_data_format
-                )
+                depth = to_channel_dimension_format(depth, data_format, input_channel_dim=input_data_format)
 
                 processed_prompt_depths.append(depth)
             prompt_depths = processed_prompt_depths
@@ -524,16 +489,11 @@ class PromptDepthAnythingImageProcessor(BaseImageProcessor):
             )
 
         results = []
-        target_sizes = (
-            [None] * len(predicted_depth) if target_sizes is None else target_sizes
-        )
+        target_sizes = [None] * len(predicted_depth) if target_sizes is None else target_sizes
         for depth, target_size in zip(predicted_depth, target_sizes):
             if target_size is not None:
                 depth = torch.nn.functional.interpolate(
-                    depth.unsqueeze(0).unsqueeze(1),
-                    size=target_size,
-                    mode="bicubic",
-                    align_corners=False,
+                    depth.unsqueeze(0).unsqueeze(1), size=target_size, mode="bicubic", align_corners=False
                 ).squeeze()
 
             results.append({"predicted_depth": depth})

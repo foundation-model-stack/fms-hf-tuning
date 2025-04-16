@@ -22,12 +22,7 @@ from measure_utils import MemoryTracker
 from torch.distributed.fsdp import MixedPrecisionPolicy, fully_shard
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    DataCollatorForLanguageModeling,
-)
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, DataCollatorForLanguageModeling
 from transformers.models.qwen2.modeling_qwen2 import Qwen2DecoderLayer
 
 from accelerate import Accelerator, FullyShardedDataParallelPlugin
@@ -38,9 +33,7 @@ from accelerate.utils import convert_outputs_to_fp32, set_seed
 SEED = 421
 
 
-def get_named_parameters(
-    model: torch.nn.Module, drop_refs: bool = False
-) -> dict[str, Union[torch.Tensor, int]]:
+def get_named_parameters(model: torch.nn.Module, drop_refs: bool = False) -> dict[str, Union[torch.Tensor, int]]:
     """
     This function returns a dictionary mapping the parameter names to their data pointers or
     the original parameters if `drop_refs` is `False`.
@@ -86,9 +79,7 @@ def replace_optimizer_params(optimizer: torch.optim.Optimizer):
 
 
 def swap_back_optimizer_params(
-    model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    old_named_parameter_pointers: dict[str, int],
+    model: torch.nn.Module, optimizer: torch.optim.Optimizer, old_named_parameter_pointers: dict[str, int]
 ):
     """
     This function is the counterpart of `replace_optimizer_params`. It is called after `fully_shard` being applied to
@@ -105,9 +96,7 @@ def swap_back_optimizer_params(
     new_named_parameters = get_named_parameters(model, drop_refs=False)
 
     # We create a mapping from the original data_ptr to the new sharded param corresponding to it
-    mapping = {
-        p: new_named_parameters[n] for n, p in old_named_parameter_pointers.items()
-    }
+    mapping = {p: new_named_parameters[n] for n, p in old_named_parameter_pointers.items()}
 
     for param_group in optimizer.param_groups:
         # We swap the parameters of the optimizer to the new sharded ones
@@ -201,9 +190,7 @@ def prepare_dataloader(tokenizer, args, accelerator: Accelerator) -> DataLoader:
 
 def get_model(model_name: str):
     # We reguire model to be loaded in fp32, otherwise benchmarks don't match as accelerate does upcasting of parameters to fp32
-    config = AutoConfig.from_pretrained(
-        model_name, trust_remote_code=True, torch_dtype=torch.float32
-    )
+    config = AutoConfig.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.float32)
     model = AutoModelForCausalLM.from_config(config)
     return model
 
@@ -215,13 +202,8 @@ def get_tokenizer(model_name: str):
 
 
 def prepare_torch(
-    args,
-    config: dict,
-    post_shard_optimizer: bool = False,
-    apply_optimizer_fix: bool = False,
-) -> tuple[
-    torch.nn.Module, torch.optim.Optimizer, torch.utils.data.DataLoader, Accelerator
-]:
+    args, config: dict, post_shard_optimizer: bool = False, apply_optimizer_fix: bool = False
+) -> tuple[torch.nn.Module, torch.optim.Optimizer, torch.utils.data.DataLoader, Accelerator]:
     mp_policy = MixedPrecisionPolicy(
         param_dtype=torch.bfloat16,
         reduce_dtype=torch.bfloat16,
@@ -231,21 +213,13 @@ def prepare_torch(
     accelerator = Accelerator(mixed_precision="bf16")
     set_seed(SEED)
     is_fixed = "fixed" if apply_optimizer_fix else "not_fixed"
-    is_post_shard = (
-        "optimizer_after_fsdp" if post_shard_optimizer else "optimizer_before_fsdp"
-    )
-    run_name = (
-        f"torch_{is_post_shard}"
-        if post_shard_optimizer
-        else f"torch_{is_post_shard}_{is_fixed}"
-    )
+    is_post_shard = "optimizer_after_fsdp" if post_shard_optimizer else "optimizer_before_fsdp"
+    run_name = f"torch_{is_post_shard}" if post_shard_optimizer else f"torch_{is_post_shard}_{is_fixed}"
 
     tokenizer = get_tokenizer(config["model_name"])
     train_dataloader = prepare_dataloader(tokenizer, args, accelerator)
 
-    memory_tracker = MemoryTracker(
-        accelerator, args.output_dir, run_name, args.save_memory_snapshot
-    )
+    memory_tracker = MemoryTracker(accelerator, args.output_dir, run_name, args.save_memory_snapshot)
     memory_tracker.start()
 
     model = get_model(config["model_name"])
@@ -269,9 +243,7 @@ def prepare_torch(
     fully_shard(model, mp_policy=mp_policy)
 
     # We do this to imitate how accelerate forces outputs to be in fp32 via `convert_outputs_to_fp32`
-    autocast_context = torch.autocast(
-        device_type=accelerator.state.device.type, dtype=torch.bfloat16
-    )
+    autocast_context = torch.autocast(device_type=accelerator.state.device.type, dtype=torch.bfloat16)
     model_forward_func = model.forward.__func__
     new_forward = autocast_context(model_forward_func)
     model.forward = MethodType(new_forward, model)
@@ -289,9 +261,7 @@ def prepare_torch(
 
 def prepare_accelerate(
     args, config: dict
-) -> tuple[
-    torch.nn.Module, torch.optim.Optimizer, torch.utils.data.DataLoader, Accelerator
-]:
+) -> tuple[torch.nn.Module, torch.optim.Optimizer, torch.utils.data.DataLoader, Accelerator]:
     if is_initialized():
         AcceleratorState()._reset_state(True)
 
@@ -309,9 +279,7 @@ def prepare_accelerate(
     tokenizer = get_tokenizer(config["model_name"])
     train_dataloader = prepare_dataloader(tokenizer, args, accelerator)
 
-    memory_tracker = MemoryTracker(
-        accelerator, args.output_dir, "accelerate", args.save_memory_snapshot
-    )
+    memory_tracker = MemoryTracker(accelerator, args.output_dir, "accelerate", args.save_memory_snapshot)
     memory_tracker.start()
 
     model = get_model(config["model_name"])

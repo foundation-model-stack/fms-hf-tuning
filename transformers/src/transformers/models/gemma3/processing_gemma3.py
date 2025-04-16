@@ -67,9 +67,7 @@ class Gemma3Processor(ProcessorMixin):
         self.boi_token = tokenizer.boi_token
         self.image_token = tokenizer.boi_token
         image_tokens_expanded = "".join([tokenizer.image_token] * image_seq_length)
-        self.full_image_sequence = (
-            f"\n\n{tokenizer.boi_token}{image_tokens_expanded}{tokenizer.eoi_token}\n\n"
-        )
+        self.full_image_sequence = f"\n\n{tokenizer.boi_token}{image_tokens_expanded}{tokenizer.eoi_token}\n\n"
 
         super().__init__(
             image_processor=image_processor,
@@ -81,9 +79,7 @@ class Gemma3Processor(ProcessorMixin):
     def __call__(
         self,
         images: ImageInput = None,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ] = None,
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
         videos=None,
         audio=None,
         **kwargs: Unpack[Gemma3ProcessorKwargs],
@@ -100,23 +96,16 @@ class Gemma3Processor(ProcessorMixin):
         if isinstance(text, str):
             text = [text]
         elif not isinstance(text, list) and not isinstance(text[0], str):
-            raise ValueError(
-                "Invalid input text. Please provide a string, or a list of strings"
-            )
+            raise ValueError("Invalid input text. Please provide a string, or a list of strings")
 
         image_inputs = {}
         if images is not None:
             batched_images = make_nested_list_of_images(images)
-            image_inputs = self.image_processor(
-                batched_images, **output_kwargs["images_kwargs"]
-            )
+            image_inputs = self.image_processor(batched_images, **output_kwargs["images_kwargs"])
 
             # Create empty text to be replaced with placeholders
             if not text:
-                text = [
-                    " ".join([self.boi_token] * len(images))
-                    for images in batched_images
-                ]
+                text = [" ".join([self.boi_token] * len(images)) for images in batched_images]
 
             if len(batched_images) != len(text):
                 raise ValueError(
@@ -125,13 +114,8 @@ class Gemma3Processor(ProcessorMixin):
 
             # Replace image tokens by the full expanded sequence
             num_crops = to_py_obj(image_inputs.pop("num_crops"))
-            batch_num_crops = [
-                [num_crops.pop(0) for _ in range(len(images))]
-                for images in batched_images
-            ]
-            for batch_idx, (prompt, images, num_crops) in enumerate(
-                zip(text, batched_images, batch_num_crops)
-            ):
+            batch_num_crops = [[num_crops.pop(0) for _ in range(len(images))] for images in batched_images]
+            for batch_idx, (prompt, images, num_crops) in enumerate(zip(text, batched_images, batch_num_crops)):
                 image_indexes = [m.start() for m in re.finditer(self.boi_token, prompt)]
 
                 if len(images) != len(image_indexes):
@@ -146,35 +130,22 @@ class Gemma3Processor(ProcessorMixin):
                             f"Here is the original image {self.boi_token} and here are some crops to help you see better "
                             + " ".join([self.boi_token] * num)
                         )
-                        prompt = (
-                            prompt[:idx]
-                            + formatted_image_text
-                            + prompt[idx + len(self.boi_token) :]
-                        )
+                        prompt = prompt[:idx] + formatted_image_text + prompt[idx + len(self.boi_token) :]
                         text[batch_idx] = prompt
 
             # Expand placeholder image tokens to the full image token sequence
-            text = [
-                prompt.replace(self.boi_token, self.full_image_sequence)
-                for prompt in text
-            ]
+            text = [prompt.replace(self.boi_token, self.full_image_sequence) for prompt in text]
 
         return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
-        text_inputs = self.tokenizer(
-            text=text, **output_kwargs["text_kwargs"], return_tensors="np"
-        )
+        text_inputs = self.tokenizer(text=text, **output_kwargs["text_kwargs"], return_tensors="np")
 
         # Add token type ids manually, as tokenizer can't do arbitrary position token types
         array_ids = text_inputs["input_ids"]
         mm_token_type_ids = np.zeros_like(text_inputs["input_ids"])
         mm_token_type_ids[array_ids == self.image_token_id] = 1
-        text_inputs = {
-            k: v.tolist() for k, v in text_inputs.items()
-        }  # in case user requested list inputs
+        text_inputs = {k: v.tolist() for k, v in text_inputs.items()}  # in case user requested list inputs
         text_inputs["token_type_ids"] = mm_token_type_ids.tolist()
-        return BatchFeature(
-            data={**text_inputs, **image_inputs}, tensor_type=return_tensors
-        )
+        return BatchFeature(data={**text_inputs, **image_inputs}, tensor_type=return_tensors)
 
     # Copied from transformers.models.clip.processing_clip.CLIPProcessor.batch_decode with CLIP->Gemma
     def batch_decode(self, *args, **kwargs):

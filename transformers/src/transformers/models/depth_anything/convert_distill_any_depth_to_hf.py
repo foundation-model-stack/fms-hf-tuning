@@ -25,12 +25,7 @@ from huggingface_hub import hf_hub_download
 from PIL import Image
 from safetensors.torch import load_file
 
-from transformers import (
-    DepthAnythingConfig,
-    DepthAnythingForDepthEstimation,
-    Dinov2Config,
-    DPTImageProcessor,
-)
+from transformers import DepthAnythingConfig, DepthAnythingForDepthEstimation, Dinov2Config, DPTImageProcessor
 from transformers.utils import logging
 
 
@@ -52,9 +47,7 @@ ORIGINAL_TO_CONVERTED_KEY_MAPPING = {
     r"depth_head\.resize_layers\.(?!2)(\d+)\.(weight|bias)": r"neck.reassemble_stage.layers.\1.resize.\2",
     r"depth_head\.scratch\.layer(\d+)_rn\.weight": lambda m: f"neck.convs.{int(m[1]) - 1}.weight",
     r"depth_head\.scratch\.output_conv(\d+)(?:\.(\d+))?\.(weight|bias)": lambda m: (
-        f"head.conv{int(m[1]) + (int(m[2]) // 2 if m[2] else 0)}.{m[3]}"
-        if m[1] == "2"
-        else f"head.conv{m[1]}.{m[3]}"
+        f"head.conv{int(m[1]) + (int(m[2]) // 2 if m[2] else 0)}.{m[3]}" if m[1] == "2" else f"head.conv{m[1]}.{m[3]}"
     ),
     r"depth_head\.scratch\.refinenet(\d+)\.out_conv\.(weight|bias)": lambda m: f"neck.fusion_stage.layers.{3 - (int(m[1]) - 1)}.projection.{m[2]}",
     r"depth_head\.scratch\.refinenet(\d+)\.resConfUnit(\d+)\.conv(\d+)\.(weight|bias)": lambda m: f"neck.fusion_stage.layers.{3 - (int(m[1]) - 1)}.residual_layer{m[2]}.convolution{m[3]}.{m[4]}",
@@ -65,30 +58,21 @@ def get_dpt_config(model_name):
     if "small" in model_name:
         out_indices = [3, 6, 9, 12]
         backbone_config = Dinov2Config.from_pretrained(
-            "facebook/dinov2-small",
-            out_indices=out_indices,
-            apply_layernorm=True,
-            reshape_hidden_states=False,
+            "facebook/dinov2-small", out_indices=out_indices, apply_layernorm=True, reshape_hidden_states=False
         )
         fusion_hidden_size = 64
         neck_hidden_sizes = [48, 96, 192, 384]
     elif "base" in model_name:
         out_indices = [3, 6, 9, 12]
         backbone_config = Dinov2Config.from_pretrained(
-            "facebook/dinov2-base",
-            out_indices=out_indices,
-            apply_layernorm=True,
-            reshape_hidden_states=False,
+            "facebook/dinov2-base", out_indices=out_indices, apply_layernorm=True, reshape_hidden_states=False
         )
         fusion_hidden_size = 128
         neck_hidden_sizes = [96, 192, 384, 768]
     elif "large" in model_name:
         out_indices = [5, 12, 18, 24]
         backbone_config = Dinov2Config.from_pretrained(
-            "facebook/dinov2-large",
-            out_indices=out_indices,
-            apply_layernorm=True,
-            reshape_hidden_states=False,
+            "facebook/dinov2-large", out_indices=out_indices, apply_layernorm=True, reshape_hidden_states=False
         )
         fusion_hidden_size = 256
         neck_hidden_sizes = [256, 512, 1024, 1024]
@@ -123,9 +107,7 @@ def convert_key_pattern(key, mapping):
 
 def convert_keys(state_dict, config):
     new_state_dict = {}
-    qkv_pattern = (
-        r"(backbone|pretrained)(\.blocks(\.\d+)?)?\.(\d+)\.attn\.qkv\.(weight|bias)"
-    )
+    qkv_pattern = r"(backbone|pretrained)(\.blocks(\.\d+)?)?\.(\d+)\.attn\.qkv\.(weight|bias)"
     qkv_keys = [k for k in list(state_dict.keys()) if re.match(qkv_pattern, k)]
     for old_key in qkv_keys:
         value = state_dict.pop(old_key)
@@ -137,9 +119,7 @@ def convert_keys(state_dict, config):
         v = value[-hidden_size:]
 
         for proj, tensor in zip(["query", "key", "value"], [q, k, v]):
-            new_key = (
-                f"backbone.encoder.layer.{layer}.attention.attention.{proj}.{attr}"
-            )
+            new_key = f"backbone.encoder.layer.{layer}.attention.attention.{proj}.{attr}"
             new_state_dict[new_key] = tensor
 
     for old_key in list(state_dict.keys()):
@@ -164,9 +144,7 @@ name_to_checkpoint = {
 
 
 @torch.no_grad()
-def convert_dpt_checkpoint(
-    model_name, pytorch_dump_folder_path, push_to_hub, verify_logits
-):
+def convert_dpt_checkpoint(model_name, pytorch_dump_folder_path, push_to_hub, verify_logits):
     config = get_dpt_config(model_name)
 
     repo_id = "xingyang1/Distill-Any-Depth"
@@ -208,27 +186,15 @@ def convert_dpt_checkpoint(
 
         if model_name == "distill-any-depth-small":
             expected_slice = torch.tensor(
-                [
-                    [2.5653, 2.5249, 2.5570],
-                    [2.4897, 2.5235, 2.5355],
-                    [2.5255, 2.5261, 2.5422],
-                ]
+                [[2.5653, 2.5249, 2.5570], [2.4897, 2.5235, 2.5355], [2.5255, 2.5261, 2.5422]]
             )
         elif model_name == "distill-any-depth-base":
             expected_slice = torch.tensor(
-                [
-                    [4.8976, 4.9075, 4.9403],
-                    [4.8872, 4.8906, 4.9448],
-                    [4.8712, 4.8898, 4.8838],
-                ]
+                [[4.8976, 4.9075, 4.9403], [4.8872, 4.8906, 4.9448], [4.8712, 4.8898, 4.8838]]
             )
         elif model_name == "distill-any-depth-large":
             expected_slice = torch.tensor(
-                [
-                    [55.1067, 51.1828, 51.6803],
-                    [51.9098, 50.7529, 51.4494],
-                    [50.1745, 50.5491, 50.8818],
-                ]
+                [[55.1067, 51.1828, 51.6803], [51.9098, 50.7529, 51.4494], [50.1745, 50.5491, 50.8818]]
             )
         else:
             raise ValueError("Not supported")
@@ -277,9 +243,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    convert_dpt_checkpoint(
-        args.model_name,
-        args.pytorch_dump_folder_path,
-        args.push_to_hub,
-        args.verify_logits,
-    )
+    convert_dpt_checkpoint(args.model_name, args.pytorch_dump_folder_path, args.push_to_hub, args.verify_logits)

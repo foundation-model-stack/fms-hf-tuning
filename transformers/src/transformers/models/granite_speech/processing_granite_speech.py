@@ -43,16 +43,12 @@ class GraniteSpeechProcessor(ProcessorMixin):
         audio_token="<|audio|>",
         chat_template=None,
     ):
-        self.audio_token = (
-            tokenizer.audio_token if hasattr(tokenizer, "audio_token") else audio_token
-        )
+        self.audio_token = tokenizer.audio_token if hasattr(tokenizer, "audio_token") else audio_token
         super().__init__(audio_processor, tokenizer, chat_template=chat_template)
 
     def __call__(
         self,
-        text: Union[
-            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
-        ],
+        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]],
         audio: Union["torch.Tensor", List["torch.Tensor"]] = None,
         device: str = "cpu",
         images=None,
@@ -90,10 +86,7 @@ class GraniteSpeechProcessor(ProcessorMixin):
                     num_replaced += 1
                 prompt_strings.append(sample)
 
-            prompt_strings = [
-                sample.replace("<placeholder>", self.audio_token)
-                for sample in prompt_strings
-            ]
+            prompt_strings = [sample.replace("<placeholder>", self.audio_token) for sample in prompt_strings]
         else:
             audio_inputs = {}
 
@@ -105,9 +98,7 @@ class GraniteSpeechProcessor(ProcessorMixin):
             return [text]
         elif isinstance(text, list) and isinstance(text[0], str):
             return text
-        raise TypeError(
-            "Invalid text provided! Text should be a string or list of strings."
-        )
+        raise TypeError("Invalid text provided! Text should be a string or list of strings.")
 
 
 __all__ = ["GraniteSpeechProcessor"]

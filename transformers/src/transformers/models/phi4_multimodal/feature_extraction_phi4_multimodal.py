@@ -94,11 +94,7 @@ def speechlib_mel(sample_rate, n_fft, n_mels, fmin=None, fmax=None):
 
 
 class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
-    model_input_names = [
-        "audio_input_features",
-        "audio_embed_sizes",
-        "audio_attention_mask",
-    ]
+    model_input_names = ["audio_input_features", "audio_embed_sizes", "audio_attention_mask"]
 
     def __init__(
         self,
@@ -116,12 +112,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         mel_max_frequency: float = 7690,
         **kwargs,
     ):
-        super().__init__(
-            feature_size=feature_size,
-            sampling_rate=sampling_rate,
-            padding_value=padding_value,
-            **kwargs,
-        )
+        super().__init__(feature_size=feature_size, sampling_rate=sampling_rate, padding_value=padding_value, **kwargs)
 
         self.hop_length = hop_length
         self.n_fft = n_fft
@@ -143,11 +134,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         #     mel_scale="kaldi",
         # )
         self.mel_filters = speechlib_mel(
-            self.sampling_rate,
-            self.n_fft,
-            self.feature_size,
-            mel_min_frequency,
-            mel_max_frequency,
+            self.sampling_rate, self.n_fft, self.feature_size, mel_min_frequency, mel_max_frequency
         ).T
 
     def __call__(
@@ -216,14 +203,10 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         # Convert to torch tensor
         if isinstance(raw_speech, np.ndarray):
             raw_speech = torch.tensor(raw_speech)
-        elif isinstance(raw_speech, (list, tuple)) and isinstance(
-            raw_speech[0], np.ndarray
-        ):
+        elif isinstance(raw_speech, (list, tuple)) and isinstance(raw_speech[0], np.ndarray):
             raw_speech = [torch.tensor(speech) for speech in raw_speech]
 
-        is_batched_torch = (
-            isinstance(raw_speech, torch.Tensor) and len(raw_speech.shape) > 1
-        )
+        is_batched_torch = isinstance(raw_speech, torch.Tensor) and len(raw_speech.shape) > 1
         if is_batched_torch and len(raw_speech.shape) > 2:
             logger.warning(
                 f"Only mono-channel audio is supported for input to {self.__class__.__name__}. "
@@ -249,9 +232,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         audio_lengths = [len(speech) for speech in raw_speech]
 
         # convert into correct format for padding
-        batched_speech = BatchFeature(
-            data={"audio_input_features": raw_speech, "audio_lengths": audio_lengths}
-        )
+        batched_speech = BatchFeature(data={"audio_input_features": raw_speech, "audio_lengths": audio_lengths})
         padded_inputs = self.pad(
             batched_speech,
             padding=padding,
@@ -263,23 +244,17 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         input_features = padded_inputs.audio_input_features.squeeze(-1)
         audio_lengths = padded_inputs.audio_lengths
 
-        input_features = self._torch_extract_fbank_features(
-            input_features, audio_lengths, device
-        )
+        input_features = self._torch_extract_fbank_features(input_features, audio_lengths, device)
 
         feature_lengths = (audio_lengths - self.win_length) // self.hop_length + 1
         feature_lengths = feature_lengths * self.audio_feat_stride
         audio_embed_sizes = self._compute_audio_embed_size(feature_lengths)
 
         feature_attention_mask = (
-            torch.arange(0, feature_lengths.max())
-            if is_torch_available()
-            else np.arange(0, feature_lengths.max())
+            torch.arange(0, feature_lengths.max()) if is_torch_available() else np.arange(0, feature_lengths.max())
         )
         feature_attention_mask = (
-            feature_attention_mask[None, :] < feature_lengths[:, None]
-            if len(feature_lengths) > 1
-            else None
+            feature_attention_mask[None, :] < feature_lengths[:, None] if len(feature_lengths) > 1 else None
         )
 
         data = {
@@ -293,10 +268,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
 
     # TODO; @eustlb, move this to audio_utils in a general spectogram_batch function that handles torch and numpy
     def _torch_extract_fbank_features(
-        self,
-        waveform: "torch.FloatTensor",
-        audio_lengths: "torch.Tensor",
-        device: str = "cpu",
+        self, waveform: "torch.FloatTensor", audio_lengths: "torch.Tensor", device: str = "cpu"
     ) -> "torch.FloatTensor":
         """
         Compute the log mel-scaled spectrogram of batched waveforms using PyTorch's FFT implementation.
@@ -313,9 +285,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
             `torch.FloatTensor` of shape `(batch_size, max_feature_length, feature_size)`:
                 The log mel-scaled spectrogram of the batched waveforms.
         """
-        fft_window = torch.hamming_window(
-            self.win_length, periodic=False, device=device, dtype=torch.float64
-        )
+        fft_window = torch.hamming_window(self.win_length, periodic=False, device=device, dtype=torch.float64)
 
         # batched implementation
         batch_size = waveform.shape[0]
@@ -327,27 +297,19 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         if batch_size > 1:
             frames = frames.clone()
             # concerned batch indices
-            to_mask_batch_idxs = torch.arange(batch_size)[
-                audio_lengths != audio_lengths.max()
-            ]
+            to_mask_batch_idxs = torch.arange(batch_size)[audio_lengths != audio_lengths.max()]
             if to_mask_batch_idxs.numel() > 0:
-                batch_idxs_down = (
-                    audio_lengths[to_mask_batch_idxs] - self.win_length
-                ) // self.hop_length + 1
+                batch_idxs_down = (audio_lengths[to_mask_batch_idxs] - self.win_length) // self.hop_length + 1
                 batch_idxs_up = audio_lengths[to_mask_batch_idxs] // self.hop_length + 1
                 offset_idx = batch_idxs_down.min()
                 max_idx = batch_idxs_up.max()
 
-                mask = torch.arange(max_idx - offset_idx, device=device).expand(
-                    to_mask_batch_idxs.shape[0], -1
-                )
+                mask = torch.arange(max_idx - offset_idx, device=device).expand(to_mask_batch_idxs.shape[0], -1)
                 mask = ((batch_idxs_down - offset_idx).unsqueeze(1) <= mask) & (
                     mask < (batch_idxs_up - offset_idx).unsqueeze(1)
                 )
                 mask = mask.unsqueeze(-1).expand(-1, -1, self.win_length)
-                masked_frames = frames[
-                    to_mask_batch_idxs, offset_idx:max_idx
-                ].masked_fill_(mask, 0)
+                masked_frames = frames[to_mask_batch_idxs, offset_idx:max_idx].masked_fill_(mask, 0)
                 frames[to_mask_batch_idxs, offset_idx:max_idx] = masked_frames
         # ---
 
@@ -357,9 +319,7 @@ class Phi4MultimodalFeatureExtractor(SequenceFeatureExtractor):
         frames = (frames - self.preemphasis * frames_prev) * 32768
 
         # apply fft
-        S = torch.fft.rfft(
-            fft_window * frames.view(-1, self.win_length), n=self.n_fft, dim=1
-        )
+        S = torch.fft.rfft(fft_window * frames.view(-1, self.win_length), n=self.n_fft, dim=1)
         S = S.view(frames.shape[0], -1, S.shape[-1])
         S = S.to(torch.complex64)
 

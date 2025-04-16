@@ -138,9 +138,7 @@ class MarianTokenizer(PreTrainedTokenizer):
             self.supported_language_codes = []
         else:
             self.decoder = {v: k for k, v in self.encoder.items()}
-            self.supported_language_codes: list = [
-                k for k in self.encoder if k.startswith(">>") and k.endswith("<<")
-            ]
+            self.supported_language_codes: list = [k for k in self.encoder if k.startswith(">>") and k.endswith("<<")]
 
         self.source_lang = source_lang
         self.target_lang = target_lang
@@ -252,9 +250,7 @@ class MarianTokenizer(PreTrainedTokenizer):
 
     def convert_tokens_to_string(self, tokens: List[str]) -> str:
         """Uses source spm if _decode_use_source_tokenizer is True, and target spm otherwise"""
-        sp_model = (
-            self.spm_source if self._decode_use_source_tokenizer else self.spm_target
-        )
+        sp_model = self.spm_source if self._decode_use_source_tokenizer else self.spm_target
         current_sub_tokens = []
         out_string = ""
         for token in tokens:
@@ -268,9 +264,7 @@ class MarianTokenizer(PreTrainedTokenizer):
         out_string = out_string.replace(SPIECE_UNDERLINE, " ")
         return out_string.strip()
 
-    def build_inputs_with_special_tokens(
-        self, token_ids_0, token_ids_1=None
-    ) -> List[int]:
+    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None) -> List[int]:
         """Build model inputs from a sequence by appending eos_token_id."""
         if token_ids_1 is None:
             return token_ids_0 + [self.eos_token_id]
@@ -290,9 +284,7 @@ class MarianTokenizer(PreTrainedTokenizer):
     def vocab_size(self) -> int:
         return len(self.encoder)
 
-    def save_vocabulary(
-        self, save_directory: str, filename_prefix: Optional[str] = None
-    ) -> Tuple[str]:
+    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
@@ -301,13 +293,11 @@ class MarianTokenizer(PreTrainedTokenizer):
         if self.separate_vocabs:
             out_src_vocab_file = os.path.join(
                 save_directory,
-                (filename_prefix + "-" if filename_prefix else "")
-                + VOCAB_FILES_NAMES["vocab"],
+                (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab"],
             )
             out_tgt_vocab_file = os.path.join(
                 save_directory,
-                (filename_prefix + "-" if filename_prefix else "")
-                + VOCAB_FILES_NAMES["target_vocab_file"],
+                (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["target_vocab_file"],
             )
             save_json(self.encoder, out_src_vocab_file)
             save_json(self.target_encoder, out_tgt_vocab_file)
@@ -315,9 +305,7 @@ class MarianTokenizer(PreTrainedTokenizer):
             saved_files.append(out_tgt_vocab_file)
         else:
             out_vocab_file = os.path.join(
-                save_directory,
-                (filename_prefix + "-" if filename_prefix else "")
-                + VOCAB_FILES_NAMES["vocab"],
+                save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab"]
             )
             save_json(self.encoder, out_vocab_file)
             saved_files.append(out_vocab_file)
@@ -328,12 +316,9 @@ class MarianTokenizer(PreTrainedTokenizer):
             [self.spm_source, self.spm_target],
         ):
             spm_save_path = os.path.join(
-                save_directory,
-                (filename_prefix + "-" if filename_prefix else "") + spm_save_filename,
+                save_directory, (filename_prefix + "-" if filename_prefix else "") + spm_save_filename
             )
-            if os.path.abspath(spm_orig_path) != os.path.abspath(
-                spm_save_path
-            ) and os.path.isfile(spm_orig_path):
+            if os.path.abspath(spm_orig_path) != os.path.abspath(spm_save_path) and os.path.isfile(spm_orig_path):
                 copyfile(spm_orig_path, spm_save_path)
                 saved_files.append(spm_save_path)
             elif not os.path.isfile(spm_orig_path):
@@ -356,15 +341,7 @@ class MarianTokenizer(PreTrainedTokenizer):
     def __getstate__(self) -> Dict:
         state = self.__dict__.copy()
         state.update(
-            dict.fromkeys(
-                [
-                    "spm_source",
-                    "spm_target",
-                    "current_spm",
-                    "punc_normalizer",
-                    "target_vocab_file",
-                ]
-            )
+            dict.fromkeys(["spm_source", "spm_target", "current_spm", "punc_normalizer", "target_vocab_file"])
         )
         return state
 
@@ -375,9 +352,7 @@ class MarianTokenizer(PreTrainedTokenizer):
         if not hasattr(self, "sp_model_kwargs"):
             self.sp_model_kwargs = {}
 
-        self.spm_source, self.spm_target = (
-            load_spm(f, self.sp_model_kwargs) for f in self.spm_files
-        )
+        self.spm_source, self.spm_target = (load_spm(f, self.sp_model_kwargs) for f in self.spm_files)
         self.current_spm = self.spm_source
         self._setup_normalizer()
 
@@ -386,17 +361,12 @@ class MarianTokenizer(PreTrainedTokenizer):
         return 1
 
     def _special_token_mask(self, seq):
-        all_special_ids = set(
-            self.all_special_ids
-        )  # call it once instead of inside list comp
+        all_special_ids = set(self.all_special_ids)  # call it once instead of inside list comp
         all_special_ids.remove(self.unk_token_id)  # <unk> is only sometimes special
         return [1 if x in all_special_ids else 0 for x in seq]
 
     def get_special_tokens_mask(
-        self,
-        token_ids_0: List,
-        token_ids_1: Optional[List] = None,
-        already_has_special_tokens: bool = False,
+        self, token_ids_0: List, token_ids_1: Optional[List] = None, already_has_special_tokens: bool = False
     ) -> List[int]:
         """Get list where entries are [1] if a token is [eos] or [pad] else 0."""
         if already_has_special_tokens:
@@ -407,9 +377,7 @@ class MarianTokenizer(PreTrainedTokenizer):
             return self._special_token_mask(token_ids_0 + token_ids_1) + [1]
 
 
-def load_spm(
-    path: str, sp_model_kwargs: Dict[str, Any]
-) -> sentencepiece.SentencePieceProcessor:
+def load_spm(path: str, sp_model_kwargs: Dict[str, Any]) -> sentencepiece.SentencePieceProcessor:
     spm = sentencepiece.SentencePieceProcessor(**sp_model_kwargs)
     spm.Load(path)
     return spm

@@ -104,40 +104,21 @@ def save_accelerator_state(
         if i > 0:
             weights_name = weights_name.replace(".", f"_{i}.")
         output_model_file = output_dir.joinpath(weights_name)
-        save(
-            state,
-            output_model_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=safe_serialization,
-        )
+        save(state, output_model_file, save_on_each_node=save_on_each_node, safe_serialization=safe_serialization)
         logger.info(f"Model weights saved in {output_model_file}")
     # Optimizer states
     for i, opt in enumerate(optimizers):
         state = opt.state_dict()
-        optimizer_name = (
-            f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
-        )
+        optimizer_name = f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
         output_optimizer_file = output_dir.joinpath(optimizer_name)
-        save(
-            state,
-            output_optimizer_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=False,
-        )
+        save(state, output_optimizer_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         logger.info(f"Optimizer state saved in {output_optimizer_file}")
     # Scheduler states
     for i, scheduler in enumerate(schedulers):
         state = scheduler.state_dict()
-        scheduler_name = (
-            f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
-        )
+        scheduler_name = f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
         output_scheduler_file = output_dir.joinpath(scheduler_name)
-        save(
-            state,
-            output_scheduler_file,
-            save_on_each_node=save_on_each_node,
-            safe_serialization=False,
-        )
+        save(state, output_scheduler_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         logger.info(f"Scheduler state saved in {output_scheduler_file}")
     # DataLoader states
     for i, dataloader in enumerate(dataloaders):
@@ -149,19 +130,10 @@ def save_accelerator_state(
         if isinstance(dataloader.dataset, IterableDatasetShard):
             sampler = dataloader.get_sampler()
             if isinstance(sampler, SeedableRandomSampler):
-                save(
-                    sampler,
-                    output_sampler_file,
-                    save_on_each_node=save_on_each_node,
-                    safe_serialization=False,
-                )
+                save(sampler, output_sampler_file, save_on_each_node=save_on_each_node, safe_serialization=False)
         if getattr(dataloader, "use_stateful_dataloader", False):
-            dataloader_state_dict_name = (
-                "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
-            )
-            output_dataloader_state_dict_file = output_dir.joinpath(
-                dataloader_state_dict_name
-            )
+            dataloader_state_dict_name = "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
+            output_dataloader_state_dict_file = output_dir.joinpath(dataloader_state_dict_name)
             state_dict = dataloader.state_dict()
             torch.save(state_dict, output_dataloader_state_dict_file)
         logger.info(f"Sampler state for dataloader {i} saved in {output_sampler_file}")
@@ -251,12 +223,7 @@ def load_accelerator_state(
         ending = f"_{i}" if i > 0 else ""
         input_model_file = input_dir.joinpath(f"{SAFE_MODEL_NAME}{ending}.safetensors")
         if input_model_file.exists():
-            load_model(
-                model,
-                input_model_file,
-                device=str(map_location),
-                **load_model_func_kwargs,
-            )
+            load_model(model, input_model_file, device=str(map_location), **load_model_func_kwargs)
         else:
             # Load with torch
             input_model_file = input_dir.joinpath(f"{MODEL_NAME}{ending}.bin")
@@ -266,9 +233,7 @@ def load_accelerator_state(
 
     # Optimizer states
     for i, opt in enumerate(optimizers):
-        optimizer_name = (
-            f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
-        )
+        optimizer_name = f"{OPTIMIZER_NAME}.bin" if i == 0 else f"{OPTIMIZER_NAME}_{i}.bin"
         input_optimizer_file = input_dir.joinpath(optimizer_name)
         optimizer_state = load(input_optimizer_file, map_location=map_location)
         optimizers[i].load_state_dict(optimizer_state)
@@ -276,9 +241,7 @@ def load_accelerator_state(
 
     # Scheduler states
     for i, scheduler in enumerate(schedulers):
-        scheduler_name = (
-            f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
-        )
+        scheduler_name = f"{SCHEDULER_NAME}.bin" if i == 0 else f"{SCHEDULER_NAME}_{i}.bin"
         input_scheduler_file = input_dir.joinpath(scheduler_name)
         scheduler_state = load(input_scheduler_file)
         scheduler.load_state_dict(scheduler_state)
@@ -295,12 +258,8 @@ def load_accelerator_state(
             if isinstance(sampler, SeedableRandomSampler):
                 sampler = dataloader.set_sampler(load(input_sampler_file))
         if getattr(dataloader, "use_stateful_dataloader", False):
-            dataloader_state_dict_name = (
-                "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
-            )
-            input_dataloader_state_dict_file = input_dir.joinpath(
-                dataloader_state_dict_name
-            )
+            dataloader_state_dict_name = "dl_state_dict.bin" if i == 0 else f"dl_state_dict_{i}.bin"
+            input_dataloader_state_dict_file = input_dir.joinpath(dataloader_state_dict_name)
             if input_dataloader_state_dict_file.exists():
                 state_dict = load(input_dataloader_state_dict_file)
                 dataloader.load_state_dict(state_dict)

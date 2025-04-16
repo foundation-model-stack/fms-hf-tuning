@@ -90,11 +90,7 @@ class ExampleDifferenceTests(unittest.TestCase):
     examples_path = Path("examples").resolve()
 
     def one_complete_example(
-        self,
-        complete_file_name: str,
-        parser_only: bool,
-        secondary_filename: str = None,
-        special_strings: list = None,
+        self, complete_file_name: str, parser_only: bool, secondary_filename: str = None, special_strings: list = None
     ):
         """
         Tests a single `complete` example against all of the implemented `by_feature` scripts
@@ -119,15 +115,10 @@ class ExampleDifferenceTests(unittest.TestCase):
                     with self.subTest(
                         tested_script=complete_file_name,
                         feature_script=item,
-                        tested_section="main()"
-                        if parser_only
-                        else "training_function()",
+                        tested_section="main()" if parser_only else "training_function()",
                     ):
                         diff = compare_against_test(
-                            self.examples_path / complete_file_name,
-                            item_path,
-                            parser_only,
-                            secondary_filename,
+                            self.examples_path / complete_file_name, item_path, parser_only, secondary_filename
                         )
                         diff = "\n".join(diff)
                         if special_strings is not None:
@@ -152,12 +143,8 @@ class ExampleDifferenceTests(unittest.TestCase):
             " " * 12,
             " " * 8 + "for step, batch in enumerate(active_dataloader):\n",
         ]
-        self.one_complete_example(
-            "complete_cv_example.py", True, cv_path, special_strings
-        )
-        self.one_complete_example(
-            "complete_cv_example.py", False, cv_path, special_strings
-        )
+        self.one_complete_example("complete_cv_example.py", True, cv_path, special_strings)
+        self.one_complete_example("complete_cv_example.py", False, cv_path, special_strings)
 
 
 @mock.patch.dict(os.environ, {"TESTING_MOCKED_DATALOADERS": "1"})

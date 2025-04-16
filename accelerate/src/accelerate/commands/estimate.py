@@ -49,11 +49,7 @@ def check_has_model(error):
     """
     Checks what library spawned `error` when a model is not found
     """
-    if (
-        is_timm_available()
-        and isinstance(error, RuntimeError)
-        and "Unknown model" in error.args[0]
-    ):
+    if is_timm_available() and isinstance(error, RuntimeError) and "Unknown model" in error.args[0]:
         return "timm"
     elif (
         is_transformers_available()
@@ -65,12 +61,7 @@ def check_has_model(error):
         return "unknown"
 
 
-def create_empty_model(
-    model_name: str,
-    library_name: str,
-    trust_remote_code: bool = False,
-    access_token: str = None,
-):
+def create_empty_model(model_name: str, library_name: str, trust_remote_code: bool = False, access_token: str = None):
     """
     Creates an empty model in full precision from its parent library on the `Hub` to calculate the overall memory
     consumption.
@@ -116,14 +107,10 @@ def create_empty_model(
             )
         print(f"Loading pretrained config for `{model_name}` from `transformers`...")
         if model_info.config is None:
-            raise RuntimeError(
-                f"Tried to load `{model_name}` with `transformers` but it does not have any metadata."
-            )
+            raise RuntimeError(f"Tried to load `{model_name}` with `transformers` but it does not have any metadata.")
 
         auto_map = model_info.config.get("auto_map", False)
-        config = AutoConfig.from_pretrained(
-            model_name, trust_remote_code=trust_remote_code, token=access_token
-        )
+        config = AutoConfig.from_pretrained(model_name, trust_remote_code=trust_remote_code, token=access_token)
         with init_empty_weights():
             # remote code could specify a specific `AutoModel` class in the `auto_map`
             constructor = AutoModel
@@ -136,9 +123,7 @@ def create_empty_model(
                 if value is not None:
                     constructor = getattr(transformers, value)
             # we need to pass the dtype, otherwise it is going to use the torch_dtype that is saved in the config
-            model = constructor.from_config(
-                config, torch_dtype=torch.float32, trust_remote_code=trust_remote_code
-            )
+            model = constructor.from_config(config, torch_dtype=torch.float32, trust_remote_code=trust_remote_code)
     elif library_name == "timm":
         if not is_timm_available():
             raise ImportError(
@@ -199,13 +184,9 @@ def estimate_command_parser(subparsers=None):
     if subparsers is not None:
         parser = subparsers.add_parser("estimate-memory")
     else:
-        parser = CustomArgumentParser(
-            description="Model size estimator for fitting a model onto CUDA memory."
-        )
+        parser = CustomArgumentParser(description="Model size estimator for fitting a model onto CUDA memory.")
 
-    parser.add_argument(
-        "model_name", type=str, help="The model name on the Hugging Face Hub."
-    )
+    parser.add_argument("model_name", type=str, help="The model name on the Hugging Face Hub.")
     parser.add_argument(
         "--library_name",
         type=str,
@@ -234,9 +215,7 @@ def estimate_command_parser(subparsers=None):
     return parser
 
 
-def estimate_training_usage(
-    bytes: int, mixed_precision: str, msamp_config: str = None
-) -> dict:
+def estimate_training_usage(bytes: int, mixed_precision: str, msamp_config: str = None) -> dict:
     """
     Given an amount of `bytes` and `mixed_precision`, calculates how much training memory is needed for a batch size of
     1.
@@ -258,9 +237,7 @@ def estimate_training_usage(
         memory_sizes["gradients"] = fp32_size
         memory_sizes["optimizer"] = fp32_size * 2
         memory_sizes["step"] = fp32_size * 4
-    elif mixed_precision in ("float16", "bfloat16") or (
-        mixed_precision == "fp8" and msamp_config is None
-    ):
+    elif mixed_precision in ("float16", "bfloat16") or (mixed_precision == "fp8" and msamp_config is None):
         # With native `TransformersEngine`, there is no memory savings with FP8
         # With mixed precision training, the model has weights stored
         # in FP16 and FP32
@@ -277,9 +254,7 @@ def gather_data(args):
     "Creates an empty model and gathers the data for the sizes"
     try:
         model = create_empty_model(
-            args.model_name,
-            library_name=args.library_name,
-            trust_remote_code=args.trust_remote_code,
+            args.model_name, library_name=args.library_name, trust_remote_code=args.trust_remote_code
         )
     except (RuntimeError, OSError) as e:
         library = check_has_model(e)
@@ -318,9 +293,7 @@ def estimate_command(args):
                 row[i] = convert_bytes(item)
             elif isinstance(item, dict):
                 training_usage = max(item.values())
-                row[i] = (
-                    convert_bytes(training_usage) if training_usage != -1 else "N/A"
-                )
+                row[i] = convert_bytes(training_usage) if training_usage != -1 else "N/A"
 
     headers = ["dtype", "Largest Layer", "Total Size", "Training using Adam"]
 

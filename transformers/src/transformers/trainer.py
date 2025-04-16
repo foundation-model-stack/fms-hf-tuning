@@ -2582,10 +2582,12 @@ class Trainer:
                                     args.max_grad_norm,
                                 )
                             else:
-                                _grad_norm = self.accelerator.clip_grad_norm_(
-                                    model.parameters(),
-                                    args.max_grad_norm,
-                                )
+                                from torch.distributed._tensor.experimental import implicit_replication
+                                with implicit_replication():
+                                    _grad_norm = self.accelerator.clip_grad_norm_(
+                                        model.parameters(),
+                                        args.max_grad_norm,
+                                    )
 
                             if (
                                 is_accelerate_available()
@@ -2599,8 +2601,9 @@ class Trainer:
                                 grad_norm = _grad_norm
 
                         self.control = self.callback_handler.on_pre_optimizer_step(args, self.state, self.control)
-
-                        self.optimizer.step()
+                        from torch.distributed._tensor.experimental import implicit_replication
+                        with implicit_replication():
+                            self.optimizer.step()
 
                         self.control = self.callback_handler.on_optimizer_step(args, self.state, self.control)
 
@@ -3725,7 +3728,11 @@ class Trainer:
 
         with self.compute_loss_context_manager():
             # for some reason lora adapter are in float32 which is not compatible with fsdpv2
-            model = model.to(torch.bfloat16)
+            try:
+                model = model.to(torch.bfloat16)
+            except:
+                # when quant bnb is on this would fail and we would need to silently ignore
+                pass
             loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
 
         del inputs
@@ -3771,7 +3778,6 @@ class Trainer:
             # https://github.com/huggingface/transformers/pull/35808
             if self.accelerator.distributed_type == DistributedType.DEEPSPEED:
                 kwargs["scale_wrt_gas"] = False
-
             self.accelerator.backward(loss, **kwargs)
 
             return loss.detach()
@@ -3791,7 +3797,30 @@ class Trainer:
             if num_items_in_batch is not None:
                 loss_kwargs["num_items_in_batch"] = num_items_in_batch
             inputs = {**inputs, **loss_kwargs}
+        # TO REMOVE
+        # def get_mem_MB():
+        #     torch.cuda.synchronize()
+        #     torch.cuda.empty_cache()
+        #     return torch.cuda.memory_allocated() / 1024 ** 2
+        # self.data = {}
+        # def make_forward_hook(name):
+        #     def forward_hook(module, input, output):
+        #         print(f"{name}_forward", get_mem_MB())
+        #         self.data[f"{name}_forward"] = get_mem_MB()
+        #     return forward_hook
+
+        # def backward_hook(module, grad_input, grad_output):
+        #     print(f"{module} -- backward", get_mem_MB())
+        #     self.data[f"{module}_backward"] = get_mem_MB()
+
+        # for name, module in model.named_modules():
+        #     module.register_forward_hook(make_forward_hook(name))
+        #     if "att" in name.lower():
+        #         if len(list(module.children())) == 0:  # only leaf modules
+        #             module.register_full_backward_hook(backward_hook)
+
         outputs = model(**inputs)
+
         # Save past state if it exists
         # TODO: this needs to be fixed and made cleaner later.
         if self.args.past_index >= 0:

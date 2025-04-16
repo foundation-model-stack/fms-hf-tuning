@@ -26,9 +26,7 @@ from accelerate.commands.utils import CustomArgumentParser
 
 
 def main():
-    parser = CustomArgumentParser(
-        "Accelerate CLI tool", usage="accelerate <command> [<args>]", allow_abbrev=False
-    )
+    parser = CustomArgumentParser("Accelerate CLI tool", usage="accelerate <command> [<args>]", allow_abbrev=False)
     subparsers = parser.add_subparsers(help="accelerate command helpers")
 
     # Register commands

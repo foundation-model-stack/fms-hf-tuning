@@ -190,9 +190,7 @@ class TensorBoardTracker(GeneralTracker):
         self.run_name = run_name
         self.logging_dir = os.path.join(logging_dir, run_name)
         self.writer = tensorboard.SummaryWriter(self.logging_dir, **kwargs)
-        logger.debug(
-            f"Initialized TensorBoard project {self.run_name} logging to {self.logging_dir}"
-        )
+        logger.debug(f"Initialized TensorBoard project {self.run_name} logging to {self.logging_dir}")
         logger.debug(
             "Make sure to log any initial configurations with `self.store_init_configuration` before training!"
         )
@@ -223,9 +221,7 @@ class TensorBoardTracker(GeneralTracker):
             except yaml.representer.RepresenterError:
                 logger.error("Serialization to store hyperparameters failed")
                 raise
-        logger.debug(
-            "Stored initial configuration hyperparameters to TensorBoard and hparams yaml file"
-        )
+        logger.debug("Stored initial configuration hyperparameters to TensorBoard and hparams yaml file")
 
     @on_main_process
     def log(self, values: dict, step: Optional[int] = None, **kwargs):
@@ -390,9 +386,7 @@ class WandBTracker(GeneralTracker):
         """
         import wandb
 
-        values = {
-            table_name: wandb.Table(columns=columns, data=data, dataframe=dataframe)
-        }
+        values = {table_name: wandb.Table(columns=columns, data=data, dataframe=dataframe)}
         self.log(values, step=step, **kwargs)
 
     @on_main_process
@@ -436,9 +430,7 @@ class CometMLTracker(GeneralTracker):
         if compare_versions(comet_version, ">=", "3.41.0"):
             self.writer = comet_ml.start(project_name=run_name, **kwargs)
         else:
-            logger.info(
-                "Update `comet_ml` (>=3.41.0) for experiment reuse and offline support."
-            )
+            logger.info("Update `comet_ml` (>=3.41.0) for experiment reuse and offline support.")
             self.writer = comet_ml.Experiment(project_name=run_name, **kwargs)
 
         logger.debug(f"Initialized CometML project {self.run_name}")
@@ -513,12 +505,7 @@ class AimTracker(GeneralTracker):
     requires_logging_directory = True
 
     @on_main_process
-    def __init__(
-        self,
-        run_name: str,
-        logging_dir: Optional[Union[str, os.PathLike]] = ".",
-        **kwargs,
-    ):
+    def __init__(self, run_name: str, logging_dir: Optional[Union[str, os.PathLike]] = ".", **kwargs):
         self.run_name = run_name
 
         from aim import Run
@@ -563,12 +550,7 @@ class AimTracker(GeneralTracker):
             self.writer.track(value, name=key, step=step, **kwargs)
 
     @on_main_process
-    def log_images(
-        self,
-        values: dict,
-        step: Optional[int] = None,
-        kwargs: Optional[dict[str, dict]] = None,
-    ):
+    def log_images(self, values: dict, step: Optional[int] = None, kwargs: Optional[dict[str, dict]] = None):
         """
         Logs `images` to the current run.
 
@@ -662,9 +644,7 @@ class MLflowTracker(GeneralTracker):
         exps = mlflow.search_experiments(filter_string=f"name = '{experiment_name}'")
         if len(exps) > 0:
             if len(exps) > 1:
-                logger.warning(
-                    "Multiple experiments with the same name found. Using first one."
-                )
+                logger.warning("Multiple experiments with the same name found. Using first one.")
             experiment_id = exps[0].experiment_id
         else:
             experiment_id = mlflow.create_experiment(
@@ -714,16 +694,8 @@ class MLflowTracker(GeneralTracker):
         values_list = list(values.items())
 
         # MLflow cannot log more than 100 values in one go, so we have to split it
-        for i in range(
-            0, len(values_list), mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH
-        ):
-            mlflow.log_params(
-                dict(
-                    values_list[
-                        i : i + mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH
-                    ]
-                )
-            )
+        for i in range(0, len(values_list), mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH):
+            mlflow.log_params(dict(values_list[i : i + mlflow.utils.validation.MAX_PARAMS_TAGS_PER_BATCH]))
 
         logger.debug("Stored initial configuration hyperparameters to MLflow")
 
@@ -861,9 +833,7 @@ class ClearMLTracker(GeneralTracker):
         return self.task.connect_configuration(values)
 
     @on_main_process
-    def log(
-        self, values: dict[str, Union[int, float]], step: Optional[int] = None, **kwargs
-    ):
+    def log(self, values: dict[str, Union[int, float]], step: Optional[int] = None, **kwargs):
         """
         Logs `values` dictionary to the current run. The dictionary keys must be strings. The dictionary values must be
         ints or floats
@@ -894,9 +864,7 @@ class ClearMLTracker(GeneralTracker):
                 clearml_logger.report_single_value(name=k, value=v, **kwargs)
                 continue
             title, series = ClearMLTracker._get_title_series(k)
-            clearml_logger.report_scalar(
-                title=title, series=series, value=v, iteration=step, **kwargs
-            )
+            clearml_logger.report_scalar(title=title, series=series, value=v, iteration=step, **kwargs)
 
     @on_main_process
     def log_images(self, values: dict, step: Optional[int] = None, **kwargs):
@@ -914,9 +882,7 @@ class ClearMLTracker(GeneralTracker):
         clearml_logger = self.task.get_logger()
         for k, v in values.items():
             title, series = ClearMLTracker._get_title_series(k)
-            clearml_logger.report_image(
-                title=title, series=series, iteration=step, image=v, **kwargs
-            )
+            clearml_logger.report_image(title=title, series=series, iteration=step, image=v, **kwargs)
 
     @on_main_process
     def log_table(
@@ -954,9 +920,7 @@ class ClearMLTracker(GeneralTracker):
                 )
             to_report = [columns] + data if columns else data
         title, series = ClearMLTracker._get_title_series(table_name)
-        self.task.get_logger().report_table(
-            title=title, series=series, table_plot=to_report, iteration=step, **kwargs
-        )
+        self.task.get_logger().report_table(title=title, series=series, table_plot=to_report, iteration=step, **kwargs)
 
     @on_main_process
     def finish(self):
@@ -999,9 +963,7 @@ class DVCLiveTracker(GeneralTracker):
     requires_logging_directory = False
 
     @on_main_process
-    def __init__(
-        self, run_name: Optional[str] = None, live: Optional[Any] = None, **kwargs
-    ):
+    def __init__(self, run_name: Optional[str] = None, live: Optional[Any] = None, **kwargs):
         from dvclive import Live
 
         super().__init__()
@@ -1103,17 +1065,11 @@ def filter_trackers(
         if not isinstance(log_with, (list, tuple)):
             log_with = [log_with]
         if "all" in log_with or LoggerType.ALL in log_with:
-            loggers = [
-                o for o in log_with if issubclass(type(o), GeneralTracker)
-            ] + get_available_trackers()
+            loggers = [o for o in log_with if issubclass(type(o), GeneralTracker)] + get_available_trackers()
         else:
             for log_type in log_with:
-                if log_type not in LoggerType and not issubclass(
-                    type(log_type), GeneralTracker
-                ):
-                    raise ValueError(
-                        f"Unsupported logging capability: {log_type}. Choose between {LoggerType.list()}"
-                    )
+                if log_type not in LoggerType and not issubclass(type(log_type), GeneralTracker):
+                    raise ValueError(f"Unsupported logging capability: {log_type}. Choose between {LoggerType.list()}")
                 if issubclass(type(log_type), GeneralTracker):
                     loggers.append(log_type)
                 else:
@@ -1128,8 +1084,6 @@ def filter_trackers(
                                     )
                             loggers.append(log_type)
                         else:
-                            logger.debug(
-                                f"Tried adding logger {log_type}, but package is unavailable in the system."
-                            )
+                            logger.debug(f"Tried adding logger {log_type}, but package is unavailable in the system.")
 
     return loggers

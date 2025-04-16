@@ -76,9 +76,7 @@ def _validate_to_fsdp2_args(args):
         raise ValueError("If --overwrite is not set, --output_file must be provided")
 
     if not args.overwrite and Path(args.output_file).exists():
-        raise FileExistsError(
-            f"Output file {args.output_file} already exists and --overwrite is not set"
-        )
+        raise FileExistsError(f"Output file {args.output_file} already exists and --overwrite is not set")
 
 
 def convert_config_to_fsdp2(config: dict) -> dict:
@@ -105,21 +103,15 @@ def convert_config_to_fsdp2(config: dict) -> dict:
             continue
 
         if conversion_status == ConversionStatus.REMOVED:
-            logger.warning(
-                f"Argument {key} has been removed in FSDP2, skipping this key..."
-            )
+            logger.warning(f"Argument {key} has been removed in FSDP2, skipping this key...")
             continue
 
         if conversion_status == ConversionStatus.NOT_YET_IMPLEMENTED:
-            logger.warning(
-                f"Argument {key} is not yet implemented in FSDP2, skipping this key..."
-            )
+            logger.warning(f"Argument {key} is not yet implemented in FSDP2, skipping this key...")
             continue
 
         if conversion_status is None:
-            logger.warning(
-                f"Argument {key} is not being converted, skipping this key..."
-            )
+            logger.warning(f"Argument {key} is not being converted, skipping this key...")
             new_fsdp_config[key] = value
         else:
             if key in ARGUMENT_VALUE_MAPPING:
@@ -139,12 +131,7 @@ def to_fsdp2_command_parser(subparsers=None):
     else:
         parser = CustomArgumentParser(description=description)
 
-    parser.add_argument(
-        "--config_file",
-        type=str,
-        help="The config file to convert to FSDP2",
-        required=True,
-    )
+    parser.add_argument("--config_file", type=str, help="The config file to convert to FSDP2", required=True)
     parser.add_argument(
         "--overwrite",
         action="store_true",

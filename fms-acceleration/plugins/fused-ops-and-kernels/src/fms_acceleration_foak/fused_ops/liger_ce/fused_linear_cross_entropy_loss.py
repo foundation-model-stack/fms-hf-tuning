@@ -218,7 +218,6 @@ def fused_linear_cross_entropy_backward(
             )
     return grad_input, grad_weight, grad_bias
 
-
 class LigerFusedLinearCrossEntropyFunction(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -267,7 +266,6 @@ class LigerFusedLinearCrossEntropyFunction(torch.autograd.Function):
         )
         return (grad_input, grad_weight, None, grad_bias, None, None, None)
 
-
 class LigerFusedLinearCrossEntropyLoss(CrossEntropyLoss):
     def __init__(self, *args, **kwargs):
         super(LigerFusedLinearCrossEntropyLoss, self).__init__(*args, **kwargs)
@@ -283,7 +281,6 @@ class LigerFusedLinearCrossEntropyLoss(CrossEntropyLoss):
             self.reduction,
         )
 
-
 def lce_forward(
     self,
     input_ids: torch.LongTensor = None,
@@ -298,7 +295,7 @@ def lce_forward(
     return_dict: Optional[bool] = None,
     cache_position: Optional[torch.LongTensor] = None,
     num_logits_to_keep: int = 0,
-    num_items_in_batch=None,
+    num_items_in_batch = None,
 ) -> Union[Tuple, CausalLMOutputWithPast]:
     r"""
     Copy paste llama forward but replace torch cross entropy with liger fused linear cross entropy
