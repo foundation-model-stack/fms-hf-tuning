@@ -20,9 +20,11 @@ import tempfile
 
 # Third Party
 from datasets import Dataset, IterableDataset
-from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from PIL import Image
+from transformers import AutoProcessor, AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
+import numpy as np
 import pyarrow
 import pytest
 import yaml
@@ -62,6 +64,7 @@ from tests.artifacts.testdata import (
 # Local
 from tuning.config import configs
 from tuning.config.acceleration_configs import AttentionAndDistributedPackingConfig
+from tuning.data.collators import VisionDataCollator
 from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
@@ -70,6 +73,8 @@ from tuning.data.setup_dataprocessor import (
     is_pretokenized_dataset,
     process_dataargs,
 )
+
+LLAMA_VISION_MODEL_NAME = "tests/artifacts/tiny-llama-vision-model"
 
 
 @pytest.mark.parametrize(
@@ -1831,3 +1836,51 @@ def test_get_processed_dataset(datafile, datasetconfigname):
             "train_dataset",
         )
         assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
+
+
+def test_vision_data_collator():
+    """Test the VisionDataCollator with dummy Image data."""
+
+    processor = AutoProcessor.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    collator = VisionDataCollator(processor)
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = True
+    image_size = (32, 32)
+
+    def generate_pil_image(size=image_size):
+        """Generate a dummy image array of the specified size and return PIL Image."""
+        image_array = np.random.randint(0, 256, size=(*size, 3), dtype=np.uint8)
+        return Image.fromarray(image_array)
+
+    image1 = generate_pil_image()
+    image2 = generate_pil_image()
+
+    features = [
+        {
+            "processor_kwargs": processor_kwargs,
+            "fields_name": {
+                "dataset_text_field": "text",
+                "dataset_image_field": "image",
+            },
+            "text": "Describe the image.",
+            "image": [image1],
+        },
+        {
+            "processor_kwargs": processor_kwargs,
+            "fields_name": {
+                "dataset_text_field": "text",
+                "dataset_image_field": "image",
+            },
+            "text": "What is in the image?",
+            "image": [image2],
+        },
+    ]
+
+    # Call the collator which returns a batch dictionary containing "input_ids" and "labels"
+    batch = collator(features)
+
+    assert "input_ids" in batch
+    assert "labels" in batch
+    assert "attention_mask" in batch
+    assert batch["input_ids"].shape == batch["labels"].shape

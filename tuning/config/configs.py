@@ -74,7 +74,8 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
-                    or data_formatter_template need to be supplied."
+                    or data_formatter_template need to be supplied. \
+                    For running vision language model tuning pass the column name for text data."
         },
     )
     dataset_conversation_field: str = field(
@@ -127,6 +128,13 @@ class DataArguments:
             "help": "Should be provided for chat training. \
             Piece of text that determines the start of human response\
             Passed in conjunction with response_template"
+        },
+    )
+    dataset_image_field: str = field(
+        default=None,
+        metadata={
+            "help": "For running vision language model tuning pass \
+            the column name of the image data in the dataset."
         },
     )
     add_special_tokens: List[str] = field(

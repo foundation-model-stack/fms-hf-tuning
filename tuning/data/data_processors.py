@@ -21,7 +21,7 @@ import os
 from accelerate.state import PartialState
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from datasets.exceptions import DatasetNotFoundError
-from transformers import AutoTokenizer
+from transformers import AutoProcessor, AutoTokenizer
 import datasets
 
 # Local
@@ -43,14 +43,19 @@ logger = logging.getLogger(__name__)
 class DataPreProcessor:
 
     tokenizer = None
+    processor = None
     data_config: DataConfig = None
     processor_config: DataPreProcessorConfig = None
     registered_handlers: Dict[str, DataHandler] = None
 
     def __init__(
-        self, processor_config: DataPreProcessorConfig, tokenizer: AutoTokenizer
+        self,
+        processor_config: DataPreProcessorConfig,
+        tokenizer: AutoTokenizer,
+        processor: AutoProcessor = None,
     ):
         self.tokenizer = tokenizer
+        self.processor = processor
         self.processor_config = processor_config
 
         # Initialize other objects
@@ -354,6 +359,11 @@ class DataPreProcessor:
                             logger.warning(
                                 "Could not remove columns from IterableDataset"
                             )
+                            # To get columns of Iterable datasets when it is not available
+                            raw_datasets[splitName] = resolve_iterable_dataset_features(
+                                raw_datasets[splitName]
+                            )
+                            column_names = raw_datasets[splitName].column_names
                         if column_names and "__content__" in column_names:
                             column_names.remove("__content__")
 
@@ -366,6 +376,7 @@ class DataPreProcessor:
                             kwargs["fn_kwargs"] = {}
 
                         kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
+                        kwargs["fn_kwargs"]["processor"] = self.processor
                         kwargs["fn_kwargs"]["column_names"] = column_names
 
                         kwargs["fn_kwargs"] = dict(kwargs["fn_kwargs"], **extra_kwargs)
@@ -446,11 +457,13 @@ class DataPreProcessor:
 def get_datapreprocessor(
     processor_config: DataPreProcessorConfig,
     tokenizer: AutoTokenizer,
+    processor: AutoProcessor = None,
     additional_data_handlers: Dict[str, DataHandler] = None,
 ) -> DataPreProcessor:
-    processor = DataPreProcessor(
+    data_processor = DataPreProcessor(
         processor_config=processor_config,
         tokenizer=tokenizer,
+        processor=processor,
     )
-    processor.register_data_handlers(additional_data_handlers)
-    return processor
+    data_processor.register_data_handlers(additional_data_handlers)
+    return data_processor

@@ -12,14 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Standard
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
+import logging
 
 # Third Party
-from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from transformers import (
+    AutoProcessor,
+    AutoTokenizer,
+    DataCollatorForSeq2Seq,
+    LlavaProcessor,
+)
 from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
+from tuning.data.collators import VisionDataCollator
+
+logger = logging.getLogger(__name__)
 
 
 def get_data_collator(
@@ -30,6 +39,7 @@ def get_data_collator(
     max_seq_length: int,
     instruction_template: Optional[str],
     is_padding_free: bool = False,
+    processor: Optional[Union[AutoProcessor, LlavaProcessor]] = None,
 ) -> Callable:
     """Create and return the the appropriate collator type based on the configuration for packing,
     response_template, and dataset_text_field.
@@ -49,11 +59,22 @@ def get_data_collator(
             str representing the human response in a chat template
         is_padding_free: bool
             if padding free plugin is used or not
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal vision model.
 
     Returns:
         Callable
             Callable collator to be leveraged by the trainer.
     """
+
+    if processor:
+        if is_padding_free or packing:
+            raise ValueError(
+                "Vision model tuning does not support packing or padding_free tuning."
+                "Please set packing=False and is_padding_free=False."
+            )
+        return VisionDataCollator(processor)
 
     if packing:
         # With SFTTrainer, packing for both tokenized and non tokenized dataset use

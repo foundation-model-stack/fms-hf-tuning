@@ -13,6 +13,7 @@
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
 - [Extended Pre-Training](#extended-pre-training)
+- [Tuning Vision Language Models](#tuning-vision-language-models)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -39,7 +40,7 @@ pip install fms-hf-tuning
 ### Using FlashAttention
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
-```
+```sh
 pip install fms-hf-tuning[dev]
 pip install fms-hf-tuning[flash-attn]
 ```
@@ -47,7 +48,7 @@ pip install fms-hf-tuning[flash-attn]
 
 *Debug recommendation:* While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
 
-```
+```sh
 pip uninstall flash-attn
 pip cache purge
 pip install fms-hf-tuning[flash-attn]
@@ -897,6 +898,34 @@ The `fms_acceleration.cli` can do more to search for all available configs, plug
 ## Extended Pre-Training
 
 We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
+
+## Tuning Vision Language Models
+
+We also support full fine-tuning and LoRA tuning for vision language models - `Granite 3.2 Vision`, `Llama 3.2 Vision`, and `LLaVa-Next`. 
+For information on supported dataset formats and how to tune a vision-language model, please see [this document](./docs/vision-language-model-tuning.md).
+
+### Supported vision model
+
+- Legend:
+
+  ✅ Ready and available 
+
+  ✔️ Ready and available - compatible architecture
+
+  🚫 Not supported
+
+  ? May be supported, but not tested
+
+Model Name & Size  | Model Architecture | Full Finetuning |
+-------------------- | ---------------- | --------------- |
+Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅* |
+Llava 1.5-7B  | LlavaForConditionalGeneration | ✅* |
+Granite 3.1-2B Vision  | LlavaNextForConditionalGeneration | ✅* |
+Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅* |
+
+(*) - Supported with `fms-hf-tuning` v2.8.0 or later.
+
+**Note**: vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
