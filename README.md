@@ -906,7 +906,9 @@ Notes:
           - Passing `all-linear` to adapter layers will include the router, which is a linear layer, and all attn layers. This **will not** train the expert layers.
           - To train only attention layers, specify target modules specifically (i.e `target_modules: ["q_proj", "v_proj", "o_proj", "k_proj"]`).
           - To train expert layers, specify `input_linear` and `output_linear` in target modules along with `router` (i.e `target_modules: ["q_proj", "v_proj", "o_proj", "k_proj", "router", "input_linear", "output_linear"]`). If you specify these layers, inference with vLLM/vanilla HF PEFT **is not possible**.
-    - `world_size` must be divisible by the `ep_degree`
+      - When lora tuning with ScatterMoE, the values `--fast_moe 1` or `--fast_moe True` are not expected to work, as FSDP must be enabled when lora tuning. Run either `--fast_moe False` or `--fast-moe x>1`.
+      - When lora tuning with ScatterMoE, `--r` must be set to 16 or greater.
+    - `world_size` must be divisible by the `--ep_degree`
     - `number of experts` in the MoE module must be divisible by the `ep_degree`
     - Running fast moe modifies the state dict of the model, and must be post-processed which happens automatically and the converted checkpoint can be found at `hf_converted_checkpoint` folder within every saved checkpoint directory. Alternatively, we can perform similar option manually through [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) script.
       - The typical usecase for this script is to run:
