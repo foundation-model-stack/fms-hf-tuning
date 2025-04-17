@@ -237,8 +237,6 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
-            # avoid warning that use_cache is incompatible with gradient checkpointing
-            use_cache=(not train_args.gradient_checkpointing),
         )
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
