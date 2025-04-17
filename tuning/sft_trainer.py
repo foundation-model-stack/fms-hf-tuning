@@ -155,6 +155,23 @@ def train(
                 "Trainer should not perform packing when using `--padding_free`"
             )
 
+    if fast_moe_config is not None:
+        # Checking for unsupported modules with Scatter MoE for LoRA
+        restricted_modules = ["all-linear", "output_linear", "input_linear", "router"]
+        if (
+            peft_config is not None
+            and hasattr(peft_config, "target_modules")
+            and any(
+                module in (peft_config.target_modules or [])
+                for module in restricted_modules
+            )
+        ):
+            raise ValueError(
+                "`--fast_moe` with LoRA does not currently support `all-linear`, `router`, "
+                "`input_linear` or `output_linear` as target modules at this time. Please "
+                "explicitly specify target modules when using `--fast_moe` with LoRA."
+            )
+
     task_type = "CAUSAL_LM"
     additional_metrics = {}
 
