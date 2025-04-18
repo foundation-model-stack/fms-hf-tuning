@@ -186,17 +186,13 @@ def train(
                 "modules when using `--fast_moe` with LoRA."
             )
         # If other common non-linear modules, raise warning
-        restrained_modules = ["input_linear", "output_linear", "router"]
-        if (
+        elif (
             peft_config is not None
             and hasattr(peft_config, "target_modules")
-            and any(
-                module in (peft_config.target_modules or [])
-                for module in restrained_modules
-            )
         ):
             logger.warning(
-                "Passing target modules that are part of the moe module can cause unexpected "
+                "You are running lora with the ScatterMoE plugin, please note that "
+                "passing target modules that are part of the moe module can cause unexpected "
                 "behaviors and unsuccessful tuning while LoRA tuning with ScatterMoE. "
                 "For safe tuning, only pass linear modules such as those in the attn layer "
                 "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj'])"
