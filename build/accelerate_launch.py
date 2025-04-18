@@ -170,28 +170,28 @@ def main():
             for _, dirs, _ in os.walk(output_dir, topdown=False):
                 for name in dirs:
                     if "checkpoint-" in name.lower():
-                        checkpoint_dir = os.path.join(output_dir, name)
+                        base_checkpoint_dir = os.path.join(output_dir, name)
+                        hf_converted_checkpoint = os.path.join(
+                            base_checkpoint_dir, "hf_converted_checkpoint"
+                        )
+
+                        # Use hf_converted_checkpoint if exists, otherwise use base_checkpoint_dir
+                        checkpoint_dir = (
+                            hf_converted_checkpoint
+                            if os.path.exists(
+                                os.path.join(
+                                    hf_converted_checkpoint, "adapter_model.safetensors"
+                                )
+                            )
+                            else base_checkpoint_dir
+                        )
+
                         if os.path.exists(
                             os.path.join(checkpoint_dir, "adapter_model.safetensors")
                         ):
                             post_process_vLLM_adapters_new_tokens(
                                 checkpoint_dir,
                                 checkpoint_dir,
-                                num_added_tokens,
-                            )
-
-                        # In case of ScatterMoE LoRa
-                        hf_converted_checkpoint = os.path.join(
-                            checkpoint_dir, "hf_converted_checkpoint"
-                        )
-                        if os.path.exists(
-                            os.path.join(
-                                hf_converted_checkpoint, "adapter_model.safetensors"
-                            )
-                        ):
-                            post_process_vLLM_adapters_new_tokens(
-                                hf_converted_checkpoint,
-                                hf_converted_checkpoint,
                                 num_added_tokens,
                             )
         else:
