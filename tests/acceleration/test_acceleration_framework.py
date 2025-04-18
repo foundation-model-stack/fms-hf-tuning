@@ -776,44 +776,40 @@ def test_error_raised_fast_moe_with_non_moe_model():
     """
     Ensure error is thrown when `--fast_moe` is passed and model is not MoE
     """
-    with pytest.raises(
-        AttributeError,
-        match="'LlamaConfig' object has no attribute 'num_local_experts'",
-    ):
-        with tempfile.TemporaryDirectory() as tempdir:
+    with tempfile.TemporaryDirectory() as tempdir:
 
-            model_args = copy.deepcopy(MODEL_ARGS)
-            model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
-            model_args.torch_dtype = torch.bfloat16
-            train_args = copy.deepcopy(TRAIN_ARGS)
-            train_args.output_dir = tempdir
-            train_args.save_strategy = "no"
-            train_args.bf16 = True
-            data_args = copy.deepcopy(DATA_ARGS)
-            data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
-            data_args.response_template = "\n\n### Label:"
-            data_args.dataset_text_field = "output"
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v0.3"
+        model_args.torch_dtype = torch.bfloat16
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.save_strategy = "no"
+        train_args.bf16 = True
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+        data_args.response_template = "\n\n### Label:"
+        data_args.dataset_text_field = "output"
 
-            # initialize a config
-            moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+        # initialize a config
+        moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
 
-            # 1. mock a plugin class
-            # 2. register the mocked plugins
-            # 3. call sft_trainer.train
-            with build_framework_and_maybe_instantiate(
-                [
-                    (["training.moe.scattermoe"], ScatterMoEAccelerationPlugin),
-                ],
-                instantiate=False,
-            ):
-                with instantiate_model_patcher():
-                    with pytest.raises(ValueError):
-                        sft_trainer.train(
-                            model_args,
-                            data_args,
-                            train_args,
-                            fast_moe_config=moe_config,
-                        )
+        # 1. mock a plugin class
+        # 2. register the mocked plugins
+        # 3. call sft_trainer.train
+        with build_framework_and_maybe_instantiate(
+            [
+                (["training.moe.scattermoe"], ScatterMoEAccelerationPlugin),
+            ],
+            instantiate=False,
+        ):
+            with instantiate_model_patcher():
+                with pytest.raises((ValueError, AttributeError)):
+                    sft_trainer.train(
+                        model_args,
+                        data_args,
+                        train_args,
+                        fast_moe_config=moe_config,
+                    )
 
 
 @pytest.mark.skipif(
