@@ -532,8 +532,8 @@ def test_framework_initialized_properly_moe():
                 )
 
         # spy inside the train to ensure that the ilab plugin is called
-        assert spy["model_loader_calls"] == 1
-        assert spy["augmentation_calls"] == 0
+        assert spy["model_loader_calls"] == 0
+        assert spy["augmentation_calls"] == 1
         assert spy["get_ready_for_train_calls"] == 1
 
 
