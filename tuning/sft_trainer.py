@@ -67,17 +67,11 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.import_utils import is_fms_accelerate_available
 from tuning.utils.logging import set_log_level
 from tuning.utils.tokenizer_data_utils import (
     get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )
-
-if is_fms_accelerate_available(plugins="moe"):
-    # Third Party
-    # pylint: disable=import-error
-    from fms_acceleration_moe.utils.scattermoe import ScatterMoE
 
 
 def train(
@@ -403,7 +397,7 @@ def train(
         # For LoRa ScatterMoE, disable grad for ScatterMoE
         if peft_config is not None:
             for module in model.modules():
-                if isinstance(module, ScatterMoE):
+                if module.__class__.__name__ == "ScatterMoE":
                     for param in module.parameters():
                         param.requires_grad = False
 
