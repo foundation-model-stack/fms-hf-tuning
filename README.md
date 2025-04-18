@@ -855,6 +855,9 @@ Notes:
       - When a boolean is passed, the expert parallel degree defaults to 1 and further the behaviour would be as follows:
           - if True, it is Scatter MoE Kernels with experts sharded based on the top level sharding protocol (e.g. FSDP).
           - if False, Scatter MoE Kernels with complete replication of experts across ranks.
+    - FSDP must be used when lora tuning with `--fast_moe`
+    - lora tuning with ScatterMoE is supported, but because of inference restrictions on vLLM/vanilla PEFT, the expert layers and router linear layer should not be trained as `target_modules` for models being tuned with ScatterMoE. Users have control over which `target_modules` they wish to train:
+        - At this time, only attention layers are trainable when using LoRA with scatterMoE. Until support for the router linear layer is added in, target modules must be specified explicitly (i.e `target_modules: ["q_proj", "v_proj", "o_proj", "k_proj"]`) instead of passing `target_modules: ["all-linear"]`.
     - `world_size` must be divisible by the `ep_degree`
     - `number of experts` in the MoE module must be divisible by the `ep_degree`
     - Running fast moe modifies the state dict of the model, and must be post-processed which happens automatically and the converted checkpoint can be found at `hf_converted_checkpoint` folder within every saved checkpoint directory. Alternatively, we can perform similar option manually through [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) script.

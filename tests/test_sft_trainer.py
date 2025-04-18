@@ -1458,6 +1458,61 @@ def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
     reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
 )
 @pytest.mark.parametrize(
+    "target_modules",
+    [
+        "all-linear",
+        ["q_proj"],
+        ["q_proj", "k_proj"],
+        ["q_proj", "k_proj", "v_proj"],
+        ["q_proj", "k_proj", "v_proj", "o_proj"],
+    ],
+)
+@pytest.mark.parametrize("ep_degree", [True, False])
+@pytest.mark.parametrize("dataset_path", [TWITTER_COMPLAINTS_DATA_JSONL])
+def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
+    """Check if we can finetune a moe model and check if hf checkpoint is created"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = dataset_path
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = "ibm-granite/granite-3.1-1b-a400m-base"
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        lora_args.r = 16
+        lora_args.target_modules = target_modules
+        fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
+
+        if target_modules == "all-linear":
+            with pytest.raises(ValueError):
+                sft_trainer.train(
+                    model_args,
+                    data_args,
+                    train_args,
+                    lora_args,
+                    fast_moe_config=fast_moe_config,
+                )
+        else:
+            sft_trainer.train(
+                model_args,
+                data_args,
+                train_args,
+                lora_args,
+                fast_moe_config=fast_moe_config,
+            )
+            _test_run_inference(
+                checkpoint_path=os.path.join(
+                    _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
+                ),
+                base_model_name_or_path="ibm-granite/granite-3.1-1b-a400m-base",
+            )
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="moe"),
+    reason="Only runs if fms-accelerate is installed along with accelerated-moe plugin",
+)
+@pytest.mark.parametrize(
     "dataset_path",
     [
         TWITTER_COMPLAINTS_DATA_JSONL,
@@ -1491,9 +1546,9 @@ def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
     _validate_training(tempdir)
 
 
-def _test_run_inference(checkpoint_path):
+def _test_run_inference(checkpoint_path, base_model_name_or_path=None):
     # Load the model
-    loaded_model = TunedCausalLM.load(checkpoint_path)
+    loaded_model = TunedCausalLM.load(checkpoint_path, base_model_name_or_path)
 
     # Run inference on the text
     output_inference = loaded_model.run(
