@@ -397,6 +397,7 @@ def train(
         # For LoRa ScatterMoE, disable grad for ScatterMoE
         if peft_config is not None:
             for module in model.modules():
+                # Use string comparison to check if ScatterMoE module
                 if module.__class__.__name__ == "ScatterMoE":
                     for param in module.parameters():
                         param.requires_grad = False
