@@ -807,12 +807,13 @@ def test_error_raised_fast_moe_with_non_moe_model():
                 instantiate=False,
             ):
                 with instantiate_model_patcher():
-                    sft_trainer.train(
-                        model_args,
-                        data_args,
-                        train_args,
-                        fast_moe_config=moe_config,
-                    )
+                    with pytest.raises(ValueError):
+                        sft_trainer.train(
+                            model_args,
+                            data_args,
+                            train_args,
+                            fast_moe_config=moe_config,
+                        )
 
 
 @pytest.mark.skipif(
