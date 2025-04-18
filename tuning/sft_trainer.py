@@ -67,11 +67,17 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
+from tuning.utils.import_utils import is_fms_accelerate_available
 from tuning.utils.logging import set_log_level
 from tuning.utils.tokenizer_data_utils import (
     get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )
+
+if is_fms_accelerate_available(plugins="moe"):
+    # Third Party
+    # pylint: disable=import-error
+    from fms_acceleration_moe.utils.scattermoe import ScatterMoE
 
 
 def train(
@@ -389,9 +395,10 @@ def train(
         )
         # For LoRa ScatterMoE, disable grad for ScatterMoE
         if peft_config is not None:
-            for name, param in model.named_parameters():
-                if "block_sparse_moe" in name:
-                    param.requires_grad = False
+            for module in model.modules():
+                if isinstance(module, ScatterMoE):
+                    for param in module.parameters():
+                        param.requires_grad = False
 
     # HACK - The SFT Trainer has internal validation which inspects the name of the class
     # being used for the HF training args; if it's a TrainingArguments class, which is
