@@ -157,7 +157,8 @@ def train(
 
     if fast_moe_config is not None:
         # Checking for unsupported modules with Scatter MoE for LoRA
-        restricted_modules = ["all-linear", "output_linear", "input_linear", "router"]
+        # Only raise an error for `all-linear`
+        restricted_modules = ["all-linear"]
         if (
             peft_config is not None
             and hasattr(peft_config, "target_modules")
@@ -167,9 +168,25 @@ def train(
             )
         ):
             raise ValueError(
-                "`--fast_moe` with LoRA does not currently support `all-linear`, `router`, "
-                "`input_linear` or `output_linear` as target modules at this time. Please "
-                "explicitly specify target modules when using `--fast_moe` with LoRA."
+                "`--fast_moe` with LoRA does not currently support `all-linear`, as "
+                "target modules at this time. Please explicitly specify target "
+                "modules when using `--fast_moe` with LoRA."
+            )
+        # If other common non-linear modules, raise warning
+        restrained_modules = ["input_linear", "output_linear", "router"]
+        if (
+            peft_config is not None
+            and hasattr(peft_config, "target_modules")
+            and any(
+                module in (peft_config.target_modules or [])
+                for module in restrained_modules
+            )
+        ):
+            logger.warning(
+                "Passing target modules that are part of the moe module can cause unexpected "
+                "behaviors and unsuccessful tuning while LoRA tuning with ScatterMoE. "
+                "For safe tuning, only pass linear modules such as those in the attn layer "
+                "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj'])"
             )
 
     task_type = "CAUSAL_LM"
