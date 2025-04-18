@@ -387,15 +387,10 @@ def train(
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
-        # For LoRa ScatterMoE, if expert layers are included, disable grad
+        # For LoRa ScatterMoE, disable grad for ScatterMoE
         if peft_config is not None:
-            frozen_keywords = [
-                "block_sparse_moe.w1.weight",
-                "block_sparse_moe.w2.weight",
-                "block_sparse_moe.w3.weight",
-            ]
             for name, param in model.named_parameters():
-                if any(key in name for key in frozen_keywords):
+                if "block_sparse_moe" in name:
                     param.requires_grad = False
 
     # HACK - The SFT Trainer has internal validation which inspects the name of the class
