@@ -18,16 +18,26 @@
 from enum import Enum
 from typing import Dict, List, Union
 import copy
+import logging
 import re
 
 # Third Party
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
-from transformers import AutoTokenizer
+from PIL import Image
+from transformers import (
+    AutoTokenizer,
+    GPT2TokenizerFast,
+    LlavaNextProcessor,
+    LlavaProcessor,
+)
 import torch
 
 # Local
 from tuning.utils.config_utils import process_jinja_placeholders
+from tuning.utils.utils import try_convert_bytes_dict_to_pil, try_convert_image_to_rgb
+
+logger = logging.getLogger(__name__)
 
 
 class DataHandlerType(Enum):
@@ -276,6 +286,9 @@ def apply_tokenizer_chat_template(
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to dataset_text_field argument.
     """
+    processor = kwargs.get("processor", None)
+    if processor is not None:
+        tokenizer = processor
     if tokenizer.chat_template is None:
         raise ValueError(
             "Tokenizer does not contain tokenizer.chat_template\
@@ -294,6 +307,77 @@ def apply_tokenizer_chat_template(
             converation, tools=tools, documents=documents, tokenize=False
         )
     }
+
+
+def prepare_multimodal_data_processor(
+    element: Dict[str, str],
+    **kwargs,
+):
+    """Function (data handler) to apply processor to multimodal dataset elements.
+       Expects to be run as a HF Map API function.
+    Args:
+        element: the HF Dataset element.
+    Returns:
+        Formatted HF Dataset element by formatting dataset with processor
+    """
+
+    processor = kwargs.get("processor", None)
+    if processor is None:
+        raise ValueError(
+            "Processor is missing. Please provide a processor when initializing the handler."
+        )
+
+    processor_kwargs = kwargs.get("processor_kwargs", {})
+    fields_name = kwargs.get("fields_name", {})
+    try:
+        text_field = fields_name["dataset_text_field"]
+        image_field = fields_name["dataset_image_field"]
+    except KeyError as e:
+        raise ValueError(f"Missing required field in fields_name: {e}") from e
+
+    text = element.get(text_field)
+    image = element.get(image_field)
+
+    if text is None or image is None:
+        raise ValueError("Missing text or image data in element.")
+
+    image = try_convert_bytes_dict_to_pil(image)  # Needed for below image processing
+
+    # We need to pick first image from the Image list for LlavaProcessor and
+    # LlavaNextProcessor (Granite Vision Model)
+    if isinstance(processor, LlavaProcessor) or (
+        isinstance(processor, LlavaNextProcessor)
+        and isinstance(processor.tokenizer, GPT2TokenizerFast)
+    ):
+
+        if (
+            image and isinstance(image, list) and isinstance(image[0], list)
+        ):  # FOR BATCHED = TRUE
+            image = [img[0] for img in image]
+            logger.warning(
+                "LlavaProcessor and LlavaNextProcessor (tokenizer GPT2TokenizerFast)  \
+                expects a single image, picking the first image from the list."
+            )
+        elif (
+            image and isinstance(image, list) and isinstance(image[0], Image.Image)
+        ):  # FOR BATCHED = FALSE
+            image = image[0]
+            logger.warning(
+                "LlavaProcessor and LlavaNextProcessor (tokenizer GPT2TokenizerFast) \
+                expects a single image, picking the first image from the list."
+            )
+
+    # Convert image to RGB if it is not in RGB format
+    if isinstance(processor, (LlavaProcessor, LlavaNextProcessor)):
+        image = try_convert_image_to_rgb(image)
+
+    element = {
+        text_field: text,
+        image_field: image,
+        "fields_name": fields_name,
+        "processor_kwargs": processor_kwargs,
+    }
+    return element
 
 
 def tokenize(
@@ -539,6 +623,11 @@ AVAILABLE_DATA_HANDLERS = {
         op=duplicate_columns,
         handler_type=DataHandlerType.MAP,
         allows_batching=True,
+    ),
+    "prepare_multimodal_data_processor": DataHandler(
+        op=prepare_multimodal_data_processor,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
     ),
     "tokenize": DataHandler(
         op=tokenize,

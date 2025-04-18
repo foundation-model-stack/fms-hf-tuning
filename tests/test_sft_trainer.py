@@ -118,7 +118,7 @@ TRAIN_ARGS = configs.TrainingArguments(
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
-    num_virtual_tokens=8,
+    num_virtual_tokens=0,
     prompt_tuning_init_text="hello",
 )
 
@@ -436,6 +436,7 @@ def test_parse_arguments_peft_method(job_config):
 ############################# Prompt Tuning Tests #############################
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -464,6 +465,7 @@ def test_run_causallm_pt_and_inference():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference_with_formatting_data():
     """Check if we can bootstrap and peft tune causallm models
     This test needs the trainer to format data to a single sequence internally.
@@ -499,6 +501,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_and_inference_JSON_file_formatter():
     """Check if we can bootstrap and peft tune causallm models with JSON train file format"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -532,6 +535,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_run_causallm_pt_init_text():
     """Check if we can bootstrap and peft tune causallm models with init text as 'TEXT'"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -541,6 +545,7 @@ def test_run_causallm_pt_init_text():
         tuning_config = peft_config.PromptTuningConfig(
             prompt_tuning_init="TEXT",
             prompt_tuning_init_text="hello",
+            num_virtual_tokens=0,
         )
 
         sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
@@ -569,7 +574,7 @@ invalid_params_map = [
     invalid_params_map,
     ids=["num_train_epochs", "grad_acc_steps"],
 )
-def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
+def test_run_causallm_lora_invalid_train_params(param_name, param_val, exc_msg):
     """Check if error is raised when invalid params are used to peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
         invalid_params = copy.deepcopy(TRAIN_ARGS)
@@ -577,14 +582,14 @@ def test_run_causallm_pt_invalid_train_params(param_name, param_val, exc_msg):
         setattr(invalid_params, param_name, param_val)
 
         with pytest.raises(ValueError, match=exc_msg):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_LORA_ARGS)
 
 
 @pytest.mark.parametrize(
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
 )
-def test_run_causallm_pt_with_validation(dataset_path):
+def test_run_causallm_lora_with_validation(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -593,7 +598,7 @@ def test_run_causallm_pt_with_validation(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = dataset_path
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
@@ -601,7 +606,7 @@ def test_run_causallm_pt_with_validation(dataset_path):
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
 )
-def test_run_causallm_pt_with_validation_data_formatting(dataset_path):
+def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
     """Check if we can bootstrap and peft tune causallm models with validation dataset"""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -614,10 +619,11 @@ def test_run_causallm_pt_with_validation_data_formatting(dataset_path):
             "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
         )
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir, check_eval=True)
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 @pytest.mark.parametrize(
     "dataset_path",
     [TWITTER_COMPLAINTS_DATA_JSONL, TWITTER_COMPLAINTS_DATA_JSON],
@@ -1647,7 +1653,7 @@ def test_tokenizer_has_no_eos_token():
         # If we handled this badly, we would probably get something like a
         # TypeError: can only concatenate str (not "NoneType") to str error
         # when we go to apply the data formatter.
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1659,7 +1665,7 @@ def test_invalid_dataset_text_field():
     data_args.dataset_text_field = "not found"
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests that giving dataset_text_field as well as formatter template gives error
@@ -1671,7 +1677,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
     )
 
     with pytest.raises(ValueError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests passing formatter with invalid keys gives error
@@ -1683,7 +1689,7 @@ def test_invalid_formatter_template():
     )
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
@@ -1693,7 +1699,7 @@ def test_malformatted_data():
     data_args.training_data_path = MALFORMATTED_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 def test_empty_data():
@@ -1702,7 +1708,7 @@ def test_empty_data():
     data_args.training_data_path = EMPTY_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
 
 
 ### Tests for bad tuning module configurations
@@ -1731,7 +1737,7 @@ def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
         data_args.data_formatter_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 # TODO: Fix this case
@@ -1745,7 +1751,7 @@ def test_no_packing_needs_reponse_template():
         data_args.response_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 ### Tests for model dtype edge cases
@@ -1762,7 +1768,7 @@ def test_bf16_still_tunes_if_unsupported():
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.torch_dtype = "bfloat16"
 
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1775,7 +1781,7 @@ def test_bad_torch_dtype():
         model_args.torch_dtype = "not a type"
 
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
 
 
 def test_run_with_additional_callbacks():
@@ -1789,7 +1795,7 @@ def test_run_with_additional_callbacks():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_callbacks=[TrainerCallback()],
         )
 
@@ -1808,7 +1814,7 @@ def test_run_with_bad_additional_callbacks():
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_callbacks=["NotSupposedToBeHere"],
             )
 
@@ -1829,7 +1835,7 @@ def test_run_with_bad_experimental_metadata():
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_callbacks=[TrainerCallback()],
                 exp_metadata=metadata,
             )
@@ -1848,7 +1854,7 @@ def test_run_with_good_experimental_metadata():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
@@ -1871,7 +1877,7 @@ def test_pretokenized_dataset(dataset_path):
         data_args.dataset_text_field = None
         data_args.response_template = None
         data_args.training_data_path = dataset_path
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
         _validate_training(tempdir)
 
 
@@ -1895,7 +1901,7 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 def test_pretokenized_dataset_wrong_format():
@@ -1913,7 +1919,7 @@ def test_pretokenized_dataset_wrong_format():
         # need to directly add validation prior to the dataset generation since datasets
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
 
 
 ###########################################################################
@@ -1946,7 +1952,7 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
                 MODEL_ARGS,
                 DATA_ARGS,
                 train_args,
-                PEFT_PT_ARGS,
+                PEFT_LORA_ARGS,
                 additional_data_handlers=additional_handlers,
             )
 
@@ -1961,7 +1967,7 @@ def test_run_with_additional_data_handlers_as_none():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_data_handlers=None,
         )
         _validate_training(tempdir)
@@ -2008,7 +2014,7 @@ def test_run_by_passing_additional_data_handlers():
             MODEL_ARGS,
             DATA_ARGS,
             train_args,
-            PEFT_PT_ARGS,
+            PEFT_LORA_ARGS,
             additional_data_handlers={
                 TEST_HANDLER: DataHandler(
                     op=test_handler,

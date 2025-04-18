@@ -26,8 +26,13 @@ import traceback
 from huggingface_hub.utils._validators import HFValidationError
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
-from transformers.trainer import _is_peft_model
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForVision2Seq,
+    AutoProcessor,
+    AutoTokenizer,
+    TrainerCallback,
+)
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer
@@ -128,6 +133,14 @@ def train(
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
+    if (not isinstance(model_args.model_name_or_path, str)) or (
+        model_args.model_name_or_path == ""
+    ):
+        raise ValueError(
+            "model_name_or_path has to be a string containing a valid"
+            + " HuggingFace Hub model name or the path to a checkpoint folder"
+        )
+
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
@@ -246,30 +259,57 @@ def train(
         fusedops_kernels_config,
     ).get_framework()
 
-    model_loader = AutoModelForCausalLM.from_pretrained
-    if framework is not None and framework.requires_custom_loading:
-        model_loader = framework.model_loader  # drop-in new loader
+    # option to set multimodal var here
     model_load_time = time.time()
-    model = model_loader(
-        model_args.model_name_or_path,
-        cache_dir=train_args.cache_dir,
-        torch_dtype=get_torch_dtype(model_args.torch_dtype),
-        attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
-        # avoid warning that use_cache is incompatible with gradient checkpointing
-        use_cache=(not train_args.gradient_checkpointing),
-    )
+    processor = None
+    try:
+        # try to load vision model
+        model = AutoModelForVision2Seq.from_pretrained(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
+            # avoid warning that use_cache is incompatible with gradient checkpointing
+            use_cache=(not train_args.gradient_checkpointing),
+        )
 
-    # TODO: Move these to a config as well
-    tokenizer = AutoTokenizer.from_pretrained(
-        (
-            model_args.tokenizer_name_or_path
-            if model_args.tokenizer_name_or_path
-            else model_args.model_name_or_path
-        ),
-        cache_dir=train_args.cache_dir,
-        use_fast=True,
-        legacy=True,
-    )
+        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+        tokenizer = processor.tokenizer
+    except ValueError:
+        # fallback on loading language model
+        model_loader = AutoModelForCausalLM.from_pretrained
+
+        if framework is not None and framework.requires_custom_loading:
+            model_loader = framework.model_loader  # drop-in new loader
+
+        model = model_loader(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
+            # avoid warning that use_cache is incompatible with gradient checkpointing
+            use_cache=(not train_args.gradient_checkpointing),
+        )
+
+        # TODO: Move these to a config as well
+        tokenizer = AutoTokenizer.from_pretrained(
+            (
+                model_args.tokenizer_name_or_path
+                if model_args.tokenizer_name_or_path
+                else model_args.model_name_or_path
+            ),
+            cache_dir=train_args.cache_dir,
+            use_fast=True,
+            legacy=True,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(f"Exception raised during loading model: {e}")
+        sys.exit(USER_ERROR_EXIT_CODE)
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -324,8 +364,10 @@ def train(
     logger.info("Packing is set to %s ", train_args.packing)
 
     is_padding_free = False
+    is_multipack = False
     if attention_and_distributed_packing_config is not None:
         is_padding_free = attention_and_distributed_packing_config.is_padding_free
+        is_multipack = attention_and_distributed_packing_config.is_multipack
 
     data_preprocessing_time = time.time()
     (
@@ -341,6 +383,8 @@ def train(
         train_args,
         additional_data_handlers,
         is_padding_free=is_padding_free,
+        processor=processor,
+        is_multipack=is_multipack,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
@@ -382,7 +426,7 @@ def train(
 
     trainer = TrainerClass(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer if processor is None else processor,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
@@ -390,13 +434,6 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
-
-    # Note this check has to be done post trainer initialization
-    if train_args.enable_reduce_loss_sum and _is_peft_model(trainer.model):
-        raise ValueError(
-            "❌ Loaded model is PEFT model but both PEFT and sum loss is not supported yet."
-            + "Set --enable_reduce_loss_sum to false and retry"
-        )
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

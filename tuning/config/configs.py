@@ -35,7 +35,7 @@ DEFAULT_UNK_TOKEN = "<unk>"
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default=None)
     use_flash_attn: bool = field(
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
@@ -74,7 +74,8 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
-                    or data_formatter_template need to be supplied."
+                    or data_formatter_template need to be supplied. \
+                    For running vision language model tuning pass the column name for text data."
         },
     )
     dataset_conversation_field: str = field(
@@ -127,6 +128,13 @@ class DataArguments:
             "help": "Should be provided for chat training. \
             Piece of text that determines the start of human response\
             Passed in conjunction with response_template"
+        },
+    )
+    dataset_image_field: str = field(
+        default=None,
+        metadata={
+            "help": "For running vision language model tuning pass \
+            the column name of the image data in the dataset."
         },
     )
     add_special_tokens: List[str] = field(
