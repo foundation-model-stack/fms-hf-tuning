@@ -29,12 +29,12 @@ import torch
 
 # First Party
 from tests.artifacts.testdata import CUSTOM_TOKENIZER_TINYLLAMA
+from tests.artifacts.vision_models import LLAMA_VISION_MODEL_NAME
 
 # Local
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
-LLAMA_VISION_MODEL_NAME = "tests/artifacts/tiny-llama-vision-model"
 INPUT_TEXT = "### Text: @NortonSupport Thanks much.\n\n### Label:"
 
 
