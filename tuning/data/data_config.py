@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Standard
+from base64 import b64decode
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 import logging
@@ -151,6 +152,18 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
     if "chat_template" in kwargs:
         chat_template = kwargs["chat_template"]
         assert isinstance(chat_template, str), "chat_template should be a string"
+        c.chat_template = chat_template
+    elif "chat_template_base64" in kwargs:
+        chat_template_base64 = kwargs["chat_template_base64"]
+        assert isinstance(
+            chat_template_base64, str
+        ), "chat_template_base64 should be a string"
+        logger.warning(
+            "You are using the 'chat_template_base64' field. "
+            + "Please use the 'chat_template' field instead for better readability."
+        )
+        chat_template_bytes = b64decode(chat_template_base64)
+        chat_template = chat_template_bytes.decode("utf-8")
         c.chat_template = chat_template
     return c
 
