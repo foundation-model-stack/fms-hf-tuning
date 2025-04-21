@@ -387,7 +387,9 @@ def train(
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
-        # For LoRa ScatterMoE, disable grad for ScatterMoE
+        # HACK - For LoRa ScatterMoE, disable grad for ScatterMoE.
+        # In the future, requires_grad should be enabled for LoRA tuning
+        # with ScatterMoE and this code should be removed.
         if peft_config is not None:
             for module in model.modules():
                 # Use string comparison to check if ScatterMoE module
