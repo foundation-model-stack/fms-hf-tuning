@@ -168,6 +168,33 @@ def train(
                 "Trainer should not perform packing when using `--padding_free`"
             )
 
+    if fast_moe_config is not None:
+        # Checking for unsupported modules with Scatter MoE for LoRA
+        # Only raise an error for `all-linear`
+        restricted_modules = ["all-linear"]
+        if (
+            peft_config is not None
+            and hasattr(peft_config, "target_modules")
+            and any(
+                module in (peft_config.target_modules or [])
+                for module in restricted_modules
+            )
+        ):
+            raise ValueError(
+                "`--fast_moe` with LoRA does not currently support `all-linear`, as "
+                "target modules at this time. Please explicitly specify target "
+                "modules when using `--fast_moe` with LoRA."
+            )
+        # If other common non-linear modules, raise warning
+        if peft_config is not None and hasattr(peft_config, "target_modules"):
+            logger.warning(
+                "You are running lora with the ScatterMoE plugin, please note that "
+                "passing target modules that are part of the moe module can cause unexpected "
+                "behaviors and unsuccessful tuning while LoRA tuning with ScatterMoE. "
+                "For safe tuning, only pass linear modules such as those in the attn layer "
+                "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj'])"
+            )
+
     task_type = "CAUSAL_LM"
     additional_metrics = {}
 
@@ -360,6 +387,15 @@ def train(
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
+        # HACK - For LoRa ScatterMoE, disable grad for ScatterMoE.
+        # In the future, requires_grad should be enabled for LoRA tuning
+        # with ScatterMoE and this code should be removed.
+        if peft_config is not None:
+            for module in model.modules():
+                # Use string comparison to check if ScatterMoE module
+                if module.__class__.__name__ == "ScatterMoE":
+                    for param in module.parameters():
+                        param.requires_grad = False
 
     # HACK - The SFT Trainer has internal validation which inspects the name of the class
     # being used for the HF training args; if it's a TrainingArguments class, which is
