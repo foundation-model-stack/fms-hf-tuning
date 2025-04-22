@@ -62,8 +62,8 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
 from tests.artifacts.vision_models import (
-    GRANITE_VISION_MODEL_NAME,
-    LLAMA_VISION_MODEL_NAME,
+    TINY_GRANITE_VISION_MODEL_NAME,
+    TINY_LLAMA_VISION_MODEL_NAME,
 )
 
 # Local
@@ -1843,7 +1843,7 @@ def test_get_processed_dataset(datafile, datasetconfigname):
 
 @pytest.mark.parametrize(
     "model_name",
-    [LLAMA_VISION_MODEL_NAME, GRANITE_VISION_MODEL_NAME],
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
 )
 def test_vision_data_collator(model_name):
     """Test the VisionDataCollator with dummy Image data."""

@@ -29,7 +29,7 @@ import torch
 
 # First Party
 from tests.artifacts.testdata import CUSTOM_TOKENIZER_TINYLLAMA
-from tests.artifacts.vision_models import LLAMA_VISION_MODEL_NAME
+from tests.artifacts.vision_models import TINY_LLAMA_VISION_MODEL_NAME
 
 # Local
 from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
@@ -209,8 +209,8 @@ def test_resize_with_multiple_of():
 
 
 def test_resize_llama_vision_model():
-    model = AutoModelForVision2Seq.from_pretrained(LLAMA_VISION_MODEL_NAME)
-    processor = AutoProcessor.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    model = AutoModelForVision2Seq.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
+    processor = AutoProcessor.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
     tokenizer = processor.tokenizer
 
     current_input_embeddings = model.get_input_embeddings()

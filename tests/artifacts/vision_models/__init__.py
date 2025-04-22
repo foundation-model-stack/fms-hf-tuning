@@ -19,7 +19,7 @@ import os
 
 ### Constants used for model path
 PREDEFINED_MODEL_PATH = os.path.join(os.path.dirname(__file__))
-LLAMA_VISION_MODEL_NAME = os.path.join(PREDEFINED_MODEL_PATH, "tiny_llama_vision_model")
-GRANITE_VISION_MODEL_NAME = os.path.join(
+TINY_LLAMA_VISION_MODEL_NAME = os.path.join(PREDEFINED_MODEL_PATH, "tiny_llama_vision_model")
+TINY_GRANITE_VISION_MODEL_NAME = os.path.join(
     PREDEFINED_MODEL_PATH, "tiny_granite_vision_model"
 )
