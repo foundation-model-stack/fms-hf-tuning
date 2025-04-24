@@ -919,12 +919,12 @@ For information on supported dataset formats and how to tune a vision-language m
 
   ? May be supported, but not tested
 
-Model Name & Size  | Model Architecture | Full Finetuning |
--------------------- | ---------------- | --------------- |
-Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅* |
-Llava 1.5-7B  | LlavaForConditionalGeneration | ✅* |
-Granite 3.1-2B Vision  | LlavaNextForConditionalGeneration | ✅* |
-Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅* |
+Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
+-------------------- | ---------------- | --------------- | --------------- |
+Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅* | ✅* | 
+Llava 1.5-7B  | LlavaForConditionalGeneration | ✅* | ✅* | 
+Granite 3.1-2B Vision  | LlavaNextForConditionalGeneration | ✅* | ✅* |
+Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅* | ✅* |
 
 (*) - Supported with `fms-hf-tuning` v2.8.0 or later.
 

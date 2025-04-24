@@ -264,9 +264,16 @@ def train(
             attn_implementation="flash_attention_2"
             if model_args.use_flash_attn
             else None,
-            # avoid warning that use_cache is incompatible with gradient checkpointing
-            use_cache=(not train_args.gradient_checkpointing),
         )
+        try:
+            if "use_cache" in model.language_model.config:
+                # avoid warning that use_cache is incompatible with gradient checkpointing
+                model.language_model.config.use_cache = (
+                    not train_args.gradient_checkpointing
+                )
+        except AttributeError as e:
+            # When the model doesn't have the use_cache attribute
+            logger.warning("Couldn't update use_cache for vision model: %s", e)
 
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
         tokenizer = processor.tokenizer

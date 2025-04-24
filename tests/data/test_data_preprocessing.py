@@ -45,6 +45,7 @@ from tests.artifacts.predefined_data_configs import (
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_SINGLE_TURN,
+    IMAGE_DATASET,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
@@ -60,6 +61,10 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
+from tests.artifacts.vision_models import (
+    TINY_GRANITE_VISION_MODEL_NAME,
+    TINY_LLAMA_VISION_MODEL_NAME,
+)
 
 # Local
 from tuning.config import configs
@@ -73,8 +78,6 @@ from tuning.data.setup_dataprocessor import (
     is_pretokenized_dataset,
     process_dataargs,
 )
-
-LLAMA_VISION_MODEL_NAME = "tests/artifacts/tiny-llama-vision-model"
 
 
 @pytest.mark.parametrize(
@@ -1838,44 +1841,40 @@ def test_get_processed_dataset(datafile, datasetconfigname):
         assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
 
 
-def test_vision_data_collator():
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_vision_data_collator(model_name):
     """Test the VisionDataCollator with dummy Image data."""
 
-    processor = AutoProcessor.from_pretrained(LLAMA_VISION_MODEL_NAME)
+    processor = AutoProcessor.from_pretrained(model_name)
     collator = VisionDataCollator(processor)
     processor_kwargs = {}
     processor_kwargs["return_tensors"] = "pt"
     processor_kwargs["padding"] = True
-    image_size = (32, 32)
 
-    def generate_pil_image(size=image_size):
-        """Generate a dummy image array of the specified size and return PIL Image."""
-        image_array = np.random.randint(0, 256, size=(*size, 3), dtype=np.uint8)
-        return Image.fromarray(image_array)
+    with open(IMAGE_DATASET, "r") as f:
+        image_data = [json.loads(line) for line in f]
+    features = []
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = True
 
-    image1 = generate_pil_image()
-    image2 = generate_pil_image()
-
-    features = [
-        {
-            "processor_kwargs": processor_kwargs,
-            "fields_name": {
-                "dataset_text_field": "text",
-                "dataset_image_field": "image",
-            },
-            "text": "Describe the image.",
-            "image": [image1],
-        },
-        {
-            "processor_kwargs": processor_kwargs,
-            "fields_name": {
-                "dataset_text_field": "text",
-                "dataset_image_field": "image",
-            },
-            "text": "What is in the image?",
-            "image": [image2],
-        },
-    ]
+    # Make supported format features with PIL Image
+    for data in image_data:
+        pil_image = Image.fromarray(np.array(data["image"], dtype=np.uint8))
+        features.append(
+            {
+                "processor_kwargs": processor_kwargs,
+                "fields_name": {
+                    "dataset_text_field": "text",
+                    "dataset_image_field": "image",
+                },
+                "text": data["text"],
+                "image": [pil_image],
+            }
+        )
 
     # Call the collator which returns a batch dictionary containing "input_ids" and "labels"
     batch = collator(features)
