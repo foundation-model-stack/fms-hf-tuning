@@ -100,10 +100,11 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.builder = builder
     if "sampling" in kwargs and kwargs["sampling"] is not None:
         ratio = kwargs["sampling"]
-        assert isinstance(ratio, float) and (
-            0 <= ratio <= 1.0
+        # YAML parsing causes 1.0 (float) to be cast to 1 (int)
+        assert isinstance(ratio, (float, int)) and (
+            0.0 <= ratio <= 1.0
         ), f"sampling ratio: {ratio} should be float and in range [0.0,1.0]"
-        c.sampling = ratio
+        c.sampling = float(ratio)
     if "rename_columns" in kwargs and kwargs["rename_columns"] is not None:
         rename = kwargs["rename_columns"]
         assert isinstance(
