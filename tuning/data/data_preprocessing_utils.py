@@ -98,6 +98,9 @@ def get_data_collator(
         # was removed from tokenized data processing, should eventually
         # be added back in with support directly in fms-hf-tuning, not
         # dependent on trl.
+        # return DataCollatorForSeq2Seq(
+        #     tokenizer=tokenizer, padding=True, max_length=max_seq_length
+        # )
         return None
 
     # TODO: near term - how response template ids are parsed out needs to be cleaned.
