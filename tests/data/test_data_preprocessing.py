@@ -564,23 +564,6 @@ def test_is_pretokenized_data(data, result):
         ),
         (
             False,
-            None,
-            Dataset.from_list(
-                [
-                    {
-                        "input_ids": [9437, 29, 210],
-                        "attention_mask": [1, 1, 1],
-                        "labels": [1, 20, 30],
-                    }
-                ]
-            ),
-            1024,
-            None,
-            False,
-            DataCollatorForSeq2Seq,
-        ),
-        (
-            False,
             "\n### Label:",
             datasets.load_dataset(
                 "json",
@@ -591,23 +574,6 @@ def test_is_pretokenized_data(data, result):
             "\n### Text:",
             False,
             DataCollatorForCompletionOnlyLM,
-        ),
-        (
-            False,
-            None,
-            Dataset.from_list(
-                [
-                    {
-                        "input_ids": [9437, 29, 210],
-                        "attention_mask": [1, 1, 1],
-                        "labels": [1, 20, 30],
-                    }
-                ]
-            ),
-            1024,
-            "\n### Text:",
-            False,
-            DataCollatorForSeq2Seq,
         ),
         (
             False,
