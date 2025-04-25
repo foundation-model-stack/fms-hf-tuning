@@ -149,7 +149,7 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
-    python -m pip install --user "$(head bdist_name)[mamba]"
+    python -m pip install --user --no-build-isolation "$(head bdist_name)[mamba]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
