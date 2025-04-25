@@ -37,6 +37,8 @@ python scripts/offline_data_processing.py \
 
 Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning by passing it through the `--training_data_path` flag or passing it via `data_paths` argument in data config yaml, provided they find the sharded datasets beneficial for training.
 
+**NOTE**: The offline data preprocessing script is not compatible with processing image datasets for vision models. 
+
 ## Example Usage
 ### Applying Chat Template
 
