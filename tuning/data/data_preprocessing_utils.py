@@ -94,9 +94,14 @@ def get_data_collator(
     if is_traindata_tokenized:
         # Note that this automatically pads labels with -100
         # TODO check if this is sufficient for preprocessed
-        return DataCollatorForSeq2Seq(
-            tokenizer=tokenizer, padding=True, max_length=max_seq_length
-        )
+        # TODO with the release of trl v0.17.0, DataCollatorForSeq2Seq
+        # was removed from tokenized data processing, should eventually
+        # be added back in with support directly in fms-hf-tuning, not
+        # dependent on trl.
+        # return DataCollatorForSeq2Seq(
+        #     tokenizer=tokenizer, padding=True, max_length=max_seq_length
+        # )
+        return None
 
     # TODO: near term - how response template ids are parsed out needs to be cleaned.
     # The [2:] here applies if response template has \n prefix, it is needed to strip \n,
