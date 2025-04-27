@@ -10,10 +10,10 @@
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
   - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
-  - [Prompt Tuning](#prompt-tuning)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
 - [Extended Pre-Training](#extended-pre-training)
+- [Tuning Vision Language Models](#tuning-vision-language-models)
 - [Inference](#inference)
   - [Running a single example](#running-a-single-example)
   - [Running multiple examples](#running-multiple-examples)
@@ -40,11 +40,19 @@ pip install fms-hf-tuning
 ### Using FlashAttention
 
 > Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
-```
+```sh
 pip install fms-hf-tuning[dev]
 pip install fms-hf-tuning[flash-attn]
 ```
 [FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
+
+*Debug recommendation:* While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
+
+```sh
+pip uninstall flash-attn
+pip cache purge
+pip install fms-hf-tuning[flash-attn]
+```
 
 ### Using FMS-Acceleration
 
@@ -176,6 +184,83 @@ For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-
 
 The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
 
+#### Aligning dataset formats
+In some cases the chat template might not be aligned with the data format of the dataset. For example, consider the following data sample and suppose we want to use the list of contents associated with the `messages` key from the data sample for our multi-turn training job!
+
+```
+{
+  "messages": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+```
+Different Chat templates support different data formats and the chat template might not always align with the data format of the dataset!
+
+Here is a example of chat template that iterates over the nested data sample by addressing the "messages" key in `for message in messages['messages']` :
+```
+{% for message in messages['messages'] %}\
+  {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {% endif %}\
+  {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+  {% endif %}\
+{% endfor %}
+```
+While the above template might be suitable for certain data formats, not all chat templates access the nested contents in a data sample.
+
+In the following example notice the `for message in messages` line which does not access any nested contents in the data and expects the nested content to be passed directly to the chat template!
+
+```
+{%- for message in messages %}\
+  {%- if message['role'] == 'system' %}\
+  {{- '<|system|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'user' %}\
+  {{- '<|user|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'assistant' %}\
+  {%- if not loop.last %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token + '\n' }}\
+  {%- else %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {%- endif %}\
+  {%- endif %}\
+  {%- if loop.last and add_generation_prompt %}\
+  {{- '<|assistant|>\n' }}\
+  {%- endif %}\
+{%- endfor %}
+```
+
+When working with multi-turn datasets, it's often necessary to extract specific fields from the data depending on the format. For example, in many multi-turn datasets, conversations may be stored under a dedicated key (e.g., `conversations`, `messages`, etc), and you may only need the content of that key for processing.
+
+```
+{
+  "conversations": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+
+```
+To extract and use the conversations field, pass the following flag when running:
+```
+--dataset_conversation_field "conversations"
+``` 
+
+*Note:* For most cases, users using `Granite3.1+ Instruct` series models which already contain chat template should look to pass `--dataset_conversation_field "messages"` while using multi-turn data on the commandline or use `conversations_column` argument in the [data handler](https://github.com/foundation-model-stack/fms-hf-tuning/blob/30ceecc63f3e2bf3aadba2dfc3336b62187c240f/tests/artifacts/predefined_data_configs/mt_data_granite_3_1B_tokenize_and_mask_handler.yaml#L63) which processes chat template 
+
+We recommend inspecting the data and chat template to decide if you need to pass this flag.
+
+### Guidelines
+
 Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
 
 Following are the Guidelines from us in a flow chart :  
@@ -214,6 +299,16 @@ python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokeniz
 ### Advanced data preprocessing.
 
 For advanced data preprocessing support including mixing and custom preprocessing of datasets please see [this document](./docs/advanced-data-preprocessing.md).
+
+## Offline Data Preprocessing
+
+We also provide a script for the user to perform standalone data preprocessing. Our script for standalone data processing decoupled from the `tuning/training` is [offline_data_processing.py](./scripts/offline_data_processing.py). This script is especially useful if:
+
+1. The user is working with a large dataset and wants to perform the processing in one shot and then train the model directly on the processed dataset.
+
+2. The user wants to test out the data preprocessing outcome before training.
+
+Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to use the offline data processing script.
 
 ## Supported Models
 
@@ -659,54 +754,6 @@ Note that with LoRA tuning technique, setting `all-linear` on `target_modules` r
 
 _________________________
 
-### Prompt Tuning:
-
-Specify `peft_method` to `'pt'` . You can additionally pass any arguments from [PromptTuningConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L63).
-```py
-# prompt_tuning_init can be either "TEXT" or "RANDOM"
-prompt_tuning_init: str = "TEXT"
-num_virtual_tokens: int = 8
-# prompt_tuning_init_text only applicable if prompt_tuning_init= "TEXT"
-prompt_tuning_init_text: str = "Classify if the tweet is a complaint or not:"
-tokenizer_name_or_path: str = "llama-7b-hf"
-```
-
-Example command you can run:  
-
-```bash
-python tuning/sft_trainer.py  \
---model_name_or_path $MODEL_PATH  \
---training_data_path $TRAIN_DATA_PATH  \
---output_dir $OUTPUT_PATH  \
---num_train_epochs 5  \
---per_device_train_batch_size 1  \
---learning_rate 0.03  \
---response_template "\n### Label:"  \
---dataset_text_field "output" \
---peft_method pt \
---tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
---prompt_tuning_init "RANDOM" \
---prompt_tuning_init_text "From the following input, identify target sentiment of following types: neutral, negative, positive"
-```
-
-Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
-```json
-{
-    "model_name_or_path": $MODEL_PATH,
-    "training_data_path": $TRAIN_DATA_PATH,
-    "output_dir": $OUTPUT_PATH,
-    "num_train_epochs": 5.0,
-    "per_device_train_batch_size": 1,
-    "learning_rate": 0.03,
-    "response_template": "\n### Label:",
-    "dataset_text_field": "output",
-    "peft_method": "pt",
-    "tokenizer_name_or_path": $MODEL_PATH,
-    "prompt_tuning_init": "RANDOM",
-    "prompt_tuning_init_text": "From the following input, identify target sentiment of following types: neutral, negative, positive"
-}
-```
-
 ### Fine Tuning:
 
 Set `peft_method` to `'None'` or do not provide `peft_method` flag.
@@ -782,7 +829,7 @@ The list of configurations for various `fms_acceleration` plugins:
   - `--padding_free`: technique to process multiple examples in single batch without adding padding tokens that waste compute.
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 - [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
-  - `--fast_moe`: trains MoE models in parallel, increasing throughput and decreasing memory usage.
+  - `--fast_moe`: trains MoE models in parallel with [Scatter MoE kernels](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/accelerated-moe#fms-acceleration-for-mixture-of-experts), increasing throughput and decreasing memory usage.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
@@ -790,20 +837,29 @@ Notes:
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,
  make sure to appropriately set `--fused_lora auto_gptq True` or `bitsandbytes True`; the `True` sets `fast_lora==True`.
  * `fused_ops_and_kernels` works for full-finetuning, LoRA, QLoRA and GPTQ-LORA, 
-    - pass `--fast_kernels True True True` for full finetuning/LoRA
-    - pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
-    - pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
+    - Pass `--fast_kernels True True True` for full finetuning/LoRA
+    - Pass `--fast_kernels True True True --auto_gptq triton_v2 --fused_lora auto_gptq True` for GPTQ-LoRA
+    - Pass `--fast_kernels True True True --bitsandbytes nf4 --fused_lora bitsandbytes True` for QLoRA
     - Note the list of supported models [here](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/fused-ops-and-kernels/README.md#supported-models).
  * Notes on Padding Free
-    - works for both *single* and *multi-gpu*. 
-    - works on both *pretokenized* and *untokenized* datasets
-    - verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
+    - Works for both *single* and *multi-gpu*. 
+    - Works on both *pretokenized* and *untokenized* datasets
+    - Verified against the version found in HF main, merged in via PR https://github.com/huggingface/transformers/pull/31629.
  * Notes on Multipack
-    - works only for *multi-gpu*.
-    - currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+    - Works only for *multi-gpu*.
+    - Currently only includes the version of *multipack* optimized for linear attention implementations like *flash-attn*.
+    - Streaming datasets or use of `IterableDatasets` is not compatible with the fms-acceleration multipack plugin because multipack sampler has to run thorugh the full dataset every epoch. Using multipack and streaming together will raise an error.
  * Notes on Fast MoE
-    - `--fast_moe` is an integer value that configures the amount of expert parallel sharding (ep_degree).
+    - `--fast_moe` takes either an integer or boolean value.
+      - When an integer `n` is passed, it enables expert parallel sharding with the expert parallel degree as `n` along with Scatter MoE kernels enabled.
+      - When a boolean is passed, the expert parallel degree defaults to 1 and further the behaviour would be as follows:
+          - if True, it is Scatter MoE Kernels with experts sharded based on the top level sharding protocol (e.g. FSDP).
+          - if False, Scatter MoE Kernels with complete replication of experts across ranks.
+    - FSDP must be used when lora tuning with `--fast_moe`
+    - lora tuning with ScatterMoE is supported, but because of inference restrictions on vLLM/vanilla PEFT, the expert layers and router linear layer should not be trained as `target_modules` for models being tuned with ScatterMoE. Users have control over which `target_modules` they wish to train:
+        - At this time, only attention layers are trainable when using LoRA with scatterMoE. Until support for the router linear layer is added in, target modules must be specified explicitly (i.e `target_modules: ["q_proj", "v_proj", "o_proj", "k_proj"]`) instead of passing `target_modules: ["all-linear"]`.
     - `world_size` must be divisible by the `ep_degree`
+    - `number of experts` in the MoE module must be divisible by the `ep_degree`
     - Running fast moe modifies the state dict of the model, and must be post-processed which happens automatically and the converted checkpoint can be found at `hf_converted_checkpoint` folder within every saved checkpoint directory. Alternatively, we can perform similar option manually through [checkpoint utils](https://github.com/foundation-model-stack/fms-acceleration/blob/main/plugins/accelerated-moe/src/fms_acceleration_moe/utils/checkpoint_utils.py) script.
       - The typical usecase for this script is to run:
         ```
@@ -845,6 +901,34 @@ The `fms_acceleration.cli` can do more to search for all available configs, plug
 ## Extended Pre-Training
 
 We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
+
+## Tuning Vision Language Models
+
+We also support full fine-tuning and LoRA tuning for vision language models - `Granite 3.2 Vision`, `Llama 3.2 Vision`, and `LLaVa-Next`. 
+For information on supported dataset formats and how to tune a vision-language model, please see [this document](./docs/vision-language-model-tuning.md).
+
+### Supported vision model
+
+- Legend:
+
+  ✅ Ready and available 
+
+  ✔️ Ready and available - compatible architecture
+
+  🚫 Not supported
+
+  ? May be supported, but not tested
+
+Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
+-------------------- | ---------------- | --------------- | --------------- |
+Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅* | ✅* | 
+Llava 1.5-7B  | LlavaForConditionalGeneration | ✅* | ✅* | 
+Granite 3.1-2B Vision  | LlavaNextForConditionalGeneration | ✅* | ✅* |
+Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅* | ✅* |
+
+(*) - Supported with `fms-hf-tuning` v2.8.0 or later.
+
+**Note**: vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
 
 ## Inference
 Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
@@ -939,7 +1023,5 @@ Further details on enabling and using the trackers mentioned above can be found 
 
 
 ## More Examples
-
-[Prompt Tuning on Twitter Complaints](examples/prompt_tuning_twitter_complaints/README.md)
 
 A good simple example can be found [here](examples/kfto-kueue-sft-trainer.yaml) which launches a Kubernetes-native `PyTorchJob` using the [Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) with [Kueue](https://github.com/kubernetes-sigs/kueue) for the queue management of tuning jobs.

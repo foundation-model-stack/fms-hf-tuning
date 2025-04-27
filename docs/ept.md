@@ -43,7 +43,7 @@ datasets:
 And the commandline passed to the library should include following.
 
 ```
---data_config <path to the data config> --packing=True --max_seq_len 8192
+--data_config_path <path to the data config> --packing=True --max_seq_len 8192
 ```
 
 Please note that for non tokenized dataset our code adds `EOS_TOKEN` to the lines, for e.g. `Tweet` column before passing that as a dataset.
@@ -102,7 +102,7 @@ NOTE: More in-depth documentation of `sampling_stopping_strategy` and how to spe
 Here also the command line arguments would be 
 
 ```
---data_config <path to the data config> --packing=True --max_seq_len 8192
+--data_config_path <path to the data config> --packing=True --max_seq_len 8192
 ```
 
 The code again would add `EOS_TOKEN` to the non tokenized data before using it and also note that the `dataset_text_field` is assumed to be same across all datasets for now.
@@ -131,7 +131,7 @@ datasets:
 The command-line arguments passed to the library should include the following:
 
 ```
---data_config <path to the data config> --packing=True --max_seq_len 8192 --max_steps <num training steps>
+--data_config_path <path to the data config> --packing=True --max_seq_len 8192 --max_steps <num training steps>
 ```
 
 Please note when using streaming, user must pass `max_steps` instead of `num_train_epochs`. See advanced data preprocessing [document](./advanced-data-preprocessing.md#data-streaming) for more info.
