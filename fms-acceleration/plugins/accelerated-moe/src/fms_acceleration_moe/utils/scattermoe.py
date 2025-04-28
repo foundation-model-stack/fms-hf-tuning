@@ -17,7 +17,6 @@ from typing import Tuple
 
 # Third Party
 from peft import LoraConfig
-from peft.utils import INCLUDE_LINEAR_LAYERS_SHORTHAND
 from torch.distributed._tensor import DTensor
 
 # pylint: disable=import-error
@@ -244,10 +243,6 @@ class ScatterMoE(torch.nn.Module):
             assert (
                 lora_config.bias == "none"
             ), "ScatterMoE currently unable to handle bias in the lora adapters"
-            assert (
-                lora_config.target_modules == INCLUDE_LINEAR_LAYERS_SHORTHAND
-                or INCLUDE_LINEAR_LAYERS_SHORTHAND in lora_config.target_modules
-            ), "ScatterMoe currently only handles lora adapters on all linears."
 
             assert lora_config.init_lora_weights in {
                 True,
@@ -293,7 +288,6 @@ class ScatterMoE(torch.nn.Module):
             grouped_out=True,
             dtype=dtype,
             device=device,
-            lora_config=lora_config,
         )
         self.w2 = ScatteredExperts(
             in_features=self.intermediate_size,
@@ -303,7 +297,6 @@ class ScatterMoE(torch.nn.Module):
             grouped_in=True,
             dtype=dtype,
             device=device,
-            lora_config=lora_config,
         )
         if mlp_arch == SCATTERMOE_SPEC_HAS_GATE:
             self.w3 = ScatteredExperts(
@@ -314,7 +307,6 @@ class ScatterMoE(torch.nn.Module):
                 grouped_out=True,
                 dtype=dtype,
                 device=device,
-                lora_config=lora_config,
             )
         self.shared_expert = None
         if shared_expert_cls is not None:

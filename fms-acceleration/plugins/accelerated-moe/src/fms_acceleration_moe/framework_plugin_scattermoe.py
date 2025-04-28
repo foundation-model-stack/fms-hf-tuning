@@ -78,6 +78,7 @@ class ScatterMoEAccelerationPlugin(AccelerationPlugin):
         modifiable_args: Tuple[LoraConfig],
     ):
         rank, world_size = 0, 1
+        (peft_config,) = modifiable_args
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             # we do not need to use the fallback as this is wrapped in an `is_initialized` block
@@ -104,6 +105,7 @@ class ScatterMoEAccelerationPlugin(AccelerationPlugin):
             ep_degree=self._ep_degree,
             disable_distributed=self._disable_distributed,
             mixed_precision=False,  # Currently this is hardcoded to OFF
+            lora_config=peft_config,
         )
         # printing the model to see how it is patched
         print(model)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fms-acceleration-moe"
-version = '0.1.1.dev'
+version = '0.3.0.dev'
 description = "FMS Acceleration Plugin for Mixture-of-Experts"
 authors = [
   {name = "Fabian Lim", email = "flim@sg.ibm.com"},

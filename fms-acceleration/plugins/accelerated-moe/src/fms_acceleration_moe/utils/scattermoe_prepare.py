@@ -93,7 +93,8 @@ def load_experts_onto_device(
 
         # install gradient scaling hook
         if KEY_SCATTERMOE_ROUTER not in weight_name:
-            param.register_hook(_hook)
+            if param.requires_grad:
+                param.register_hook(_hook)
 
         # register the sharded parameter onto the megablocks.dmoe
         mod.register_parameter(name, param)
