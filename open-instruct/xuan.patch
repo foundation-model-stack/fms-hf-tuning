@@ -1,0 +1,542 @@
+diff --git a/.gitignore b/.gitignore
+index 423d441..7a15bd2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,3 +1,4 @@
++local_dataset_cache/
+ trash
+ rejection_sampling/shards
+ rejection_sampling/shards1
+diff --git a/configs/ds_configs/dqa_stage3_no_offloading_accelerate.conf b/configs/ds_configs/dqa_stage3_no_offloading_accelerate.conf
+new file mode 100644
+index 0000000..0fae7be
+--- /dev/null
++++ b/configs/ds_configs/dqa_stage3_no_offloading_accelerate.conf
+@@ -0,0 +1,31 @@
++{
++    "bf16": {
++        "enabled": "auto"
++    },
++    "zero_optimization": {
++        "stage": 3,
++        "overlap_comm": true,
++        "contiguous_gradients": true,
++        "sub_group_size": 1e9,
++        "reduce_bucket_size": "auto",
++        "stage3_prefetch_bucket_size": "auto",
++        "stage3_param_persistence_threshold": "auto",
++        "stage3_max_live_parameters": 1e9,
++        "stage3_max_reuse_distance": 1e9,
++        "stage3_gather_16bit_weights_on_model_save": true,
++        "offload_optimizer": {
++            "device": "cpu",
++            "pin_memory": true
++        },
++        "offload_param": {
++            "device": "cpu",
++            "pin_memory": true
++        }
++    },
++    "gradient_accumulation_steps": 4,
++    "gradient_clipping": "auto",
++    "steps_per_print": 1e5,
++    "train_batch_size": "auto",
++    "train_micro_batch_size_per_gpu": 1,
++    "wall_clock_breakdown": false
++}
+\ No newline at end of file
+diff --git a/open_instruct/dataset_processor.py b/open_instruct/dataset_processor.py
+index 727df88..fce60fa 100644
+--- a/open_instruct/dataset_processor.py
++++ b/open_instruct/dataset_processor.py
+@@ -87,6 +87,7 @@ BINARY_DATASET_KEYS = [
+ # flake8: noqa
+ # note we added `{% if loop.last and not add_generation_prompt %}{{ eos_token }}{% endif %}`
+ # because we want the template to not output eos_token if `add_generation_prompt=True`
++
+ CHAT_TEMPLATES = {
+     "simple_concat_with_space": (
+         "{% for message in messages %}"
+diff --git a/open_instruct/dataset_transformation.py b/open_instruct/dataset_transformation.py
+index 4ffcae2..9e0737b 100644
+--- a/open_instruct/dataset_transformation.py
++++ b/open_instruct/dataset_transformation.py
+@@ -168,6 +168,51 @@ CHAT_TEMPLATES = {
+         "{% endif %}"
+         "{% endfor %}"
+     ),
++    # #== granite3dot1original: copied from GraniteInstruct's tokenizer_config.json and Not tested yet
++    "granite3dot1original":(
++        "{%- if messages[0]['role'] == 'system' %}\n    {%- set system_message = messages[0]['content'] %}\n    {%- set loop_messages = messages[1:] %}\n{%- else %}\n    {%- set system_message = \"Knowledge Cutoff Date: April 2024.\nToday's Date: \" + strftime_now('%B %d, %Y') + \".\nYou are Granite, developed by IBM.\" %}\n    {%- if tools and documents %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant with access to the following tools. When a tool is required to answer the user's query, respond with <|tool_call|> followed by a JSON list of tools used. If a tool does not exist in the provided list of tools, notify the user that you do not have the ability to fulfill the request.\n\nWrite the response to the user's input by strictly aligning with the facts in the provided documents. If the information needed to answer the question is not available in the documents, inform the user that the question cannot be answered based on the available data.\" %}\n    {%- elif tools %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant with access to the following tools. When a tool is required to answer the user's query, respond with <|tool_call|> followed by a JSON list of tools used. If a tool does not exist in the provided list of tools, notify the user that you do not have the ability to fulfill the request.\" %}\n    {%- elif documents %}\n        {%- set system_message = system_message + \" Write the response to the user's input by strictly aligning with the facts in the provided documents. If the information needed to answer the question is not available in the documents, inform the user that the question cannot be answered based on the available data.\" %}\n    {%- else %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant.\" %}    \n    {%- endif %}\n    {%- if 'citations' in controls and documents %}\n        {%- set system_message = system_message + '\n\nIn your response, use the symbols <co> and </co> to indicate when a fact comes from a document in the search result, e.g <co>0</co> for a fact from document 0. Afterwards, list all the citations with their corresponding documents in an ordered list.' %}\n    {%- endif %}\n    {%- if 'hallucinations' in controls and documents %}\n        {%- set system_message = system_message + '\n\nFinally, after the response is written, include a numbered list of sentences from the response that are potentially hallucinated and not based in the documents.' %}\n    {%- endif %}\n    {%- set loop_messages = messages %}\n{%- endif %}\n{{- '<|start_of_role|>system<|end_of_role|>' + system_message + '<|endoftext|>\n' }}\n{%- if tools %}\n    {{- '<|start_of_role|>tools<|end_of_role|>' }}\n    {{- tools | tojson(indent=4) }}\n    {{- '<|endoftext|>\n' }}\n{%- endif %}\n{%- if documents %}\n    {{- '<|start_of_role|>documents<|end_of_role|>' }}\n    {%- for document in documents %}\n        {{- 'Document ' + loop.index0 | string + '\n' }}\n        {{- document['text'] }}\n        {%- if not loop.last %}\n            {{- '\n\n'}}\n        {%- endif%}\n    {%- endfor %}\n    {{- '<|endoftext|>\n' }}\n{%- endif %}\n{%- for message in loop_messages %}\n    {{- '<|start_of_role|>' + message['role'] + '<|end_of_role|>' + message['content'] + '<|endoftext|>\n' }}\n    {%- if loop.last and add_generation_prompt %}\n        {{- '<|start_of_role|>assistant' }}\n            {%- if controls %}\n                {{- ' ' + controls | tojson()}}\n            {%- endif %}\n        {{- '<|end_of_role|>' }}\n    {%- endif %}\n{%- endfor %}"
++    ),
++    "granite3dot1wotimestamp":(
++        "{%- if messages[0]['role'] == 'system' %}\n    {%- set system_message = messages[0]['content'] %}\n    {%- set loop_messages = messages[1:] %}\n{%- else %}\n    {%- set system_message = \"Knowledge Cutoff Date: April 2024.\nYou are Granite, developed by IBM.\" %}\n    {%- if tools and documents %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant with access to the following tools. When a tool is required to answer the user's query, respond with <|tool_call|> followed by a JSON list of tools used. If a tool does not exist in the provided list of tools, notify the user that you do not have the ability to fulfill the request.\n\nWrite the response to the user's input by strictly aligning with the facts in the provided documents. If the information needed to answer the question is not available in the documents, inform the user that the question cannot be answered based on the available data.\" %}\n    {%- elif tools %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant with access to the following tools. When a tool is required to answer the user's query, respond with <|tool_call|> followed by a JSON list of tools used. If a tool does not exist in the provided list of tools, notify the user that you do not have the ability to fulfill the request.\" %}\n    {%- elif documents %}\n        {%- set system_message = system_message + \" Write the response to the user's input by strictly aligning with the facts in the provided documents. If the information needed to answer the question is not available in the documents, inform the user that the question cannot be answered based on the available data.\" %}\n    {%- else %}\n        {%- set system_message = system_message + \" You are a helpful AI assistant.\" %}    \n    {%- endif %}\n    {%- if 'citations' in controls and documents %}\n        {%- set system_message = system_message + '\n\nIn your response, use the symbols <co> and </co> to indicate when a fact comes from a document in the search result, e.g <co>0</co> for a fact from document 0. Afterwards, list all the citations with their corresponding documents in an ordered list.' %}\n    {%- endif %}\n    {%- if 'hallucinations' in controls and documents %}\n        {%- set system_message = system_message + '\n\nFinally, after the response is written, include a numbered list of sentences from the response that are potentially hallucinated and not based in the documents.' %}\n    {%- endif %}\n    {%- set loop_messages = messages %}\n{%- endif %}\n{{- '<|start_of_role|>system<|end_of_role|>' + system_message + '<|endoftext|>\n' }}\n{%- if tools %}\n    {{- '<|start_of_role|>tools<|end_of_role|>' }}\n    {{- tools | tojson(indent=4) }}\n    {{- '<|endoftext|>\n' }}\n{%- endif %}\n{%- if documents %}\n    {{- '<|start_of_role|>documents<|end_of_role|>' }}\n    {%- for document in documents %}\n        {{- 'Document ' + loop.index0 | string + '\n' }}\n        {{- document['text'] }}\n        {%- if not loop.last %}\n            {{- '\n\n'}}\n        {%- endif%}\n    {%- endfor %}\n    {{- '<|endoftext|>\n' }}\n{%- endif %}\n{%- for message in loop_messages %}\n    {{- '<|start_of_role|>' + message['role'] + '<|end_of_role|>' + message['content'] + '<|endoftext|>\n' }}\n    {%- if loop.last and add_generation_prompt %}\n        {{- '<|start_of_role|>assistant' }}\n            {%- if controls %}\n                {{- ' ' + controls | tojson()}}\n            {%- endif %}\n        {{- '<|end_of_role|>' }}\n    {%- endif %}\n{%- endfor %}"
++    ),
++    "granite3dot1wodefaultsysmsg": (
++        "{%- if messages[0]['role'] == 'system' %}"
++            "{%- set system_message = messages[0]['content'] %}"
++            "{%- set loop_messages = messages[1:] %}"
++        "{%- else %}"
++            "{%- set system_message = '' %}"
++            "{%- set loop_messages = messages %}"
++        "{%- endif %}"
++        "{%- if system_message|length > 0 %}"
++            "{{ '<|start_of_role|>system<|end_of_role|>' + system_message + '<|endoftext|>\n' }}"
++        "{%- endif %}"
++        "{%- if tools %}"
++            "{{ '<|start_of_role|>tools<|end_of_role|>' }}"
++            "{{ tools | tojson(indent=4) }}"
++            "{{ '<|endoftext|>\n' }}"
++        "{%- endif %}"
++        "{%- if documents %}"
++            "{{ '<|start_of_role|>documents<|end_of_role|>' }}"
++            "{%- for document in documents %}"
++                "{{ 'Document ' + loop.index0|string + '\n' }}"
++                "{{ document['text'] }}"
++                "{%- if not loop.last %}"
++                    "{{ '\n\n' }}"
++                "{%- endif %}"
++            "{%- endfor %}"
++            "{{ '<|endoftext|>\n' }}"
++        "{%- endif %}"
++        "{%- for message in loop_messages %}"
++            "{{ '<|start_of_role|>' + message['role'] + '<|end_of_role|>' + message['content'] + '<|endoftext|>\n' }}"
++            "{%- if loop.last and add_generation_prompt %}"
++                "{{ '<|start_of_role|>assistant' }}"
++                "{%- if controls %}"
++                    "{{ ' ' + controls|tojson() }}"
++                "{%- endif %}"
++                "{{ '<|end_of_role|>' }}"
++            "{%- endif %}"
++        "{%- endfor %}"
++    ),
+     "tulu": (
+         "{% for message in messages %}"
+         "{% if message['role'] == 'system' %}"
+@@ -429,6 +474,7 @@ def get_tokenizer_tulu_v2_2(tc: "TokenizerConfig"):
+     # set the tokenizer chat template to the training format
+     # this will be used for encoding the training examples
+     # and saved together with the tokenizer to be used later.
++    #== DQA: use tc.chat_template_name to define ct in CHAT_TEMPLATES
+     if tc.chat_template_name in CHAT_TEMPLATES:
+         tokenizer.chat_template = CHAT_TEMPLATES[tc.chat_template_name]
+     else:
+@@ -454,7 +500,7 @@ GET_TOKENIZER_FN = {
+     "get_tokenizer_simple_v1": get_tokenizer_simple_v1,
+     "get_tokenizer_tulu_v1": get_tokenizer_tulu_v1,  # old version, see https://github.com/allenai/open-instruct/pull/570
+     "get_tokenizer_tulu_v2_1": get_tokenizer_tulu_v2_1,
+-    "get_tokenizer_tulu_v2_2": get_tokenizer_tulu_v2_2,
++    "get_tokenizer_tulu_v2_2": get_tokenizer_tulu_v2_2, #== DQA: Latest used version (do not change but tc.chat_template_name)
+ }
+ 
+ DEFAULT_SFT_MESSAGES_KEY = "messages"
+@@ -603,7 +649,7 @@ def sft_filter_v1(
+     contain_some_labels = any(x != -100 for x in row[LABELS_KEY])
+     return max_prompt_token_length_ok and max_token_length_ok and (contain_some_labels or not need_contain_labels)
+ 
+-
++#== DQA: APPLY CHAT TEMPLATE:
+ def sft_tulu_tokenize_and_truncate_v1(row: Dict[str, Any], tokenizer: PreTrainedTokenizer, max_seq_length: int):
+     """taken directly from https://github.com/allenai/open-instruct/blob/ba11286e5b9eb00d4ce5b40ef4cac1389888416a/open_instruct/finetune.py#L385"""
+     messages = row["messages"]
+@@ -801,7 +847,7 @@ def rlvr_filter_v1(
+     contain_some_labels = any(x != -100 for x in row[LABELS_KEY])
+     return max_prompt_token_length_ok and max_token_length_ok and (contain_some_labels or not need_contain_labels)
+ 
+-
++#== DQA: NEED TO KNOW WHAT FUNC TO CALL:
+ TRANSFORM_FNS = {
+     "sft_tokenize_v1": (sft_tokenize_v1, "map"),
+     "sft_tokenize_mask_out_prompt_v1": (sft_tokenize_mask_out_prompt_v1, "map"),
+@@ -906,6 +952,7 @@ class DatasetConfig:
+ 
+ 
+ def get_dataset_v1(dc: DatasetConfig, tc: TokenizerConfig):
++    #== DQA: DATA PREPARATION
+     assert len(dc.transform_fn) == len(
+         dc.transform_fn_args
+     ), f"transform_fn and transform_fn_args must have the same length: {dc.transform_fn=} != {dc.transform_fn_args=}"
+@@ -1062,7 +1109,7 @@ class LocalDatasetTransformationCache:
+ 
+         # Check if the cache exists
+         if os.path.exists(cache_path) and not dataset_skip_cache:
+-            print(f"✅ Found cached dataset at {cache_path}")
++            print(f"✅ Found cached dataset at LOCAL: {cache_path}")
+             return Dataset.load_from_disk(cache_path)
+ 
+         print(f"Cache not found or invalid, transforming datasets...")
+@@ -1153,6 +1200,7 @@ def get_cached_dataset_tulu(
+         )
+     elif dataset_cache_mode == "hf":
+         cache = DatasetTransformationCache(config_hash=dataset_config_hash, hf_entity=hf_entity)
++    #== DQA: DATA PREPARATION
+     return cache.load_or_transform_dataset(dcs, tc, dataset_skip_cache=dataset_skip_cache)
+ 
+ 
+diff --git a/open_instruct/finetune.py b/open_instruct/finetune.py
+index 2081bac..a24d48e 100644
+--- a/open_instruct/finetune.py
++++ b/open_instruct/finetune.py
+@@ -22,6 +22,7 @@ import time
+ from dataclasses import dataclass, field
+ from datetime import timedelta
+ from typing import List, Literal, Optional, Union
++import sys
+ 
+ import datasets
+ import deepspeed
+@@ -63,6 +64,12 @@ from open_instruct.utils import (
+     maybe_use_ai2_wandb_entity,
+ )
+ 
++from typing import List, Dict, Optional
++from transformers import PreTrainedTokenizer
++
++from dataclasses import asdict
++import sys
++
+ logger = get_logger(__name__)
+ 
+ 
+@@ -114,24 +121,34 @@ class FlatArguments:
+         default=None,
+         metadata={"help": "A dictionary of datasets (local or HF) to sample from."},
+     )
++    
+     dataset_mixer_list: List[str] = field(default_factory=lambda: ["allenai/tulu-3-sft-personas-algebra", "1.0"])
+     """A list of datasets (local or HF) to sample from."""
++    
+     dataset_mixer_list_splits: List[str] = field(default_factory=lambda: ["train"])
+     """The dataset splits to use for training"""
++    
++    #== DQA: FUNCTIONS USED TO TRANSFORM TRAINING DATASET (USED IN dataset_transformation.py)
+     dataset_transform_fn: list[str] = field(
+         default_factory=lambda: ["sft_tulu_tokenize_and_truncate_v1", "sft_tulu_filter_v1"]
+     )
+     """The list of transform functions to apply to the dataset."""
++    
+     dataset_target_columns: List[str] = field(default_factory=lambda: TOKENIZED_SFT_DATASET_KEYS)
+     """The columns to use for the dataset."""
++    
+     dataset_cache_mode: Literal["hf", "local"] = "local"
+     """The mode to use for caching the dataset."""
++    
+     dataset_local_cache_dir: str = "local_dataset_cache"
+     """The directory to save the local dataset cache to."""
++    
+     dataset_config_hash: Optional[str] = None
+     """The hash of the dataset configuration."""
+-    dataset_skip_cache: bool = False
++    
++    dataset_skip_cache: bool = False #== DQA: NOT to read data from cache?!
+     """Whether to skip the cache."""
++    
+     dataset_mix_dir: Optional[str] = field(
+         default=None,
+         metadata={"help": "The directory to save the mixed dataset to disk."},
+@@ -317,6 +334,12 @@ class FlatArguments:
+         default=0.5,
+         metadata={"help": "Weight for load balancing loss if applicable."},
+     )
++    
++    #== DQA: Add new special tokens:
++    add_special_tokens: Optional[List[str]] = field(
++        default=None,
++        metadata={"help": "List of additional special tokens to add to the tokenizer"},
++    )
+ 
+     # Experiment tracking
+     with_tracking: bool = False
+@@ -325,7 +348,7 @@ class FlatArguments:
+     """The wandb's project name"""
+     wandb_entity: Optional[str] = None
+     """The entity (team) of wandb's project"""
+-    push_to_hub: bool = True
++    push_to_hub: bool = False # DQA: from True
+     """Whether to upload the saved model to huggingface"""
+     hf_entity: Optional[str] = None
+     """The user or org name of the model repository from the Hugging Face Hub"""
+@@ -335,9 +358,9 @@ class FlatArguments:
+     """The revision of the saved model in the Hugging Face Hub (can be autoset if not given)"""
+     hf_repo_url: Optional[str] = None
+     """The url of the saved model in the Hugging Face Hub (will be autoset)"""
+-    try_launch_beaker_eval_jobs: bool = True
++    try_launch_beaker_eval_jobs: bool = False # DQA: from True
+     """Whether to launch beaker evaluation jobs after training"""
+-    hf_metadata_dataset: Optional[str] = "allenai/tulu-3-evals"
++    hf_metadata_dataset: Optional[str] = "" # from "allenai/tulu-3-evals"
+     """What dataset to upload the metadata to. If unset, don't upload metadata"""
+     cache_dataset_only: bool = False
+     """Immediately exit after caching the dataset"""
+@@ -379,11 +402,58 @@ class FlatArguments:
+             raise ValueError("Cannot launch Beaker evaluation jobs without pushing to the Hub.")
+ 
+ 
++def debug_apply_chat_template_and_tokenize(
++    tokenizer: PreTrainedTokenizer,
++    messages: Optional[List[Dict[str, str]]] = None
++) -> None:
++    """
++    Applies the chat template to messages and tokenizes the resulting text.
++    
++    Args:
++        tokenizer (PreTrainedTokenizer): The tokenizer instance.
++        messages (Optional[List[Dict[str, str]]]): List of message dictionaries with "role" and "content".
++    """
++    print(
++        f"\n== Vocab: ({len(tokenizer):,} - {tokenizer.vocab_size:,}) "
++        f"tokenizer.special_tokens_map (len={len(tokenizer.special_tokens_map)}): {tokenizer.special_tokens_map}"
++    )
++
++    if messages is None:
++        messages = [
++            {"role": "user", "content": "Who?"},
++            {"role": "assistant", "content": "LLM"},
++        ]
++
++    text = tokenizer.apply_chat_template(messages, tokenize=False)
++    print(f"\n== messages:\n{messages}")
++    print(f"\n== apply_chat_template(messages):\n{text}")
++    
++    tokens = tokenizer.encode(text, add_special_tokens=False)
++    decoded_tokens = [tokenizer.decode([t]) for t in tokens]
++    zipped = [f"({token_id}, `{token_str}`)" for token_id, token_str in zip(tokens, decoded_tokens)]
++    print(f"{repr(text)} \n-> (len:{len(tokens)}) {tokens} \n-> {zipped}")
++        
++
++def debug_STOP(accelerator: Accelerator) -> None:
++    """
++    Stops debugging and cleans up distributed resources.
++    
++    Args:
++        accelerator (Accelerator): The accelerator instance managing distributed training.
++    """
++    print("== STOP DEBUGGING AND CLEANING UP RESOURCES ==")
++    accelerator.wait_for_everyone()
++    # Attempt to clean up distributed resources
++    accelerator.end_training()
++    accelerator.free_memory()
++    sys.exit(0)
++
+ def main(args: FlatArguments, tc: TokenizerConfig):
+     # ------------------------------------------------------------
+     # Initialize the accelerator. We will let the accelerator handle device placement for us in this example.
+     # If we're using tracking, we also need to initialize it here and it will by default pick up all supported trackers
+     # in the environment
++    #TODO: chk args (goal: tc.chat_template_name)
+     accelerator_log_kwargs = {}
+     if args.with_tracking:
+         accelerator_log_kwargs["log_with"] = args.report_to
+@@ -397,7 +467,7 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+         **accelerator_log_kwargs,
+         kwargs_handlers=[timeout_kwargs],
+     )
+-
++    
+     # ------------------------------------------------------------
+     # Setup tokenizer
+     tc.tokenizer_revision = args.model_revision if tc.tokenizer_revision is None else tc.tokenizer_revision
+@@ -411,11 +481,29 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+                    from the model revision `{args.model_revision=}` or the tokenizer name `{tc.tokenizer_name_or_path=}`
+                    is different from the model name `{args.model_name_or_path=}`."""
+         logger.warning(warning)
++    
++    #== DQA: add special chat tokens:
++    if args.add_special_tokens is not None:
++        existing_special_tokens = tc.tokenizer.special_tokens_map.get("additional_special_tokens", [])
++        new_special_tokens = [t for t in args.add_special_tokens if t not in existing_special_tokens]
++        if new_special_tokens:  
++            all_special_tokens = existing_special_tokens + new_special_tokens
++            tc.tokenizer.add_special_tokens({"additional_special_tokens": all_special_tokens})
++            if accelerator.is_main_process:
++                print(f"\n== Updated special tokens ({len(existing_special_tokens)} -> {len(all_special_tokens)}): {all_special_tokens}")
++        
++
+     tokenizer = tc.tokenizer
+ 
++    if accelerator.is_main_process:
++        #== DQA: quick test on applying chat template + tokenizer on a simple example:
++        debug_apply_chat_template_and_tokenize(tokenizer)
++        
+     # ------------------------------------------------------------
+     # Set up runtime variables
++    #== DQA DEFINE CHECKPOINT FOLDER:
+     args.run_name = f"{args.exp_name}__{args.seed}__{int(time.time())}"
++    # args.run_name = f"checkpoint" #== DQA: for a fixed folder
+     args.output_dir = os.path.join(args.output_dir, args.run_name)
+     args.dataset_local_cache_dir = os.path.abspath(args.dataset_local_cache_dir)
+     if is_beaker_job():
+@@ -461,8 +549,19 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+         )
+         wandb_tracker = accelerator.get_tracker("wandb")
+ 
++        
+     if accelerator.is_main_process:
+-        pprint([args, tc])
++        #== DQA: PRINT OUT FINAL PARAMS
++        # pprint([args, tc])        
++        print("\n============================= FlatArguments (args) =============================")
++        for key, value in asdict(args).items():
++            print(f"{key:30s}: {value}")
++        
++        print("\n============================= TokenizerConfig (tc) =============================")
++        for key, value in asdict(tc).items():
++            print(f"{key:30s}: {value}")
++        print("\n================================================================================")
++        
+ 
+     # Make one log on every process with the configuration for debugging.
+     logging.basicConfig(
+@@ -489,12 +588,37 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+     accelerator.wait_for_everyone()
+ 
+     if args.dataset_mixer is not None:
++        #== 00-DQA: Show how to define data mixture (ds: pct)
+         args.dataset_mixer_list = [item for pair in args.dataset_mixer.items() for item in pair]
+     with accelerator.main_process_first():
+         transform_fn_args = [
+             {"max_seq_length": args.max_seq_length},
+             {},
+         ]
++        
++        if accelerator.is_main_process:
++            def tokenize_and_print(text, tokenizer):
++                print(f"\n== len(tokenizer): {len(tokenizer):,}\n== tokenizer.vocab_size: {tokenizer.vocab_size:,}\n== tokenizer.special_tokens_map: {tokenizer.special_tokens_map}")
++                tokens = tokenizer.encode(text, add_special_tokens=False)
++                decoded_tokens = [tokenizer.decode([t]) for t in tokens]
++                zipped = [f"({token_id}, `{token_str}`)" for token_id, token_str in zip(tokens, decoded_tokens)]
++                formatted_text = repr(text)  # Compute repr() first
++                print(f"{formatted_text} \n-> (len:{len(tokens)}) {tokens} \n-> {zipped}")
++            
++            messages = [
++                { "role": "user", "content": "Who?" },
++                { "role": "assistant", "content": "an AI" },
++            ]
++            applied_ct_smp = tokenizer.apply_chat_template(messages, tokenize=False)
++            print(f"\n== applied_ct_smp:\n{applied_ct_smp}")
++            tokenize_and_print(applied_ct_smp, tokenizer)
++            
++            # applied_ct_smp = tc.tokenizer.apply_chat_template(messages, tokenize=False)
++            # print(f"\n== B2. applied_ct_smp:\n{applied_ct_smp}")
++            # tokenize_and_print(applied_ct_smp, tc.tokenizer)
++
++
++        #== 00-DQA: DATA PREPARATION:
+         train_dataset = get_cached_dataset_tulu(
+             dataset_mixer_list=args.dataset_mixer_list,
+             dataset_mixer_list_splits=args.dataset_mixer_list_splits,
+@@ -508,6 +632,32 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+             dataset_local_cache_dir=args.dataset_local_cache_dir,
+             dataset_skip_cache=args.dataset_skip_cache,
+         )
++
++        #== 00-DQA: PRINT A FEW SAMPLES (only on main process) FOR TESTING:
++        if accelerator.is_main_process:
++            print(f"\n========== DEBUGGING: PRINT FIRST 3 SAMPLES AFTER get_cached_dataset_tulu(): ==========\n")
++            num_samples = min(3, len(train_dataset)) 
++            for i in range(num_samples):
++                sample = train_dataset[i]
++                print(f"***  Sample {i + 1} ***")
++                # Decode tokens to text if INPUT_IDS_KEY exists, otherwise print raw sample
++                if INPUT_IDS_KEY in sample:
++                    # NOTE: skip_special_tokens=True to NOT display eos_token but THIS TOKEN is INSIDE the seq of tokenIDs used to train the model
++                    decoded_text = tokenizer.decode(sample[INPUT_IDS_KEY], skip_special_tokens=False) 
++                    # print(f"== sample: {sample}")
++                    print(f"== DECODED TEXT({len(decoded_text)}):\n{decoded_text}")
++                    print(f"== input_ids: ({len(sample[INPUT_IDS_KEY])}):\n{sample[INPUT_IDS_KEY]}")
++                    print(f"== attention_mask: ({len(sample['attention_mask'])}):\n{sample['attention_mask']}")
++                    print(f"== labels: ({len(sample['labels'])}):\n{sample['labels']}")
++                else:
++                    print(f"== RAW SAMPLE: {sample}")
++                print("-" * 50)
++            
++            print(f"========== END DEBUGGING: PRINT FIRST 3 SAMPLES get_cached_dataset_tulu() ==========\n")
++        
++        # debug_STOP()
++
++        #== 00-DQA: DATA SAMPLE SHUFFLING:
+         train_dataset = train_dataset.shuffle(seed=args.seed)
+         train_dataset.set_format(type="pt")
+     if accelerator.is_main_process:
+@@ -628,7 +778,7 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+         model.print_trainable_parameters()
+     elif args.gradient_checkpointing:
+         model.gradient_checkpointing_enable()
+-
++    
+     # DataLoaders creation:
+     train_dataloader = DataLoader(
+         train_dataset,
+@@ -636,7 +786,19 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+         collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model, padding="longest"),
+         batch_size=args.per_device_train_batch_size,
+     )
+-
++    #== DQA: DATA FORMAT PRIOR TO TRAINING HERE
++    if accelerator.is_main_process:
++        print(f"\n========== DEBUGGING: PRINT SAMPLES AFTER DataCollatorForSeq2Seq: ==========\n")
++        for i, sample in enumerate(train_dataloader):
++            print(f"***  Sample {i + 1} ***")
++            print(f"== input_ids: ({len(sample['input_ids'][0])}):\n{sample['input_ids'][0]}")
++            print(f"== attention_mask: ({len(sample['attention_mask'][0])}):\n{sample['attention_mask'][0]}")
++            print(f"== labels: ({len(sample['labels'][0])}):\n{sample['labels'][0]}")
++            if i == 2: break
++        print(f"========== END DEBUGGING: PRINT SAMPLES AFTER DataCollatorForSeq2Seq ==========\n")
++    
++    # debug_STOP()
++    
+     # Optimizer
+     # Split weights in two groups, one with weight decay and the other not.
+     no_decay = ["bias", "layer_norm.weight"]
+@@ -713,13 +875,19 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+ 
+     # Train!
+     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
+-    logger.info("***** Running training *****")
++    
++    logger.info("\n =========================== RUNNING TRAINING ===========================")
+     logger.info(f"  Num examples = {len(train_dataset)}")
+     logger.info(f"  Num Epochs = {args.num_train_epochs}")
+     logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
+     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
+     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
+     logger.info(f"  Total optimization steps = {args.max_train_steps}")
++    logger.info("\n ================================================================================")
++
++    
++    # #=== 00-DQA: DEBUG JUST BEFORE TRAINING:
++    # sys.exist(0)
+     # Only show the progress bar once on each machine.
+     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+     completed_steps = 0
+@@ -728,7 +896,7 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+     # Potentially load in the weights and states from a previous save
+     last_checkpoint_path = get_last_checkpoint_path(args)
+     if last_checkpoint_path:
+-        accelerator.print(f"Resumed from checkpoint: {last_checkpoint_path}")
++        accelerator.print(f"Found and Resumed from checkpoint: {last_checkpoint_path}")
+         accelerator.load_state(last_checkpoint_path)
+         # Extract `epoch_{i}` or `step_{i}`
+         last_checkpoint_path = os.path.basename(last_checkpoint_path)
+@@ -936,4 +1104,5 @@ def main(args: FlatArguments, tc: TokenizerConfig):
+ if __name__ == "__main__":
+     parser = ArgumentParserPlus((FlatArguments, TokenizerConfig))
+     args, tc = parser.parse_args_into_dataclasses()
++    
+     main(args, tc)
+diff --git a/open_instruct/utils.py b/open_instruct/utils.py
+index 5cb4d26..fbd6ab1 100644
+--- a/open_instruct/utils.py
++++ b/open_instruct/utils.py
+@@ -695,8 +695,9 @@ def clean_last_n_checkpoints(output_dir: str, keep_last_n_checkpoints: int) -> N
+     checkpoints = sorted(folders, key=lambda x: int(x.split("_")[-1]))
+     if keep_last_n_checkpoints >= 0 and len(checkpoints) > keep_last_n_checkpoints:
+         for checkpoint in checkpoints[: len(checkpoints) - keep_last_n_checkpoints]:
+-            logger.info(f"Removing checkpoint {checkpoint}")
+-            shutil.rmtree(os.path.join(output_dir, checkpoint))
++            logger.info(f"== NOT Removing checkpoint {checkpoint}")
++            # logger.info(f"Removing checkpoint {checkpoint}")
++            # shutil.rmtree(os.path.join(output_dir, checkpoint))
+     logger.info("Remaining files:" + str(os.listdir(output_dir)))
+ 
+ 

@@ -1,0 +1,125 @@
+bf16,epoch,fp16,framework_config,learning_rate,lora_alpha,lora_dropout,mem_nvidia_mem_reserved,mem_peak_torch_mem_alloc_in_bytes,mem_torch_mem_alloc_in_bytes,model_name_or_path,num_gpus,peft_method,per_device_train_batch_size,r,target_modules,torch_dtype,train_loss,train_runtime,train_samples_per_second,train_steps_per_second,train_tokens_per_second
+,0.07,,none,2.00E-05,,,15116,11267745280,6770300416,bigcode/gpt_bigcode-santacoder,1,,4,,,bfloat16,2.33703125,47.6604,8.393,2.098,17188.262
+,0.07,,none,2.00E-05,,,10345,5716304896,4525510656,bigcode/gpt_bigcode-santacoder,2,,2,,,bfloat16,2.338085938,31.1888,12.825,3.206,13132.913
+,0.14,,none,2.00E-05,,,18102,15193274880,6769448448,bigcode/gpt_bigcode-santacoder,1,,8,,,bfloat16,2.30890625,88.991,8.99,1.124,18410.851
+,0.14,,none,2.00E-05,,,12788,7819433984,4522951680,bigcode/gpt_bigcode-santacoder,2,,4,,,bfloat16,2.307929688,51.3528,15.579,1.947,15952.404
+,0.07,,foak-fast-kernels,2.00E-05,,,15122,11267745280,6770300416,bigcode/gpt_bigcode-santacoder,1,,4,,,bfloat16,2.336848526,48.2564,8.289,2.072,16976.001
+,0.07,,foak-fast-kernels,2.00E-05,,,10344,5658123264,4522503168,bigcode/gpt_bigcode-santacoder,2,,2,,,bfloat16,2.337660217,32.564,12.283,3.071,12578.301
+,0.14,,foak-fast-kernels,2.00E-05,,,18108,13582956544,6769448448,bigcode/gpt_bigcode-santacoder,1,,8,,,bfloat16,2.308277645,88.6688,9.022,1.128,18477.746
+,0.14,,foak-fast-kernels,2.00E-05,,,12429,7019943936,4528621056,bigcode/gpt_bigcode-santacoder,2,,4,,,bfloat16,2.308311367,51.5096,15.531,1.941,15903.839
+,0.15,,none,2.00E-05,,,77256,72434837504,43467876352,mistralai/Mistral-7B-v0.1,1,,4,,,bfloat16,0.840260801,534.9538,0.748,0.187,3062.694
+,0.15,,none,2.00E-05,,,44382,36225939968,28984199680,mistralai/Mistral-7B-v0.1,2,,2,,,bfloat16,0.840439606,294.9755,1.356,0.339,2777.18
+,0.29,,none,2.00E-05,,,72988,72435230720,43468269568,mistralai/Mistral-7B-v0.1,1,,8,,,bfloat16,0.833927689,1042.5316,0.767,0.096,3143.118
+,0.29,,none,2.00E-05,,,53587,36226136576,28984396288,mistralai/Mistral-7B-v0.1,2,,4,,,bfloat16,0.833756981,544.5118,1.469,0.184,3008.934
+,0.15,,foak-fast-kernels,2.00E-05,,,77278,72432707584,43466811392,mistralai/Mistral-7B-v0.1,1,,4,,,bfloat16,0.840406713,475.3033,0.842,0.21,3447.062
+,0.15,,foak-fast-kernels,2.00E-05,,,44088,36225939968,28984199680,mistralai/Mistral-7B-v0.1,2,,2,,,bfloat16,0.840214605,264.701,1.511,0.378,3094.813
+,0.29,,foak-fast-kernels,2.00E-05,,,71198,72433100800,43467204608,mistralai/Mistral-7B-v0.1,1,,8,,,bfloat16,0.833851738,923.9493,0.866,0.108,3546.515
+,0.29,,foak-fast-kernels,2.00E-05,,,53304,36226136576,28984396288,mistralai/Mistral-7B-v0.1,2,,4,,,bfloat16,0.833796377,485.7084,1.647,0.206,3373.217
+,,,none,2.00E-05,,,81166,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,,4,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80284,,,mistralai/Mixtral-8x7B-Instruct-v0.1,2,,2,,,bfloat16,,,,,
+,,,none,2.00E-05,,,81166,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,,8,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80750,,,mistralai/Mixtral-8x7B-Instruct-v0.1,2,,4,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,81168,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,,4,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,79960,,,mistralai/Mixtral-8x7B-Instruct-v0.1,2,,2,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,81168,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,,8,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,80464,,,mistralai/Mixtral-8x7B-Instruct-v0.1,2,,4,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80882,,,NousResearch/Llama-2-70b-hf,1,,4,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80808,,,NousResearch/Llama-2-70b-hf,2,,2,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80882,,,NousResearch/Llama-2-70b-hf,1,,8,,,bfloat16,,,,,
+,,,none,2.00E-05,,,80603,,,NousResearch/Llama-2-70b-hf,2,,4,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,80884,,,NousResearch/Llama-2-70b-hf,1,,4,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,80938,,,NousResearch/Llama-2-70b-hf,2,,2,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,80884,,,NousResearch/Llama-2-70b-hf,1,,8,,,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-05,,,80430,,,NousResearch/Llama-2-70b-hf,2,,4,,,bfloat16,,,,,
+,0.15,,none,2.00E-04,16,0.1,29576,26704571904,14664493056,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.862205324,492.8771,0.812,0.203,3324.155
+,0.15,,none,2.00E-04,16,0.1,18678,15144870400,7368030720,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.861689148,278.0431,1.439,0.36,2946.306
+,0.29,,none,2.00E-04,16,0.1,43232,38742912512,14664886272,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,0.858190823,977.0384,0.819,0.102,3353.809
+,0.29,,none,2.00E-04,16,0.1,26328,21959827968,7368227328,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.858473749,517.0716,1.547,0.193,3168.613
+,0.15,,foak-fast-kernels,2.00E-04,16,0.1,29066,24473332736,14664493056,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.862244663,433.3721,0.923,0.231,3780.585
+,0.15,,foak-fast-kernels,2.00E-04,16,0.1,18352,14943543808,7368030720,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.861774035,249.4827,1.603,0.401,3283.594
+,0.29,,foak-fast-kernels,2.00E-04,16,0.1,41698,34280434688,14664886272,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,0.858119917,860.622,0.93,0.116,3807.479
+,0.29,,foak-fast-kernels,2.00E-04,16,0.1,25266,21557174784,7368227328,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.857962122,459.7072,1.74,0.218,3564.008
+,,,none,2.00E-04,16,0.1,81214,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,0.15,,none,2.00E-04,16,0.1,63398,57554708992,46829091328,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.889798498,521.3771,0.767,0.192,1571.223
+,,,none,2.00E-04,16,0.1,81214,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,0.29,,none,2.00E-04,16,0.1,70747,64851605504,46829287936,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.892950344,893.1647,0.896,0.112,1834.376
+,,,foak-fast-kernels,2.00E-04,16,0.1,81214,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,0.15,,foak-fast-kernels,2.00E-04,16,0.1,61398,57334586368,46829091328,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.890918617,495.2643,0.808,0.202,1654.066
+,,,foak-fast-kernels,2.00E-04,16,0.1,81214,,,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,0.29,,foak-fast-kernels,2.00E-04,16,0.1,69387,64400873984,46829287936,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.890685196,838.4909,0.954,0.119,1953.987
+,,,none,2.00E-04,16,0.1,81038,,,NousResearch/Llama-2-70b-hf,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,none,2.00E-04,16,0.1,80937,,,NousResearch/Llama-2-70b-hf,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,none,2.00E-04,16,0.1,81038,,,NousResearch/Llama-2-70b-hf,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,none,2.00E-04,16,0.1,80981,,,NousResearch/Llama-2-70b-hf,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-04,16,0.1,81038,,,NousResearch/Llama-2-70b-hf,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-04,16,0.1,80958,,,NousResearch/Llama-2-70b-hf,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-04,16,0.1,81038,,,NousResearch/Llama-2-70b-hf,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+,,,foak-fast-kernels,2.00E-04,16,0.1,81045,,,NousResearch/Llama-2-70b-hf,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+TRUE,0.15,,baseline-peft-bnb,2.00E-04,16,0.1,26056,20669338112,4307028992,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.876798363,564.2301,0.709,0.177,2903.78
+TRUE,0.15,,baseline-peft-bnb,2.00E-04,16,0.1,13164,9424594432,2244525568,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.876854649,277.7698,1.44,0.36,2949.205
+TRUE,0.29,,baseline-peft-bnb,2.00E-04,16,0.1,46050,37002646016,4307422208,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,0.87258399,1096.8531,0.729,0.091,2987.456
+TRUE,0.29,,baseline-peft-bnb,2.00E-04,16,0.1,21182,15970067968,2244722176,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.872498674,482.0717,1.66,0.207,3398.665
+TRUE,0.15,,baseline-peft-bnb,2.00E-04,16,0.1,44924,42794268160,24665033728,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.898578081,1072.2023,0.373,0.093,1528.07
+TRUE,0.15,,baseline-peft-bnb,2.00E-04,16,0.1,29958,21129981952,12736740864,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,0.897914915,518.5422,0.771,0.193,1579.814
+TRUE,0.29,,baseline-peft-bnb,2.00E-04,16,0.1,63932,60545920512,24665426944,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,0.894624872,1938.6247,0.413,0.052,1690.27
+TRUE,0.29,,baseline-peft-bnb,2.00E-04,16,0.1,35417,28146350592,12736937472,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,0.896192532,871.1804,0.918,0.115,1880.667
+TRUE,,,baseline-peft-bnb,2.00E-04,16,0.1,79762,,,NousResearch/Llama-2-70b-hf,1,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+TRUE,0.14,,baseline-peft-bnb,2.00E-04,16,0.1,51988,46685287936,19266743808,NousResearch/Llama-2-70b-hf,2,lora,2,16,q_proj k_proj v_proj o_proj,bfloat16,1.005721827,1889.605,0.212,0.053,433.53
+TRUE,,,baseline-peft-bnb,2.00E-04,16,0.1,80220,,,NousResearch/Llama-2-70b-hf,1,lora,8,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+TRUE,,,baseline-peft-bnb,2.00E-04,16,0.1,79517,,,NousResearch/Llama-2-70b-hf,2,lora,4,16,q_proj k_proj v_proj o_proj,bfloat16,,,,,
+TRUE,0.07,,accelerated-peft-bnb,2.00E-04,16,0.1,12816,9147162112,808442368,bigcode/gpt_bigcode-santacoder,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.448344727,54.8476,7.293,1.823,14935.936
+TRUE,0.07,,accelerated-peft-bnb,2.00E-04,16,0.1,8468,4788195328,411216896,bigcode/gpt_bigcode-santacoder,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.44904707,47.9125,8.349,2.087,8548.922
+TRUE,0.14,,accelerated-peft-bnb,2.00E-04,16,0.1,23092,17486716416,810473984,bigcode/gpt_bigcode-santacoder,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.431303463,102.3763,7.814,0.977,16003.704
+TRUE,0.14,,accelerated-peft-bnb,2.00E-04,16,0.1,13636,8957644800,411315200,bigcode/gpt_bigcode-santacoder,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.431530228,56.9078,14.058,1.757,14395.21
+TRUE,0.07,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,10296,7538417152,810277376,bigcode/gpt_bigcode-santacoder,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.448136768,54.5851,7.328,1.832,15007.746
+TRUE,0.07,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,7383,3989590016,411216896,bigcode/gpt_bigcode-santacoder,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.45736763,34.1503,11.713,2.928,11994.044
+TRUE,0.14,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,18484,14264901120,808638976,bigcode/gpt_bigcode-santacoder,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.431345234,101.2865,7.898,0.987,16175.899
+TRUE,0.14,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,11398,7353749504,411315200,bigcode/gpt_bigcode-santacoder,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,2.439263115,56.7414,14.099,1.762,14437.437
+TRUE,0.15,,accelerated-peft-bnb,2.00E-04,16,0.1,19912,16373838336,4306496512,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.877768393,455.6536,0.878,0.219,3595.714
+TRUE,0.15,,accelerated-peft-bnb,2.00E-04,16,0.1,13284,9424594432,2244525568,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.877003698,277.8786,1.439,0.36,2948.05
+TRUE,0.29,,accelerated-peft-bnb,2.00E-04,16,0.1,34016,28412178944,4306889728,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.873239794,894.6554,0.894,0.112,3662.639
+TRUE,0.29,,accelerated-peft-bnb,2.00E-04,16,0.1,21299,15970067968,2244722176,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.873187227,482.8865,1.657,0.207,3392.93
+TRUE,0.15,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,19946,14115336192,4306496512,mistralai/Mistral-7B-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.877510233,396.8986,1.008,0.252,4128.007
+TRUE,0.15,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,13134,9208653312,2244525568,mistralai/Mistral-7B-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.882692728,218.9949,1.827,0.457,3740.727
+TRUE,0.29,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,33666,23922438144,4306889728,mistralai/Mistral-7B-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.873534184,777.8243,1.029,0.129,4212.777
+TRUE,0.29,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,21244,15484642816,2244722176,mistralai/Mistral-7B-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.878321848,407.9172,1.961,0.245,4016.501
+TRUE,0.15,,accelerated-peft-bnb,2.00E-04,16,0.1,38064,36731843072,24664501248,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.895266762,833.7459,0.48,0.12,1965.107
+TRUE,0.15,,accelerated-peft-bnb,2.00E-04,16,0.1,29896,21126185472,12736740864,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.894929171,515.4823,0.776,0.194,1589.191
+TRUE,0.29,,accelerated-peft-bnb,2.00E-04,16,0.1,50630,48770183680,24664894464,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.896698408,1556.2219,0.514,0.064,2105.612
+TRUE,0.29,,accelerated-peft-bnb,2.00E-04,16,0.1,35448,28154534912,12736937472,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.895372143,872.4582,0.917,0.115,1877.912
+TRUE,0.15,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,38202,34473340928,24664501248,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.894482374,777.0698,0.515,0.129,2108.433
+TRUE,0.15,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,33156,20843741184,12736740864,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.902506018,463.2409,0.863,0.216,1768.41
+TRUE,0.29,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,50628,44280442880,24664894464,mistralai/Mixtral-8x7B-Instruct-v0.1,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.896149569,1436.2648,0.557,0.07,2281.473
+TRUE,0.29,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,38249,27532073984,12736937472,mistralai/Mixtral-8x7B-Instruct-v0.1,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,0.902021217,798.4166,1.002,0.125,2052.062
+TRUE,0.14,,accelerated-peft-bnb,2.00E-04,16,0.1,72950,68126381056,37179001856,NousResearch/Llama-2-70b-hf,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.004711065,3528.2836,0.113,0.028,464.362
+TRUE,0.14,,accelerated-peft-bnb,2.00E-04,16,0.1,51989,46685287936,19266743808,NousResearch/Llama-2-70b-hf,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.004340935,1894.392,0.211,0.053,432.434
+TRUE,,,accelerated-peft-bnb,2.00E-04,16,0.1,80526,,,NousResearch/Llama-2-70b-hf,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,,,,,
+TRUE,,,accelerated-peft-bnb,2.00E-04,16,0.1,79313,,,NousResearch/Llama-2-70b-hf,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,,,,,
+TRUE,0.14,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,72376,67048903680,37179001856,NousResearch/Llama-2-70b-hf,1,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.004401016,3246.8566,0.123,0.031,504.611
+TRUE,0.14,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,55050,46407611904,19266743808,NousResearch/Llama-2-70b-hf,2,lora,2,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,1.00918128,1705.9273,0.234,0.059,480.208
+TRUE,,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,80302,,,NousResearch/Llama-2-70b-hf,1,lora,8,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,,,,,
+TRUE,,,accelerated-peft-bnb-foak,2.00E-04,16,0.1,77734,,,NousResearch/Llama-2-70b-hf,2,lora,4,16,q_proj k_proj v_proj o_proj c_attn,bfloat16,,,,,
+,0.15,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,20010,16404148736,4336806912,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,1.002504158,474.1556,0.844,0.211,3455.406
+,0.15,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,14887,9442125824,2261204480,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,1.003275042,282.8589,1.414,0.354,2896.143
+,0.29,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,33858,28442489344,4337200128,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.971892595,933.6392,0.857,0.107,3509.707
+,0.29,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,23023,15987599360,2261401088,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.992845125,497.8183,1.607,0.201,3291.161
+,0.15,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,20132,14145646592,4336806912,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.993614368,412.1468,0.971,0.243,3975.282
+,0.15,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,14914,9226184704,2261204480,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,1.019235764,224.7179,1.78,0.445,3645.46
+,0.29,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,33990,23952748544,4337200128,TheBloke/Mistral-7B-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.968857126,808.6617,0.989,0.124,4052.127
+,0.29,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,23029,15502174208,2261401088,TheBloke/Mistral-7B-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,1.038523531,422.0483,1.896,0.237,3882.021
+,0.15,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,37596,36041912832,23974571008,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.899851208,823.2021,0.486,0.121,1990.277
+,0.15,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,27105,20432607232,12044369408,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.898910484,495.6679,0.807,0.202,1652.719
+,0.29,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,50208,48080253440,23974964224,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.899603968,1570.5701,0.509,0.064,2086.376
+,0.29,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,32530,27446670336,12044566016,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.900239239,865.2804,0.925,0.116,1893.49
+,0.15,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,37346,33783410688,23974571008,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.900091076,762.3748,0.525,0.131,2149.074
+,0.15,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,27669,20151232000,12044369408,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,0.907595758,439.741,0.91,0.227,1862.915
+,0.29,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,49362,43590512640,23974964224,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,0.901174002,1445.4732,0.553,0.069,2266.939
+,0.29,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,32944,26828732928,12044566016,TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,0.907834473,791.771,1.01,0.126,2069.285
+,0.14,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,71926,67069711872,36122332160,TheBloke/Llama-2-70B-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,1.001004047,3591.4618,0.111,0.028,456.193
+,0.14,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,52716,45637991424,18219929088,TheBloke/Llama-2-70B-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,1.000431108,1919.7248,0.208,0.052,426.728
+,,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,80778,,,TheBloke/Llama-2-70B-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,,,,,
+,,TRUE,accelerated-peft-autogptq,2.00E-04,16,0.1,80935,,,TheBloke/Llama-2-70B-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,,,,,
+,0.14,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,71728,65992234496,36122332160,TheBloke/Llama-2-70B-GPTQ,1,lora,4,16,q_proj k_proj v_proj o_proj,float16,1.00079361,3304.4395,0.121,0.03,495.818
+,0.14,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,53145,45360315392,18219929088,TheBloke/Llama-2-70B-GPTQ,2,lora,2,16,q_proj k_proj v_proj o_proj,float16,1.004220943,1707.7126,0.234,0.059,479.706
+,,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,81200,,,TheBloke/Llama-2-70B-GPTQ,1,lora,8,16,q_proj k_proj v_proj o_proj,float16,,,,,
+,,TRUE,accelerated-peft-autogptq-foak,2.00E-04,16,0.1,79448,,,TheBloke/Llama-2-70B-GPTQ,2,lora,4,16,q_proj k_proj v_proj o_proj,float16,,,,,

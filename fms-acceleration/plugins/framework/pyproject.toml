@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fms-acceleration"
+version = '0.6.1.dev'
+description = "FMS Acceleration Plugin Framework"
+authors = [
+  {name = "Fabian Lim", email = "flim@sg.ibm.com"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = "~=3.9"
+keywords = ['fms-hf-tuning', 'acceleration']
+classifiers=[
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+  "numpy<2.0", # numpy needs to be bounded due to incompatiblity with current torch<2.3
+  "torch>2.2",
+  "peft<=0.14.0", # QuantLinear is not available for peft version > 0.14.0
+  "accelerate",
+  "pandas",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/fms_acceleration"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
