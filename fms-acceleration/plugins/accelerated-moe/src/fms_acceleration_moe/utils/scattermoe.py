@@ -28,10 +28,7 @@ import torch.nn.functional as F
 # Local
 from .scattermoe_constants import SCATTERMOE_SPEC_HAS_GATE
 from .scattermoe_utils import all_to_all_gather_inputs, scatter_with_routing_weights
-from .scattermoe_utils.khd.kernels.ops import (
-    padded_block_indices,
-    scattered_experts,
-)
+from .scattermoe_utils.khd.kernels.ops import padded_block_indices, scattered_experts
 
 
 # helper function to fetch the local tensor if its a dtensor
@@ -205,7 +202,7 @@ class ScatterMoE(torch.nn.Module):
         device: str = torch.device("cpu"),
         ep_device_mesh: DeviceMesh = None,
         lora_config: LoraConfig = None,
-        shared_expert_cls = None,
+        shared_expert_cls=None,
         shared_expert_args: Tuple = None,
     ):
         """
@@ -399,9 +396,13 @@ class ScatterMoE(torch.nn.Module):
 
         # expect these products to be produced by an earlier
         # all-to-all gather call
-        (send_counts, recv_counts, bins, sorted_expert_idxs, sorted_scattered_idxs) = (
-            gather_products
-        )
+        (
+            send_counts,
+            recv_counts,
+            bins,
+            sorted_expert_idxs,
+            sorted_scattered_idxs,
+        ) = gather_products
 
         # perform the scattering with the gather products,
         hidden_states = scatter_with_routing_weights(
@@ -436,9 +437,11 @@ class ScatterMoE(torch.nn.Module):
         # compute the routing logits, weights, and expert assigments
         # - router_logits: will be passed out of forward, used for computing
         #   routing loss.
-        (router_logits, routing_weights, selected_experts) = (
-            self._compute_routing_weights(hidden_states)
-        )
+        (
+            router_logits,
+            routing_weights,
+            selected_experts,
+        ) = self._compute_routing_weights(hidden_states)
 
         # get the sorted expert idxs and scattered idxs.
         # - if a gather is required, then the hidden-states will be
@@ -503,4 +506,10 @@ class ScatterMoE(torch.nn.Module):
         )
 
         # return hidden states and router logits
-        return (hidden_states.view(original_shape) + self.shared_expert(original_hidden_states) if self.shared_expert else hidden_states.view(original_shape), router_logits)
+        return (
+            hidden_states.view(original_shape)
+            + self.shared_expert(original_hidden_states)
+            if self.shared_expert
+            else hidden_states.view(original_shape),
+            router_logits,
+        )

@@ -32,10 +32,7 @@ from transformers import (
     PretrainedConfig,
     PreTrainedModel,
 )
-from transformers.modeling_utils import (
-    is_local_dist_rank_0,
-    no_init_weights,
-)
+from transformers.modeling_utils import is_local_dist_rank_0, no_init_weights
 from transformers.pytorch_utils import id_tensor_storage
 from transformers.utils import WEIGHTS_NAME
 from transformers.utils.generic import ContextManagers
