@@ -28,11 +28,9 @@ from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
+    AutoModelForVision2Seq,
+    AutoProcessor,
     AutoTokenizer,
-    GPT2Tokenizer,
-    GPTNeoXTokenizerFast,
-    LlamaTokenizer,
-    LlamaTokenizerFast,
     TrainerCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
@@ -61,6 +59,7 @@ from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
+from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
 from tuning.utils.data_type_utils import get_torch_dtype
 from tuning.utils.error_logging import (
@@ -69,7 +68,10 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.utils.tokenizer_data_utils import (
+    get_special_tokens_dict,
+    tokenizer_and_embedding_resize,
+)
 
 
 def train(
@@ -131,6 +133,14 @@ def train(
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
+    if (not isinstance(model_args.model_name_or_path, str)) or (
+        model_args.model_name_or_path == ""
+    ):
+        raise ValueError(
+            "model_name_or_path has to be a string containing a valid"
+            + " HuggingFace Hub model name or the path to a checkpoint folder"
+        )
+
     if (not isinstance(train_args.num_train_epochs, (float, int))) or (
         train_args.num_train_epochs <= 0
     ):
@@ -156,6 +166,33 @@ def train(
             raise ValueError(
                 "`--padding_free` argument was called with `packing=True`, "
                 "Trainer should not perform packing when using `--padding_free`"
+            )
+
+    if fast_moe_config is not None:
+        # Checking for unsupported modules with Scatter MoE for LoRA
+        # Only raise an error for `all-linear`
+        restricted_modules = ["all-linear"]
+        if (
+            peft_config is not None
+            and hasattr(peft_config, "target_modules")
+            and any(
+                module in (peft_config.target_modules or [])
+                for module in restricted_modules
+            )
+        ):
+            raise ValueError(
+                "`--fast_moe` with LoRA does not currently support `all-linear`, as "
+                "target modules at this time. Please explicitly specify target "
+                "modules when using `--fast_moe` with LoRA."
+            )
+        # If other common non-linear modules, raise warning
+        if peft_config is not None and hasattr(peft_config, "target_modules"):
+            logger.warning(
+                "You are running lora with the ScatterMoE plugin, please note that "
+                "passing target modules that are part of the moe module can cause unexpected "
+                "behaviors and unsuccessful tuning while LoRA tuning with ScatterMoE. "
+                "For safe tuning, only pass linear modules such as those in the attn layer "
+                "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj'])"
             )
 
     task_type = "CAUSAL_LM"
@@ -215,28 +252,64 @@ def train(
         fusedops_kernels_config,
     ).get_framework()
 
-    model_loader = AutoModelForCausalLM.from_pretrained
-    if framework is not None and framework.requires_custom_loading:
-        model_loader = framework.model_loader  # drop-in new loader
+    # option to set multimodal var here
     model_load_time = time.time()
-    model = model_loader(
-        model_args.model_name_or_path,
-        cache_dir=train_args.cache_dir,
-        torch_dtype=get_torch_dtype(model_args.torch_dtype),
-        attn_implementation="flash_attention_2" if model_args.use_flash_attn else None,
-    )
+    processor = None
+    try:
+        # try to load vision model
+        model = AutoModelForVision2Seq.from_pretrained(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
+        )
+        try:
+            if "use_cache" in model.language_model.config:
+                # avoid warning that use_cache is incompatible with gradient checkpointing
+                model.language_model.config.use_cache = (
+                    not train_args.gradient_checkpointing
+                )
+        except AttributeError as e:
+            # When the model doesn't have the use_cache attribute
+            logger.warning("Couldn't update use_cache for vision model: %s", e)
 
-    # TODO: Move these to a config as well
-    tokenizer = AutoTokenizer.from_pretrained(
-        (
-            model_args.tokenizer_name_or_path
-            if model_args.tokenizer_name_or_path
-            else model_args.model_name_or_path
-        ),
-        cache_dir=train_args.cache_dir,
-        use_fast=True,
-        legacy=True,
-    )
+        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+        tokenizer = processor.tokenizer
+    except ValueError:
+        # fallback on loading language model
+        model_loader = AutoModelForCausalLM.from_pretrained
+
+        if framework is not None and framework.requires_custom_loading:
+            model_loader = framework.model_loader  # drop-in new loader
+
+        model = model_loader(
+            model_args.model_name_or_path,
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation="flash_attention_2"
+            if model_args.use_flash_attn
+            else None,
+            # avoid warning that use_cache is incompatible with gradient checkpointing
+            use_cache=(not train_args.gradient_checkpointing),
+        )
+
+        # TODO: Move these to a config as well
+        tokenizer = AutoTokenizer.from_pretrained(
+            (
+                model_args.tokenizer_name_or_path
+                if model_args.tokenizer_name_or_path
+                else model_args.model_name_or_path
+            ),
+            cache_dir=train_args.cache_dir,
+            use_fast=True,
+            legacy=True,
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(traceback.format_exc())
+        write_termination_log(f"Exception raised during loading model: {e}")
+        sys.exit(USER_ERROR_EXIT_CODE)
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -266,42 +339,9 @@ def train(
         tokenizer.chat_template = data_args.chat_template
 
     # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = {}
-    if not model_args.tokenizer_name_or_path:
-        # TODO: understand if we need to hardcode these here or just use defaults in model
-        if isinstance(tokenizer, (LlamaTokenizer, LlamaTokenizerFast)):
-            special_tokens_dict["bos_token"] = "<s>"
-            special_tokens_dict["eos_token"] = "</s>"
-            special_tokens_dict["unk_token"] = "<unk>"
-            special_tokens_dict["pad_token"] = "<pad>"
-        elif isinstance(tokenizer, (GPT2Tokenizer, GPTNeoXTokenizerFast)):
-            special_tokens_dict["pad_token"] = "<pad>"
-
-    # add special tokens only when a custom tokenizer is not passed
-    if not model_args.tokenizer_name_or_path:
-        # TODO: we need to change this, perhaps follow what open instruct does?
-        if tokenizer.pad_token is None:
-            logger.warning("PAD token set to default, missing in tokenizer")
-            special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-        if tokenizer.eos_token is None:
-            logger.warning("EOS token set to default, missing in tokenizer")
-            special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
-        if tokenizer.bos_token is None:
-            logger.warning("BOS token set to default, missing in tokenizer")
-            special_tokens_dict["bos_token"] = configs.DEFAULT_BOS_TOKEN
-        if tokenizer.unk_token is None:
-            logger.warning("UNK token set to default, missing in tokenizer")
-            special_tokens_dict["unk_token"] = configs.DEFAULT_UNK_TOKEN
-        if tokenizer.pad_token == tokenizer.eos_token:
-            logger.warning(
-                "PAD token set to default, to make it different from eos token"
-            )
-            if tokenizer.eos_token != configs.DEFAULT_PAD_TOKEN:
-                tokenizer.pad_token = configs.DEFAULT_PAD_TOKEN
-                special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
-            else:
-                tokenizer.eos_token = configs.DEFAULT_EOS_TOKEN
-                special_tokens_dict["eos_token"] = configs.DEFAULT_EOS_TOKEN
+    special_tokens_dict = get_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
 
     # adds user specified special tokens to vocab
     if data_args.add_special_tokens:
@@ -324,8 +364,10 @@ def train(
     logger.info("Packing is set to %s ", train_args.packing)
 
     is_padding_free = False
+    is_multipack = False
     if attention_and_distributed_packing_config is not None:
         is_padding_free = attention_and_distributed_packing_config.is_padding_free
+        is_multipack = attention_and_distributed_packing_config.is_multipack
 
     data_preprocessing_time = time.time()
     (
@@ -341,6 +383,8 @@ def train(
         train_args,
         additional_data_handlers,
         is_padding_free=is_padding_free,
+        processor=processor,
+        is_multipack=is_multipack,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
@@ -350,6 +394,15 @@ def train(
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
         )
+        # HACK - For LoRa ScatterMoE, disable grad for ScatterMoE.
+        # In the future, requires_grad should be enabled for LoRA tuning
+        # with ScatterMoE and this code should be removed.
+        if peft_config is not None:
+            for module in model.modules():
+                # Use string comparison to check if ScatterMoE module
+                if module.__class__.__name__ == "ScatterMoE":
+                    for param in module.parameters():
+                        param.requires_grad = False
 
     # HACK - The SFT Trainer has internal validation which inspects the name of the class
     # being used for the HF training args; if it's a TrainingArguments class, which is
@@ -375,9 +428,14 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    trainer = SFTTrainer(
+    if train_args.enable_reduce_loss_sum:
+        TrainerClass = SumLossSFTTrainer
+    else:
+        TrainerClass = SFTTrainer
+
+    trainer = TrainerClass(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer if processor is None else processor,
         train_dataset=formatted_train_dataset,
         eval_dataset=formatted_validation_dataset,
         data_collator=data_collator,
@@ -417,6 +475,7 @@ def train(
             active_plugins=framework.active_plugins,
             trainer=trainer,
             pretrained_model_name_or_path=model_args.model_name_or_path,
+            save_model_dir=train_args.save_model_dir,
         ):
             trainer.add_callback(clb)
 

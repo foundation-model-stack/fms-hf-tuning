@@ -146,6 +146,17 @@ def main():
                     save_model_dir, save_model_dir, num_added_tokens
                 )
 
+            # In case of ScatterMoE LoRa
+            hf_converted_checkpoint = os.path.join(
+                save_model_dir, "hf_converted_checkpoint"
+            )
+            if os.path.exists(
+                os.path.join(hf_converted_checkpoint, "adapter_model.safetensors")
+            ):
+                post_process_vLLM_adapters_new_tokens(
+                    hf_converted_checkpoint, hf_converted_checkpoint, num_added_tokens
+                )
+
         if (
             os.path.exists(os.path.join(output_dir, "added_tokens_info.json"))
             and job_config.get("save_strategy") != "no"
@@ -159,11 +170,30 @@ def main():
             for _, dirs, _ in os.walk(output_dir, topdown=False):
                 for name in dirs:
                     if "checkpoint-" in name.lower():
-                        post_process_vLLM_adapters_new_tokens(
-                            os.path.join(output_dir, name),
-                            os.path.join(output_dir, name),
-                            num_added_tokens,
+                        base_checkpoint_dir = os.path.join(output_dir, name)
+                        hf_converted_checkpoint = os.path.join(
+                            base_checkpoint_dir, "hf_converted_checkpoint"
                         )
+
+                        # Use hf_converted_checkpoint if exists, otherwise use base_checkpoint_dir
+                        checkpoint_dir = (
+                            hf_converted_checkpoint
+                            if os.path.exists(
+                                os.path.join(
+                                    hf_converted_checkpoint, "adapter_model.safetensors"
+                                )
+                            )
+                            else base_checkpoint_dir
+                        )
+
+                        if os.path.exists(
+                            os.path.join(checkpoint_dir, "adapter_model.safetensors")
+                        ):
+                            post_process_vLLM_adapters_new_tokens(
+                                checkpoint_dir,
+                                checkpoint_dir,
+                                num_added_tokens,
+                            )
         else:
             logging.warning(
                 "Failed to post-process: file added_tokens_info.json not in path %s",

@@ -14,7 +14,8 @@
 
 # Standard
 from dataclasses import fields, is_dataclass
-from typing import List, Type, get_type_hints
+from typing import List, Type, Union, get_type_hints
+import argparse
 
 # Third Party
 from transformers.hf_argparser import DataClass, string_to_bool
@@ -39,6 +40,15 @@ def ensure_nested_dataclasses_initialized(dataclass: DataClass):
         setattr(dataclass, f.name, values)
 
 
+def bool_or_int(v):
+    if isinstance(v, str):
+        if v.isdigit():
+            return int(v)
+    elif isinstance(v, int):
+        return v
+    return string_to_bool(v)
+
+
 class EnsureTypes:
     """EnsureTypes is a caster with an internal state to memorize the
     the casting order, so that we can apply the correct casting type.
@@ -47,7 +57,7 @@ class EnsureTypes:
     """
 
     def __init__(self, *types: Type):
-        _map = {bool: string_to_bool}
+        _map = {bool: string_to_bool, Union[bool, int]: bool_or_int}
         self.types = [_map.get(t, t) for t in types]
         self.reset()
 
@@ -76,7 +86,13 @@ def parsable_dataclass(cls):
     if not is_dataclass(cls):
         raise ValueError("parsable only works with dataclass")
 
-    types = [fi.type for fi in fields(cls)]
+    types = (
+        fi.type
+        for fi in fields(cls)
+        if not any(
+            v == argparse.SUPPRESS for k, v in fi.metadata.items() if k == "help"
+        )
+    )
 
     class ParsableDataclass(cls, List):
 

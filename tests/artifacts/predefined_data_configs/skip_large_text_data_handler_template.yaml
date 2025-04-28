@@ -13,7 +13,6 @@ datasets:
             dataset_text_field: "output"
       - name: duplicate_columns
         arguments:
-          remove_columns: all
           batched: true
           fn_kwargs:
             old_column: "input_ids"

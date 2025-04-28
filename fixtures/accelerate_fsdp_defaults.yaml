@@ -41,6 +41,12 @@ fsdp_config:
   # not needed for HF models that have . _no_split_modules
   # the example below is for GPTBigCode
   # fsdp_transformer_layer_cls_to_wrap: "GPTBigCodeBlock” 
+  # needed for llava-1.5-vision + llava-next-vision models
+  # fsdp_transformer_layer_cls_to_wrap: "LlamaDecoderLayer"
+  # needed for llava-1.6-mistral-vision model
+  # fsdp_transformer_layer_cls_to_wrap: "MistralDecoderLayer"
+  # needed for granite-3.2-vision model
+  # fsdp_transformer_layer_cls_to_wrap: "GraniteDecoderLayer"
 
 # for "autocast" mixed precision training, where the weights of the model are kept at higher precision, but the 
 # learning products (e.g., gradients, model parameters) are kept at a lower precision. Default is 'no'. Other options

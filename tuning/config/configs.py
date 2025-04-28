@@ -35,7 +35,7 @@ DEFAULT_UNK_TOKEN = "<unk>"
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default=None)
     use_flash_attn: bool = field(
         default=True,
         metadata={"help": "Use Flash attention v2 from transformers, default is True"},
@@ -74,7 +74,15 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing single sequence. \
                     Either the dataset_text_field \
-                    or data_formatter_template need to be supplied."
+                    or data_formatter_template need to be supplied. \
+                    For running vision language model tuning pass the column name for text data."
+        },
+    )
+    dataset_conversation_field: str = field(
+        default=None,
+        metadata={
+            "help": "Training dataset text field containing multi-turn chat data. \
+                    Used as key to point multi-turn data field."
         },
     )
     validation_data_path: str = field(
@@ -122,6 +130,13 @@ class DataArguments:
             Passed in conjunction with response_template"
         },
     )
+    dataset_image_field: str = field(
+        default=None,
+        metadata={
+            "help": "For running vision language model tuning pass \
+            the column name of the image data in the dataset."
+        },
+    )
     add_special_tokens: List[str] = field(
         default=None,
         metadata={
@@ -130,6 +145,17 @@ class DataArguments:
             Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
+
+    def __post_init__(self):
+        def unescape(s):
+            if s is not None and isinstance(s, str):
+                return s.encode("utf-8").decode("unicode_escape")
+            return s
+
+        self.chat_template = unescape(self.chat_template)
+        self.data_formatter_template = unescape(self.data_formatter_template)
+        self.response_template = unescape(self.response_template)
+        self.instruction_template = unescape(self.instruction_template)
 
 
 @dataclass
@@ -188,6 +214,15 @@ class TrainingArguments(transformers.TrainingArguments):
             By default, 'passive' level is set which keeps the \
             current log level for the Transformers library (which will be 'warning` by default) \
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
+        },
+    )
+    enable_reduce_loss_sum: bool = field(
+        default=False,
+        metadata={
+            "help": "Pass `True` to enable use of sum loss reduction on the loss function. \
+                Please note this feature is experimental and not fully supported. \
+                One Known limitation of this function is PEFT PT so its disabled \
+                for all PEFT runs by the library internally."
         },
     )
 

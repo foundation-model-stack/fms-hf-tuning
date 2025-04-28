@@ -20,9 +20,11 @@ import tempfile
 
 # Third Party
 from datasets import Dataset, IterableDataset
-from transformers import AutoTokenizer, DataCollatorForSeq2Seq
+from PIL import Image
+from transformers import AutoProcessor, AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
 import datasets
+import numpy as np
 import pyarrow
 import pytest
 import yaml
@@ -43,6 +45,7 @@ from tests.artifacts.predefined_data_configs import (
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_SINGLE_TURN,
+    IMAGE_DATASET,
     MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
@@ -58,9 +61,15 @@ from tests.artifacts.testdata import (
     TWITTER_COMPLAINTS_TOKENIZED_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_PARQUET,
 )
+from tests.artifacts.vision_models import (
+    TINY_GRANITE_VISION_MODEL_NAME,
+    TINY_LLAMA_VISION_MODEL_NAME,
+)
 
 # Local
 from tuning.config import configs
+from tuning.config.acceleration_configs import AttentionAndDistributedPackingConfig
+from tuning.data.collators import VisionDataCollator
 from tuning.data.data_config import DataPreProcessorConfig, DataSetConfig
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
@@ -93,6 +102,7 @@ from tuning.data.setup_dataprocessor import (
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -107,6 +117,7 @@ from tuning.data.setup_dataprocessor import (
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -121,6 +132,7 @@ from tuning.data.setup_dataprocessor import (
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -203,6 +215,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -219,6 +232,7 @@ def test_load_dataset_with_hf_dataset(hf_dataset, splitName):
                     "Tweet text",
                     "ID",
                     "Label",
+                    "attention_mask",
                     "text_label",
                     "output",
                     "input_ids",
@@ -550,23 +564,6 @@ def test_is_pretokenized_data(data, result):
         ),
         (
             False,
-            None,
-            Dataset.from_list(
-                [
-                    {
-                        "input_ids": [9437, 29, 210],
-                        "attention_mask": [1, 1, 1],
-                        "labels": [1, 20, 30],
-                    }
-                ]
-            ),
-            1024,
-            None,
-            False,
-            DataCollatorForSeq2Seq,
-        ),
-        (
-            False,
             "\n### Label:",
             datasets.load_dataset(
                 "json",
@@ -577,23 +574,6 @@ def test_is_pretokenized_data(data, result):
             "\n### Text:",
             False,
             DataCollatorForCompletionOnlyLM,
-        ),
-        (
-            False,
-            None,
-            Dataset.from_list(
-                [
-                    {
-                        "input_ids": [9437, 29, 210],
-                        "attention_mask": [1, 1, 1],
-                        "labels": [1, 20, 30],
-                    }
-                ]
-            ),
-            1024,
-            "\n### Text:",
-            False,
-            DataCollatorForSeq2Seq,
         ),
         (
             False,
@@ -830,6 +810,67 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
 
     with pytest.raises(ValueError):
         (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+        ),
+    ],
+)
+def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
+    data_config_path, data_path
+):
+    """Ensure that if multipack is passed with streaming, error is raised"""
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"][0] = data_path
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    # Modify input_field_name and output_field_name according to dataset
+    if datasets_name == "text_dataset_input_output_masking":
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "input_field_name": "input",
+            "output_field_name": "output",
+        }
+
+    # Modify dataset_text_field and template according to dataset
+    formatted_dataset_field = "formatted_data_field"
+    if datasets_name == "apply_custom_data_template":
+        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
+            "dataset_text_field": formatted_dataset_field,
+            "template": template,
+        }
+
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        output_dir="tmp",  # Not needed but positional
+        max_steps=1,
+    )
+
+    attention_and_distributed_packing_config = AttentionAndDistributedPackingConfig(
+        None, None
+    )
+    attention_and_distributed_packing_config.multipack = 16
+
+    is_multipack = attention_and_distributed_packing_config.is_multipack
+
+    with pytest.raises(ValueError):
+        (train_set, _, _) = _process_dataconfig_file(
+            data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
+        )
 
 
 @pytest.mark.parametrize(
@@ -1547,6 +1588,7 @@ def test_process_dataargs_pretokenized(data_args):
                     "output",
                     "input_ids",
                     "labels",
+                    "attention_mask",
                 ]
             ),
             "pretokenized_dataset",
@@ -1763,3 +1805,47 @@ def test_get_processed_dataset(datafile, datasetconfigname):
             "train_dataset",
         )
         assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_vision_data_collator(model_name):
+    """Test the VisionDataCollator with dummy Image data."""
+
+    processor = AutoProcessor.from_pretrained(model_name)
+    collator = VisionDataCollator(processor)
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = True
+
+    with open(IMAGE_DATASET, "r") as f:
+        image_data = [json.loads(line) for line in f]
+    features = []
+    processor_kwargs = {}
+    processor_kwargs["return_tensors"] = "pt"
+    processor_kwargs["padding"] = True
+
+    # Make supported format features with PIL Image
+    for data in image_data:
+        pil_image = Image.fromarray(np.array(data["image"], dtype=np.uint8))
+        features.append(
+            {
+                "processor_kwargs": processor_kwargs,
+                "fields_name": {
+                    "dataset_text_field": "text",
+                    "dataset_image_field": "image",
+                },
+                "text": data["text"],
+                "image": [pil_image],
+            }
+        )
+
+    # Call the collator which returns a batch dictionary containing "input_ids" and "labels"
+    batch = collator(features)
+
+    assert "input_ids" in batch
+    assert "labels" in batch
+    assert "attention_mask" in batch
+    assert batch["input_ids"].shape == batch["labels"].shape

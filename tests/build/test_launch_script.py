@@ -108,6 +108,7 @@ def test_successful_ft():
         _validate_training_output(checkpoint, "ft")
 
 
+@pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
 def test_successful_pt():
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
@@ -287,7 +288,7 @@ def test_bad_script_path():
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
+        TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
         os.environ["TRAINING_SCRIPT"] = "/not/here"
@@ -315,7 +316,7 @@ def test_faulty_file_path():
         setup_env(tempdir)
         faulty_path = os.path.join(tempdir, "non_existent_file.pkl")
         TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
+            **BASE_LORA_KWARGS,
             **{"training_data_path": faulty_path, "output_dir": tempdir},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
@@ -331,8 +332,9 @@ def test_bad_base_model_path():
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
         TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
+            **BASE_LORA_KWARGS,
             **{"model_name_or_path": "/wrong/path"},
+            "output_dir": tempdir,
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
@@ -347,8 +349,9 @@ def test_config_parsing_error():
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
         TRAIN_KWARGS = {
-            **BASE_PEFT_KWARGS,
+            **BASE_LORA_KWARGS,
             **{"num_train_epochs": "five"},
+            "output_dir": tempdir,
         }  # Intentional type error
         serialized_args = serialize_args(TRAIN_KWARGS)
         os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
