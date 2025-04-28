@@ -38,6 +38,7 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
+    DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
     DATA_CONFIG_MULTITURN_DATA_YAML,
@@ -46,8 +47,10 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
+    DATA_CONFIG_VALID_BASE64_CHAT_TEMPLATE,
     DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
     DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+    GRANITE_3_1_B_CHAT_TEMPLATE,
 )
 from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
@@ -84,6 +87,7 @@ from tuning.data.data_config import (
     DataHandlerConfig,
     DataPreProcessorConfig,
     DataSetConfig,
+    load_and_validate_data_config,
 )
 from tuning.data.data_handlers import (
     DataHandler,
@@ -1389,6 +1393,25 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
         )
         assert len(output_inference) > 0
         assert 'Provide two rhyming words for the word "love"' in output_inference
+
+
+def test_data_config_chat_template_as_base64():
+    """Check that the chat_template specified as base64 is parsed correctly."""
+    expected_chat_template_path = GRANITE_3_1_B_CHAT_TEMPLATE
+    with open(expected_chat_template_path, "r", encoding="utf-8") as f:
+        expected_chat_template = f.read()
+    data_config_path = DATA_CONFIG_VALID_BASE64_CHAT_TEMPLATE
+    assert os.path.isfile(data_config_path)
+    data_config = load_and_validate_data_config(data_config_path)
+    parsed_chat_template = data_config.dataprocessor.chat_template
+    assert parsed_chat_template is not None, "the chat_template wasn't parsed correctly"
+    assert (
+        data_config.dataprocessor.chat_template == expected_chat_template
+    ), "the chat_template wasn't parsed correctly"
+    # --------------------------------------------
+    with pytest.raises(ValueError):
+        data_config_path = DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE
+        data_config = load_and_validate_data_config(data_config_path)
 
 
 @pytest.mark.parametrize(

@@ -43,6 +43,18 @@ DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML = os.path.join(
 DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER = os.path.join(
     PREDEFINED_DATA_CONFIGS, "mt_data_granite_3_1B_tokenize_and_mask_handler.yaml"
 )
+DATA_CONFIG_VALID_BASE64_CHAT_TEMPLATE = os.path.join(
+    PREDEFINED_DATA_CONFIGS,
+    "granite_3_1b_valid_base64_data_handler.yaml",
+)
+DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE = os.path.join(
+    PREDEFINED_DATA_CONFIGS,
+    "granite_3_1b_invalid_base64_data_handler.yaml",
+)
+GRANITE_3_1_B_CHAT_TEMPLATE = os.path.join(
+    PREDEFINED_DATA_CONFIGS,
+    "granite_3_1b_chat_template.txt",
+)
 DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
 )
