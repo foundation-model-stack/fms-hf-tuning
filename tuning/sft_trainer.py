@@ -171,13 +171,11 @@ def train(
         fast_moe_config = None
     if fast_moe_config is not None:
         # If LoRA with ScatterMoE detected, raise warning
-        # and exclude router module
         if (
             peft_config is not None
             and hasattr(peft_config, "target_modules")
             and fast_moe_config.fast_moe is not None
         ):
-            peft_config.exclude_modules = "router"
             logger.warning(
                 "You are running lora with the ScatterMoE plugin, please note that "
                 "passing target modules that are part of the moe module can cause unexpected "
