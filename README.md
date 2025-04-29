@@ -930,7 +930,7 @@ Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅ | ✅ |
 Llava 1.6-34B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
 Llava next-72B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
 Llava 1.5-7B  | LlavaForConditionalGeneration | ✅ | ✅ |
-Llava 1.5-13B  | LlavaForConditionalGeneration | ✅ | ✅ |
+Llava 1.5-13B  | LlavaForConditionalGeneration | ✔️ | ✔️ |
 
 **Note**: vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
 
