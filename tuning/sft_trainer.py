@@ -188,7 +188,11 @@ def train(
                 "modules when using `--fast_moe` with LoRA."
             )
         # If other common non-linear modules, raise warning
-        if peft_config is not None and hasattr(peft_config, "target_modules") and fast_moe_config.fast_moe is not None:
+        if (
+            peft_config is not None
+            and hasattr(peft_config, "target_modules")
+            and fast_moe_config.fast_moe is not None
+        ):
             logger.warning(
                 "You are running lora with the ScatterMoE plugin, please note that "
                 "passing target modules that are part of the moe module can cause unexpected "
