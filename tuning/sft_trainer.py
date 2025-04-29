@@ -382,7 +382,7 @@ def train(
         tokenizer.padding_side='right'
         response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
         model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
-        data_collator = DataCollatorForCompletionOnlyLM(invocation_string, tokenizer=tokenizer)
+        
         peft_config = None
     trainer = SFTTrainer(
         model=model,
