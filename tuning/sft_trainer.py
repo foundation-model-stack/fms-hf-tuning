@@ -181,7 +181,7 @@ def train(
                 "passing target modules that are part of the moe module can cause unexpected "
                 "behaviors and unsuccessful tuning while LoRA tuning with ScatterMoE. "
                 "For safe tuning, only pass linear modules such as those in the attn layer "
-                "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj'])"
+                "(i.e. ['q_proj', 'v_proj', 'o_proj', 'k_proj']) or pass 'all-linear'"
             )
 
     task_type = "CAUSAL_LM"
