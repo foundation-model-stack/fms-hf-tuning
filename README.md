@@ -909,6 +909,8 @@ For information on supported dataset formats and how to tune a vision-language m
 
 ### Supported vision model
 
+Note that vision models are supported starting with `fms-hf-tuning` v2.8.1 or later.
+
 - Legend:
 
   ✅ Ready and available 
@@ -921,12 +923,13 @@ For information on supported dataset formats and how to tune a vision-language m
 
 Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
 -------------------- | ---------------- | --------------- | --------------- |
-Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅* | ✅* | 
-Llava 1.5-7B  | LlavaForConditionalGeneration | ✅* | ✅* | 
-Granite 3.1-2B Vision  | LlavaNextForConditionalGeneration | ✅* | ✅* |
-Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅* | ✅* |
-
-(*) - Supported with `fms-hf-tuning` v2.8.0 or later.
+Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅ | ✅ |
+Llama 3.2-90B Vision  | MllamaForConditionalGeneration | ✔️ | ✔️ |
+Granite 3.2-2B Vision  | LlavaNextForConditionalGeneration | ✅ | ✅ |
+Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅ | ✅ |
+Llava 1.6-34B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
+Llava 1.5-7B  | LlavaForConditionalGeneration | ✅ | ✅ |
+Llava 1.5-13B  | LlavaForConditionalGeneration | ✔️ | ✔️ |
 
 **Note**: vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
 
