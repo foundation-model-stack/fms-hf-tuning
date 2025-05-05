@@ -14,33 +14,35 @@
 # limitations under the License.
 
 
-import itertools
-import logging
+# Standard
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import List, Literal, Optional, Tuple, Union
+import itertools
+import logging
 
 try:
-    import deepspeed
+    # Third Party
     from deepspeed.runtime.engine import DeepSpeedEngine
+    import deepspeed
 except ImportError:
     pass
-import pandas as pd
-import torch
-import transformers
+# Third Party
 from accelerate import Accelerator
 from accelerate.state import AcceleratorState
 from huggingface_hub import HfApi
+from open_instruct.ground_truth_utils import REWARD_FN_MAPPING
+from open_instruct.utils import retry_on_exception
 from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from torch.nn.parallel.distributed import DistributedDataParallel
 from transformers import PreTrainedModel, PreTrainedTokenizer
-
-from open_instruct.ground_truth_utils import REWARD_FN_MAPPING
-from open_instruct.utils import retry_on_exception
+import pandas as pd
+import torch
+import transformers
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +131,9 @@ def first_true_indices(bools: torch.Tensor, dtype=torch.long) -> torch.Tensor:
     # for each row. Shape: (sequence_length,)
     # zero_or_index: Shape (batch_size, sequence_length). This tensor contains the indices for `True` values and `row_len`
     # for `False` values.
-    zero_or_index = row_len * (~bools).type(dtype) + torch.arange(row_len, dtype=dtype, device=bools.device)
+    zero_or_index = row_len * (~bools).type(dtype) + torch.arange(
+        row_len, dtype=dtype, device=bools.device
+    )
 
     # Return the minimum value in each row (i.e., the first `True` index or `row_len` if none exist)
     # torch.min(zero_or_index, dim=-1).values: This returns the minimum value in each row, which corresponds to the first
@@ -139,7 +143,10 @@ def first_true_indices(bools: torch.Tensor, dtype=torch.long) -> torch.Tensor:
 
 
 def get_reward(
-    model: torch.nn.Module, query_responses: torch.Tensor, pad_token_id: int, context_length: int
+    model: torch.nn.Module,
+    query_responses: torch.Tensor,
+    pad_token_id: int,
+    context_length: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     This function computes reward scores for a batch of query responses based on a pre-trained reward model.
@@ -183,11 +190,17 @@ def get_reward(
         output_hidden_states=True,
         use_cache=False,  # otherwise mistral-based RM would error out
     )
-    reward_logits = model.score(output.hidden_states[-1])  # (batch_size, sequence_length)
+    reward_logits = model.score(
+        output.hidden_states[-1]
+    )  # (batch_size, sequence_length)
 
     # Calculate the length of each sequence by finding the first occurrence of a padding token after the context
     # sequence_lengths shape: (batch_size,)
-    sequence_lengths = first_true_indices(query_responses[:, context_length:] == pad_token_id) - 1 + context_length
+    sequence_lengths = (
+        first_true_indices(query_responses[:, context_length:] == pad_token_id)
+        - 1
+        + context_length
+    )
     assert (
         reward_logits.shape[-1] == 1
     ), "Reward model should output a single scalar per token. Check if you added `num_labels=1` when doing `AutoModelForSequenceClassification.from_pretrained(...)`."
@@ -229,14 +242,18 @@ def apply_verifiable_reward(
             dataset_list = [dataset]
         else:
             dataset_list = dataset
-        assert len(ground_truth_list) == len(dataset_list), "Ground truth and dataset list lengths do not match."
+        assert len(ground_truth_list) == len(
+            dataset_list
+        ), "Ground truth and dataset list lengths do not match."
         # for now, we just assume rewards are additive, rather than more complex functions.
         reward = 0
         per_func_reward = {}
         for gt, ds in zip(ground_truth_list, dataset_list):
             reward_func = REWARD_FN_MAPPING.get(ds.lower())
             if reward_func is None:
-                logger.warning("No reward function found for dataset %s. Skipping reward.", ds)
+                logger.warning(
+                    "No reward function found for dataset %s. Skipping reward.", ds
+                )
                 continue
             reward_weight = reward_func.weight
             # compare with ground truth.
@@ -248,7 +265,9 @@ def apply_verifiable_reward(
             )
             logger.info("Applying ground truth reward 🤗")
             reward += reward_mult * reward_result * reward_weight
-            per_func_reward[ds] = per_func_reward.get(ds, 0) + (reward_mult * reward_result * reward_weight)
+            per_func_reward[ds] = per_func_reward.get(ds, 0) + (
+                reward_mult * reward_result * reward_weight
+            )
         rewards.append(reward)
         per_func_rewards.append(per_func_reward)
     return rewards, per_func_rewards
@@ -301,12 +320,17 @@ def truncate_response(stop_token_id: int, pad_token_id: int, responses: torch.Te
     trunc_idxs = first_true_indices(responses == stop_token_id).unsqueeze(-1)
     new_size = [1] * (len(responses.size()) - 1) + [responses.shape[1]]
     idxs = torch.arange(responses.shape[1], device=responses.device).view(*new_size)
-    postprocessed_responses = torch.masked_fill(responses, idxs > trunc_idxs, pad_token_id)
+    postprocessed_responses = torch.masked_fill(
+        responses, idxs > trunc_idxs, pad_token_id
+    )
     return postprocessed_responses
 
 
 def generate(
-    lm_backbone: torch.nn.Module, queries: torch.Tensor, pad_token_id: int, generation_config: dict
+    lm_backbone: torch.nn.Module,
+    queries: torch.Tensor,
+    pad_token_id: int,
+    generation_config: dict,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Generates sequences from the language model backbone in a way that does not affect padding tokens.
@@ -364,19 +388,6 @@ def batch_generation(
         logitss.append(logits)
     return torch.cat(query_responses, 0), torch.cat(logitss, 0)
 
-def save_with_accelerate_for_moe_kernels(accelerator, output_dir, model_name_or_path, tokenizer):
-    import os
-    converted = os.path.join(output_dir, "hf_converted")
-    os.mkdir(converted)
-    # save train states like optimizers rng etc
-    save_state(accelerator=accelerator, output_dir=converted)
-    logger.info(f"accelerator state saved at {converted}")
-    logger.info("converting moe kernels state dict to original model state dict")
-    from fms_acceleration_moe.utils.checkpoint_utils import recover_safetensors_from_dcp
-    recover_safetensors_from_dcp(output_dir, model_name_or_path, converted, is_deepspeed=True)
-    logger.info(f"converted model is saved at {converted}")
-    tokenizer.save_pretrained(converted)
-    logger.info (f"tokenizer saved at {converted}")
 
 def save_with_accelerate(
     accelerator: Accelerator,
@@ -391,7 +402,10 @@ def save_with_accelerate(
     # we usually do greedy decoding for generation, so this should be okay.
     # otherwise, we get an error thrown at save time.
     model.generation_config = transformers.GenerationConfig(
-        temperature=None, top_p=None, eos_token_id=tokenizer.eos_token_id, bos_token_id=tokenizer.bos_token_id
+        temperature=None,
+        top_p=None,
+        eos_token_id=tokenizer.eos_token_id,
+        bos_token_id=tokenizer.bos_token_id,
     )
 
     unwrapped_model: PreTrainedModel = accelerator.unwrap_model(model)
@@ -431,40 +445,53 @@ def save_with_accelerate(
 
     if accelerator.is_main_process:
         tokenizer.save_pretrained(output_dir)
-        
+
     # ::FMS-ACCELERATION:: MoE Kernels
-    
+
     # customize model card (TODO (Costa): this can be prettier)
+
 
 # save_state is modified copy of save_state from HF accelerator
 # this is modified to save everything except model
 # since model has to be converted and saved
 def save_state(accelerator, output_dir: str = None):
+    # Standard
     import os
     import re
     import shutil
+
+    # Third Party
     from accelerate.checkpointing import save_accelerator_state, save_custom_state
 
     if accelerator.project_configuration.automatic_checkpoint_naming:
         output_dir = os.path.join(accelerator.project_dir, "checkpoints")
     os.makedirs(output_dir, exist_ok=True)
     if accelerator.project_configuration.automatic_checkpoint_naming:
-        folders = [os.path.join(output_dir, folder) for folder in os.listdir(output_dir)]
+        folders = [
+            os.path.join(output_dir, folder) for folder in os.listdir(output_dir)
+        ]
         if (
             accelerator.project_configuration.total_limit is not None
             and (len(folders) + 1 > accelerator.project_configuration.total_limit)
             and accelerator.is_main_process
         ):
+
             def _inner(folder):
-                return list(map(int, re.findall(r"[\/]?([0-9]+)(?=[^\/]*$)", folder)))[0]
+                return list(map(int, re.findall(r"[\/]?([0-9]+)(?=[^\/]*$)", folder)))[
+                    0
+                ]
 
             folders.sort(key=_inner)
             logger.warning(
                 f"Deleting {len(folders) + 1 - accelerator.project_configuration.total_limit} checkpoints to make room for new checkpoint."
             )
-            for folder in folders[: len(folders) + 1 - accelerator.project_configuration.total_limit]:
+            for folder in folders[
+                : len(folders) + 1 - accelerator.project_configuration.total_limit
+            ]:
                 shutil.rmtree(folder)
-        output_dir = os.path.join(output_dir, f"checkpoint_{accelerator.save_iteration}")
+        output_dir = os.path.join(
+            output_dir, f"checkpoint_{accelerator.save_iteration}"
+        )
         if os.path.exists(output_dir):
             raise ValueError(
                 f"Checkpoint directory {output_dir} ({accelerator.save_iteration}) already exists. Please manually override `self.save_iteration` with what iteration to start with."
@@ -478,7 +505,9 @@ def save_state(accelerator, output_dir: str = None):
 
     schedulers = []
     for i, scheduler in enumerate(accelerator._schedulers):
+        # Third Party
         from accelerate.utils import DeepSpeedSchedulerWrapper
+
         if isinstance(scheduler, DeepSpeedSchedulerWrapper):
             continue
         schedulers.append(scheduler)
@@ -497,10 +526,14 @@ def save_state(accelerator, output_dir: str = None):
         safe_serialization=False,
     )
     for i, obj in enumerate(accelerator._custom_objects):
-        save_custom_state(obj, output_dir, i, save_on_each_node=accelerator.project_configuration.save_on_each_node)
+        save_custom_state(
+            obj,
+            output_dir,
+            i,
+            save_on_each_node=accelerator.project_configuration.save_on_each_node,
+        )
     accelerator.project_configuration.iteration += 1
     return save_location
-
 
 
 @torch.compile(dynamic=True)
@@ -531,7 +564,9 @@ def push_folder_to_hub(
         if not api.repo_exists(hf_repo_id):
             api.create_repo(hf_repo_id, exist_ok=True, private=private)
         if hf_repo_revision is not None:
-            api.create_branch(repo_id=hf_repo_id, branch=hf_repo_revision, exist_ok=True)
+            api.create_branch(
+                repo_id=hf_repo_id, branch=hf_repo_revision, exist_ok=True
+            )
         api.upload_folder(
             repo_id=hf_repo_id,
             revision=hf_repo_revision,
@@ -545,7 +580,10 @@ def push_folder_to_hub(
 # ----------------------------------------------------------------------------
 # DeepSpeed utilities
 def get_all_parameters(sub_module, recurse=False):
-    return itertools.chain(sub_module.named_parameters(recurse=recurse), sub_module.ds_external_parameters())
+    return itertools.chain(
+        sub_module.named_parameters(recurse=recurse),
+        sub_module.ds_external_parameters(),
+    )
 
 
 def iter_params(module, recurse=False):
@@ -582,7 +620,9 @@ def add_hooks(model: "DeepSpeedEngine") -> None:
 
 @contextmanager
 def unwrap_model_for_generation(
-    model: Union["DistributedDataParallel", "DeepSpeedEngine"], accelerator: "Accelerator", is_peft_model: bool = False
+    model: Union["DistributedDataParallel", "DeepSpeedEngine"],
+    accelerator: "Accelerator",
+    is_peft_model: bool = False,
 ) -> Union["transformers.PreTrainedModel", "DeepSpeedEngine"]:
     """Context manager to unwrap a model for generation.
     For ZeRO-3 models, we gather the weights once to speed up generation.
@@ -590,7 +630,10 @@ def unwrap_model_for_generation(
     unwrapped_model = accelerator.unwrap_model(model)
     if is_peft_model:
         unwrapped_model.pretrained_model.disable_adapter()
-    if accelerator.state.deepspeed_plugin is not None and accelerator.state.deepspeed_plugin.zero_stage == 3:
+    if (
+        accelerator.state.deepspeed_plugin is not None
+        and accelerator.state.deepspeed_plugin.zero_stage == 3
+    ):
         with deepspeed.zero.GatheredParameters(model.parameters()):
             remove_hooks(model)
             yield accelerator.unwrap_model(model)
@@ -599,7 +642,9 @@ def unwrap_model_for_generation(
         yield unwrapped_model
 
 
-def prepare_deepspeed(model: torch.nn.Module, per_device_train_batch_size: int, mixed_precision: str):
+def prepare_deepspeed(
+    model: torch.nn.Module, per_device_train_batch_size: int, mixed_precision: str
+):
     """
     Prepares the model for training with DeepSpeed (both for stage 2 and 3), configuring the appropriate settings based on the model and
     batch size.
@@ -614,6 +659,7 @@ def prepare_deepspeed(model: torch.nn.Module, per_device_train_batch_size: int, 
         `torch.nn.Module`:
             The model initialized and configured with DeepSpeed for training.
     """
+    # Third Party
     import deepspeed
 
     deepspeed_plugin = AcceleratorState().deepspeed_plugin
@@ -621,7 +667,9 @@ def prepare_deepspeed(model: torch.nn.Module, per_device_train_batch_size: int, 
     if config_kwargs["zero_optimization"]["stage"] != 3:
         config_kwargs["train_micro_batch_size_per_gpu"] = per_device_train_batch_size
         config_kwargs = {
-            "train_micro_batch_size_per_gpu": config_kwargs["train_micro_batch_size_per_gpu"],
+            "train_micro_batch_size_per_gpu": config_kwargs[
+                "train_micro_batch_size_per_gpu"
+            ],
             "prescale_gradients": False,
             "wall_clock_breakdown": False,
         }
@@ -634,13 +682,18 @@ def prepare_deepspeed(model: torch.nn.Module, per_device_train_batch_size: int, 
                 if getattr(model.config, "hidden_sizes", None)
                 else getattr(model.config, "hidden_size", None)
             )
-            if hidden_size is not None and config_kwargs["zero_optimization"]["stage"] == 3:
+            if (
+                hidden_size is not None
+                and config_kwargs["zero_optimization"]["stage"] == 3
+            ):
                 # Note that `stage3_prefetch_bucket_size` can produce DeepSpeed messages like: `Invalidate trace cache @ step 0: expected module 1, but got module 0`
                 # This is expected and is not an error, see: https://github.com/microsoft/DeepSpeed/discussions/4081
                 config_kwargs.update(
                     {
-                        "zero_optimization.reduce_bucket_size": hidden_size * hidden_size,
-                        "zero_optimization.stage3_param_persistence_threshold": 10 * hidden_size,
+                        "zero_optimization.reduce_bucket_size": hidden_size
+                        * hidden_size,
+                        "zero_optimization.stage3_param_persistence_threshold": 10
+                        * hidden_size,
                         "zero_optimization.stage3_prefetch_bucket_size": 0,
                     }
                 )
@@ -709,5 +762,7 @@ def print_rich_single_line_metrics(metrics):
 def exact_div(a, b, custom_error_message=""):
     q = a // b
     if a != q * b:
-        raise ValueError(f"{custom_error_message}, inexact division: {a} / {b} = {a / b}")
+        raise ValueError(
+            f"{custom_error_message}, inexact division: {a} / {b} = {a / b}"
+        )
     return q

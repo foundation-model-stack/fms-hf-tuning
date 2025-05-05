@@ -24,7 +24,7 @@ from torch.distributed._tensor import DTensor, Replicate, Shard, distribute_tens
 # pylint: disable=import-error
 from torch.distributed._tensor.device_mesh import DeviceMesh, init_device_mesh
 from tqdm import tqdm
-from transformers.modeling_utils import is_fsdp_enabled, is_local_dist_rank_0
+from transformers.modeling_utils import is_local_dist_rank_0
 import torch
 
 # Local
@@ -41,6 +41,11 @@ from .scattermoe_state_dict import (
     get_checkpoint_meta_from_sharded_safetensor,
     get_state_dict_from_checkpoint_metadata,
 )
+
+
+# cpu ram efficient loading is always enabled for OI + DS
+def is_fsdp_enabled():
+    return False
 
 
 # this function will load the sharded experts onto the device.
@@ -245,106 +250,115 @@ def prepare_scattermoe(
 
             # the parent module
             parent = model.get_submodule(prefix)
+            # Third Party
+            import deepspeed
 
-            # - handle state dict loading
-            # - NOTE: convert_state_dict does not have logic to concat sharded
-            #   experts so cannot handle the case where sharded_expert_ckpt=True
-            if (
-                ep_degree == 1
-                and (not is_fsdp_enabled() or is_local_dist_rank_0())
-                and not sharded_expert_ckpt  # cannot be a sharded checkpoint
-            ):
-                # - if there is no sharding, and model is not loaded on the
-                #   meta device, we can simply convert the state dict
-                sd = convert_state_dict(
-                    prefix + "." + module_name + ".",
-                    checkpoint_metadata,
-                    getattr(parent, module_name).state_dict(),
-                    model.config.num_local_experts,
-                    model.config.intermediate_size,
-                    dtype,
-                )
-            else:
-                # if there is sharding, then we want the model to be loaded
-                # on meta in general, since the actual model may be alot smaller
-                sd = get_state_dict_from_checkpoint_metadata(
-                    loc,
-                    checkpoint_metadata,
-                    num_experts_per_device,
-                    model.config.intermediate_size,
-                    expert_shards,
-                    dtype,
-                )
+            params_to_gather = []
+            for p in parent.parameters():
+                params_to_gather.append(p)
+            with deepspeed.zero.GatheredParameters(params_to_gather, modifier_rank=0):
 
-            if device_mesh is None:
-                if not is_fsdp_enabled() or is_local_dist_rank_0():
-                    _init_scattermoe_context = nullcontext
+                # - handle state dict loading
+                # - NOTE: convert_state_dict does not have logic to concat sharded
+                #   experts so cannot handle the case where sharded_expert_ckpt=True
+                if (
+                    ep_degree == 1
+                    and (not is_fsdp_enabled() or is_local_dist_rank_0())
+                    and not sharded_expert_ckpt  # cannot be a sharded checkpoint
+                ):
+                    # - if there is no sharding, and model is not loaded on the
+                    #   meta device, we can simply convert the state dict
+                    sd = convert_state_dict(
+                        prefix + "." + module_name + ".",
+                        checkpoint_metadata,
+                        getattr(parent, module_name).state_dict(),
+                        model.config.num_local_experts,
+                        model.config.intermediate_size,
+                        dtype,
+                    )
                 else:
+                    # if there is sharding, then we want the model to be loaded
+                    # on meta in general, since the actual model may be alot smaller
+                    sd = get_state_dict_from_checkpoint_metadata(
+                        loc,
+                        checkpoint_metadata,
+                        num_experts_per_device,
+                        model.config.intermediate_size,
+                        expert_shards,
+                        dtype,
+                    )
+
+                if device_mesh is None:
+                    if not is_fsdp_enabled() or is_local_dist_rank_0():
+                        _init_scattermoe_context = nullcontext
+                    else:
+                        _init_scattermoe_context = init_empty_weights
+                else:
+                    # in this case we need to distribute parameters, so just initialize
+                    # the scattermoe module swap with empty weights,
+                    # since they are going to replaced.
                     _init_scattermoe_context = init_empty_weights
-            else:
-                # in this case we need to distribute parameters, so just initialize
-                # the scattermoe module swap with empty weights,
-                # since they are going to replaced.
-                _init_scattermoe_context = init_empty_weights
 
-            # - conver to a scatter moe
-            # - very hard to do patching, settle for module swap
-            with _init_scattermoe_context():
-                moe = ScatterMoE(
-                    hidden_size=model.config.hidden_size,
-                    hidden_act=model.config.hidden_act,
-                    intermediate_size=model.config.intermediate_size,
-                    num_experts=num_experts_per_device,
-                    has_bias=has_bias,
-                    mlp_arch=expert_mlp_spec,
-                    top_k=model.config.num_experts_per_tok,
-                    dtype=model.dtype,
-                    device=device,
-                    ep_device_mesh=(
-                        device_mesh[key_ep] if device_mesh is not None else None
-                    ),
-                    lora_config=lora_config,
-                )  #
+                # - conver to a scatter moe
+                # - very hard to do patching, settle for module swap
+                with _init_scattermoe_context():
+                    moe = ScatterMoE(
+                        hidden_size=model.config.hidden_size,
+                        hidden_act=model.config.hidden_act,
+                        intermediate_size=model.config.intermediate_size,
+                        num_experts=num_experts_per_device,
+                        has_bias=has_bias,
+                        mlp_arch=expert_mlp_spec,
+                        top_k=model.config.num_experts_per_tok,
+                        dtype=model.dtype,
+                        device=device,
+                        ep_device_mesh=(
+                            device_mesh[key_ep] if device_mesh is not None else None
+                        ),
+                        lora_config=lora_config,
+                    )  #
 
-            # the state dict logic below will not have lora adapters
-            # - so we need to initialize them
-            # - initialize them
-            if lora_config is not None:
+                # the state dict logic below will not have lora adapters
+                # - so we need to initialize them
+                # - initialize them
+                if lora_config is not None:
 
-                # update the state_dict
-                for name, param in moe.named_parameters():
-                    # NOTE: is his reliable?
-                    if "lora_" in name:
-                        if device_mesh is not None:
-                            # this means it has been loaded with empty context above
-                            # - so materialize the tensor
-                            param = torch.empty(
-                                *param.size(), dtype=dtype, requires_grad=True
-                            )
+                    # update the state_dict
+                    for name, param in moe.named_parameters():
+                        # NOTE: is his reliable?
+                        if "lora_" in name:
+                            if device_mesh is not None:
+                                # this means it has been loaded with empty context above
+                                # - so materialize the tensor
+                                param = torch.empty(
+                                    *param.size(), dtype=dtype, requires_grad=True
+                                )
 
-                        sd[name] = param  # set the param in state dict
+                            sd[name] = param  # set the param in state dict
 
-                        # initialize the loras here
-                        if "lora_A" in name:
-                            torch.nn.init.zeros_(sd[name])
-                        elif "lora_B" in name:
-                            torch.nn.init.normal_(sd[name])
+                            # initialize the loras here
+                            if "lora_A" in name:
+                                torch.nn.init.zeros_(sd[name])
+                            elif "lora_B" in name:
+                                torch.nn.init.normal_(sd[name])
 
-            if device_mesh is None:
-                # - if not on meta, just load the state dict
-                # - and then put on the device
-                if not is_fsdp_enabled() or is_local_dist_rank_0():
-                    moe.load_state_dict(sd)
-                    moe = moe.to(device)
-            else:
-                # - otherwise, we need to distribtue and will
-                #   replace the parameters
-                load_experts_onto_device(moe, sd, device_mesh, num_experts_per_device)
-            # module swap
-            setattr(parent, module_name, moe)
+                if device_mesh is None:
+                    # - if not on meta, just load the state dict
+                    # - and then put on the device
+                    if not is_fsdp_enabled() or is_local_dist_rank_0():
+                        moe.load_state_dict(sd)
+                        moe = moe.to(device)
+                else:
+                    # - otherwise, we need to distribtue and will
+                    #   replace the parameters
+                    load_experts_onto_device(
+                        moe, sd, device_mesh, num_experts_per_device
+                    )
+                # module swap
+                setattr(parent, module_name, moe)
 
-            # - keep track of the name for returning
-            moe_module_names.add(module_name)
+                # - keep track of the name for returning
+                moe_module_names.add(module_name)
 
     except ValueError as e:
         raise ValueError(
