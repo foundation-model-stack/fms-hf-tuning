@@ -313,6 +313,9 @@ class DataPreProcessor:
     def __execute_filter_data_handler(self, raw_datasets, handler, **kwargs):
         if "fn_kwargs" not in kwargs:
             kwargs["fn_kwargs"] = {}
+        # IterableDatasets doesn't support any description
+        if not isinstance(raw_datasets, (IterableDatasetDict or IterableDataset)):
+            kwargs["desc"] = handler.desc
         return raw_datasets.filter(handler.op, **kwargs)
 
     def __execute_map_data_handler(
@@ -345,6 +348,10 @@ class DataPreProcessor:
 
         kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
         kwargs["fn_kwargs"]["column_names"] = column_names
+
+        # IterableDatasets doesn't support any description
+        if not isinstance(raw_datasets, (IterableDatasetDict or IterableDataset)):
+            kwargs["desc"] = handler.desc
 
         return raw_datasets.map(handler.op, **kwargs)
 
