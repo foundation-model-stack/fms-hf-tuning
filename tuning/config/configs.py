@@ -46,8 +46,8 @@ class ModelArguments:
         metadata={
             "help": "Resize model embedding layer to the nearest multiple of \
                 the given number after tokenizer modifications. \
-                    NOTE: This involves extending \
-                    the embedding layer without any corresponding real tokens."
+                NOTE: This involves extending \
+                the embedding layer without any corresponding real tokens."
         },
     )
     tokenizer_name_or_path: Optional[str] = field(
@@ -72,12 +72,11 @@ class DataArguments:
     dataset_text_field: str = field(
         default=None,
         metadata={
-            "help": "[DEPRECATED] "
-            "Use text_column_name to specify this argument going forward\n"
+            "help": "Use text_column_name to specify this argument going forward\n"
             "Training dataset text field containing single sequence. \
-                    Either the dataset_text_field \
-                    or data_formatter_template need to be supplied. \
-                    For running vision language model tuning pass the column name for text data."
+             Either the dataset_text_field \
+             or data_formatter_template need to be supplied. \
+             For running vision language model tuning pass the column name for text data."
         },
     )
     dataset_conversation_field: str = field(
@@ -85,14 +84,6 @@ class DataArguments:
         metadata={
             "help": "Training dataset text field containing multi-turn chat data. \
                     Used as key to point multi-turn data field."
-        },
-    )
-    text_column_name: str = field(
-        default=None,
-        metadata={
-            "help": "Training dataset text field containing single sequence. \
-             Either the dataset_text_field \
-             or data_formatter_template need to be supplied."
         },
     )
     validation_data_path: str = field(
@@ -166,10 +157,6 @@ class DataArguments:
         self.data_formatter_template = unescape(self.data_formatter_template)
         self.response_template = unescape(self.response_template)
         self.instruction_template = unescape(self.instruction_template)
-
-        # Initialise deprecated field
-        if self.dataset_text_field:
-            self.text_column_name = self.dataset_text_field
 
 
 @dataclass

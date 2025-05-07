@@ -17,7 +17,8 @@
 # Standard
 from enum import Enum
 from typing import Any, Dict, List, Union
-import copy
+
+# import copy
 import logging
 import re
 
@@ -147,7 +148,7 @@ def tokenize_and_apply_input_masking(
         raise ValueError(
             f"Dataset should contain {input_column_name} \
                 and {output_column_name} field if \
-                no text_column_name or data_formatter_template specified"
+                no dataset_text_field or data_formatter_template specified"
         )
 
     input_text = element[input_column_name]
@@ -451,7 +452,7 @@ def tokenize(
 
 def duplicate_columns(
     element: Union[Dict[str, str], Dict[str, List]],
-    old_column_name: str,
+    existing_column_name: str,
     new_column_name: str,
     **kwargs,
 ):
@@ -459,30 +460,30 @@ def duplicate_columns(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
-        old_column_name: Name of the column which is to be duplicated
+        existing_column_name: Name of the column which is to be duplicated
         new_column_name: Name of the new column where duplicated column is to be saved
     Returns:
         Formatted HF Dataset element with
-        {"new_column_name": copy.deepcopy("old_column_name")}.
+        {"new_column_name": element["existing_column_name"]}.
     """
-    if not old_column_name or not new_column_name:
+    if not existing_column_name or not new_column_name:
         raise ValueError(
             "for duplicating columns both old and new column name must be specified"
         )
-    if old_column_name not in element:
+    if existing_column_name not in element:
         raise ValueError(
             "Cannot duplicate %s to %s as column %s doesn't exist"
-            % (old_column_name, new_column_name, old_column_name)
+            % (existing_column_name, new_column_name, existing_column_name)
         )
     if new_column_name in element:
         raise ValueError(
             "Cannot duplicate %s to %s as column %s already exist"
-            % (old_column_name, new_column_name, old_column_name)
+            % (existing_column_name, new_column_name, existing_column_name)
         )
 
     return {
-        f"{old_column_name}": element[old_column_name],
-        f"{new_column_name}": copy.deepcopy(element[old_column_name]),
+        f"{existing_column_name}": element[existing_column_name],
+        f"{new_column_name}": element[existing_column_name],
     }
 
 

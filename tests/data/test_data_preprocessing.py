@@ -30,7 +30,10 @@ import pytest
 import yaml
 
 # First Party
-from scripts.offline_data_processing import get_processed_dataset, save_dataset_shards
+from scripts.offline_data_processing import (
+    process_datasets_offline,
+    save_dataset_shards,
+)
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_JINJA_TEMPLATE_YAML,
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
@@ -1758,10 +1761,10 @@ def test_rename_and_select_dataset_columns(
         ),
     ],
 )
-def test_get_processed_dataset(datafile, datasetconfigname):
+def test_process_datasets_offline(datafile, datasetconfigname):
     """
     Ensure functions in offline_data_preprocessing script,
-    get_processed_dataset and save_dataset_shards process
+    process_datasets_offline and save_dataset_shards process
     and saves the formatted dataset correctly.
     """
 
@@ -1807,7 +1810,7 @@ def test_get_processed_dataset(datafile, datasetconfigname):
         TRAIN_ARGS = configs.TrainingArguments(
             output_dir=tmpdirname, max_seq_length=4096
         )
-        formatted_train_dataset, _ = get_processed_dataset(
+        formatted_train_dataset, _ = process_datasets_offline(
             model_args=MODEL_ARGS, data_args=data_args, train_args=TRAIN_ARGS
         )
 

@@ -142,6 +142,7 @@ def tokenizer_and_embedding_resize(
 
 
 def get_resized_input_embeddings(model, embedding_size):
+
     """Get resized input embeddings for Mllama models.
     Args:
         model: Mllama models.
@@ -168,3 +169,40 @@ def get_resized_input_embeddings(model, embedding_size):
         current_input_embeddings.weight.requires_grad
     )
     return resized_input_embeddings
+
+
+def setup_tokenizer(tokenizer, data_args, model_args, model):
+    if data_args.chat_template:
+        logger.info("Adding chat_template to the tokenizer")
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with the given chat_template %s",
+                tokenizer.chat_template,
+                data_args.chat_template,
+            )
+        tokenizer.chat_template = data_args.chat_template
+
+    # Add special tokens only when a custom tokenizer is not passed
+    special_tokens_dict = get_special_tokens_dict(
+        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
+    )
+
+    # adds user specified special tokens to vocab
+    if data_args.add_special_tokens:
+        logger.info(
+            "Adding user-defined special tokens: %s ", data_args.add_special_tokens
+        )
+        special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
+
+    if model:
+        # TODO: lower priority but understand if resizing impacts
+        # inference quality and why its needed.
+        # It makes sense if we manipulate tokenizer that we
+        # also save it and provide it to inference.
+        return tokenizer_and_embedding_resize(
+            special_tokens_dict=special_tokens_dict,
+            tokenizer=tokenizer,
+            model=model,
+            multiple_of=model_args.embedding_size_multiple_of,
+        )
+    return None
