@@ -15,7 +15,7 @@ datasets:
         arguments:
           batched: true
           fn_kwargs:
-            old_column_name: "input_ids"
+            existing_column_name: "input_ids"
             new_column_name: "labels"
       - name: skip_samples_with_large_columns
         arguments:

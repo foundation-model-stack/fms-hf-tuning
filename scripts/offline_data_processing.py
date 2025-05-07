@@ -10,10 +10,10 @@ from transformers import AutoTokenizer
 # Local
 from tuning.config import configs
 from tuning.data.setup_dataprocessor import process_dataargs
+from tuning.data.tokenizer_utils import setup_tokenizer
 from tuning.sft_trainer import get_parser
 from tuning.utils.error_logging import USER_ERROR_EXIT_CODE, write_termination_log
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import get_special_tokens_dict
 
 
 def save_dataset_shards(
@@ -36,7 +36,7 @@ def save_dataset_shards(
     logging.info("Dumped %d shards of %s at %s", num_shards, dataset_name, output_dir)
 
 
-def get_processed_dataset(
+def process_datasets_offline(
     model_args: configs.ModelArguments,
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
@@ -73,37 +73,7 @@ def get_processed_dataset(
     )
     logger.debug("Tokenizer loaded successfully.")
 
-    # Add chat_template to the tokenizer if provided
-    if data_args.chat_template:
-        data_args.chat_template = data_args.chat_template.replace(r"\n", "\n")
-
-        logger.info("Adding chat_template to the tokenizer")
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with the given chat_template %s",
-                tokenizer.chat_template,
-                data_args.chat_template,
-            )
-        tokenizer.chat_template = data_args.chat_template
-
-    # Prepare special tokens dictionary
-    special_tokens_dict = get_special_tokens_dict(
-        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
-    )
-
-    # adds user specified special tokens to vocab
-    if data_args.add_special_tokens:
-        logger.info(
-            "Adding user-defined special tokens: %s ", data_args.add_special_tokens
-        )
-        special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
-
-    if special_tokens_dict:
-        logger.info("Adding special tokens: %s", special_tokens_dict)
-        tokenizer.add_special_tokens(
-            special_tokens_dict=special_tokens_dict,
-            replace_additional_special_tokens=False,
-        )
+    _ = setup_tokenizer(tokenizer, data_args, model_args, None)
 
     # Process data using the provided arguments and tokenizer
     logger.info("Calling process_dataargs to format datasets.")
@@ -116,6 +86,10 @@ def get_processed_dataset(
         _,
     ) = process_dataargs(data_args, tokenizer, train_args)
     logger.info("Dataset processing completed successfully.")
+
+    formatted_train_dataset = formatted_train_dataset.flatten_indices()
+    if formatted_validation_dataset:
+        formatted_validation_dataset = formatted_validation_dataset.flatten_indices()
 
     return formatted_train_dataset, formatted_validation_dataset
 
@@ -179,7 +153,7 @@ def main():
 
     try:
         logger.info("Processing dataset.")
-        formatted_train_dataset, formatted_validation_dataset = get_processed_dataset(
+        train_dataset, validation_dataset = process_datasets_offline(
             model_args=args["model_args"],
             data_args=args["data_args"],
             train_args=args["training_args"],
@@ -196,9 +170,9 @@ def main():
         num_dataset_shards,
         train_dataset_dir,
     )
-    if formatted_train_dataset is not None:
+    if train_dataset is not None:
         save_dataset_shards(
-            formatted_train_dataset,
+            train_dataset,
             train_dataset_dir,
             num_dataset_shards,
             "train_dataset",
@@ -215,9 +189,9 @@ def main():
         num_dataset_shards,
         validation_dataset_dir,
     )
-    if formatted_validation_dataset is not None:
+    if validation_dataset is not None:
         save_dataset_shards(
-            formatted_validation_dataset,
+            validation_dataset,
             validation_dataset_dir,
             num_dataset_shards,
             "validation_dataset",

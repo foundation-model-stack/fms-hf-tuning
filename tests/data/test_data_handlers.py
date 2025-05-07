@@ -225,7 +225,7 @@ def test_duplicate_columns_throws_error_on_wrong_args(dataset, old, new):
             duplicate_columns,
             fn_kwargs={
                 "tokenizer": tokenizer,
-                "old_column_name": old,
+                "existing_column_name": old,
                 "new_column_name": new,
             },
         )
@@ -243,7 +243,7 @@ def test_duplicate_columns_copies_columns():
         duplicate_columns,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "old_column_name": old,
+            "existing_column_name": old,
             "new_column_name": new,
         },
     )
