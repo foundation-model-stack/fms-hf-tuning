@@ -79,16 +79,20 @@ class DataHandler:
     op: callable = None  # the actual handler function
     handler_type: DataHandlerType = None  # either map or filter
     allows_batching: bool = False  # supports batched mode or not
+    desc: str = None
 
     def __init__(
         self,
         op: callable = None,
         handler_type: DataHandlerType = None,
         allows_batching: bool = False,
+        desc: str = None,
     ):
         self.op = op
         self.handler_type = handler_type
         self.allows_batching = allows_batching
+        if desc is None:
+            self.desc = self.__str__()
 
     def __str__(self):
         o = self.op.__name__ if hasattr(self.op, "__name__") else str(self.op)
@@ -569,6 +573,9 @@ def tokenize_and_apply_chat_template_with_masking(
             f"Contents of the column {conversation_column} must not be empty."
         )
 
+    tools = element["tools"] if "tools" in element else None
+    documents = element["documents"] if "documents" in element else None
+
     # Tokenize the whole sample
     input_ids = tokenizer.apply_chat_template(
         conversation=messages,
@@ -578,6 +585,8 @@ def tokenize_and_apply_chat_template_with_masking(
         truncation=True,
         max_length=max_seq_length,
         add_generation_prompt=False,
+        tools=tools,
+        documents=documents,
     )
 
     # clone labels from input ids
@@ -600,6 +609,8 @@ def tokenize_and_apply_chat_template_with_masking(
                     truncation=True,
                     max_length=max_seq_length,
                     add_generation_prompt=False,
+                    tools=tools,
+                    documents=documents,
                 ).shape[1]
             # next, we calculate the end index of this non-assistant message
             if (
@@ -617,6 +628,8 @@ def tokenize_and_apply_chat_template_with_masking(
                     truncation=True,
                     max_length=max_seq_length,
                     add_generation_prompt=True,
+                    tools=tools,
+                    documents=documents,
                 ).shape[1]
             else:
                 # for the last message or the message that doesn't follow with
@@ -629,6 +642,8 @@ def tokenize_and_apply_chat_template_with_masking(
                     truncation=True,
                     max_length=max_seq_length,
                     add_generation_prompt=False,
+                    tools=tools,
+                    documents=documents,
                 ).shape[1]
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
@@ -647,51 +662,61 @@ AVAILABLE_DATA_HANDLERS = {
         op=tokenize_and_apply_input_masking,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Combining and tokenizing instruction and response, masking instructions",
     ),
     "add_tokenizer_eos_token": DataHandler(
         op=add_tokenizer_eos_token,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Adding EOS token to text dataset",
     ),
     "apply_custom_data_formatting_template": DataHandler(
         op=apply_custom_data_formatting_template,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Formatting dataset with given formatter template",
     ),
     "apply_custom_jinja_template": DataHandler(
         op=apply_custom_jinja_template,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Formatting dataset with given jinja template",
     ),
     "apply_tokenizer_chat_template": DataHandler(
         op=apply_tokenizer_chat_template,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Applying tokenizers chat template to dataset",
     ),
     "tokenize_and_apply_chat_template_with_masking": DataHandler(
         op=tokenize_and_apply_chat_template_with_masking,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Applying chat template to dataset with tokenization",
     ),
     "duplicate_columns": DataHandler(
         op=duplicate_columns,
         handler_type=DataHandlerType.MAP,
         allows_batching=True,
+        desc="Duplicating columns",
     ),
     "prepare_multimodal_data_processor": DataHandler(
         op=prepare_multimodal_data_processor,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
+        desc="Processing text+image data",
     ),
     "tokenize": DataHandler(
         op=tokenize,
         handler_type=DataHandlerType.MAP,
         allows_batching=True,
+        desc="Tokenizing the dataset",
     ),
     "skip_samples_with_large_columns": DataHandler(
         op=skip_samples_with_large_columns,
         handler_type=DataHandlerType.FILTER,
         allows_batching=False,
+        desc="Skipping large samples",
     ),
     "remove_columns": DataHandler(
         handler_type=DataHandlerType.REMOVE,
