@@ -31,42 +31,12 @@ from tests.artifacts.testdata import (
 
 # Local
 from tuning.data.data_handlers import (
-    apply_custom_data_formatting_template,
     apply_custom_jinja_template,
     combine_sequence,
     duplicate_columns,
-    skip_large_text,
+    skip_samples_with_large_columns,
     tokenize,
 )
-from tuning.data.setup_dataprocessor import is_pretokenized_dataset
-
-
-def test_apply_custom_formatting_template():
-    """Tests custom formatting data handler returns correct formatted response"""
-    json_dataset = datasets.load_dataset(
-        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
-    )
-    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    formatted_dataset_field = "formatted_data_field"
-    formatted_dataset = json_dataset.map(
-        apply_custom_data_formatting_template,
-        fn_kwargs={
-            "tokenizer": tokenizer,
-            "dataset_text_field": formatted_dataset_field,
-            "template": template,
-        },
-    )
-    # First response from the data file that is read.
-    expected_response = (
-        "### Input: @HMRCcustomers No this is my first job"
-        + " \n\n ### Response: no complaint"
-        + tokenizer.eos_token
-    )
-
-    # a new dataset_text_field is created in Dataset
-    assert formatted_dataset_field in formatted_dataset["train"][0]
-    assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
 
 def test_apply_custom_formatting_jinja_template():
@@ -81,7 +51,7 @@ def test_apply_custom_formatting_jinja_template():
         apply_custom_jinja_template,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         },
     )
@@ -96,7 +66,7 @@ def test_apply_custom_formatting_jinja_template():
     assert formatted_dataset["train"][0][formatted_dataset_field] == expected_response
 
 
-def test_apply_custom_formatting_template_iterable():
+def test_apply_custom_formatting_jinja_template_iterable():
     """Tests custom formatting data handler with iterable dataset returns correct formatted response"""
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
@@ -105,10 +75,10 @@ def test_apply_custom_formatting_template_iterable():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset_field = "formatted_data_field"
     formatted_dataset = json_dataset.map(
-        apply_custom_data_formatting_template,
+        apply_custom_jinja_template,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "dataset_text_field": formatted_dataset_field,
+            "formatted_text_column_name": formatted_dataset_field,
             "template": template,
         },
     )
@@ -123,28 +93,9 @@ def test_apply_custom_formatting_template_iterable():
 
     first_sample = next(iter(formatted_dataset["train"]))
 
-    # a new dataset_text_field is created in Dataset
+    # a new column is created in Dataset
     assert formatted_dataset_field in first_sample
     assert first_sample[formatted_dataset_field] == expected_response
-
-
-def test_apply_custom_formatting_template_gives_error_with_wrong_keys():
-    """Tests that the formatting function will throw error if wrong keys are passed to template"""
-    json_dataset = datasets.load_dataset(
-        "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
-    )
-    template = "### Input: {{not found}} \n\n ### Response: {{text_label}}"
-    formatted_dataset_field = "formatted_data_field"
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    with pytest.raises(KeyError):
-        json_dataset.map(
-            apply_custom_data_formatting_template,
-            fn_kwargs={
-                "tokenizer": tokenizer,
-                "dataset_text_field": formatted_dataset_field,
-                "template": template,
-            },
-        )
 
 
 @pytest.mark.parametrize(
@@ -168,7 +119,7 @@ def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys(temp
             apply_custom_jinja_template,
             fn_kwargs={
                 "tokenizer": tokenizer,
-                "dataset_text_field": formatted_dataset_field,
+                "formatted_text_column_name": formatted_dataset_field,
                 "template": template,
             },
         )
@@ -226,8 +177,8 @@ def test_duplicate_columns_throws_error_on_wrong_args(dataset, old, new):
             duplicate_columns,
             fn_kwargs={
                 "tokenizer": tokenizer,
-                "old_column": old,
-                "new_column": new,
+                "existing_column_name": old,
+                "new_column_name": new,
             },
         )
 
@@ -244,8 +195,8 @@ def test_duplicate_columns_copies_columns():
         duplicate_columns,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "old_column": old,
-            "new_column": new,
+            "existing_column_name": old,
+            "new_column_name": new,
         },
     )
 
@@ -259,7 +210,7 @@ def test_tokenizer_data_handler_tokenizes():
     "Ensure tokenizer data handler tokenizes the input properly with proper truncation"
     d = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA_JSONL)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    dataset_text_field = "output"
+    text_column_name = "output"
     truncation = True
     max_length = 10
 
@@ -267,7 +218,7 @@ def test_tokenizer_data_handler_tokenizes():
         tokenize,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "dataset_text_field": dataset_text_field,
+            "text_column_name": text_column_name,
             "truncation": truncation,
             "max_length": max_length,
         },
@@ -287,19 +238,19 @@ def test_tokenizer_data_handler_tokenizes():
         ("not_existing", "not_existing"),
     ],
 )
-def test_skip_large_text_handler_throws_error_on_bad_args(column_name, max_length):
-    "Ensure that skip large text handler throws error on bad arguments"
+def test_skip_large_columns_handler_throws_error_on_bad_args(column_name, max_length):
+    "Ensure that skip large columns handler throws error on bad arguments"
     d = datasets.load_dataset("json", data_files=TWITTER_COMPLAINTS_DATA_JSONL)
     fn_kwargs = {}
     fn_kwargs["column_name"] = column_name
-    fn_kwargs["max_length"] = max_length
+    fn_kwargs["max_allowed_length"] = max_length
 
     with pytest.raises(ValueError):
-        filtered = d.filter(skip_large_text, fn_kwargs=fn_kwargs)
+        _ = d.filter(skip_samples_with_large_columns, fn_kwargs=fn_kwargs)
 
 
-def test_skip_large_text_handler():
-    "Ensure that skip large text handler skips dataset as intended"
+def test_skip_large_columns_handler():
+    "Ensure that skip large columns handler skips dataset as intended"
 
     def test_dataset_generator():
         for i in range(0, 100):
@@ -308,7 +259,7 @@ def test_skip_large_text_handler():
     d = Dataset.from_generator(test_dataset_generator)
     fn_kwargs = {}
     fn_kwargs["column_name"] = "input"
-    fn_kwargs["max_length"] = 61
+    fn_kwargs["max_allowed_length"] = 60
 
-    filtered = d.filter(skip_large_text, fn_kwargs=fn_kwargs)
+    filtered = d.filter(skip_samples_with_large_columns, fn_kwargs=fn_kwargs)
     assert len(filtered) == 60
