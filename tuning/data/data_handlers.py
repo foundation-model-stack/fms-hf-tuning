@@ -609,11 +609,23 @@ def tokenize_and_apply_chat_template_with_masking(
 
 
 AVAILABLE_DATA_HANDLERS = {
-    "tokenize_and_apply_input_masking": DataHandler(
-        op=tokenize_and_apply_input_masking,
+    "remove_columns": DataHandler(
+        # Native function
+        handler_type=DataHandlerType.REMOVE,
+    ),
+    "select_columns": DataHandler(
+        # Native function
+        handler_type=DataHandlerType.SELECT,
+    ),
+    "rename_columns": DataHandler(
+        # Native function
+        handler_type=DataHandlerType.RENAME,
+    ),
+    "tokenize": DataHandler(
+        op=tokenize,
         handler_type=DataHandlerType.MAP,
-        allows_batching=False,
-        desc="Combining and tokenizing instruction and response, masking instructions",
+        allows_batching=True,
+        desc="Tokenizing the dataset",
     ),
     "add_tokenizer_eos_token": DataHandler(
         op=add_tokenizer_eos_token,
@@ -625,19 +637,25 @@ AVAILABLE_DATA_HANDLERS = {
         op=apply_custom_jinja_template,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
-        desc="Formatting dataset with given jinja template",
+        desc="Formatting dataset with given formatting template",
+    ),
+    "tokenize_and_apply_input_masking": DataHandler(
+        op=tokenize_and_apply_input_masking,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+        desc="Combining and tokenizing instruction and response, masking instructions",
     ),
     "apply_tokenizer_chat_template": DataHandler(
         op=apply_tokenizer_chat_template,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
-        desc="Applying tokenizers chat template to dataset",
+        desc="Applying chat template to dataset",
     ),
     "tokenize_and_apply_chat_template_with_masking": DataHandler(
         op=tokenize_and_apply_chat_template_with_masking,
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
-        desc="Applying chat template to dataset with tokenization",
+        desc="Applying chat template to dataset and tokenizing",
     ),
     "duplicate_columns": DataHandler(
         op=duplicate_columns,
@@ -645,31 +663,16 @@ AVAILABLE_DATA_HANDLERS = {
         allows_batching=True,
         desc="Duplicating columns",
     ),
-    "prepare_multimodal_data_processor": DataHandler(
-        op=prepare_multimodal_data_processor,
-        handler_type=DataHandlerType.MAP,
-        allows_batching=False,
-        desc="Processing text+image data",
-    ),
-    "tokenize": DataHandler(
-        op=tokenize,
-        handler_type=DataHandlerType.MAP,
-        allows_batching=True,
-        desc="Tokenizing the dataset",
-    ),
     "skip_samples_with_large_columns": DataHandler(
         op=skip_samples_with_large_columns,
         handler_type=DataHandlerType.FILTER,
         allows_batching=False,
         desc="Skipping large samples",
     ),
-    "remove_columns": DataHandler(
-        handler_type=DataHandlerType.REMOVE,
-    ),
-    "select_columns": DataHandler(
-        handler_type=DataHandlerType.SELECT,
-    ),
-    "rename_columns": DataHandler(
-        handler_type=DataHandlerType.RENAME,
+    "prepare_multimodal_data_processor": DataHandler(
+        op=prepare_multimodal_data_processor,
+        handler_type=DataHandlerType.MAP,
+        allows_batching=False,
+        desc="Processing multimodal data",
     ),
 }
