@@ -29,11 +29,17 @@ def save_dataset_shards(
         dataset_name (str): Name of the dataset (used for logging).
     """
     os.makedirs(output_dir, exist_ok=True)
+    logging.info(
+        "Dumping processesd dataaset %s at %s in %d shards",
+        dataset_name,
+        output_dir,
+        num_shards,
+    )
     for shard_idx in range(num_shards):
         shard = dataset.shard(index=shard_idx, num_shards=num_shards)
         shard_path = os.path.join(output_dir, f"ds_{shard_idx:05d}.parquet")
         shard.to_parquet(shard_path)
-    logging.info("Dumped %d shards of %s at %s", num_shards, dataset_name, output_dir)
+    logging.info("Dumped %d shards", num_shards)
 
 
 def process_datasets_offline(
@@ -53,10 +59,13 @@ def process_datasets_offline(
         tuple: A tuple containing the formatted training dataset and validation dataset.
     """
     # Set log level for this function
-    train_args, logger = set_log_level(train_args, "get_processed_dataset")
+    train_args, logger = set_log_level(train_args, "process_datasets_offline")
 
     logger.info(
-        "Starting dataset processing with model_args: %s, data_args: %s, training_args: %s",
+        "Starting offline dataset processing with \n\
+         model_args: %s, \n\
+         data_args: %s, \n\
+         training_args: %s",
         model_args,
         data_args,
         train_args,
