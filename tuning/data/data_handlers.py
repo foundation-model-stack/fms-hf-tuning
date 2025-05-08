@@ -20,7 +20,6 @@ from typing import Any, Dict, List, Union
 
 # import copy
 import logging
-import re
 
 # Third Party
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
@@ -203,54 +202,6 @@ def add_tokenizer_eos_token(
     return {f"{text_column_name}": element[f"{text_column_name}"] + tokenizer.eos_token}
 
 
-def apply_custom_data_formatting_template(
-    element: Dict[str, str],
-    tokenizer: AutoTokenizer,
-    formatted_text_column_name: str,
-    template: str,
-    add_eos_token: bool = True,
-    **kwargs,
-):
-    """Function to format datasets with Alpaca style / other templates.
-       Expects to be run as a HF Map API function.
-    Args:
-        element: the HF Dataset element.
-        tokenizer: Tokenizer to be used for the EOS token, which will be appended
-            when formatting the data into a single sequence. Defaults to empty.
-        formatted_text_column_name: Name of the dataset column where formatted
-                                    text is to be saved. If doesn't exist a new
-                                    column will be created.
-        template: Template to format data with. Features of Dataset
-            should be referred to by {{key}}
-        add_eos_token: should add tokenizer.eos_token to text or not, defaults to True
-    Returns:
-        Formatted Dataset element by formatting dataset with template+tokenizer.EOS_TOKEN
-        Saves the result to formatted_text_column_name argument.
-    """
-
-    if add_eos_token:
-        template += tokenizer.eos_token
-
-    def replace_text(match_obj):
-        captured_groups = match_obj.groups()
-        if len(captured_groups) != 1:
-            raise ValueError(
-                "Unexpectedly captured multiple groups in template formatting"
-            )
-
-        index_object = captured_groups[0]
-        if index_object not in element:
-            raise KeyError("Requested template string is not a valid key in dict")
-
-        return str(element[index_object])
-
-    return {
-        f"{formatted_text_column_name}": re.sub(
-            r"{{([\s0-9a-zA-Z_\-\.]+)}}", replace_text, template
-        )
-    }
-
-
 def apply_custom_jinja_template(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
@@ -259,7 +210,7 @@ def apply_custom_jinja_template(
     add_eos_token: bool = True,
     **kwargs,
 ):
-    """Function to format datasets with jinja templates.
+    """Function to format datasets with Alpaca style / any other jinja templates.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
@@ -669,12 +620,6 @@ AVAILABLE_DATA_HANDLERS = {
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
         desc="Adding EOS token to text dataset",
-    ),
-    "apply_custom_data_formatting_template": DataHandler(
-        op=apply_custom_data_formatting_template,
-        handler_type=DataHandlerType.MAP,
-        allows_batching=False,
-        desc="Formatting dataset with given formatter template",
     ),
     "apply_custom_jinja_template": DataHandler(
         op=apply_custom_jinja_template,

@@ -189,7 +189,7 @@ def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
         fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
         fn_kwargs["template"] = data_args.data_formatter_template
         handler = DataHandlerConfig(
-            "apply_custom_data_formatting_template",
+            "apply_custom_jinja_template",
             arguments={"fn_kwargs": fn_kwargs, "batched": False},
         )
     return [handler], data_args.dataset_text_field
