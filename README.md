@@ -337,8 +337,8 @@ Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
 GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
 GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
-Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
+Granite 3B           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
+Granite 8B           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
 Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
 Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
 Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
