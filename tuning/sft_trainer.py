@@ -647,6 +647,7 @@ def main():
     parser = get_parser()
     logger = logging.getLogger()
     job_config = get_json_config()
+    print(job_config)
     # accept arguments via command-line or JSON
     try:
         (
