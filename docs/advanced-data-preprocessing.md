@@ -277,6 +277,57 @@ Note: Streaming datasets or use of `IterableDatasets` is not compatible with the
 
 If the dataset size is known to the user, `max_steps` can be calculated as the total number of samples divided by the batch size.
 
+### How users can specify the chat template
+
+In the `data_config.yaml` file:
+
+**✅ USE:**
+
+```yaml
+dataprocessor:
+  chat_template: "my single line chat template"
+```
+
+The recommended way is to copy paste the chat template from the official checkpoint https://huggingface.co/ibm-granite/granite-3.1-8b-instruct/blob/main/tokenizer_config.json#L188
+
+
+**✅ (Optional) USE:**
+
+```yaml
+dataprocessor:
+  chat_template: |
+    my multi-line chat template
+```
+
+Specifying a multi-line chat template will requires some manual effort on the user's part to ensure new lines are specified correctly.
+This approach is mainly useful for readability, especially if you are customizing the chat template.
+
+Example:
+
+```yaml
+dataprocessor:
+  chat_template: |
+    {%- if messages[0]['role'] == 'system' %}
+        {%- set system_message = messages[0]['content'] %}
+        {%- set loop_messages = messages[1:] %}
+    {%- else %}
+        {%- set system_message = "Knowledge Cutoff Date: April 2024.
+    Today's Date: " + strftime_now('%B %d, %Y') + ".
+    You are Granite, developed by IBM." %}
+        {%- if tools and documents %}
+    ................
+```
+
+**❌ DO NOT USE:**
+
+```yaml
+dataprocessor:
+  chat_template: |
+    my single line chat template
+```
+
+This can add extra backslashes to your chat template causing it to become invalid.
+
 ### Example data configs.
 
 We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
