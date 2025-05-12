@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Local
-from tuning.utils.utils import try_convert_bytes_dict_to_pil
+from tuning.data.utils import try_convert_bytes_dict_to_pil
 
 
 class VisionDataCollator:

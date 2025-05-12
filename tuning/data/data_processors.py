@@ -31,10 +31,10 @@ from tuning.data.data_handlers import (
     DataHandler,
     DataHandlerType,
 )
-from tuning.utils.utils import (
+from tuning.data.utils import (
     get_loader_for_filepath,
+    maybe_align_datasets,
     resolve_iterable_dataset_features,
-    validate_mergeable_datasets,
 )
 
 logger = logging.getLogger(__name__)
@@ -223,30 +223,29 @@ class DataPreProcessor:
 
         for data_path in data_paths:
             dataset = _try_load_dataset(data_path, builder, streaming)
-            if isinstance(dataset, IterableDataset):
-                dataset = resolve_iterable_dataset_features(dataset)
             all_datasets.append(dataset)
-
-        # Logs warning if datasets have different columns
-        validate_mergeable_datasets(all_datasets)
 
         # Concatenate all datasets
         try:
             if len(all_datasets) == 1:
                 return all_datasets[0]
-
+            maybe_align_datasets(all_datasets)
             raw_datasets = datasets.concatenate_datasets(all_datasets)
             logger.info(
-                "Datasets concatenated from %s .Concatenated dataset columns: %s",
+                "Datasets %s concatenated. Final column features: %s",
                 datasetconfig.name,
-                list(raw_datasets.features.keys()),
+                str(list(raw_datasets.features)),
             )
-            return raw_datasets
-
         except Exception as e:
             raise ValueError(
                 f"An error occurred while concatenating datasets from {datasetconfig.name}: {e}"
             ) from e
+
+        # Need to resolve dataset features because data handlers use columns.
+        if isinstance(raw_datasets, IterableDataset):
+            raw_datasets = resolve_iterable_dataset_features(raw_datasets)
+
+        return raw_datasets
 
     def __execute_rename_data_handler(self, raw_datasets, handler, **kwargs):
         """
@@ -456,9 +455,6 @@ class DataPreProcessor:
             raw_dataset = self.load_dataset(
                 d, self.processor_config.streaming, splitName
             )
-            if isinstance(raw_dataset, IterableDataset):
-                raw_dataset = resolve_iterable_dataset_features(raw_dataset)
-
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
             if isinstance(raw_dataset, IterableDataset):
@@ -493,6 +489,9 @@ class DataPreProcessor:
                 else:
                     final_datasets[k].append(v)
 
+        # Ensure again datasets are aligned before interleaving or concatenating
+        maybe_align_datasets(final_datasets)
+
         if sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
             seed = self.processor_config.sampling_seed
@@ -517,6 +516,8 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
+
+        # Just a failsafe in case this is required later.
         if isinstance(train_dataset, IterableDataset):
             train_dataset = resolve_iterable_dataset_features(train_dataset)
 

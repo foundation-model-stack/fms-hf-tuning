@@ -19,7 +19,7 @@ import logging
 import os
 
 # Third Party
-from datasets import IterableDataset
+from datasets import DatasetDict, IterableDataset, IterableDatasetDict
 from PIL import Image
 import yaml
 
@@ -70,39 +70,73 @@ def resolve_iterable_dataset_features(data: IterableDataset):
     return data
 
 
-def validate_mergeable_datasets(datasets):
+def __get_dataset_features(d, default_split="train"):
+    return (
+        d[default_split].features
+        if isinstance(d, (DatasetDict or IterableDatasetDict))
+        else d.features
+    )
+
+
+def _maybe_cast_columns(datasets, default_split="train"):
+    """
+    Given list of datasets, try casting datasets to same features.
+    Assumes that the datasets are aligned in terms of columns which
+    could be ensure by calling validate_mergeable_datasets
+    """
+    if len(datasets) <= 1:
+        return
+
+    # pick the first dataset as the reference
+    features = __get_dataset_features(datasets[0], default_split)
+
+    # Cast remaining datasets according to this
+    for i in range(1, len(datasets)):
+        datasets[i] = datasets[i].cast(features)
+
+
+def _validate_mergeable_datasets(datasets, default_split="train"):
     """Given list of datasets, validate if all datasets have same type and number of columns."""
-    if len(datasets) > 1:
-        ref_columns = datasets[0].features
-        ref_column_names = list(ref_columns.keys())
-        ref_column_types = {col: feat.dtype for col, feat in ref_columns.items()}
+    if len(datasets) <= 1:
+        return
 
-        # Check all other datasets
-        for i, ds in enumerate(datasets[1:], start=2):
-            ds_column_names = list(ds.features.keys())
-            ds_column_types = {col: feat.dtype for col, feat in ds.features.items()}
+    ref_columns = __get_dataset_features(datasets[0], default_split)
+    ref_column_names = list(ref_columns.keys())
 
-            # Check same set of columns
-            if set(ds_column_names) != set(ref_column_names):
-                logger.warning(
-                    "Dataset %d has different columns: %s. Columns in Dataset 1: %s",
-                    i,
-                    ds_column_names,
-                    ref_column_names,
-                )
+    # Check all other datasets
+    mismatching_ds = []
+    for _, ds in enumerate(datasets[1:], start=1):
+        ds_features = __get_dataset_features(ds, default_split)
+        ds_column_names = list(ds_features.keys())
 
-            # Check column data types
-            for col in ref_column_names:
-                if (col in ds_column_types) and (
-                    ds_column_types[col] != ref_column_types[col]
-                ):
-                    logger.warning(
-                        "Column '%s' in dataset %d has type %s, expected %s",
-                        col,
-                        i,
-                        ds_column_types[col],
-                        ref_column_types[col],
-                    )
+        # Check same set of columns
+        if set(ds_column_names) != set(ref_column_names):
+            mismatching_ds.append([ds])
+
+    if len(mismatching_ds) > 0:
+        raise ValueError(
+            "Datasets passed should have same column names. "
+            + "Found {} datasets with mismatching column names".format(
+                len(mismatching_ds)
+            ),
+        )
+
+
+def maybe_align_datasets(datasets):
+    """
+    Given list of datasets
+     1. validate if all datasets have same type and number of columns.
+     2. try casting dataset columns to same value to ensure mergability
+    """
+    try:
+        for d in datasets:
+            if isinstance(d, IterableDataset):
+                d = resolve_iterable_dataset_features(d)
+
+        _validate_mergeable_datasets(datasets)
+        _maybe_cast_columns(datasets)
+    except Exception as e:  # pylint: disable=broad-exception-raised
+        raise ValueError("Failed to align datasets " + str(datasets)) from e
 
 
 def try_convert_bytes_dict_to_pil(image):

@@ -34,8 +34,8 @@ from transformers import (
 import torch
 
 # Local
+from tuning.data.utils import try_convert_bytes_dict_to_pil, try_convert_image_to_rgb
 from tuning.utils.config_utils import process_jinja_placeholders
-from tuning.utils.utils import try_convert_bytes_dict_to_pil, try_convert_image_to_rgb
 
 logger = logging.getLogger(__name__)
 

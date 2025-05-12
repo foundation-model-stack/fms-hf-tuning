@@ -22,8 +22,8 @@ PREDEFINED_DATA_CONFIGS = os.path.join(os.path.dirname(__file__))
 DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "apply_custom_jinja_template.yaml"
 )
-DATA_CONFIG_PRETOKENIZE_JSON_DATA_YAML = os.path.join(
-    PREDEFINED_DATA_CONFIGS, "pretokenized_json_data.yaml"
+DATA_CONFIG_PRETOKENIZE_DATA_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "pretokenized_data.yaml"
 )
 DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking.yaml"
@@ -56,7 +56,7 @@ DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
 )
 DATA_CONFIG_YAML_STREAMING_PRETOKENIZED = os.path.join(
-    PREDEFINED_DATA_CONFIGS, "pretokenized_json_data_streaming.yaml"
+    PREDEFINED_DATA_CONFIGS, "pretokenized_data_streaming.yaml"
 )
 DATA_CONFIG_DUPLICATE_COLUMNS = os.path.join(
     PREDEFINED_DATA_CONFIGS, "duplicate_columns.yaml"

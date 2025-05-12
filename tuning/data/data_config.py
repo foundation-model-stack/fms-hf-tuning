@@ -20,7 +20,7 @@ import logging
 import os
 
 # Local
-from tuning.utils.utils import load_yaml_or_json
+from tuning.data.utils import load_yaml_or_json
 
 logger = logging.getLogger(__name__)
 
