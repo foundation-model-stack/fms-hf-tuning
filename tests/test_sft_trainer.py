@@ -92,11 +92,7 @@ from tuning.data.data_config import (
     DataSetConfig,
     load_and_validate_data_config,
 )
-from tuning.data.data_handlers import (
-    DataHandler,
-    DataHandlerType,
-    add_tokenizer_eos_token,
-)
+from tuning.data.data_handlers import DataHandler, DataHandlerType
 from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_ARGS = configs.ModelArguments(
@@ -481,7 +477,7 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         train_args = copy.deepcopy(TRAIN_ARGS)
@@ -518,7 +514,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
@@ -623,7 +619,7 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
         data_args.validation_data_path = dataset_path
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
@@ -1706,7 +1702,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
     """Only one of dataset_text_field or formatter can be supplied"""
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.data_formatter_template = (
-        "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
     )
 
     with pytest.raises(ValueError):
@@ -1718,7 +1714,7 @@ def test_invalid_formatter_template():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.dataset_text_field = None
     data_args.data_formatter_template = (
-        "### Text: {{not found}} \n\n### Label: {{text_label}}"
+        "### Text: {{not_found}} \n\n### Label: {{text_label}}"
     )
 
     with pytest.raises(KeyError):
@@ -2012,8 +2008,8 @@ def test_run_by_passing_additional_data_handlers():
     # This is my test handler
     TEST_HANDLER = "my_test_handler"
 
-    def test_handler(element, tokenizer, **kwargs):
-        return add_tokenizer_eos_token(element, tokenizer, "custom_formatted_field")
+    def test_handler(element, **kwargs):
+        return {"custom_formatted_field": element}
 
     # This data config calls for data handler to be applied to dataset
     preprocessor_config = DataPreProcessorConfig()

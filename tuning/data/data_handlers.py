@@ -35,7 +35,6 @@ import torch
 
 # Local
 from tuning.data.utils import try_convert_bytes_dict_to_pil, try_convert_image_to_rgb
-from tuning.utils.config_utils import process_jinja_placeholders
 
 logger = logging.getLogger(__name__)
 
@@ -100,30 +99,6 @@ class DataHandler:
         return f"DataHandler(op={o}, handler_type={n}, allows_batching={b})"
 
 
-### Utils for custom masking / manipulating input / output strs, etc
-def combine_sequence(input_element: str, output_element: str, eos_token: str = ""):
-    """Combines / concatenates input & output element.
-
-    Args:
-        input_element: str
-            Input component of the combined sequence.
-        output_element: str
-            Output component of the combined sequence.
-        eos_token: str
-            EOS token associated with the tokenizer. \
-            If passed, it will be concatenated at end
-
-    Returns:
-        str
-            Sequence combined with whitespace.
-    """
-    if not input_element.endswith((" ", "\n", "\t")) and not output_element.startswith(
-        (" ", "\n", "\t")
-    ):
-        return input_element + " " + output_element + eos_token
-    return input_element + output_element + eos_token
-
-
 def tokenize_and_apply_input_masking(
     element: Dict[str, str],
     tokenizer: AutoTokenizer,
@@ -161,7 +136,12 @@ def tokenize_and_apply_input_masking(
     if add_eos_token:
         eos_token = tokenizer.eos_token
 
-    combined = combine_sequence(input_text, output_text, eos_token=eos_token)
+    if not input_text.endswith((" ", "\n", "\t")) and not output_text.startswith(
+        (" ", "\n", "\t")
+    ):
+        combined = input_text + " " + output_text + eos_token
+    else:
+        combined = input_text + output_text + eos_token
 
     tokenizer_kwargs = kwargs.get("tokenizer_kwargs", {})
 
@@ -180,26 +160,25 @@ def tokenize_and_apply_input_masking(
     }
 
 
-def add_tokenizer_eos_token(
-    element: Dict[str, str],
-    tokenizer: AutoTokenizer,
-    text_column_name: str,
-    **kwargs,
-):
-    """Function to add tokenizer's EOS token to text field of an element
-       Expects to be run as a HF Map API function.
-    Args:
-        element: the HF Dataset element.
-        tokenizer: Tokenizer to be used for the EOS token, which will be appended
-            when formatting the data into a single sequence. Defaults to empty.
-        text_column_name: Text column name of the dataset where EOS is to be added.
-    Returns:
-        Formatted Dataset element with EOS added to text_column_name of the element.
-    """
-
-    if text_column_name not in element:
-        raise KeyError(f"Dataset should contain {text_column_name} field.")
-    return {f"{text_column_name}": element[f"{text_column_name}"] + tokenizer.eos_token}
+def __wrap_jinja_rendering_with_exception_handling(render_template: callable, **kwargs):
+    try:
+        return render_template(**kwargs)  # <-------- Actual function call
+    except TemplateSyntaxError as e:
+        raise ValueError(
+            f"Invalid template syntax in provided jinja template. {e}"
+        ) from e
+    except UndefinedError as e:
+        raise KeyError(
+            f"The dataset does not contain the key used in the provided jinja template. {e}"
+        ) from e
+    except SecurityError as e:
+        raise ValueError(
+            f"Unsafe operation detected in the provided Jinja template. {e}"
+        ) from e
+    except Exception as e:
+        raise ValueError(
+            f"Error occurred while rendering the provided Jinja template. {e}"
+        ) from e
 
 
 def apply_custom_jinja_template(
@@ -207,54 +186,35 @@ def apply_custom_jinja_template(
     tokenizer: AutoTokenizer,
     formatted_text_column_name: str,
     template: str,
-    add_eos_token: bool = True,
     **kwargs,
 ):
     """Function to format datasets with Alpaca style / any other jinja templates.
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
-        tokenizer: Tokenizer to be used for the EOS token, which will be appended
-            when formatting the data into a single sequence. Defaults to empty.
+        tokenizer: Tokenizer to be used for the special tokens, which can be passed
+                  inside the jinja template as variables and will be rendered properly.
         formatted_text_column_name: Name of the dataset column where formatted
                                     text is to be saved. If doesn't exist a new
                                     column will be created.
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}.
-        add_eos_token: should add tokenizer.eos_token to text or not, defaults to True
     Returns:
         Formatted HF Dataset element by formatting dataset with provided jinja template
         Saves the result to formatted_text_column_name argument.
     """
-    if add_eos_token:
-        template += tokenizer.eos_token
 
-    template = process_jinja_placeholders(template)
-    env = SandboxedEnvironment(undefined=StrictUndefined)
-
-    try:
+    def render():
+        env = SandboxedEnvironment(undefined=StrictUndefined)
         jinja_template = env.from_string(template)
-    except TemplateSyntaxError as e:
-        raise ValueError(
-            f"Invalid template syntax in provided Jinja template. {e.message}"
-        ) from e
+        template_kwargs = {**tokenizer.special_tokens_map, **element}
+        return jinja_template.render(element=element, **template_kwargs)
 
-    try:
-        rendered_text = jinja_template.render(element=element, **element)
-    except UndefinedError as e:
-        raise KeyError(
-            f"The dataset does not contain the key used in the provided Jinja template. {e.message}"
-        ) from e
-    except SecurityError as e:
-        raise ValueError(
-            f"Unsafe operation detected in the provided Jinja template. {e.message}"
-        ) from e
-    except Exception as e:
-        raise ValueError(
-            f"Error occurred while rendering the provided Jinja template. {e.message}"
-        ) from e
-
-    return {f"{formatted_text_column_name}": rendered_text}
+    return {
+        f"{formatted_text_column_name}": __wrap_jinja_rendering_with_exception_handling(
+            render
+        )
+    }
 
 
 def apply_tokenizer_chat_template(
@@ -295,11 +255,13 @@ def apply_tokenizer_chat_template(
     tools = element["tools"] if "tools" in element else None
     documents = element["documents"] if "documents" in element else None
 
-    return {
-        f"{formatted_text_column_name}": tokenizer.apply_chat_template(
-            converation, tools=tools, documents=documents, tokenize=False
-        )
-    }
+    return __wrap_jinja_rendering_with_exception_handling(
+        lambda: {
+            f"{formatted_text_column_name}": tokenizer.apply_chat_template(
+                converation, tools=tools, documents=documents, tokenize=False
+            )
+        }
+    )
 
 
 def prepare_multimodal_data_processor(
@@ -528,16 +490,18 @@ def tokenize_and_apply_chat_template_with_masking(
     documents = element["documents"] if "documents" in element else None
 
     # Tokenize the whole sample
-    input_ids = tokenizer.apply_chat_template(
-        conversation=messages,
-        tokenize=True,
-        padding=False,
-        return_tensors="pt",
-        truncation=True,
-        max_length=max_seq_length,
-        add_generation_prompt=False,
-        tools=tools,
-        documents=documents,
+    input_ids = __wrap_jinja_rendering_with_exception_handling(
+        lambda: tokenizer.apply_chat_template(
+            conversation=messages,
+            tokenize=True,
+            padding=False,
+            return_tensors="pt",
+            truncation=True,
+            max_length=max_seq_length,
+            add_generation_prompt=False,
+            tools=tools,
+            documents=documents,
+        )
     )
 
     # clone labels from input ids
@@ -550,19 +514,20 @@ def tokenize_and_apply_chat_template_with_masking(
             if message_idx == 0:
                 message_start_idx = 0
             else:
-                message_start_idx = tokenizer.apply_chat_template(
-                    conversation=messages[
-                        :message_idx
-                    ],  # here marks the end of the previous messages
-                    tokenize=True,
-                    padding=False,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=max_seq_length,
-                    add_generation_prompt=False,
-                    tools=tools,
-                    documents=documents,
-                ).shape[1]
+                message_start_idx = __wrap_jinja_rendering_with_exception_handling(
+                    lambda idx=message_idx: tokenizer.apply_chat_template(
+                        # here marks the end of the previous messages
+                        conversation=messages[:idx],
+                        tokenize=True,
+                        padding=False,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=max_seq_length,
+                        add_generation_prompt=False,
+                        tools=tools,
+                        documents=documents,
+                    ).shape[1]
+                )
             # next, we calculate the end index of this non-assistant message
             if (
                 message_idx < len(messages) - 1
@@ -571,31 +536,35 @@ def tokenize_and_apply_chat_template_with_masking(
                 # for intermediate messages that follow with an assistant message,
                 # we need to set `add_generation_prompt=True` to avoid the assistant
                 # generation prefix being included in the loss (e.g., `<|assistant|>`)
-                message_end_idx = tokenizer.apply_chat_template(
-                    conversation=messages[: message_idx + 1],
-                    tokenize=True,
-                    return_tensors="pt",
-                    padding=False,
-                    truncation=True,
-                    max_length=max_seq_length,
-                    add_generation_prompt=True,
-                    tools=tools,
-                    documents=documents,
-                ).shape[1]
+                message_end_idx = __wrap_jinja_rendering_with_exception_handling(
+                    lambda idx=message_idx: tokenizer.apply_chat_template(
+                        conversation=messages[: idx + 1],
+                        tokenize=True,
+                        return_tensors="pt",
+                        padding=False,
+                        truncation=True,
+                        max_length=max_seq_length,
+                        add_generation_prompt=True,
+                        tools=tools,
+                        documents=documents,
+                    ).shape[1]
+                )
             else:
                 # for the last message or the message that doesn't follow with
                 # an assistant message, we don't need to add the assistant generation prefix
-                message_end_idx = tokenizer.apply_chat_template(
-                    conversation=messages[: message_idx + 1],
-                    tokenize=True,
-                    return_tensors="pt",
-                    padding=False,
-                    truncation=True,
-                    max_length=max_seq_length,
-                    add_generation_prompt=False,
-                    tools=tools,
-                    documents=documents,
-                ).shape[1]
+                message_end_idx = __wrap_jinja_rendering_with_exception_handling(
+                    lambda idx=message_idx: tokenizer.apply_chat_template(
+                        conversation=messages[: idx + 1],
+                        tokenize=True,
+                        return_tensors="pt",
+                        padding=False,
+                        truncation=True,
+                        max_length=max_seq_length,
+                        add_generation_prompt=False,
+                        tools=tools,
+                        documents=documents,
+                    ).shape[1]
+                )
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
             if max_seq_length and message_end_idx >= max_seq_length:
@@ -626,12 +595,6 @@ AVAILABLE_DATA_HANDLERS = {
         handler_type=DataHandlerType.MAP,
         allows_batching=True,
         desc="Tokenizing the dataset",
-    ),
-    "add_tokenizer_eos_token": DataHandler(
-        op=add_tokenizer_eos_token,
-        handler_type=DataHandlerType.MAP,
-        allows_batching=False,
-        desc="Adding EOS token to text dataset",
     ),
     "apply_custom_jinja_template": DataHandler(
         op=apply_custom_jinja_template,

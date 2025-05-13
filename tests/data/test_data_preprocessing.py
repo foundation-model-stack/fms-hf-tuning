@@ -736,7 +736,7 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -795,7 +795,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -846,7 +846,7 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     # Modify dataset_text_field and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "dataset_text_field": formatted_dataset_field,
             "template": template,
@@ -928,7 +928,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         "apply_custom_data_template",
         "apply_custom_data_jinja_template",
     ):
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -1008,16 +1008,17 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
         "apply_custom_data_template",
         "apply_custom_data_jinja_template",
     ):
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = (
+            "### Input: {{element['Tweet text']}} \n\n ### Response: {{text_label}}"
+        )
+        if add_eos_token:
+            template += "{{eos_token}}"
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
             "formatted_text_column_name"
         ] = formatted_dataset_field
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
             "template"
         ] = template
-        yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"][
-            "add_eos_token"
-        ] = add_eos_token
 
     with tempfile.NamedTemporaryFile(
         "w", delete=False, suffix=".yaml"
@@ -1159,7 +1160,7 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,

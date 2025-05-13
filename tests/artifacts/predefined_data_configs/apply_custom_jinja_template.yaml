@@ -12,4 +12,3 @@ datasets:
           fn_kwargs:
             formatted_text_column_name: "formatted_text"
             template: "dataset_template"
-            add_eos_token: true

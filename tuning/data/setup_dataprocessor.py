@@ -179,19 +179,22 @@ def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
     fn_kwargs = {}
 
     if data_args.dataset_text_field:
-        fn_kwargs["text_column_name"] = data_args.dataset_text_field
-        handler = DataHandlerConfig(
-            "add_tokenizer_eos_token",
-            arguments={"fn_kwargs": fn_kwargs, "batched": False},
-        )
+        # First create a template using old dataset text field
+        fn_kwargs[
+            "template"
+        ] = f"{{{{ element['{data_args.dataset_text_field}'] }}}}{{{{ eos_token }}}}"
+        # Then create a formatted text column name and
+        # set it to new text field which is picked while training.
+        fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
     else:
         data_args.dataset_text_field = "text"
         fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
         fn_kwargs["template"] = data_args.data_formatter_template
-        handler = DataHandlerConfig(
-            "apply_custom_jinja_template",
-            arguments={"fn_kwargs": fn_kwargs, "batched": False},
-        )
+
+    handler = DataHandlerConfig(
+        "apply_custom_jinja_template",
+        arguments={"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"},
+    )
     return [handler], data_args.dataset_text_field
 
 

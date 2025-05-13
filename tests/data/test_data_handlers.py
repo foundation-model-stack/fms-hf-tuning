@@ -32,7 +32,6 @@ from tests.artifacts.testdata import (
 # Local
 from tuning.data.data_handlers import (
     apply_custom_jinja_template,
-    combine_sequence,
     duplicate_columns,
     skip_samples_with_large_columns,
     tokenize,
@@ -44,11 +43,12 @@ def test_apply_custom_formatting_jinja_template():
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
-    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{ eos_token }}'
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset_field = "formatted_data_field"
     formatted_dataset = json_dataset.map(
         apply_custom_jinja_template,
+        load_from_cache_file=False,
         fn_kwargs={
             "tokenizer": tokenizer,
             "formatted_text_column_name": formatted_dataset_field,
@@ -71,7 +71,7 @@ def test_apply_custom_formatting_jinja_template_iterable():
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
     )
-    template = "### Input: {{Tweet text}} \n\n ### Response: {{text_label}}"
+    template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{ eos_token }}'
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset_field = "formatted_data_field"
     formatted_dataset = json_dataset.map(
@@ -101,10 +101,10 @@ def test_apply_custom_formatting_jinja_template_iterable():
 @pytest.mark.parametrize(
     "template",
     [
-        "### Input: {{ not found }} \n\n ### Response: {{ text_label }}",
-        "### Input: }} Tweet text {{ \n\n ### Response: {{ text_label }}",
-        "### Input: {{ Tweet text }} \n\n ### Response: {{ ''.__class__ }}",
-        "### Input: {{ Tweet text }} \n\n ### Response: {{ undefined_variable.split() }}",
+        "### Input: {{ not_found }} \n\n ### Response: {{ text_label }}",
+        "### Input: }} element['Tweet text'] {{ \n\n ### Response: {{ text_label }}",
+        "### Input: {{ element['Tweet text'] }} \n\n ### Response: {{ ''.__class__ }}",
+        "### Input: {{ element['Tweet text'] }} \n\n ### Response: {{ undefined_variable.split() }}",
     ],
 )
 def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys(template):
@@ -117,46 +117,13 @@ def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys(temp
     with pytest.raises((KeyError, ValueError)):
         json_dataset.map(
             apply_custom_jinja_template,
+            load_from_cache_file=False,
             fn_kwargs={
                 "tokenizer": tokenizer,
                 "formatted_text_column_name": formatted_dataset_field,
                 "template": template,
             },
         )
-
-
-@pytest.mark.parametrize(
-    "input_element,output_element,expected_res",
-    [
-        ("foo ", "bar", "foo bar"),
-        ("foo\n", "bar", "foo\nbar"),
-        ("foo\t", "bar", "foo\tbar"),
-        ("foo", "bar", "foo bar"),
-    ],
-)
-def test_combine_sequence(input_element, output_element, expected_res):
-    """Ensure that input / output elements are combined with correct whitespace handling."""
-    comb_seq = combine_sequence(input_element, output_element)
-    assert isinstance(comb_seq, str)
-    assert comb_seq == expected_res
-
-
-@pytest.mark.parametrize(
-    "input_element,output_element,expected_res",
-    [
-        ("foo ", "bar", "foo bar"),
-        ("foo\n", "bar", "foo\nbar"),
-        ("foo\t", "bar", "foo\tbar"),
-        ("foo", "bar", "foo bar"),
-    ],
-)
-def test_combine_sequence_adds_eos(input_element, output_element, expected_res):
-    """Ensure that input / output elements are combined with correct whitespace handling."""
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    comb_seq = combine_sequence(input_element, output_element, tokenizer.eos_token)
-    expected_res += tokenizer.eos_token
-    assert isinstance(comb_seq, str)
-    assert comb_seq == expected_res
 
 
 @pytest.mark.parametrize(
@@ -175,6 +142,7 @@ def test_duplicate_columns_throws_error_on_wrong_args(dataset, old, new):
     with pytest.raises(ValueError):
         d.map(
             duplicate_columns,
+            load_from_cache_file=False,
             fn_kwargs={
                 "tokenizer": tokenizer,
                 "existing_column_name": old,
@@ -193,6 +161,7 @@ def test_duplicate_columns_copies_columns():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     updated_dataaset = d.map(
         duplicate_columns,
+        load_from_cache_file=False,
         fn_kwargs={
             "tokenizer": tokenizer,
             "existing_column_name": old,
@@ -216,6 +185,7 @@ def test_tokenizer_data_handler_tokenizes():
 
     updated_dataaset = d.map(
         tokenize,
+        load_from_cache_file=False,
         fn_kwargs={
             "tokenizer": tokenizer,
             "text_column_name": text_column_name,
@@ -246,7 +216,11 @@ def test_skip_large_columns_handler_throws_error_on_bad_args(column_name, max_le
     fn_kwargs["max_allowed_length"] = max_length
 
     with pytest.raises(ValueError):
-        _ = d.filter(skip_samples_with_large_columns, fn_kwargs=fn_kwargs)
+        _ = d.filter(
+            skip_samples_with_large_columns,
+            load_from_cache_file=False,
+            fn_kwargs=fn_kwargs,
+        )
 
 
 def test_skip_large_columns_handler():
@@ -261,5 +235,7 @@ def test_skip_large_columns_handler():
     fn_kwargs["column_name"] = "input"
     fn_kwargs["max_allowed_length"] = 60
 
-    filtered = d.filter(skip_samples_with_large_columns, fn_kwargs=fn_kwargs)
+    filtered = d.filter(
+        skip_samples_with_large_columns, load_from_cache_file=False, fn_kwargs=fn_kwargs
+    )
     assert len(filtered) == 60
