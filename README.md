@@ -328,28 +328,28 @@ Please refer to [this document](docs/offline-data-preprocessing.md) for details 
 
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
-Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
-GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-Granite 3B           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
-Granite 8B           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
+[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅ | ✅ | ? |
+[Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
+[Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 8B](https://huggingface.co/ibm-granite/granite-3.1-8b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 2B](https://huggingface.co/ibm-granite/granite-3.0-2b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 8B](https://huggingface.co/ibm-granite/granite-3.0-8b-base)       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
+[GraniteMoE 1B](https://huggingface.co/ibm-granite/granite-3.0-1b-a400m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[GraniteMoE 3B](https://huggingface.co/ibm-granite/granite-3.0-3b-a800m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[Granite 3B Code Base](https://huggingface.co/ibm-granite/granite-3b-code-base-2k)           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
+[Granite 8B Code Base](https://huggingface.co/ibm-granite/granite-8b-code-base-4k)           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
 Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
 Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
-Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
-Llama3.1-8B          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
-Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
-Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
-Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
-Llama3-70B                                | LLaMA 3   | 🚫 | ✅ | ✅ |
+[Granite 34B Code Instruct](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k)            | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+[Llama3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
+[Llama3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+[Llama3.1-405B](https://huggingface.co/meta-llama/Llama-3.1-405B)                            | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
+[Llama3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)                               | LLaMA 3   | ✅ | ✅ | ✔️ |  
+[Llama3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)                             | LLaMA 3   | 🚫 | ✅ | ✅ |
 aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
-Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
-Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
+[Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1)                              | Mixtral   | ✅ | ✅ | ✅ |
+[Mistral-7b](https://huggingface.co/mistralai/Mistral-7B-v0.1)                                  | Mistral   | ✅ | ✅ | ✅ |  
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
 (*) - Supported with `fms-hf-tuning` v2.4.0 or later.
