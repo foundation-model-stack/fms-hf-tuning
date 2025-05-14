@@ -6,7 +6,7 @@ from tests.artifacts.testdata import MODEL_NAME
 
 # Local
 from tuning.config import configs
-from tuning.utils.tokenizer_data_utils import (
+from tuning.data.tokenizer_utils import (
     get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )

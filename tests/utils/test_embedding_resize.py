@@ -32,7 +32,7 @@ from tests.artifacts.testdata import CUSTOM_TOKENIZER_TINYLLAMA
 from tests.artifacts.vision_models import TINY_LLAMA_VISION_MODEL_NAME
 
 # Local
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.data.tokenizer_utils import tokenizer_and_embedding_resize
 
 MODEL_NAME = "Maykeye/TinyLLama-v0"
 INPUT_TEXT = "### Text: @NortonSupport Thanks much.\n\n### Label:"

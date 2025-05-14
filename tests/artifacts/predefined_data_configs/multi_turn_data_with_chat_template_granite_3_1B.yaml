@@ -59,8 +59,8 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
-            conversation_column: "messages"
+            formatted_text_column_name: "formatted_chat_data"
+            conversation_column_name: "messages"
   - name: dataset_2
     data_paths:
       - "FILE_PATH"
@@ -69,8 +69,8 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
-            conversation_column: "messages"
+            formatted_text_column_name: "formatted_chat_data"
+            conversation_column_name: "messages"
   - name: dataset_3
     data_paths:
       - "FILE_PATH"
@@ -79,5 +79,5 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
-            conversation_column: "messages"
+            formatted_text_column_name: "formatted_chat_data"
+            conversation_column_name: "messages"
