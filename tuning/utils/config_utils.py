@@ -101,7 +101,7 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         #if alora_config["target_modules"] == ["all-linear"]:
         #    alora_config["target_modules"] = "all-linear"
         #hf_peft_config = aLoraConfig(**alora_config)
-        #alora_config = tuning_config
+        alora_config = tuning_config
         alora_config.target_modules = "all-linear"
     elif isinstance(tuning_config, peft_config.LoraConfig):
         lora_config = asdict(tuning_config)
