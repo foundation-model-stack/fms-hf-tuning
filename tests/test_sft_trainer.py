@@ -710,7 +710,14 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        base_alora_args = PEFT_ALORA_ARGS
+        base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+
+        # Convert nested dict back into the right config object if needed
+        if isinstance(base_alora_args.runtime_config, dict):
+            base_alora_args.runtime_config = LoraRuntimeConfig(**base_alora_args.runtime_config)
+
+
+        from peft.utils.config import LoraRuntimeConfig
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
