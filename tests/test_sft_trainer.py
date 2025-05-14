@@ -94,6 +94,7 @@ from tuning.data.data_config import (
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
 from tuning.utils.import_utils import is_fms_accelerate_available
+from peft import LoraConfig
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -717,7 +718,8 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
             base_alora_args.runtime_config = LoraRuntimeConfig(**base_alora_args.runtime_config)
 
 
-        from peft.utils.config import LoraRuntimeConfig
+        from peft.tuners.lora import LoraRuntimeConfig
+
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
