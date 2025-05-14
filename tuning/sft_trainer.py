@@ -133,6 +133,8 @@ def train(
         from alora.config import aLoraConfig
         if isinstance(peft_config, aLoraConfig):
             USE_ALORA = True
+    except ImportError:
+        pass
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
