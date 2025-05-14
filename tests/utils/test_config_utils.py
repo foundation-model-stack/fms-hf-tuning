@@ -17,7 +17,6 @@
 
 # Standard
 import base64
-import logging
 import os
 import pickle
 
@@ -31,7 +30,8 @@ from tests.build.test_utils import HAPPY_PATH_DUMMY_CONFIG_PATH
 
 # Local
 from tuning.config import peft_config
-from tuning.utils import config_utils, utils
+from tuning.data import utils
+from tuning.utils import config_utils
 
 
 def test_get_hf_peft_config_returns_None_for_tuning_config_None():
@@ -236,7 +236,7 @@ def test_get_json_config_can_load_from_envvar():
     assert job_config["model_name_or_path"] == "foobar"
 
 
-def test_validate_datasets_logs_warnings_on_mismatch(caplog):
+def test_validate_datasets_throws_error_on_mismatch():
     """Test that `validate_mergeable_datasets` logs warnings when
     datasets have different columns or dtypes."""
     # Create a reference dataset with columns col1:int64 and col2:string
@@ -251,12 +251,5 @@ def test_validate_datasets_logs_warnings_on_mismatch(caplog):
         features=Features({"col1": Value("float64"), "col3": Value("string")}),
     )
 
-    with caplog.at_level(logging.WARNING):
-        utils.validate_mergeable_datasets([ds1, ds2])
-
-    assert (
-        "different columns" in caplog.text
-    ), "Expected a warning about differing columns."
-    assert (
-        "expected int64" in caplog.text
-    ), "Expected a warning about mismatching column dtypes."
+    with pytest.raises(ValueError):
+        utils._validate_mergeable_datasets([ds1, ds2])

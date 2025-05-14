@@ -34,7 +34,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, GPTQConfig
 import torch
 
 # Local
-from tuning.utils.tokenizer_data_utils import tokenizer_and_embedding_resize
+from tuning.data.tokenizer_utils import tokenizer_and_embedding_resize
 
 
 ### Utilities

@@ -445,7 +445,9 @@ disable=raw-checker-failed,
         pointless-statement,
         wrong-import-order,
         duplicate-code,
-        unbalanced-tuple-unpacking
+        unbalanced-tuple-unpacking,
+        unspecified-encoding,
+        too-many-lines
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

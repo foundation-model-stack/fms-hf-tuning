@@ -57,6 +57,7 @@ from tuning.config.tracker_configs import (
 )
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
+from tuning.data.tokenizer_utils import setup_tokenizer
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
@@ -68,10 +69,6 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import (
-    get_special_tokens_dict,
-    tokenizer_and_embedding_resize,
-)
 
 
 def train(
@@ -315,40 +312,7 @@ def train(
         ),
     )
 
-    if data_args.chat_template:
-        # TODO: passing "/n" through cli causes parsing issues,
-        # hence providing a temporary fix
-        data_args.chat_template = data_args.chat_template.replace(r"\n", "\n")
-
-        logger.info("adding chat_template to the tokenizer")
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with the given chat_template %s",
-                tokenizer.chat_template,
-                data_args.chat_template,
-            )
-        tokenizer.chat_template = data_args.chat_template
-
-    # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = get_special_tokens_dict(
-        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
-    )
-
-    # adds user specified special tokens to vocab
-    if data_args.add_special_tokens:
-        logger.info(
-            "Adding user-defined special tokens: %s ", data_args.add_special_tokens
-        )
-        special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
-
-    # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
-    # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    added_tokens_dict = tokenizer_and_embedding_resize(
-        special_tokens_dict=special_tokens_dict,
-        tokenizer=tokenizer,
-        model=model,
-        multiple_of=model_args.embedding_size_multiple_of,
-    )
+    added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
