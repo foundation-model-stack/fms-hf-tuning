@@ -130,6 +130,8 @@ try: #Optional package
     from alora.peft_model_alora import aLoRAPeftModelForCausalLM
     from alora.config import aLoraConfig
     PEFT_ALORA_ARGS = aLoraConfig(r=8, lora_alpha=32, lora_dropout=0.05,invocation_string = DATA_ARGS.response_template)
+except ImportError:
+    pass
 
 @pytest.mark.parametrize(
     "enable_reduce_loss_sum",
