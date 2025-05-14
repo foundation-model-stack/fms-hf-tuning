@@ -594,7 +594,7 @@ def parse_arguments(parser, json_config=None):
         invocation_string = json_config.get("invocation_string")
         if peft_method == "alora":
             if invocation_string is None:
-                error("invocation_string needed for aLoRA")
+                raise ValueError("invocation_string is not passed required for aLoRA usage")
 
     else:
         (
