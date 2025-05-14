@@ -379,7 +379,6 @@ def train(
 
     # activated LoRA
     if isinstance(peft_config, aLoraConfig):
-        tokenizer.padding_side='right'
         response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
         model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
         
