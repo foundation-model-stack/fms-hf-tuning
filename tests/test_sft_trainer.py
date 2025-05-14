@@ -711,6 +711,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+        print(base_alora_args)
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
