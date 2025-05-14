@@ -341,6 +341,7 @@ def test_load_dataset_with_datasetconfig_incorrect_builder(
     processor = get_datapreprocessor(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
+    # pylint: disable=c-extension-no-member
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
             datasetconfig=datasetconfig,
@@ -431,6 +432,7 @@ def test_load_dataset_with_dataconfig_and_datafolder_incorrect_builder(datasetco
     processor = get_datapreprocessor(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
+    # pylint: disable=c-extension-no-member
     with pytest.raises(pyarrow.lib.ArrowInvalid):
         processor.load_dataset(
             datasetconfig=datasetconfig,
@@ -512,7 +514,10 @@ def test_load_dataset_with_datasetconfig_files_folders(
 def test_load_dataset_with_datasetconfig_files_folders_incorrect_builder(
     data_paths, datasetconfigname, builder
 ):
-    """Ensure that load_dataset with passing combination of files and folders does support mismatch in format"""
+    """
+    Ensure that load_dataset with passing combination of
+    files and folders does support mismatch in format
+    """
     datasetconfig = DataSetConfig(
         name=datasetconfigname, data_paths=data_paths, builder=builder
     )
@@ -720,7 +725,10 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
     ],
 )
 def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
-    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+    """
+    Ensure that datasets are formatted and validated correctly
+    based on the arguments passed in config file.
+    """
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
     yaml_content["datasets"][0]["data_paths"][0] = data_path
@@ -736,7 +744,10 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
+        template = (
+            '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+            + "{{eos_token}}"
+        )
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -795,7 +806,10 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
+        template = (
+            '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+            + "{{eos_token}}"
+        )
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -815,7 +829,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     )
 
     with pytest.raises(ValueError):
-        (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+        (_, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
 
 @pytest.mark.parametrize(
@@ -846,7 +860,10 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     # Modify dataset_text_field and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
+        template = (
+            '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+            + "{{eos_token}}"
+        )
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "dataset_text_field": formatted_dataset_field,
             "template": template,
@@ -874,7 +891,7 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     is_multipack = attention_and_distributed_packing_config.is_multipack
 
     with pytest.raises(ValueError):
-        (train_set, _, _) = _process_dataconfig_file(
+        (_, _, _) = _process_dataconfig_file(
             data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
         )
 
@@ -909,7 +926,10 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     ],
 )
 def test_process_dataconfig_file(data_config_path, data_path):
-    """Ensure that datasets are formatted and validated correctly based on the arguments passed in config file."""
+    """
+    Ensure that datasets are formatted and validated correctly
+    based on the arguments passed in config file.
+    """
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
     yaml_content["datasets"][0]["data_paths"][0] = data_path
@@ -928,7 +948,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
         "apply_custom_data_template",
         "apply_custom_data_jinja_template",
     ):
-        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
+        template = (
+            '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+            + "{{eos_token}}"
+        )
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -984,7 +1007,10 @@ def test_process_dataconfig_file(data_config_path, data_path):
     ],
 )
 def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_token):
-    """Ensure that the data handlers correctly apply add_eos_token flag to append/remove eos_token."""
+    """
+    Ensure that the data handlers correctly apply
+    eos_token.
+    """
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
     yaml_content["datasets"][0]["data_paths"][0] = data_path
@@ -1144,7 +1170,10 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
     ],
 )
 def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
-    """Ensure that datasets with multiple files are formatted and validated correctly based on the arguments passed in config file."""
+    """
+    Ensure that datasets with multiple files are formatted and
+    validated correctly based on the arguments passed in config file.
+    """
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
     yaml_content["datasets"][0]["data_paths"] = data_path_list
@@ -1160,7 +1189,10 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
     # Modify formatted_text_column_name and template according to dataset
     formatted_dataset_field = "formatted_data_field"
     if datasets_name == "apply_custom_data_template":
-        template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{eos_token}}'
+        template = (
+            '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+            + "{{eos_token}}"
+        )
         yaml_content["datasets"][0]["data_handlers"][0]["arguments"]["fn_kwargs"] = {
             "formatted_text_column_name": formatted_dataset_field,
             "template": template,
@@ -1228,7 +1260,10 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
 def test_process_dataconfig_multiple_files_folders_with_globbing(
     data_config_path, data_paths, builder
 ):
-    """Ensure that datasets files matching globbing pattern are formatted and validated correctly based on the arguments passed in config file."""
+    """
+    Ensure that datasets files matching globbing pattern are formatted and
+    validated correctly based on the arguments passed in config file.
+    """
     with open(data_config_path, "r") as f:
         yaml_content = yaml.safe_load(f)
 
@@ -1262,7 +1297,11 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         # Assume path_or_pattern is already a pattern
         pattern = path_or_pattern
 
-    data_len = sum(len(json.load(open(file, "r"))) for file in glob.glob(pattern))
+    data_len = 0
+    for file in glob.glob(pattern):
+        with open(file, "r") as f:
+            data_len += len(json.load(f))
+
     assert len(train_set) == data_len
 
 
@@ -1304,6 +1343,7 @@ def test_process_dataconfig_multiple_files_folders_without_builder(
         processor_config=DataPreProcessorConfig(), tokenizer=None
     )
     with pytest.raises(
+        # pylint: disable=c-extension-no-member
         (datasets.exceptions.DatasetNotFoundError, ValueError, pyarrow.lib.ArrowInvalid)
     ):
         processor.load_dataset(
@@ -1643,7 +1683,10 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
 def test_process_dataset_configs_with_sampling_error(
     datafiles, sampling, datasetconfigname
 ):
-    """Ensure that if sampling ratios aren't correctly passed (don't add up to 1.0), error is raised"""
+    """
+    Ensure that if sampling ratios aren't correctly
+    passed (don't add up to 1.0), error is raised
+    """
     data_args = configs.DataArguments()
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     TRAIN_ARGS = configs.TrainingArguments(
@@ -1657,9 +1700,8 @@ def test_process_dataset_configs_with_sampling_error(
     ) as temp_yaml_file:
         with open(datasetconfigname, "r") as f:
             data = yaml.safe_load(f)
-            datasets = data["datasets"]
-            for i in range(len(datasets)):
-                d = datasets[i]
+            _dataset = data["datasets"]
+            for i, d in enumerate(_dataset):
                 d["data_paths"][0] = datafiles[i]
                 d["sampling"] = sampling[i]
             yaml.dump(data, temp_yaml_file)
@@ -1734,7 +1776,7 @@ def test_rename_and_select_dataset_columns(
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == set(final)
 
-    with open(datafile, "r") as file:
+    with open(datafile, "r", encoding="utf-8") as file:
         data = json.load(file)
     assert len(train_dataset) == len(data)
 
@@ -1769,9 +1811,9 @@ def test_process_datasets_offline(datafile, datasetconfigname):
     columns = [data_args.dataset_text_field]
     num_dataset_shards = 2
 
-    with open(datasetconfigname, "r") as f:
+    with open(datasetconfigname, "r", encoding="utf-8") as f:
         yaml_content = yaml.safe_load(f)
-        datasets = [
+        d = [
             {
                 "data_paths": [datafile],
                 "data_handlers": [
@@ -1788,7 +1830,7 @@ def test_process_datasets_offline(datafile, datasetconfigname):
                 ],
             }
         ]
-        yaml_content["datasets"] = datasets
+        yaml_content["datasets"] = d
 
     with tempfile.NamedTemporaryFile(
         "w", delete=False, suffix=".yaml"
@@ -1807,7 +1849,8 @@ def test_process_datasets_offline(datafile, datasetconfigname):
 
         assert isinstance(formatted_train_dataset, Dataset)
         assert set(formatted_train_dataset.column_names) == set(columns)
-        assert len(formatted_train_dataset) == sum(1 for _ in open(datafile))
+        with open(datafile, encoding="utf-8") as f:
+            assert len(formatted_train_dataset) == sum(1 for _ in f)
 
         train_dataset_dir = os.path.join(TRAIN_ARGS.output_dir, "train_dataset")
         save_dataset_shards(
@@ -1832,7 +1875,7 @@ def test_vision_data_collator(model_name):
     processor_kwargs["return_tensors"] = "pt"
     processor_kwargs["padding"] = True
 
-    with open(IMAGE_DATASET, "r") as f:
+    with open(IMAGE_DATASET, "r", encoding="utf-8") as f:
         image_data = [json.loads(line) for line in f]
     features = []
     processor_kwargs = {}

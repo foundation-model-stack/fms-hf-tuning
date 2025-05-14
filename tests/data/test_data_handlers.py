@@ -15,6 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # https://spdx.dev/learn/handling-license-info/
 
+# pylint disable=line-too-long
+
 # Third Party
 from datasets import Dataset, IterableDatasetDict
 from transformers import AutoTokenizer
@@ -39,11 +41,17 @@ from tuning.data.data_handlers import (
 
 
 def test_apply_custom_formatting_jinja_template():
-    """Tests custom formatting data handler with jinja template dataset returns correct formatted response"""
+    """
+    Tests custom formatting data handler with jinja template
+    dataset returns correct formatted response
+    """
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
-    template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{ eos_token }}'
+    template = (
+        '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+        + "{{ eos_token }}"
+    )
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset_field = "formatted_data_field"
     formatted_dataset = json_dataset.map(
@@ -67,11 +75,17 @@ def test_apply_custom_formatting_jinja_template():
 
 
 def test_apply_custom_formatting_jinja_template_iterable():
-    """Tests custom formatting data handler with iterable dataset returns correct formatted response"""
+    """
+    Tests custom formatting data handler with iterable
+    dataset returns correct formatted response
+    """
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL, streaming=True
     )
-    template = '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}{{ eos_token }}'
+    template = (
+        '### Input: {{element["Tweet text"]}} \n\n ### Response: {{text_label}}'
+        + "{{ eos_token }}"
+    )
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     formatted_dataset_field = "formatted_data_field"
     formatted_dataset = json_dataset.map(
@@ -104,11 +118,14 @@ def test_apply_custom_formatting_jinja_template_iterable():
         "### Input: {{ not_found }} \n\n ### Response: {{ text_label }}",
         "### Input: }} element['Tweet text'] {{ \n\n ### Response: {{ text_label }}",
         "### Input: {{ element['Tweet text'] }} \n\n ### Response: {{ ''.__class__ }}",
-        "### Input: {{ element['Tweet text'] }} \n\n ### Response: {{ undefined_variable.split() }}",
+        "### Input: {{ undefined_variable }} \n\n ### Response: {{ undefined_variable.split() }}",
     ],
 )
 def test_apply_custom_formatting_jinja_template_gives_error_with_wrong_keys(template):
-    """Tests that the jinja formatting function will throw error if wrong keys are passed to template"""
+    """
+    Tests that the jinja formatting function will throw
+    error if wrong keys are passed to template
+    """
     json_dataset = datasets.load_dataset(
         "json", data_files=TWITTER_COMPLAINTS_DATA_JSONL
     )
