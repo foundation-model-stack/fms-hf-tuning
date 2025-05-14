@@ -1,6 +1,0 @@
-dataprocessor:
-    type: default
-datasets:
-  - name: pretokenized_dataset
-    data_paths:
-      - "FILE_PATH"

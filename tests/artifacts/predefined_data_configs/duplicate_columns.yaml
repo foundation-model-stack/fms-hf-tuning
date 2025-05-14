@@ -7,8 +7,7 @@ datasets:
     data_handlers:
       - name: duplicate_columns
         arguments:
-          remove_columns: all
           batched: false
           fn_kwargs:
-            old_column: "input_ids"
-            new_column: "labels"
+            existing_column_name: "input_ids"
+            new_column_name: "labels"

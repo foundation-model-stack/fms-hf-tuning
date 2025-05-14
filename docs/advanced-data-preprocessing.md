@@ -9,7 +9,7 @@ These things are supported via what we call a [`data_config`](#data-config) whic
 
 ## Data Config
 
-Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config` flag. In this 
+Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config_path` flag. In this
 configuration users can describe multiple datasets, configurations on how to load the datasets and configuration on how to 
 process the datasets. Users can currently pass both YAML or JSON based configuration files as data_configs.
 
@@ -164,84 +164,11 @@ Probably something like this:
 Additionally while loading the dataset, users can specify which columns to rename via `rename_columns` and which to retain via `retain_columns` arguments above.
 The order of application of these operations is *strictly rename followed by retain* so users should note that an old column name which is renamed will not be available in retain and hence should be careful while applying these operations. The code will throw a `ValueError` in case user specified a column requested to be renamed via rename argument in retain argument as well. 
 
-### How can users specify data handlers.
+### Data Handlers
 
-Data handlers, as explained above, are routines which process the dataset using [HF map framework](https://huggingface.co/docs/datasets/en/process#map). 
-All data handler routines are registered with our data preprocessor as a `k:func` object where
-`k` is the name (`str`) of the data handler and `func` (`callable`) is the function which is called.
+Data handlers, as explained above, are routines which process the dataset using [HF process frameworks](https://huggingface.co/docs/datasets/en/process) including map, filter, remove, select, and rename. 
 
-In the data config, users can request which data handler to apply by requesting the corresponding `name`
-with which the data handler was registered and specifying the appropriate `arguments`. Each data handler accepts two types of arguments via `DataHandlerArguments` (as defined in the above [schema](#what-is-data-config-schema)), as shown below.
-
-```yaml
-  DataHandler:
-    type: object
-    additionalProperties: false
-    properties:
-      name:
-        type: string
-      arguments:
-        $ref: '#/definitions/DataHandlerArguments'
-    required:
-      - arguments
-      - name
-    title: DataHandler
-  DataHandlerArguments:
-    type: object
-    additionalProperties: false
-    properties:
-      remove_columns:
-        type: string
-      batched:
-        type: boolean
-      fn_kwargs:
-        $ref: '#/definitions/DataHandlerFnKwargs'
-    required:
-      - fn_kwargs
-      - remove_columns
-    title: DataHandlerArguments
-  DataHandlerFnKwargs:
-    type: object
-    properties:
-      str:
-        type: str
-    title: DataHandlerFnKwargs
-```
-
-Arguments to the data handlers are of two types,
-
-Each data handler is a routine passed to the underlying [HF Map API]((https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.map)) so the `kwargs` supported by the underlying API can be passed via the `arguments` section of the data handler config.
-
-For example, users can pass `remove_columns` to remove any columns from the dataset when executing the particular handler or they can use `batched` to ensure [batched processing](https://huggingface.co/docs/datasets/en/about_map_batch) of the data handler.
-
-Users can also pass any number of `kwargs` arguments required for each data handling `routine` function as [`fn_kwargs`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.Dataset.map.fn_kwargs) inside the arguments.
-
-#### Preexisting data handlers
-This library currently supports the following [preexisting data handlers](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py#L156):
- - `add_tokenizer_eos_token`:
-    Appends the tokenizer's EOS token to a specified dataset field.
- - `apply_custom_data_formatting_template`:
-    Applies a custom template (e.g., Alpaca style) to format dataset elements.
-    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_template.yaml)
- - `tokenize_and_apply_input_masking`:
-    Tokenizes input text and applies masking to the labels for causal language modeling tasks, good for input/output datasets.
-    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/tokenize_and_apply_input_masking.yaml) 
- - `apply_custom_jinja_template`:
-    Applies a custom jinja template (e.g., Alpaca style) to format dataset elements.
-    By default this handler adds `EOS_TOKEN` which can be disabled by a handler argument, [see](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tests/artifacts/predefined_data_configs/apply_custom_jinja_template.yaml)
- - `apply_tokenizer_chat_template`:
-    Uses a tokenizer's chat template to preprocess dataset elements, good for single/multi turn chat templates.
- - `duplicate_columns`:
-    Duplicates one column of the dataset to another column.
- - `tokenize`:
-    Tokenizes one column of the dataset passed as input `dataset_text_field`.
-
-These handlers could be requested by their same name and users can lookup the function args from [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/data/data_handlers.py)
-
-#### Extra data handlers
-Users are also allowed to pass custom data handlers using [`sft_trainer.py::train()`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L71) API call via the [`additional_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/sft_trainer.py#L89) argument.
-
-The argument expects users to pass a map similar to the existing data handlers `k(str):func(callable)` which will be registered with the data preprocessor via its [`register_data_handlers`](https://github.com/foundation-model-stack/fms-hf-tuning/blob/d7f06f5fc898eb700a9e89f08793b2735d97889c/tuning/data/data_processors.py#L65) api
+For a thorough explanation of data handlers, how to use them, see the [data handlers document](./advanced-data-handlers.md)
 
 ### Data Mixing
 Dataset mixing allows users to mix multiple datasets often with different `sampling ratios` to ensure the model is trained on a mix of some datasets in specific proportion. 
@@ -255,7 +182,7 @@ Needless to say the sampling ratio of a datasets is a float and all the sampling
 We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to randomize the interleaving of datasets and a [`stopping_strategy`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy) to describe when to stop sampling. Both values should remain the same for experiment reproducibility. Both these values are common for all datasets and should be supplied at top level in the `datapreprocessor` as shown [above](#how-the-user-can-write-data-configs). For a list of the supported values of these arguments see the corresponding HF API.
 
 
-`Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset`
+Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset
 
 ### Data Streaming
 Dataset streaming allows users to utilize the functionality of iterable datasets to pass in data piece by piece, avoiding memory constraints with large datasets for use-cases like extended pre-training.
@@ -271,50 +198,65 @@ dataprocessor:
 
 When using streaming, `split_batches` in the `TrainingArguments` will automatically be set to `True`, by doing so, the main process will fetch a full batch and slice it into `num_processes` batches for each process. This means that `num_processes` must be divisible by `batch_size`. This will replace the global batch size.
 
+Note: Streaming datasets or use of `IterableDatasets` is not compatible with the fms-acceleration multipack plugin because multipack sampler has to run thorugh the full dataset every epoch. Using multipack and streaming together will raise an error.
+
 **When using streaming, the user must set `max_steps` in the `TrainingArguments` instead of `num_train_epochs`.** Since iterable datasets are loaded chunk-by-chunk, data cannot run through epochs in a typical fashion as the **Trainer** can not know length of the dataset as it is being passed through. If both `max_steps` and `num_train_epochs` are given in a training config, `max_steps` will overwrite `num_train_epochs` since `max_steps` directly specifies the total number of optimization steps, which is needed when dataset length cannot be known. 
 
 If the dataset size is known to the user, `max_steps` can be calculated as the total number of samples divided by the batch size.
 
+### How users can specify the chat template
+
+In the `data_config.yaml` file:
+
+**✅ USE:**
+
+```yaml
+dataprocessor:
+  chat_template: "my single line chat template"
+```
+
+The recommended way is to copy paste the chat template from the official checkpoint https://huggingface.co/ibm-granite/granite-3.1-8b-instruct/blob/main/tokenizer_config.json#L188
+
+
+**✅ (Optional) USE:**
+
+```yaml
+dataprocessor:
+  chat_template: |
+    my multi-line chat template
+```
+
+Specifying a multi-line chat template will requires some manual effort on the user's part to ensure new lines are specified correctly.
+This approach is mainly useful for readability, especially if you are customizing the chat template.
+
+Example:
+
+```yaml
+dataprocessor:
+  chat_template: |
+    {%- if messages[0]['role'] == 'system' %}
+        {%- set system_message = messages[0]['content'] %}
+        {%- set loop_messages = messages[1:] %}
+    {%- else %}
+        {%- set system_message = "Knowledge Cutoff Date: April 2024.
+    Today's Date: " + strftime_now('%B %d, %Y') + ".
+    You are Granite, developed by IBM." %}
+        {%- if tools and documents %}
+    ................
+```
+
+**❌ DO NOT USE:**
+
+```yaml
+dataprocessor:
+  chat_template: |
+    my single line chat template
+```
+
+This can add extra backslashes to your chat template causing it to become invalid.
+
 ### Example data configs.
 
 We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
-
-## Offline Data preprocessing
-
-[This script](../scripts/offline_data_processing.py) provides the capability for users to perform standalone data 
-preprocessing, decoupled from the tuning/training part. It processes raw datasets, performs data preprocessing, and 
-saves the train and validation datasets (in shards if `--num_dataset_shards` if passed) in parquet format inside the specified `output_dir`. 
-A data config YAML file can be used to pass configuration to this script. Example command to run this script:
-
-```
-python scripts/offline_data_processing.py \
---data_config_path  /path/to/data_config.yaml \
---model_name_or_path "model_name"  \
---max_seq_length 4096 \
---output_dir /path/to/output/directory  \
---log_level info \
---num_dataset_shards 3
-```
-
-Example data config file:
-
-```
-dataprocessor:
-    type: default
-    sampling_stopping_strategy: first_exhausted
-    seed: 66
-datasets:
-  - name: dataset_1
-    data_paths:
-      - tests/artifacts/testdata/jsonl/twitter_complaints_input_output.jsonl
-    data_handlers:
-      - name: tokenize_and_apply_input_masking
-        arguments:
-          remove_columns: all
-          batched: false
-          fn_kwargs:
-            input_field_name: input
-            output_field_name: output
-```
 
 

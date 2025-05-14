@@ -67,6 +67,8 @@ ENV CUDA_VERSION=12.1.0 \
     NV_CUDA_CUDART_VERSION=12.1.55-1 \
     NV_CUDA_COMPAT_VERSION=530.30.02-1
 
+RUN dnf install -y dnf-plugins-core && dnf clean all
+
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
     && dnf install -y \
@@ -149,16 +151,18 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
-    python -m pip install --user "$(head bdist_name)[mamba]"
+    python -m pip install --user --no-build-isolation "$(head bdist_name)[mamba]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
 # fms_acceleration_aadp = Padding-Free Flash Attention Computation
+# fms_acceleration_moe = Parallelized Mixture of Experts
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[fms-accel]"; \
         python -m fms_acceleration.cli install fms_acceleration_peft; \
         python -m fms_acceleration.cli install fms_acceleration_foak; \
         python -m fms_acceleration.cli install fms_acceleration_aadp; \
+        python -m fms_acceleration.cli install fms_acceleration_moe; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \

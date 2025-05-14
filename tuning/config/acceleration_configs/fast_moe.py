@@ -13,7 +13,10 @@
 # limitations under the License.
 
 # Standard
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Union
+import argparse
+import json
 import os
 
 # Third Party
@@ -42,8 +45,15 @@ except ImportError:
 @parsable_dataclass
 @dataclass
 class FastMoe:
+    ep_degree: Union[int, bool] = 1
+    disable_distributed: bool = field(
+        default=False, metadata={"help": argparse.SUPPRESS}
+    )
 
-    ep_degree: int = 1
+    def __post_init__(self):
+        if isinstance(self.ep_degree, bool):
+            self.disable_distributed = self.ep_degree
+            self.ep_degree = 1
 
 
 @dataclass
@@ -112,10 +122,29 @@ def get_callbacks(**kwargs):
                             args,
                             os.path.join(hf_converted_output_dir, TRAINING_ARGS_NAME),
                         )
-                        # Save model config files
-                        self.trainer.model.config.save_pretrained(
-                            hf_converted_output_dir
-                        )
+
+                        # Unwrap FSDP module
+                        model = self.trainer.model
+                        if hasattr(model, "module"):
+                            model = model.module
+
+                        if hasattr(model, "peft_config"):
+                            lora_config = model.peft_config["default"]
+                            config_dict = lora_config.to_dict()
+                            config_dict["target_modules"] = sorted(
+                                list(config_dict["target_modules"])
+                            )
+                            with open(
+                                os.path.join(
+                                    hf_converted_output_dir, "adapter_config.json"
+                                ),
+                                "w",
+                                encoding="utf-8",
+                            ) as f:
+                                json.dump(config_dict, f, indent=2)
+
+                        else:
+                            model.config.save_pretrained(hf_converted_output_dir)
 
                     except Exception as e:
                         raise ValueError(
