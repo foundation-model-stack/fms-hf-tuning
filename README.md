@@ -328,7 +328,7 @@ Please refer to [this document](docs/offline-data-preprocessing.md) for details 
 
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅ | ✅ | ? |
+[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview)**** | GraniteMoeHybridForCausalLM | ✅ | ✅ | ? |
 [Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
 [Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
 [Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
@@ -353,6 +353,7 @@ aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅
 Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
 
 (*) - Supported with `fms-hf-tuning` v2.4.0 or later.
+(****) - Experimentally suppported. Dependent on stable transformers version with PR [#37658](https://github.com/huggingface/transformers/pull/37658) and accelerate >= 1.3.0.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
