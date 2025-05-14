@@ -1755,13 +1755,13 @@ def test_rename_and_select_dataset_columns(
         handlers.append(
             DataHandlerConfig(
                 name="rename_columns",
-                arguments={"fn_kwargs": {"column_mapping": rename}},
+                arguments={"column_mapping": rename},
             )
         )
     if select:
         handlers.append(
             DataHandlerConfig(
-                name="select_columns", arguments={"fn_kwargs": {"column_names": select}}
+                name="select_columns", arguments={"column_names": select}
             )
         )
     data_paths = [datafile]

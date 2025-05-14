@@ -25,12 +25,7 @@ import logging
 from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment, SecurityError
 from PIL import Image
-from transformers import (
-    AutoTokenizer,
-    GPT2TokenizerFast,
-    LlavaNextProcessor,
-    LlavaProcessor,
-)
+from transformers import GPT2TokenizerFast, LlavaNextProcessor, LlavaProcessor
 import torch
 
 # Local
@@ -101,8 +96,6 @@ class DataHandler:
 
 def tokenize_and_apply_input_masking(
     element: Dict[str, str],
-    tokenizer: AutoTokenizer,
-    column_names: List[str],
     input_column_name: str,
     output_column_name: str,
     add_eos_token: bool = True,
@@ -112,8 +105,6 @@ def tokenize_and_apply_input_masking(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
-        tokenizer: Tokenizer to be used for tokenization.
-        column_names: Name of all the columns in the dataset.
         input_column_name: Name of the input (instruction) field in dataset
         output_column_name: Name of the output field in dataset
         add_eos_token: should add tokenizer.eos_token to text or not, defaults to True
@@ -121,6 +112,15 @@ def tokenize_and_apply_input_masking(
     Returns:
         Formatted Dataset element with input_ids, labels and attention_mask columns
     """
+
+    # These are made available by the data preprocessor framework
+    try:
+        tokenizer = kwargs["tokenizer"]
+        column_names = kwargs["column_names"]
+    except KeyError as e:
+        raise RuntimeError(
+            "Data processor failed to pass default args to data handlers"
+        ) from e
 
     if column_names and (input_column_name or output_column_name) not in column_names:
         raise ValueError(
@@ -183,7 +183,6 @@ def __wrap_jinja_rendering_with_exception_handling(render_template: callable, **
 
 def apply_custom_jinja_template(
     element: Dict[str, str],
-    tokenizer: AutoTokenizer,
     formatted_text_column_name: str,
     template: str,
     **kwargs,
@@ -192,8 +191,6 @@ def apply_custom_jinja_template(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element
-        tokenizer: Tokenizer to be used for the special tokens, which can be passed
-                  inside the jinja template as variables and will be rendered properly.
         formatted_text_column_name: Name of the dataset column where formatted
                                     text is to be saved. If doesn't exist a new
                                     column will be created.
@@ -203,6 +200,14 @@ def apply_custom_jinja_template(
         Formatted HF Dataset element by formatting dataset with provided jinja template
         Saves the result to formatted_text_column_name argument.
     """
+
+    # These are made available by the data preprocessor framework
+    try:
+        tokenizer = kwargs["tokenizer"]
+    except KeyError as e:
+        raise RuntimeError(
+            "Data processor failed to pass default args to data handlers"
+        ) from e
 
     def render():
         env = SandboxedEnvironment(undefined=StrictUndefined)
@@ -219,7 +224,6 @@ def apply_custom_jinja_template(
 
 def apply_tokenizer_chat_template(
     element: Dict[str, str],
-    tokenizer: AutoTokenizer,
     formatted_text_column_name: str,
     conversation_column_name: str = None,
     **kwargs,
@@ -229,7 +233,6 @@ def apply_tokenizer_chat_template(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
-        tokenizer: Tokenizer to be used.
         formatted_text_column_name: Name of the column where the rendered text is to
                                     be stored post applying chat template.
         conversation_column_name: If chat template is to be run on full sample pass this as None
@@ -239,6 +242,15 @@ def apply_tokenizer_chat_template(
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to formatted_text_column_name argument.
     """
+
+    # These are made available by the data preprocessor framework
+    try:
+        tokenizer = kwargs["tokenizer"]
+    except KeyError as e:
+        raise RuntimeError(
+            "Data processor failed to pass default args to data handlers"
+        ) from e
+
     processor = kwargs.get("processor", None)
     if processor is not None:
         tokenizer = processor
@@ -337,7 +349,6 @@ def prepare_multimodal_data_processor(
 
 def tokenize(
     element: Union[Dict[str, str], Dict[str, List]],
-    tokenizer: AutoTokenizer,
     text_column_name: str,
     truncation: Union[bool, str] = True,
     max_length: int = None,
@@ -347,7 +358,6 @@ def tokenize(
        Expects to be run as a HF Map API function.
     Args:
         element: the HF Dataset element.
-        tokenizer: Tokenizer to be used.
         text_column_name: the text column name to tokenize
         truncation: Truncation strategy to use, refer the link
                     (https://huggingface.co/docs/transformers/en/pad_truncation)
@@ -358,6 +368,15 @@ def tokenize(
     Returns:
         sample with tokenized text_column_name
     """
+
+    # These are made available by the data preprocessor framework
+    try:
+        tokenizer = kwargs["tokenizer"]
+    except KeyError as e:
+        raise RuntimeError(
+            "Data processor failed to pass default args to data handlers"
+        ) from e
+
     tokenizer_kwargs = kwargs.get("tokenizer_kwargs", {})
     return tokenizer(
         element[text_column_name],
@@ -439,7 +458,6 @@ def skip_samples_with_large_columns(
 
 def tokenize_and_apply_chat_template_with_masking(
     element: Dict[str, str],
-    tokenizer: AutoTokenizer,
     max_seq_length: int = None,
     conversation_column: str = "messages",
     **kwargs,
@@ -463,7 +481,6 @@ def tokenize_and_apply_chat_template_with_masking(
        directly to train.
     Args:
         element: the HF Dataset samples
-        tokenizer: Tokenizer to be used.
         max_seq_length: Max seq length of the tokens allowed.
                         Required argument.
         conversation_column: Name of the column which contains conversations
@@ -473,6 +490,14 @@ def tokenize_and_apply_chat_template_with_masking(
         Tokenized element which contains `input_ids` `labels` and `attention_mask`
         with labels properly masked to train only on completions.
     """
+
+    # These are made available by the data preprocessor framework
+    try:
+        tokenizer = kwargs["tokenizer"]
+    except KeyError as e:
+        raise RuntimeError(
+            "Data processor failed to pass default args to data handlers"
+        ) from e
 
     # This function is taken from OpenInstruct
     # https://github.com/allenai/open-instruct/blob/\

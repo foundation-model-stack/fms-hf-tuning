@@ -7,16 +7,14 @@ datasets:
     data_handlers:
       - name: rename_columns
         arguments:
-          fn_kwargs:
-            column_mapping:
-              "input"  : "instruction"
-              "output" : "response"
+          column_mapping:
+            "input"  : "instruction"
+            "output" : "response"
       - name: select_columns
         arguments:
-          fn_kwargs:
-            column_names:
-              - "instruction"
-              - "response"
+          column_names:
+            - "instruction"
+            - "response"
       - name: tokenize_and_apply_input_masking
         arguments:
           remove_columns: all

@@ -252,14 +252,7 @@ class DataPreProcessor:
         Rename columns in the dataset using the provided column mapping.
         Uses Huggingface {DatasetDict/IterableDatasetDict}.rename_columns() API
         """
-        fn_kwargs = kwargs.get("fn_kwargs", {})
-        if not isinstance(fn_kwargs, Dict) or "column_mapping" not in fn_kwargs:
-            raise ValueError(
-                "Please pass fn_kwargs dict with key column_mapping for "
-                + " %s data handler" % handler.handler_type.name
-            )
-
-        mapping = fn_kwargs["column_mapping"]
+        mapping = kwargs["column_mapping"]
         if mapping is None or not isinstance(mapping, Dict):
             raise ValueError(
                 f"column mapping {mapping} passed to {handler.handler_type.name} data handler "
@@ -273,14 +266,7 @@ class DataPreProcessor:
         Selects specific columns from the dataset.
         Uses HuggingFace {DatasetDict/IterableDatasetDict}.select_columns() API
         """
-        fn_kwargs = kwargs.get("fn_kwargs", {})
-        if not isinstance(fn_kwargs, Dict) or "column_names" not in fn_kwargs:
-            raise ValueError(
-                "Please pass fn_kwargs dict with key column_names for "
-                + " %s data handler" % handler.handler_type.name
-            )
-
-        columns = fn_kwargs["column_names"]
+        columns = kwargs["column_names"]
         if columns is None or not isinstance(columns, List):
             raise ValueError(
                 f"column names {columns} passed to {handler.handler_type.name} data handler "
@@ -294,13 +280,7 @@ class DataPreProcessor:
         Removes specified columns from the dataset.
         Uses HuggingFace {DatasetDict/IterableDatasetDict}.remove_columns() API
         """
-        fn_kwargs = kwargs.get("fn_kwargs", {})
-        if not isinstance(fn_kwargs, Dict) or "column_names" not in fn_kwargs:
-            raise ValueError(
-                "Please pass fn_kwargs dict with key column_names for "
-                + " %s data handler" % handler.handler_type.name
-            )
-        columns = fn_kwargs["column_names"]
+        columns = kwargs["column_names"]
         if columns is None or not isinstance(columns, List):
             raise ValueError(
                 f"column names {columns} passed to {handler.handler_type.name} data handler "
