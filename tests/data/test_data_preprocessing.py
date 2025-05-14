@@ -1760,9 +1760,7 @@ def test_rename_and_select_dataset_columns(
         )
     if select:
         handlers.append(
-            DataHandlerConfig(
-                name="select_columns", arguments={"column_names": select}
-            )
+            DataHandlerConfig(name="select_columns", arguments={"column_names": select})
         )
     data_paths = [datafile]
 
