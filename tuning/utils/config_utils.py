@@ -58,10 +58,20 @@ def create_tuning_config(peft_method, **kwargs):
     assert peft_method in [
         None,
         "lora",
+        "alora",
         "pt",
         "None",
     ], f"peft config {peft_method} not defined in peft.py"
-    if peft_method == "lora":
+    if peft_method == "alora":
+        try:
+            from alora.config import aLoraConfig
+        except ImportError:
+            raise ImportError(
+                "alora package is required for this operation. "
+                "Please install it from https://github.com/IBM/activated-lora."
+            )
+            
+    elif peft_method == "lora":
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
     elif peft_method == "pt":
@@ -80,7 +90,17 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         tokenizer_name_or_path: str
     Return: HF PEFT config or None
     """
-    if isinstance(tuning_config, peft_config.LoraConfig):
+    USE_ALORA = False
+    try: 
+        from alora.config import aLoraConfig
+        if isinstance(tuning_config, aLoraConfig):
+            USE_ALORA = True
+    if USE_ALORA:
+        alora_config = asdict(tuning_config)
+        if alora_config["target_modules"] == ["all-linear"]:
+            alora_config["target_modules"] = "all-linear"
+        hf_peft_config = aLoraConfig(task_type=task_type, **alora_config)
+    elif isinstance(tuning_config, peft_config.LoraConfig):
         lora_config = asdict(tuning_config)
         if lora_config["target_modules"] == ["all-linear"]:
             lora_config["target_modules"] = "all-linear"
