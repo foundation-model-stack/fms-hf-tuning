@@ -39,8 +39,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
-from alora.peft_model_alora import aLoRAPeftModelForCausalLM
-from alora.config import aLoraConfig
+
 
 # Local
 from tuning.config import configs, peft_config
@@ -129,6 +128,12 @@ def train(
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
     """
+    USE_ALORA = False
+    try:
+        from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+        from alora.config import aLoraConfig
+        if isinstance(peft_config, aLoraConfig):
+            USE_ALORA = True
 
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
@@ -378,7 +383,7 @@ def train(
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
     # activated LoRA
-    if isinstance(peft_config, aLoraConfig):
+    if USE_ALORA:
         response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
         model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
         
@@ -559,6 +564,14 @@ def parse_arguments(parser, json_config=None):
         dict[str, str]
             Extra tracker metadata.
     """
+    if peft_method == "alora": 
+        try:
+            from alora.config import aLoraConfig
+        except ImportError:
+            raise ImportError(
+                "The alora package is required for this operation. "
+                "Please install it."
+            )
     if json_config:
         (
             model_args,
@@ -772,7 +785,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(tune_config, peft_config.LoraConfig) or isinstance(tune_config, aLoraConfig):
+    if isinstance(tune_config, peft_config.LoraConfig): # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts
