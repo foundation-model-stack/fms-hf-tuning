@@ -121,7 +121,10 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
-
+try: #Optional package
+    from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+    from alora.config import aLoraConfig
+    PEFT_ALORA_ARGS = aLoraConfig(r=8, lora_alpha=32, lora_dropout=0.05,invocation_string = DATA_ARGS.response_template)
 
 def test_resume_training_from_checkpoint():
     """
@@ -678,6 +681,42 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         )
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that" in output_inference
+
+@pytest.mark.parametrize(
+    "target_modules,expected",
+    target_modules_val_map,
+    ids=["default", "custom_target_modules", "all_linear_target_modules"],
+)
+def test_run_causallm_alora_and_inference(request, target_modules, expected):
+    """Check if we can bootstrap and alora tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+        if "default" not in request._pyfuncitem.callspec.id:
+            base_alora_args.target_modules = target_modules
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("target_modules")
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
+        invocation_string = loaded_model.peft_config[model_UQ.active_adapter].invocation_string
+        alora_offsets = loaded_model.tokenizer(invocation_string, return_tensors="pt").input_ids.shape[1] - 1
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "Simply put, the theory of relativity states that \n" + invocation_string, max_new_tokens=50, alora_offsets = 
+        )
+        assert len(output_inference) > 0
+        assert "Simply put, the theory of relativity states that \n" in output_inference
 
 
 def test_successful_lora_target_modules_default_from_main():
