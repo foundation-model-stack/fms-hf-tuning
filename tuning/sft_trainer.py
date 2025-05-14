@@ -37,7 +37,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
 from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 import transformers
-
+from peft import LoraConfig
 
 # Local
 from tuning.config import configs, peft_config
@@ -77,7 +77,7 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
+        Union[peft_config.LoraConfig,LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
