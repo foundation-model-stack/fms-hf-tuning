@@ -731,7 +731,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         alora_offsets = loaded_model.tokenizer(invocation_string, return_tensors="pt").input_ids.shape[1] - 1
         # Run inference on the text
         output_inference = loaded_model.run(
-            "Simply put, the theory of relativity states that \n" + invocation_string, max_new_tokens=50, alora_offsets = 
+            "Simply put, the theory of relativity states that \n" + invocation_string, max_new_tokens=50, alora_offsets = alora_offsets
         )
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that \n" in output_inference
