@@ -733,7 +733,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
             base_alora_args.target_modules = target_modules
 
         trainer, metadata = sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
-        sft_trainer.save(train_args.output_dir + "/checkpoint-final",trainer)
+        sft_trainer.save(train_args.output_dir + "/checkpoint-1",trainer)
 
         # validate lora tuning configs
         _validate_training(tempdir)
