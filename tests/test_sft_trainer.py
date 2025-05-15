@@ -747,7 +747,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
         invocation_string = loaded_model.peft_model.peft_config[loaded_model.peft_model.active_adapter].invocation_string
-        alora_offsets = loaded_model.tokenizer(invocation_string, return_tensors="pt").input_ids.shape[1] - 1
+        alora_offsets = [loaded_model.tokenizer(invocation_string, return_tensors="pt").input_ids.shape[1] - 1]
         # Run inference on the text
         output_inference = loaded_model.run(
             "Simply put, the theory of relativity states that \n" + invocation_string, max_new_tokens=50, alora_offsets = alora_offsets
