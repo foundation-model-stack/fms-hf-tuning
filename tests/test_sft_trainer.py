@@ -717,6 +717,10 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that" in output_inference
 
+@pytest.mark.skipif( 
+     not is_alora_available(), 
+     reason="Only runs if alora is installed", 
+ ) 
 @pytest.mark.parametrize(
     "target_modules,expected",
     target_modules_val_map,
