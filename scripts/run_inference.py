@@ -295,11 +295,11 @@ class TunedCausalLM:
                 
         tok_res = self.tokenizer(text, return_tensors="pt")
         input_ids = tok_res.input_ids.to(self.device)
-        if alora_offsets is None: #pass in alora_offsets needed for alora model
+        if alora_offsets is None: 
             peft_outputs = self.peft_model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens
             )
-        else:
+        else: #pass in alora_offsets needed for alora model
             peft_outputs = self.peft_model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens, alora_offsets = alora_offsets
             )
