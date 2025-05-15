@@ -120,6 +120,22 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
+TRAIN_ALORA_ARGS = configs.TrainingArguments(
+    num_train_epochs=5,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    gradient_accumulation_steps=1,
+    learning_rate=0.00001,
+    weight_decay=0,
+    warmup_ratio=0.03,
+    lr_scheduler_type="cosine",
+    logging_steps=1,
+    include_tokens_per_second=True,
+    packing=False,
+    max_seq_length=4096,
+    save_strategy="no", 
+    output_dir="tmp",
+)
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=0,
@@ -709,7 +725,7 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
 def test_run_causallm_alora_and_inference(request, target_modules, expected):
     """Check if we can bootstrap and alora tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
         train_args.output_dir = tempdir
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
 
