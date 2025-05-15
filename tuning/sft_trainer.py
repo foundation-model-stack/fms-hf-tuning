@@ -603,14 +603,7 @@ def parse_arguments(parser, json_config=None):
         dict[str, str]
             Extra tracker metadata.
     """
-    if peft_method == "alora": 
-        try:
-            from alora.config import aLoraConfig
-        except ImportError:
-            raise ImportError(
-                "The alora package is required for this operation. "
-                "Please install it from https://github.com/IBM/activated-lora."
-            )
+    
     if json_config:
         (
             model_args,
@@ -660,7 +653,15 @@ def parse_arguments(parser, json_config=None):
         invocation_string = additional.invocation_string
         if peft_method == "alora":  
             if invocation_string is None:
-                error("invocation_string needed for aLoRA")
+                ValueError("invocation_string is not passed required for aLoRA usage")
+    if peft_method == "alora": 
+        try:
+            from alora.config import aLoraConfig
+        except ImportError:
+            raise ImportError(
+                "The alora package is required for this operation. "
+                "Please install it from https://github.com/IBM/activated-lora."
+            )
     if peft_method == "lora":
         tune_config = lora_config
     elif peft_method == "alora": 
