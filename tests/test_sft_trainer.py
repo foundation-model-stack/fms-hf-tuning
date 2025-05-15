@@ -732,8 +732,8 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
-        sft_trainer.save(train_args.output_dir + "/checkpoint-final")
+        trainer, metadata = sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
+        sft_trainer.save(train_args.output_dir + "/checkpoint-final",trainer)
 
         # validate lora tuning configs
         _validate_training(tempdir)
