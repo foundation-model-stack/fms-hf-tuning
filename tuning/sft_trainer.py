@@ -478,7 +478,7 @@ def train(
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
     if USE_ALORA and ALORA_SAVE_END: #saving was requested, saving at end
-        trainer.model.save_pretrained(training_args.output_dir)
+        trainer.model.save_pretrained(training_args.output_dir + "/checkpoint-final")
     
     return trainer, additional_metadata
 
