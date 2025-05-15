@@ -133,6 +133,12 @@ def train(
         from alora.config import aLoraConfig
         if isinstance(peft_config, aLoraConfig):
             USE_ALORA = True
+            if train_args.save_strategy!="no": 
+                logger.warning("Setting train_args.save_strategy to 'no' for aLoRA. Model will be saved at end of training.")
+                ALORA_SAVE_END = True
+                train_args.save_strategy = "no"
+            else:
+                ALORA_SAVE_END = False
     except ImportError:
         pass
 
@@ -470,6 +476,10 @@ def train(
     trainer.train(resume_from_checkpoint)
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
+
+    if USE_ALORA and ALORA_SAVE_END: #saving was requested, saving at end
+        trainer.model.save_pretrained(training_args.output_dir)
+    
     return trainer, additional_metadata
 
 
