@@ -97,11 +97,9 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
     except ImportError:
         pass
     if USE_ALORA:
-        #alora_config = asdict(tuning_config)
-        #if alora_config["target_modules"] == ["all-linear"]:
-        #    alora_config["target_modules"] = "all-linear"
-        #hf_peft_config = aLoraConfig(**alora_config)
         alora_config = tuning_config
+        if alora_config["target_modules"] == ["all-linear"]:
+            alora_config["target_modules"] = "all-linear"
         alora_config.target_modules = "all-linear"
         alora_config.task_type = task_type
         hf_peft_config = alora_config
