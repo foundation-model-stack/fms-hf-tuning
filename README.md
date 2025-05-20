@@ -9,7 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
-  - [Activated LoRA Tuning Example](#alora-tuning-example)
+  - [Activated LoRA Tuning Example](#activated-lora-tuning-example)
   - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
