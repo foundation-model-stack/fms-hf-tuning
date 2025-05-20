@@ -452,7 +452,7 @@ To summarize you can pick either python for single-GPU jobs or use accelerate la
 
 ### Tips on Parameters to Set
 
-#### Saving checkpoints while training
+#### Saving checkpoints while training (does not apply to Activated LoRA)
 
 By default, [`save_strategy`](tuning/config/configs.py) is set to `"epoch"` in the TrainingArguments. This means that checkpoints will be saved on each epoch. This can also be set to `"steps"` to save on every `"save_steps"` or `"no"` to not save any checkpoints.
 
@@ -689,6 +689,167 @@ post_process_vLLM_adapters_new_tokens(
 </details>
 
 _________________________
+
+### Activated LoRA Tuning Example
+
+
+Activated LoRA (aLoRA) is a new low rank adapter architecture that allows for reusing existing base model KV cache for more efficient inference. This approach is best suited for inference pipelines which rely on the base model for most tasks/generations, but use aLoRA adapter(s) to perform specialized task(s) within the chain. For example, checking or rewriting generated outputs of the base model.
+
+[Paper](https://arxiv.org/abs/2504.12397)
+
+[IBM Research Blogpost](https://research.ibm.com/blog/inference-friendly-aloras)
+
+[Github](https://github.com/IBM/activated-lora)
+
+*Usage* Usage is very similar to standard LoRA, with the key difference that an invocation_string must be specified so that the model knows when to turn on i.e "activate" the adapter weights. The model will scan any input strings (during training or at test time) for this invocation_string, and activate the adapter weights 1 token after the start of the sequence. If there are multiple instances of the invocation_string in the same input, it will activate at the last such instance.
+
+**Note** Often (not always) aLoRA requires higher rank (r) than LoRA. r=32 can be a good starting point for challenging tasks.
+
+
+
+
+**Installation** The Activated LoRA requirements are an optional install in pyproject.toml (activated-lora)
+
+
+
+Set `peft_method` to `"alora"`. 
+
+
+You *must* pass in an invocation_string argument. This invocation_string *must be present* in both training data inputs and the input at test time. A good solution is to set invocation_string = response_template, this will ensure that every training input will have the invocation_string present. We keep these separate arguments for flexibility. It is most robust if the invocation_string begins and ends with special tokens.
+
+
+
+You can additionally pass any arguments from [aLoraConfig](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/alora/config.py#L35), see the LoRA section for examples.
+
+Example command to run, here using the ([Granite Instruct response template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188)) as the invocation sequence:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+---learning_rate 1e-4 \
+--response_template "<|start_of_role|>assistant<|end_of_role|>" \ #this example uses special tokens in the Granite tokenizer, adjust for other models
+--invocation_string "<|start_of_role|>assistant<|end_of_role|>" \
+--dataset_text_field "output" \
+--peft_method "alora" \
+--r 32 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules q_proj k_proj v_proj
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "<|start_of_role|>assistant<|end_of_role|>",
+    "invocation_string": "<|start_of_role|>assistant<|end_of_role|>",
+    "dataset_text_field": "output",
+    "peft_method": "alora",
+    "r": 32,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["q_proj", "k_proj", "v_proj"]
+}
+```
+
+Notice the `target_modules` are the names of the modules to apply the adapter to.
+- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. 
+- If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
+
+#### How to get list of aLoRA target_modules of a model
+For each model, the `target_modules` will depend on the type of model architecture. You can specify linear or attention layers to `target_modules`. To obtain list of `target_modules` for a model:
+
+```py
+from transformers import AutoModelForCausalLM
+# load the model
+model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
+# see the module list
+model.modules
+
+# to get just linear layers
+import re
+model_modules = str(model.modules)
+pattern = r'\((\w+)\): Linear'
+linear_layer_names = re.findall(pattern, model_modules)
+
+names = []
+for name in linear_layer_names:
+    names.append(name)
+target_modules = list(set(names))
+```
+
+For example for LLaMA model the modules look like:
+```
+<bound method Module.modules of LlamaForCausalLM(
+  (model): LlamaModel(
+    (embed_tokens): Embedding(32000, 4096, padding_idx=0)
+    (layers): ModuleList(
+      (0-31): 32 x LlamaDecoderLayer(
+        (self_attn): LlamaSdpaAttention(
+          (q_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (k_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (v_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (o_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (rotary_emb): LlamaRotaryEmbedding()
+        )
+        (mlp): LlamaMLP(
+          (gate_proj): Linear(in_features=4096, out_features=11008, bias=False)
+          (up_proj): Linear(in_features=4096, out_features=11008, bias=False)
+          (down_proj): Linear(in_features=11008, out_features=4096, bias=False)
+          (act_fn): SiLU()
+        )
+        (input_layernorm): LlamaRMSNorm()
+        (post_attention_layernorm): LlamaRMSNorm()
+      )
+    )
+    (norm): LlamaRMSNorm()
+  )
+  (lm_head): Linear(in_features=4096, out_features=32000, bias=False)
+)>
+```
+
+You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
+
+#### Recommended target modules per model architecture 
+As per [aLoRA paper](https://arxiv.org/abs/2504.12397), by using the key, query and value projection matrices, we can achieve good quality with efficient GPU utilization. Hence, while thinking about what aLoRA adapters to specify, we recommend starting with key, query and value matrices. 
+
+#### Checkpoint saving
+For now, `save_strategy` is not supported (it is always reset to `none`). You can either save the model once training is complete, or pass in a custom callback in `additional_callbacks` directly to `tuning.sft_trainer.train` to perform saving. For example the following (from [alora github](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/train_scripts/finetune_example_callback.py)) saves and updates the best performing model so far, checking whenever eval is called according to `eval_strategy`:
+```py
+class SaveBestModelCallback(TrainerCallback):
+    def __init__(self):
+        self.best_eval_loss = float("inf")  # Track best loss
+
+    def on_evaluate(self, args, state, control, **kwargs):
+        """Save the best model manually during evaluation."""
+
+        model = kwargs["model"]
+        metrics = kwargs["metrics"]
+        
+        eval_loss = metrics.get("eval_loss")
+        if eval_loss is not None and eval_loss < self.best_eval_loss:
+            self.best_eval_loss = eval_loss  # Update best loss
+
+            # Manually save best model
+            model.save_pretrained(args.output_dir)
+```
+
+#### Running aLoRA models on VLLM
+
+Coming soon! For now, there is inference support in this package, or see [aLoRA github](https://github.com/IBM/activated-lora/experiments/inference_example.py) for example code demonstrating KV cache reuse from prior base model calls.
+
+__________
+
 
 
 ### GPTQ-LoRA with AutoGPTQ Tuning Example
