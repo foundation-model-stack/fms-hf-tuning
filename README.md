@@ -508,7 +508,7 @@ You can also use the resume_from_checkpoint flag to resume tuning from a specifi
 
 #### Setting Gradient Checkpointing
 
-Training large models requires the usage of a lot of GPU memory. To reduce memory usage while training, consider setting the `gradient_checkpointing` flag. Gradient Checkpointing creates checkpoints of certain nodes within a neural network and recomputes the space between those checkpoints during back-propagation, reducing training complexity to $\sqrt N$ for $N$ nodes. 
+Training large models requires the usage of a lot of GPU memory. To reduce memory usage while training, consider setting the [`gradient_checkpointing`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.gradient_checkpointing) flag. Gradient Checkpointing creates checkpoints of certain nodes within a neural network and recomputes the space between those checkpoints during back-propagation, reducing training complexity to $\sqrt N$ for $N$ nodes. 
 
 The resulting reduced memory costs allow fitting larger models on the same GPU, with the tradeoff of a small increase in the time required to fully train the model. More information about Gradient Checkpointing can be found in [this paper](https://arxiv.org/abs/1604.06174), as well as [here](https://github.com/cybertronai/gradient-checkpointing?tab=readme-ov-file#how-it-works).
 
