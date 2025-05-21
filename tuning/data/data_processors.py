@@ -470,7 +470,8 @@ class DataPreProcessor:
                     final_datasets[k].append(v)
 
         # Ensure again datasets are aligned before interleaving or concatenating
-        maybe_align_datasets(final_datasets)
+        for v in final_datasets.values():
+            maybe_align_datasets(v)
 
         if sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
