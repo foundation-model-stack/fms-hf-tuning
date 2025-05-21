@@ -508,6 +508,14 @@ If the output directory already contains checkpoints, tuning will automatically 
 
 You can also use the resume_from_checkpoint flag to resume tuning from a specific checkpoint by providing the full path to the desired checkpoint as a string. This flag is passed as an argument to the [trainer.train()](https://github.com/huggingface/transformers/blob/db70426854fe7850f2c5834d633aff637f14772e/src/transformers/trainer.py#L1901) function of the SFTTrainer.
 
+#### Setting Gradient Checkpointing
+
+Training large models requires the usage of a lot of GPU memory. To reduce memory usage while training, consider setting the [`gradient_checkpointing`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.gradient_checkpointing) flag. 
+
+Gradient Checkpointing is a method that stores only certain intermediate activations during the backward pass for recomputation. This avoids storing all of the intermediate activations from the forward pass, thus saving memory. The resulting reduced memory costs allow fitting larger models on the same GPU, with the tradeoff of a ~20% increase in the time required to fully train the model. More information about Gradient Checkpointing can be found in [this paper](https://arxiv.org/abs/1604.06174), as well as [here](https://github.com/cybertronai/gradient-checkpointing?tab=readme-ov-file#how-it-works).
+
+To enable this feature, add the `--gradient_checkpointing` flag as an argument when calling `sft_trainer`.
+
 ## Tuning Techniques:
 
 ### LoRA Tuning Example
