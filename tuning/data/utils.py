@@ -19,7 +19,7 @@ import logging
 import os
 
 # Third Party
-from datasets import DatasetDict, IterableDataset, IterableDatasetDict
+from datasets import DatasetDict, Features, IterableDataset, IterableDatasetDict
 from PIL import Image
 import yaml
 
@@ -70,15 +70,15 @@ def resolve_iterable_dataset_features(data: IterableDataset):
     return data
 
 
-def __get_dataset_features(d, default_split="train"):
+def __get_dataset_features(d, default_split: str = "train") -> Features:
     return (
         d[default_split].features
-        if isinstance(d, (DatasetDict or IterableDatasetDict))
+        if isinstance(d, (DatasetDict, IterableDatasetDict))
         else d.features
     )
 
 
-def _maybe_cast_columns(datasets, default_split="train"):
+def _maybe_cast_columns(datasets: list, default_split: str = "train") -> None:
     """
     Given list of datasets, try casting datasets to same features.
     Assumes that the datasets are aligned in terms of columns which
@@ -95,7 +95,7 @@ def _maybe_cast_columns(datasets, default_split="train"):
         datasets[i] = datasets[i].cast(features)
 
 
-def _validate_mergeable_datasets(datasets, default_split="train"):
+def _validate_mergeable_datasets(datasets: list, default_split: str = "train") -> None:
     """Given list of datasets, validate if all datasets have same type and number of columns."""
     if len(datasets) <= 1:
         return
@@ -122,16 +122,16 @@ def _validate_mergeable_datasets(datasets, default_split="train"):
         )
 
 
-def maybe_align_datasets(datasets):
+def maybe_align_datasets(datasets: list) -> None:
     """
     Given list of datasets
      1. validate if all datasets have same type and number of columns.
      2. try casting dataset columns to same value to ensure mergability
     """
     try:
-        for d in datasets:
+        for i, d in enumerate(datasets):
             if isinstance(d, IterableDataset):
-                d = resolve_iterable_dataset_features(d)
+                datasets[i] = resolve_iterable_dataset_features(d)
 
         _validate_mergeable_datasets(datasets)
         _maybe_cast_columns(datasets)
