@@ -660,7 +660,7 @@ def parse_arguments(parser, json_config=None):
         except ImportError:
             raise ImportError(
                 "The alora package is required for this operation. "
-                "Please install it from https://github.com/IBM/activated-lora."
+                "Please install it with pip install alora."
             )
     if peft_method == "lora":
         tune_config = lora_config
