@@ -335,7 +335,7 @@ def _process_raw_data_args(
     tokenizer_kwargs = {}
     tokenizer_kwargs["max_length"] = max_seq_length
     tokenizer_kwargs["truncation"] = True
-    # Lets not pad in tokenizer...we can handle that in the collator
+    # As of peft=0.14, this must be True
     tokenizer_kwargs["padding"] = True
 
     processor_kwargs = {}
