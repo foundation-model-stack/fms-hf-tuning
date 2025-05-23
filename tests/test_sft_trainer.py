@@ -93,7 +93,7 @@ from tuning.data.data_config import (
     load_and_validate_data_config,
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
-from tuning.utils.import_utils import is_fms_accelerate_available
+from tuning.utils.import_utils import is_fms_accelerate_available, is_alora_available
 
 
 MODEL_ARGS = configs.ModelArguments(
