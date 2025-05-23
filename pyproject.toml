@@ -35,7 +35,7 @@ dependencies = [
 "tokenizers>=0.13.3,<1.0",
 "tqdm>=4.66.2,<5.0",
 "trl>=0.13,<0.18",
-"peft>=0.8.0,<0.14",
+"peft>=0.8.0,<=0.14",
 "protobuf>=5.28.0,<6.0.0",
 "datasets>=3.5.0,<4.0",
 "simpleeval>=0.9.13,<2.0",
@@ -51,6 +51,7 @@ fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 mamba = ["mamba_ssm[causal-conv1d]>=2.0.0,<3.0.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
+activated-lora = ["alora>=0.1.0"]
 
 
 [tool.setuptools.packages.find]
