@@ -132,7 +132,9 @@ def train(
     try:
         # Third Party
         from alora.config import aLoraConfig  # pylint: disable=import-error
-        from alora.peft_model_alora import aLoRAPeftModelForCausalLM  # pylint: disable=import-error
+        from alora.peft_model_alora import (  # pylint: disable=import-error
+            aLoRAPeftModelForCausalLM,
+        )
 
         if isinstance(peft_config, aLoraConfig):
             USE_ALORA = True
@@ -520,7 +522,9 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     USE_ALORA = False
     try:
         # Third Party
-        from alora.peft_model_alora import aLoRAPeftModelForCausalLM  # pylint: disable=import-error
+        from alora.peft_model_alora import (  # pylint: disable=import-error
+            aLoRAPeftModelForCausalLM,
+        )
 
         if isinstance(trainer.model, aLoRAPeftModelForCausalLM):
             USE_ALORA = True
@@ -671,9 +675,12 @@ def parse_arguments(parser, json_config=None):
         invocation_string = additional.invocation_string
         if peft_method == "alora":
             if invocation_string is None:
-                raise ValueError("invocation_string is not passed required for aLoRA usage")
+                raise ValueError(
+                    "invocation_string is not passed required for aLoRA usage"
+                )
     if peft_method == "alora":
         try:
+            # Third Party
             from alora.config import aLoraConfig  # pylint: disable=import-error
         except ImportError:
             raise ImportError(
