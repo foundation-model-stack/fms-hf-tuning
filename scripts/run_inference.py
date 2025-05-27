@@ -227,7 +227,7 @@ class TunedCausalLM:
                         # Third Party
                         try:
                             # Third Party
-                            from alora.peft_model_alora import (  # pylint: disable=import-error
+                            from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
                                 aLoRAPeftModelForCausalLM,
                             )
 
@@ -239,11 +239,11 @@ class TunedCausalLM:
                                 else None,
                                 torch_dtype=torch.bfloat16 if use_flash_attn else None,
                             )
-                        except ImportError:
+                        except ImportError as exc:
                             raise ImportError(
                                 "The alora package is required for this operation. "
                                 "Please install it with pip install alora."
-                            )
+                            ) from exc
                     else:
                         model = PeftModel.from_pretrained(
                             base_model,

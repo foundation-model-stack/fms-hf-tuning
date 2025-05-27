@@ -131,8 +131,8 @@ def train(
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
     try:
         # Third Party
-        from alora.config import aLoraConfig  # pylint: disable=import-error
-        from alora.peft_model_alora import (  # pylint: disable=import-error
+        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
+        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
             aLoRAPeftModelForCausalLM,
         )
 
@@ -522,7 +522,7 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     USE_ALORA = False
     try:
         # Third Party
-        from alora.peft_model_alora import (  # pylint: disable=import-error
+        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
             aLoRAPeftModelForCausalLM,
         )
 
@@ -681,12 +681,14 @@ def parse_arguments(parser, json_config=None):
     if peft_method == "alora":
         try:
             # Third Party
-            from alora.config import aLoraConfig  # pylint: disable=import-error
-        except ImportError:
+            from alora.config import (  # pylint: disable=import-outside-toplevel
+                aLoraConfig,
+            )
+        except ImportError as exc:
             raise ImportError(
                 "The alora package is required for this operation. "
                 "Please install it with pip install alora."
-            )
+            ) from exc
     if peft_method == "lora":
         tune_config = lora_config
     elif peft_method == "alora":

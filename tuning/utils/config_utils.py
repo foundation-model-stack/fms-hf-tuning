@@ -64,7 +64,9 @@ def create_tuning_config(peft_method, **kwargs):
     if peft_method == "alora":
         try:
             # Third Party
-            from alora.config import aLoraConfig  # pylint: disable=import-error
+            from alora.config import (  # pylint: disable=import-outside-toplevel
+                aLoraConfig,
+            )
 
             tune_config = aLoraConfig()
             update_config(tune_config, **kwargs)
@@ -96,7 +98,7 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
     USE_ALORA = False
     try:
         # Third Party
-        from alora.config import aLoraConfig  # pylint: disable=import-error
+        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
 
         if isinstance(tuning_config, aLoraConfig):
             USE_ALORA = True
