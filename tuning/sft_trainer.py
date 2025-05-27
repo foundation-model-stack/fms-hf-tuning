@@ -138,7 +138,8 @@ def train(
             USE_ALORA = True
             if train_args.save_strategy != "no":
                 logger.warning(
-                    "Setting train_args.save_strategy to 'no' for aLoRA. Model will be saved at end of training."
+                    "Setting train_args.save_strategy to 'no' for aLoRA."
+                    "Model will be saved at end of training."
                 )
                 ALORA_SAVE_END = True
                 train_args.save_strategy = "no"
@@ -573,7 +574,8 @@ def get_parser():
         "--invocation_string",
         type=str,
         default=None,
-        help="Pass a invocation string that will be used to activate the aLoRA. This needs to be present in each training data row.",
+        help="Pass a invocation string that will be used to activate the aLoRA.\
+            This needs to be present in each training data row.",
     )
     return parser
 
@@ -669,7 +671,7 @@ def parse_arguments(parser, json_config=None):
         invocation_string = additional.invocation_string
         if peft_method == "alora":
             if invocation_string is None:
-                ValueError("invocation_string is not passed required for aLoRA usage")
+                raise ValueError("invocation_string is not passed required for aLoRA usage")
     if peft_method == "alora":
         try:
             # Third Party
