@@ -68,11 +68,11 @@ def create_tuning_config(peft_method, **kwargs):
 
             tune_config = aLoraConfig()
             update_config(tune_config, **kwargs)
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "alora package is required for this operation. "
-                "Please install it from https://github.com/IBM/activated-lora."
-            )
+                "Please install it with pip install alora."
+            ) from exc
 
     elif peft_method == "lora":
         tune_config = peft_config.LoraConfig()
