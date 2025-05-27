@@ -224,15 +224,24 @@ class TunedCausalLM:
                         {}, tokenizer=tokenizer, model=base_model
                     )
                     if use_alora:
-                        from alora.peft_model_alora import aLoRAPeftModelForCausalLM
-                        model = aLoRAPeftModelForCausalLM.from_pretrained(
-                            base_model,
-                            checkpoint_path,
-                            attn_implementation="flash_attention_2"
-                            if use_flash_attn
-                            else None,
-                            torch_dtype=torch.bfloat16 if use_flash_attn else None,
-                        )
+                        # Third Party
+                        try:
+                            # Third Party
+                            from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+
+                            model = aLoRAPeftModelForCausalLM.from_pretrained(
+                                base_model,
+                                checkpoint_path,
+                                attn_implementation="flash_attention_2"
+                                if use_flash_attn
+                                else None,
+                                torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                            )
+                        except ImportError:
+                            raise ImportError(
+                                "The alora package is required for this operation. "
+                                "Please install it with pip install alora."
+                            )
                     else:
                         model = PeftModel.from_pretrained(
                             base_model,
@@ -274,7 +283,12 @@ class TunedCausalLM:
         return cls(model, tokenizer, device)
 
     def run(
-        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False, alora_offsets: str = None #alora_offsets for alora models
+        self,
+        text: str,
+        *,
+        max_new_tokens: int,
+        ret_gen_text_only: bool = False,
+        alora_offsets: str = None,  # alora_offsets for alora models
     ) -> str:
         """Runs inference on an instance of this model.
 
@@ -291,17 +305,18 @@ class TunedCausalLM:
             str
                 Text generation result.
         """
-      
-                
+
         tok_res = self.tokenizer(text, return_tensors="pt")
         input_ids = tok_res.input_ids.to(self.device)
-        if alora_offsets is None: 
+        if alora_offsets is None:
             peft_outputs = self.peft_model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens
             )
-        else: #pass in alora_offsets needed for alora model
+        else:  # pass in alora_offsets needed for alora model
             peft_outputs = self.peft_model.generate(
-                input_ids=input_ids, max_new_tokens=max_new_tokens, alora_offsets = alora_offsets
+                input_ids=input_ids,
+                max_new_tokens=max_new_tokens,
+                alora_offsets=alora_offsets,
             )
         if ret_gen_text_only:
             tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
@@ -364,7 +379,7 @@ def main():
         checkpoint_path=args.model,
         base_model_name_or_path=args.base_model_name_or_path,
         use_flash_attn=args.use_flash_attn,
-        use_alora = args.use_alora,
+        use_alora=args.use_alora,
     )
 
     # Run inference on the text; if multiple were provided, process them all

@@ -63,13 +63,16 @@ def create_tuning_config(peft_method, **kwargs):
     ], f"peft config {peft_method} not defined in peft.py"
     if peft_method == "alora":
         try:
+            # Third Party
             from alora.config import aLoraConfig
+            tune_config = aLoraConfig()
+            update_config(tune_config,**kwargs)
         except ImportError:
             raise ImportError(
                 "alora package is required for this operation. "
                 "Please install it from https://github.com/IBM/activated-lora."
             )
-            
+
     elif peft_method == "lora":
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
@@ -90,8 +93,10 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
     Return: HF PEFT config or None
     """
     USE_ALORA = False
-    try: 
+    try:
+        # Third Party
         from alora.config import aLoraConfig
+
         if isinstance(tuning_config, aLoraConfig):
             USE_ALORA = True
     except ImportError:

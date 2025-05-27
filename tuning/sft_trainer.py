@@ -24,6 +24,7 @@ import traceback
 
 # Third Party
 from huggingface_hub.utils._validators import HFValidationError
+from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
@@ -35,9 +36,8 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
-from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
+from trl import SFTConfig, SFTTrainer
 import transformers
-from peft import LoraConfig
 
 # Local
 from tuning.config import configs, peft_config
@@ -77,7 +77,7 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig,LoraConfig, peft_config.PromptTuningConfig]
+        Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
@@ -128,21 +128,24 @@ def train(
             Metadata contains information on number of added tokens while tuning.
     """
     USE_ALORA = False
+    train_args, logger = set_log_level(train_args, "sft_trainer_train")
     try:
-        from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+        # Third Party
         from alora.config import aLoraConfig
+        from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+
         if isinstance(peft_config, aLoraConfig):
             USE_ALORA = True
-            if train_args.save_strategy!="no": 
-                logger.warning("Setting train_args.save_strategy to 'no' for aLoRA. Model will be saved at end of training.")
+            if train_args.save_strategy != "no":
+                logger.warning(
+                    "Setting train_args.save_strategy to 'no' for aLoRA. Model will be saved at end of training."
+                )
                 ALORA_SAVE_END = True
                 train_args.save_strategy = "no"
             else:
                 ALORA_SAVE_END = False
     except ImportError:
         pass
-
-    train_args, logger = set_log_level(train_args, "sft_trainer_train")
 
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
@@ -400,11 +403,19 @@ def train(
 
     # activated LoRA
     if USE_ALORA:
-        response_token_ids = (tokenizer(peft_config.invocation_string, return_tensors="pt", add_special_tokens=False))['input_ids']
-        model = aLoRAPeftModelForCausalLM(model, peft_config, response_token_ids = response_token_ids)
-        
+        response_token_ids = (
+            tokenizer(
+                peft_config.invocation_string,
+                return_tensors="pt",
+                add_special_tokens=False,
+            )
+        )["input_ids"]
+        model = aLoRAPeftModelForCausalLM(
+            model, peft_config, response_token_ids=response_token_ids
+        )
+
         peft_config = None
-    
+
     if train_args.enable_reduce_loss_sum:
         TrainerClass = SumLossSFTTrainer
     else:
@@ -477,9 +488,9 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    if USE_ALORA and ALORA_SAVE_END: #saving was requested, saving at end
+    if USE_ALORA and ALORA_SAVE_END:  # saving was requested, saving at end
         trainer.model.save_pretrained(training_args.output_dir + "/checkpoint-1")
-    
+
     return trainer, additional_metadata
 
 
@@ -507,18 +518,21 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
     logger.info("Saving tuned model to path: %s", path)
     USE_ALORA = False
     try:
+        # Third Party
         from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+
         if isinstance(trainer.model, aLoRAPeftModelForCausalLM):
             USE_ALORA = True
     except ImportError:
         pass
-        
-    if USE_ALORA: # Save adapter weights and tokenizer only. aLoRA requires weights to not be merged.
+
+    if (
+        USE_ALORA
+    ):  # Save adapter weights and tokenizer only. aLoRA requires weights to not be merged.
         trainer.model.save_pretrained(path)
         trainer.tokenizer.save_pretrained(path)
-    else: #Save full model
+    else:  # Save full model
         trainer.save_model(path)
-        
 
 
 def get_parser():
@@ -544,7 +558,7 @@ def get_parser():
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices=["pt", "lora","alora", None, "none"],
+        choices=["pt", "lora", "alora", None, "none"],
         default="none",
     )
 
@@ -556,10 +570,10 @@ def get_parser():
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
     parser.add_argument(
-            "--invocation_string",
-            type=str,
-            default=None,
-            help='Pass a invocation string that will be used to activate the aLoRA. This needs to be present in each training data row.',
+        "--invocation_string",
+        type=str,
+        default=None,
+        help="Pass a invocation string that will be used to activate the aLoRA. This needs to be present in each training data row.",
     )
     return parser
 
@@ -603,7 +617,7 @@ def parse_arguments(parser, json_config=None):
         dict[str, str]
             Extra tracker metadata.
     """
-    
+
     if json_config:
         (
             model_args,
@@ -626,7 +640,9 @@ def parse_arguments(parser, json_config=None):
         invocation_string = json_config.get("invocation_string")
         if peft_method == "alora":
             if invocation_string is None:
-                raise ValueError("invocation_string is not passed required for aLoRA usage")
+                raise ValueError(
+                    "invocation_string is not passed required for aLoRA usage"
+                )
 
     else:
         (
@@ -651,11 +667,12 @@ def parse_arguments(parser, json_config=None):
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
         invocation_string = additional.invocation_string
-        if peft_method == "alora":  
+        if peft_method == "alora":
             if invocation_string is None:
                 ValueError("invocation_string is not passed required for aLoRA usage")
-    if peft_method == "alora": 
+    if peft_method == "alora":
         try:
+            # Third Party
             from alora.config import aLoraConfig
         except ImportError:
             raise ImportError(
@@ -664,8 +681,10 @@ def parse_arguments(parser, json_config=None):
             )
     if peft_method == "lora":
         tune_config = lora_config
-    elif peft_method == "alora": 
-        tune_config = aLoraConfig(**vars(lora_config), invocation_string=invocation_string)
+    elif peft_method == "alora":
+        tune_config = aLoraConfig(
+            **vars(lora_config), invocation_string=invocation_string
+        )
     elif peft_method == "pt":
         tune_config = prompt_tuning_config
     else:
@@ -825,7 +844,9 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(tune_config, peft_config.LoraConfig): # aLoraConfig subclasses LoraConfig
+    if isinstance(
+        tune_config, peft_config.LoraConfig
+    ):  # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts

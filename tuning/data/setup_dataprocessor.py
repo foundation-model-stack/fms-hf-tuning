@@ -339,7 +339,7 @@ def _process_raw_data_args(
     if tokenizer.pad_token is not None:
         tokenizer_kwargs["padding"] = True
     else:
-        tokenizer_kwargs["padding"] = False #can be handled by collator
+        tokenizer_kwargs["padding"] = False  # can be handled by collator
 
     processor_kwargs = {}
     processor_kwargs["return_tensors"] = "pt"
