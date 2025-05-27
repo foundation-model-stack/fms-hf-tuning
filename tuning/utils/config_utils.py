@@ -65,8 +65,9 @@ def create_tuning_config(peft_method, **kwargs):
         try:
             # Third Party
             from alora.config import aLoraConfig
+
             tune_config = aLoraConfig()
-            update_config(tune_config,**kwargs)
+            update_config(tune_config, **kwargs)
         except ImportError:
             raise ImportError(
                 "alora package is required for this operation. "
