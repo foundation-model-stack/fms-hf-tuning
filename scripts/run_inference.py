@@ -227,7 +227,7 @@ class TunedCausalLM:
                         # Third Party
                         try:
                             # Third Party
-                            from alora.peft_model_alora import aLoRAPeftModelForCausalLM
+                            from alora.peft_model_alora import aLoRAPeftModelForCausalLM  # pylint: disable=import-error
 
                             model = aLoRAPeftModelForCausalLM.from_pretrained(
                                 base_model,
