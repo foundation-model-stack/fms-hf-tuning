@@ -290,7 +290,7 @@ class TunedCausalLM:
         *,
         max_new_tokens: int,
         ret_gen_text_only: bool = False,
-        alora_offsets: str = None,  # alora_offsets for alora models
+        alora_offsets: list[int] = None,  # alora_offsets for alora models
     ) -> str:
         """Runs inference on an instance of this model.
 

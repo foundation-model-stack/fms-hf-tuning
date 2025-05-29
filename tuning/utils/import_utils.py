@@ -34,15 +34,8 @@ def is_fms_accelerate_available(
     return True
 
 
-def is_alora_available(
-    plugins: Union[str, List[str]] = None, package_name: str = "alora"
-):
+def is_alora_available(package_name: str = "alora"):
     names = [package_name]
-    if plugins is not None:
-        if isinstance(plugins, str):
-            plugins = [plugins]
-        names.extend([package_name + "_" + x for x in plugins])
-
     for n in names:
         if not _is_package_available(n):
             return False

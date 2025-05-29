@@ -703,7 +703,6 @@ _________________________
 
 ### Activated LoRA Tuning Example
 
-
 Activated LoRA (aLoRA) is a new low rank adapter architecture that allows for reusing existing base model KV cache for more efficient inference. This approach is best suited for inference pipelines which rely on the base model for most tasks/generations, but use aLoRA adapter(s) to perform specialized task(s) within the chain. For example, checking or rewriting generated outputs of the base model.
 
 [Paper](https://arxiv.org/abs/2504.12397)
@@ -716,19 +715,11 @@ Activated LoRA (aLoRA) is a new low rank adapter architecture that allows for re
 
 **Note** Often (not always) aLoRA requires higher rank (r) than LoRA. r=32 can be a good starting point for challenging tasks.
 
-
-
-
 **Installation** The Activated LoRA requirements are an optional install in pyproject.toml (activated-lora)
-
-
 
 Set `peft_method` to `"alora"`. 
 
-
 You *must* pass in an invocation_string argument. This invocation_string *must be present* in both training data inputs and the input at test time. A good solution is to set invocation_string = response_template, this will ensure that every training input will have the invocation_string present. We keep these separate arguments for flexibility. It is most robust if the invocation_string begins and ends with special tokens.
-
-
 
 You can additionally pass any arguments from [aLoraConfig](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/alora/config.py#L35), see the LoRA section for examples.
 
@@ -853,6 +844,39 @@ class SaveBestModelCallback(TrainerCallback):
 
             # Manually save best model
             model.save_pretrained(args.output_dir)
+```
+#### Inference with aLoRA models
+Inference with aLoRA models requires two extra steps:
+1. Ensuring that the invocation string is present in the input (usually the end)
+2. Passing in an argument `alora_offsets` which indicates the location of the second token in the invocation string inside the input string (indexing in units of tokens from the end of the input) 
+
+Example inference:
+```py
+# Load the model
+loaded_model = TunedCausalLM.load(ALORA_MODEL, BASE_MODEL_NAME, use_alora=True)
+
+# Retrieve the invocation string from the model config
+invocation_string = loaded_model.peft_model.peft_config[
+    loaded_model.peft_model.active_adapter
+].invocation_string
+
+# In this case, we have the invocation string at the end of the input 
+input_string = "Simply put, the theory of relativity states that \n" + invocation_string
+
+# Count tokens in invocation string. This list is the length of the inference batch size.
+# This is done outside of the .run call for flexibility
+alora_offsets = [
+    loaded_model.tokenizer(
+        invocation_string, return_tensors="pt"
+    ).input_ids.shape[1] - 1
+]
+
+# Run inference on the text, including alora_offsets
+output_inference = loaded_model.run(
+    input_string, 
+    max_new_tokens=50,
+    alora_offsets=alora_offsets,
+)
 ```
 
 #### Running aLoRA models on VLLM

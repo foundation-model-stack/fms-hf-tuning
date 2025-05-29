@@ -78,7 +78,7 @@ def train(
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
-    ] = None,
+    ] = None,  # LoRA should use peft_config.LoraConfig, here LoraConfig is for Activated LoRA.
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
         file_logger_config=FileLoggingTrackerConfig()
@@ -128,6 +128,7 @@ def train(
             Metadata contains information on number of added tokens while tuning.
     """
     USE_ALORA = False
+    ALORA_SAVE_END = False
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
     try:
         # Third Party
@@ -145,8 +146,6 @@ def train(
                 )
                 ALORA_SAVE_END = True
                 train_args.save_strategy = "no"
-            else:
-                ALORA_SAVE_END = False
     except ImportError:
         pass
 
@@ -491,8 +490,9 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    if USE_ALORA and ALORA_SAVE_END:  # saving was requested, saving at end
-        trainer.model.save_pretrained(training_args.output_dir + "/checkpoint-1")
+    if USE_ALORA and ALORA_SAVE_END and training_args.save_model_dir is not None:
+        # saving was requested, saving at end (but don't save twice)
+        save(training_args.output_dir + "/checkpoint-1", trainer)
 
     return trainer, additional_metadata
 
@@ -855,7 +855,7 @@ def main():
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
     if isinstance(
-        tune_config, peft_config.LoraConfig
+        tune_config, (peft_config.LoraConfig, LoraConfig)
     ):  # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
