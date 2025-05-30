@@ -329,7 +329,7 @@ class TunedCausalLM:
             # Tokenize separately to enforce correct token boundary
             before_ids = self.tokenizer(before, return_tensors="pt").input_ids
             after_ids = self.tokenizer(invocation_string, return_tensors="pt").input_ids
-            alora_offsets = after_ids.shape[1] - 1
+            alora_offsets = [after_ids.shape[1] - 1]
             input_ids = torch.cat([before_ids, after_ids], dim=1).to(self.device)
 
             peft_outputs = self.peft_model.generate(
