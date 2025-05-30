@@ -138,10 +138,11 @@ class AdapterConfigPatcher:
 
 ### Funcs for loading and running models
 class TunedCausalLM:
-    def __init__(self, model, tokenizer, device):
+    def __init__(self, model, tokenizer, device, use_alora=False):
         self.peft_model = model
         self.tokenizer = tokenizer
         self.device = device
+        self.use_alora = use_alora
 
     @classmethod
     def load(
@@ -149,6 +150,7 @@ class TunedCausalLM:
         checkpoint_path: str,
         base_model_name_or_path: str = None,
         use_flash_attn: bool = False,
+        use_alora: bool = False,
     ) -> "TunedCausalLM":
         """Loads an instance of this model.
 
@@ -222,14 +224,36 @@ class TunedCausalLM:
                     tokenizer_and_embedding_resize(
                         {}, tokenizer=tokenizer, model=base_model
                     )
-                    model = PeftModel.from_pretrained(
-                        base_model,
-                        checkpoint_path,
-                        attn_implementation="flash_attention_2"
-                        if use_flash_attn
-                        else None,
-                        torch_dtype=torch.bfloat16 if use_flash_attn else None,
-                    )
+                    if use_alora:
+                        # Third Party
+                        try:
+                            # Third Party
+                            from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
+                                aLoRAPeftModelForCausalLM,
+                            )
+
+                            model = aLoRAPeftModelForCausalLM.from_pretrained(
+                                base_model,
+                                checkpoint_path,
+                                attn_implementation="flash_attention_2"
+                                if use_flash_attn
+                                else None,
+                                torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                            )
+                        except ImportError as exc:
+                            raise ImportError(
+                                "The alora package is required for this operation. "
+                                "Please install it with pip install alora."
+                            ) from exc
+                    else:
+                        model = PeftModel.from_pretrained(
+                            base_model,
+                            checkpoint_path,
+                            attn_implementation="flash_attention_2"
+                            if use_flash_attn
+                            else None,
+                            torch_dtype=torch.bfloat16 if use_flash_attn else None,
+                        )
                 except (OSError, ValueError) as e:
                     print("Failed to initialize checkpoint model!")
                     raise e
@@ -259,10 +283,14 @@ class TunedCausalLM:
                 )
 
         model.to(device)
-        return cls(model, tokenizer, device)
+        return cls(model, tokenizer, device, use_alora)
 
     def run(
-        self, text: str, *, max_new_tokens: int, ret_gen_text_only: bool = False
+        self,
+        text: str,
+        *,
+        max_new_tokens: int,
+        ret_gen_text_only: bool = False,
     ) -> str:
         """Runs inference on an instance of this model.
 
@@ -279,12 +307,36 @@ class TunedCausalLM:
             str
                 Text generation result.
         """
-        tok_res = self.tokenizer(text, return_tensors="pt")
-        input_ids = tok_res.input_ids.to(self.device)
+        if not self.use_alora:
+            tok_res = self.tokenizer(text, return_tensors="pt")
+            input_ids = tok_res.input_ids.to(self.device)
+            peft_outputs = self.peft_model.generate(
+                input_ids=input_ids, max_new_tokens=max_new_tokens
+            )
+        else:  # pass in alora_offsets needed for alora model
+            # Retrieve invocation string
+            invocation_string = self.peft_model.peft_config[
+                self.peft_model.active_adapter
+            ].invocation_string
+            # Find the invocation string in input
+            if invocation_string in text:
+                before, after = text.rsplit(invocation_string, 1)
+                after = invocation_string + after
+            else:
+                raise ValueError(
+                    f"aLoRA invocation string '{invocation_string}' not found in input '{text}'."
+                )
+            # Tokenize separately to enforce correct token boundary
+            before_ids = self.tokenizer(before, return_tensors="pt").input_ids
+            after_ids = self.tokenizer(invocation_string, return_tensors="pt").input_ids
+            alora_offsets = [after_ids.shape[1] - 1]
+            input_ids = torch.cat([before_ids, after_ids], dim=1).to(self.device)
 
-        peft_outputs = self.peft_model.generate(
-            input_ids=input_ids, max_new_tokens=max_new_tokens
-        )
+            peft_outputs = self.peft_model.generate(
+                input_ids=input_ids,
+                max_new_tokens=max_new_tokens,
+                alora_offsets=alora_offsets,
+            )
         if ret_gen_text_only:
             tok_to_decode = peft_outputs[:, input_ids.shape[1] :]
         else:
@@ -307,6 +359,11 @@ def main():
         "--out_file",
         help="JSON file to write results to",
         default="inference_result.json",
+    )
+    parser.add_argument(
+        "--use_alora",
+        help="Whether to use alora",
+        default=False,
     )
     parser.add_argument(
         "--base_model_name_or_path",
@@ -341,6 +398,7 @@ def main():
         checkpoint_path=args.model,
         base_model_name_or_path=args.base_model_name_or_path,
         use_flash_attn=args.use_flash_attn,
+        use_alora=args.use_alora,
     )
 
     # Run inference on the text; if multiple were provided, process them all

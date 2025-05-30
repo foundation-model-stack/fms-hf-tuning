@@ -93,7 +93,7 @@ from tuning.data.data_config import (
     load_and_validate_data_config,
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
-from tuning.utils.import_utils import is_fms_accelerate_available
+from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -119,6 +119,22 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
+TRAIN_ALORA_ARGS = configs.TrainingArguments(
+    num_train_epochs=5,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    gradient_accumulation_steps=1,
+    learning_rate=0.00001,
+    weight_decay=0,
+    warmup_ratio=0.03,
+    lr_scheduler_type="cosine",
+    logging_steps=1,
+    include_tokens_per_second=True,
+    packing=False,
+    max_seq_length=4096,
+    save_strategy="no",
+    output_dir="tmp",
+)
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=0,
@@ -126,6 +142,15 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+try:  # Optional package
+    # Third Party
+    from alora.config import aLoraConfig
+
+    PEFT_ALORA_ARGS = aLoraConfig(
+        r=8, lora_alpha=32, lora_dropout=0.05, invocation_string="Label:"
+    )
+except ImportError:
+    pass
 
 
 @pytest.mark.parametrize(
@@ -694,6 +719,53 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         )
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that" in output_inference
+
+
+@pytest.mark.skipif(
+    not is_alora_available(),
+    reason="Only runs if alora is installed",
+)
+@pytest.mark.parametrize(
+    "target_modules,expected",
+    target_modules_val_map,
+    ids=["default", "custom_target_modules", "all_linear_target_modules"],
+)
+def test_run_causallm_alora_and_inference(request, target_modules, expected):
+    """Check if we can bootstrap and alora tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
+        train_args.output_dir = tempdir
+        base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+
+        if "default" not in request._pyfuncitem.callspec.id:
+            base_alora_args.target_modules = target_modules
+
+        trainer, _ = sft_trainer.train(
+            MODEL_ARGS, DATA_ARGS, train_args, base_alora_args
+        )
+        sft_trainer.save(train_args.output_dir + "/checkpoint-1", trainer)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("target_modules")
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
+        invocation_string = loaded_model.peft_model.peft_config[
+            loaded_model.peft_model.active_adapter
+        ].invocation_string
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "Simply put, the theory of relativity states that \n" + invocation_string,
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert "Simply put, the theory of relativity states that \n" in output_inference
 
 
 def test_successful_lora_target_modules_default_from_main():
