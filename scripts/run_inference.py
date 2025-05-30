@@ -138,10 +138,11 @@ class AdapterConfigPatcher:
 
 ### Funcs for loading and running models
 class TunedCausalLM:
-    def __init__(self, model, tokenizer, device):
+    def __init__(self, model, tokenizer, device, use_alora=False):
         self.peft_model = model
         self.tokenizer = tokenizer
         self.device = device
+        self.use_alora = use_alora
 
     @classmethod
     def load(
@@ -282,7 +283,7 @@ class TunedCausalLM:
                 )
 
         model.to(device)
-        return cls(model, tokenizer, device)
+        return cls(model, tokenizer, device, use_alora)
 
     def run(
         self,
@@ -290,7 +291,6 @@ class TunedCausalLM:
         *,
         max_new_tokens: int,
         ret_gen_text_only: bool = False,
-        alora_offsets: list[int] = None,  # alora_offsets for alora models
     ) -> str:
         """Runs inference on an instance of this model.
 
@@ -307,14 +307,31 @@ class TunedCausalLM:
             str
                 Text generation result.
         """
-
-        tok_res = self.tokenizer(text, return_tensors="pt")
-        input_ids = tok_res.input_ids.to(self.device)
-        if alora_offsets is None:
+        if not self.use_alora:
+            tok_res = self.tokenizer(text, return_tensors="pt")
+            input_ids = tok_res.input_ids.to(self.device)
             peft_outputs = self.peft_model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens
             )
         else:  # pass in alora_offsets needed for alora model
+            # Retrieve invocation string
+            invocation_string = self.peft_model.peft_config[
+                self.peft_model.active_adapter
+            ].invocation_string
+            # Find the invocation string in input
+            if invocation_string in text:
+                before, after = text.rsplit(invocation_string, 1)
+                after = invocation_string + after
+            else:
+                raise ValueError(
+                    f"aLoRA invocation string '{invocation_string}' not found in input '{text}'."
+                )
+            # Tokenize separately to enforce correct token boundary
+            before_ids = [self.tokenizer(before, return_tensors="pt").input_ids]
+            after_ids = self.tokenizer(invocation_string, return_tensors="pt").input_ids
+            alora_offsets = after_ids.shape[1] - 1
+            input_ids = torch.cat([before_ids, after_ids], dim=1).to(self.device)
+
             peft_outputs = self.peft_model.generate(
                 input_ids=input_ids,
                 max_new_tokens=max_new_tokens,

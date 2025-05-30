@@ -768,64 +768,16 @@ Notice the `target_modules` are the names of the modules to apply the adapter to
 - If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. 
 - If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
 
+
 #### How to get list of aLoRA target_modules of a model
-For each model, the `target_modules` will depend on the type of model architecture. You can specify linear or attention layers to `target_modules`. To obtain list of `target_modules` for a model:
-
-```py
-from transformers import AutoModelForCausalLM
-# load the model
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH)
-# see the module list
-model.modules
-
-# to get just linear layers
-import re
-model_modules = str(model.modules)
-pattern = r'\((\w+)\): Linear'
-linear_layer_names = re.findall(pattern, model_modules)
-
-names = []
-for name in linear_layer_names:
-    names.append(name)
-target_modules = list(set(names))
-```
-
-For example for LLaMA model the modules look like:
-```
-<bound method Module.modules of LlamaForCausalLM(
-  (model): LlamaModel(
-    (embed_tokens): Embedding(32000, 4096, padding_idx=0)
-    (layers): ModuleList(
-      (0-31): 32 x LlamaDecoderLayer(
-        (self_attn): LlamaSdpaAttention(
-          (q_proj): Linear(in_features=4096, out_features=4096, bias=False)
-          (k_proj): Linear(in_features=4096, out_features=4096, bias=False)
-          (v_proj): Linear(in_features=4096, out_features=4096, bias=False)
-          (o_proj): Linear(in_features=4096, out_features=4096, bias=False)
-          (rotary_emb): LlamaRotaryEmbedding()
-        )
-        (mlp): LlamaMLP(
-          (gate_proj): Linear(in_features=4096, out_features=11008, bias=False)
-          (up_proj): Linear(in_features=4096, out_features=11008, bias=False)
-          (down_proj): Linear(in_features=11008, out_features=4096, bias=False)
-          (act_fn): SiLU()
-        )
-        (input_layernorm): LlamaRMSNorm()
-        (post_attention_layernorm): LlamaRMSNorm()
-      )
-    )
-    (norm): LlamaRMSNorm()
-  )
-  (lm_head): Linear(in_features=4096, out_features=32000, bias=False)
-)>
-```
-
-You can specify attention or linear layers. With the CLI, you can specify layers with `--target_modules "q_proj" "v_proj" "k_proj" "o_proj"` or `--target_modules "all-linear"`.
+See [How to get list of LoRA target_modules of a model](#how-to-get-list-of-lora-target_modules-of-a-model). 
 
 #### Recommended target modules per model architecture 
 As per [aLoRA paper](https://arxiv.org/abs/2504.12397), by using the key, query and value projection matrices, we can achieve good quality with efficient GPU utilization. Hence, while thinking about what aLoRA adapters to specify, we recommend starting with key, query and value matrices. 
 
-#### Checkpoint saving
+#### Intermediate checkpoint saving
+Note that `sft_trainer.py` will always save the final trained model for you. If you want to save intermediate checkpoints from within the training process, the below applies.
+
 For now, `save_strategy` is not supported (it is always reset to `none`). You can either save the model once training is complete, or pass in a custom callback in `additional_callbacks` directly to `tuning.sft_trainer.train` to perform saving. For example the following (from [alora github](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/train_scripts/finetune_example_callback.py)) saves and updates the best performing model so far, checking whenever eval is called according to `eval_strategy`:
 ```py
 class SaveBestModelCallback(TrainerCallback):
@@ -846,9 +798,7 @@ class SaveBestModelCallback(TrainerCallback):
             model.save_pretrained(args.output_dir)
 ```
 #### Inference with aLoRA models
-Inference with aLoRA models requires two extra steps:
-1. Ensuring that the invocation string is present in the input (usually the end)
-2. Passing in an argument `alora_offsets` which indicates the location of the second token in the invocation string inside the input string (indexing in units of tokens from the end of the input) 
+*Important* Inference with aLoRA models requires nsuring that the invocation string is present in the input (usually the end).
 
 Example inference:
 ```py
@@ -863,19 +813,10 @@ invocation_string = loaded_model.peft_model.peft_config[
 # In this case, we have the invocation string at the end of the input 
 input_string = "Simply put, the theory of relativity states that \n" + invocation_string
 
-# Count tokens in invocation string. This list is the length of the inference batch size.
-# This is done outside of the .run call for flexibility
-alora_offsets = [
-    loaded_model.tokenizer(
-        invocation_string, return_tensors="pt"
-    ).input_ids.shape[1] - 1
-]
-
-# Run inference on the text, including alora_offsets
+# Run inference on the text
 output_inference = loaded_model.run(
     input_string, 
     max_new_tokens=50,
-    alora_offsets=alora_offsets,
 )
 ```
 

@@ -78,7 +78,7 @@ def train(
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
-    ] = None,  # LoRA should use peft_config.LoraConfig, here LoraConfig is for Activated LoRA.
+    ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
     tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
         file_logger_config=FileLoggingTrackerConfig()
@@ -100,6 +100,7 @@ def train(
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
         peft_config: peft_config.LoraConfig for Lora tuning | \
+        LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
