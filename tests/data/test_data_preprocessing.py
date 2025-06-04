@@ -19,7 +19,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets import Dataset, IterableDataset
+from datasets import Dataset, DatasetDict, IterableDataset
 from PIL import Image
 from transformers import AutoProcessor, AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
@@ -84,6 +84,7 @@ from tuning.data.setup_dataprocessor import (
     is_pretokenized_dataset,
     process_dataargs,
 )
+from tuning.data.utils import try_concatenate_datasets
 
 
 @pytest.mark.parametrize(
@@ -776,6 +777,48 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+def test_concatenate_dict_with_multi_keys():
+    """
+    Ensure that concatenated datasets are formatted and validated correctly.
+    Ensures the returned dataset has proper concatenation
+
+    Details for Concatenation Operation of dictionary with different keys
+        data                        => { "train": Values }
+        data_dict1                  => { "train": Values, "train2": Values }
+        data_dict2                  => { "train": Values, "train2": Values, "train3": Values }
+        ------------------------------------------------------------------------------------------
+        concatenated_dataset        => { "train": Values*3, "train2": Values*2, "train3": Values }
+    """
+
+    data_paths = TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON
+    data = datasets.load_dataset("json", data_files=[data_paths])
+    data_streaming = datasets.load_dataset(
+        "json", data_files=[data_paths], streaming=True
+    )
+
+    data_dict1 = DatasetDict()
+    data_dict1["train"] = data["train"]
+    data_dict1["train2"] = data["train"]
+
+    data_dict2 = DatasetDict()
+    data_dict2["train"] = data["train"]
+    data_dict2["train2"] = data["train"]
+    data_dict2["train3"] = data["train"]
+
+    concatenated_dataset = try_concatenate_datasets([data, data_dict1, data_dict2])
+
+    # Check if the datasets are concatenated correctly
+    assert (
+        len(concatenated_dataset) == 3
+        and concatenated_dataset["train"].num_rows == data["train"].num_rows * 3
+        and concatenated_dataset["train2"].num_rows == data["train"].num_rows * 2
+        and concatenated_dataset["train3"].num_rows == data["train"].num_rows
+    )
+    # Assert ValueError on concatenation of mixed dataset types (only same types supported)
+    with pytest.raises(ValueError):
+        try_concatenate_datasets([data, data_streaming])
 
 
 @pytest.mark.parametrize(
