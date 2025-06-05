@@ -38,6 +38,7 @@ class DataSetConfig:
     builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
+    split: Optional[Dict[str, float]] = None
 
 
 @dataclass
@@ -120,6 +121,17 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
             c.data_handlers.append(_validate_data_handler_config(handler))
+    if "split" in kwargs and kwargs["split"] is not None:
+        split = kwargs["split"]
+        assert isinstance(
+            split, dict
+        ), "split must be a dictionary of split_name: ratio"
+        for key, value in split.items():
+            assert isinstance(key, str), f"split key '{key}' must be a string"
+            assert (
+                isinstance(value, (float, int)) and 0.0 < value <= 1.0
+            ), f"split ratio for '{key}' must be a float in (0.0, 1.0], got {value}"
+        c.split = {k: float(v) for k, v in split.items()}
     return c
 
 
