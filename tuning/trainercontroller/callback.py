@@ -583,6 +583,15 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["control"] = control
         self._actions_on_event(event_name="on_save", **kwargs)
 
+    def on_save_final(
+        self,
+        path
+    ):
+        # Training arguments, state and controls are folded into kwargs to be passed off to
+        # handlers
+        kwargs["path"] = path
+        self._actions_on_event(event_name="on_save_final", **kwargs)
+
     def on_step_begin(
         self,
         args: TrainingArguments,
