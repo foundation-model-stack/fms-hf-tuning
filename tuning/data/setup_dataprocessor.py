@@ -335,8 +335,11 @@ def _process_raw_data_args(
     tokenizer_kwargs = {}
     tokenizer_kwargs["max_length"] = max_seq_length
     tokenizer_kwargs["truncation"] = True
-    # Lets not pad in tokenizer...we can handle that in the collator
-    tokenizer_kwargs["padding"] = False
+    # As of peft=0.14, this must be True in batched settings
+    if tokenizer.pad_token is not None:
+        tokenizer_kwargs["padding"] = True
+    else:
+        tokenizer_kwargs["padding"] = False  # can be handled by collator
 
     processor_kwargs = {}
     processor_kwargs["return_tensors"] = "pt"
