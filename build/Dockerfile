@@ -21,7 +21,7 @@ ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
-ARG ENABLE_ALORA=false
+ARG ENABLE_ALORA=true
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
@@ -123,9 +123,9 @@ FROM cuda-devel AS python-installations
 ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
-ARG ENABLE_FMS_ACCELERATION
+ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_AIM
-ARG ENABLE_ALORA
+ARG ENABLE_ALORA=true
 ARG ENABLE_SCANNER
 
 RUN dnf install -y git && \
@@ -182,6 +182,9 @@ RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
 RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
+
+# temporary alora fix
+RUN python -m pip uninstall bitsandbytes -y
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
