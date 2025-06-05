@@ -483,7 +483,7 @@ def train(
     return trainer, additional_metadata
 
 
-def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
+def save(path: str, trainer: SFTTrainer, log_level="WARNING", tc_callback=None):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -785,6 +785,7 @@ def main():
                 path=training_args.save_model_dir,
                 trainer=trainer,
                 log_level=training_args.log_level,
+                tc_callback=tc_callback
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())
