@@ -35,6 +35,7 @@ from tuning.data.utils import (
     get_loader_for_filepath,
     maybe_align_datasets,
     resolve_iterable_dataset_features,
+    try_concatenate_datasets,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,7 +102,7 @@ class DataPreProcessor:
         self,
         datasetconfig: DataSetConfig,
         streaming: bool,
-        splitName: str,
+        splitName: str = None,
         datafile: str = None,
         **kwargs,
     ):
@@ -131,7 +132,9 @@ class DataPreProcessor:
             Returns: dataset
             """
 
-            load_kwargs = {**kwargs, "split": splitName}
+            load_kwargs = {**kwargs}
+            if splitName is not None:
+                load_kwargs["split"] = splitName
             if data_dir is not None:
                 load_kwargs["data_dir"] = data_dir
             if data_files is not None:
@@ -225,25 +228,7 @@ class DataPreProcessor:
             dataset = _try_load_dataset(data_path, builder, streaming)
             all_datasets.append(dataset)
 
-        # Concatenate all datasets
-        try:
-            if len(all_datasets) == 1:
-                return all_datasets[0]
-            maybe_align_datasets(all_datasets)
-            raw_datasets = datasets.concatenate_datasets(all_datasets)
-            logger.info(
-                "Datasets %s concatenated. Final column features: %s",
-                datasetconfig.name,
-                str(list(raw_datasets.features)),
-            )
-        except Exception as e:
-            raise ValueError(
-                f"An error occurred while concatenating datasets from {datasetconfig.name}: {e}"
-            ) from e
-
-        # Need to resolve dataset features because data handlers use columns.
-        if isinstance(raw_datasets, IterableDataset):
-            raw_datasets = resolve_iterable_dataset_features(raw_datasets)
+        raw_datasets = try_concatenate_datasets(all_datasets)
 
         return raw_datasets
 
@@ -432,9 +417,7 @@ class DataPreProcessor:
             logger.info("Loading %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(
-                d, self.processor_config.streaming, splitName
-            )
+            raw_dataset = self.load_dataset(d, self.processor_config.streaming)
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
             if isinstance(raw_dataset, IterableDataset):

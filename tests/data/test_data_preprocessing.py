@@ -19,7 +19,7 @@ import os
 import tempfile
 
 # Third Party
-from datasets import Dataset, IterableDataset
+from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from PIL import Image
 from transformers import AutoProcessor, AutoTokenizer, DataCollatorForSeq2Seq
 from trl import DataCollatorForCompletionOnlyLM
@@ -776,6 +776,135 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path_list",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            [
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                ],
+                [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
+            ],
+        ),
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            [
+                [TWITTER_COMPLAINTS_DATA_PARQUET, TWITTER_COMPLAINTS_DATA_PARQUET],
+                [TWITTER_COMPLAINTS_DATA_PARQUET],
+            ],
+        ),
+    ],
+)
+def test_concatenate_without_streaming(data_config_path, data_path_list):
+    """
+    Ensure that concatenated datasets are formatted and validated correctly.
+    Ensures the returned dataset has proper concatenation
+    """
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = data_path_list[0]
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    datasetconfig = DataSetConfig(
+        name=datasets_name, data_paths=data_path_list[0], builder=None
+    )
+    reference_datasetconfig = DataSetConfig(
+        name="dataset_ref", data_paths=data_path_list[1], builder=None
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    # loads refence dataset object w/o concatenation
+    load_dataset_ref = processor.load_dataset(
+        datasetconfig=reference_datasetconfig,
+        streaming=False,
+        splitName="train",
+        datafile=None,
+    )
+    # loads dataset as DatasetDict object
+    load_dataset_dict = processor.load_dataset(
+        datasetconfig=datasetconfig,
+        streaming=False,
+        splitName=None,
+        datafile=None,
+    )
+    # loads dataset as Dataset object
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig,
+        streaming=False,
+        splitName="train",
+        datafile=None,
+    )
+    dataset_list_length = len(data_path_list[0])
+    assert isinstance(load_dataset_dict, DatasetDict)
+    assert isinstance(load_dataset, Dataset)
+    assert load_dataset.num_rows == (load_dataset_ref.num_rows) * dataset_list_length
+    assert (
+        load_dataset_dict["train"].num_rows
+        == (load_dataset_ref.num_rows) * dataset_list_length
+    )
+
+
+@pytest.mark.parametrize(
+    "data_config_path, data_path_list",
+    [
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            [
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                ],
+                [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
+            ],
+        ),
+        (
+            DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT,
+            [
+                [TWITTER_COMPLAINTS_DATA_PARQUET, TWITTER_COMPLAINTS_DATA_PARQUET],
+                [TWITTER_COMPLAINTS_DATA_PARQUET],
+            ],
+        ),
+    ],
+)
+def test_concatenate_with_streaming(data_config_path, data_path_list):
+    """
+    Ensure that concatenated datasets are formatted and validated correctly.
+    """
+    with open(data_config_path, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = data_path_list[0]
+    datasets_name = yaml_content["datasets"][0]["name"]
+
+    datasetconfig = DataSetConfig(
+        name=datasets_name, data_paths=data_path_list[0], builder=None
+    )
+    processor = get_datapreprocessor(
+        processor_config=DataPreProcessorConfig(), tokenizer=None
+    )
+    # loads dataset as DatasetDict object
+    load_dataset_dict = processor.load_dataset(
+        datasetconfig=datasetconfig,
+        streaming=True,
+        splitName=None,
+        datafile=None,
+    )
+    # loads dataset as Dataset object
+    load_dataset = processor.load_dataset(
+        datasetconfig=datasetconfig,
+        streaming=True,
+        splitName="train",
+        datafile=None,
+    )
+    assert isinstance(load_dataset_dict, IterableDatasetDict)
+    assert isinstance(load_dataset, IterableDataset)
 
 
 @pytest.mark.parametrize(

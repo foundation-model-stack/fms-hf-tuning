@@ -13,13 +13,21 @@
 # limitations under the License.
 
 # Standard
+from typing import List, Union
 import io
 import json
 import logging
 import os
 
 # Third Party
-from datasets import DatasetDict, Features, IterableDataset, IterableDatasetDict
+from datasets import (
+    Dataset,
+    DatasetDict,
+    Features,
+    IterableDataset,
+    IterableDatasetDict,
+    concatenate_datasets,
+)
 from PIL import Image
 import yaml
 
@@ -211,3 +219,69 @@ def try_convert_image_to_rgb(image):
         image = image.convert("RGB") if image.mode != "RGB" else image
 
     return image
+
+
+def _concatenate_datasets(
+    all_datasets: List[Union[Dataset, IterableDataset]]
+) -> Union[Dataset, IterableDataset]:
+    """
+    Concatenates a list of Dataset or IterableDataset objects into one.
+    Aligns datasets before concatenation and resolves features if needed
+    for IterableDataset.
+    """
+    maybe_align_datasets(all_datasets)
+    concatenated = concatenate_datasets(all_datasets)
+    if isinstance(concatenated, IterableDataset):
+        concatenated = resolve_iterable_dataset_features(concatenated)
+    return concatenated
+
+
+def try_concatenate_datasets(
+    all_datasets: List[
+        Union[Dataset, DatasetDict, IterableDataset, IterableDatasetDict]
+    ],
+) -> Union[Dataset, DatasetDict, IterableDataset, IterableDatasetDict]:
+    """
+    Tries to concatenate a list of datasets, handling both flat and dict-style datasets.
+    - For flat datasets (Dataset or IterableDataset), aligns and concatenates all items.
+    - For dict-style datasets (DatasetDict or IterableDatasetDict):
+        - Concatenates keys that appear in more than one dictionary.
+        - Preserves unique keys as-is from the first dataset containing them.
+        - Returns the appropriate dict type based on input.
+    """
+    if len(all_datasets) == 1:
+        return all_datasets[0]
+
+    try:
+        # Case 1: Flat datasets
+        if all(isinstance(d, (Dataset, IterableDataset)) for d in all_datasets):
+            return _concatenate_datasets(all_datasets)
+
+        # Case 2: Dict-style datasets
+        if all(isinstance(d, (DatasetDict, IterableDatasetDict)) for d in all_datasets):
+            key_count = {}
+            for d in all_datasets:
+                for key in d.keys():
+                    key_count[key] = key_count.get(key, 0) + 1
+
+            merged_dict = {}
+
+            # Merge common keys (appear in more than one dataset)
+            for key, count in key_count.items():
+                key_datasets = [d[key] for d in all_datasets if key in d]
+                if count > 1:
+                    merged_dict[key] = _concatenate_datasets(key_datasets)
+                else:
+                    merged_dict[key] = key_datasets[0]  # unique, take as-is
+
+            if all(isinstance(d, IterableDatasetDict) for d in all_datasets):
+                return IterableDatasetDict(merged_dict)
+
+            return DatasetDict(merged_dict)
+
+        raise ValueError(
+            f"Cannot concatenate mixed types of datasets: {[type(d) for d in all_datasets]}"
+        )
+
+    except Exception as e:
+        raise ValueError(f"An error occurred while concatenating datasets: {e}") from e
