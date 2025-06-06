@@ -493,7 +493,12 @@ def train(
 
     if USE_ALORA and ALORA_SAVE_END and training_args.save_model_dir is not None:
         # saving was requested, saving at end (but don't save twice)
-        save(training_args.output_dir + "/checkpoint-1", trainer)
+        save(
+            os.path.join(
+                training_args.output_dir, f"checkpoint-{trainer.state.global_step}"
+            ),
+            trainer,
+        )
 
     return trainer, additional_metadata
 

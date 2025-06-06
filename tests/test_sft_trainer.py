@@ -735,15 +735,13 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
         train_args.output_dir = tempdir
+        train_args.save_strategy = "steps"
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
 
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
-        trainer, _ = sft_trainer.train(
-            MODEL_ARGS, DATA_ARGS, train_args, base_alora_args
-        )
-        sft_trainer.save(train_args.output_dir + "/checkpoint-1", trainer)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
 
         # validate lora tuning configs
         _validate_training(tempdir)
