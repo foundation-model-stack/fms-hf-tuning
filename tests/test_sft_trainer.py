@@ -764,7 +764,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
             "Simply put, the theory of relativity states that \n" + invocation_string,
             max_new_tokens=50,
         )
-        print(output_inference)
+
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that \n" in output_inference
 
