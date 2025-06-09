@@ -132,7 +132,7 @@ TRAIN_ALORA_ARGS = configs.TrainingArguments(
     include_tokens_per_second=True,
     packing=False,
     max_seq_length=4096,
-    save_strategy="no",
+    save_strategy="epoch",
     output_dir="tmp",
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
@@ -735,7 +735,6 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
         train_args.output_dir = tempdir
-        train_args.save_strategy = "steps"
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
 
         if "default" not in request._pyfuncitem.callspec.id:
