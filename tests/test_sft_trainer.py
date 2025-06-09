@@ -132,7 +132,7 @@ TRAIN_ALORA_ARGS = configs.TrainingArguments(
     include_tokens_per_second=True,
     packing=False,
     max_seq_length=4096,
-    save_strategy="no",
+    save_strategy="epoch",
     output_dir="tmp",
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
