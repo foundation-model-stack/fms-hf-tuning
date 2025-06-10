@@ -51,7 +51,7 @@ fms-accel = ["fms-acceleration>=0.6"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 mamba = ["mamba_ssm[causal-conv1d]>=2.0.0,<3.0.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
-activated-lora = ["alora>=0.1.0"]
+activated-lora = ["alora>=0.3.0"]
 
 
 [tool.setuptools.packages.find]
