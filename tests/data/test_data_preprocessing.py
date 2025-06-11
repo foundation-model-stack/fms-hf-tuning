@@ -1514,6 +1514,12 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling_and_split(
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(eval_set.column_names)
     )
+    # training_data_path/validation_data_path args are not supported with data_config
+    with pytest.raises(ValueError):
+        data_args.training_data_path = "/tmp/some/path"
+        process_dataargs(
+            data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
+        )
 
 
 @pytest.mark.parametrize(

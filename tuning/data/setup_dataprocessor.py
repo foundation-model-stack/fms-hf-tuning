@@ -80,6 +80,15 @@ def _process_dataconfig_file(
         additional_data_handlers=additional_data_handlers,
     )
 
+    if (
+        data_args.training_data_path is not None
+        or data_args.validation_data_path is not None
+    ):
+        raise ValueError(
+            "Both training_data_path and validation_data_path must be None when using "
+            "data_config. Please provide paths in data_config instead."
+        )
+
     if data_processor.processor_config.chat_template is not None:
         if tokenizer.chat_template:
             logger.warning(
@@ -315,6 +324,11 @@ def _process_raw_data_args(
     is_eval_dataset_present = False
     if data_args.validation_data_path:
         is_eval_dataset_present = True
+    if data_args.data_config_path is not None:
+        raise ValueError(
+            "Both training_data_path and validation_data_path must be None when using "
+            "data_config. Please provide paths in data_config instead."
+        )
 
     # TODO: This check loads first slice of the dataset to view its columns
     # Since this load is not done via processor it is redundant
@@ -325,12 +339,14 @@ def _process_raw_data_args(
         name="training_data",
         data_paths=[data_args.training_data_path],
         data_handlers=None,
+        split={"train": 1.0, "validation": 0.0},
     )
     if is_eval_dataset_present:
         eval_dataset_config = DataSetConfig(
             name="validation_data",
             data_paths=[data_args.validation_data_path],
             data_handlers=None,
+            split={"train": 0.0, "validation": 1.0},
         )
 
     # Setup some tokenizer kwargs for when we need a tokenizer
@@ -389,9 +405,7 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         dataset_list.append(eval_dataset_config)
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_list, True
-    )
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(dataset_list)
 
     return (train_dataset, eval_dataset, dataset_text_field)
 

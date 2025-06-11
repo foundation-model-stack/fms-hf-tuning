@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple, Union
 import logging
 import os
 
@@ -282,46 +282,40 @@ class DataPreProcessor:
             kwargs["desc"] = handler.desc
         return raw_datasets.filter(handler.op, **kwargs)
 
-    def __execute_map_data_handler(
-        self, raw_datasets, handler, splitName, datasetName, **kwargs
-    ):
-        column_names = None
-        if hasattr(raw_datasets[splitName], "column_names"):
-            column_names = raw_datasets[splitName].column_names
+    def __execute_map_data_handler(self, raw_datasets, handler, datasetName, **kwargs):
+        """Apply handler.op to all splits in raw_datasets instead of just a single split."""
+        processed_ds = (
+            IterableDatasetDict()
+            if isinstance(raw_datasets, IterableDatasetDict)
+            else DatasetDict()
+        )
 
-        # remove __content__ from all processing
-        if column_names and "__content__" in column_names:
-            column_names.remove("__content__")
-
+        # set up kwargs for map
+        if not isinstance(raw_datasets, (IterableDatasetDict, IterableDataset)):
+            kwargs["desc"] = handler.desc
         if "remove_columns" not in kwargs:
             kwargs["remove_columns"] = None
-        if kwargs["remove_columns"] == "all":
-            if column_names is None:
-                logger.warning(
-                    "Could not infer column names from the dataset %s \
-                    unable to set `remove_columns` to all.\n \
-                    Please explicitly specify the column list or \
-                    use remove/select data handlers.",
-                    datasetName,
-                )
-            else:
-                kwargs["remove_columns"] = column_names
-
         if "fn_kwargs" not in kwargs:
             kwargs["fn_kwargs"] = {}
-
         kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
-        kwargs["fn_kwargs"]["column_names"] = column_names
 
-        # IterableDatasets doesn't support any description
-        if not isinstance(raw_datasets, (IterableDatasetDict or IterableDataset)):
-            kwargs["desc"] = handler.desc
+        for split_name, ds in raw_datasets.items():
 
-        return raw_datasets.map(handler.op, **kwargs)
+            if kwargs["remove_columns"] == "all":
+                column_names = getattr(ds, "column_names", None)
+                if column_names is None:
+                    raise ValueError(
+                        f"Could not infer column names from the split '{split_name}' in "
+                        f"'{datasetName}'. Unable to set `remove_columns` to all.\n"
+                        f"Please explicitly specify the column list or use remove/select handlers."
+                    )
+                kwargs["remove_columns"] = column_names
 
-    def _execute_data_handlers(
-        self, raw_datasets, data_handler_config, splitName, datasetName
-    ):
+            processed_ds[split_name] = ds.map(handler.op, **kwargs)
+
+        return processed_ds
+
+    def _execute_data_handlers(self, raw_datasets, data_handler_config, datasetName):
         handler_name: str = data_handler_config.name
         kwargs: Dict = data_handler_config.arguments
         handler: DataHandler = self._get_registered_datahandler(handler_name)
@@ -374,7 +368,7 @@ class DataPreProcessor:
             return self.__execute_filter_data_handler(raw_datasets, handler, **kwargs)
         if handler_type is DataHandlerType.MAP:
             return self.__execute_map_data_handler(
-                raw_datasets, handler, splitName, datasetName, **kwargs
+                raw_datasets, handler, datasetName, **kwargs
             )
 
         raise ValueError(
@@ -382,6 +376,40 @@ class DataPreProcessor:
               supported types are - \
               {",".join([e.name for e in DataHandlerType])}'
         )
+
+    def _prepare_base_dataset_dict(
+        self,
+        dataset: Union[DatasetDict, IterableDatasetDict],
+        expected_splits: List[str],
+        train_split: float,
+        validation_split: float,
+        is_streaming: bool,
+    ) -> Tuple[Dataset, Optional[Union[DatasetDict, IterableDatasetDict]]]:
+        """
+        Validates presence of required split(s), returns base dataset and early full-split result
+        if applicable.
+        Returns:
+            base_ds: Dataset (from 'train' split)
+            early_return: Optional[DatasetDict or IterableDatasetDict] if 100% train or validation
+        """
+        missing = [k for k in expected_splits if k not in dataset]
+        if missing:
+            raise ValueError(
+                f"Expected splits {missing} missing in {type(dataset).__name__}"
+            )
+
+        base_ds = dataset["train"]
+        if train_split == 1.0 and validation_split == 0.0:
+            return base_ds, type(dataset)({"train": base_ds})
+        if validation_split == 1.0 and train_split == 0.0:
+            return base_ds, type(dataset)({"validation": base_ds})
+
+        if is_streaming:
+            raise NotImplementedError(
+                f"Partial splits for streaming {type(dataset).__name__} are not supported yet."
+            )
+
+        return base_ds, None
 
     def _split_dataset(
         self,
@@ -391,7 +419,7 @@ class DataPreProcessor:
         ],
     ) -> Union[DatasetDict, IterableDatasetDict]:
 
-        seed = self.processor_config.sampling_seed
+        seed = self.processor_config.seed
         streaming = self.processor_config.streaming
 
         train_split = dataset_config.split.get("train")
@@ -402,7 +430,10 @@ class DataPreProcessor:
 
         total_split = train_split + validation_split
         if total_split > 1.0 or total_split == 0:
-            raise ValueError(f"Sum of splits must be in (0,1]. Got {total_split}")
+            raise ValueError(
+                f"Sum of dataset split definitions in data config (train, validation) "
+                f"must be in (0,1]. Got {total_split}"
+            )
 
         # Todo : Add support for using multiple existing splits during spliting
         # Problem : DatasetDict might have multiple splits already, which to use?
@@ -427,18 +458,15 @@ class DataPreProcessor:
                     "Partial splits for streaming IterableDataset are not supported yet!"
                 )
             if isinstance(loaded_dataset, IterableDatasetDict):
-                # We can try the same logic but only for the "train" split key
-                missing = [k for k in use_existing_splits if k not in loaded_dataset]
-                if missing:
-                    raise ValueError(
-                        f"Expected splits {missing} missing in IterableDatasetDict"
-                    )
-                base_ds = loaded_dataset["train"]
-                if train_split >= 1.0 and validation_split == 0.0:
-                    return IterableDatasetDict({"train": base_ds})
-                if validation_split >= 1.0 and train_split == 0.0:
-                    return IterableDatasetDict({"validation": base_ds})
-
+                base_ds, result = self._prepare_base_dataset_dict(
+                    loaded_dataset,
+                    use_existing_splits,
+                    train_split,
+                    validation_split,
+                    is_streaming=streaming,
+                )
+                if result:
+                    return result
                 raise NotImplementedError(
                     "Partial splits for streaming IterableDatasetDict are not supported yet."
                 )
@@ -449,13 +477,16 @@ class DataPreProcessor:
 
         # Non-streaming Dataset or DatasetDict
         if isinstance(loaded_dataset, DatasetDict):
-            # Use the train split inside DatasetDict
-            missing = [k for k in use_existing_splits if k not in loaded_dataset]
-            if missing:
-                raise ValueError(f"Expected splits {missing} missing in DatasetDict")
+            base_ds, result = self._prepare_base_dataset_dict(
+                loaded_dataset,
+                use_existing_splits,
+                train_split,
+                validation_split,
+                is_streaming=streaming,
+            )
+            if result:
+                return result
 
-            # Using "train" split as default
-            base_ds = loaded_dataset["train"]
             split_ds = base_ds.train_test_split(
                 test_size=validation_split,
                 train_size=train_split,
@@ -464,10 +495,12 @@ class DataPreProcessor:
             )
 
             # After train-validation split and previously exisiting splits are returned!
-            new_ds = DatasetDict()
-            new_ds["train"] = split_ds["train"]
-            new_ds["validation"] = split_ds["test"]
-            return new_ds
+            return DatasetDict(
+                {
+                    "train": split_ds["train"],
+                    "validation": split_ds["test"],
+                }
+            )
 
         if isinstance(loaded_dataset, Dataset):
             # Directly split the Dataset
@@ -492,13 +525,13 @@ class DataPreProcessor:
         )
 
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
 
         if not dataset_configs:
             raise ValueError("No dataset configs provided.")
 
-        splitName = "train"  # default
+        default_split_name = "train"  # default
         all_datasetdicts = []
 
         # quick check to see if we are sampling and if we need to throw error.
@@ -534,14 +567,15 @@ class DataPreProcessor:
             if d.split is not None:
                 raw_dataset = self._split_dataset(d, raw_dataset)
 
-            if isinstance(raw_dataset, IterableDataset):
-                raw_datasets = IterableDatasetDict()
-            else:
-                raw_datasets = DatasetDict()
-
-            # Assume all is train split
+            # Create a raw dataset which is a Dict container to house all Datasets
             if isinstance(raw_dataset, (Dataset, IterableDataset)):
-                raw_datasets[splitName] = raw_dataset
+                raw_datasets = (
+                    IterableDatasetDict()
+                    if isinstance(raw_dataset, IterableDataset)
+                    else DatasetDict()
+                )
+                # Assume all is train split
+                raw_datasets[default_split_name] = raw_dataset
             else:
                 raw_datasets = raw_dataset
 
@@ -550,19 +584,11 @@ class DataPreProcessor:
                     raw_datasets = self._execute_data_handlers(
                         raw_datasets=raw_datasets,
                         data_handler_config=data_handler_config,
-                        splitName=splitName,
                         datasetName=d.name,
                     )
 
             # Append the processed datasets to the final dict
             all_datasetdicts.append(raw_datasets)
-
-        if is_raw_arg:
-            return (
-                all_datasetdicts[0][splitName],
-                all_datasetdicts[1][splitName] if len(all_datasetdicts) > 1 else None,
-            )
-
         # This is a dict of { split: list[datasets] }
         final_datasets = {}
         for d in all_datasetdicts:
@@ -578,7 +604,7 @@ class DataPreProcessor:
 
         if sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
-            seed = self.processor_config.sampling_seed
+            seed = self.processor_config.seed
             logger.info(
                 "Interleaving datasets: strategy[%s] seed[%d] probabilities[%s]",
                 strategy,
@@ -620,7 +646,7 @@ class DataPreProcessor:
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
         eval_dataset = None
@@ -635,9 +661,7 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset, eval_dataset = self._process_dataset_configs(
-                dataset_configs, is_raw_arg
-            )
+            train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
 
         return train_dataset, eval_dataset
 

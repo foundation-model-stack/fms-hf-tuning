@@ -1328,6 +1328,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
         data_args.chat_template = "{% for message in messages['messages'] %}\
             {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
             {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
@@ -1422,6 +1423,7 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
         if dataconfigfile == DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML:
             data_args.response_template = "<|start_of_role|>assistant<|end_of_role|>"
             data_args.instruction_template = "<|start_of_role|>user<|end_of_role|>"
