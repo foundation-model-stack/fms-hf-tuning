@@ -31,6 +31,9 @@ DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling.yaml"
 )
+DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling_and_split.yaml"
+)
 DATA_CONFIG_MULTITURN_DATA_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multi_turn_data_with_chat_template.yaml"
 )

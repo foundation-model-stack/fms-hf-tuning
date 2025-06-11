@@ -383,9 +383,120 @@ class DataPreProcessor:
               {",".join([e.name for e in DataHandlerType])}'
         )
 
+    def _split_dataset(
+        self,
+        dataset_config: DataSetConfig,
+        loaded_dataset: Union[
+            Dataset, DatasetDict, IterableDataset, IterableDatasetDict
+        ],
+    ) -> Union[DatasetDict, IterableDatasetDict]:
+
+        seed = self.processor_config.sampling_seed
+        streaming = self.processor_config.streaming
+
+        train_split = dataset_config.split.get("train")
+        validation_split = dataset_config.split.get("validation")
+
+        if train_split is None or validation_split is None:
+            raise ValueError("Both 'train' and 'validation' splits must be specified!")
+
+        total_split = train_split + validation_split
+        if total_split > 1.0 or total_split == 0:
+            raise ValueError(f"Sum of splits must be in (0,1]. Got {total_split}")
+
+        # Todo : Add support for using multiple existing splits during spliting
+        # Problem : DatasetDict might have multiple splits already, which to use?
+        # One or more than one, or existing splitName other than train
+        # Currently Supports "train" by default
+        use_existing_splits = ["train"]  # For DatasetDict
+
+        if streaming:
+            # For streaming IterableDataset / IterableDatasetDict
+            # Simple stub: either full train or full validation, no partial splits
+            # For example, if train_split >= 1.0, return all as train,
+            # else if validation_split >= 1.0, all as validation
+            # Partial Splits not Supported yet!
+
+            if isinstance(loaded_dataset, IterableDataset):
+                if train_split >= 1.0 and validation_split == 0.0:
+                    return IterableDatasetDict({"train": loaded_dataset})
+                if validation_split >= 1.0 and train_split == 0.0:
+                    return IterableDatasetDict({"validation": loaded_dataset})
+
+                raise NotImplementedError(
+                    "Partial splits for streaming IterableDataset are not supported yet!"
+                )
+            if isinstance(loaded_dataset, IterableDatasetDict):
+                # We can try the same logic but only for the "train" split key
+                missing = [k for k in use_existing_splits if k not in loaded_dataset]
+                if missing:
+                    raise ValueError(
+                        f"Expected splits {missing} missing in IterableDatasetDict"
+                    )
+                base_ds = loaded_dataset["train"]
+                if train_split >= 1.0 and validation_split == 0.0:
+                    return IterableDatasetDict({"train": base_ds})
+                if validation_split >= 1.0 and train_split == 0.0:
+                    return IterableDatasetDict({"validation": base_ds})
+
+                raise NotImplementedError(
+                    "Partial splits for streaming IterableDatasetDict are not supported yet."
+                )
+
+            raise TypeError(
+                f"Expected streaming dataset type but got {type(loaded_dataset)}"
+            )
+
+        # Non-streaming Dataset or DatasetDict
+        if isinstance(loaded_dataset, DatasetDict):
+            # Use the train split inside DatasetDict
+            missing = [k for k in use_existing_splits if k not in loaded_dataset]
+            if missing:
+                raise ValueError(f"Expected splits {missing} missing in DatasetDict")
+
+            # Using "train" split as default
+            base_ds = loaded_dataset["train"]
+            split_ds = base_ds.train_test_split(
+                test_size=validation_split,
+                train_size=train_split,
+                shuffle=True,
+                seed=seed,
+            )
+
+            # After train-validation split and previously exisiting splits are returned!
+            new_ds = DatasetDict()
+            new_ds["train"] = split_ds["train"]
+            new_ds["validation"] = split_ds["test"]
+            return new_ds
+
+        if isinstance(loaded_dataset, Dataset):
+            # Directly split the Dataset
+            base_ds = loaded_dataset
+            split_ds = base_ds.train_test_split(
+                test_size=validation_split,
+                train_size=train_split,
+                shuffle=True,
+                seed=seed,
+            )
+
+            return DatasetDict(
+                {
+                    "train": split_ds["train"],
+                    "validation": split_ds["test"],
+                }
+            )
+
+        raise TypeError(
+            f"Expected Dataset or DatasetDict when streaming=False,\
+            but got {type(loaded_dataset)}"
+        )
+
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig]
+        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
     ) -> Union[Dataset, IterableDataset]:
+
+        if not dataset_configs:
+            raise ValueError("No dataset configs provided.")
 
         splitName = "train"  # default
         all_datasetdicts = []
@@ -420,6 +531,9 @@ class DataPreProcessor:
             raw_dataset = self.load_dataset(d, self.processor_config.streaming)
             logger.info("Loaded raw dataset : %s", str(raw_dataset))
 
+            if d.split is not None:
+                raw_dataset = self._split_dataset(d, raw_dataset)
+
             if isinstance(raw_dataset, IterableDataset):
                 raw_datasets = IterableDatasetDict()
             else:
@@ -443,6 +557,12 @@ class DataPreProcessor:
             # Append the processed datasets to the final dict
             all_datasetdicts.append(raw_datasets)
 
+        if is_raw_arg:
+            return (
+                all_datasetdicts[0][splitName],
+                all_datasetdicts[1][splitName] if len(all_datasetdicts) > 1 else None,
+            )
+
         # This is a dict of { split: list[datasets] }
         final_datasets = {}
         for d in all_datasetdicts:
@@ -465,14 +585,21 @@ class DataPreProcessor:
                 seed,
                 str(sampling_probabilities),
             )
+            # Default sampling for "train" split, concatenates remaining splits
+            interleave_Split = ["train"]
             for k, v in final_datasets.items():
-                interleaved = datasets.interleave_datasets(
-                    datasets=v,
-                    probabilities=sampling_probabilities,
-                    stopping_strategy=strategy,
-                    seed=seed,
-                )
-                final_datasets[k] = interleaved
+                if k in interleave_Split:
+                    interleaved = datasets.interleave_datasets(
+                        datasets=v,
+                        probabilities=sampling_probabilities,
+                        stopping_strategy=strategy,
+                        seed=seed,
+                    )
+                    final_datasets[k] = interleaved
+                else:
+                    final_datasets[k] = (
+                        v[0] if len(v) == 1 else datasets.concatenate_datasets(v)
+                    )
         else:
             for k, v in final_datasets.items():
                 final_datasets[k] = (
@@ -480,17 +607,23 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
+        eval_dataset = None
+        if "validation" in final_datasets:
+            eval_dataset = final_datasets.get("validation", None)
+            if isinstance(eval_dataset, IterableDataset):
+                eval_dataset = resolve_iterable_dataset_features(eval_dataset)
 
         # Just a failsafe in case this is required later.
         if isinstance(train_dataset, IterableDataset):
             train_dataset = resolve_iterable_dataset_features(train_dataset)
 
-        return train_dataset
+        return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig]
+        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
+        eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
         # https://huggingface.co/docs/accelerate/v1.0.0rc1/en/package_reference/state#accelerate.PartialState
@@ -502,9 +635,11 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset = self._process_dataset_configs(dataset_configs)
+            train_dataset, eval_dataset = self._process_dataset_configs(
+                dataset_configs, is_raw_arg
+            )
 
-        return train_dataset
+        return train_dataset, eval_dataset
 
 
 def get_datapreprocessor(
