@@ -325,12 +325,14 @@ def _process_raw_data_args(
         name="training_data",
         data_paths=[data_args.training_data_path],
         data_handlers=None,
+        split={"train": 1.0, "validation": 0.0},
     )
     if is_eval_dataset_present:
         eval_dataset_config = DataSetConfig(
             name="validation_data",
             data_paths=[data_args.validation_data_path],
             data_handlers=None,
+            split={"train": 0.0, "validation": 1.0},
         )
 
     # Setup some tokenizer kwargs for when we need a tokenizer
@@ -389,9 +391,7 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         dataset_list.append(eval_dataset_config)
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_list, True
-    )
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(dataset_list)
 
     return (train_dataset, eval_dataset, dataset_text_field)
 

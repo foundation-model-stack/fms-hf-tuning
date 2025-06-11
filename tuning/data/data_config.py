@@ -129,8 +129,8 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         for key, value in split.items():
             assert isinstance(key, str), f"split key '{key}' must be a string"
             assert (
-                isinstance(value, (float, int)) and 0.0 < value <= 1.0
-            ), f"split ratio for '{key}' must be a float in (0.0, 1.0], got {value}"
+                isinstance(value, (float, int)) and 0.0 <= value <= 1.0
+            ), f"split ratio for '{key}' must be a float in [0.0, 1.0], got {value}"
         c.split = {k: float(v) for k, v in split.items()}
     return c
 

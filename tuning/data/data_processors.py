@@ -434,9 +434,9 @@ class DataPreProcessor:
                         f"Expected splits {missing} missing in IterableDatasetDict"
                     )
                 base_ds = loaded_dataset["train"]
-                if train_split >= 1.0 and validation_split == 0.0:
+                if train_split == 1.0 and validation_split == 0.0:
                     return IterableDatasetDict({"train": base_ds})
-                if validation_split >= 1.0 and train_split == 0.0:
+                if validation_split == 1.0 and train_split == 0.0:
                     return IterableDatasetDict({"validation": base_ds})
 
                 raise NotImplementedError(
@@ -456,6 +456,12 @@ class DataPreProcessor:
 
             # Using "train" split as default
             base_ds = loaded_dataset["train"]
+            # Support for [0,1] split ranges
+            if train_split == 1.0 and validation_split == 0.0:
+                return DatasetDict({"train": base_ds})
+            if validation_split == 1.0 and train_split == 0.0:
+                return DatasetDict({"validation": base_ds})
+
             split_ds = base_ds.train_test_split(
                 test_size=validation_split,
                 train_size=train_split,
@@ -492,7 +498,7 @@ class DataPreProcessor:
         )
 
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
 
         if not dataset_configs:
@@ -545,24 +551,27 @@ class DataPreProcessor:
             else:
                 raw_datasets = raw_dataset
 
-            if d.data_handlers:  # Execute the datahandlers
-                for data_handler_config in d.data_handlers:
-                    raw_datasets = self._execute_data_handlers(
-                        raw_datasets=raw_datasets,
-                        data_handler_config=data_handler_config,
-                        splitName=splitName,
-                        datasetName=d.name,
-                    )
+            if splitName in raw_datasets:
+                if d.data_handlers:  # Execute the datahandlers
+                    for data_handler_config in d.data_handlers:
+                        raw_datasets = self._execute_data_handlers(
+                            raw_datasets=raw_datasets,
+                            data_handler_config=data_handler_config,
+                            splitName=splitName,
+                            datasetName=d.name,
+                        )
+            else:
+                if d.data_handlers:  # Execute the datahandlers
+                    for data_handler_config in d.data_handlers:
+                        raw_datasets = self._execute_data_handlers(
+                            raw_datasets=raw_datasets,
+                            data_handler_config=data_handler_config,
+                            splitName="validation",
+                            datasetName=d.name,
+                        )
 
             # Append the processed datasets to the final dict
             all_datasetdicts.append(raw_datasets)
-
-        if is_raw_arg:
-            return (
-                all_datasetdicts[0][splitName],
-                all_datasetdicts[1][splitName] if len(all_datasetdicts) > 1 else None,
-            )
-
         # This is a dict of { split: list[datasets] }
         final_datasets = {}
         for d in all_datasetdicts:
@@ -620,7 +629,7 @@ class DataPreProcessor:
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_raw_arg: bool = False
+        self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = None
         eval_dataset = None
@@ -635,9 +644,7 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset, eval_dataset = self._process_dataset_configs(
-                dataset_configs, is_raw_arg
-            )
+            train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
 
         return train_dataset, eval_dataset
 
