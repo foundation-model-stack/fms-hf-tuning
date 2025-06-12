@@ -510,6 +510,7 @@ def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=
     if tc_callback and args:
         tc_callback.on_save(args, trainer.state, trainer.control, final_path=path)
 
+
 def get_parser():
     """Get the command-line argument parser."""
     parser = transformers.HfArgumentParser(
@@ -788,7 +789,7 @@ def main():
                 trainer=trainer,
                 tc_callback=tc_callback,
                 log_level=training_args.log_level,
-                args=training_args
+                args=training_args,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())
