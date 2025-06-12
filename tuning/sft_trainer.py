@@ -506,25 +506,7 @@ def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=
         os.makedirs(path, exist_ok=True)
 
     logger.info("Saving tuned model to path: %s", path)
-    USE_ALORA = False
-    try:
-        # Third Party
-        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
-            aLoRAPeftModelForCausalLM,
-        )
-
-        if isinstance(trainer.model, aLoRAPeftModelForCausalLM):
-            USE_ALORA = True
-    except ImportError:
-        pass
-
-    if (
-        USE_ALORA
-    ):  # Save adapter weights and tokenizer only. aLoRA requires weights to not be merged.
-        trainer.model.save_pretrained(path)
-        trainer.tokenizer.save_pretrained(path)
-    else:  # Save full model
-        trainer.save_model(path)
+    trainer.save_model(path)
     if tc_callback and args:
         tc_callback.on_save(args, trainer.state, trainer.control, final_path=path)
 
