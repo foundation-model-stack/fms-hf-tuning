@@ -17,7 +17,7 @@ operations:
       log_format: |
         Saving model in huggingface format at step: {trainer_state[global_step]}
         Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
-      log_level: warning
+      log_level: info
       final_log_format: |
         Saving final checkpoint in {final_path}
 controllers:
