@@ -494,10 +494,6 @@ def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=
             Instance of SFTTrainer used for training to save the model.
         log_level: str
             Optional threshold to set save save logger to, default warning.
-        tc_callback: TrainerControllerCallback
-            Optional trainer controller callback object if it exists
-        args:
-            Optional training arguments
     """
     logger = logging.getLogger("sft_trainer_save")
     # default value from TrainingArguments
@@ -510,9 +506,6 @@ def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=
         os.makedirs(path, exist_ok=True)
 
     logger.info("Saving tuned model to path: %s", path)
-    trainer.save_model(path)
-
-    logger.warning("Saving tuned model to path: %s", path)
     USE_ALORA = False
     try:
         # Third Party
