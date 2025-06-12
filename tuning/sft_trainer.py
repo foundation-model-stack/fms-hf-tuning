@@ -481,15 +481,6 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    return trainer, additional_metadata
-    if USE_ALORA and ALORA_SAVE_END and training_args.save_model_dir is not None:
-        # saving was requested, saving at end (but don't save twice)
-        save(training_args.output_dir + "/checkpoint-1", 
-            trainer, 
-            tc_callback=tc_callback,
-            log_level=training_args.log_level, 
-            args=training_args)
-
     return trainer, additional_metadata, tc_callback
 
 
