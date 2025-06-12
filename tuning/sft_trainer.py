@@ -196,6 +196,7 @@ def train(
     # Initialize Trackers And Callbacks
     trackers = []
     trainer_callbacks = []
+    tc_callback = None
 
     if exp_metadata and (not isinstance(exp_metadata, dict)):
         raise ValueError("exp metadata passed should be a dict with valid json")
@@ -481,9 +482,18 @@ def train(
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
     return trainer, additional_metadata
+    if USE_ALORA and ALORA_SAVE_END and training_args.save_model_dir is not None:
+        # saving was requested, saving at end (but don't save twice)
+        save(training_args.output_dir + "/checkpoint-1", 
+            trainer, 
+            tc_callback=tc_callback,
+            log_level=training_args.log_level, 
+            args=training_args)
+
+    return trainer, additional_metadata, tc_callback
 
 
-def save(path: str, trainer: SFTTrainer, log_level="WARNING", tc_callback=None):
+def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=None):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -493,6 +503,10 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING", tc_callback=None):
             Instance of SFTTrainer used for training to save the model.
         log_level: str
             Optional threshold to set save save logger to, default warning.
+        tc_callback: TrainerControllerCallback
+            Optional trainer controller callback object if it exists
+        args:
+            Optional training arguments
     """
     logger = logging.getLogger("sft_trainer_save")
     # default value from TrainingArguments
@@ -507,6 +521,28 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING", tc_callback=None):
     logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
 
+    logger.warning("Saving tuned model to path: %s", path)
+    USE_ALORA = False
+    try:
+        # Third Party
+        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
+            aLoRAPeftModelForCausalLM,
+        )
+
+        if isinstance(trainer.model, aLoRAPeftModelForCausalLM):
+            USE_ALORA = True
+    except ImportError:
+        pass
+
+    if (
+        USE_ALORA
+    ):  # Save adapter weights and tokenizer only. aLoRA requires weights to not be merged.
+        trainer.model.save_pretrained(path)
+        trainer.tokenizer.save_pretrained(path)
+    else:  # Save full model
+        trainer.save_model(path)
+    if tc_callback and args:
+        tc_callback.on_save(args, trainer.state, trainer.control, final_path=path)
 
 def get_parser():
     """Get the command-line argument parser."""
@@ -735,7 +771,7 @@ def main():
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
     try:
-        trainer, additional_train_info = train(
+        trainer, additional_train_info, tc_callback = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -784,8 +820,9 @@ def main():
             save(
                 path=training_args.save_model_dir,
                 trainer=trainer,
+                tc_callback=tc_callback,
                 log_level=training_args.log_level,
-                tc_callback=tc_callback
+                args=training_args
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())

@@ -9,6 +9,7 @@ from .operation import Operation
 
 logger = logging.getLogger(__name__)
 
+DefaultFinalLogMessage = "Saving final checkpoint in {final_path}"
 
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""
@@ -27,6 +28,10 @@ class LogControl(Operation):
                 "Specified log_level [%s] is invalid for LogControl" % (log_level)
             )
         self.log_format = log_format
+        self.final_log_format = DefaultFinalLogMessage
+        if 'final_log_format' in kwargs:
+            self.final_log_format = kwargs['final_log_format']
+
         super().__init__(**kwargs)
 
     def should_log(
@@ -43,12 +48,20 @@ class LogControl(Operation):
             control: TrainerControl. Data class for controls.
             kwargs: List of arguments (key, value)-pairs
         """
-        log_msg = self.log_format.format(
-            event_name=event_name,
-            control_name=control_name,
-            args=args,
-            **kwargs,
-        )
+        if 'final_path' in kwargs:
+            log_msg = self.final_log_format.format(
+                event_name=event_name,
+                control_name=control_name,
+                args=args,
+                **kwargs,
+            )
+        else:
+            log_msg = self.log_format.format(
+                event_name=event_name,
+                control_name=control_name,
+                args=args,
+                **kwargs,
+            )
         logger.log(
             self.log_level,
             log_msg,
