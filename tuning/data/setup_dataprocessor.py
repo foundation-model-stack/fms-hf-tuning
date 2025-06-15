@@ -108,9 +108,12 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
-    train_dataset = data_processor.process_dataset_configs(data_config.datasets)
+    eval_dataset = None
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(
+        data_config.datasets
+    )
 
-    return (train_dataset, None, data_args.dataset_text_field)
+    return (train_dataset, eval_dataset, data_args.dataset_text_field)
 
 
 # Data Format 1: Pretokenized Data
@@ -322,12 +325,14 @@ def _process_raw_data_args(
         name="training_data",
         data_paths=[data_args.training_data_path],
         data_handlers=None,
+        split={"train": 1.0, "validation": 0.0},
     )
     if is_eval_dataset_present:
         eval_dataset_config = DataSetConfig(
             name="validation_data",
             data_paths=[data_args.validation_data_path],
             data_handlers=None,
+            split={"train": 0.0, "validation": 1.0},
         )
 
     # Setup some tokenizer kwargs for when we need a tokenizer
@@ -380,12 +385,13 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         eval_dataset_config.data_handlers = handlers
 
-    # And let processor handle the logic
-    train_dataset = data_processor.process_dataset_configs([train_dataset_config])
-
     eval_dataset = None
+    dataset_list = [train_dataset_config]
+
     if is_eval_dataset_present:
-        eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
+        dataset_list.append(eval_dataset_config)
+
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(dataset_list)
 
     return (train_dataset, eval_dataset, dataset_text_field)
 
