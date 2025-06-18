@@ -128,9 +128,8 @@ def train(
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
     """
-    USE_ALORA = False
-    ALORA_SAVE_END = False
     train_args, logger = set_log_level(train_args, "sft_trainer_train")
+    USE_ALORA = False
     try:
         # Third Party
         from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
@@ -140,13 +139,6 @@ def train(
 
         if isinstance(peft_config, aLoraConfig):
             USE_ALORA = True
-            if train_args.save_strategy != "no":
-                logger.warning(
-                    "Setting train_args.save_strategy to 'no' for aLoRA."
-                    "Model will be saved at end of training."
-                )
-                ALORA_SAVE_END = True
-                train_args.save_strategy = "no"
     except ImportError:
         pass
 
@@ -491,10 +483,6 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    if USE_ALORA and ALORA_SAVE_END and training_args.save_model_dir is not None:
-        # saving was requested, saving at end (but don't save twice)
-        save(training_args.output_dir + "/checkpoint-1", trainer)
-
     return trainer, additional_metadata
 
 
@@ -520,25 +508,7 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
         os.makedirs(path, exist_ok=True)
 
     logger.info("Saving tuned model to path: %s", path)
-    USE_ALORA = False
-    try:
-        # Third Party
-        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
-            aLoRAPeftModelForCausalLM,
-        )
-
-        if isinstance(trainer.model, aLoRAPeftModelForCausalLM):
-            USE_ALORA = True
-    except ImportError:
-        pass
-
-    if (
-        USE_ALORA
-    ):  # Save adapter weights and tokenizer only. aLoRA requires weights to not be merged.
-        trainer.model.save_pretrained(path)
-        trainer.tokenizer.save_pretrained(path)
-    else:  # Save full model
-        trainer.save_model(path)
+    trainer.save_model(path)
 
 
 def get_parser():

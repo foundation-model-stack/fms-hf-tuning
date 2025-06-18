@@ -132,7 +132,7 @@ TRAIN_ALORA_ARGS = configs.TrainingArguments(
     include_tokens_per_second=True,
     packing=False,
     max_seq_length=4096,
-    save_strategy="no",
+    save_strategy="epoch",
     output_dir="tmp",
 )
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
@@ -740,10 +740,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
-        trainer, _ = sft_trainer.train(
-            MODEL_ARGS, DATA_ARGS, train_args, base_alora_args
-        )
-        sft_trainer.save(train_args.output_dir + "/checkpoint-1", trainer)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -764,6 +761,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
             "Simply put, the theory of relativity states that \n" + invocation_string,
             max_new_tokens=50,
         )
+
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that \n" in output_inference
 
