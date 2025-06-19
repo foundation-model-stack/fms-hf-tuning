@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Union
 import logging
 import os
 
@@ -377,40 +377,6 @@ class DataPreProcessor:
               {",".join([e.name for e in DataHandlerType])}'
         )
 
-    def _prepare_base_dataset_dict(
-        self,
-        dataset: Union[DatasetDict, IterableDatasetDict],
-        expected_splits: List[str],
-        train_split: float,
-        validation_split: float,
-        is_streaming: bool,
-    ) -> Tuple[Dataset, Optional[Union[DatasetDict, IterableDatasetDict]]]:
-        """
-        Validates presence of required split(s), returns base dataset and early full-split result
-        if applicable.
-        Returns:
-            base_ds: Dataset (from 'train' split)
-            early_return: Optional[DatasetDict or IterableDatasetDict] if 100% train or validation
-        """
-        missing = [k for k in expected_splits if k not in dataset]
-        if missing:
-            raise ValueError(
-                f"Expected splits {missing} missing in {type(dataset).__name__}"
-            )
-
-        base_ds = dataset["train"]
-        if train_split == 1.0 and validation_split == 0.0:
-            return base_ds, type(dataset)({"train": base_ds})
-        if validation_split == 1.0 and train_split == 0.0:
-            return base_ds, type(dataset)({"validation": base_ds})
-
-        if is_streaming:
-            raise NotImplementedError(
-                f"Partial splits for streaming {type(dataset).__name__} are not supported yet."
-            )
-
-        return base_ds, None
-
     def _split_dataset(
         self,
         dataset_config: DataSetConfig,
@@ -420,109 +386,83 @@ class DataPreProcessor:
     ) -> Union[DatasetDict, IterableDatasetDict]:
 
         seed = self.processor_config.seed
-        streaming = self.processor_config.streaming
 
-        train_split = dataset_config.split.get("train")
-        validation_split = dataset_config.split.get("validation")
+        train_split_ratio = dataset_config.split.get("train")
+        validation_split_ratio = dataset_config.split.get("validation")
 
-        if train_split is None or validation_split is None:
+        if train_split_ratio is None or validation_split_ratio is None:
             raise ValueError("Both 'train' and 'validation' splits must be specified!")
 
-        total_split = train_split + validation_split
+        total_split = train_split_ratio + validation_split_ratio
         if total_split > 1.0 or total_split == 0:
             raise ValueError(
-                f"Sum of dataset split definitions in data config (train, validation) "
-                f"must be in (0,1]. Got {total_split}"
+                f"Sum of dataset split definitions (train + validation) must be in (0,1]. "
+                f"Got {total_split}"
             )
 
-        # Todo : Add support for using multiple existing splits during spliting
-        # Problem : DatasetDict might have multiple splits already, which to use?
-        # One or more than one, or existing splitName other than train
-        # Currently Supports "train" by default
-        use_existing_splits = ["train"]  # For DatasetDict
+        # Internal helper function
+        def _handle_full_split_case(base_ds, wrapper_type):
+            if train_split_ratio == 1.0 and validation_split_ratio == 0.0:
+                return wrapper_type({"train": base_ds})
+            if validation_split_ratio == 1.0 and train_split_ratio == 0.0:
+                return wrapper_type({"validation": base_ds})
+            return None
 
-        if streaming:
-            # For streaming IterableDataset / IterableDatasetDict
-            # Simple stub: either full train or full validation, no partial splits
-            # For example, if train_split >= 1.0, return all as train,
-            # else if validation_split >= 1.0, all as validation
-            # Partial Splits not Supported yet!
+        if isinstance(loaded_dataset, (DatasetDict, IterableDatasetDict)):
+            if "train" not in loaded_dataset:
+                raise ValueError("Expected 'train' split in dataset dict")
 
-            if isinstance(loaded_dataset, IterableDataset):
-                if train_split >= 1.0 and validation_split == 0.0:
-                    return IterableDatasetDict({"train": loaded_dataset})
-                if validation_split >= 1.0 and train_split == 0.0:
-                    return IterableDatasetDict({"validation": loaded_dataset})
+            base_ds = loaded_dataset["train"]
+            early_return = _handle_full_split_case(base_ds, type(loaded_dataset))
+            if early_return:
+                return early_return
 
-                raise NotImplementedError(
-                    "Partial splits for streaming IterableDataset are not supported yet!"
-                )
             if isinstance(loaded_dataset, IterableDatasetDict):
-                base_ds, result = self._prepare_base_dataset_dict(
-                    loaded_dataset,
-                    use_existing_splits,
-                    train_split,
-                    validation_split,
-                    is_streaming=streaming,
-                )
-                if result:
-                    return result
                 raise NotImplementedError(
-                    "Partial splits for streaming IterableDatasetDict are not supported yet."
+                    "Partial splits for streaming IterableDatasetDict are not supported."
                 )
 
-            raise TypeError(
-                f"Expected streaming dataset type but got {type(loaded_dataset)}"
-            )
-
-        # Non-streaming Dataset or DatasetDict
-        if isinstance(loaded_dataset, DatasetDict):
-            base_ds, result = self._prepare_base_dataset_dict(
-                loaded_dataset,
-                use_existing_splits,
-                train_split,
-                validation_split,
-                is_streaming=streaming,
-            )
-            if result:
-                return result
-
+            # DatasetDict - do actual split
             split_ds = base_ds.train_test_split(
-                test_size=validation_split,
-                train_size=train_split,
+                test_size=validation_split_ratio,
+                train_size=train_split_ratio,
                 shuffle=True,
                 seed=seed,
             )
-
-            # After train-validation split and previously exisiting splits are returned!
             return DatasetDict(
-                {
-                    "train": split_ds["train"],
-                    "validation": split_ds["test"],
-                }
+                {"train": split_ds["train"], "validation": split_ds["test"]}
             )
 
-        if isinstance(loaded_dataset, Dataset):
-            # Directly split the Dataset
+        if isinstance(loaded_dataset, (Dataset, IterableDataset)):
             base_ds = loaded_dataset
+
+            wrapper_type = (
+                IterableDatasetDict
+                if isinstance(base_ds, IterableDataset)
+                else DatasetDict
+            )
+
+            early_return = _handle_full_split_case(base_ds, wrapper_type)
+            if early_return:
+                return early_return
+
+            if isinstance(base_ds, IterableDataset):
+                raise NotImplementedError(
+                    "Partial splits for streaming IterableDataset are not supported."
+                )
+
+            # Dataset - do actual split
             split_ds = base_ds.train_test_split(
-                test_size=validation_split,
-                train_size=train_split,
+                test_size=validation_split_ratio,
+                train_size=train_split_ratio,
                 shuffle=True,
                 seed=seed,
             )
-
             return DatasetDict(
-                {
-                    "train": split_ds["train"],
-                    "validation": split_ds["test"],
-                }
+                {"train": split_ds["train"], "validation": split_ds["test"]}
             )
 
-        raise TypeError(
-            f"Expected Dataset or DatasetDict when streaming=False,\
-            but got {type(loaded_dataset)}"
-        )
+        raise TypeError(f"Unsupported dataset type: {type(loaded_dataset)}")
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig]
@@ -612,9 +552,9 @@ class DataPreProcessor:
                 str(sampling_probabilities),
             )
             # Default sampling for "train" split, concatenates remaining splits
-            interleave_Split = ["train"]
+            split_to_interleave = ["train"]
             for k, v in final_datasets.items():
-                if k in interleave_Split:
+                if k in split_to_interleave:
                     interleaved = datasets.interleave_datasets(
                         datasets=v,
                         probabilities=sampling_probabilities,
