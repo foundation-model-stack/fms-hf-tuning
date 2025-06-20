@@ -66,7 +66,8 @@ class RunIDExporterAimCallback(AimCallback):
         super().on_init_end(args, state, control, **kwargs)
 
         if not self._run:
-            return
+            raise RuntimeError("Aim tracker was requested but did not get initialized;"+
+                             " Please check the config")
 
         # Change default run hash path to output directory if not specified
         if self.run_id_export_path is None:
