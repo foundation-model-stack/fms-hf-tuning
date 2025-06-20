@@ -117,7 +117,6 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
-    eval_dataset = None
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
         data_config.datasets
     )
@@ -309,6 +308,11 @@ def _process_raw_data_args(
     processor: AutoProcessor = None,
 ):
 
+    if data_args.data_config_path is not None:
+        raise ValueError(
+            "Both training_data_path and validation_data_path must be None when using "
+            "data_config. Please provide paths in data_config instead."
+        )
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
     data_processor = get_datapreprocessor(
@@ -324,11 +328,6 @@ def _process_raw_data_args(
     is_eval_dataset_present = False
     if data_args.validation_data_path:
         is_eval_dataset_present = True
-    if data_args.data_config_path is not None:
-        raise ValueError(
-            "Both training_data_path and validation_data_path must be None when using "
-            "data_config. Please provide paths in data_config instead."
-        )
 
     # TODO: This check loads first slice of the dataset to view its columns
     # Since this load is not done via processor it is redundant
@@ -400,12 +399,14 @@ def _process_raw_data_args(
         eval_dataset_config.data_handlers = handlers
 
     eval_dataset = None
-    dataset_list = [train_dataset_config]
+    dataset_configs = [train_dataset_config]
 
     if is_eval_dataset_present:
-        dataset_list.append(eval_dataset_config)
+        dataset_configs.append(eval_dataset_config)
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(dataset_list)
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(
+        dataset_configs
+    )
 
     return (train_dataset, eval_dataset, dataset_text_field)
 

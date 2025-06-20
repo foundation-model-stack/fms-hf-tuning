@@ -389,7 +389,10 @@ class DataPreProcessor:
         validation_size = dataset_config.split.get("validation")
 
         if train_size is None or validation_size is None:
-            raise ValueError("Both 'train' and 'validation' splits must be specified!")
+            raise ValueError(
+                "Both 'train' and 'validation' splits must be specified for a "
+                "dataset in data_config"
+            )
 
         total = train_size + validation_size
         if total > 1.0 or total == 0:
@@ -438,7 +441,9 @@ class DataPreProcessor:
     ) -> Union[Dataset, IterableDataset]:
 
         if not dataset_configs:
-            raise ValueError("No dataset configs provided.")
+            raise ValueError(
+                "No dataset configs provided. Provided Dataset configs is None."
+            )
 
         default_split_name = "train"  # default
         all_datasetdicts = []
@@ -521,9 +526,9 @@ class DataPreProcessor:
                 str(sampling_probabilities),
             )
             # Default sampling for "train" split, concatenates remaining splits
-            split_to_interleave = ["train"]
+            splits_to_interleave = ["train"]
             for k, v in final_datasets.items():
-                if k in split_to_interleave:
+                if k in splits_to_interleave:
                     interleaved = datasets.interleave_datasets(
                         datasets=v,
                         probabilities=sampling_probabilities,
@@ -542,23 +547,22 @@ class DataPreProcessor:
                 )
 
         train_dataset = final_datasets.get("train", None)
+        # Just a failsafe in case this is required later.
+        if isinstance(train_dataset, IterableDataset):
+            train_dataset = resolve_iterable_dataset_features(train_dataset)
+
         eval_dataset = None
         if "validation" in final_datasets:
             eval_dataset = final_datasets.get("validation", None)
             if isinstance(eval_dataset, IterableDataset):
                 eval_dataset = resolve_iterable_dataset_features(eval_dataset)
 
-        # Just a failsafe in case this is required later.
-        if isinstance(train_dataset, IterableDataset):
-            train_dataset = resolve_iterable_dataset_features(train_dataset)
-
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
         self, dataset_configs: List[DataSetConfig]
     ) -> Union[Dataset, IterableDataset]:
-        train_dataset = None
-        eval_dataset = None
+        train_dataset = eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
         # https://huggingface.co/docs/accelerate/v1.0.0rc1/en/package_reference/state#accelerate.PartialState

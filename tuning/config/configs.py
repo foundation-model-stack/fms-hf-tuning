@@ -226,6 +226,17 @@ class TrainingArguments(transformers.TrainingArguments):
                 for all PEFT runs by the library internally."
         },
     )
+    eval_strategy: str = field(
+        default="no",
+        metadata={
+            "help": "The evaluation strategy to adopt during training. "
+            "Possible values are 'no' (no evaluation during training), "
+            "'epoch' (evaluate at the end of each epoch), "
+            "'steps' (evaluate every `eval_steps`). "
+            "Note: Splitting the dataset does not automatically trigger evaluation; "
+            "you must explicitly set this value to enable evaluation."
+        },
+    )
 
 
 @dataclass

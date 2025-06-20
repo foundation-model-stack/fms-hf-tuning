@@ -187,16 +187,15 @@ Note: If a user specifies data sampling they can expect the datasets to be mixed
 
 ### Dataset Splitting
 
-In addition to sampling and mixing, our library supports **dataset splitting**, which allows users to split a dataset into training and validation splits using the `split` field in the dataset config.
+In addition to [sampling and mixing](#data-mixing), our library supports **dataset splitting**, which allows users to split a dataset into training and validation splits using the `split` field in the dataset config.
 
 This is especially useful when users want to split a single dataset (or multiple datasets) internally instead of supplying separate files for training and validation.
 
 #### How to Use
 
-To split a dataset, simply pro
 The `split` field in each dataset config allows users to internally divide a dataset into `train` and `validation` sets using fractional ratios.
 
-To use it, specify both `train` and `validation` values under the `split` key. Example:
+To use it, specify both `train` and `validation` ratios values under the `split` key for each dataset. Example:
 
 ```yaml
 datasets:
@@ -208,7 +207,7 @@ datasets:
       - "path/to/data.jsonl"
 ```
 
-#### Split Support for Streaming vs Non-Streaming Datasets
+### Split Support for Streaming vs Non-Streaming Datasets
 
 **Non-Streaming Datasets (`Dataset`, `DatasetDict`)**:
 - Supports arbitrary train/validation splits.
@@ -223,6 +222,38 @@ datasets:
 - Partial splits like `train: 0.8, validation: 0.2` are not supported and will raise a `NotImplementedError`.
 - If no `split` is defined, the dataset is returned unchanged.
 - Streaming behavior must be explicitly enabled via `dataprocessor.streaming: true`.
+
+### Using Separate Files for Train and Validation Splits
+
+If you want to use **separate files for training and validation**, you can define them as **separate dataset entries** in the `datasets` section of your config.  
+In each entry:
+
+- Specify the corresponding file in the `data_paths` field.
+- Set the `split` value to either `train: 1.0` or `validation: 1.0` as appropriate.
+
+This allows you to fully control which file is used for which purpose, without relying on automatic or in-place splitting.
+
+#### Example
+
+```yaml
+datasets:
+  - name: my_train_set
+    split:
+      train: 1.0
+    data_paths:
+      - "path/to/train.jsonl"
+  - name: my_val_set
+    split:
+      validation: 1.0
+    data_paths:
+      - "path/to/val.jsonl"
+```
+
+### **Note:**
+> - While passing a validation dataset via the command line is possible using the `validation_data_path` argument, **this argument is not compatible with `data_config`**. If you're using a `data_config`, define the validation set within it using a `split: validation: 1.0` entry instead as shown [here](#using-separate-files-for-train-and-validation-splits).
+> - Dataset splitting is performed based on the `split` configuration, supporting only `"train"` and `"validation"` splits. Support for a `"test"` split is not yet available.
+> - **Only the `"train"` split is sampled**, and **sampling is done after splitting**. This ensures that validation remains consistent and unbiased, while allowing training to be performed on a controlled subset if desired.
+> - **⚠️ Users must explicitly set the [`eval_strategy`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.eval_strategy) in the Trainer's arguments to a valid value (e.g., `"steps"` or `"epoch"`) for evaluation to run. Splitting the dataset alone does not trigger evaluation and will likely result in an error if `evaluation_strategy` is left unset.**
 
 ### Data Streaming
 Dataset streaming allows users to utilize the functionality of iterable datasets to pass in data piece by piece, avoiding memory constraints with large datasets for use-cases like extended pre-training.
