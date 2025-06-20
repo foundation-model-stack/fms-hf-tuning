@@ -30,12 +30,14 @@ AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
 MLFLOW_TRACKER = "mlflow"
 HF_RESOURCE_SCANNER_TRACKER = "hf_resource_scanner"
+CLEARML_TRACKER = "clearml"
 
 AVAILABLE_TRACKERS = [
     AIMSTACK_TRACKER,
     FILE_LOGGING_TRACKER,
     HF_RESOURCE_SCANNER_TRACKER,
     MLFLOW_TRACKER,
+    CLEARML_TRACKER
 ]
 
 
@@ -46,19 +48,22 @@ REGISTERED_TRACKERS = {}
 _is_aim_available = _is_package_available("aim")
 _is_mlflow_available = _is_package_available("mlflow")
 _is_hf_resource_scanner_available = _is_package_available("HFResourceScanner")
+_is_clearml_available = _is_package_available("clearml")
 
 
 def _get_tracker_class(T, C):
     return {"tracker": T, "config": C}
 
-
 def _is_tracker_installed(name):
-    if name == "aim":
+    if name == AIMSTACK_TRACKER:
         return _is_aim_available
-    if name == "mlflow":
+    if name == HF_RESOURCE_SCANNER_TRACKER:
+        return _is_hf_resource_scanner_available
+    if name == MLFLOW_TRACKER:
         return _is_mlflow_available
+    if name == CLEARML_TRACKER:
+        return _is_clearml_available
     return False
-
 
 def _register_aim_tracker():
     # pylint: disable=import-outside-toplevel
@@ -72,7 +77,7 @@ def _register_aim_tracker():
         REGISTERED_TRACKERS[AIMSTACK_TRACKER] = AimTracker
         logger.info("Registered aimstack tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering Aimstack tracker due to unavailablity of package.\n"
             "Please install aim if you intend to use it.\n"
             "\t pip install aim"
@@ -91,7 +96,7 @@ def _register_mlflow_tracker():
         REGISTERED_TRACKERS[MLFLOW_TRACKER] = mlflow_tracker
         logger.info("Registered mlflow tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering mlflow tracker due to unavailablity of package.\n"
             "Please install mlflow if you intend to use it.\n"
             "\t pip install mlflow"
@@ -112,25 +117,34 @@ def _register_hf_resource_scanner_tracker():
         REGISTERED_TRACKERS[HF_RESOURCE_SCANNER_TRACKER] = HFResourceScannerTracker
         logger.info("Registered HFResourceScanner tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering HFResourceScanner tracker due to unavailablity of package.\n"
             "Please install HFResourceScanner if you intend to use it.\n"
             "\t pip install HFResourceScanner"
         )
 
-
-def _is_tracker_installed(name):
-    if name == AIMSTACK_TRACKER:
-        return _is_aim_available
-    if name == HF_RESOURCE_SCANNER_TRACKER:
-        return _is_hf_resource_scanner_available
-    return False
-
-
 def _register_file_logging_tracker():
     FileTracker = _get_tracker_class(FileLoggingTracker, FileLoggingTrackerConfig)
     REGISTERED_TRACKERS[FILE_LOGGING_TRACKER] = FileTracker
     logger.info("Registered file logging tracker")
+
+def _register_clearml_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_clearml_available:
+        # Local
+        from .clearml_tracker import ClearMLTracker
+        from tuning.config.tracker_configs import ClearMLConfig
+
+        clearml_tracker = _get_tracker_class(ClearMLTracker, ClearMLConfig)
+
+        REGISTERED_TRACKERS[CLEARML_TRACKER] = clearml_tracker
+        logger.info("Registered clearml tracker")
+    else:
+        logger.warning(
+            "Not registering clearml tracker due to unavailablity of package.\n"
+            "Please install clearml if you intend to use it.\n"
+            "\t pip install clearml"
+        )
 
 
 # List of Available Trackers
@@ -147,6 +161,8 @@ def _register_trackers():
         _register_mlflow_tracker()
     if HF_RESOURCE_SCANNER_TRACKER not in REGISTERED_TRACKERS:
         _register_hf_resource_scanner_tracker()
+    if CLEARML_TRACKER not in REGISTERED_TRACKERS:
+        _register_clearml_tracker()
 
 
 def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):
@@ -195,6 +211,11 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
                             mlflow_config=MLflowConfig(
                                 experiment="test",
                                 mlflow_tracking_uri="./mlflow.sqlite"
+                            )
+                    ))
+        clearml_tracker = get_tracker("clearml", TrackerConfigFactory(
+                            clearml_config=ClearMLConfig(
+                                experiment="test",
                             )
                     ))
     """
