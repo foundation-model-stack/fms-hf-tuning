@@ -15,6 +15,7 @@
 # Standard
 from dataclasses import dataclass
 
+DEFAULT_EXP_NAME = "fms-hf-tuning"
 
 @dataclass
 class HFResourceScannerConfig:
@@ -29,7 +30,7 @@ class FileLoggingTrackerConfig:
 @dataclass
 class AimConfig:
     # Name of the experiment
-    experiment: str = "fms-hf-tuning"
+    experiment: str = DEFAULT_EXP_NAME
     # aim_repo can point to a locally accessible directory
     #    or a remote repository hosted on a server.
     # When 'aim_remote_server_ip' or 'aim_remote_server_port' is set,
@@ -68,7 +69,7 @@ class AimConfig:
 @dataclass
 class MLflowConfig:
     # Name of the experiment
-    mlflow_experiment: str = "fms-hf-tuning"
+    mlflow_experiment: str = DEFAULT_EXP_NAME
     mlflow_tracking_uri: str = None
     # Location of where mlflow's run uri is to be exported.
     # If mlflow_run_uri_export_path is set the run uri will be output in a json format
@@ -79,6 +80,20 @@ class MLflowConfig:
     # and output_dir is not specified.
     mlflow_run_uri_export_path: str = None
 
+@dataclass
+class ClearMLConfig:
+    # Name of the experiment
+    clearml_project: str = DEFAULT_EXP_NAME
+    clearml_task: str = "SFTTrainer"
+
+    # Location of where clearml's run uri is to be exported.
+    # If clearml_run_uri_export_path is set the run uri will be output in a json format
+    # to the location pointed to by `clearml_run_uri_export_path/clearml_tracker.json`
+    # If this is not set then the default location where run uri will be exported
+    # is training_args.output_dir/clearml_tracker.json
+    # Run uri is not exported if clearml_run_uri_export_path variable is not set
+    # and output_dir is not specified.
+    clearml_run_uri_export_path: str = None
 
 @dataclass
 class TrackerConfigFactory:
@@ -86,3 +101,4 @@ class TrackerConfigFactory:
     aim_config: AimConfig = None
     mlflow_config: MLflowConfig = None
     hf_resource_scanner_config: HFResourceScannerConfig = None
+    clearml_config: ClearMLConfig = None

@@ -64,6 +64,9 @@ class RunURIExporterMlflowCallback(MLflowCallback):
         """
         super().setup(args, state, model)
 
+        if not self._initialized:
+            raise RuntimeError("mlflow tracker was requested but did not get initialized;"+
+                             " Please check the config")
         self.client = self._ml_flow
 
         active_run = self.client.active_run()
