@@ -116,13 +116,12 @@ def tokenize_and_apply_input_masking(
     # These are made available by the data preprocessor framework
     try:
         tokenizer = kwargs["tokenizer"]
-        column_names = kwargs["column_names"]
     except KeyError as e:
         raise RuntimeError(
             "Data processor failed to pass default args to data handlers"
         ) from e
 
-    if column_names and (input_column_name or output_column_name) not in column_names:
+    if (input_column_name or output_column_name) not in element:
         raise ValueError(
             f"Dataset should contain {input_column_name} \
                 and {output_column_name} field if \

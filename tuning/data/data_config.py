@@ -38,6 +38,7 @@ class DataSetConfig:
     builder: Optional[str] = None  # Referring to Hugging Face dataset builder
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
+    split: Optional[Dict[str, float]] = None
 
 
 @dataclass
@@ -45,7 +46,7 @@ class DataPreProcessorConfig:
     type: Optional[str] = "default"
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
     # Default seed is not none to ensure reproducability
-    sampling_seed: Optional[float] = 42
+    seed: Optional[float] = 42
     streaming: Optional[bool] = False
     chat_template: Optional[str] = None
 
@@ -120,6 +121,17 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
             c.data_handlers.append(_validate_data_handler_config(handler))
+    if "split" in kwargs and kwargs["split"] is not None:
+        split = kwargs["split"]
+        assert isinstance(
+            split, dict
+        ), "split must be a dictionary of split_name: ratio"
+        for key, value in split.items():
+            assert isinstance(key, str), f"split key '{key}' must be a string"
+            assert (
+                isinstance(value, (float, int)) and 0.0 <= value <= 1.0
+            ), f"split ratio for '{key}' must be a float in [0.0, 1.0], got {value}"
+        c.split = {k: float(v) for k, v in split.items()}
     return c
 
 
@@ -140,10 +152,10 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
             "all_exhausted",
         ], "allowed sampling stopping strategies are all_exhausted(default) or first_exhausted"
         c.sampling_stopping_strategy = strategy
-    if "sampling_seed" in kwargs:
-        seed = kwargs["sampling_seed"]
-        assert isinstance(seed, int), "sampling seed should be int"
-        c.sampling_seed = seed
+    if "seed" in kwargs:
+        seed = kwargs["seed"]
+        assert isinstance(seed, int), "seed should be int"
+        c.seed = seed
     if "streaming" in kwargs:
         streaming = kwargs["streaming"]
         assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"

@@ -119,7 +119,7 @@ Users can create a data config file in any of YAML or JSON format they choose (w
  - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
  - `streaming` (optional, bool): Stream datasets using [IterableDatasets](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset).
  - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
- - `sampling_seed` (optional, int): [Sampling seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
+ - `seed` (optional, int): [seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
  - `chat_template` (optional, str): pass `chat_template` via data_config for multi-turn data, replaces existing default chat template.
 
 `datasets` (list):
@@ -129,6 +129,7 @@ Users can create a data config file in any of YAML or JSON format they choose (w
     - `rename_columns` (optional, dict[str:str]): Specifies a dictionary of columns to rename like `{"old_name": "new_name"}` at dataset load time. *Applied before `retain_columns` if both are specified*.
     - `retain_columns` (optional, list[str]): Specifies a list of columns to retain `["input_ids", "labels"]` every other column will be dropped at dataset load time. *Applied strictly after `rename_columns` if both are specified*.
     - `sampling` (optional, float): The sampling ratio (0.0 to 1.0) with which to sample a dataset in case of interleaving.
+    - `split` (optional, dict[str: float]): Defines how to split the dataset into training and validation sets. Requires both `train` and `validation` keys.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
 Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
@@ -183,6 +184,76 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 
 Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset
+
+### Dataset Splitting
+
+In addition to [sampling and mixing](#data-mixing), our library supports **dataset splitting**, which allows users to split a dataset into training and validation splits using the `split` field in the dataset config.
+
+This is especially useful when users want to split a single dataset (or multiple datasets) internally instead of supplying separate files for training and validation.
+
+#### How to Use
+
+The `split` field in each dataset config allows users to internally divide a dataset into `train` and `validation` sets using fractional ratios.
+
+To use it, specify both `train` and `validation` ratios values under the `split` key for each dataset. Example:
+
+```yaml
+datasets:
+  - name: my_dataset
+    split:
+      train: 0.8
+      validation: 0.2
+    data_paths:
+      - "path/to/data.jsonl"
+```
+
+### Split Support for Streaming vs Non-Streaming Datasets
+
+**Non-Streaming Datasets (`Dataset`, `DatasetDict`)**:
+- Supports arbitrary train/validation splits.
+- Both `train` and `validation` keys must be present under `split`.
+- The sum of `train + validation` must be in `(0, 1]`; less than 1.0 implies subset usage.
+- If no `split` is defined, the dataset is returned unchanged.
+
+**Streaming Datasets (`IterableDataset`, `IterableDatasetDict`)**:
+- Only supports full splits:
+  - Either `train: 1.0, validation: 0.0`
+  - Or `train: 0.0, validation: 1.0`
+- Partial splits like `train: 0.8, validation: 0.2` are not supported and will raise a `NotImplementedError`.
+- If no `split` is defined, the dataset is returned unchanged.
+- Streaming behavior must be explicitly enabled via `dataprocessor.streaming: true`.
+
+### Using Separate Files for Train and Validation Splits
+
+If you want to use **separate files for training and validation**, you can define them as **separate dataset entries** in the `datasets` section of your config.  
+In each entry:
+
+- Specify the corresponding file in the `data_paths` field.
+- Set the `split` value to either `train: 1.0` or `validation: 1.0` as appropriate.
+
+This allows you to fully control which file is used for which purpose, without relying on automatic or in-place splitting.
+
+#### Example
+
+```yaml
+datasets:
+  - name: my_train_set
+    split:
+      train: 1.0
+    data_paths:
+      - "path/to/train.jsonl"
+  - name: my_val_set
+    split:
+      validation: 1.0
+    data_paths:
+      - "path/to/val.jsonl"
+```
+
+### **Note:**
+> - While passing a validation dataset via the command line is possible using the `validation_data_path` argument, **this argument is not compatible with `data_config`**. If you're using a `data_config`, define the validation set within it using a `split: validation: 1.0` entry instead as shown [here](#using-separate-files-for-train-and-validation-splits).
+> - Dataset splitting is performed based on the `split` configuration, supporting only `"train"` and `"validation"` splits. Support for a `"test"` split is not yet available.
+> - **Only the `"train"` split is sampled**, and **sampling is done after splitting**. This ensures that validation remains consistent and unbiased, while allowing training to be performed on a controlled subset if desired.
+> - **⚠️ Users must explicitly set the [`eval_strategy`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.eval_strategy) in the Trainer's arguments to a valid value (e.g., `"steps"` or `"epoch"`) for evaluation to run. Splitting the dataset alone does not trigger evaluation and will likely result in an error if `evaluation_strategy` is left unset.**
 
 ### Data Streaming
 Dataset streaming allows users to utilize the functionality of iterable datasets to pass in data piece by piece, avoiding memory constraints with large datasets for use-cases like extended pre-training.
