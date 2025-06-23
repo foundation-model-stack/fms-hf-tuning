@@ -74,8 +74,6 @@ dataprocessor:
    {%- endfor %}
 datasets:
  - name: dataset_1
-    retain_columns:
-     - "formatted_chat"
    data_paths:
     - "/app/arb30_100.jsonl"
    data_handlers:
