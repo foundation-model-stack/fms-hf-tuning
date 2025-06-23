@@ -36,6 +36,7 @@ from scripts.offline_data_processing import (
 )
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
+    DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_DATA_YAML,
@@ -1460,6 +1461,68 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
 
 
 @pytest.mark.parametrize(
+    "datafiles, datasetconfigname",
+    [
+        (
+            [
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                ],
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
+        ),
+    ],
+)
+def test_process_dataconfig_multiple_datasets_datafiles_sampling_and_split(
+    datafiles, datasetconfigname
+):
+    """Ensure that multiple datasets with multiple files are formatted and validated correctly."""
+    with open(datasetconfigname, "r") as f:
+        yaml_content = yaml.safe_load(f)
+    yaml_content["datasets"][0]["data_paths"] = datafiles[0]
+    yaml_content["datasets"][1]["data_paths"] = datafiles[1]
+    yaml_content["datasets"][2]["data_paths"] = datafiles[2]
+    with tempfile.NamedTemporaryFile(
+        "w", delete=False, suffix=".yaml"
+    ) as temp_yaml_file:
+        yaml.dump(yaml_content, temp_yaml_file)
+        temp_yaml_file_path = temp_yaml_file.name
+        data_args = configs.DataArguments(data_config_path=temp_yaml_file_path)
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    TRAIN_ARGS = configs.TrainingArguments(
+        packing=False,
+        max_seq_length=1024,
+        output_dir="tmp",
+    )
+    (train_set, eval_set, _, _, _, _) = process_dataargs(
+        data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
+    )
+
+    assert isinstance(train_set, Dataset)
+    assert isinstance(eval_set, Dataset)
+    assert set(["input_ids", "attention_mask", "labels"]).issubset(
+        set(eval_set.column_names)
+    )
+    # training_data_path/validation_data_path args are not supported with data_config
+    with pytest.raises(ValueError):
+        data_args.training_data_path = "/tmp/some/path"
+        process_dataargs(
+            data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
+        )
+
+
+@pytest.mark.parametrize(
     "data_args, is_padding_free",
     [
         # single sequence JSON and response template
@@ -1690,7 +1753,7 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
         tokenizer=tokenizer,
     )
     datasetconfig = [DataSetConfig(name=datasetconfigname, data_paths=[datafile])]
-    train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == column_names
@@ -1812,7 +1875,7 @@ def test_rename_and_select_dataset_columns(
             name=datasetconfigname, data_paths=data_paths, data_handlers=handlers
         )
     ]
-    train_dataset = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == set(final)

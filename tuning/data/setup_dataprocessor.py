@@ -80,6 +80,15 @@ def _process_dataconfig_file(
         additional_data_handlers=additional_data_handlers,
     )
 
+    if (
+        data_args.training_data_path is not None
+        or data_args.validation_data_path is not None
+    ):
+        raise ValueError(
+            "Both training_data_path and validation_data_path must be None when using "
+            "data_config. Please provide paths in data_config instead."
+        )
+
     if data_processor.processor_config.chat_template is not None:
         if tokenizer.chat_template:
             logger.warning(
@@ -108,9 +117,11 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
-    train_dataset = data_processor.process_dataset_configs(data_config.datasets)
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(
+        data_config.datasets
+    )
 
-    return (train_dataset, None, data_args.dataset_text_field)
+    return (train_dataset, eval_dataset, data_args.dataset_text_field)
 
 
 # Data Format 1: Pretokenized Data
@@ -297,6 +308,11 @@ def _process_raw_data_args(
     processor: AutoProcessor = None,
 ):
 
+    if data_args.data_config_path is not None:
+        raise ValueError(
+            "Both training_data_path and validation_data_path must be None when using "
+            "data_config. Please provide paths in data_config instead."
+        )
     # Create a data processor with default processor config
     default_processor_config = DataPreProcessorConfig()
     data_processor = get_datapreprocessor(
@@ -322,12 +338,14 @@ def _process_raw_data_args(
         name="training_data",
         data_paths=[data_args.training_data_path],
         data_handlers=None,
+        split={"train": 1.0, "validation": 0.0},
     )
     if is_eval_dataset_present:
         eval_dataset_config = DataSetConfig(
             name="validation_data",
             data_paths=[data_args.validation_data_path],
             data_handlers=None,
+            split={"train": 0.0, "validation": 1.0},
         )
 
     # Setup some tokenizer kwargs for when we need a tokenizer
@@ -380,12 +398,15 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         eval_dataset_config.data_handlers = handlers
 
-    # And let processor handle the logic
-    train_dataset = data_processor.process_dataset_configs([train_dataset_config])
-
     eval_dataset = None
+    dataset_configs = [train_dataset_config]
+
     if is_eval_dataset_present:
-        eval_dataset = data_processor.process_dataset_configs([eval_dataset_config])
+        dataset_configs.append(eval_dataset_config)
+
+    train_dataset, eval_dataset = data_processor.process_dataset_configs(
+        dataset_configs
+    )
 
     return (train_dataset, eval_dataset, dataset_text_field)
 
