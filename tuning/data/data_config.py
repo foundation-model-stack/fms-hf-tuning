@@ -105,18 +105,6 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
             0.0 <= ratio <= 1.0
         ), f"sampling ratio: {ratio} should be float and in range [0.0,1.0]"
         c.sampling = float(ratio)
-    if "rename_columns" in kwargs and kwargs["rename_columns"] is not None:
-        rename = kwargs["rename_columns"]
-        assert isinstance(
-            rename, dict
-        ), "rename_columns should be a dict with current_name:new_name"
-        c.rename_columns = rename
-    if "retain_columns" in kwargs and kwargs["retain_columns"] is not None:
-        retain = kwargs["retain_columns"]
-        assert isinstance(
-            retain, list
-        ), "retain_columns should be a list[str] with names of columns to retain"
-        c.retain_columns = retain
     if "data_handlers" in kwargs:
         c.data_handlers = []
         for handler in kwargs["data_handlers"]:
