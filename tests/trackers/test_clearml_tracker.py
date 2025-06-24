@@ -39,7 +39,23 @@ from tests.test_sft_trainer import (
 from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
 
-clearml_not_available = not _is_package_available("clearml")
+
+def _check_clearml_setup():
+    if _is_package_available("clearml"):
+        try:
+            # pylint: disable=import-error, disable=import-outside-toplevel
+            # Third Party
+            import clearml
+
+            t = clearml.Task.init()
+            t.close()
+            return True
+        except clearml.backend_api.session.defs.MissingConfigError:
+            return False
+    return False
+
+
+clearml_not_available = not _check_clearml_setup()
 
 
 @pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
