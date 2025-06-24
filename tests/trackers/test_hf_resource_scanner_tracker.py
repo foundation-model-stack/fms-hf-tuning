@@ -38,7 +38,7 @@ from tests.test_sft_trainer import (
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import HFResourceScannerConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 ## HF Resource Scanner Tracker Tests
 
@@ -74,10 +74,8 @@ def test_sample_run_with_hf_resource_scanner_updated_filename():
 
         scanner_output_file = "scanner_output.json"
 
-        tracker_configs = TrackerConfigFactory(
-            hf_resource_scanner_config=HFResourceScannerConfig(
-                scanner_output_filename=os.path.join(tempdir, scanner_output_file)
-            )
+        tracker_configs = TrackerConfigs(
+            scanner_output_filename=os.path.join(tempdir, scanner_output_file)
         )
 
         sft_trainer.train(

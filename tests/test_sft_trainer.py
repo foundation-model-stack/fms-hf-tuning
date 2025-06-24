@@ -84,7 +84,7 @@ from tests.artifacts.testdata import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.config.tracker_configs import TrackerConfigs
 from tuning.data.data_config import (
     DataConfig,
     DataHandlerConfig,
@@ -405,9 +405,6 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
-        _,
-        _,
-        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -433,9 +430,6 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
-        _,
-        _,
-        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -446,16 +440,36 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_pt
-    )
+    (
+        _,
+        _,
+        _,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_pt)
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_lora
-    )
+    (
+        _,
+        _,
+        _,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_lora)
     assert isinstance(tune_config, peft_config.LoraConfig)
     assert not tune_config.target_modules
     assert "target_modules" not in job_config_lora
@@ -834,9 +848,7 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.output_dir = tempdir
 
         trainer, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
-        logs_path = os.path.join(
-            tempdir, FileLoggingTrackerConfig.training_logs_filename
-        )
+        logs_path = os.path.join(tempdir, TrackerConfigs.training_logs_filename)
         _validate_logfile(logs_path)
         # validate that no checkpoints created
         assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))

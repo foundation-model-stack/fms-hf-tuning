@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Standard
-import dataclasses
 import logging
 
 # Third Party
@@ -21,7 +20,7 @@ from transformers.utils.import_utils import _is_package_available
 
 # Local
 from .filelogging_tracker import FileLoggingTracker
-from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +29,15 @@ AIMSTACK_TRACKER = "aim"
 FILE_LOGGING_TRACKER = "file_logger"
 MLFLOW_TRACKER = "mlflow"
 HF_RESOURCE_SCANNER_TRACKER = "hf_resource_scanner"
+CLEARML_TRACKER = "clearml"
 
 AVAILABLE_TRACKERS = [
     AIMSTACK_TRACKER,
     FILE_LOGGING_TRACKER,
     HF_RESOURCE_SCANNER_TRACKER,
     MLFLOW_TRACKER,
+    CLEARML_TRACKER,
 ]
-
 
 # Trackers which can be used
 REGISTERED_TRACKERS = {}
@@ -46,17 +46,18 @@ REGISTERED_TRACKERS = {}
 _is_aim_available = _is_package_available("aim")
 _is_mlflow_available = _is_package_available("mlflow")
 _is_hf_resource_scanner_available = _is_package_available("HFResourceScanner")
-
-
-def _get_tracker_class(T, C):
-    return {"tracker": T, "config": C}
+_is_clearml_available = _is_package_available("clearml")
 
 
 def _is_tracker_installed(name):
-    if name == "aim":
+    if name == AIMSTACK_TRACKER:
         return _is_aim_available
-    if name == "mlflow":
+    if name == HF_RESOURCE_SCANNER_TRACKER:
+        return _is_hf_resource_scanner_available
+    if name == MLFLOW_TRACKER:
         return _is_mlflow_available
+    if name == CLEARML_TRACKER:
+        return _is_clearml_available
     return False
 
 
@@ -65,14 +66,11 @@ def _register_aim_tracker():
     if _is_aim_available:
         # Local
         from .aimstack_tracker import AimStackTracker
-        from tuning.config.tracker_configs import AimConfig
 
-        AimTracker = _get_tracker_class(AimStackTracker, AimConfig)
-
-        REGISTERED_TRACKERS[AIMSTACK_TRACKER] = AimTracker
+        REGISTERED_TRACKERS[AIMSTACK_TRACKER] = AimStackTracker
         logger.info("Registered aimstack tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering Aimstack tracker due to unavailablity of package.\n"
             "Please install aim if you intend to use it.\n"
             "\t pip install aim"
@@ -84,14 +82,11 @@ def _register_mlflow_tracker():
     if _is_mlflow_available:
         # Local
         from .mlflow_tracker import MLflowTracker
-        from tuning.config.tracker_configs import MLflowConfig
 
-        mlflow_tracker = _get_tracker_class(MLflowTracker, MLflowConfig)
-
-        REGISTERED_TRACKERS[MLFLOW_TRACKER] = mlflow_tracker
+        REGISTERED_TRACKERS[MLFLOW_TRACKER] = MLflowTracker
         logger.info("Registered mlflow tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering mlflow tracker due to unavailablity of package.\n"
             "Please install mlflow if you intend to use it.\n"
             "\t pip install mlflow"
@@ -103,34 +98,36 @@ def _register_hf_resource_scanner_tracker():
     if _is_hf_resource_scanner_available:
         # Local
         from .hf_resource_scanner_tracker import HFResourceScannerTracker
-        from tuning.config.tracker_configs import HFResourceScannerConfig
-
-        HFResourceScannerTracker = _get_tracker_class(
-            HFResourceScannerTracker, HFResourceScannerConfig
-        )
 
         REGISTERED_TRACKERS[HF_RESOURCE_SCANNER_TRACKER] = HFResourceScannerTracker
         logger.info("Registered HFResourceScanner tracker")
     else:
-        logger.info(
+        logger.warning(
             "Not registering HFResourceScanner tracker due to unavailablity of package.\n"
             "Please install HFResourceScanner if you intend to use it.\n"
             "\t pip install HFResourceScanner"
         )
 
 
-def _is_tracker_installed(name):
-    if name == AIMSTACK_TRACKER:
-        return _is_aim_available
-    if name == HF_RESOURCE_SCANNER_TRACKER:
-        return _is_hf_resource_scanner_available
-    return False
-
-
 def _register_file_logging_tracker():
-    FileTracker = _get_tracker_class(FileLoggingTracker, FileLoggingTrackerConfig)
-    REGISTERED_TRACKERS[FILE_LOGGING_TRACKER] = FileTracker
+    REGISTERED_TRACKERS[FILE_LOGGING_TRACKER] = FileLoggingTracker
     logger.info("Registered file logging tracker")
+
+
+def _register_clearml_tracker():
+    # pylint: disable=import-outside-toplevel
+    if _is_clearml_available:
+        # Local
+        from .clearml_tracker import ClearMLTracker
+
+        REGISTERED_TRACKERS[CLEARML_TRACKER] = ClearMLTracker
+        logger.info("Registered clearml tracker")
+    else:
+        logger.warning(
+            "Not registering clearml tracker due to unavailablity of package.\n"
+            "Please install clearml if you intend to use it.\n"
+            "\t pip install clearml"
+        )
 
 
 # List of Available Trackers
@@ -147,56 +144,31 @@ def _register_trackers():
         _register_mlflow_tracker()
     if HF_RESOURCE_SCANNER_TRACKER not in REGISTERED_TRACKERS:
         _register_hf_resource_scanner_tracker()
+    if CLEARML_TRACKER not in REGISTERED_TRACKERS:
+        _register_clearml_tracker()
 
 
-def _get_tracker_config_by_name(name: str, tracker_configs: TrackerConfigFactory):
-    if tracker_configs is None:
-        return
-    c_name = name + "_config"
-    d = dataclasses.asdict(tracker_configs)
-    if c_name in d:
-        return d[c_name]
-    return
-
-
-def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
+def get_tracker(name: str, tracker_configs: TrackerConfigs):
     """Returns an instance of the tracker object based on the requested name.
 
     Args:
         name (str): name of the tracker requested.
-        tracker_configs (tuning.config.tracker_configs.TrackerConfigFactory):
-            An instance of TrackerConfigFactory passed which contains a
-            non None instance of config for the requested tracker
+        tracker_configs (tuning.config.tracker_configs.TrackerConfigs):
+            An instance of TrackerConfigs passed which contains
+            all config for the requested trackers
     Raises:
         ValueError: If a valid tracker config is not found this function raises a ValueError
         ValueError: If a valid tracker is found but its config is not passed the tracker might
-            raise a ValueError. See tuning.trackers.tracker.aimstack_tracker.AimStackTracker
+            raise a ValueError.
 
     Returns:
         tuning.trackers.tracker.Tracker: A subclass of tuning.trackers.tracker.Tracker
-            Valid classes available are,
-            tuning.trackers.tracker.aimstack_tracker.AimStackTracker,
-            tuning.trackers.tracker.filelogging_tracker.FileLoggingTracker
-            tuning.trackers.tracker.mlflow_tracker.MLflowTracker
+            Valid classes available are in tuning.trackers.tracker/*_tracker.py
 
     Examples:
-        file_logging_tracker = get_tracker("file_logger", TrackerConfigFactory(
-                                    file_logger_config=FileLoggingTrackerConfig(
+        file_logging_tracker = get_tracker("file_logger", TrackerConfigs(
                                         training_logs_filename=logs_file
-                                    )
-                                ))
-        aim_tracker = get_tracker("aim", TrackerConfigFactory(
-                            aim_config=AimConfig(
-                                experiment="test",
-                                aim_repo=tempdir + "/"
-                            )
-                    ))
-        mlflow_tracker = get_tracker("mlflow", TrackerConfigFactory(
-                            mlflow_config=MLflowConfig(
-                                experiment="test",
-                                mlflow_tracking_uri="./mlflow.sqlite"
-                            )
-                    ))
+                                    )))
     """
     if not REGISTERED_TRACKERS:
         # a one time step.
@@ -213,13 +185,5 @@ def get_tracker(name: str, tracker_configs: TrackerConfigFactory):
         logger.error(e)
         raise ValueError(e)
 
-    meta = REGISTERED_TRACKERS[name]
-    C = meta["config"]
-    T = meta["tracker"]
-
-    _conf = _get_tracker_config_by_name(name, tracker_configs)
-    if _conf is not None:
-        config = C(**_conf)
-    else:
-        config = C()
-    return T(config)
+    T = REGISTERED_TRACKERS[name]
+    return T(tracker_configs)

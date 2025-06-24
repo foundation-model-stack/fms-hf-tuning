@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Standard
-import json
 import logging
 import os
 
@@ -22,9 +21,7 @@ from transformers.integrations import MLflowCallback  # pylint: disable=import-e
 
 # Local
 from .tracker import Tracker
-from tuning.config.tracker_configs import MLflowConfig
-
-MLFLOW_RUN_URI_EXPORT_FILENAME = "mlflow_tracker.json"
+from tuning.config.tracker_configs import TrackerConfigs
 
 
 class RunURIExporterMlflowCallback(MLflowCallback):
@@ -34,6 +31,7 @@ class RunURIExporterMlflowCallback(MLflowCallback):
     """
 
     run_uri_export_path: str = None
+    tracker: Tracker
     client = None
     logger = None
 
@@ -49,10 +47,8 @@ class RunURIExporterMlflowCallback(MLflowCallback):
             This function performs the following steps:
             1. Calls `MLFlowCallBack.setup` to
                 initialize internal `mlflow` structures.
-            2. Exports the `Mlflow` run uri:
-                - If `MLflowConfig.mlflow_run_uri_export_path` is provided, the uri
-                  is exported to `mlflow_run_uri_export_path/mlflow_tracker.json`
-                - If `MLflowConfig.mlflow_run_uri_export_path` is not provided but
+            2. Exports the run uri to `run_uri_export_path` at mlflow_tracker.json
+                - If `run_uri_export_path` is not provided but
                     `args.output_dir` is specified, the uri is exported to
                     `args.output_dir/mlflow_tracker.json`
                 - If neither path is valid, the uri is not exported.
@@ -63,6 +59,13 @@ class RunURIExporterMlflowCallback(MLflowCallback):
             For the arguments see reference to transformers.TrainingCallback
         """
         super().setup(args, state, model)
+
+        if not self._initialized:
+            self.logger.warning(
+                "mlflow tracker was requested but did not get initialized;"
+                + " Please check the config"
+            )
+            return
 
         self.client = self._ml_flow
 
@@ -81,30 +84,25 @@ class RunURIExporterMlflowCallback(MLflowCallback):
         if run_uri is None:
             return
 
-        # Change default uri path to output directory if not specified
-        if self.run_uri_export_path is None:
-            if args is None or args.output_dir is None:
-                self.logger.warning(
-                    "To export mlflow uri either output_dir \
-                                    or mlflow_run_id_export_path should be set"
-                )
-                return
+        if self.tracker:
+            run_info = {"run_name": run_name, "run_uri": run_uri}
+            self.tracker.export_run_info(args, run_info)
 
-            self.run_uri_export_path = args.output_dir
+        # Track any additional metadata and metrics requested
+        if self.client is not None:
+            # Handle metrics
+            if self.tracker.additional_metrics is not None:
+                for stage, metrics in self.tracker.additional_metrics.items():
+                    for name, value in metrics.items():
+                        self.client.log_metric(key=f"{stage}.{name}", value=value)
 
-        if not os.path.exists(self.run_uri_export_path):
-            os.makedirs(self.run_uri_export_path, exist_ok=True)
-
-        export_path = os.path.join(
-            self.run_uri_export_path, MLFLOW_RUN_URI_EXPORT_FILENAME
-        )
-        with open(export_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({"run_name": run_name, "run_uri": run_uri}))
-            self.logger.info("Mlflow tracker run uri id dumped to %s", export_path)
+            # Handle metadata
+            if self.tracker.additional_metadata is not None:
+                self.client.log_params(self.tracker.additional_metadata)
 
 
 class MLflowTracker(Tracker):
-    def __init__(self, tracker_config: MLflowConfig):
+    def __init__(self, tracker_config: TrackerConfigs):
         """Tracker which uses mlflow to collect and store metrics.
 
         Args:
@@ -126,10 +124,9 @@ class MLflowTracker(Tracker):
             MLFlowCallBack: The MLFlowCallBack initialsed with the config
             provided at init time.
         """
-        c = self.config
-        exp = c.mlflow_experiment
-        uri = c.mlflow_tracking_uri
-        run_uri_path = c.mlflow_run_uri_export_path
+        exp = self.config.mlflow_experiment
+        uri = self.config.mlflow_tracking_uri
+        run_uri_path = self.config.run_uri_export_path
 
         if uri is None:
             self.logger.error(
@@ -144,66 +141,12 @@ class MLflowTracker(Tracker):
         os.environ["MLFLOW_TRACKING_URI"] = uri
         os.environ["MLFLOW_EXPERIMENT_NAME"] = exp
 
-        mlflow_callback = RunURIExporterMlflowCallback()
+        cb = RunURIExporterMlflowCallback()
 
-        if mlflow_callback is not None:
-            mlflow_callback.run_uri_export_path = run_uri_path
-            mlflow_callback.logger = self.logger
+        if cb is not None:
+            cb.run_uri_export_path = run_uri_path
+            cb.logger = self.logger
+            cb.tracker = self
 
-        self.hf_callback = mlflow_callback
+        self.hf_callback = cb
         return self.hf_callback
-
-    def track(self, metric, name, stage=None):
-        """Track any additional metric with name under mlflow tracker.
-
-        Args:
-            metric (int/float): Expected metrics to be tracked by mlflow.
-            name (str): Name of the metric being tracked.
-            stage (str, optional): Can be used to pass the namespace/metadata to
-                associate with metric, e.g. at the stage the metric was generated
-                like train, eval. Defaults to None.
-                If not None the metric is saved as { state.name : metric }
-        Raises:
-            ValueError: If the metric or name are passed as None.
-        """
-        if metric is None or name is None:
-            raise ValueError(
-                "mlflow track function should not be called with None metric value or name"
-            )
-
-        if stage is not None:
-            name = f"{stage}.{name}"
-
-        mlflow = self.hf_callback.client
-        if mlflow is not None:
-            mlflow.log_metric(key=name, value=metric)
-
-    def set_params(self, params, name=None):
-        """Attach any extra params with the run information stored in mlflow tracker.
-
-        Args:
-            params (dict): A dict of k:v pairs of parameters to be storeed in tracker.
-            name (str, optional): represents the namespace under which parameters
-                will be associated in mlflow. e.g. {name: params}
-                 Defaults to None.
-
-        Raises:
-            ValueError: the params passed is None or not of type dict
-        """
-        if params is None:
-            return
-        if not isinstance(params, dict):
-            raise ValueError(
-                "set_params passed to mlflow should be called with a dict of params"
-            )
-        if name and not isinstance(name, str):
-            raise ValueError("name passed to mlflow set_params should be a string")
-
-        if name:
-            tolog = {name: params}
-        else:
-            tolog = params
-
-        mlflow = self.hf_callback.client
-        if mlflow is not None:
-            mlflow.log_params(tolog)

@@ -37,7 +37,7 @@ from tests.test_sft_trainer import (
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import AimConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 aim_not_available = not _is_package_available("aim")
 
@@ -87,9 +87,7 @@ def test_e2e_run_with_aim_tracker(aimrepo):
         # The below validate_training check will test for that too.
         train_args.trackers = ["aim"]
 
-        tracker_configs = TrackerConfigFactory(
-            aim_config=AimConfig(experiment="unit_test", aim_repo=aimrepo)
-        )
+        tracker_configs = TrackerConfigs(experiment="unit_test", aim_repo=aimrepo)
 
         sft_trainer.train(
             MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
@@ -115,9 +113,7 @@ def test_e2e_run_with_aim_runid_export_default_path(aimrepo):
         # The below validate_training check will test for that too.
         train_args.trackers = ["aim"]
 
-        tracker_configs = TrackerConfigFactory(
-            aim_config=AimConfig(experiment="unit_test", aim_repo=aimrepo)
-        )
+        tracker_configs = TrackerConfigs(experiment="unit_test", aim_repo=aimrepo)
 
         sft_trainer.train(
             MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
@@ -126,7 +122,7 @@ def test_e2e_run_with_aim_runid_export_default_path(aimrepo):
         # validate ft tuning configs
         _validate_training(tempdir)
 
-        runid_file = os.path.join(tempdir, "aimstack_tracker.json")
+        runid_file = os.path.join(tempdir, "aim_tracker.json")
 
         assert os.path.exists(runid_file) is True
         assert os.path.getsize(runid_file) > 0
