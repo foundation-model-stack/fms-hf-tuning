@@ -37,27 +37,9 @@ from tests.test_sft_trainer import (
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import ClearMLConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 clearml_not_available = not _is_package_available("clearml")
-
-
-@pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
-def test_run_with_clearml_tracker_name_but_no_args():
-    """Ensure that train() raises error with clearml tracker name but no args"""
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-
-        train_args.trackers = ["clearml"]
-
-        with pytest.raises(
-            ValueError,
-            ## XXX: TODO update
-            match="clearml tracker requested but clearml_uri is not specified.",
-        ):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
 
 
 @pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
@@ -81,8 +63,8 @@ def test_e2e_run_with_clearml_tracker():
 
     clearml_path = os.path.join(tempdir, "clearml")
 
-    tracker_configs = TrackerConfigFactory(
-        clearml_config=ClearMLConfig(clearml_task="unit_test")
+    tracker_configs = TrackerConfigs(
+        clearml_task="unit_test", run_uri_export_path=clearml_path
     )
 
     sft_trainer.train(
@@ -92,10 +74,17 @@ def test_e2e_run_with_clearml_tracker():
     # validate ft tuning configs
     _validate_training(tempdir)
 
-    assert os.path.exists(clearml_path) and os.path.isdir(clearml_path)
-
     # validate inference
     _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
+
+    run_uri_file = os.path.join(clearml_path, "clearml_tracker.json")
+
+    assert os.path.exists(run_uri_file) is True
+    assert os.path.getsize(run_uri_file) > 0
+
+    with open(run_uri_file, "r", encoding="utf-8") as f:
+        content = json.loads(f.read())
+        assert "task_uri" in content
 
 
 @pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
@@ -107,12 +96,7 @@ def test_e2e_run_with_clearml_runuri_export_default_path():
     train_args.output_dir = tempdir
 
     train_args.trackers = ["clearml"]
-
-    clearml_path = os.path.join(tempdir, "clearml")
-
-    tracker_configs = TrackerConfigFactory(
-        clearml_config=ClearMLConfig(clearml_task="unit_test")
-    )
+    tracker_configs = TrackerConfigs(clearml_task="unit_test")
 
     sft_trainer.train(
         MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
@@ -121,8 +105,6 @@ def test_e2e_run_with_clearml_runuri_export_default_path():
     # validate ft tuning configs
     _validate_training(tempdir)
 
-    assert os.path.exists(clearml_path) and os.path.isdir(clearml_path)
-
     run_uri_file = os.path.join(tempdir, "clearml_tracker.json")
 
     assert os.path.exists(run_uri_file) is True
@@ -130,4 +112,4 @@ def test_e2e_run_with_clearml_runuri_export_default_path():
 
     with open(run_uri_file, "r", encoding="utf-8") as f:
         content = json.loads(f.read())
-        assert "run_uri" in content
+        assert "task_uri" in content

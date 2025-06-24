@@ -33,7 +33,7 @@ from tests.test_sft_trainer import (
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import FileLoggingTrackerConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 ## File logging tracker tests
 
@@ -59,11 +59,7 @@ def test_sample_run_with_file_logger_updated_filename():
 
         logs_file = "new_train_logs.jsonl"
 
-        tracker_configs = TrackerConfigFactory(
-            file_logger_config=FileLoggingTrackerConfig(
-                training_logs_filename=logs_file
-            )
-        )
+        tracker_configs = TrackerConfigs(training_logs_filename=logs_file)
 
         sft_trainer.train(
             MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs

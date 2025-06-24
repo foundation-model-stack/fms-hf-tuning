@@ -13,18 +13,18 @@
 # limitations under the License.
 
 # Standard
-import json
 import logging
 import os
 
 # Third Party
+from clearml.backend_api.session.defs import (  # pylint: disable=import-error
+    MissingConfigError,
+)
 from transformers.integrations import ClearMLCallback  # pylint: disable=import-error
 
 # Local
 from .tracker import Tracker
-from tuning.config.tracker_configs import ClearMLConfig
-
-CLEARML_RUN_URI_EXPORT_FILENAME = "clearml_tracker.json"
+from tuning.config.tracker_configs import TrackerConfigs
 
 
 class RunURIExporterClearMLCallback(ClearMLCallback):
@@ -34,16 +34,20 @@ class RunURIExporterClearMLCallback(ClearMLCallback):
     """
 
     run_uri_export_path: str = None
-    task = None
     logger = None
+    tracker: Tracker = None
 
-    # Override ml flow callback setup function
-    # Initialise ClearML callback and export ClearML's run url.
+    def __init__(self):
+        super().__init__()
+        self._log_model = False
+
+    # Override ClearML callback setup function
+    # Initialise ClearML callback and export ClearML's run uri.
     # Export location is ClearMLConfig.ClearML_run_uri_export_path if it is passed
     # or, training_args.output_dir/ClearML_tracker.json if output_dir is present
-    # Exported url looks like '{"task_id":"<task-url>"}' in the file.
-    # url is not exported if both paths are invalid
-    def setup(self, args, state, model):
+    # Exported uri looks like '{"task_id":"<task-uri>"}' in the file.
+    # uri is not exported if both paths are invalid
+    def setup(self, args, state, model, processing_class, **kwargs):
         """Override the `setup` function in the `ClearMLCallback` callback.
 
             This function performs the following steps:
@@ -57,54 +61,73 @@ class RunURIExporterClearMLCallback(ClearMLCallback):
                     `args.output_dir/ClearML_tracker.json`
                 - If neither path is valid, the uri is not exported.
 
-            The exported uri is formatted as '{"task_id":"<task-url>"}'.
+            The exported uri is formatted as '{"task_id":"<task-uri>"}'.
 
         Args:
             For the arguments see reference to transformers.TrainingCallback
         """
-        super().setup(args, state, model)
-
-        if not self._initialized:
-            raise RuntimeError("Clearml tracker was requested but did not get initialized;"+
-                             " Please check the config")
-
-        self.task = self._clearml.Task.current_task()
-
-        task_id = self.task.id
-        task_url = self.task.get_output_log_web_page()
-        if not task_url:
+        try:
+            super().setup(args, state, model, processing_class, **kwargs)
+        except MissingConfigError:
+            self.logger.warning(
+                "ClearML Setup FAILED!! No configuraion found. "
+                + "Before using clearml please perform `clearml-init`, "
+                + "See clearml docs at - "
+                + "https://clear.ml/docs/latest/docs/clearml_sdk/clearml_sdk_setup"
+            )
+            # Disable clearml so it doesn't fail
+            ClearMLCallback._should_close_on_train_end = False
+            self._clearml = None
             return
 
-        # Change default uri path to output directory if not specified
-        if self.run_uri_export_path is None:
-            if args is None or args.output_dir is None:
-                self.logger.warning(
-                    "To export ClearML uri either output_dir \
-                                    or ClearML_run_id_export_path should be set"
-                )
-                return
-            self.run_uri_export_path = args.output_dir
+        if not self._initialized or self._clearml_task is None:
+            self.logger.warning(
+                "ClearMLtracker was requested but did not get initialized;"
+                + " Please check the config"
+            )
+            return
 
-        if not os.path.exists(self.run_uri_export_path):
-            os.makedirs(self.run_uri_export_path, exist_ok=True)
+        task = self._clearml.Task.current_task()
 
-        export_path = os.path.join(
-            self.run_uri_export_path, CLEARML_RUN_URI_EXPORT_FILENAME
-        )
-        with open(export_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({"task_id": task_id, "task_url": task_url}))
-            self.logger.info("ClearML tracker run url id dumped to %s", export_path)
+        task_id = task.id
+        task_uri = task.get_output_log_web_page()
+        if not task_uri:
+            return
+
+        if self.tracker:
+            run_info = {"task_id": task_id, "task_uri": task_uri}
+            self.tracker.export_run_info(args, run_info)
+
+        # Track any additional metadata and metrics requested
+        clearml_logger = task.get_logger()
+        if self.tracker.additional_metrics is not None:
+            for stage, metrics in self.tracker.additional_metrics.items():
+                for name, value in metrics.items():
+                    clearml_logger.report_single_value(
+                        name=f"{stage}.{name}", value=value
+                    )
+
+        if self.tracker.additional_metadata is not None:
+            for name, params in self.tracker.additional_metadata.items():
+                if isinstance(params, dict):
+                    for key, value in params.items():
+                        task.set_parameter(key, value, description=name)
+                else:
+                    task.set_parameter(name, params, description="additional_metadata")
+
+    def on_save(self, args, state, control, **kwargs):
+        pass
 
 
 class ClearMLTracker(Tracker):
-    def __init__(self, tracker_config: ClearMLConfig):
+    def __init__(self, tracker_config: TrackerConfigs):
         """Tracker which uses ClearML to collect and store metrics.
 
         Args:
-            tracker_config (ClearMLConfig): A valid ClearMLConfig which contains
+            tracker_config: A valid TrackerConfigs which contains
             information on where the ClearML tracking uri is present.
         """
-        super().__init__(name="ClearML", tracker_config=tracker_config)
+        super().__init__(name="clearml", tracker_config=tracker_config)
         # Get logger with root log level
         self.logger = logging.getLogger(__name__)
 
@@ -119,71 +142,19 @@ class ClearMLTracker(Tracker):
             ClearMLCallBack: The ClearMLCallBack initialsed with the config
             provided at init time.
         """
-        c = self.config
-        project = c.clearml_project
-        task = c.clearml_task
-        run_uri_path = c.clearml_run_uri_export_path
+        project = self.config.clearml_project
+        task = self.config.clearml_task
 
         # Modify the environment expected by clearml
         os.environ["CLEARML_PROJECT"] = project
         os.environ["CLEARML_TASK"] = task
 
-        clearml_callback = RunURIExporterClearMLCallback()
+        cb = RunURIExporterClearMLCallback()
 
-        if clearml_callback is not None:
-            clearml_callback.run_uri_export_path = run_uri_path
-            clearml_callback.logger = self.logger
+        if cb is not None:
+            cb.run_uri_export_path = self.config.run_uri_export_path
+            cb.logger = self.logger
+            cb.tracker = self
 
-        self.hf_callback = clearml_callback
+        self.hf_callback = cb
         return self.hf_callback
-
-    def track(self, metric, name, stage=None):
-        """Track any additional metric with name under ClearML tracker.
-
-        Args:
-            metric (int/float): Expected metrics to be tracked by ClearML.
-            name (str): Name of the metric being tracked.
-            stage (str, optional): Can be used to pass the namespace/metadata to
-                associate with metric, e.g. at the stage the metric was generated
-                like train, eval. Defaults to None.
-                If not None the metric is saved as { state.name : metric }
-        Raises:
-            ValueError: If the metric or name are passed as None.
-        """
-        if metric is None or name is None:
-            raise ValueError(
-                "ClearML track function should not be called with None metric value or name"
-            )
-
-        if stage is not None:
-            name = f"{stage}.{name}"
-
-        clearml_logger = self.hf_callback.task.get_logger()
-        if clearml_logger is not None:
-            clearml_logger.report_single_value(name=name, value=metric)
-
-    def set_params(self, params, name=None):
-        """Attach any extra params with the run information stored in ClearML tracker.
-
-        Args:
-            params (dict): A dict of k:v pairs of parameters to be storeed in tracker.
-            name (str, optional): represents the namespace under which parameters
-                will be associated in ClearML. e.g. {name: params}
-                 Defaults to None.
-
-        Raises:
-            ValueError: the params passed is None or not of type dict
-        """
-        if params is None:
-            return
-        if not isinstance(params, dict):
-            raise ValueError(
-                "set_params passed to ClearML should be called with a dict of params"
-            )
-        if name and not isinstance(name, str):
-            raise ValueError("name passed to ClearML set_params should be a string")
-
-        task = self.hf_callback.task
-        if task is not None:
-            for key, value in params.items():
-                task.set_parameter(key, value, description=name)
