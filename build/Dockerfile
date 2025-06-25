@@ -184,7 +184,7 @@ RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
 RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
-RUN if [[ "${ENABLE_CLEARML}}" == "true" ]]; then \
+RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
     fi
 
