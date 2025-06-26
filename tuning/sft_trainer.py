@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import traceback
+import warnings
 
 # Third Party
 from huggingface_hub.utils._validators import HFValidationError
@@ -856,4 +857,5 @@ def main():
 
 
 if __name__ == "__main__":
+    warnings.filterwarnings("error", "Could not find response key", UserWarning)
     main()
