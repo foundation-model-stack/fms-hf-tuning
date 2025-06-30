@@ -19,14 +19,14 @@ If you want to perform Extended Pretraining (EPT) on your training data, then us
 
 ```yaml
 dataprocessor:
-type: default
-streaming: false                
+  type: default
+  streaming: false
 datasets:
-# Commenting sampling ratio will concatenate the datasets
-- name: dataset_1
+  # Commenting sampling ratio will concatenate the datasets
+  - name: dataset_1
     # sampling: 1.0
     data_paths:
-    - "tests/artifacts/jsonl/twitter_complaints_small.jsonl"
+      - "tests/artifacts/jsonl/twitter_complaints_small.jsonl"
     # Either the below data_handlers section can be used or the dataset_text_field in the tuning config can be used for specifying the field in the dataset that contains the training text for EPT.
     # In this sample ept_data, "output" field contains the text for training. Please change it according to your data.
     # If your data is already tokenized data, then comment the data handlers section
@@ -39,18 +39,18 @@ datasets:
             text_column_name: "output"
             max_length: 4096
 # If there are multiple datasets, add them in the data config as well.
-# - name: dataset_2
-    # sampling: 1.0
-    # data_paths:
-    #   - /path/to/the/dataset
-    # data_handlers:
-    #   - name: tokenize
-    #     arguments:
-    #       remove_columns: all
-    #       batched: false
-    #       fn_kwargs:
-    #         text_column_name: "text"
-    #         max_length: 4096
+  # - name: dataset_2
+  #   # sampling: 1.0
+  #   data_paths:
+  #     - /path/to/the/dataset
+  #   data_handlers:
+  #     - name: tokenize
+  #       arguments:
+  #         remove_columns: all
+  #         batched: false
+  #         fn_kwargs:
+  #           text_column_name: "text"
+  #           max_length: 4096
 ```
 
 Example training data:
@@ -73,21 +73,21 @@ If the training data is in format of question-answer/instruction-response, then 
 
 ```yaml
 dataprocessor:
-type: default
-streaming: false                
+  type: default
+  streaming: false
 datasets:
-# If there are more than one dataset, then commenting the sampling ratio will concatenate the datasets.
-- name: dataset_1
+  # If there are more than one dataset, then commenting the sampling ratio will concatenate the datasets.
+  - name: dataset_1
     # sampling: 1.0
     data_paths:
-    - "tests/artifacts/jsonl/twitter_complaints_small.jsonl"
+      - "tests/artifacts/jsonl/twitter_complaints_small.jsonl"
     # If your data is already tokenized data, then comment the data handlers section
     data_handlers:
-    - name: apply_custom_jinja_template
+      - name: apply_custom_jinja_template
         arguments:
-        remove_columns: all
-        batched: false
-        fn_kwargs:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
             formatted_text_column_name: "formatted_chat_data"
             template: "{% raw %}### Input: {{tweet_text}} \\\n\\\n### Response: {{text_label}}{% endraw %}"
 # If there are multiple datasets, add them in the data config as well.
@@ -111,12 +111,12 @@ If the training data is in a single-turn/multi-turn chat format, then use the be
 
 ```yaml
 dataprocessor:
-type: default
-streaming: false
-# This data config uses the chat template of the "ibm-granite/granite-3.1-8b-instruct" model for intruction-tuning of base model. If you want to modify the chat template you can edit the below chat template. 
-# If your model is same instruct model then comment the chat template section.
-# If your model is a different instruct model (if the tokenizer_config.json file contains chat_template) other than "ibm-granite/granite-3.1-8b-instruct" model, then correct the below chat template with the model's chat template.
-chat_template: |
+  type: default
+  streaming: false
+  # This data config uses the chat template of the "ibm-granite/granite-3.1-8b-instruct" model for intruction-tuning of base model. If you want to modify the chat template you can edit the below chat template.
+  # If your model is same instruct model then comment the chat template section.
+  # If your model is a different instruct model (if the tokenizer_config.json file contains chat_template) other than "ibm-granite/granite-3.1-8b-instruct" model, then correct the below chat template with the model's chat template.
+  chat_template: |
     {% raw %}
     {%- if messages[0]['role'] == 'system' %}
         {%- set system_message = messages[0]['content'] %}
@@ -169,17 +169,17 @@ chat_template: |
     {%- endfor %}
     {% endraw %}
 datasets:
-# If there are more than one dataset, then commenting the sampling ratio will concatenate the datasets
-- name: dataset_1
+  # If there are more than one dataset, then commenting the sampling ratio will concatenate the datasets
+  - name: dataset_1
     # sampling: 1.0
     data_paths:
-    - "tests/artifacts/jsonl/multi_turn_chat_conversations.jsonl"
+      - "tests/artifacts/jsonl/multi_turn_chat_conversations.jsonl"
     # Comment the below data_handlers section if your data is already pre-tokenized data and contains the "input_ids", "labels", and "attention_mask".
     data_handlers:
-    - name: tokenize_and_apply_chat_template_with_masking
+      - name: tokenize_and_apply_chat_template_with_masking
         arguments:
-        remove_columns: all
-        fn_kwargs:
+          remove_columns: all
+          fn_kwargs:
             max_seq_length: 4096
             conversation_column: "messages"
 ```
