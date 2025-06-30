@@ -180,37 +180,11 @@ def __wrap_jinja_rendering_with_exception_handling(render_template: callable, **
             f"Error occurred while rendering the provided Jinja template. {e}"
         ) from e
 
-def column_to_json(
-    element: Dict[str, str],
-    column_name: str,
-        **kwargs,
-):
-    """Convert a column to json format. Meant for columns that already are in json but of string type.
-       Expects to be run as a HF Map API function.
-    Args:
-        element: the HF Dataset element
-        column_name: the name of the column to convert
-    """
-
-    def render():
-        inp = element[column_name]
-        try:
-            # this can easily fail if the individual values in the template are not already json encoded
-            res = json.loads(inp)
-            return res
-        except json.decoder.JSONDecodeError as e:
-            raise RuntimeError(
-                "Column data not in expected json format: %s" % (inp)
-            ) from e
-
-    return {
-        f"{column_name}": render()
-    }
-
 
 def apply_custom_jinja_template(
     element: Dict[str, str],
     formatted_text_column_name: str,
+    to_json: bool,
     template: str,
     **kwargs,
 ):
@@ -221,6 +195,7 @@ def apply_custom_jinja_template(
         formatted_text_column_name: Name of the dataset column where formatted
                                     text is to be saved. If doesn't exist a new
                                     column will be created.
+        to_json: whether to cast the output as a json
         template: Template to format data with. Features of Dataset
             should be referred to by {{key}}.
     Returns:
@@ -241,6 +216,14 @@ def apply_custom_jinja_template(
         jinja_template = env.from_string(template)
         template_kwargs = {**tokenizer.special_tokens_map, **element}
         res = jinja_template.render(element=element, **template_kwargs)
+        if to_json:
+            try:
+                # this can easily fail if the individual values in the template are not already json encoded
+                res = json.loads(res)
+            except json.decoder.JSONDecodeError as e:
+                raise RuntimeError(
+                    "Column data not in expected json format: %s" % (res)
+                ) from e
         return res
 
     return {
@@ -690,11 +673,5 @@ AVAILABLE_DATA_HANDLERS = {
         handler_type=DataHandlerType.MAP,
         allows_batching=False,
         desc="Processing multimodal data",
-    ),
-    "column_to_json": DataHandler(
-        op=column_to_json,
-        handler_type=DataHandlerType.MAP,
-        allows_batching=False,
-        desc="Convert column to json format",
     ),
 }
