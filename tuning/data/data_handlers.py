@@ -160,24 +160,26 @@ def tokenize_and_apply_input_masking(
 
 
 def __wrap_jinja_rendering_with_exception_handling(render_template: callable, **kwargs):
+    base_err = (
+        "Failed to render provided chat/custom template on dataset."
+        + "Please check your dataset and the template. Likely failure cause - "
+    )
     try:
         return render_template(**kwargs)  # <-------- Actual function call
     except TemplateSyntaxError as e:
         raise ValueError(
-            f"Invalid template syntax in provided jinja template. {e}"
+            f"{base_err}Provided jinja template syntax is invalid. {e}"
         ) from e
     except UndefinedError as e:
         raise KeyError(
-            f"The dataset does not contain the key used in the provided jinja template. {e}"
+            f"{base_err}Jinja template keys are not present in the dataset. {e}"
         ) from e
     except SecurityError as e:
         raise ValueError(
-            f"Unsafe operation detected in the provided Jinja template. {e}"
+            f"{base_err}Unsafe operation detected in the Jinja template. {e}"
         ) from e
     except Exception as e:
-        raise ValueError(
-            f"Error occurred while rendering the provided Jinja template. {e}"
-        ) from e
+        raise ValueError(f"{base_err}{e}") from e
 
 
 def apply_custom_jinja_template(
@@ -258,10 +260,15 @@ def apply_tokenizer_chat_template(
             "Tokenizer does not contain tokenizer.chat_template\
                           please pass data_args.chat_template"
         )
-    if conversation_column_name and conversation_column_name in element:
-        converation = element[conversation_column_name]
+    if conversation_column_name:
+        if conversation_column_name not in element:
+            raise ValueError(
+                "conversation_column_name %s is not present in data sample"
+                % conversation_column_name
+            )
+        conversation = element[conversation_column_name]
     else:
-        converation = element
+        conversation = element
 
     tools = element["tools"] if "tools" in element else None
     documents = element["documents"] if "documents" in element else None
@@ -269,7 +276,7 @@ def apply_tokenizer_chat_template(
     return __wrap_jinja_rendering_with_exception_handling(
         lambda: {
             f"{formatted_text_column_name}": tokenizer.apply_chat_template(
-                converation, tools=tools, documents=documents, tokenize=False
+                conversation, tools=tools, documents=documents, tokenize=False
             )
         }
     )
