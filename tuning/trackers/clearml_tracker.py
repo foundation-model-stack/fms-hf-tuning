@@ -33,6 +33,7 @@ class RunURIExporterClearMLCallback(ClearMLCallback):
     as soon as it is created, which is on setup().
     """
 
+    _use_clearml = True
     run_uri_export_path: str = None
     logger = None
     tracker: Tracker = None
@@ -80,11 +81,15 @@ class RunURIExporterClearMLCallback(ClearMLCallback):
             self._clearml = None
             return
 
+        if not self._use_clearml or not state.is_world_process_zero:
+            return
+
         if not self._initialized or self._clearml_task is None:
             self.logger.warning(
                 "ClearMLtracker was requested but did not get initialized;"
                 + " Please check the config"
             )
+            self._use_clearml = False
             return
 
         task = self._clearml.Task.current_task()
