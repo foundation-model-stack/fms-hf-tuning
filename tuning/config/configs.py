@@ -200,11 +200,12 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (logging is done every `logging_steps`)"
         },
     )
-    trackers: Optional[List[str.lower]] = field(
+    trackers: Optional[List[str]] = field(
         default_factory=lambda: [FILE_LOGGING_TRACKER],
         metadata={
             "help": "Experiment trackers to use.\n"
-            + "Available trackers are - file_logger(default), aim, none\n"
+            + "Available trackers are - "
+            + "file_logger(default), aim, clearml, mlflow, hf_resource_scanner\n"
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
@@ -226,6 +227,18 @@ class TrainingArguments(transformers.TrainingArguments):
                 for all PEFT runs by the library internally."
         },
     )
+    eval_strategy: str = field(
+        default="no",
+        metadata={
+            "help": "The evaluation strategy to adopt during training. "
+            "Possible values are 'no' (no evaluation during training), "
+            "'epoch' (evaluate at the end of each epoch), "
+            "'steps' (evaluate every `eval_steps`). "
+            "Note: Splitting the dataset does not automatically trigger evaluation; "
+            "you must explicitly set this value to enable evaluation."
+        },
+    )
+    report_to: str = "none"
 
 
 @dataclass
