@@ -63,7 +63,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.logging import set_log_level
+from tuning.utils.logging import pretty_print_args, set_log_level
 
 
 def train(
@@ -120,7 +120,9 @@ def train(
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
     """
-    train_args, logger = set_log_level(train_args, "sft_trainer_train")
+    logger, train_args.log_level = set_log_level(
+        logger_name="sft_trainer_train", level=train_args.log_level
+    )
     USE_ALORA = False
     try:
         # Third Party
@@ -529,7 +531,6 @@ def get_parser():
         choices=["pt", "lora", "alora", None, "none"],
         default="none",
     )
-
     parser.add_argument(
         "--exp_metadata",
         type=str,
@@ -603,7 +604,6 @@ def parse_arguments(parser, json_config=None):
                 raise ValueError(
                     "invocation_string is not passed required for aLoRA usage"
                 )
-
     else:
         (
             model_args,
@@ -687,26 +687,28 @@ def main():
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, logger = set_log_level(training_args, __name__)
-
-        logger.info(
-            "Flat arguments parsed: \
-            model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config, %s,\
-            fast_moe_config %s, tracker_config %s, exp_metadata %s",
-            model_args,
-            data_args,
-            training_args,
-            trainer_controller_args,
-            tune_config,
-            quantized_lora_config,
-            fusedops_kernels_config,
-            attention_and_distributed_packing_config,
-            fast_moe_config,
-            tracker_configs,
-            exp_metadata,
+        logger, training_args.log_level = set_log_level(
+            logger_name=__name__, level=training_args.log_level
         )
+
+        logger.info("fms-hf-tuning execution start")
+        args_dump = pretty_print_args(
+            {
+                "Model Arguments": model_args,
+                "Data Arguments": data_args,
+                "Training Arguments": training_args,
+                "Tune Config": tune_config,
+                "QLoRA Config": quantized_lora_config,
+                "Tracker Config": tracker_configs,
+                "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
+                "Fused Ops Kernels Config": fusedops_kernels_config,
+                "Fast MoE Config": fast_moe_config,
+                "Trainer Controller Config": trainer_controller_args,
+                "Extra Metadata": exp_metadata,
+            }
+        )
+        logger.info(args_dump)
+
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
         write_termination_log(
