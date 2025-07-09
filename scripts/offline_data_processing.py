@@ -5,11 +5,12 @@ import sys
 import traceback
 
 # Third Party
+from datasets import IterableDataset
 from transformers import AutoTokenizer
 
 # Local
 from tuning.config import configs
-from tuning.data.setup_dataprocessor import process_dataargs
+from tuning.data.setup_dataprocessor import process_dataconfig_file
 from tuning.data.tokenizer_utils import setup_tokenizer
 from tuning.sft_trainer import get_parser
 from tuning.utils.error_logging import USER_ERROR_EXIT_CODE, write_termination_log
@@ -90,11 +91,16 @@ def process_datasets_offline(
         formatted_train_dataset,
         formatted_validation_dataset,
         _,
-        _,
-        _,
-        _,
-    ) = process_dataargs(data_args, tokenizer, train_args)
+    ) = process_dataconfig_file(data_args, train_args, tokenizer)
     logger.info("Dataset processing completed successfully.")
+
+    if isinstance(formatted_train_dataset, IterableDataset) or isinstance(
+        formatted_validation_dataset, IterableDataset
+    ):
+        raise ValueError(
+            "Streaming datasets will have no use in offline mode."
+            "Please set streaming to false in data config and proceed."
+        )
 
     formatted_train_dataset = formatted_train_dataset.flatten_indices()
     if formatted_validation_dataset:

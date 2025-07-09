@@ -62,9 +62,7 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
-# TODO: For now assume only training dataset is passed via data config file.
-# This is very limited but is done to keep first implementation minimal
-def _process_dataconfig_file(
+def process_dataconfig_file(
     data_args: DataArguments,
     train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
@@ -72,14 +70,32 @@ def _process_dataconfig_file(
     processor: AutoProcessor = None,
     is_multipack: bool = False,
 ):
-    data_config = load_and_validate_data_config(data_args.data_config_path)
-    data_processor = get_datapreprocessor(
-        processor_config=data_config.dataprocessor,
-        tokenizer=tokenizer,
-        processor=processor,
-        additional_data_handlers=additional_data_handlers,
-    )
+    """
+    Args:
+        data_args: tuning.config.configs.DataArguments
+        train_args: TrainingArguments
+            Training arguments passed to the library
+            Used for max_steps if streaming is set.
+        tokenizer: AutoTokenizer
+        additional_data_handlers: A Dict of [str, DataHandler] data handlers
+            which need to be registered with the data preprocessor
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model. Defaults to None.
+        is_multipack: A bool representing is Multipack plugin is enabled.
+                         Defauts to False.
+    Returns:
+        Tuple(Dataset, Dataset, str)
+            tuple containing
+            train_dataset (Dataset/IterableDataset),
+            eval_dataset (Dataset/IterableDataset),
+            dataset_text_field (str),
+    """
 
+    data_config = load_and_validate_data_config(data_args.data_config_path)
+
+    if not data_config:
+        raise ValueError("Data config is not provided. Please check data args.")
     if (
         data_args.training_data_path is not None
         or data_args.validation_data_path is not None
@@ -89,14 +105,12 @@ def _process_dataconfig_file(
             "data_config. Please provide paths in data_config instead."
         )
 
-    if data_processor.processor_config.chat_template is not None:
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with data config's chat_template %s",
-                tokenizer.chat_template,
-                data_processor.processor_config.chat_template,
-            )
-        tokenizer.chat_template = data_processor.processor_config.chat_template
+    data_processor = get_datapreprocessor(
+        processor_config=data_config.dataprocessor,
+        tokenizer=tokenizer,
+        processor=processor,
+        additional_data_handlers=additional_data_handlers,
+    )
 
     if data_processor.processor_config.streaming:
         if train_args.max_steps < 1:
@@ -117,6 +131,16 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
+
+    if data_processor.processor_config.chat_template is not None:
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with data config's chat_template %s",
+                tokenizer.chat_template,
+                data_processor.processor_config.chat_template,
+            )
+        tokenizer.chat_template = data_processor.processor_config.chat_template
+
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
         data_config.datasets
     )
@@ -476,7 +500,7 @@ def process_dataargs(
         )
 
     if data_args.data_config_path:
-        train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
+        train_dataset, eval_dataset, dataset_text_field = process_dataconfig_file(
             data_args,
             train_args,
             tokenizer,
