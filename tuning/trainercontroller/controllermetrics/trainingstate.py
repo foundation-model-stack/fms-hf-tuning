@@ -71,4 +71,9 @@ class TrainingState(MetricHandler):
         Returns:
             dict. Trainer state as a dictionary
         """
-        return dataclasses.asdict(state)
+        state_as_dict = dataclasses.asdict(state)
+        if 'is_final' in kwargs:
+            state_as_dict['is_final'] = kwargs['is_final']
+        else:
+            state_as_dict['is_final'] = False
+        return state_as_dict

@@ -9,9 +9,6 @@ from .operation import Operation
 
 logger = logging.getLogger(__name__)
 
-DefaultFinalLogMessage = "Saving final checkpoint in {final_path}"
-
-
 class LogControl(Operation):
     """Operation that can be used to log useful information on specific events."""
 
