@@ -848,9 +848,7 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.output_dir = tempdir
 
         trainer, _, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
-        logs_path = os.path.join(
-            tempdir, TrackerConfigs.training_logs_filename
-        )
+        logs_path = os.path.join(tempdir, TrackerConfigs.training_logs_filename)
         _validate_logfile(logs_path)
         # validate that no checkpoints created
         assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
