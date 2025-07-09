@@ -508,7 +508,7 @@ def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=
     logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
     if tc_callback and args:
-        kwargs['path'] = path
+        kwargs["path"] = path
         tc_callback.on_save(args, trainer.state, trainer.control, is_final=True)
 
 
