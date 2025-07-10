@@ -45,6 +45,7 @@ class TrainingState(MetricHandler):
                 "on_prediction_step",
                 "on_predict",
                 "on_log",
+                "on_save",
                 "on_train_end",
                 "on_train_begin",
                 "on_evaluate",
