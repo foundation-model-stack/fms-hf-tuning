@@ -774,6 +774,10 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+    with pytest.raises(ValueError):
+        _ = process_dataconfig_file(
+            data_args, TRAIN_ARGS, tokenizer, is_padding_free=True
+        )
 
 
 def test_concatenate_dict_with_multi_keys():
@@ -1453,6 +1457,11 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
     if eval_set:
         assert set(["input_ids", "attention_mask", "labels"]).issubset(
             set(eval_set.column_names)
+        )
+    TRAIN_ARGS.eval_strategy = "epoch"
+    with pytest.raises(ValueError):
+        train_set, eval_set, _, _, _, _ = process_dataargs(
+            data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
 
 
