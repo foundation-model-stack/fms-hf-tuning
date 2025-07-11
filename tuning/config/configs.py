@@ -146,6 +146,31 @@ class DataArguments:
             Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
+    do_dataprocessing_only: bool = field(
+        default=False,
+        metadata={
+            "help": "Set this field only if you need to preprocess the dataset and not train.\
+                  Setting this field would mean that the data arguments will be processed and the \
+                  processed dataset will be dumped to TrainingArguments.output_dir.\n \
+                  The tokenizer is picked from (model_name_or_path/tokenizer_name_or_path). \n \
+                  Also set num_train_dataset_shards and num_eval_dataset_shards for splitting the \
+                  dataset into multiple shards (defaults to 1)",
+        },
+    )
+    num_train_dataset_shards: int = field(
+        default=1,
+        metadata={
+            "help": "Number of train dataset shards to dump the dataset.\
+                    Used in conjunction with --do_dataprocessing_only"
+        },
+    )
+    num_eval_dataset_shards: int = field(
+        default=1,
+        metadata={
+            "help": "Number of eval dataset shards to dump the dataset.\
+                    Used in conjunction with --do_dataprocessing_only"
+        },
+    )
 
     def __post_init__(self):
         def unescape(s):
