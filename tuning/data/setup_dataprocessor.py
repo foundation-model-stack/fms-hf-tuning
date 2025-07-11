@@ -70,6 +70,7 @@ def process_dataconfig_file(
     additional_data_handlers: Dict[str, DataHandler] = None,
     processor: AutoProcessor = None,
     is_multipack: bool = False,
+    is_padding_free: bool = False,
 ):
     """
     Args:
@@ -114,6 +115,14 @@ def process_dataconfig_file(
     )
 
     if data_processor.processor_config.streaming:
+        if is_padding_free:
+            logging.error(
+                "`padding_free` is not supported when streaming is enabled.",
+            )
+            raise ValueError(
+                "`--padding_free` is not allowed when `streaming=True`. "
+                "Please remove the `padding_free` argument from your configuration."
+            )
         if train_args.max_steps < 1:
             logging.error(
                 "ValueError: `--max_steps` must be set when streaming is set in data "
@@ -549,6 +558,7 @@ def process_dataargs(
             additional_data_handlers,
             processor,
             is_multipack,
+            is_padding_free,
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -561,6 +571,17 @@ def process_dataargs(
             processor,
         )
 
+    if train_args.eval_strategy != "no" and eval_dataset is None:
+        raise ValueError(
+            f"`eval_strategy` is set to '{train_args.eval_strategy}' but no evaluation "
+            f"dataset was provided. Please ensure that an evaluation dataset is specified "
+            f"or set `eval_strategy='no'` to disable evaluation."
+        )
+    if train_dataset is None:
+        raise ValueError(
+            "Training dataset could not be created! Training Dataset is None."
+            "Check your data config or ensure split sizes are valid."
+        )
     if data_args.do_dataprocessing_only:
         dump_dir = Path(train_args.output_dir)
         if not dump_dir.is_absolute():
