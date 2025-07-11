@@ -17,13 +17,13 @@ operations:
       log_format: |
         Saving model in huggingface format at step: {trainer_state[global_step]}
         Model saved in {path}
-      log_level: warning
+      log_level: info
   - name: logger_on_save_final
     class: LogControl
     arguments:
       log_format: |
         Saving final checkpoint in {path}
-      log_level: warning
+      log_level: info
 controllers:
   - name: ctrl-on-log-format
     triggers:
