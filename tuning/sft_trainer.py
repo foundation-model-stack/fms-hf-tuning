@@ -348,6 +348,12 @@ def train(
         time.time() - data_preprocessing_time
     )
 
+    if data_args.do_dataprocessing_only:
+        logger.info(
+            "Only data processing was requested. Exiting Process.",
+        )
+        return None, None
+
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
             model, train_args, modifiable_args=(peft_config,)
@@ -765,6 +771,10 @@ def main():
         logger.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
+
+    # if only data processing was requested exit the process
+    if data_args.do_dataprocessing_only:
+        return
 
     # save model
     if training_args.save_model_dir:
