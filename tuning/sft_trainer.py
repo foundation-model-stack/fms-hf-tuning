@@ -196,6 +196,7 @@ def train(
     # Initialize Trackers And Callbacks
     trackers = []
     trainer_callbacks = []
+    tc_callback = None
 
     if exp_metadata and (not isinstance(exp_metadata, dict)):
         raise ValueError("exp metadata passed should be a dict with valid json")
@@ -480,10 +481,10 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    return trainer, additional_metadata
+    return trainer, additional_metadata, tc_callback
 
 
-def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
+def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=None):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -506,6 +507,10 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
 
     logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
+    if tc_callback and args:
+        tc_callback.on_save(
+            args, trainer.state, trainer.control, path=path, is_final=True
+        )
 
 
 def get_parser():
@@ -735,7 +740,7 @@ def main():
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
     try:
-        trainer, additional_train_info = train(
+        trainer, additional_train_info, tc_callback = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -784,7 +789,9 @@ def main():
             save(
                 path=training_args.save_model_dir,
                 trainer=trainer,
+                tc_callback=tc_callback,
                 log_level=training_args.log_level,
+                args=training_args,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())

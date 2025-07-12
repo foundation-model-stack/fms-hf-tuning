@@ -581,6 +581,10 @@ class TrainerControllerCallback(TrainerCallback):
         kwargs["args"] = args
         kwargs["state"] = state
         kwargs["control"] = control
+        if "path" not in kwargs:
+            kwargs["path"] = f"{args.output_dir}/checkpoint-{state.global_step}"
+        if "is_final" not in kwargs:
+            kwargs["is_final"] = False
         self._actions_on_event(event_name="on_save", **kwargs)
 
     def on_step_begin(
