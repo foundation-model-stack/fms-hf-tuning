@@ -30,10 +30,6 @@ import pytest
 import yaml
 
 # First Party
-from scripts.offline_data_processing import (
-    process_datasets_offline,
-    save_dataset_shards,
-)
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
@@ -81,9 +77,9 @@ from tuning.data.data_config import (
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
-    _process_dataconfig_file,
     is_pretokenized_dataset,
     process_dataargs,
+    process_dataconfig_file,
 )
 from tuning.data.utils import try_concatenate_datasets
 
@@ -769,7 +765,7 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, IterableDataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -778,6 +774,10 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         assert set(["input_ids", "labels"]).issubset(set(train_set.column_names))
     elif datasets_name == "apply_custom_data_template":
         assert formatted_dataset_field in set(train_set.column_names)
+    with pytest.raises(ValueError):
+        _ = process_dataconfig_file(
+            data_args, TRAIN_ARGS, tokenizer, is_padding_free=True
+        )
 
 
 def test_concatenate_dict_with_multi_keys():
@@ -873,7 +873,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     )
 
     with pytest.raises(ValueError):
-        (_, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+        (_, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
 
 @pytest.mark.parametrize(
@@ -935,7 +935,7 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     is_multipack = attention_and_distributed_packing_config.is_multipack
 
     with pytest.raises(ValueError):
-        (_, _, _) = _process_dataconfig_file(
+        (_, _, _) = process_dataconfig_file(
             data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
         )
 
@@ -1014,7 +1014,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1104,7 +1104,7 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1255,7 +1255,7 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1327,7 +1327,7 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = _process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)
@@ -1457,6 +1457,11 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
     if eval_set:
         assert set(["input_ids", "attention_mask", "labels"]).issubset(
             set(eval_set.column_names)
+        )
+    TRAIN_ARGS.eval_strategy = "epoch"
+    with pytest.raises(ValueError):
+        train_set, eval_set, _, _, _, _ = process_dataargs(
+            data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
 
 
@@ -1906,14 +1911,14 @@ def test_process_datasets_offline(datafile, datasetconfigname):
     """
 
     data_args = configs.DataArguments()
-    data_args.response_template = "<|assistant|>"
-    data_args.instruction_template = "<|user|>"
-    data_args.dataset_text_field = "formatted_chat_data"
     MODEL_ARGS = configs.ModelArguments(
         model_name_or_path=MODEL_NAME, use_flash_attn=False
     )
+    data_args.dataset_text_field = "formatted_text"
     columns = [data_args.dataset_text_field]
-    num_dataset_shards = 2
+
+    data_args.do_dataprocessing_only = True
+    data_args.num_train_dataset_shards = num_dataset_shards = 2
 
     with open(datasetconfigname, "r", encoding="utf-8") as f:
         yaml_content = yaml.safe_load(f)
@@ -1947,8 +1952,11 @@ def test_process_datasets_offline(datafile, datasetconfigname):
         TRAIN_ARGS = configs.TrainingArguments(
             output_dir=tmpdirname, max_seq_length=4096
         )
-        formatted_train_dataset, _ = process_datasets_offline(
-            model_args=MODEL_ARGS, data_args=data_args, train_args=TRAIN_ARGS
+
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_ARGS.model_name_or_path)
+
+        formatted_train_dataset, _, _, _, _, _ = process_dataargs(
+            data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
 
         assert isinstance(formatted_train_dataset, Dataset)
@@ -1957,12 +1965,6 @@ def test_process_datasets_offline(datafile, datasetconfigname):
             assert len(formatted_train_dataset) == sum(1 for _ in f)
 
         train_dataset_dir = os.path.join(TRAIN_ARGS.output_dir, "train_dataset")
-        save_dataset_shards(
-            formatted_train_dataset,
-            train_dataset_dir,
-            num_dataset_shards,
-            "train_dataset",
-        )
         assert len(os.listdir(train_dataset_dir)) == num_dataset_shards
 
 
