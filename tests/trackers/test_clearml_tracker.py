@@ -39,34 +39,33 @@ from tests.test_sft_trainer import (
 from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
 
-mlflow_not_available = not _is_package_available("mlflow")
+
+def _check_clearml_setup():
+    if _is_package_available("clearml"):
+        try:
+            # pylint: disable=import-error, disable=import-outside-toplevel
+            # Third Party
+            import clearml
+
+            t = clearml.Task.init()
+            t.close()
+            return True
+        except clearml.backend_api.session.defs.MissingConfigError:
+            return False
+    return False
 
 
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
-def test_run_with_mlflow_tracker_name_but_no_args():
-    """Ensure that train() raises error with mlflow tracker name but no args"""
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        train_args = copy.deepcopy(TRAIN_ARGS)
-        train_args.output_dir = tempdir
-
-        train_args.trackers = ["mlflow"]
-
-        with pytest.raises(
-            ValueError,
-            match="mlflow tracker requested but mlflow_uri is not specified.",
-        ):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+clearml_not_available = not _check_clearml_setup()
 
 
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
-def test_e2e_run_with_mlflow_tracker():
-    """Ensure that training succeeds with mlflow tracker"""
+@pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
+def test_e2e_run_with_clearml_tracker():
+    """Ensure that training succeeds with clearml tracker"""
 
-    # mlflow performs a cleanup at callback close time which happens post the
+    # clearml performs a cleanup at callback close time which happens post the
     # delete of this directory so we run into two issues
-    # 1. the temp directory cannot be cleared as it has open pointer by mlflow
-    # 2. mlflow complaints that it cannot find a run which it just created.
+    # 1. the temp directory cannot be cleared as it has open pointer by clearml
+    # 2. clearml complaints that it cannot find a run which it just created.
     # this is a race condition which is fixed with mkdtemp() which doesn't delete
     tempdir = tempfile.mkdtemp()
 
@@ -76,13 +75,12 @@ def test_e2e_run_with_mlflow_tracker():
     # This should not mean file logger is not present.
     # code will add it by default
     # The below validate_training check will test for that too.
-    train_args.trackers = ["mlflow"]
+    train_args.trackers = ["clearml"]
 
-    mlflow_path = os.path.join(tempdir, "mlflow")
+    clearml_path = os.path.join(tempdir, "clearml")
 
     tracker_configs = TrackerConfigs(
-        mlflow_experiment="unit_test",
-        mlflow_tracking_uri=f"file://{mlflow_path}",
+        clearml_task="unit_test", run_uri_export_path=clearml_path
     )
 
     sft_trainer.train(
@@ -91,44 +89,43 @@ def test_e2e_run_with_mlflow_tracker():
 
     # validate ft tuning configs
     _validate_training(tempdir)
-
-    assert os.path.exists(mlflow_path) and os.path.isdir(mlflow_path)
 
     # validate inference
     _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
-
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
-def test_e2e_run_with_mlflow_runuri_export_default_path():
-    """Ensure that mlflow outputs run uri in the output dir by default"""
-
-    tempdir = tempfile.mkdtemp()
-    train_args = copy.deepcopy(TRAIN_ARGS)
-    train_args.output_dir = tempdir
-
-    train_args.trackers = ["mlflow"]
-
-    mlflow_path = os.path.join(tempdir, "mlflow")
-
-    tracker_configs = TrackerConfigs(
-        mlflow_experiment="unit_test",
-        mlflow_tracking_uri=f"file://{mlflow_path}",
-    )
-
-    sft_trainer.train(
-        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
-    )
-
-    # validate ft tuning configs
-    _validate_training(tempdir)
-
-    assert os.path.exists(mlflow_path) and os.path.isdir(mlflow_path)
-
-    run_uri_file = os.path.join(tempdir, "mlflow_tracker.json")
+    run_uri_file = os.path.join(clearml_path, "clearml_tracker.json")
 
     assert os.path.exists(run_uri_file) is True
     assert os.path.getsize(run_uri_file) > 0
 
     with open(run_uri_file, "r", encoding="utf-8") as f:
         content = json.loads(f.read())
-        assert "run_uri" in content
+        assert "task_uri" in content
+
+
+@pytest.mark.skipif(clearml_not_available, reason="Requires clearml to be installed")
+def test_e2e_run_with_clearml_runuri_export_default_path():
+    """Ensure that clearml outputs run uri in the output dir by default"""
+
+    tempdir = tempfile.mkdtemp()
+    train_args = copy.deepcopy(TRAIN_ARGS)
+    train_args.output_dir = tempdir
+
+    train_args.trackers = ["clearml"]
+    tracker_configs = TrackerConfigs(clearml_task="unit_test")
+
+    sft_trainer.train(
+        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+    )
+
+    # validate ft tuning configs
+    _validate_training(tempdir)
+
+    run_uri_file = os.path.join(tempdir, "clearml_tracker.json")
+
+    assert os.path.exists(run_uri_file) is True
+    assert os.path.getsize(run_uri_file) > 0
+
+    with open(run_uri_file, "r", encoding="utf-8") as f:
+        content = json.loads(f.read())
+        assert "task_uri" in content

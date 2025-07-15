@@ -24,6 +24,7 @@ import traceback
 
 # Third Party
 from huggingface_hub.utils._validators import HFValidationError
+from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
@@ -48,15 +49,10 @@ from tuning.config.acceleration_configs import (
     QuantizedLoraConfig,
     get_additional_accel_framework_callbacks,
 )
-from tuning.config.tracker_configs import (
-    AimConfig,
-    FileLoggingTrackerConfig,
-    HFResourceScannerConfig,
-    MLflowConfig,
-    TrackerConfigFactory,
-)
+from tuning.config.tracker_configs import TrackerConfigs
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
+from tuning.data.tokenizer_utils import setup_tokenizer
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
@@ -67,11 +63,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.logging import set_log_level
-from tuning.utils.tokenizer_data_utils import (
-    get_special_tokens_dict,
-    tokenizer_and_embedding_resize,
-)
+from tuning.utils.logging import pretty_print_args, set_log_level
 
 
 def train(
@@ -79,12 +71,10 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig, peft_config.PromptTuningConfig]
+        Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     trainer_controller_args: configs.TrainerControllerArguments = None,
-    tracker_configs: Optional[TrackerConfigFactory] = TrackerConfigFactory(
-        file_logger_config=FileLoggingTrackerConfig()
-    ),
+    tracker_configs: Optional[TrackerConfigs] = TrackerConfigs(),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
     quantized_lora_config: Optional[QuantizedLoraConfig] = None,
@@ -102,12 +92,13 @@ def train(
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
         peft_config: peft_config.LoraConfig for Lora tuning | \
+        LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for fine tuning
             The peft configuration to pass to trainer
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
-        tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigFactory \
+        tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigs \
                          which represents the configuration for various trackers\
                          Note, trackers need to be enabled to use this \
                          for e.g. --tracker(s) aim \
@@ -129,8 +120,21 @@ def train(
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
     """
+    logger, train_args.log_level = set_log_level(
+        logger_name="sft_trainer_train", level=train_args.log_level
+    )
+    USE_ALORA = False
+    try:
+        # Third Party
+        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
+        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
+            aLoRAPeftModelForCausalLM,
+        )
 
-    train_args, logger = set_log_level(train_args, "sft_trainer_train")
+        if isinstance(peft_config, aLoraConfig):
+            USE_ALORA = True
+    except ImportError:
+        pass
 
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
@@ -205,10 +209,8 @@ def train(
     if FILE_LOGGING_TRACKER not in requested_trackers:
         requested_trackers.add(FILE_LOGGING_TRACKER)
 
-    if not isinstance(tracker_configs, TrackerConfigFactory):
-        raise ValueError(
-            "tracker configs should adhere to the TrackerConfigFactory type"
-        )
+    if not isinstance(tracker_configs, TrackerConfigs):
+        raise ValueError("tracker configs should adhere to the TrackerConfigs type")
 
     # Now initialize trackers one by one
     for name in requested_trackers:
@@ -315,40 +317,7 @@ def train(
         ),
     )
 
-    if data_args.chat_template:
-        # TODO: passing "/n" through cli causes parsing issues,
-        # hence providing a temporary fix
-        data_args.chat_template = data_args.chat_template.replace(r"\n", "\n")
-
-        logger.info("adding chat_template to the tokenizer")
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with the given chat_template %s",
-                tokenizer.chat_template,
-                data_args.chat_template,
-            )
-        tokenizer.chat_template = data_args.chat_template
-
-    # Add special tokens only when a custom tokenizer is not passed
-    special_tokens_dict = get_special_tokens_dict(
-        tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
-    )
-
-    # adds user specified special tokens to vocab
-    if data_args.add_special_tokens:
-        logger.info(
-            "Adding user-defined special tokens: %s ", data_args.add_special_tokens
-        )
-        special_tokens_dict["additional_special_tokens"] = data_args.add_special_tokens
-
-    # TODO: lower priority but understand if resizing impacts inference quality and why its needed.
-    # It makes sense if we manipulate tokenizer that we also save it and provide it to inference.
-    added_tokens_dict = tokenizer_and_embedding_resize(
-        special_tokens_dict=special_tokens_dict,
-        tokenizer=tokenizer,
-        model=model,
-        multiple_of=model_args.embedding_size_multiple_of,
-    )
+    added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
@@ -380,6 +349,12 @@ def train(
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
+
+    if data_args.do_dataprocessing_only:
+        logger.info(
+            "Only data processing was requested. Exiting Process.",
+        )
+        return None, None
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
@@ -419,6 +394,21 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
+    # activated LoRA
+    if USE_ALORA:
+        response_token_ids = (
+            tokenizer(
+                peft_config.invocation_string,
+                return_tensors="pt",
+                add_special_tokens=False,
+            )
+        )["input_ids"]
+        model = aLoRAPeftModelForCausalLM(
+            model, peft_config, response_token_ids=response_token_ids
+        )
+
+        peft_config = None
+
     if train_args.enable_reduce_loss_sum:
         TrainerClass = SumLossSFTTrainer
     else:
@@ -441,8 +431,7 @@ def train(
         # Currently tracked only on process zero.
         for tracker in trackers:
             try:
-                for k, v in additional_metrics.items():
-                    tracker.track(metric=v, name=k, stage="additional_metrics")
+                tracker.track(additional_metrics, stage="additional_metrics")
                 if exp_metadata:
                     tracker.set_params(params=exp_metadata, name="experiment_metadata")
             except ValueError as e:
@@ -490,6 +479,7 @@ def train(
     trainer.train(resume_from_checkpoint)
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
+
     return trainer, additional_metadata
 
 
@@ -528,29 +518,32 @@ def get_parser():
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
-            FileLoggingTrackerConfig,
-            AimConfig,
-            HFResourceScannerConfig,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
             FastMoeConfig,
-            MLflowConfig,
+            TrackerConfigs,
         )
     )
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices=["pt", "lora", None, "none"],
+        choices=["pt", "lora", "alora", None, "none"],
         default="none",
     )
-
     parser.add_argument(
         "--exp_metadata",
         type=str,
         default=None,
         help='Pass a json string representing K:V pairs to be associated\
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
+    )
+    parser.add_argument(
+        "--invocation_string",
+        type=str,
+        default=None,
+        help="Pass a invocation string that will be used to activate the aLoRA.\
+            This needs to be present in each training data row.",
     )
     return parser
 
@@ -573,14 +566,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for training model.
         TrainerControllerArguments
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
-        PromptTuningConfig/LoraConfig/None
+        PromptTuningConfig/LoraConfig/aLoRAConfig/None
             Configuration for running PEFT, different depending on type of PEFT.
-        FileLoggingTrackerConfig
-            Configuration for training log file.
-        AimConfig
-            Configuration for AIM stack.
-        HFResourceScannerConfig
-            Configuration for HFResourceScanner.
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
@@ -589,11 +576,12 @@ def parse_arguments(parser, json_config=None):
             Configuration for padding free and packing.
         FastMoeConfig
             Configuration for accelerated MoE.
-        MLflowConfig
-            Configuration for mlflow tracker.
+        TrackerConfigs
+            Configuration for all trackers.
         dict[str, str]
-            Extra tracker metadata.
+            Extra metadata to track.
     """
+
     if json_config:
         (
             model_args,
@@ -602,17 +590,20 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
-            file_logger_config,
-            aim_config,
-            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            mlflow_config,
+            tracker_configs,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
+        invocation_string = json_config.get("invocation_string")
+        if peft_method == "alora":
+            if invocation_string is None:
+                raise ValueError(
+                    "invocation_string is not passed required for aLoRA usage"
+                )
     else:
         (
             model_args,
@@ -621,23 +612,40 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
-            file_logger_config,
-            aim_config,
-            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            mlflow_config,
+            tracker_configs,
             additional,
             _,
         ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
-
+        invocation_string = additional.invocation_string
+        if peft_method == "alora":
+            if invocation_string is None:
+                raise ValueError(
+                    "invocation_string is not passed required for aLoRA usage"
+                )
+    if peft_method == "alora":
+        try:
+            # Third Party
+            from alora.config import (  # pylint: disable=import-outside-toplevel
+                aLoraConfig,
+            )
+        except ImportError as exc:
+            raise ImportError(
+                "The alora package is required for this operation. "
+                "Please install it with pip install alora."
+            ) from exc
     if peft_method == "lora":
         tune_config = lora_config
+    elif peft_method == "alora":
+        tune_config = aLoraConfig(
+            **vars(lora_config), invocation_string=invocation_string
+        )
     elif peft_method == "pt":
         tune_config = prompt_tuning_config
     else:
@@ -649,14 +657,11 @@ def parse_arguments(parser, json_config=None):
         training_args,
         trainer_controller_args,
         tune_config,
-        file_logger_config,
-        aim_config,
-        hf_resource_scanner_config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
         fast_moe_config,
-        mlflow_config,
+        tracker_configs,
         exp_metadata,
     )
 
@@ -673,43 +678,37 @@ def main():
             training_args,
             trainer_controller_args,
             tune_config,
-            file_logger_config,
-            aim_config,
-            hf_resource_scanner_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            mlflow_config,
+            tracker_configs,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, logger = set_log_level(training_args, __name__)
-
-        logger.debug(
-            "Input args parsed: \
-            model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, file_logger_config %s, aim_config %s, hf_resource_scanner_config %s, \
-            quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config, %s,\
-            mlflow_config %s, fast_moe_config %s, \
-            exp_metadata %s",
-            model_args,
-            data_args,
-            training_args,
-            trainer_controller_args,
-            tune_config,
-            file_logger_config,
-            aim_config,
-            hf_resource_scanner_config,
-            quantized_lora_config,
-            fusedops_kernels_config,
-            attention_and_distributed_packing_config,
-            fast_moe_config,
-            mlflow_config,
-            exp_metadata,
+        logger, training_args.log_level = set_log_level(
+            logger_name=__name__, level=training_args.log_level
         )
+
+        logger.info("fms-hf-tuning execution start")
+        args_dump = pretty_print_args(
+            {
+                "Model Arguments": model_args,
+                "Data Arguments": data_args,
+                "Training Arguments": training_args,
+                "Tune Config": tune_config,
+                "QLoRA Config": quantized_lora_config,
+                "Tracker Config": tracker_configs,
+                "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
+                "Fused Ops Kernels Config": fusedops_kernels_config,
+                "Fast MoE Config": fast_moe_config,
+                "Trainer Controller Config": trainer_controller_args,
+                "Extra Metadata": exp_metadata,
+            }
+        )
+        logger.info(args_dump)
+
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
         write_termination_log(
@@ -731,13 +730,6 @@ def main():
             logger.error(
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
-
-    tracker_configs = TrackerConfigFactory(
-        file_logger_config=file_logger_config,
-        aim_config=aim_config,
-        mlflow_config=mlflow_config,
-        hf_resource_scanner_config=hf_resource_scanner_config,
-    )
 
     if training_args.output_dir:
         os.makedirs(training_args.output_dir, exist_ok=True)
@@ -782,6 +774,10 @@ def main():
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
+    # if only data processing was requested exit the process
+    if data_args.do_dataprocessing_only:
+        return
+
     # save model
     if training_args.save_model_dir:
         try:
@@ -797,7 +793,9 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(tune_config, peft_config.LoraConfig):
+    if isinstance(
+        tune_config, (peft_config.LoraConfig, LoraConfig)
+    ):  # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts

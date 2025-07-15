@@ -20,11 +20,11 @@ from HFResourceScanner import Scanner  # pylint: disable=import-error
 
 # Local
 from .tracker import Tracker
-from tuning.config.tracker_configs import HFResourceScannerConfig
+from tuning.config.tracker_configs import TrackerConfigs
 
 
 class HFResourceScannerTracker(Tracker):
-    def __init__(self, tracker_config: HFResourceScannerConfig):
+    def __init__(self, tracker_config: TrackerConfigs):
         """Tracker which encodes callback to scan for resources using HFResourceScanner
 
         Args:

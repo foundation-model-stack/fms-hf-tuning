@@ -4,6 +4,9 @@ dataprocessor:
     seed: 66
 datasets:
   - name: dataset_1
+    split:
+      train: 0.8
+      validation: 0.2
     sampling: 0.3
     data_paths:
       - "FILE_PATH"
@@ -16,6 +19,9 @@ datasets:
             input_column_name: input
             output_column_name: output
   - name: dataset_2
+    split:
+      train: 0.6
+      validation: 0.2
     sampling: 0.4
     data_paths:
       - "FILE_PATH"
@@ -28,6 +34,9 @@ datasets:
             input_column_name: input
             output_column_name: output
   - name: dataset_3
+    split:
+      train: 0.4
+      validation: 0.1
     sampling: 0.3
     data_paths:
       - "FILE_PATH"

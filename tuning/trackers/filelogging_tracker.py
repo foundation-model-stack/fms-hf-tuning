@@ -23,7 +23,7 @@ from transformers import TrainerCallback
 
 # Local
 from .tracker import Tracker
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.config.tracker_configs import TrackerConfigs
 
 
 class FileLoggingCallback(TrainerCallback):
@@ -71,7 +71,7 @@ class FileLoggingCallback(TrainerCallback):
 
 
 class FileLoggingTracker(Tracker):
-    def __init__(self, tracker_config: FileLoggingTrackerConfig):
+    def __init__(self, tracker_config: TrackerConfigs):
         """Tracker which encodes callback to record metric, e.g., training loss
         to a file in the checkpoint directory.
 
