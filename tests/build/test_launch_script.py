@@ -29,6 +29,7 @@ from transformers.utils.import_utils import _is_package_available
 from build.accelerate_launch import main
 from build.utils import serialize_args, get_highest_checkpoint
 from tests.artifacts.testdata import TWITTER_COMPLAINTS_DATA_JSONL
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
@@ -36,7 +37,8 @@ from tuning.utils.error_logging import (
 from tuning.config.tracker_configs import TrackerConfigs
 
 SCRIPT = "tuning/sft_trainer.py"
-MODEL_NAME = "Maykeye/TinyLLama-v0"
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
+
 BASE_KWARGS = {
     "model_name_or_path": MODEL_NAME,
     "training_data_path": TWITTER_COMPLAINTS_DATA_JSONL,

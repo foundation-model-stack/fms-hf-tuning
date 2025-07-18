@@ -30,6 +30,7 @@ import pytest
 import yaml
 
 # First Party
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
@@ -46,7 +47,6 @@ from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_SINGLE_TURN,
     IMAGE_DATASET,
-    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
@@ -83,6 +83,8 @@ from tuning.data.setup_dataprocessor import (
     process_dataconfig_file,
 )
 from tuning.data.utils import try_concatenate_datasets
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 
 @pytest.mark.parametrize(
