@@ -401,9 +401,16 @@ class DataPreProcessor:
             )
 
         if isinstance(dataset, (DatasetDict, IterableDatasetDict)):
-            if train_split not in dataset:
-                raise ValueError("Expected atleast 'train' split in dataset dict")
-            d = dataset[train_split]
+            splits = dataset.keys()
+            if len(splits) == 1 and train_split in splits:
+                d = dataset[train_split]
+            else:
+                logger.warning(
+                    "Loaded dataset has multiple splits or no train split.\
+                    For splitting train to train and validate a train split is required\n\
+                    This dataset will be used as is without splitting"
+                )
+                return dataset
         else:
             d = dataset
 
