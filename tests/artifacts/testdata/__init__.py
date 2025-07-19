@@ -88,4 +88,3 @@ MALFORMATTED_DATA = os.path.join(JSON_DATA_DIR, "malformatted_data.json")
 CUSTOM_TOKENIZER_TINYLLAMA = os.path.join(
     DATA_DIR, "tinyllama_tokenizer_special_tokens"
 )
-MODEL_NAME = "Maykeye/TinyLLama-v0"

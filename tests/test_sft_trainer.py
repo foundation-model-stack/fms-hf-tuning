@@ -36,6 +36,7 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
@@ -63,7 +64,6 @@ from tests.artifacts.testdata import (
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
     MALFORMATTED_DATA,
-    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
@@ -94,6 +94,8 @@ from tuning.data.data_config import (
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
 from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -1300,11 +1302,13 @@ def test_run_chat_style_add_special_tokens_ft():
     """Test to check an e2e multi turn chat training by adding special tokens via command line."""
     with tempfile.TemporaryDirectory() as tempdir:
 
+        template = "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
+
         # sample hugging face dataset id
         data_args = configs.DataArguments(
-            training_data_path="lhoestq/demo1",
-            data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
-            response_template="\n### Stars:",
+            training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
+            data_formatter_template=template,
+            response_template="\n\n### Label:",
             add_special_tokens=["<|assistant|>", "<|user|>"],
         )
 

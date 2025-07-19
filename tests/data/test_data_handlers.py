@@ -24,8 +24,8 @@ import datasets
 import pytest
 
 # First Party
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.testdata import (
-    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_JSONL,
     TWITTER_COMPLAINTS_TOKENIZED_JSON,
     TWITTER_COMPLAINTS_TOKENIZED_ONLY_INPUT_IDS_JSON,
@@ -38,6 +38,8 @@ from tuning.data.data_handlers import (
     skip_samples_with_large_columns,
     tokenize,
 )
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 
 def test_apply_custom_formatting_jinja_template():

@@ -30,9 +30,11 @@ import pytest
 import yaml
 
 # First Party
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_APPLY_CUSTOM_TEMPLATE_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
+    DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML_2,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_DATA_YAML,
@@ -45,7 +47,6 @@ from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_SINGLE_TURN,
     IMAGE_DATASET,
-    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
@@ -82,6 +83,8 @@ from tuning.data.setup_dataprocessor import (
     process_dataconfig_file,
 )
 from tuning.data.utils import try_concatenate_datasets
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 
 @pytest.mark.parametrize(
@@ -1482,8 +1485,33 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
                     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                ],
             ],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
+        ),
+        (
+            [
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON,
+                ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                ],
+                [
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET,
+                    TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                ],
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML_2,
         ),
     ],
 )
@@ -1496,6 +1524,7 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling_and_split(
     yaml_content["datasets"][0]["data_paths"] = datafiles[0]
     yaml_content["datasets"][1]["data_paths"] = datafiles[1]
     yaml_content["datasets"][2]["data_paths"] = datafiles[2]
+    yaml_content["datasets"][3]["data_paths"] = datafiles[3]
     with tempfile.NamedTemporaryFile(
         "w", delete=False, suffix=".yaml"
     ) as temp_yaml_file:
@@ -1525,6 +1554,50 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling_and_split(
         process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
+
+
+@pytest.mark.parametrize(
+    "data_path, test_split, train_split",
+    [
+        (TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET, 0.0, 1.0),
+        (TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET, 0.3, 0.7),
+        (TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET, 0.8, 0.2),
+        (TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_PARQUET, 0.8, 0.0),
+    ],
+)
+def test_split_dataset_splits_correctly(data_path, test_split, train_split):
+
+    dataprocessor = get_datapreprocessor(DataPreProcessorConfig(), tokenizer=None)
+    dataset_config = DataSetConfig(
+        name="test_dataset",
+        data_paths=[data_path],
+        split={"validation": test_split, "train": train_split},
+    )
+    d = dataprocessor.load_dataset(datasetconfig=dataset_config, streaming=False)
+
+    if isinstance(d, (DatasetDict)):
+        d = d["train"]
+
+    n_samples = len(d)
+    n_expected_test_samples = n_samples * test_split
+    n_expected_train_samples = n_samples * train_split
+
+    # split the datasets
+    processed = dataprocessor.split_dataset(dataset_config, d)
+
+    train_split = "train"
+    test_split = "test"
+
+    if n_expected_train_samples > 0:
+        assert (
+            train_split in processed
+            and len(processed[train_split]) == n_expected_train_samples
+        ), "train split should be present if split value is specified"
+    if n_expected_test_samples > 0:
+        assert (
+            test_split in processed
+            and len(processed[test_split]) == n_expected_test_samples
+        ), "train split should be present if split value is specified"
 
 
 @pytest.mark.parametrize(

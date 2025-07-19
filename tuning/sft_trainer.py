@@ -247,63 +247,82 @@ def train(
     ).get_framework()
 
     # option to set multimodal var here
-    model_load_time = time.time()
+    model = None
     processor = None
+    tokenizer = None
+
+    model_load_time = time.time()
     try:
-        # try to load vision model
-        model = AutoModelForVision2Seq.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=train_args.cache_dir,
-            torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2"
-            if model_args.use_flash_attn
-            else None,
-        )
+        logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
         try:
-            if "use_cache" in model.language_model.config:
-                # avoid warning that use_cache is incompatible with gradient checkpointing
-                model.language_model.config.use_cache = (
-                    not train_args.gradient_checkpointing
-                )
-        except AttributeError as e:
-            # When the model doesn't have the use_cache attribute
-            logger.warning("Couldn't update use_cache for vision model: %s", e)
+            # try to load model as a vision model
+            model_loader = AutoModelForVision2Seq.from_pretrained
 
-        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
-        tokenizer = processor.tokenizer
-    except ValueError:
+            model = model_loader(
+                model_args.model_name_or_path,
+                cache_dir=train_args.cache_dir,
+                torch_dtype=get_torch_dtype(model_args.torch_dtype),
+                attn_implementation="flash_attention_2"
+                if model_args.use_flash_attn
+                else None,
+            )
+            try:
+                if "use_cache" in model.language_model.config:
+                    # avoid warning that use_cache is incompatible with gradient checkpointing
+                    model.language_model.config.use_cache = (
+                        not train_args.gradient_checkpointing
+                    )
+            except AttributeError as e:
+                # When the model doesn't have the use_cache attribute
+                logger.warning("Couldn't update use_cache for vision model: %s", e)
+
+            processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+            tokenizer = processor.tokenizer
+
+            logger.info("Loaded vision model as {} ".format(model))
+            logger.info("Loaded vision model processor {} ".format(processor))
+            logger.info("Loaded model tokenizer {} ".format(tokenizer))
+        except ValueError:
+            model = None
+            processor = None
+            tokenizer = None
+
         # fallback on loading language model
-        model_loader = AutoModelForCausalLM.from_pretrained
+        if model is None:
+            # find the correct model loader
+            if framework is not None and framework.requires_custom_loading:
+                model_loader = framework.model_loader
+            else:
+                model_loader = AutoModelForCausalLM.from_pretrained
 
-        if framework is not None and framework.requires_custom_loading:
-            model_loader = framework.model_loader  # drop-in new loader
+            model = model_loader(
+                model_args.model_name_or_path,
+                cache_dir=train_args.cache_dir,
+                torch_dtype=get_torch_dtype(model_args.torch_dtype),
+                attn_implementation="flash_attention_2"
+                if model_args.use_flash_attn
+                else None,
+                # avoid warning that use_cache is incompatible with gradient checkpointing
+                use_cache=(not train_args.gradient_checkpointing),
+            )
 
-        model = model_loader(
-            model_args.model_name_or_path,
-            cache_dir=train_args.cache_dir,
-            torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2"
-            if model_args.use_flash_attn
-            else None,
-            # avoid warning that use_cache is incompatible with gradient checkpointing
-            use_cache=(not train_args.gradient_checkpointing),
-        )
+            # TODO: Move these to a config as well
+            tokenizer = AutoTokenizer.from_pretrained(
+                (
+                    model_args.tokenizer_name_or_path
+                    if model_args.tokenizer_name_or_path
+                    else model_args.model_name_or_path
+                ),
+                cache_dir=train_args.cache_dir,
+                use_fast=True,
+                legacy=True,
+            )
 
-        # TODO: Move these to a config as well
-        tokenizer = AutoTokenizer.from_pretrained(
-            (
-                model_args.tokenizer_name_or_path
-                if model_args.tokenizer_name_or_path
-                else model_args.model_name_or_path
-            ),
-            cache_dir=train_args.cache_dir,
-            use_fast=True,
-            legacy=True,
-        )
+            logger.info("Loaded language model as {} ".format(model))
+            logger.info("Loaded model tokenizer {} ".format(tokenizer))
     except Exception as e:  # pylint: disable=broad-except
-        logger.error(traceback.format_exc())
-        write_termination_log(f"Exception raised during loading model: {e}")
-        sys.exit(USER_ERROR_EXIT_CODE)
+        logger.error("Exception raised during loading model: {}".format(e))
+        raise e
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -717,7 +736,7 @@ def main():
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
         write_termination_log(
-            f"Exception raised during training. This may be a problem with your input: {e}"
+            f"Exception raised while parsing arguments. This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
 
