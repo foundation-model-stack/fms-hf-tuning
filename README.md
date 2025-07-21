@@ -9,6 +9,7 @@
   - [Tips on Parameters to Set](#tips-on-parameters-to-set)
 - [Tuning Techniques](#tuning-techniques)
   - [LoRA Tuning Example](#lora-tuning-example)
+  - [Activated LoRA Tuning Example](#activated-lora-tuning-example)
   - [GPTQ-LoRA with AutoGPTQ Tuning Example](#gptq-lora-with-autogptq-tuning-example)
   - [Fine Tuning](#fine-tuning)
   - [FMS Acceleration](#fms-acceleration)
@@ -302,13 +303,13 @@ For advanced data preprocessing support including mixing and custom preprocessin
 
 ## Offline Data Preprocessing
 
-We also provide a script for the user to perform standalone data preprocessing. Our script for standalone data processing decoupled from the `tuning/training` is [offline_data_processing.py](./scripts/offline_data_processing.py). This script is especially useful if:
+We also provide an interface for the user to perform standalone data preprocessing. This is especially useful if:
 
 1. The user is working with a large dataset and wants to perform the processing in one shot and then train the model directly on the processed dataset.
 
 2. The user wants to test out the data preprocessing outcome before training.
 
-Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to use the offline data processing script.
+Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to perform offline data processing.
 
 ## Supported Models
 
@@ -328,35 +329,37 @@ Please refer to [this document](docs/offline-data-preprocessing.md) for details 
 
 Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
 -------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-Granite PowerLM 3B   | GraniteForCausalLM | ✅* | ✅* | ✅* |
-Granite 3.1 1B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 3B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.1 8B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.0 2B       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-Granite 3.0 8B       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
-GraniteMoE 1B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-GraniteMoE 3B        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-Granite 3B           | LlamawithCausalLM      | ✅ | ✔️  | ✔️ | 
-Granite 8B           | LlamawithCausalLM      | ✅ | ✅ | ✅ |
+[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅**** | ✅**** | ? |
+[Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
+[Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 8B](https://huggingface.co/ibm-granite/granite-3.1-8b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 2B](https://huggingface.co/ibm-granite/granite-3.0-2b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 8B](https://huggingface.co/ibm-granite/granite-3.0-8b-base)       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
+[GraniteMoE 1B](https://huggingface.co/ibm-granite/granite-3.0-1b-a400m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[GraniteMoE 3B](https://huggingface.co/ibm-granite/granite-3.0-3b-a800m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[Granite 3B Code](https://huggingface.co/ibm-granite/granite-3b-code-base-2k)           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
+[Granite 8B Code](https://huggingface.co/ibm-granite/granite-8b-code-base-4k)           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
 Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
 Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
-Granite 34B          | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
-Llama3.1-8B          | LLaMA 3.1              | ✅*** | ✔️ | ✔️ |  
-Llama3.1-70B(same architecture as llama3) | LLaMA 3.1 | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
-Llama3.1-405B                             | LLaMA 3.1 | 🚫 | 🚫 | ✅ | 
-Llama3-8B                                 | LLaMA 3   | ✅ | ✅ | ✔️ |  
-Llama3-70B                                | LLaMA 3   | 🚫 | ✅ | ✅ |
+[Granite 34B Code](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k)            | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+[Llama3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)          | LlamaForCausalLM               | ✅*** | ✔️ | ✔️ |  
+[Llama3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)(same architecture as llama3) | LlamaForCausalLM   | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+[Llama3.1-405B](https://huggingface.co/meta-llama/Llama-3.1-405B)                            | LlamaForCausalLM   | 🚫 | 🚫 | ✅ | 
+[Llama3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)                               | LlamaForCausalLM   | ✅ | ✅ | ✔️ |  
+[Llama3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)                             | LlamaForCausalLM   | 🚫 | ✅ | ✅ |
 aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
-Mixtral 8x7B                              | Mixtral   | ✅ | ✅ | ✅ |
-Mistral-7b                                | Mistral   | ✅ | ✅ | ✅ |  
-Mistral large                             | Mistral   | 🚫 | 🚫 | 🚫 | 
+[Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1)                              | MixtralForCausalLM   | ✅ | ✅ | ✅ |
+[Mistral-7b](https://huggingface.co/mistralai/Mistral-7B-v0.1)                                  | MistralForCausalLM   | ✅ | ✅ | ✅ |  
+Mistral large                             | MistralForCausalLM   | 🚫 | 🚫 | 🚫 | 
 
 (*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
 (**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
-(***) - Supported from platform up to 8k context length - same architecture as llama3-8b
+(***) - Supported from platform up to 8k context length - same architecture as llama3-8b.
+
+(****) - Experimentally supported. Dependent on stable transformers version with PR [#37658](https://github.com/huggingface/transformers/pull/37658) and accelerate >= 1.3.0.
 
 ## Training
 
@@ -452,7 +455,7 @@ To summarize you can pick either python for single-GPU jobs or use accelerate la
 
 ### Tips on Parameters to Set
 
-#### Saving checkpoints while training
+#### Saving checkpoints while training (does not apply to Activated LoRA)
 
 By default, [`save_strategy`](tuning/config/configs.py) is set to `"epoch"` in the TrainingArguments. This means that checkpoints will be saved on each epoch. This can also be set to `"steps"` to save on every `"save_steps"` or `"no"` to not save any checkpoints.
 
@@ -505,6 +508,14 @@ In order to achieve the fastest train time, set `save_strategy="no"`, as saving 
 If the output directory already contains checkpoints, tuning will automatically resume from the latest checkpoint in the directory specified by the `output_dir` flag. To start tuning from scratch and ignore existing checkpoints, set the `resume_from_checkpoint` flag to False.
 
 You can also use the resume_from_checkpoint flag to resume tuning from a specific checkpoint by providing the full path to the desired checkpoint as a string. This flag is passed as an argument to the [trainer.train()](https://github.com/huggingface/transformers/blob/db70426854fe7850f2c5834d633aff637f14772e/src/transformers/trainer.py#L1901) function of the SFTTrainer.
+
+#### Setting Gradient Checkpointing
+
+Training large models requires the usage of a lot of GPU memory. To reduce memory usage while training, consider setting the [`gradient_checkpointing`](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.gradient_checkpointing) flag. 
+
+Gradient Checkpointing is a method that stores only certain intermediate activations during the backward pass for recomputation. This avoids storing all of the intermediate activations from the forward pass, thus saving memory. The resulting reduced memory costs allow fitting larger models on the same GPU, with the tradeoff of a ~20% increase in the time required to fully train the model. More information about Gradient Checkpointing can be found in [this paper](https://arxiv.org/abs/1604.06174), as well as [here](https://github.com/cybertronai/gradient-checkpointing?tab=readme-ov-file#how-it-works).
+
+To enable this feature, add the `--gradient_checkpointing` flag as an argument when calling `sft_trainer`.
 
 ## Tuning Techniques:
 
@@ -689,6 +700,132 @@ post_process_vLLM_adapters_new_tokens(
 </details>
 
 _________________________
+
+### Activated LoRA Tuning Example
+
+Activated LoRA (aLoRA) is a new low rank adapter architecture that allows for reusing existing base model KV cache for more efficient inference. This approach is best suited for inference pipelines which rely on the base model for most tasks/generations, but use aLoRA adapter(s) to perform specialized task(s) within the chain. For example, checking or rewriting generated outputs of the base model.
+
+[Paper](https://arxiv.org/abs/2504.12397)
+
+[IBM Research Blogpost](https://research.ibm.com/blog/inference-friendly-aloras)
+
+[Github](https://github.com/IBM/activated-lora)
+
+**Usage** Usage is very similar to standard LoRA, with the key difference that an invocation_string must be specified so that the model knows when to turn on i.e "activate" the adapter weights. The model will scan any input strings (during training or at test time) for this invocation_string, and activate the adapter weights 1 token after the start of the sequence. If there are multiple instances of the invocation_string in the same input, it will activate at the last such instance.
+
+**Note** Often (not always) aLoRA requires higher rank (r) than LoRA. r=32 can be a good starting point for challenging tasks.
+
+**Installation** The Activated LoRA requirements are an optional install in pyproject.toml (activated-lora)
+
+Set `peft_method` to `"alora"`. 
+
+You *must* pass in an invocation_string argument. This invocation_string *must be present* in both training data inputs and the input at test time. A good solution is to set invocation_string = response_template, this will ensure that every training input will have the invocation_string present. We keep these separate arguments for flexibility. It is most robust if the invocation_string begins and ends with special tokens.
+
+You can additionally pass any arguments from [aLoraConfig](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/alora/config.py#L35), see the LoRA section for examples.
+
+Example command to run, here using the ([Granite Instruct response template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188)) as the invocation sequence:
+
+```bash
+python tuning/sft_trainer.py \
+--model_name_or_path $MODEL_PATH \
+--tokenizer_name_or_path $MODEL_PATH \ # This field is optional and if not specified, tokenizer from model_name_or_path will be used
+--training_data_path $TRAIN_DATA_PATH \
+--output_dir $OUTPUT_PATH \
+--num_train_epochs 40 \
+--per_device_train_batch_size 4 \
+---learning_rate 1e-4 \
+--response_template "<|start_of_role|>assistant<|end_of_role|>" \ #this example uses special tokens in the Granite tokenizer, adjust for other models
+--invocation_string "<|start_of_role|>assistant<|end_of_role|>" \
+--dataset_text_field "output" \
+--peft_method "alora" \
+--r 32 \
+--lora_dropout 0.05 \
+--lora_alpha 16 \
+--target_modules q_proj k_proj v_proj
+```
+
+Equally you can pass in a JSON configuration for running tuning. See [build doc](./build/README.md) for more details. The above can also be passed in as JSON:
+```json
+{
+    "model_name_or_path": $MODEL_PATH,
+    "training_data_path": $TRAIN_DATA_PATH,
+    "output_dir": $OUTPUT_PATH,
+    "num_train_epochs": 40.0,
+    "per_device_train_batch_size": 4,
+    "learning_rate": 1e-4,
+    "response_template": "<|start_of_role|>assistant<|end_of_role|>",
+    "invocation_string": "<|start_of_role|>assistant<|end_of_role|>",
+    "dataset_text_field": "output",
+    "peft_method": "alora",
+    "r": 32,
+    "lora_dropout": 0.05,
+    "lora_alpha": 16,
+    "target_modules": ["q_proj", "k_proj", "v_proj"]
+}
+```
+
+Notice the `target_modules` are the names of the modules to apply the adapter to.
+- If this is specified, only the modules with the specified names will be replaced. When passing a list of strings, either an exact match will be performed or it is checked if the name of the module ends with any of the passed strings. If this is specified as `all-linear`, then all linear/Conv1D modules are chosen, excluding the output layer. 
+- If this is not specified, modules will be chosen according to the model architecture. If the architecture is not known, an error will be raised — in this case, you should specify the target modules manually. See [HuggingFace docs](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig) for more details.
+
+
+#### How to get list of aLoRA target_modules of a model
+See [How to get list of LoRA target_modules of a model](#how-to-get-list-of-lora-target_modules-of-a-model). 
+
+#### Recommended target modules per model architecture 
+As per [aLoRA paper](https://arxiv.org/abs/2504.12397), by using the key, query and value projection matrices, we can achieve good quality with efficient GPU utilization. Hence, while thinking about what aLoRA adapters to specify, we recommend starting with key, query and value matrices. 
+
+#### Intermediate checkpoint saving
+Note that `sft_trainer.py` will always save the final trained model for you. If you want to save intermediate checkpoints from within the training process, the below applies.
+
+For now, `save_strategy` is not supported (it is always reset to `none`). You can either save the model once training is complete, or pass in a custom callback in `additional_callbacks` directly to `tuning.sft_trainer.train` to perform saving. For example the following (from [alora github](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/train_scripts/finetune_example_callback.py)) saves and updates the best performing model so far, checking whenever eval is called according to `eval_strategy`:
+```py
+class SaveBestModelCallback(TrainerCallback):
+    def __init__(self):
+        self.best_eval_loss = float("inf")  # Track best loss
+
+    def on_evaluate(self, args, state, control, **kwargs):
+        """Save the best model manually during evaluation."""
+
+        model = kwargs["model"]
+        metrics = kwargs["metrics"]
+        
+        eval_loss = metrics.get("eval_loss")
+        if eval_loss is not None and eval_loss < self.best_eval_loss:
+            self.best_eval_loss = eval_loss  # Update best loss
+
+            # Manually save best model
+            model.save_pretrained(args.output_dir)
+```
+#### Inference with aLoRA models
+*Important* Inference with aLoRA models requires nsuring that the invocation string is present in the input (usually the end).
+
+Example inference:
+```py
+# Load the model
+loaded_model = TunedCausalLM.load(ALORA_MODEL, BASE_MODEL_NAME, use_alora=True)
+
+# Retrieve the invocation string from the model config
+invocation_string = loaded_model.peft_model.peft_config[
+    loaded_model.peft_model.active_adapter
+].invocation_string
+
+# In this case, we have the invocation string at the end of the input 
+input_string = "Simply put, the theory of relativity states that \n" + invocation_string
+
+# Run inference on the text
+output_inference = loaded_model.run(
+    input_string, 
+    max_new_tokens=50,
+)
+```
+
+#### Running aLoRA models on VLLM
+
+Coming soon! For now, there is inference support in this package, or see [aLoRA github](https://github.com/IBM/activated-lora/experiments/inference_example.py) for example code demonstrating KV cache reuse from prior base model calls.
+
+__________
+
 
 
 ### GPTQ-LoRA with AutoGPTQ Tuning Example

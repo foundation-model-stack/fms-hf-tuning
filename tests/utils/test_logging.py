@@ -36,9 +36,9 @@ def test_set_log_level_for_logger_default():
 
     with mock.patch.dict(os.environ, {}, clear=True):
         train_args = copy.deepcopy(TRAIN_ARGS)
-        training_args, logger = set_log_level(train_args)
-        assert logger.getEffectiveLevel() == logging.WARNING
-        assert training_args.log_level == "passive"
+        logger, log_level = set_log_level(level=train_args.log_level)
+        assert logger.getEffectiveLevel() == logging.INFO
+        assert log_level == "info"
 
 
 def test_set_log_level_for_logger_with_env_var():
@@ -48,10 +48,10 @@ def test_set_log_level_for_logger_with_env_var():
     """
 
     with mock.patch.dict(os.environ, {"LOG_LEVEL": "info"}, clear=True):
-        train_args_env = copy.deepcopy(TRAIN_ARGS)
-        training_args, logger = set_log_level(train_args_env)
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        logger, log_level = set_log_level(level=train_args.log_level)
         assert logger.getEffectiveLevel() == logging.INFO
-        assert training_args.log_level == "info"
+        assert log_level == "info"
 
 
 def test_set_log_level_for_logger_with_set_verbosity_and_cli():
@@ -64,9 +64,9 @@ def test_set_log_level_for_logger_with_set_verbosity_and_cli():
     with mock.patch.dict(os.environ, {"TRANSFORMERS_VERBOSITY": "info"}, clear=True):
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.log_level = "error"
-        training_args, logger = set_log_level(train_args)
+        logger, log_level = set_log_level(level=train_args.log_level)
         assert logger.getEffectiveLevel() == logging.ERROR
-        assert training_args.log_level == "error"
+        assert log_level == "error"
 
 
 def test_set_log_level_for_logger_with_env_var_and_cli():
@@ -79,6 +79,6 @@ def test_set_log_level_for_logger_with_env_var_and_cli():
     with mock.patch.dict(os.environ, {"LOG_LEVEL": "info"}, clear=True):
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.log_level = "error"
-        training_args, logger = set_log_level(train_args)
+        logger, log_level = set_log_level(level=train_args.log_level)
         assert logger.getEffectiveLevel() == logging.ERROR
-        assert training_args.log_level == "error"
+        assert log_level == "error"

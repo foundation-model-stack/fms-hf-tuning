@@ -2,14 +2,16 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # First Party
-from tests.artifacts.testdata import MODEL_NAME
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 
 # Local
 from tuning.config import configs
-from tuning.utils.tokenizer_data_utils import (
+from tuning.data.tokenizer_utils import (
     get_special_tokens_dict,
     tokenizer_and_embedding_resize,
 )
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 
 def test_setting_special_tokens_with_LlamaTokenizerFast():
@@ -19,7 +21,7 @@ def test_setting_special_tokens_with_LlamaTokenizerFast():
     UNK and PAD tokens to the special tokens dict. Then, the <pad> token is replaced with
     a <PAD> token, because the Llama tokenizer does not have a pad token specified.
     """
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, legacy=True)
     model_args = configs.ModelArguments()
     special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
@@ -97,7 +99,7 @@ def test_setting_special_tokens_when_path_is_not_none():
     the entire `get_special_tokens_dict` function is skipped and the
     special tokens dict is expected to be empty.
     """
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, legacy=True)
     model_args = configs.ModelArguments(tokenizer_name_or_path="test_path")
     special_tokens_dict = get_special_tokens_dict(
         tokenizer_name_or_path=model_args.tokenizer_name_or_path, tokenizer=tokenizer
@@ -134,8 +136,8 @@ def test_tokenizer_and_embedding_resize_return_values_missing_four_tokens():
         "bos_token": "<s>",
         "unk_token": "<unk>",
     }
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
-    model = AutoModelForCausalLM.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, legacy=True)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     metadata = tokenizer_and_embedding_resize(special_tokens_dict, tokenizer, model)
     assert metadata["num_new_tokens"] == 4
     assert metadata["new_embedding_size"] == len(tokenizer)
@@ -155,8 +157,8 @@ def test_tokenizer_and_embedding_resize_return_values_mutliple_of_two():
         "bos_token": "<s>",
         "unk_token": "<unk>",
     }
-    tokenizer = AutoTokenizer.from_pretrained("Maykeye/TinyLLama-v0", legacy=True)
-    model = AutoModelForCausalLM.from_pretrained("Maykeye/TinyLLama-v0")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, legacy=True)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     metadata = tokenizer_and_embedding_resize(
         special_tokens_dict, tokenizer, model, multiple_of=2
     )

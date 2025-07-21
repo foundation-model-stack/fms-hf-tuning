@@ -37,7 +37,7 @@ from tests.test_sft_trainer import (
 
 # Local
 from tuning import sft_trainer
-from tuning.config.tracker_configs import MLflowConfig, TrackerConfigFactory
+from tuning.config.tracker_configs import TrackerConfigs
 
 mlflow_not_available = not _is_package_available("mlflow")
 
@@ -80,11 +80,9 @@ def test_e2e_run_with_mlflow_tracker():
 
     mlflow_path = os.path.join(tempdir, "mlflow")
 
-    tracker_configs = TrackerConfigFactory(
-        mlflow_config=MLflowConfig(
-            mlflow_experiment="unit_test",
-            mlflow_tracking_uri=f"file://{mlflow_path}",
-        )
+    tracker_configs = TrackerConfigs(
+        mlflow_experiment="unit_test",
+        mlflow_tracking_uri=f"file://{mlflow_path}",
     )
 
     sft_trainer.train(
@@ -112,11 +110,9 @@ def test_e2e_run_with_mlflow_runuri_export_default_path():
 
     mlflow_path = os.path.join(tempdir, "mlflow")
 
-    tracker_configs = TrackerConfigFactory(
-        mlflow_config=MLflowConfig(
-            mlflow_experiment="unit_test",
-            mlflow_tracking_uri=f"file://{mlflow_path}",
-        )
+    tracker_configs = TrackerConfigs(
+        mlflow_experiment="unit_test",
+        mlflow_tracking_uri=f"file://{mlflow_path}",
     )
 
     sft_trainer.train(

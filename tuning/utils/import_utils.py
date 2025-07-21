@@ -32,3 +32,11 @@ def is_fms_accelerate_available(
         if not _is_package_available(n):
             return False
     return True
+
+
+def is_alora_available(package_name: str = "alora"):
+    names = [package_name]
+    for n in names:
+        if not _is_package_available(n):
+            return False
+    return True

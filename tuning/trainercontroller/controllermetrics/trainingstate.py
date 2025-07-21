@@ -45,6 +45,7 @@ class TrainingState(MetricHandler):
                 "on_prediction_step",
                 "on_predict",
                 "on_log",
+                "on_save",
                 "on_train_end",
                 "on_train_begin",
                 "on_evaluate",
@@ -71,4 +72,9 @@ class TrainingState(MetricHandler):
         Returns:
             dict. Trainer state as a dictionary
         """
-        return dataclasses.asdict(state)
+        state_as_dict = dataclasses.asdict(state)
+        if "is_final" in kwargs:
+            state_as_dict["is_final"] = kwargs["is_final"]
+        else:
+            state_as_dict["is_final"] = False
+        return state_as_dict

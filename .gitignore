@@ -8,6 +8,8 @@ coverage*.xml
 dist
 htmlcov
 test
+error.log
+tmp/
 
 # IDEs
 .vscode/
@@ -45,3 +47,4 @@ mlruns/
 
 # Auto-generated file
 /tuning/_version.py
+fms_hf_tuning-*/

@@ -36,6 +36,7 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
@@ -43,8 +44,9 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
     DATA_CONFIG_MULTITURN_DATA_YAML,
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
-    DATA_CONFIG_RENAME_RETAIN_COLUMNS,
-    DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER,
+    DATA_CONFIG_PRETOKENIZE_DATA_YAML,
+    DATA_CONFIG_RENAME_SELECT_COLUMNS,
+    DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
     DATA_CONFIG_VALID_BASE64_CHAT_TEMPLATE,
@@ -57,10 +59,11 @@ from tests.artifacts.testdata import (
     CHAT_DATA_MULTI_TURN_CONVERSATIONS,
     CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
     CHAT_DATA_SINGLE_TURN,
+    CHAT_DATASET_LARGELIST,
+    CHAT_DATASET_SEQUENCE,
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
     MALFORMATTED_DATA,
-    MODEL_NAME,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
@@ -81,7 +84,7 @@ from tests.artifacts.testdata import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
-from tuning.config.tracker_configs import FileLoggingTrackerConfig
+from tuning.config.tracker_configs import TrackerConfigs
 from tuning.data.data_config import (
     DataConfig,
     DataHandlerConfig,
@@ -89,12 +92,10 @@ from tuning.data.data_config import (
     DataSetConfig,
     load_and_validate_data_config,
 )
-from tuning.data.data_handlers import (
-    DataHandler,
-    DataHandlerType,
-    add_tokenizer_eos_token,
-)
-from tuning.utils.import_utils import is_fms_accelerate_available
+from tuning.data.data_handlers import DataHandler, DataHandlerType
+from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
+
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
 MODEL_ARGS = configs.ModelArguments(
     model_name_or_path=MODEL_NAME, use_flash_attn=False, torch_dtype="float32"
@@ -120,6 +121,22 @@ TRAIN_ARGS = configs.TrainingArguments(
     save_strategy="epoch",
     output_dir="tmp",
 )
+TRAIN_ALORA_ARGS = configs.TrainingArguments(
+    num_train_epochs=5,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    gradient_accumulation_steps=1,
+    learning_rate=0.00001,
+    weight_decay=0,
+    warmup_ratio=0.03,
+    lr_scheduler_type="cosine",
+    logging_steps=1,
+    include_tokens_per_second=True,
+    packing=False,
+    max_seq_length=4096,
+    save_strategy="epoch",
+    output_dir="tmp",
+)
 PEFT_PT_ARGS = peft_config.PromptTuningConfig(
     prompt_tuning_init="RANDOM",
     num_virtual_tokens=0,
@@ -127,6 +144,15 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+try:  # Optional package
+    # Third Party
+    from alora.config import aLoraConfig
+
+    PEFT_ALORA_ARGS = aLoraConfig(
+        r=8, lora_alpha=32, lora_dropout=0.05, invocation_string="Label:"
+    )
+except ImportError:
+    pass
 
 
 @pytest.mark.parametrize(
@@ -381,9 +407,6 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
-        _,
-        _,
-        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -409,9 +432,6 @@ def test_parse_arguments_defaults(job_config):
         _,
         _,
         _,
-        _,
-        _,
-        _,
     ) = sft_trainer.parse_arguments(parser, job_config_defaults)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert model_args.use_flash_attn is False
@@ -422,16 +442,36 @@ def test_parse_arguments_peft_method(job_config):
     parser = sft_trainer.get_parser()
     job_config_pt = copy.deepcopy(job_config)
     job_config_pt["peft_method"] = "pt"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_pt
-    )
+    (
+        _,
+        _,
+        _,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_pt)
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
     job_config_lora["peft_method"] = "lora"
-    _, _, _, _, tune_config, _, _, _, _, _, _, _, _, _ = sft_trainer.parse_arguments(
-        parser, job_config_lora
-    )
+    (
+        _,
+        _,
+        _,
+        _,
+        tune_config,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = sft_trainer.parse_arguments(parser, job_config_lora)
     assert isinstance(tune_config, peft_config.LoraConfig)
     assert not tune_config.target_modules
     assert "target_modules" not in job_config_lora
@@ -475,16 +515,16 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
     This test needs the trainer to format data to a single sequence internally.
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        data_formatting_args = copy.deepcopy(DATA_ARGS)
-        data_formatting_args.dataset_text_field = None
-        data_formatting_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.dataset_text_field = None
+        data_args.data_formatter_template = (
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -515,7 +555,7 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
         data_args.training_data_path = TWITTER_COMPLAINTS_DATA_JSON
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
@@ -620,7 +660,7 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
         data_args.validation_data_path = dataset_path
         data_args.dataset_text_field = None
         data_args.data_formatter_template = (
-            "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+            "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
         sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
@@ -697,6 +737,51 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that" in output_inference
 
 
+@pytest.mark.skipif(
+    not is_alora_available(),
+    reason="Only runs if alora is installed",
+)
+@pytest.mark.parametrize(
+    "target_modules,expected",
+    target_modules_val_map,
+    ids=["default", "custom_target_modules", "all_linear_target_modules"],
+)
+def test_run_causallm_alora_and_inference(request, target_modules, expected):
+    """Check if we can bootstrap and alora tune causallm models"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
+        train_args.output_dir = tempdir
+        base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+
+        if "default" not in request._pyfuncitem.callspec.id:
+            base_alora_args.target_modules = target_modules
+
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("target_modules")
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
+        invocation_string = loaded_model.peft_model.peft_config[
+            loaded_model.peft_model.active_adapter
+        ].invocation_string
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "Simply put, the theory of relativity states that \n" + invocation_string,
+            max_new_tokens=50,
+        )
+
+        assert len(output_inference) > 0
+        assert "Simply put, the theory of relativity states that \n" in output_inference
+
+
 def test_successful_lora_target_modules_default_from_main():
     """Check that if target_modules is not set, or set to None via JSON, the
     default value by model type will be using in LoRA tuning.
@@ -764,10 +849,8 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.save_strategy = "no"
         save_model_args.output_dir = tempdir
 
-        trainer, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
-        logs_path = os.path.join(
-            tempdir, FileLoggingTrackerConfig.training_logs_filename
-        )
+        trainer, _, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        logs_path = os.path.join(tempdir, TrackerConfigs.training_logs_filename)
         _validate_logfile(logs_path)
         # validate that no checkpoints created
         assert not any(x.startswith("checkpoint-") for x in os.listdir(tempdir))
@@ -789,23 +872,22 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
 def test_run_causallm_ft_pretokenized(dataset_path, packing):
     """Check if we can bootstrap and finetune causallm models using pretokenized data"""
     with tempfile.TemporaryDirectory() as tempdir:
-
-        data_formatting_args = copy.deepcopy(DATA_ARGS)
+        data_args = copy.deepcopy(DATA_ARGS)
 
         # below args not needed for pretokenized data
-        data_formatting_args.data_formatter_template = None
-        data_formatting_args.dataset_text_field = None
-        data_formatting_args.response_template = None
+        data_args.data_formatter_template = None
+        data_args.dataset_text_field = None
+        data_args.response_template = None
 
         # update the training data path to tokenized data
-        data_formatting_args.training_data_path = dataset_path
+        data_args.training_data_path = dataset_path
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.packing = packing
         train_args.max_seq_length = 256
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -836,6 +918,14 @@ def test_run_causallm_ft_pretokenized(dataset_path, packing):
         (
             [TWITTER_COMPLAINTS_TOKENIZED_JSON],
             DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+        ),
+        (
+            [CHAT_DATASET_LARGELIST, CHAT_DATASET_SEQUENCE],
+            DATA_CONFIG_YAML_STREAMING_PRETOKENIZED,
+        ),
+        (
+            [CHAT_DATASET_LARGELIST, CHAT_DATASET_SEQUENCE],
+            DATA_CONFIG_PRETOKENIZE_DATA_YAML,
         ),
     ],
 )
@@ -925,7 +1015,7 @@ def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
         ),
         (
             [TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON],
-            DATA_CONFIG_RENAME_RETAIN_COLUMNS,
+            DATA_CONFIG_RENAME_SELECT_COLUMNS,
         ),
     ],
 )
@@ -1064,8 +1154,8 @@ def test_run_training_with_data_tokenized_using_tokenizer_handler():
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
 
-def test_run_training_with_skip_large_text_handler():
-    """Ensure that we can train succesfully after using skip large text handler."""
+def test_run_training_with_skip_large_column_handler():
+    """Ensure that we can train succesfully after using skip large column handler."""
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
@@ -1074,8 +1164,8 @@ def test_run_training_with_skip_large_text_handler():
         data_args.response_template = None
         data_args.training_data_path = None
 
-        dataconfigfile = DATA_CONFIG_SKIP_LARGE_TEXT_HANDLER
-        datapath = TWITTER_COMPLAINTS_TOKENIZED_JSON
+        dataconfigfile = DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER
+        datapath = TWITTER_COMPLAINTS_DATA_JSONL
 
         # add data_paths in data_config file
         with tempfile.NamedTemporaryFile(
@@ -1212,11 +1302,13 @@ def test_run_chat_style_add_special_tokens_ft():
     """Test to check an e2e multi turn chat training by adding special tokens via command line."""
     with tempfile.TemporaryDirectory() as tempdir:
 
+        template = "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
+
         # sample hugging face dataset id
         data_args = configs.DataArguments(
-            training_data_path="lhoestq/demo1",
-            data_formatter_template="### Text:{{review}} \n\n### Stars: {{star}}",
-            response_template="\n### Stars:",
+            training_data_path=TWITTER_COMPLAINTS_DATA_JSONL,
+            data_formatter_template=template,
+            response_template="\n\n### Label:",
             add_special_tokens=["<|assistant|>", "<|user|>"],
         )
 
@@ -1252,6 +1344,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
         data_args.chat_template = "{% for message in messages['messages'] %}\
             {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
             {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
@@ -1264,7 +1357,7 @@ def test_run_chat_style_ft_using_dataconfig(datafiles, dataconfigfile):
         data_args.instruction_template = "<|user|>"
         data_args.dataset_text_field = "new_formatted_field"
 
-        handler_kwargs = {"dataset_text_field": data_args.dataset_text_field}
+        handler_kwargs = {"formatted_text_column_name": data_args.dataset_text_field}
         kwargs = {
             "fn_kwargs": handler_kwargs,
             "batched": False,
@@ -1346,6 +1439,7 @@ def test_run_chat_style_ft_using_dataconfig_for_chat_template(
     with tempfile.TemporaryDirectory() as tempdir:
 
         data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
         if dataconfigfile == DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML:
             data_args.response_template = "<|start_of_role|>assistant<|end_of_role|>"
             data_args.instruction_template = "<|start_of_role|>user<|end_of_role|>"
@@ -1696,7 +1790,7 @@ def test_invalid_dataset_text_field_and_formatter_template():
     """Only one of dataset_text_field or formatter can be supplied"""
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.data_formatter_template = (
-        "### Text: {{Tweet text}} \n\n### Label: {{text_label}}"
+        "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
     )
 
     with pytest.raises(ValueError):
@@ -1708,7 +1802,7 @@ def test_invalid_formatter_template():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.dataset_text_field = None
     data_args.data_formatter_template = (
-        "### Text: {{not found}} \n\n### Label: {{text_label}}"
+        "### Text: {{not_found}} \n\n### Label: {{text_label}}"
     )
 
     with pytest.raises(KeyError):
@@ -1905,7 +1999,7 @@ def test_pretokenized_dataset(dataset_path):
 
 
 @pytest.mark.parametrize(
-    "dataset_text_field,response_template",
+    "dataset_text_field, response_template",
     [
         ("foo", None),
         (None, "bar"),
@@ -2002,8 +2096,8 @@ def test_run_by_passing_additional_data_handlers():
     # This is my test handler
     TEST_HANDLER = "my_test_handler"
 
-    def test_handler(element, tokenizer, **kwargs):
-        return add_tokenizer_eos_token(element, tokenizer, "custom_formatted_field")
+    def test_handler(element, **kwargs):
+        return {"custom_formatted_field": element}
 
     # This data config calls for data handler to be applied to dataset
     preprocessor_config = DataPreProcessorConfig()

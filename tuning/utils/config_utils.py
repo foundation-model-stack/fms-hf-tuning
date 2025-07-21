@@ -18,7 +18,6 @@ import base64
 import json
 import os
 import pickle
-import re
 
 # Third Party
 from peft import LoraConfig, PromptTuningConfig
@@ -58,10 +57,26 @@ def create_tuning_config(peft_method, **kwargs):
     assert peft_method in [
         None,
         "lora",
+        "alora",
         "pt",
         "None",
     ], f"peft config {peft_method} not defined in peft.py"
-    if peft_method == "lora":
+    if peft_method == "alora":
+        try:
+            # Third Party
+            from alora.config import (  # pylint: disable=import-outside-toplevel
+                aLoraConfig,
+            )
+
+            tune_config = aLoraConfig()
+            update_config(tune_config, **kwargs)
+        except ImportError as exc:
+            raise ImportError(
+                "alora package is required for this operation. "
+                "Please install it with pip install alora."
+            ) from exc
+
+    elif peft_method == "lora":
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
     elif peft_method == "pt":
@@ -80,7 +95,22 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         tokenizer_name_or_path: str
     Return: HF PEFT config or None
     """
-    if isinstance(tuning_config, peft_config.LoraConfig):
+    USE_ALORA = False
+    try:
+        # Third Party
+        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
+
+        if isinstance(tuning_config, aLoraConfig):
+            USE_ALORA = True
+    except ImportError:
+        pass
+    if USE_ALORA:
+        alora_config = tuning_config
+        if alora_config.target_modules == ["all-linear"]:
+            alora_config.target_modules = "all-linear"
+        alora_config.task_type = task_type
+        hf_peft_config = alora_config
+    elif isinstance(tuning_config, peft_config.LoraConfig):
         lora_config = asdict(tuning_config)
         if lora_config["target_modules"] == ["all-linear"]:
             lora_config["target_modules"] = "all-linear"
@@ -136,34 +166,3 @@ def txt_to_obj(txt):
     except UnicodeDecodeError:
         # Otherwise the bytes are a pickled python dictionary
         return pickle.loads(message_bytes)
-
-
-def process_jinja_placeholders(template: str) -> str:
-    """
-    Function to detect all placeholders of the form {{...}}.
-    - If the inside has a space (e.g. {{Tweet text}}),
-      rewrite to {{ element['Tweet text'] }}.
-    - If it doesn't have a space (e.g. {{text_label}}), leave it as is.
-    - If it is already using dictionary-style access ({{ element['xyz'] }}), do nothing.
-
-    Args:
-        template: str
-    Return: template: str
-    """
-
-    pattern = r"\{\{([^}]+)\}\}"
-    matches = re.findall(pattern, template)
-
-    for match in matches:
-        original_placeholder = f"{{{{{match}}}}}"
-        trimmed = match.strip()
-
-        if trimmed.startswith("element["):
-            continue
-
-        # If there's a space in the placeholder name, rewrite it to dictionary-style
-        if " " in trimmed:
-            new_placeholder = f"{{{{ element['{trimmed}'] }}}}"
-            template = template.replace(original_placeholder, new_placeholder)
-
-    return template

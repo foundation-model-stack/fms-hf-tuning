@@ -46,8 +46,8 @@ class ModelArguments:
         metadata={
             "help": "Resize model embedding layer to the nearest multiple of \
                 the given number after tokenizer modifications. \
-                    NOTE: This involves extending \
-                    the embedding layer without any corresponding real tokens."
+                NOTE: This involves extending \
+                the embedding layer without any corresponding real tokens."
         },
     )
     tokenizer_name_or_path: Optional[str] = field(
@@ -72,10 +72,11 @@ class DataArguments:
     dataset_text_field: str = field(
         default=None,
         metadata={
-            "help": "Training dataset text field containing single sequence. \
-                    Either the dataset_text_field \
-                    or data_formatter_template need to be supplied. \
-                    For running vision language model tuning pass the column name for text data."
+            "help": "Use text_column_name to specify this argument going forward\n"
+            "Training dataset text field containing single sequence. \
+             Either the dataset_text_field \
+             or data_formatter_template need to be supplied. \
+             For running vision language model tuning pass the column name for text data."
         },
     )
     dataset_conversation_field: str = field(
@@ -145,6 +146,31 @@ class DataArguments:
             Add special tokens as new tokens and increase vocabulary and model embedding size."
         },
     )
+    do_dataprocessing_only: bool = field(
+        default=False,
+        metadata={
+            "help": "Set this field only if you need to preprocess the dataset and not train.\
+                  Setting this field would mean that the data arguments will be processed and the \
+                  processed dataset will be dumped to TrainingArguments.output_dir.\n \
+                  The tokenizer is picked from (model_name_or_path/tokenizer_name_or_path). \n \
+                  Also set num_train_dataset_shards and num_eval_dataset_shards for splitting the \
+                  dataset into multiple shards (defaults to 1)",
+        },
+    )
+    num_train_dataset_shards: int = field(
+        default=1,
+        metadata={
+            "help": "Number of train dataset shards to dump the dataset.\
+                    Used in conjunction with --do_dataprocessing_only"
+        },
+    )
+    num_eval_dataset_shards: int = field(
+        default=1,
+        metadata={
+            "help": "Number of eval dataset shards to dump the dataset.\
+                    Used in conjunction with --do_dataprocessing_only"
+        },
+    )
 
     def __post_init__(self):
         def unescape(s):
@@ -199,11 +225,12 @@ class TrainingArguments(transformers.TrainingArguments):
             'steps' (logging is done every `logging_steps`)"
         },
     )
-    trackers: Optional[List[str.lower]] = field(
+    trackers: Optional[List[str]] = field(
         default_factory=lambda: [FILE_LOGGING_TRACKER],
         metadata={
             "help": "Experiment trackers to use.\n"
-            + "Available trackers are - file_logger(default), aim, none\n"
+            + "Available trackers are - "
+            + "file_logger(default), aim, clearml, mlflow, hf_resource_scanner\n"
             + "Requires additional configs, see tuning.configs/tracker_configs.py"
         },
     )
@@ -225,6 +252,18 @@ class TrainingArguments(transformers.TrainingArguments):
                 for all PEFT runs by the library internally."
         },
     )
+    eval_strategy: str = field(
+        default="no",
+        metadata={
+            "help": "The evaluation strategy to adopt during training. "
+            "Possible values are 'no' (no evaluation during training), "
+            "'epoch' (evaluate at the end of each epoch), "
+            "'steps' (evaluate every `eval_steps`). "
+            "Note: Splitting the dataset does not automatically trigger evaluation; "
+            "you must explicitly set this value to enable evaluation."
+        },
+    )
+    report_to: str = "none"
 
 
 @dataclass
