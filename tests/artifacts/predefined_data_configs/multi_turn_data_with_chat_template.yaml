@@ -18,7 +18,7 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
+            formatted_text_column_name: "formatted_chat_data"
   - name: dataset_2
     data_paths:
       - "FILE_PATH"
@@ -27,7 +27,7 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
+            formatted_text_column_name: "formatted_chat_data"
   - name: dataset_3
     data_paths:
       - "FILE_PATH"
@@ -36,4 +36,4 @@ datasets:
         arguments:
           remove_columns: all
           fn_kwargs:
-            dataset_text_field: "formatted_chat_data"
+            formatted_text_column_name: "formatted_chat_data"

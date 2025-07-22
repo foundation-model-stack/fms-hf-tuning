@@ -21,9 +21,11 @@ ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
+ARG ENABLE_ALORA=false
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
+ARG ENABLE_CLEARML=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -124,7 +126,10 @@ ARG USER
 ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
+ARG ENABLE_MLFLOW
+ARG ENABLE_ALORA
 ARG ENABLE_SCANNER
+ARG ENABLE_CLEARML
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -169,12 +174,19 @@ RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
     fi
 
+RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[activated-lora]"; \
+    fi
+
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
     python -m pip install --user "$(head bdist_name)[mlflow]"; \
     fi
 
 RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
+    fi
+RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[clearml]"; \
     fi
 
     # Clean up the wheel module. It's only needed by flash-attn install

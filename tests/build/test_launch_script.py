@@ -29,17 +29,16 @@ from transformers.utils.import_utils import _is_package_available
 from build.accelerate_launch import main
 from build.utils import serialize_args, get_highest_checkpoint
 from tests.artifacts.testdata import TWITTER_COMPLAINTS_DATA_JSONL
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     INTERNAL_ERROR_EXIT_CODE,
 )
-from tuning.config.tracker_configs import (
-    FileLoggingTrackerConfig,
-    HFResourceScannerConfig,
-)
+from tuning.config.tracker_configs import TrackerConfigs
 
 SCRIPT = "tuning/sft_trainer.py"
-MODEL_NAME = "Maykeye/TinyLLama-v0"
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
+
 BASE_KWARGS = {
     "model_name_or_path": MODEL_NAME,
     "training_data_path": TWITTER_COMPLAINTS_DATA_JSONL,
@@ -259,9 +258,7 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
 def test_launch_with_HFResourceScanner_enabled():
     with tempfile.TemporaryDirectory() as tempdir:
         setup_env(tempdir)
-        scanner_outfile = os.path.join(
-            tempdir, HFResourceScannerConfig.scanner_output_filename
-        )
+        scanner_outfile = os.path.join(tempdir, TrackerConfigs.scanner_output_filename)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{
@@ -367,9 +364,7 @@ def _validate_termination_files_when_tuning_succeeds(base_dir):
     assert os.path.exists(os.path.join(base_dir, "/termination-log")) is False
     assert os.path.exists(os.path.join(base_dir, ".complete")) is True
     assert (
-        os.path.exists(
-            os.path.join(base_dir, FileLoggingTrackerConfig.training_logs_filename)
-        )
+        os.path.exists(os.path.join(base_dir, TrackerConfigs.training_logs_filename))
         is True
     )
 

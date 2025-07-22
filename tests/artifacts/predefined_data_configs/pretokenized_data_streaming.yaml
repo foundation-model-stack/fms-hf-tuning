@@ -1,0 +1,7 @@
+dataprocessor:
+    type: default
+    streaming: true
+datasets:
+  - name: pretokenized_dataset
+    data_paths:
+      - "FILE_PATH"

@@ -38,7 +38,7 @@ def test_run_with_bad_tracker_config():
 
         with pytest.raises(
             ValueError,
-            match="tracker configs should adhere to the TrackerConfigFactory type",
+            match="tracker configs should adhere to the TrackerConfigs type",
         ):
             sft_trainer.train(
                 MODEL_ARGS,

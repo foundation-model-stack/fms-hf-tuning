@@ -1,0 +1,15 @@
+dataprocessor:
+    type: default
+    streaming: true
+datasets:
+  - name: apply_custom_jinja_template
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_jinja_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            formatted_text_column_name: "formatted_text"
+            template: "dataset_template"

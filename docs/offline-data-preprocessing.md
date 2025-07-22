@@ -1,8 +1,8 @@
 # Offline Data Preprocessing
 
-Our library provides a [script](../scripts/offline_data_processing.py) that allows users to perform standalone data preprocessing, independent of tuning/training. This script enables users to process raw datasets, apply basic/advanced data preprocessing, and save the train and validation datasets in Parquet format inside the specified `output_dir`. When the `--num_dataset_shards` argument is specified, the datasets are divided and saved into multiple shards.
+Our library allows users to perform standalone data preprocessing, independent of tuning/training. This enables users to process raw datasets, apply basic/advanced data preprocessing, and save the train and validation datasets in Parquet format inside the specified `TrainingArguments.output_dir`. When the `--do_dataprocessing_only` argument is specified, the datasets are divided and saved into multiple shards configured via (`--num_train_dataset_shards` and `--num_eval_dataset_shards`).
 
-Users can pass any data config to this script. The goal of the script is to take the provided data config and generate a dataset that can be used directly for training, without requiring any online processing. As an example see this data config below:
+Users can pass any data config or data arguments. The main goal here is to take the provided data config and generate a dataset that can be used directly for training, without requiring any online processing. As an example see this data config below:
 
 ```yaml
 dataprocessor:
@@ -23,30 +23,31 @@ datasets:
             output_field_name: output
 ```
 
-After preparing the data configuration YAML file, run the script with the following example command to perform offline data preprocessing:   
+After preparing the data configuration YAML file, run with the following example command to perform offline data preprocessing:   
 
 ```
-python scripts/offline_data_processing.py \
+python -m tuning.sft_trainer \
 --data_config_path  /path/to/data_config.yaml \
 --model_name_or_path "model_name"  \
 --max_seq_length 4096 \
 --output_dir /path/to/output/directory  \
 --log_level info \
---num_dataset_shards 3
+--num_train_dataset_shards 10 \
+--num_eval_dataset_shards 1
 ```
 
 Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning by passing it through the `--training_data_path` flag or passing it via `data_paths` argument in data config yaml, provided they find the sharded datasets beneficial for training.
 
-**NOTE**: The offline data preprocessing script is not compatible with processing image datasets for vision models. 
+**NOTE**: The offline data preprocessing is not compatible with processing image datasets for vision models. 
 
 ## Example Usage
 ### Applying Chat Template
 
-This is a sample use case of the offline processing script being applied to a dataset with a chat template, after which the offline processed dataset is used to train a model.
+This is a sample use case of the offline processing being applied to a dataset with a chat template, after which the offline processed dataset is used to train a model.
 
 In this use case, the chat template is applied to a dataset using the `apply_tokenizer_chat_template` handler, followed by additional data transformation handlers. 
 
-**NOTE**: Streaming of the dataset is not supported when running the offline data preprocessing script. Therefore, in the data config, the `streaming` argument should either be set to `False` or left unassigned. 
+**NOTE**: Streaming of the dataset is not supported when running the offline data preprocessing. Therefore, in the data config, the `streaming` argument should either be set to `False` or left unassigned. 
 
 ```yaml
 dataprocessor:
@@ -74,8 +75,6 @@ dataprocessor:
    {%- endfor %}
 datasets:
  - name: dataset_1
-    retain_columns:
-     - "formatted_chat"
    data_paths:
     - "/app/arb30_100.jsonl"
    data_handlers:
@@ -101,10 +100,10 @@ datasets:
         - "formatted_chat"
 ```
 
-Command to run the offline data processing script:
+Command to run the offline data processing:
 
 ```yaml
-python scripts/offline_data_processing.py \
+python -m tuning.sft_trainer \
 --data_config_path "data_config.yaml" \
 --instruction_template "<|start_of_role|>user<|end_of_role|>" \
 --max_seq_length "8192" \
@@ -114,7 +113,7 @@ python scripts/offline_data_processing.py \
 --response_template "<|start_of_role|>assistant<|end_of_role|>" \
 --split_batches "true" \
 --use_flash_attn "true" \
---num_dataset_shards "10"
+--num_train_dataset_shards "10"
 ```
 
 The resulting shards are saved in the directory `/test/data/offline_processing_shards`, as specified by the `--output_dir` argument. These shards can then be used for tuning the model by pointing the `training_data_path` argument to the directory where the shards are stored—in this example, 
