@@ -33,7 +33,8 @@ python -m tuning.sft_trainer \
 --output_dir /path/to/output/directory  \
 --log_level info \
 --num_train_dataset_shards 10 \
---num_eval_dataset_shards 1
+--num_eval_dataset_shards 1 \
+--do_dataprocessing_only
 ```
 
 Additionally, once the offline data processing is complete, users can leverage the shards stored in `output_dir` for tuning by passing it through the `--training_data_path` flag or passing it via `data_paths` argument in data config yaml, provided they find the sharded datasets beneficial for training.
@@ -113,7 +114,8 @@ python -m tuning.sft_trainer \
 --response_template "<|start_of_role|>assistant<|end_of_role|>" \
 --split_batches "true" \
 --use_flash_attn "true" \
---num_train_dataset_shards "10"
+--num_train_dataset_shards "10" \
+--do_dataprocessing_only
 ```
 
 The resulting shards are saved in the directory `/test/data/offline_processing_shards`, as specified by the `--output_dir` argument. These shards can then be used for tuning the model by pointing the `training_data_path` argument to the directory where the shards are stored—in this example, 
@@ -175,5 +177,6 @@ accelerate launch \
   --use_reentrant="true" \
   --warmup_ratio="0.1" \
   --warmup_steps="200" \
-  --weight_decay="0.1"
+  --weight_decay="0.1" \
+  --do_dataprocessing_only
 ```
