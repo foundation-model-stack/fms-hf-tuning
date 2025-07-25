@@ -15,9 +15,12 @@
 # Standard
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
+import json
 
 # Third Party
 import torch
+
+# First Party
 import transformers
 
 # Local
@@ -147,12 +150,80 @@ class DataArguments:
         },
     )
 
+    odm_strategy: str = field(
+        default=None,
+        metadata={
+            "help": "Choose one of 'UniformDataMixing', 'PrevLossDiff', 'OnlineDataMixing', 'CurrentLossDiff'"
+        },
+    )
+
+    odm_alpha: float = field(
+        default=None,
+        metadata={"help": "Alpha value for RL agent."},
+    )
+
+    odm_dataset_tasks: List[str] = field(
+        default=None,
+        metadata={"help": "List of odm dataset tasks."},
+    )
+
+    odm_dataset_languages: List[str] = field(
+        default=None,
+        metadata={"help": "List of odm dataset languages."},
+    )
+
+    odm_dataset_num_test_samples: str = field(
+        default=10,
+        metadata={"help": "Number of validation samples per language."},
+    )
+
+    odm_dataset_eval: bool = field(
+        default=False,
+        metadata={"help": "perform eval or not"},
+    )
+
+    odm_dataset_eval_iter: int = field(
+        default=100,
+        metadata={"help": "eval iterations for every how many steps"},
+    )
+
+    odm_dataset_eval_samples: int = field(
+        default=10, metadata={"help": "number of samples per domain for eval"}
+    )
+
+    odm_dataset_train_samples: int = field(
+        default=10, metadata={"help": "number of samples per domain for training"}
+    )
+    
+    odm_sample_interval: int = field(
+        default=10, metadata={"help": "odm mixer sampling interval"}
+    )
+    odm_update_interval: int = field(
+        default=10, metadata={"help": "odm mixer update interval"}
+    )
+
+    odm_sequence: str = field(
+         default = None, metadata = {'help': 'Sequence to use.'}
+    )
+
     def __post_init__(self):
         def unescape(s):
             if s is not None and isinstance(s, str):
                 return s.encode("utf-8").decode("unicode_escape")
             return s
 
+        self.odm_strategy = (
+            self.odm_strategy.lower() if self.odm_strategy is not None else None
+        )
+        self.odm_dataset_languages = (
+            ["en", "de", "fr", "es", "zh"]
+            if self.odm_dataset_languages is None
+            else self.odm_dataset_languages
+        )
+        self.odm_dataset_tasks = (
+            ["pa", "nli"] if self.odm_dataset_tasks is None else self.odm_dataset_tasks
+        )
+        self.odm_sequence = json.loads(self.odm_sequence) if self.odm_sequence is not None else None
         self.chat_template = unescape(self.chat_template)
         self.data_formatter_template = unescape(self.data_formatter_template)
         self.response_template = unescape(self.response_template)

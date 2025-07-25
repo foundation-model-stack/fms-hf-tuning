@@ -27,16 +27,19 @@ from huggingface_hub.utils._validators import HFValidationError
 from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
+from trl import SFTConfig, SFTTrainer
+
+# First Party
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForVision2Seq,
     AutoProcessor,
     AutoTokenizer,
+    DataCollatorForSeq2Seq,
     TrainerCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
-from trl import SFTConfig, SFTTrainer
 import transformers
 
 # Local
@@ -59,6 +62,8 @@ from tuning.config.tracker_configs import (
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.data.tokenizer_utils import setup_tokenizer
+from tuning.odm.callbacks import ODMCallback
+from tuning.odm.utils import get_odm_dataset
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
@@ -246,6 +251,9 @@ def train(
                 )
             trainer_callbacks.append(cb)
 
+    if data_args.odm_strategy:
+        odmcb = ODMCallback(data_args.odm_dataset_eval_iter)
+        trainer_callbacks.append(odmcb)
     framework = AccelerationFrameworkConfig.from_dataclasses(
         fast_moe_config,
         attention_and_distributed_packing_config,
@@ -338,22 +346,45 @@ def train(
         is_multipack = attention_and_distributed_packing_config.is_multipack
 
     data_preprocessing_time = time.time()
-    (
-        formatted_train_dataset,
-        formatted_validation_dataset,
-        data_args.dataset_text_field,
-        data_collator,
-        train_args.max_seq_length,
-        dataset_kwargs,
-    ) = process_dataargs(
-        data_args,
-        tokenizer,
-        train_args,
-        additional_data_handlers,
-        is_padding_free=is_padding_free,
-        processor=processor,
-        is_multipack=is_multipack,
-    )
+    formatted_validation_dataset = None
+    formatted_train_dataset = None
+    if data_args.odm_strategy is None:
+        (
+            formatted_train_dataset,
+            formatted_validation_dataset,
+            data_args.dataset_text_field,
+            data_collator,
+            train_args.max_seq_length,
+            dataset_kwargs,
+        ) = process_dataargs(
+            data_args,
+            tokenizer,
+            train_args,
+            additional_data_handlers,
+            is_padding_free=is_padding_free,
+            processor=processor,
+            is_multipack=is_multipack,
+        )
+    else:
+        dataset_kwargs = {"skip_prepare_dataset": True}
+        data_args.dataset_text_field = None
+        formatted_validation_dataset = None
+        formatted_train_dataset = get_odm_dataset(
+            model,
+            tokenizer,
+            data_args.odm_dataset_languages,
+            data_args.odm_dataset_tasks,
+            data_args.odm_strategy,
+            data_args.odm_dataset_train_samples,
+            data_args.odm_alpha,
+            data_args.odm_sample_interval,
+            data_args.odm_update_interval,
+            train_args.max_steps,
+            data_args.odm_sequence,
+        )
+
+        data_collator = None
+
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
