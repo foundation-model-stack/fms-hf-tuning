@@ -30,6 +30,7 @@ class RunURIExporterMlflowCallback(MLflowCallback):
     as soon as it is created, which is on setup().
     """
 
+    _use_mlflow = True
     run_uri_export_path: str = None
     tracker: Tracker
     client = None
@@ -60,11 +61,15 @@ class RunURIExporterMlflowCallback(MLflowCallback):
         """
         super().setup(args, state, model)
 
+        if not self._use_mlflow or not state.is_world_process_zero:
+            return
+
         if not self._initialized:
             self.logger.warning(
                 "mlflow tracker was requested but did not get initialized;"
                 + " Please check the config"
             )
+            self._use_mlflow = False
             return
 
         self.client = self._ml_flow

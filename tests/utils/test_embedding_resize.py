@@ -28,13 +28,14 @@ from transformers import (
 import torch
 
 # First Party
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.testdata import CUSTOM_TOKENIZER_TINYLLAMA
 from tests.artifacts.vision_models import TINY_LLAMA_VISION_MODEL_NAME
 
 # Local
 from tuning.data.tokenizer_utils import tokenizer_and_embedding_resize
 
-MODEL_NAME = "Maykeye/TinyLLama-v0"
+MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 INPUT_TEXT = "### Text: @NortonSupport Thanks much.\n\n### Label:"
 
 

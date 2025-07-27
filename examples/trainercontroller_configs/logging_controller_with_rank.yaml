@@ -16,7 +16,13 @@ operations:
     arguments:
       log_format: |
         Saving model in huggingface format at step: {trainer_state[global_step]}
-        Model saved in {args.output_dir}/checkpoint-{trainer_state[global_step]}
+        Model saved in {path}
+      log_level: info
+  - name: logger_on_save_final
+    class: LogControl
+    arguments:
+      log_format: |
+        Saving final checkpoint in {path}
       log_level: info
 controllers:
   - name: ctrl-on-log-format
@@ -28,6 +34,12 @@ controllers:
   - name: ctrl-on-save-format
     triggers:
       - on_save
-    rule: 'True'
+    rule: 'trainer_state["is_final"] == False'
     operations:
       - logger_on_save.should_log
+  - name: ctrl-on-save-format-final
+    triggers:
+      - on_save
+    rule: 'trainer_state["is_final"] == True'
+    operations:
+      - logger_on_save_final.should_log

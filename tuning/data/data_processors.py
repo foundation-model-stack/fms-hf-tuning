@@ -377,34 +377,40 @@ class DataPreProcessor:
               {",".join([e.name for e in DataHandlerType])}'
         )
 
-    def _split_dataset(
+    def split_dataset(
         self,
         dataset_config: DataSetConfig,
         dataset: Union[Dataset, DatasetDict, IterableDataset, IterableDatasetDict],
     ) -> Union[DatasetDict, IterableDatasetDict]:
 
+        train_split = "train"
+        eval_split = "test"
+
         seed = self.processor_config.seed
 
-        train_size = dataset_config.split.get("train")
-        validation_size = dataset_config.split.get("validation")
+        # TODO: This is a problem.
+        # The HF function expects a test key but outside we take "validation" from data config.
+        train_size = dataset_config.split.get("train", 0.0)
+        eval_size = dataset_config.split.get("validation", 0.0)
 
-        if train_size is None or validation_size is None:
-            raise ValueError(
-                "Both 'train' and 'validation' splits must be specified for a "
-                "dataset in data_config"
-            )
-
-        total = train_size + validation_size
-        if total > 1.0 or total == 0:
+        total = train_size + eval_size
+        if total > 1.0 or total <= 0:
             raise ValueError(
                 f"Sum of dataset split definitions (train + validation) must be in (0,1]. "
                 f"Got {total}"
             )
 
         if isinstance(dataset, (DatasetDict, IterableDatasetDict)):
-            if "train" not in dataset:
-                raise ValueError("Expected atleast 'train' split in dataset dict")
-            d = dataset["train"]
+            splits = dataset.keys()
+            if len(splits) == 1 and train_split in splits:
+                d = dataset[train_split]
+            else:
+                logger.warning(
+                    "Loaded dataset has multiple splits or no train split.\
+                    For splitting train to train and validate a train split is required\n\
+                    This dataset will be used as is without splitting"
+                )
+                return dataset
         else:
             d = dataset
 
@@ -414,9 +420,9 @@ class DataPreProcessor:
 
         # HF API doesn't handle this so we handle this outside.
         if train_size == 1.0:  # validation has to be 0.0 as sum is 1.0
-            return container({"train": d})
-        if validation_size == 1.0:  # train has to be 0.0
-            return container({"validation": d})
+            return container({train_split: d})
+        if eval_size == 1.0:  # train has to be 0.0
+            return container({eval_split: d})
 
         if isinstance(d, IterableDataset):
             raise NotImplementedError(
@@ -426,15 +432,25 @@ class DataPreProcessor:
 
         # Try to split the dataset now.
         split_datasets = d.train_test_split(
-            train_size=train_size,
-            test_size=validation_size,
+            train_size=train_size if train_size > 0.0 else None,
+            test_size=eval_size if eval_size > 0.0 else None,
             shuffle=True,
             seed=seed,
         )
 
-        return DatasetDict(
-            {"train": split_datasets["train"], "validation": split_datasets["test"]}
+        # Again this is not handeled by hugging face API.
+        # We have to handle this outside
+        if train_size == 0.0:
+            del split_datasets[train_split]
+        elif eval_size == 0.0:
+            del split_datasets[eval_split]
+
+        logger.info(
+            "Split dataset {} to create {}".format(
+                dataset_config.name, str(split_datasets)
+            )
         )
+        return split_datasets
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig]
@@ -445,53 +461,38 @@ class DataPreProcessor:
                 "No dataset configs provided. Provided Dataset configs is None."
             )
 
-        default_split_name = "train"  # default
-        all_datasetdicts = []
+        train_split = "train"  # default
+        eval_split = "test"
 
-        # quick check to see if we are sampling and if we need to throw error.
-        sampling_probabilities = [d.sampling for d in dataset_configs if d.sampling]
-
-        if len(sampling_probabilities) > 0:
-            if len(sampling_probabilities) != len(dataset_configs):
-                raise ValueError(
-                    "Sampling probabilities should be provided for all datasets"
-                )
-            if sum(p for p in sampling_probabilities) != 1:
-                raise ValueError("Sampling probabilities don't sum to 1")
-            sample_datasets = True
-            logger.info(
-                "Sampling ratios are specified; given datasets will be interleaved."
-            )
-        else:
-            logger.info(
-                "Sampling is not specified; if multiple datasets are provided,"
-                " the given datasets will be concatenated."
-            )
-            sample_datasets = False
+        processed_datasets = []
 
         logger.info("Starting DataPreProcessor...")
         # Now Iterate over the multiple datasets provided to us to process
         for d in dataset_configs:
-            logger.info("Loading %s", d.name)
+            logger.info("Loading the dataset - %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            raw_dataset = self.load_dataset(d, self.processor_config.streaming)
-            logger.info("Loaded raw dataset : %s", str(raw_dataset))
+            loaded_dataset = self.load_dataset(d, self.processor_config.streaming)
+            logger.info("Loaded raw dataset : %s", str(loaded_dataset))
 
             if d.split is not None:
-                raw_dataset = self._split_dataset(d, raw_dataset)
+                loaded_dataset = self.split_dataset(d, loaded_dataset)
 
             # Create a raw dataset which is a Dict container to house all Datasets
-            if isinstance(raw_dataset, (Dataset, IterableDataset)):
-                raw_datasets = (
-                    IterableDatasetDict()
-                    if isinstance(raw_dataset, IterableDataset)
-                    else DatasetDict()
-                )
+            raw_datasets = (
+                IterableDatasetDict()
+                if isinstance(loaded_dataset, (IterableDataset, IterableDatasetDict))
+                else DatasetDict()
+            )
+
+            splits_to_keep = [train_split, eval_split]
+            if isinstance(loaded_dataset, (Dataset, IterableDataset)):
                 # Assume all is train split
-                raw_datasets[default_split_name] = raw_dataset
+                raw_datasets[train_split] = loaded_dataset
             else:
-                raw_datasets = raw_dataset
+                for k, v in loaded_dataset.items():
+                    if k in splits_to_keep:
+                        raw_datasets[k] = v
 
             if d.data_handlers:  # Execute the datahandlers
                 for data_handler_config in d.data_handlers:
@@ -502,60 +503,90 @@ class DataPreProcessor:
                     )
 
             # Append the processed datasets to the final dict
-            all_datasetdicts.append(raw_datasets)
-        # This is a dict of { split: list[datasets] }
-        final_datasets = {}
-        for d in all_datasetdicts:
-            for k, v in d.items():
-                if k not in final_datasets:
-                    final_datasets[k] = [v]
-                else:
-                    final_datasets[k].append(v)
+            processed_datasets.append((d, raw_datasets))
+
+        train_datasets = []
+        train_sampling_probabilities = []
+        validation_datasets = []
+
+        for d, raw in processed_datasets:
+            if train_split in raw:
+                logger.info("Taking train split from dataset {}".format(d.name))
+                train_datasets.append(raw[train_split])
+            if eval_split in raw:
+                logger.info("Taking validation split from dataset {}".format(d.name))
+                validation_datasets.append(raw[eval_split])
+            if d.sampling and d.sampling > 0.0:
+                train_sampling_probabilities.append(d.sampling)
+
+        if len(train_datasets) == 0:
+            raise ValueError(
+                "Processed datasets do not contain train split. Check your split ratios"
+            )
+
+        # quick check to see if we are sampling and if we need to throw error.
+        if len(train_sampling_probabilities) > 0:
+            if len(train_sampling_probabilities) < len(train_datasets):
+                raise ValueError(
+                    "Sampling probability should be specified for all datasets with train split"
+                )
+            if len(train_sampling_probabilities) > len(train_datasets):
+                raise ValueError(
+                    "Sampling probability should only be specified for datasets with train split"
+                )
+            if sum(p for p in train_sampling_probabilities) != 1:
+                raise ValueError(
+                    "Sampling probabilities for train datasets don't sum to 1"
+                )
+            sample_datasets = True
+            logger.info(
+                "Sampling ratios are specified; only train datasets will be interleaved."
+            )
+        else:
+            sample_datasets = False
 
         # Ensure again datasets are aligned before interleaving or concatenating
-        for v in final_datasets.values():
-            maybe_align_datasets(v)
+        maybe_align_datasets(train_datasets)
+        maybe_align_datasets(validation_datasets)
 
-        if sample_datasets:
+        train_dataset = None
+        eval_dataset = None
+
+        if len(train_datasets) == 1:
+            train_dataset = train_datasets[0]
+        elif sample_datasets:
             strategy = self.processor_config.sampling_stopping_strategy
             seed = self.processor_config.seed
             logger.info(
-                "Interleaving datasets: strategy[%s] seed[%d] probabilities[%s]",
+                "Interleaving train datasets: strategy[%s] seed[%d] probabilities[%s]",
                 strategy,
                 seed,
-                str(sampling_probabilities),
+                str(train_sampling_probabilities),
             )
-            # Default sampling for "train" split, concatenates remaining splits
-            splits_to_interleave = ["train"]
-            for k, v in final_datasets.items():
-                if k in splits_to_interleave:
-                    interleaved = datasets.interleave_datasets(
-                        datasets=v,
-                        probabilities=sampling_probabilities,
-                        stopping_strategy=strategy,
-                        seed=seed,
-                    )
-                    final_datasets[k] = interleaved
-                else:
-                    final_datasets[k] = (
-                        v[0] if len(v) == 1 else datasets.concatenate_datasets(v)
-                    )
+            train_dataset = datasets.interleave_datasets(
+                datasets=train_datasets,
+                probabilities=train_sampling_probabilities,
+                stopping_strategy=strategy,
+                seed=seed,
+            )
         else:
-            for k, v in final_datasets.items():
-                final_datasets[k] = (
-                    v[0] if len(v) == 1 else datasets.concatenate_datasets(v)
-                )
+            train_dataset = datasets.concatenate_datasets(train_datasets)
 
-        train_dataset = final_datasets.get("train", None)
+        if len(validation_datasets) > 0:
+            logger.info(
+                "Validataion splits are present and will always be concatenated",
+            )
+            eval_dataset = (
+                validation_datasets[0]
+                if len(validation_datasets) == 1
+                else datasets.concatenate_datasets(validation_datasets)
+            )
+
         # Just a failsafe in case this is required later.
         if isinstance(train_dataset, IterableDataset):
             train_dataset = resolve_iterable_dataset_features(train_dataset)
-
-        eval_dataset = None
-        if "validation" in final_datasets:
-            eval_dataset = final_datasets.get("validation", None)
-            if isinstance(eval_dataset, IterableDataset):
-                eval_dataset = resolve_iterable_dataset_features(eval_dataset)
+        if eval_dataset and isinstance(eval_dataset, IterableDataset):
+            eval_dataset = resolve_iterable_dataset_features(eval_dataset)
 
         return train_dataset, eval_dataset
 
@@ -575,6 +606,9 @@ class DataPreProcessor:
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
             train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
+
+        logger.info("Processed train dataset {}".format(train_dataset))
+        logger.info("Processed eval dataset {}".format(eval_dataset))
 
         return train_dataset, eval_dataset
 

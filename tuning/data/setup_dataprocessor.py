@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Standard
+from pathlib import Path
 from typing import Dict, Union
 import logging
 
@@ -62,24 +63,41 @@ def is_pretokenized_dataset(data: Union[str, Dataset, IterableDataset]):
     return ("input_ids" in data.column_names) and ("labels" in data.column_names)
 
 
-# TODO: For now assume only training dataset is passed via data config file.
-# This is very limited but is done to keep first implementation minimal
-def _process_dataconfig_file(
+def process_dataconfig_file(
     data_args: DataArguments,
     train_args: TrainingArguments,
     tokenizer: AutoTokenizer,
     additional_data_handlers: Dict[str, DataHandler] = None,
     processor: AutoProcessor = None,
     is_multipack: bool = False,
+    is_padding_free: bool = False,
 ):
-    data_config = load_and_validate_data_config(data_args.data_config_path)
-    data_processor = get_datapreprocessor(
-        processor_config=data_config.dataprocessor,
-        tokenizer=tokenizer,
-        processor=processor,
-        additional_data_handlers=additional_data_handlers,
-    )
+    """
+    Args:
+        data_args: tuning.config.configs.DataArguments
+        train_args: TrainingArguments
+            Training arguments passed to the library
+            Used for max_steps if streaming is set.
+        tokenizer: AutoTokenizer
+        additional_data_handlers: A Dict of [str, DataHandler] data handlers
+            which need to be registered with the data preprocessor
+        processor:
+            Model processor to combine text and image data if using
+            multi-modal model. Defaults to None.
+        is_multipack: A bool representing is Multipack plugin is enabled.
+                         Defauts to False.
+    Returns:
+        Tuple(Dataset, Dataset, str)
+            tuple containing
+            train_dataset (Dataset/IterableDataset),
+            eval_dataset (Dataset/IterableDataset),
+            dataset_text_field (str),
+    """
 
+    data_config = load_and_validate_data_config(data_args.data_config_path)
+
+    if not data_config:
+        raise ValueError("Data config is not provided. Please check data args.")
     if (
         data_args.training_data_path is not None
         or data_args.validation_data_path is not None
@@ -89,16 +107,22 @@ def _process_dataconfig_file(
             "data_config. Please provide paths in data_config instead."
         )
 
-    if data_processor.processor_config.chat_template is not None:
-        if tokenizer.chat_template:
-            logger.warning(
-                "replacing existing chat_template %s with data config's chat_template %s",
-                tokenizer.chat_template,
-                data_processor.processor_config.chat_template,
-            )
-        tokenizer.chat_template = data_processor.processor_config.chat_template
+    data_processor = get_datapreprocessor(
+        processor_config=data_config.dataprocessor,
+        tokenizer=tokenizer,
+        processor=processor,
+        additional_data_handlers=additional_data_handlers,
+    )
 
     if data_processor.processor_config.streaming:
+        if is_padding_free:
+            logging.error(
+                "`padding_free` is not supported when streaming is enabled.",
+            )
+            raise ValueError(
+                "`--padding_free` is not allowed when `streaming=True`. "
+                "Please remove the `padding_free` argument from your configuration."
+            )
         if train_args.max_steps < 1:
             logging.error(
                 "ValueError: `--max_steps` must be set when streaming is set in data "
@@ -117,6 +141,16 @@ def _process_dataconfig_file(
                 "Multipack is not compatible with streaming=true please set streaming=false "
                 "or disable multipack sampler"
             )
+
+    if data_processor.processor_config.chat_template is not None:
+        if tokenizer.chat_template:
+            logger.warning(
+                "replacing existing chat_template %s with data config's chat_template %s",
+                tokenizer.chat_template,
+                data_processor.processor_config.chat_template,
+            )
+        tokenizer.chat_template = data_processor.processor_config.chat_template
+
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
         data_config.datasets
     )
@@ -411,6 +445,47 @@ def _process_raw_data_args(
     return (train_dataset, eval_dataset, dataset_text_field)
 
 
+def dump_dataset(
+    output_dir: Path, nshards: int, d: Union[Dataset, IterableDataset], name: str
+):
+    """
+    Saves the given dataset in the specified number of shards.
+    Currently supports only parquet shards
+
+    Args:
+        output_dir: output directory where dataset is dumped
+        shards (int): Num of shards to split the dataset into
+        d (Dataset, IterableDataset): The dataset to dump
+        name (str): Name of the dataset (used for logging).
+    """
+
+    if d is None:
+        return
+    try:
+        if isinstance(d, IterableDataset):
+            d = Dataset(d)
+        d = d.flatten_indices()
+
+        # Save dataset shards
+        output_dir = output_dir / name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logging.info(
+            "Dumping processesd dataaset %s at %s in %d shards",
+            name,
+            output_dir,
+            nshards,
+        )
+        for shard_idx in range(nshards):
+            shard = d.shard(index=shard_idx, num_shards=nshards)
+            shard_path = output_dir / f"ds_{shard_idx:05d}.parquet"
+            shard.to_parquet(shard_path)
+        logging.info("Dumped %d shards of %s", nshards, name)
+
+        logging.info("Saved dataset %s to %s", name, output_dir)
+    except Exception as e:
+        raise RuntimeError(f"Failed to dump dataset due to error {e}") from e
+
+
 # If a data config file is provided, load it to get the training dataset.
 # - Assumes only the training dataset is specified in the config file.
 # - Expects a complete and valid data config file from the user.
@@ -476,13 +551,14 @@ def process_dataargs(
         )
 
     if data_args.data_config_path:
-        train_dataset, eval_dataset, dataset_text_field = _process_dataconfig_file(
+        train_dataset, eval_dataset, dataset_text_field = process_dataconfig_file(
             data_args,
             train_args,
             tokenizer,
             additional_data_handlers,
             processor,
             is_multipack,
+            is_padding_free,
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -494,6 +570,40 @@ def process_dataargs(
             is_padding_free,
             processor,
         )
+
+    if train_args.eval_strategy != "no" and eval_dataset is None:
+        raise ValueError(
+            f"`eval_strategy` is set to '{train_args.eval_strategy}' but no evaluation "
+            f"dataset was provided. Please ensure that an evaluation dataset is specified "
+            f"or set `eval_strategy='no'` to disable evaluation."
+        )
+    if train_dataset is None:
+        raise ValueError(
+            "Training dataset could not be created! Training Dataset is None."
+            "Check your data config or ensure split sizes are valid."
+        )
+    if data_args.do_dataprocessing_only:
+        dump_dir = Path(train_args.output_dir)
+        if not dump_dir.is_absolute():
+            dump_dir = dump_dir.absolute()
+        dump_dataset(
+            dump_dir,
+            data_args.num_train_dataset_shards,
+            train_dataset,
+            "train_dataset",
+        )
+        if eval_dataset:
+            dump_dataset(
+                dump_dir,
+                data_args.num_eval_dataset_shards,
+                eval_dataset,
+                "validataion_dataset",
+            )
+        logger.info(
+            "Data Processing execution completed. Datasets saved in %s directory.",
+            train_args.output_dir,
+        )
+        return (train_dataset, eval_dataset, None, None, None, None)
 
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to

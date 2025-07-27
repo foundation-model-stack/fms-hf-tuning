@@ -63,7 +63,7 @@ from tuning.utils.error_logging import (
     USER_ERROR_EXIT_CODE,
     write_termination_log,
 )
-from tuning.utils.logging import set_log_level
+from tuning.utils.logging import pretty_print_args, set_log_level
 
 
 def train(
@@ -120,7 +120,9 @@ def train(
         Tuple: Instance of SFTTrainer , some metadata in a dict
             Metadata contains information on number of added tokens while tuning.
     """
-    train_args, logger = set_log_level(train_args, "sft_trainer_train")
+    logger, train_args.log_level = set_log_level(
+        logger_name="sft_trainer_train", level=train_args.log_level
+    )
     USE_ALORA = False
     try:
         # Third Party
@@ -194,6 +196,7 @@ def train(
     # Initialize Trackers And Callbacks
     trackers = []
     trainer_callbacks = []
+    tc_callback = None
 
     if exp_metadata and (not isinstance(exp_metadata, dict)):
         raise ValueError("exp metadata passed should be a dict with valid json")
@@ -244,63 +247,82 @@ def train(
     ).get_framework()
 
     # option to set multimodal var here
-    model_load_time = time.time()
+    model = None
     processor = None
+    tokenizer = None
+
+    model_load_time = time.time()
     try:
-        # try to load vision model
-        model = AutoModelForVision2Seq.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=train_args.cache_dir,
-            torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2"
-            if model_args.use_flash_attn
-            else None,
-        )
+        logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
         try:
-            if "use_cache" in model.language_model.config:
-                # avoid warning that use_cache is incompatible with gradient checkpointing
-                model.language_model.config.use_cache = (
-                    not train_args.gradient_checkpointing
-                )
-        except AttributeError as e:
-            # When the model doesn't have the use_cache attribute
-            logger.warning("Couldn't update use_cache for vision model: %s", e)
+            # try to load model as a vision model
+            model_loader = AutoModelForVision2Seq.from_pretrained
 
-        processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
-        tokenizer = processor.tokenizer
-    except ValueError:
+            model = model_loader(
+                model_args.model_name_or_path,
+                cache_dir=train_args.cache_dir,
+                torch_dtype=get_torch_dtype(model_args.torch_dtype),
+                attn_implementation="flash_attention_2"
+                if model_args.use_flash_attn
+                else None,
+            )
+            try:
+                if "use_cache" in model.language_model.config:
+                    # avoid warning that use_cache is incompatible with gradient checkpointing
+                    model.language_model.config.use_cache = (
+                        not train_args.gradient_checkpointing
+                    )
+            except AttributeError as e:
+                # When the model doesn't have the use_cache attribute
+                logger.warning("Couldn't update use_cache for vision model: %s", e)
+
+            processor = AutoProcessor.from_pretrained(model_args.model_name_or_path)
+            tokenizer = processor.tokenizer
+
+            logger.info("Loaded vision model as {} ".format(model))
+            logger.info("Loaded vision model processor {} ".format(processor))
+            logger.info("Loaded model tokenizer {} ".format(tokenizer))
+        except ValueError:
+            model = None
+            processor = None
+            tokenizer = None
+
         # fallback on loading language model
-        model_loader = AutoModelForCausalLM.from_pretrained
+        if model is None:
+            # find the correct model loader
+            if framework is not None and framework.requires_custom_loading:
+                model_loader = framework.model_loader
+            else:
+                model_loader = AutoModelForCausalLM.from_pretrained
 
-        if framework is not None and framework.requires_custom_loading:
-            model_loader = framework.model_loader  # drop-in new loader
+            model = model_loader(
+                model_args.model_name_or_path,
+                cache_dir=train_args.cache_dir,
+                torch_dtype=get_torch_dtype(model_args.torch_dtype),
+                attn_implementation="flash_attention_2"
+                if model_args.use_flash_attn
+                else None,
+                # avoid warning that use_cache is incompatible with gradient checkpointing
+                use_cache=(not train_args.gradient_checkpointing),
+            )
 
-        model = model_loader(
-            model_args.model_name_or_path,
-            cache_dir=train_args.cache_dir,
-            torch_dtype=get_torch_dtype(model_args.torch_dtype),
-            attn_implementation="flash_attention_2"
-            if model_args.use_flash_attn
-            else None,
-            # avoid warning that use_cache is incompatible with gradient checkpointing
-            use_cache=(not train_args.gradient_checkpointing),
-        )
+            # TODO: Move these to a config as well
+            tokenizer = AutoTokenizer.from_pretrained(
+                (
+                    model_args.tokenizer_name_or_path
+                    if model_args.tokenizer_name_or_path
+                    else model_args.model_name_or_path
+                ),
+                cache_dir=train_args.cache_dir,
+                use_fast=True,
+                legacy=True,
+            )
 
-        # TODO: Move these to a config as well
-        tokenizer = AutoTokenizer.from_pretrained(
-            (
-                model_args.tokenizer_name_or_path
-                if model_args.tokenizer_name_or_path
-                else model_args.model_name_or_path
-            ),
-            cache_dir=train_args.cache_dir,
-            use_fast=True,
-            legacy=True,
-        )
+            logger.info("Loaded language model as {} ".format(model))
+            logger.info("Loaded model tokenizer {} ".format(tokenizer))
     except Exception as e:  # pylint: disable=broad-except
-        logger.error(traceback.format_exc())
-        write_termination_log(f"Exception raised during loading model: {e}")
-        sys.exit(USER_ERROR_EXIT_CODE)
+        logger.error("Exception raised during loading model: {}".format(e))
+        raise e
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
@@ -347,6 +369,12 @@ def train(
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
     )
+
+    if data_args.do_dataprocessing_only:
+        logger.info(
+            "Only data processing was requested. Exiting Process.",
+        )
+        return None, None
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
@@ -472,10 +500,10 @@ def train(
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
 
-    return trainer, additional_metadata
+    return trainer, additional_metadata, tc_callback
 
 
-def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
+def save(path: str, trainer: SFTTrainer, tc_callback, log_level="WARNING", args=None):
     """Saves model and tokenizer to given path.
 
     Args:
@@ -498,6 +526,10 @@ def save(path: str, trainer: SFTTrainer, log_level="WARNING"):
 
     logger.info("Saving tuned model to path: %s", path)
     trainer.save_model(path)
+    if tc_callback and args:
+        tc_callback.on_save(
+            args, trainer.state, trainer.control, path=path, is_final=True
+        )
 
 
 def get_parser():
@@ -523,7 +555,6 @@ def get_parser():
         choices=["pt", "lora", "alora", None, "none"],
         default="none",
     )
-
     parser.add_argument(
         "--exp_metadata",
         type=str,
@@ -597,7 +628,6 @@ def parse_arguments(parser, json_config=None):
                 raise ValueError(
                     "invocation_string is not passed required for aLoRA usage"
                 )
-
     else:
         (
             model_args,
@@ -681,30 +711,32 @@ def main():
         ) = parse_arguments(parser, job_config)
 
         # Function to set log level for python native logger and transformers training logger
-        training_args, logger = set_log_level(training_args, __name__)
-
-        logger.info(
-            "Flat arguments parsed: \
-            model_args %s, data_args %s, training_args %s, trainer_controller_args %s, \
-            tune_config %s, quantized_lora_config %s, fusedops_kernels_config %s, \
-            attention_and_distributed_packing_config, %s,\
-            fast_moe_config %s, tracker_config %s, exp_metadata %s",
-            model_args,
-            data_args,
-            training_args,
-            trainer_controller_args,
-            tune_config,
-            quantized_lora_config,
-            fusedops_kernels_config,
-            attention_and_distributed_packing_config,
-            fast_moe_config,
-            tracker_configs,
-            exp_metadata,
+        logger, training_args.log_level = set_log_level(
+            logger_name=__name__, level=training_args.log_level
         )
+
+        logger.info("fms-hf-tuning execution start")
+        args_dump = pretty_print_args(
+            {
+                "Model Arguments": model_args,
+                "Data Arguments": data_args,
+                "Training Arguments": training_args,
+                "Tune Config": tune_config,
+                "QLoRA Config": quantized_lora_config,
+                "Tracker Config": tracker_configs,
+                "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
+                "Fused Ops Kernels Config": fusedops_kernels_config,
+                "Fast MoE Config": fast_moe_config,
+                "Trainer Controller Config": trainer_controller_args,
+                "Extra Metadata": exp_metadata,
+            }
+        )
+        logger.info(args_dump)
+
     except Exception as e:  # pylint: disable=broad-except
         logger.error(traceback.format_exc())
         write_termination_log(
-            f"Exception raised during training. This may be a problem with your input: {e}"
+            f"Exception raised while parsing arguments. This may be a problem with your input: {e}"
         )
         sys.exit(USER_ERROR_EXIT_CODE)
 
@@ -727,7 +759,7 @@ def main():
         os.makedirs(training_args.output_dir, exist_ok=True)
         logger.info("using the output directory at %s", training_args.output_dir)
     try:
-        trainer, additional_train_info = train(
+        trainer, additional_train_info, tc_callback = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
@@ -766,13 +798,19 @@ def main():
         write_termination_log(f"Unhandled exception during training: {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
+    # if only data processing was requested exit the process
+    if data_args.do_dataprocessing_only:
+        return
+
     # save model
     if training_args.save_model_dir:
         try:
             save(
                 path=training_args.save_model_dir,
                 trainer=trainer,
+                tc_callback=tc_callback,
                 log_level=training_args.log_level,
+                args=training_args,
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(traceback.format_exc())
