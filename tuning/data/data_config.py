@@ -188,11 +188,21 @@ def load_and_validate_data_config(data_config_file: str) -> DataConfig:
     assert isinstance(
         raw_data["datasets"], list
     ), "datasets should be provided as a list"
+
     datasets = []
+    dataprocessor = None
+
     for d in raw_data["datasets"]:
         datasets.append(_validate_dataset_config(d))
     if "dataprocessor" in raw_data:
         dataprocessor = _validate_dataprocessor_config(raw_data["dataprocessor"])
+
+    if dataprocessor is None:
+        logging.info(
+            "`dataprocessor` filed is absent from data config. Using default dataprocessor"
+        )
+        dataprocessor = DataPreProcessorConfig()
+        logging.info("Default datapreprocessor is %s", str(dataprocessor))
 
     data_config = DataConfig(dataprocessor=dataprocessor, datasets=datasets)
     return data_config
