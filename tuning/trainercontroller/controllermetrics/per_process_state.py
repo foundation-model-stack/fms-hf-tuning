@@ -74,4 +74,4 @@ class PerProcessState(MetricHandler):
         """
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             return {"rank": torch.distributed.get_rank()}
-        return {"rank": None}
+        return {"rank": 0}
