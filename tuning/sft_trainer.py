@@ -371,7 +371,7 @@ def train(
         logger.info(
             "Only data processing was requested. Exiting Process.",
         )
-        return None, None
+        return None, None, None
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
