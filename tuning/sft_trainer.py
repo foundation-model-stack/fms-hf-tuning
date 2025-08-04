@@ -295,11 +295,6 @@ def train(
             else:
                 model_loader = AutoModelForCausalLM.from_pretrained
 
-            # avoid warning that use_cache is incompatible with gradient checkpointing
-            if model_args.use_cache and train_args.gradient_checkpointing:
-                logger.warning("`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.")
-                model_args.use_cache = False
-
             model = model_loader(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
@@ -307,7 +302,7 @@ def train(
                 attn_implementation="flash_attention_2"
                 if model_args.use_flash_attn
                 else None,
-                use_cache=model_args.use_cache,
+                use_cache=False,
             )
 
             # TODO: Move these to a config as well
