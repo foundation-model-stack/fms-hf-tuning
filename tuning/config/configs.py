@@ -61,16 +61,6 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
-    use_cache: bool = field(
-        default=False,
-        metadata={
-            "help": "This enables/disables the KV cache for model generation."
-            "This should be set to False in most cases, unless you are doing a finetuning"
-            "which specifically requires KV cache (for eg: prefix tuning)."
-            "`use_cache=True` is not compatible with `gradient_checkpointing=True`"
-            "and will be explicitly set to `False` in case `gradient_checkpointing=True`."
-        }
-    )
 
 
 @dataclass
