@@ -339,7 +339,17 @@ def train(
         ),
     )
     if peft_config is None:
-        raise ValueError("Why is peft config none")
+        logger.info("Why is peft config none")
+        peft_config = LoraConfig(target_parameters = [
+            "7.mlp.experts.gate_up_proj",
+            "7.mlp.experts.down_proj",
+            "15.mlp.experts.gate_up_proj",
+            "15.mlp.experts.down_proj",
+            "23.mlp.experts.gate_up_proj",
+            "23.mlp.experts.down_proj",
+        ])
+
+    logger.info("peft config is {}".format(peft_config))
 
     added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
