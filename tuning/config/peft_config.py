@@ -14,7 +14,29 @@
 
 # Standard
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import List
+
+# Third Party
+from transformers import Mxfp4Config as HfMxfp4Config
+
+
+class QUANT_METHOD(Enum):
+    MXFP4 = "mxfp4"
+
+
+class PEFT_METHOD(Enum):
+    PT = "pt"
+    LORA = "lora"
+    ALORA = "alora"
+
+
+@dataclass
+class Mxfp4Config:
+    dequantize: bool = True
+
+    def to_hf_config(self):
+        return HfMxfp4Config(dequantize=self.dequantize)
 
 
 @dataclass
@@ -23,7 +45,7 @@ class LoraConfig:
     This is the configuration class to store the configuration of a [`LoraModel`].
 
     Args:
-        r (`int`):
+        lora_r (`int`):
             Lora attention dimension (the "rank").
         target_modules (List[str]]):
             The names of the modules to apply the adapter to. \
@@ -54,6 +76,10 @@ class LoraConfig:
             then LORA selects all linear and Conv1D '
             "modules except for the output layer."
         },
+    )
+    target_parameters: List[str] = field(
+        default=None,
+        metadata={"help": "The names/regex of the parameters to apply LORA to"},
     )
     bias = "none"
     lora_dropout: float = 0.05

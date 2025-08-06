@@ -20,7 +20,8 @@ import os
 import pickle
 
 # Third Party
-from peft import LoraConfig, PromptTuningConfig
+from peft import LoraConfig as HFLoraConfig
+from peft import PromptTuningConfig as HFPromptTuningConfig
 
 # Local
 from tuning.config import peft_config
@@ -114,9 +115,9 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         lora_config = asdict(tuning_config)
         if lora_config["target_modules"] == ["all-linear"]:
             lora_config["target_modules"] = "all-linear"
-        hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
+        hf_peft_config = HFLoraConfig(task_type=task_type, **lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
-        hf_peft_config = PromptTuningConfig(
+        hf_peft_config = HFPromptTuningConfig(
             task_type=task_type,
             tokenizer_name_or_path=tokenizer_name_or_path,
             **asdict(tuning_config),
