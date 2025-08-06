@@ -114,7 +114,15 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         lora_config = asdict(tuning_config)
         if lora_config["target_modules"] == ["all-linear"]:
             lora_config["target_modules"] = "all-linear"
-        hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
+        target_parameters = [
+        "7.mlp.experts.gate_up_proj",
+        "7.mlp.experts.down_proj",
+        "15.mlp.experts.gate_up_proj",
+        "15.mlp.experts.down_proj",
+        "23.mlp.experts.gate_up_proj",
+        "23.mlp.experts.down_proj",
+    ]
+        hf_peft_config = LoraConfig(task_type=task_type, target_parameters=target_parameters, **lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
         hf_peft_config = PromptTuningConfig(
             task_type=task_type,

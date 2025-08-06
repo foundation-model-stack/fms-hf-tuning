@@ -56,14 +56,7 @@ class LoraConfig:
         },
     )
     target_parameters: List[str] = field(
-        default=[
-        "7.mlp.experts.gate_up_proj",
-        "7.mlp.experts.down_proj",
-        "15.mlp.experts.gate_up_proj",
-        "15.mlp.experts.down_proj",
-        "23.mlp.experts.gate_up_proj",
-        "23.mlp.experts.down_proj",
-    ],
+        default=None,
     )
     bias = "none"
     lora_dropout: float = 0.05
