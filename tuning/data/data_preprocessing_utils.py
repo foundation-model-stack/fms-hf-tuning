@@ -22,7 +22,7 @@ from transformers import (
     DataCollatorForSeq2Seq,
     LlavaProcessor,
 )
-from trl import DataCollatorForCompletionOnlyLM
+#from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
@@ -109,22 +109,24 @@ def get_data_collator(
     # data formats and collators we will support.
     if response_template and instruction_template:
         # Pass both instruction and response template for chat style training.
-        return DataCollatorForCompletionOnlyLM(
-            response_template=response_template,
-            instruction_template=instruction_template,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
+        return None
+        #DataCollatorForCompletionOnlyLM(
+        #    response_template=response_template,
+        #    instruction_template=instruction_template,
+        #    tokenizer=tokenizer,
+        #    ignore_index=configs.IGNORE_INDEX,
+        #)
 
     if response_template:
         response_template_ids = tokenizer.encode(
             response_template, add_special_tokens=False
         )[2:]
-        return DataCollatorForCompletionOnlyLM(
-            response_template=response_template_ids,
-            tokenizer=tokenizer,
-            ignore_index=configs.IGNORE_INDEX,
-        )
+        return None
+    #DataCollatorForCompletionOnlyLM(
+    #        response_template=response_template_ids,
+    #        tokenizer=tokenizer,
+    #        ignore_index=configs.IGNORE_INDEX,
+    #    )
 
     raise ValueError(
         "Could not pick a data collator. Please refer to supported data formats"
