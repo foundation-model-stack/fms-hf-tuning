@@ -61,6 +61,14 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
+    flash_attn_implementation: Optional[str] = field(
+        default="flash_attention_2",
+        metadata={
+            "help": "Flash Attention implementation to choose.\
+                For almost all models don't need to pass or use default i.e. flash_attention_2.\
+                Requires use_flash_attn=True flag to be enabled."
+        },
+    )
 
 
 @dataclass

@@ -32,7 +32,7 @@ from transformers import (
     AutoModelForVision2Seq,
     AutoProcessor,
     AutoTokenizer,
-    TrainerCallback,
+    TrainerCallback
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
@@ -73,7 +73,8 @@ def train(
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
-    trainer_controller_args: configs.TrainerControllerArguments = None,
+    mxfp4config: Optional[peft_config.Mxfp4Config] = None,
+    trainer_controller_args: configs.TrainerControlerArguments = None,
     tracker_configs: Optional[TrackerConfigs] = TrackerConfigs(),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
@@ -94,8 +95,9 @@ def train(
         peft_config: peft_config.LoraConfig for Lora tuning | \
         LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
-        None for fine tuning
+        None for full fine tuning
             The peft configuration to pass to trainer
+        peft_config.mxfp4config for working with MXFP4 quantized models \
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
         tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigs \
@@ -297,7 +299,8 @@ def train(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
                 torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
+                quantization_config=mxfp4config if mxfp4config else None,
+                attn_implementation=model_args.flash_attn_implementation
                 if model_args.use_flash_attn
                 else None,
                 use_cache=False,
@@ -539,6 +542,7 @@ def get_parser():
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
+            peft_config.Mxfp4Config,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
@@ -589,6 +593,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
         PromptTuningConfig/LoraConfig/aLoRAConfig/None
             Configuration for running PEFT, different depending on type of PEFT.
+        Mxfp4Config
+            Configuration for using Mxfp4Quantized models
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
@@ -611,6 +617,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -633,6 +640,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -678,6 +686,7 @@ def parse_arguments(parser, json_config=None):
         training_args,
         trainer_controller_args,
         tune_config,
+        mxfp4config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
@@ -699,6 +708,7 @@ def main():
             training_args,
             trainer_controller_args,
             tune_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -719,6 +729,7 @@ def main():
                 "Data Arguments": data_args,
                 "Training Arguments": training_args,
                 "Tune Config": tune_config,
+                "Mxfp4 Config": mxfp4config,
                 "QLoRA Config": quantized_lora_config,
                 "Tracker Config": tracker_configs,
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
@@ -761,6 +772,7 @@ def main():
             data_args=data_args,
             train_args=training_args,
             peft_config=tune_config,
+            mxfp4config=mxfp4config,
             trainer_controller_args=trainer_controller_args,
             tracker_configs=tracker_configs,
             additional_callbacks=None,

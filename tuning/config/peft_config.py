@@ -16,14 +16,22 @@
 from dataclasses import dataclass, field
 from typing import List
 
+from peft import LoraConfig as HFLoraConfig
+from peft import PromptTuningConfig as HFPromptTuningConfig
+from transformers import Mxfp4Config as HFMxfp4Config
+
 
 @dataclass
-class LoraConfig:
+class Mxfp4Config(HFMxfp4Config):
+    dequantize: bool = False
+
+@dataclass
+class LoraConfig(HFLoraConfig):
     """
     This is the configuration class to store the configuration of a [`LoraModel`].
 
     Args:
-        r (`int`):
+        lora_r (`int`):
             Lora attention dimension (the "rank").
         target_modules (List[str]]):
             The names of the modules to apply the adapter to. \
@@ -43,7 +51,7 @@ class LoraConfig:
             will not produce the same output as the base model would have without adaptation.
     """
 
-    r: int = 8
+    lora_r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
         default=None,
@@ -58,9 +66,13 @@ class LoraConfig:
     bias = "none"
     lora_dropout: float = 0.05
 
+    def __post_init__(self):
+        if self.r is None:
+            self.r = self.lora_r
+
 
 @dataclass
-class PromptTuningConfig:
+class PromptTuningConfig(HFPromptTuningConfig):
     """
     This is the configuration class for Prompt Tuning.
 

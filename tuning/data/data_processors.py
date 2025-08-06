@@ -146,7 +146,7 @@ class DataPreProcessor:
             load_path = builder if builder else data_path
 
             try:
-                return datasets.load_dataset(path=load_path, **load_kwargs)
+                return datasets.load_dataset(load_path, **load_kwargs)
             except DatasetNotFoundError as e:
                 # Reraise with a more context-specific message if needed
                 raise e
