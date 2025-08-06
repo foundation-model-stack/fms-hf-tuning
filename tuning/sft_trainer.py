@@ -33,7 +33,7 @@ from transformers import (
     AutoProcessor,
     AutoTokenizer,
     TrainerCallback,
-    #Mxfp4Config
+    Mxfp4Config
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
@@ -256,6 +256,7 @@ def train(
     try:
         logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
         try:
+            raise "don't load as a vision model"
             # try to load model as a vision model
             model_loader = AutoModelForVision2Seq.from_pretrained
 
@@ -294,14 +295,17 @@ def train(
             else:
                 model_loader = AutoModelForCausalLM.from_pretrained
 
+            quantization_config = Mxfp4Config(dequantize=True)
             model = model_loader(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
                 torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
+                quantization_config=quantization_config,
+                attn_implementation=model_args.flash_attn_implementation
                 if model_args.use_flash_attn
                 else None,
                 use_cache=False,
+                device_map="auto" # what does this do?
             )
 
             # TODO: Move these to a config as well

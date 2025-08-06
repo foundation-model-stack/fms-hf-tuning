@@ -61,6 +61,9 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
+    flash_attn_implementation: Optional[str] = field(
+        default="flash_attention_2"
+    )
 
 
 @dataclass

@@ -46,7 +46,7 @@ class LoraConfig:
     r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
-        default=None,
+        default="None",
         metadata={
             "help": "The names of the modules to apply LORA to. LORA selects modules which either \
             completely match or "
@@ -54,6 +54,9 @@ class LoraConfig:
             then LORA selects all linear and Conv1D '
             "modules except for the output layer."
         },
+    )
+    target_parameters: List[str] = field(
+        default=None,
     )
     bias = "none"
     lora_dropout: float = 0.05
