@@ -256,7 +256,7 @@ def train(
     try:
         logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
         try:
-            raise "don't load as a vision model"
+            raise ValueError("don't load as a vision model")
             # try to load model as a vision model
             model_loader = AutoModelForVision2Seq.from_pretrained
 
@@ -305,7 +305,7 @@ def train(
                 if model_args.use_flash_attn
                 else None,
                 use_cache=False,
-                device_map="auto" # what does this do?
+                #device_map="auto" # what does this do?
             )
 
             # TODO: Move these to a config as well
@@ -338,6 +338,8 @@ def train(
             else model_args.model_name_or_path
         ),
     )
+    if peft_config is None:
+        raise ValueError("Why is peft config none")
 
     added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 

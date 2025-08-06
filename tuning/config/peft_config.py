@@ -44,9 +44,9 @@ class LoraConfig:
     """
 
     r: int = 8
-    lora_alpha: int = 32
+    lora_alpha: int = 16
     target_modules: List[str] = field(
-        default="None",
+        default="all-linear",
         metadata={
             "help": "The names of the modules to apply LORA to. LORA selects modules which either \
             completely match or "
@@ -56,7 +56,14 @@ class LoraConfig:
         },
     )
     target_parameters: List[str] = field(
-        default=None,
+        default=[
+        "7.mlp.experts.gate_up_proj",
+        "7.mlp.experts.down_proj",
+        "15.mlp.experts.gate_up_proj",
+        "15.mlp.experts.down_proj",
+        "23.mlp.experts.gate_up_proj",
+        "23.mlp.experts.down_proj",
+    ],
     )
     bias = "none"
     lora_dropout: float = 0.05
