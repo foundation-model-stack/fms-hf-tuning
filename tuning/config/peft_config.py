@@ -15,18 +15,27 @@
 # Standard
 from dataclasses import dataclass, field
 from typing import List
+from enum import Enum
 
-from peft import LoraConfig as HFLoraConfig
-from peft import PromptTuningConfig as HFPromptTuningConfig
-from transformers import Mxfp4Config as HFMxfp4Config
+from transformers import Mxfp4Config as HfMxfp4Config
 
+class QUANT_METHOD(Enum):
+    MXFP4 = "mxfp4"
+
+class PEFT_METHOD(Enum):
+    PT = "pt"
+    LORA = "lora"
+    ALORA = "alora"
 
 @dataclass
-class Mxfp4Config(HFMxfp4Config):
+class Mxfp4Config:
     dequantize: bool = False
 
+    def to_hf_config(self):
+        return HfMxfp4Config(deqantize=self.dequantize)
+
 @dataclass
-class LoraConfig(HFLoraConfig):
+class LoraConfig:
     """
     This is the configuration class to store the configuration of a [`LoraModel`].
 
@@ -50,8 +59,7 @@ class LoraConfig(HFLoraConfig):
             Be aware that this means that, even when disabling the adapters, the model \
             will not produce the same output as the base model would have without adaptation.
     """
-
-    lora_r: int = 8
+    r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
         default=None,
@@ -63,16 +71,17 @@ class LoraConfig(HFLoraConfig):
             "modules except for the output layer."
         },
     )
+    target_parameters: List[str] = field(
+        default=None,
+        metadata={
+            "help": "The names/regex of the parameters to apply LORA to"
+        },
+    )
     bias = "none"
     lora_dropout: float = 0.05
 
-    def __post_init__(self):
-        if self.r is None:
-            self.r = self.lora_r
-
-
 @dataclass
-class PromptTuningConfig(HFPromptTuningConfig):
+class PromptTuningConfig:
     """
     This is the configuration class for Prompt Tuning.
 
