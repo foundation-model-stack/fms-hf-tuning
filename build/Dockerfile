@@ -62,20 +62,23 @@ RUN rpm -e $(dnf repoquery python3-* -q --installed) dnf python3 yum crypto-poli
 FROM base AS cuda-base
 
 # Ref: https://docs.nvidia.com/cuda/archive/12.1.0/cuda-toolkit-release-notes/
-ENV CUDA_VERSION=12.1.0 \
-    NV_CUDA_LIB_VERSION=12.1.0-1 \
+ENV CUDA_VERSION_MAJOR=12 \
+    CUDA_VERSION_MINOR=8 \
+    CUDA_VERSION_SUB_MINOR=1 \
+    NV_CUDA_CUDART_SUB_VERSION=12.8.90-1 \
+    NV_CUDA_COMPAT_SUB_VERSION=570.172.08-1 \
+    CUDA_VERSION=${CUDA_VERSION_MAJOR}.{CUDA_VERSION_MINOR}.${CUDA_VERSION_SUB_MINOR} \
+    NV_CUDA_LIB_VERSION=${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR}.0-1 \
     NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    NV_CUDA_CUDART_VERSION=12.1.55-1 \
-    NV_CUDA_COMPAT_VERSION=530.30.02-1
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 RUN dnf install -y dnf-plugins-core && dnf clean all
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
     && dnf install -y \
-        cuda-cudart-12-1-${NV_CUDA_CUDART_VERSION} \
-        cuda-compat-12-1-${NV_CUDA_COMPAT_VERSION} \
+        cuda-cudart-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_CUDART_SUB_VERSION} \
+        cuda-compat-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_COMPAT_SUB_VERSION} \
     && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
     && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf \
     && dnf clean all
@@ -88,23 +91,26 @@ ENV CUDA_HOME="/usr/local/cuda" \
 FROM cuda-base AS cuda-devel
 
 # Ref: https://developer.nvidia.com/nccl/nccl-legacy-downloads
-ENV NV_CUDA_CUDART_DEV_VERSION=12.1.55-1 \
-    NV_NVML_DEV_VERSION=12.1.55-1 \
-    NV_LIBCUBLAS_DEV_VERSION=12.1.0.26-1 \
-    NV_LIBNPP_DEV_VERSION=12.0.2.50-1 \
-    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.18.3-1+cuda12.1 \
-    NV_CUDNN9_CUDA_VERSION=9.6.0.74-1
+ENV CUDA_VERSION_MAJOR=12 \
+    CUDA_VERSION_MINOR=8 \
+    CUDA_VERSION_SUB_MINOR=1 \
+    NV_CUDA_CUDART_DEV_VERSION=12.8.90-1 \
+    NV_NVML_DEV_VERSION=12.8.90-1 \
+    NV_LIBCUBLAS_DEV_VERSION=12.8.4.1-1 \
+    NV_LIBNPP_DEV_VERSION=12.3.3.100-1 \
+    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.27.7-1+cuda13.0\
+    NV_CUDNN9_CUDA_VERSION=9.8.0.87-1
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
     && dnf install -y \
-        cuda-command-line-tools-12-1-${NV_CUDA_LIB_VERSION} \
-        cuda-libraries-devel-12-1-${NV_CUDA_LIB_VERSION} \
-        cuda-minimal-build-12-1-${NV_CUDA_LIB_VERSION} \
-        cuda-cudart-devel-12-1-${NV_CUDA_CUDART_DEV_VERSION} \
-        cuda-nvml-devel-12-1-${NV_NVML_DEV_VERSION} \
-        libcublas-devel-12-1-${NV_LIBCUBLAS_DEV_VERSION} \
-        libnpp-devel-12-1-${NV_LIBNPP_DEV_VERSION} \
+        cuda-command-line-tools-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
+        cuda-libraries-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
+        cuda-minimal-build-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
+        cuda-cudart-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_CUDART_DEV_VERSION} \
+        cuda-nvml-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_NVML_DEV_VERSION} \
+        libcublas-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_LIBCUBLAS_DEV_VERSION} \
+        libnpp-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_LIBNPP_DEV_VERSION} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
     && dnf clean all
 
@@ -114,7 +120,7 @@ RUN dnf config-manager \
     && dnf clean packages \
     && dnf install -y \
         libcusparselt0 libcusparselt-devel \
-        cudnn9-cuda-12-6-${NV_CUDNN9_CUDA_VERSION} \
+        cudnn9-cuda-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDNN9_CUDA_VERSION} \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
