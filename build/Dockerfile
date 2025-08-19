@@ -26,6 +26,7 @@ ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
+ARG ENABLE_TRITON_KERNELS=true
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -65,10 +66,7 @@ FROM base AS cuda-base
 ENV CUDA_VERSION_MAJOR=12 \
     CUDA_VERSION_MINOR=8 \
     CUDA_VERSION_SUB_MINOR=1 \
-    NV_CUDA_CUDART_SUB_VERSION=12.8.90-1 \
-    NV_CUDA_COMPAT_SUB_VERSION=570.172.08-1 \
     CUDA_VERSION=${CUDA_VERSION_MAJOR}.{CUDA_VERSION_MINOR}.${CUDA_VERSION_SUB_MINOR} \
-    NV_CUDA_LIB_VERSION=${CUDA_VERSION_MAJOR}.${CUDA_VERSION_MINOR}.0-1 \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
@@ -77,8 +75,8 @@ RUN dnf install -y dnf-plugins-core && dnf clean all
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
     && dnf install -y \
-        cuda-cudart-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_CUDART_SUB_VERSION} \
-        cuda-compat-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_COMPAT_SUB_VERSION} \
+        cuda-cudart-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        cuda-compat-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
     && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
     && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf \
     && dnf clean all
@@ -94,23 +92,19 @@ FROM cuda-base AS cuda-devel
 ENV CUDA_VERSION_MAJOR=12 \
     CUDA_VERSION_MINOR=8 \
     CUDA_VERSION_SUB_MINOR=1 \
-    NV_CUDA_CUDART_DEV_VERSION=12.8.90-1 \
-    NV_NVML_DEV_VERSION=12.8.90-1 \
-    NV_LIBCUBLAS_DEV_VERSION=12.8.4.1-1 \
-    NV_LIBNPP_DEV_VERSION=12.3.3.100-1 \
-    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.27.7-1+cuda13.0\
-    NV_CUDNN9_CUDA_VERSION=9.8.0.87-1
+    CUDA_VERSION=${CUDA_VERSION_MAJOR}.{CUDA_VERSION_MINOR}.${CUDA_VERSION_SUB_MINOR} \
+    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.27.7-1+cuda13.0
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
     && dnf install -y \
-        cuda-command-line-tools-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
-        cuda-libraries-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
-        cuda-minimal-build-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_LIB_VERSION} \
-        cuda-cudart-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDA_CUDART_DEV_VERSION} \
-        cuda-nvml-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_NVML_DEV_VERSION} \
-        libcublas-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_LIBCUBLAS_DEV_VERSION} \
-        libnpp-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_LIBNPP_DEV_VERSION} \
+        cuda-command-line-tools-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        cuda-libraries-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        cuda-minimal-build-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        cuda-cudart-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        cuda-nvml-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        libcublas-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
+        libnpp-devel-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
         libnccl-devel-${NV_LIBNCCL_DEV_PACKAGE_VERSION} \
     && dnf clean all
 
@@ -120,7 +114,7 @@ RUN dnf config-manager \
     && dnf clean packages \
     && dnf install -y \
         libcusparselt0 libcusparselt-devel \
-        cudnn9-cuda-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR}-${NV_CUDNN9_CUDA_VERSION} \
+        cudnn9-cuda-${CUDA_VERSION_MAJOR}-${CUDA_VERSION_MINOR} \
     && dnf clean all
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
@@ -193,6 +187,9 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
     fi
 RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
+    fi
+RUN if [[ "${ENABLE_TRITON_KERNELS}" == "true" ]]; then \
+        python -m pip install --user git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels \
     fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
