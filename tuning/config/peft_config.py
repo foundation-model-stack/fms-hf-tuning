@@ -14,18 +14,22 @@
 
 # Standard
 from dataclasses import dataclass, field
-from typing import List
 from enum import Enum
+from typing import List
 
+# Third Party
 from transformers import Mxfp4Config as HfMxfp4Config
+
 
 class QUANT_METHOD(Enum):
     MXFP4 = "mxfp4"
+
 
 class PEFT_METHOD(Enum):
     PT = "pt"
     LORA = "lora"
     ALORA = "alora"
+
 
 @dataclass
 class Mxfp4Config:
@@ -33,6 +37,7 @@ class Mxfp4Config:
 
     def to_hf_config(self):
         return HfMxfp4Config(deqantize=self.dequantize)
+
 
 @dataclass
 class LoraConfig:
@@ -59,6 +64,7 @@ class LoraConfig:
             Be aware that this means that, even when disabling the adapters, the model \
             will not produce the same output as the base model would have without adaptation.
     """
+
     r: int = 8
     lora_alpha: int = 32
     target_modules: List[str] = field(
@@ -73,12 +79,11 @@ class LoraConfig:
     )
     target_parameters: List[str] = field(
         default=None,
-        metadata={
-            "help": "The names/regex of the parameters to apply LORA to"
-        },
+        metadata={"help": "The names/regex of the parameters to apply LORA to"},
     )
     bias = "none"
     lora_dropout: float = 0.05
+
 
 @dataclass
 class PromptTuningConfig:

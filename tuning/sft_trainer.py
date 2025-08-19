@@ -32,7 +32,7 @@ from transformers import (
     AutoModelForVision2Seq,
     AutoProcessor,
     AutoTokenizer,
-    TrainerCallback
+    TrainerCallback,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import is_accelerate_available
@@ -299,7 +299,9 @@ def train(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
                 torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                quantization_config=quantization_config.to_hf_config() if quantization_config else None,
+                quantization_config=quantization_config.to_hf_config()
+                if quantization_config
+                else None,
                 attn_implementation=model_args.flash_attn_implementation
                 if model_args.use_flash_attn
                 else None,
@@ -553,13 +555,13 @@ def get_parser():
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices= [m.value for m in peft_config.PEFT_METHOD] + [ None, "none"],
+        choices=[m.value for m in peft_config.PEFT_METHOD] + [None, "none"],
         default="none",
     )
     parser.add_argument(
         "--quantization_method",
         type=str.lower,
-        choices=[m.value for m in peft_config.QUANT_METHOD] + [ None, "none"],
+        choices=[m.value for m in peft_config.QUANT_METHOD] + [None, "none"],
         default="none",
     )
     parser.add_argument(
@@ -659,17 +661,16 @@ def parse_arguments(parser, json_config=None):
 
     if peft_method == peft_config.PEFT_METHOD.ALORA.value:
         if invocation_string is None:
-            raise ValueError(
-                "invocation_string is not passed required for aLoRA usage"
-            )
+            raise ValueError("invocation_string is not passed required for aLoRA usage")
         try:
             # Third Party
             from alora.config import (  # pylint: disable=import-outside-toplevel
                 aLoraConfig,
             )
+
             tune_config = aLoraConfig(
-                        **vars(lora_config), invocation_string=invocation_string
-                    )
+                **vars(lora_config), invocation_string=invocation_string
+            )
         except ImportError as exc:
             raise ImportError(
                 "The alora package is required for this operation. "
