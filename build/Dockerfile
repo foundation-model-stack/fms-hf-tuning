@@ -19,14 +19,15 @@ ARG USER=tuning
 ARG USER_UID=1000
 ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
-## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
+
+## Change these args if requested via ENABLE_XX set to "true" or "false"
+ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_AIM=false
 ARG ENABLE_ALORA=false
 ARG ENABLE_MLFLOW=false
-ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
-ARG ENABLE_TRITON_KERNELS=true
+ARG ENABLE_TRITON_KERNELS=false
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -119,17 +120,11 @@ RUN dnf config-manager \
 
 ENV LIBRARY_PATH="$CUDA_HOME/lib64/stubs"
 
-FROM cuda-devel AS python-installations
+FROM cuda-devel AS base-python-installations
 
 ARG WHEEL_VERSION
 ARG USER
 ARG USER_UID
-ARG ENABLE_FMS_ACCELERATION
-ARG ENABLE_AIM
-ARG ENABLE_MLFLOW
-ARG ENABLE_ALORA
-ARG ENABLE_SCANNER
-ARG ENABLE_CLEARML
 
 RUN dnf install -y git && \
     # perl-Net-SSLeay.x86_64 and server_key.pem are installed with git as dependencies
@@ -157,6 +152,16 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user "$(head bdist_name)" && \
     python -m pip install --user "$(head bdist_name)[flash-attn]" && \
     python -m pip install --user --no-build-isolation "$(head bdist_name)[mamba]"
+
+FROM base-python-installations AS python-installations
+
+ARG ENABLE_FMS_ACCELERATION
+ARG ENABLE_AIM
+ARG ENABLE_MLFLOW
+ARG ENABLE_ALORA
+ARG ENABLE_SCANNER
+ARG ENABLE_CLEARML
+ARG ENABLE_TRITON_KERNELS
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
