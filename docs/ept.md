@@ -18,8 +18,8 @@ Lets say you have a `JSONL` data file which contains text to be trained on in ea
 Example dataset,
 
 ```
-{"Tweet":"@HMRCcustomers No this is my first job","ID":0,"Label":2,"text_label":"no complaint","output":"### Text: @HMRCcustomers No this is my first job\n\n### Label: no complaint"}
-{"Tweet":"@KristaMariePark Thank you for your interest! If you decide to cancel, you can call Customer Care at 1-800-NYTIMES.","ID":1,"Label":2,"text_label":"no complaint","output":"### Text: @KristaMariePark Thank you for your interest! If you decide to cancel, you can call Customer Care at 1-800-NYTIMES.\n\n### Label: no complaint"}
+{"text":"I am one sample which doesn't exceed the max seq length"}
+{"text":"I am also another sample which doesn't exceed the max seq length"}
 ...
 ```
 
@@ -27,17 +27,27 @@ Sample data config for the above use case.
 ```
 dataprocessor:
     type: default
+    streaming: false
 datasets:
-  - name: non_tokenized_text_dataset
+  - name: apply_custom_jinja_template
     data_paths:
-      - "<path-to-the-jsonl-dataset>"
-        data_handlers:
-        - name: add_tokenizer_eos_token
-            arguments:
-            remove_columns: all
-            batched: false
-            fn_kwargs:
-                dataset_text_field: "dataset_text_field"
+      - "FILE_PATH"
+    data_handlers:
+      - name: apply_custom_jinja_template
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            formatted_text_column_name: "formatted_text"
+            template: '{{element["text"]}}{{eos_token}}'
+      - name: tokenize
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            text_column_name: "formatted_text"
+            truncation: false
+            max_length: 4096
 ```
 
 And the commandline passed to the library should include following.
@@ -46,7 +56,7 @@ And the commandline passed to the library should include following.
 --data_config_path <path to the data config> --packing=True --max_seq_len 8192
 ```
 
-Please note that for non tokenized dataset our code adds `EOS_TOKEN` to the lines, for e.g. `Tweet` column before passing that as a dataset.
+Please note that for non tokenized dataset our code adds `EOS_TOKEN` to the lines, for e.g. `text` column before tokenizing and passing that as a dataset.
 
 ### Multiple Non Tokenized Datasets
 
