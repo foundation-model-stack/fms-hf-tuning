@@ -1,22 +1,18 @@
 # FMS HF Tuning
 
 - [Installation](#installation)
-  - [Basic Installation](#basic-installation)
-  - [Installing FlashAttention](#using-flashattention)
-  - [Using fms-acceleration](#using-fms-acceleration)
-  - [Using Experiment Trackers](#using-experiment-trackers)
-  - [Training with Mamba Models](#training-mamba-models)
+- [Supported Models](#supported-models)
+  - [Supported Vision Language Models](#tuning-vision-language-models)
+- [Training and Training Parameter Selection](#training-and-training-parameters)
+- [Tuning Techniques](#tuning-techniques)
 - [Data format support](#data-support)
   - [Supported Data File Formats](#supported-data-file-formats)
   - [Advanced Data Processing](#advanced-data-preprocessing)
-  - [Using only cli args](#use-cases-supported-via-command-line-argument-training_data_path)
-- [Supported Text Models](#supported-models)
-- [Supported Vision Language Models](#tuning-vision-language-models)
-- [Training and Training Parameter Selection](#training-and-training-parameters)
-- [Tuning Techniques](#tuning-techniques)
-- [Validation](#validation)
-- [Additional Frameworks](#additional-frameworks)
-- [More Examples](#more-examples)
+  - [Guidelines on supported data formats](#use-cases-supported-via-command-line-argument-training_data_path)
+- [Additional](#additional)
+  - [Validation](#validation)
+  - [Training controller](#trainer-controller-framework)
+  - [More Examples](#more-examples)
 
 This repo provides basic tuning scripts with support for specific models. The repo relies on Hugging Face `SFTTrainer` and PyTorch FSDP. Our approach to tuning is:
 1. Models are loaded from Hugging Face `transformers` or the [foundation-model-stack](https://github.com/foundation-model-stack/foundation-model-stack) -- models are either optimized to use `Flash Attention v2` directly or through `SDPA`
@@ -25,54 +21,91 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
-### Basic Installation
+Refer our [Installations](./docs/installations.md) document for details on how to install the library.
 
-```
-pip install fms-hf-tuning
-```
+## Supported Models
 
-### Using FlashAttention
+- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
 
-> Note: After installing, if you wish to use [FlashAttention](https://github.com/Dao-AILab/flash-attention), then you need to install these requirements:
-```sh
-pip install fms-hf-tuning[dev]
-pip install fms-hf-tuning[flash-attn]
-```
-[FlashAttention](https://github.com/Dao-AILab/flash-attention) requires the [CUDA Toolit](https://developer.nvidia.com/cuda-toolkit) to be pre-installed.
+- LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
 
-*Debug recommendation:* While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
+- Legend:
 
-```sh
-pip uninstall flash-attn
-pip cache purge
-pip install fms-hf-tuning[flash-attn]
-```
+  ✅ Ready and available 
 
-### Using FMS-Acceleration
+  ✔️ Ready and available - compatible architecture (*see first bullet point above)
 
-`fms-acceleration` is a collection of plugins that packages that accelerate fine-tuning / training of large models, as part of the `fms-hf-tuning` suite. For more details see [this document](./docs/tuning-techniques.md#fms-acceleration).
+  🚫 Not supported
 
-If you wish to use [fms-acceleration](https://github.com/foundation-model-stack/fms-acceleration), you need to install it. 
-```
-pip install fms-hf-tuning[fms-accel]
-```
+  ? May be supported, but not tested
 
-### Using Experiment Trackers
+Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
+-------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
+[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅**** | ✅**** | ? |
+[Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
+[Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.1 8B](https://huggingface.co/ibm-granite/granite-3.1-8b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 2B](https://huggingface.co/ibm-granite/granite-3.0-2b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
+[Granite 3.0 8B](https://huggingface.co/ibm-granite/granite-3.0-8b-base)       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
+[GraniteMoE 1B](https://huggingface.co/ibm-granite/granite-3.0-1b-a400m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[GraniteMoE 3B](https://huggingface.co/ibm-granite/granite-3.0-3b-a800m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
+[Granite 3B Code](https://huggingface.co/ibm-granite/granite-3b-code-base-2k)           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
+[Granite 8B Code](https://huggingface.co/ibm-granite/granite-8b-code-base-4k)           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
+Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
+Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
+[Granite 34B Code](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k)            | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
+[Llama3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)          | LlamaForCausalLM               | ✅*** | ✔️ | ✔️ |  
+[Llama3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)(same architecture as llama3) | LlamaForCausalLM   | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
+[Llama3.1-405B](https://huggingface.co/meta-llama/Llama-3.1-405B)                            | LlamaForCausalLM   | 🚫 | 🚫 | ✅ | 
+[Llama3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)                               | LlamaForCausalLM   | ✅ | ✅ | ✔️ |  
+[Llama3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)                             | LlamaForCausalLM   | 🚫 | ✅ | ✅ |
+aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
+[Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1)                              | MixtralForCausalLM   | ✅ | ✅ | ✅ |
+[Mistral-7b](https://huggingface.co/mistralai/Mistral-7B-v0.1)                                  | MistralForCausalLM   | ✅ | ✅ | ✅ |  
+Mistral large                             | MistralForCausalLM   | 🚫 | 🚫 | 🚫 | 
 
-To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
-```
-pip install fms-hf-tuning[aim]
-```
-For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
+(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
 
-### Training Mamba Models
+(**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
 
-To train Mamba models one needs to have `mamba-ssm` package installed which is compatible with fms-hf-tuning to ensure the optimal training. Not using this package while training Mamba models can result in higher resource usage and suboptimal performance.
+(***) - Supported from platform up to 8k context length - same architecture as llama3-8b.
 
-Install this as 
-```
-pip install fms-hf-tuning[mamba]
-```
+(****) - Experimentally supported. Dependent on stable transformers version with PR [#37658](https://github.com/huggingface/transformers/pull/37658) and accelerate >= 1.3.0.
+
+### Supported vision model
+
+We also support full fine-tuning and LoRA tuning for vision language models - `Granite 3.2 Vision`, `Llama 3.2 Vision`, and `LLaVa-Next` from `v2.8.1` onwards.
+For information on supported dataset formats and how to tune a vision-language model, please see [this document](./docs/vision-language-model-tuning.md).
+
+Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
+-------------------- | ---------------- | --------------- | --------------- |
+Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅ | ✅ |
+Llama 3.2-90B Vision  | MllamaForConditionalGeneration | ✔️ | ✔️ |
+Granite 3.2-2B Vision  | LlavaNextForConditionalGeneration | ✅ | ✅ |
+Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅ | ✅ |
+Llava 1.6-34B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
+Llava 1.5-7B  | LlavaForConditionalGeneration | ✅ | ✅ |
+Llava 1.5-13B  | LlavaForConditionalGeneration | ✔️ | ✔️ |
+
+**Note**:
+* vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
+
+## Training and Training Parameters:
+
+Please refer our [document](./docs/training.md) to see how to start [Single GPU](./docs/training.md#single-gpu) or [Multi GPU]((./docs/training.md#multi-gpu) runs with fms-hf-tuning.
+
+You can also refer the same [document](./docs/training.md#tips-on-parameters-to-set) on how to use various training arguments.
+
+## Tuning Techniques:
+
+Please refer to our [Tuning document](./docs/tuning-techniques.md) for details on how to perform - 
+* [LoRA](./docs/tuning.md#lora-tuning-example)
+* [Activated LoRA](./docs/tuning.md#activated-lora-tuning-example)
+* [GPTQ-LoRA](./docs/tuning.md#gptq-lora-with-autogptq-tuning-example) 
+* [Full Fine Tuning](./docs/tuning.md#fine-tuning)
+* [Use FMS Acceleration](./docs/tuning.md#fms-acceleration)
+* [Extended Pre-Training](./docs/tuning.md#extended-pre-training)
 
 ## Data Support
 Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](#use-cases-supported-with-training_data_path-argument) (see details below). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.
@@ -316,104 +349,9 @@ We also provide an interface for the user to perform standalone data preprocessi
 
 Please refer to [this document](docs/offline-data-preprocessing.md) for details on how to perform offline data processing.
 
-## Supported Models
+## Additional Frameworks
 
-- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
-
-- LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
-
-- Legend:
-
-  ✅ Ready and available 
-
-  ✔️ Ready and available - compatible architecture (*see first bullet point above)
-
-  🚫 Not supported
-
-  ? May be supported, but not tested
-
-Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
--------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅**** | ✅**** | ? |
-[Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
-[Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.1 8B](https://huggingface.co/ibm-granite/granite-3.1-8b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.0 2B](https://huggingface.co/ibm-granite/granite-3.0-2b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.0 8B](https://huggingface.co/ibm-granite/granite-3.0-8b-base)       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
-[GraniteMoE 1B](https://huggingface.co/ibm-granite/granite-3.0-1b-a400m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-[GraniteMoE 3B](https://huggingface.co/ibm-granite/granite-3.0-3b-a800m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-[Granite 3B Code](https://huggingface.co/ibm-granite/granite-3b-code-base-2k)           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
-[Granite 8B Code](https://huggingface.co/ibm-granite/granite-8b-code-base-4k)           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
-Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
-Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
-[Granite 34B Code](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k)            | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
-[Llama3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)          | LlamaForCausalLM               | ✅*** | ✔️ | ✔️ |  
-[Llama3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)(same architecture as llama3) | LlamaForCausalLM   | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
-[Llama3.1-405B](https://huggingface.co/meta-llama/Llama-3.1-405B)                            | LlamaForCausalLM   | 🚫 | 🚫 | ✅ | 
-[Llama3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)                               | LlamaForCausalLM   | ✅ | ✅ | ✔️ |  
-[Llama3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)                             | LlamaForCausalLM   | 🚫 | ✅ | ✅ |
-aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
-[Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1)                              | MixtralForCausalLM   | ✅ | ✅ | ✅ |
-[Mistral-7b](https://huggingface.co/mistralai/Mistral-7B-v0.1)                                  | MistralForCausalLM   | ✅ | ✅ | ✅ |  
-Mistral large                             | MistralForCausalLM   | 🚫 | 🚫 | 🚫 | 
-
-(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
-
-(**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
-
-(***) - Supported from platform up to 8k context length - same architecture as llama3-8b.
-
-(****) - Experimentally supported. Dependent on stable transformers version with PR [#37658](https://github.com/huggingface/transformers/pull/37658) and accelerate >= 1.3.0.
-
-## Tuning Vision Language Models
-
-We also support full fine-tuning and LoRA tuning for vision language models - `Granite 3.2 Vision`, `Llama 3.2 Vision`, and `LLaVa-Next`. 
-For information on supported dataset formats and how to tune a vision-language model, please see [this document](./docs/vision-language-model-tuning.md).
-
-### Supported vision model
-
-Note that vision models are supported starting with `fms-hf-tuning` v2.8.1 or later.
-
-- Legend:
-
-  ✅ Ready and available 
-
-  ✔️ Ready and available - compatible architecture
-
-  🚫 Not supported
-
-  ? May be supported, but not tested
-
-Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
--------------------- | ---------------- | --------------- | --------------- |
-Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅ | ✅ |
-Llama 3.2-90B Vision  | MllamaForConditionalGeneration | ✔️ | ✔️ |
-Granite 3.2-2B Vision  | LlavaNextForConditionalGeneration | ✅ | ✅ |
-Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅ | ✅ |
-Llava 1.6-34B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
-Llava 1.5-7B  | LlavaForConditionalGeneration | ✅ | ✅ |
-Llava 1.5-13B  | LlavaForConditionalGeneration | ✔️ | ✔️ |
-
-**Note**: vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
-
-## Training and Training Parameters:
-
-Please refer our [document](./docs/training.md) to see how to start [Single GPU](./docs/training.md#single-gpu) or [Multi GPU]((./docs/training.md#multi-gpu) runs with fms-hf-tuning.
-
-You can also refer the same [document](./docs/training.md#tips-on-parameters-to-set) on how to use various training arguments.
-
-## Tuning Techniques:
-
-Please refer to our [Tuning document](./docs/tuning-techniques.md) for details on how to perform - 
-* [LoRA](./docs/tuning.md#lora-tuning-example)
-* [Activated LoRA](./docs/tuning.md#activated-lora-tuning-example)
-* [GPTQ-LoRA](./docs/tuning.md#gptq-lora-with-autogptq-tuning-example) 
-* [Full Fine Tuning](./docs/tuning.md#fine-tuning)
-* [Use FMS Acceleration](./docs/tuning.md#fms-acceleration)
-* [Extended Pre-Training](./docs/tuning.md#extended-pre-training)
-
-## Validation
+### Validation
 
 For examples on how to run inference on models trained via fms-hf-tuning see [Inference](./docs/tuning.md#inference) document.
 
@@ -435,11 +373,9 @@ python main.py \
 
 The above runs several tasks with `hendrycksTest-*` being MMLU.
 
-## Additional Frameworks
-
-## Trainer Controller Framework
+### Trainer Controller Framework
 
 Trainer controller is a framework for controlling the trainer loop using user-defined rules and metrics. For details about how you can use set a custom stopping criteria and perform custom operations, see [examples/trainercontroller_configs/Readme.md](examples/trainercontroller_configs/Readme.md)
 
-## More Examples
+### More Examples
 A good simple example can be found [here](examples/kfto-kueue-sft-trainer.yaml) which launches a Kubernetes-native `PyTorchJob` using the [Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) with [Kueue](https://github.com/kubernetes-sigs/kueue) for the queue management of tuning jobs.
