@@ -27,7 +27,8 @@ ARG ENABLE_ALORA=false
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
-ARG ENABLE_TRITON_KERNELS=false
+ARG ENABLE_TRITON_KERNELS=true
+ARG ENABLE_MAMBA_SUPPORT=true
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -94,7 +95,7 @@ ENV CUDA_VERSION_MAJOR=12 \
     CUDA_VERSION_MINOR=8 \
     CUDA_VERSION_SUB_MINOR=1 \
     CUDA_VERSION=${CUDA_VERSION_MAJOR}.{CUDA_VERSION_MINOR}.${CUDA_VERSION_SUB_MINOR} \
-    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.27.7-1+cuda13.0
+    NV_LIBNCCL_DEV_PACKAGE_VERSION=2.26.2-1+cuda12.8
 
 RUN dnf config-manager \
        --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo \
@@ -162,6 +163,7 @@ ARG ENABLE_ALORA
 ARG ENABLE_SCANNER
 ARG ENABLE_CLEARML
 ARG ENABLE_TRITON_KERNELS
+ARG ENABLE_MAMBA_SUPPORT
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
@@ -175,26 +177,31 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m fms_acceleration.cli install fms_acceleration_moe; \
     fi
 
-RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
-        python -m pip install --user "$(head bdist_name)[aim]"; \
-    fi
-
+# Training support
 RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[activated-lora]"; \
     fi
 
+# Trackers
+RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[aim]"; \
+    fi
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
     python -m pip install --user "$(head bdist_name)[mlflow]"; \
     fi
-
 RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[scanner-dev]"; \
     fi
 RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
     fi
+
+# Model support
+RUN if [[ "${ENABLE_MAMBA_SUPPORT}}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[mamba]"; \
+    fi
 RUN if [[ "${ENABLE_TRITON_KERNELS}" == "true" ]]; then \
-        python -m pip install --user git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels \
+        python -m pip install --user "git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels"; \
     fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
