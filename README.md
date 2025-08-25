@@ -21,7 +21,7 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
-Refer our [Installations](./docs/installations.md) document for details on how to install the library.
+Refer our [Installation](./docs/installation.md) document for details on how to install the library.
 
 ## Supported Models
 
