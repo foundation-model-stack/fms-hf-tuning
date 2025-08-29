@@ -151,6 +151,9 @@ RUN if [[ -z "${WHEEL_VERSION}" ]]; \
     fi && \
     ls /tmp/*.whl >/tmp/bdist_name
 
+# Ensures to always build mamba_ssm from source
+ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
+
 # Install from the wheel
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
