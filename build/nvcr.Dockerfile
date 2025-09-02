@@ -13,13 +13,15 @@
 # limitations under the License.
 
 ## Global Args #################################################################
+## If the nvcr container is updated, ensure to check the torch and python
+## installation version inside the dockerfile before pushing changes.
 ARG NVCR_IMAGE_VERSION=25.02-py3
-
-## Base Layer ##################################################################
-FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION} AS dev
 
 # This is based on what is inside the NVCR image already
 ARG PYTHON_VERSION=3.12
+
+## Base Layer ##################################################################
+FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION} AS dev
 
 ARG USER=root
 ARG USER_UID=0
@@ -35,7 +37,6 @@ ARG ENABLE_SCANNER=true
 ARG ENABLE_CLEARML=true
 ARG ENABLE_TRITON_KERNELS=true
 ARG ENABLE_MAMBA_SUPPORT=false
-
 
 # Ensures to always build mamba_ssm from source
 ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm

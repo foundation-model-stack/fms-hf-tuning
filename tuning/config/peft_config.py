@@ -45,7 +45,7 @@ class LoraConfig:
     This is the configuration class to store the configuration of a [`LoraModel`].
 
     Args:
-        lora_r (`int`):
+        r (`int`):
             Lora attention dimension (the "rank").
         target_modules (List[str]]):
             The names of the modules to apply the adapter to. \
