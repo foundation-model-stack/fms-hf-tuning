@@ -18,7 +18,9 @@ from enum import Enum
 from typing import List
 
 # Third Party
-from transformers import Mxfp4Config as HfMxfp4Config
+from transformers import (
+    Mxfp4Config as HfMxfp4Config,  # pylint: disable=no-name-in-module
+)
 
 
 class QUANT_METHOD(Enum):

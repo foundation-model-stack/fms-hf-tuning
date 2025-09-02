@@ -99,13 +99,7 @@ FROM dev-base AS dev
 
 ARG WORKDIR
 
-RUN mkdir -p /licenses && \
-    mkdir -p $WORKDIR && \
-    chmod -R g+rwX $WORKDIR /tmp
-
-COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml $WORKDIR/
-COPY build/utils.py $WORKDIR/build/
-RUN chmod +x $WORKDIR/accelerate_launch.py
+RUN chmod -R g+rwX $WORKDIR /tmp
 
 # Set Triton environment variables for qLoRA
 ENV TRITON_HOME="/tmp/triton_home"
@@ -117,4 +111,4 @@ RUN mkdir -p /.cache && chmod -R 777 /.cache
 
 WORKDIR $WORKDIR
 
-CMD ["python", "$WORKDIR/accelerate_launch.py"]
+CMD ["sleep inifinity"]
