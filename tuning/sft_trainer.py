@@ -255,8 +255,9 @@ def train(
 
     model_load_time = time.time()
     try:
-        logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
+        logger.info("Loading the model {} now".format(model_args.model_name_or_path))
         try:
+            logger.info("Trying to load {} as vision model".format(model_args.model_name_or_path))
             # try to load model as a vision model
             model_loader = AutoModelForVision2Seq.from_pretrained
 
@@ -286,12 +287,14 @@ def train(
             logger.info("Loaded vision model processor {} ".format(processor))
             logger.info("Loaded model tokenizer {} ".format(tokenizer))
         except ValueError:
+            logger.info("Couldn't load model {} as a vision model".format(model_args.model_name_or_path))
             model = None
             processor = None
             tokenizer = None
 
         # fallback on loading language model
         if model is None:
+            logger.info("Trying to load {} as language model".format(model_args.model_name_or_path))
             # find the correct model loader
             if framework is not None and framework.requires_custom_loading:
                 model_loader = framework.model_loader
