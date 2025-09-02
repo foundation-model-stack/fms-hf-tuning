@@ -14,13 +14,18 @@
 
 ## Global Args #################################################################
 ARG NVCR_IMAGE_VERSION=25.02-py3
+
+## Base Layer ##################################################################
+FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION} AS dev
+
+# This is based on what is inside the NVCR image already
 ARG PYTHON_VERSION=3.12
 
 ARG USER=root
 ARG USER_UID=0
 ARG WORKDIR=/app
 ARG SOURCE_DIR=/app/fms-hf-tuning
-ARG SOURCE_BRANCH=gpt-oss
+ARG SOURCE_BRANCH=main
 
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_AIM=true
@@ -31,30 +36,13 @@ ARG ENABLE_CLEARML=true
 ARG ENABLE_TRITON_KERNELS=true
 ARG ENABLE_MAMBA_SUPPORT=false
 
-## Base Layer ##################################################################
-FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION} AS dev-base
-
-ARG ENABLE_FMS_ACCELERATION
-ARG ENABLE_AIM
-ARG ENABLE_MLFLOW
-ARG ENABLE_ALORA
-ARG ENABLE_SCANNER
-ARG ENABLE_CLEARML
-ARG ENABLE_TRITON_KERNELS
-ARG ENABLE_MAMBA_SUPPORT
-ARG WORKDIR
-ARG USER
-ARG SOURCE_DIR
-ARG SOURCE_BRANCH
-
-RUN python -m pip install --upgrade pip
-
-COPY .git .git
 
 # Ensures to always build mamba_ssm from source
 ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
 
-# upgrade torch
+RUN python -m pip install --upgrade pip
+
+# upgrade torch as the base layer contains only torch 2.7
 RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Install main package + flash attention
@@ -94,12 +82,8 @@ RUN if [[ "${ENABLE_TRITON_KERNELS}" == "true" ]]; then \
         pip install --no-cache-dir "git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels"; \
     fi
 
-## Final image #################################################################
-FROM dev-base AS dev
-
-ARG WORKDIR
-
 RUN chmod -R g+rwX $WORKDIR /tmp
+RUN mkdir -p /.cache && chmod -R 777 /.cache
 
 # Set Triton environment variables for qLoRA
 ENV TRITON_HOME="/tmp/triton_home"
@@ -107,8 +91,7 @@ ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
 ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
 ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
-RUN mkdir -p /.cache && chmod -R 777 /.cache
-
 WORKDIR $WORKDIR
 
+# this is just a dev image so this is okay.
 CMD ["sleep inifinity"]
