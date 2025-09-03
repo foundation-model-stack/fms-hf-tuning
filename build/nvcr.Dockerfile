@@ -26,8 +26,7 @@ FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION} AS dev
 ARG USER=root
 ARG USER_UID=0
 ARG WORKDIR=/app
-ARG SOURCE_DIR=/app/fms-hf-tuning
-ARG SOURCE_BRANCH=main
+ARG SOURCE_DIR=${WORKDIR}/fms-hf-tuning
 
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_AIM=true
@@ -47,7 +46,7 @@ RUN python -m pip install --upgrade pip
 RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Install main package + flash attention
-RUN git clone --branch ${SOURCE_BRANCH} --depth 1 https://github.com/foundation-model-stack/fms-hf-tuning.git ${SOURCE_DIR}
+RUN COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
 RUN pip install --no-cache-dir ${SOURCE_DIR} && \
     pip install --no-cache-dir ${SOURCE_DIR}[flash-attn]
@@ -94,5 +93,4 @@ ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
 WORKDIR $WORKDIR
 
-# this is just a dev image so this is okay.
-CMD ["sleep inifinity"]
+CMD ["${SOURCE_DIR}/build/accelerate_launch.py"]
