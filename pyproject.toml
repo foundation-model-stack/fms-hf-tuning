@@ -27,19 +27,19 @@ classifiers=[
     "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
-"numpy>=1.26.4,<2.0",
-"accelerate>=0.20.3,!=0.34,<1.7",
-"transformers>=4.53.0,<=4.55.4",
-"torch>2.6.0,<=2.8.0",
+"numpy>=1.26.4,<2.2.0",
+"accelerate>=1.9.0,<2.0.0",
+"transformers>=4.55.0,<=4.55.4",
+"torch>2.7.0,<2.9.0",
 "sentencepiece>=0.1.99,<0.3",
-"tokenizers>=0.13.3,<1.0",
+"tokenizers<=0.22",
 "tqdm>=4.66.2,<5.0",
-"trl>=0.13,<0.20",
-"peft>=0.15.0,<=0.15.2",
-"protobuf>=5.28.0,<6.0.0",
-"datasets>=3.5.0,<4.0",
+"trl>=0.19.1,<0.20.0",
+"peft>=0.17.0,<0.18.0",
+"datasets>=4.0.0,<5.0.0",
 "simpleeval>=0.9.13,<2.0",
 "pillow>=11.0.0,<12.0",
+"kernels<=0.9.0",
 ]
 
 [project.optional-dependencies]
@@ -54,13 +54,9 @@ mamba = ["mamba_ssm[causal-conv1d]>=2.0.0,<3.0.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
 activated-lora = ["alora>=0.3.0"]
 
-
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
 namespaces = false
-
-[tool.setuptools_scm]
-version_file = "tuning/_version.py"
 
 [project.urls]
 Homepage = "https://github.com/foundation-model-stack/fms-hf-tuning"

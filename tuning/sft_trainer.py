@@ -73,7 +73,8 @@ def train(
     peft_config: Optional[  # pylint: disable=redefined-outer-name
         Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
-    trainer_controller_args: configs.TrainerControllerArguments = None,
+    quantization_config: Optional[peft_config.Mxfp4Config] = None,
+    trainer_controller_args: TrainerControllerCallback = None,
     tracker_configs: Optional[TrackerConfigs] = TrackerConfigs(),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
@@ -94,8 +95,9 @@ def train(
         peft_config: peft_config.LoraConfig for Lora tuning | \
         LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
-        None for fine tuning
+        None for full fine tuning
             The peft configuration to pass to trainer
+        peft_config.mxfp4config for working with MXFP4 quantized models \
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
         tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigs \
@@ -253,8 +255,13 @@ def train(
 
     model_load_time = time.time()
     try:
-        logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
+        logger.info("Loading the model {} now".format(model_args.model_name_or_path))
         try:
+            logger.info(
+                "Trying to load {} as vision model".format(
+                    model_args.model_name_or_path
+                )
+            )
             # try to load model as a vision model
             model_loader = AutoModelForVision2Seq.from_pretrained
 
@@ -262,7 +269,10 @@ def train(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
                 torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
+                quantization_config=quantization_config.to_hf_config()
+                if quantization_config
+                else None,
+                attn_implementation=model_args.flash_attn_implementation
                 if model_args.use_flash_attn
                 else None,
             )
@@ -281,12 +291,22 @@ def train(
             logger.info("Loaded vision model processor {} ".format(processor))
             logger.info("Loaded model tokenizer {} ".format(tokenizer))
         except ValueError:
+            logger.info(
+                "Couldn't load model {} as a vision model".format(
+                    model_args.model_name_or_path
+                )
+            )
             model = None
             processor = None
             tokenizer = None
 
         # fallback on loading language model
         if model is None:
+            logger.info(
+                "Trying to load {} as language model".format(
+                    model_args.model_name_or_path
+                )
+            )
             # find the correct model loader
             if framework is not None and framework.requires_custom_loading:
                 model_loader = framework.model_loader
@@ -297,7 +317,10 @@ def train(
                 model_args.model_name_or_path,
                 cache_dir=train_args.cache_dir,
                 torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
+                quantization_config=quantization_config.to_hf_config()
+                if quantization_config
+                else None,
+                attn_implementation=model_args.flash_attn_implementation
                 if model_args.use_flash_attn
                 else None,
                 use_cache=False,
@@ -539,6 +562,7 @@ def get_parser():
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
+            peft_config.Mxfp4Config,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
@@ -549,7 +573,13 @@ def get_parser():
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices=["pt", "lora", "alora", None, "none"],
+        choices=[m.value for m in peft_config.PEFT_METHOD] + [None, "none"],
+        default="none",
+    )
+    parser.add_argument(
+        "--quantization_method",
+        type=str.lower,
+        choices=[m.value for m in peft_config.QUANT_METHOD] + [None, "none"],
         default="none",
     )
     parser.add_argument(
@@ -589,6 +619,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
         PromptTuningConfig/LoraConfig/aLoRAConfig/None
             Configuration for running PEFT, different depending on type of PEFT.
+        Mxfp4Config
+            Configuration for using Mxfp4Quantized models
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
@@ -611,6 +643,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -619,12 +652,8 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
+        quantization_method = json_config.get("quantization_method")
         invocation_string = json_config.get("invocation_string")
-        if peft_method == "alora":
-            if invocation_string is None:
-                raise ValueError(
-                    "invocation_string is not passed required for aLoRA usage"
-                )
     else:
         (
             model_args,
@@ -633,6 +662,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -644,33 +674,37 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
+        quantization_method = additional.quantization_method
         invocation_string = additional.invocation_string
-        if peft_method == "alora":
-            if invocation_string is None:
-                raise ValueError(
-                    "invocation_string is not passed required for aLoRA usage"
-                )
-    if peft_method == "alora":
+
+    if peft_method == peft_config.PEFT_METHOD.ALORA.value:
+        if invocation_string is None:
+            raise ValueError("invocation_string is not passed required for aLoRA usage")
         try:
             # Third Party
             from alora.config import (  # pylint: disable=import-outside-toplevel
                 aLoraConfig,
+            )
+
+            tune_config = aLoraConfig(
+                **vars(lora_config), invocation_string=invocation_string
             )
         except ImportError as exc:
             raise ImportError(
                 "The alora package is required for this operation. "
                 "Please install it with pip install alora."
             ) from exc
-    if peft_method == "lora":
+    elif peft_method == peft_config.PEFT_METHOD.LORA.value:
         tune_config = lora_config
-    elif peft_method == "alora":
-        tune_config = aLoraConfig(
-            **vars(lora_config), invocation_string=invocation_string
-        )
-    elif peft_method == "pt":
+    elif peft_method == peft_config.PEFT_METHOD.PT.value:
         tune_config = prompt_tuning_config
     else:
         tune_config = None
+
+    if quantization_method == peft_config.QUANT_METHOD.MXFP4.value:
+        quantization_config = mxfp4config
+    else:
+        quantization_config = None
 
     return (
         model_args,
@@ -678,6 +712,7 @@ def parse_arguments(parser, json_config=None):
         training_args,
         trainer_controller_args,
         tune_config,
+        quantization_config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
@@ -699,6 +734,7 @@ def main():
             training_args,
             trainer_controller_args,
             tune_config,
+            quantization_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -719,6 +755,7 @@ def main():
                 "Data Arguments": data_args,
                 "Training Arguments": training_args,
                 "Tune Config": tune_config,
+                "Quantization Config": quantization_config,
                 "QLoRA Config": quantized_lora_config,
                 "Tracker Config": tracker_configs,
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
@@ -761,6 +798,7 @@ def main():
             data_args=data_args,
             train_args=training_args,
             peft_config=tune_config,
+            quantization_config=quantization_config,
             trainer_controller_args=trainer_controller_args,
             tracker_configs=tracker_configs,
             additional_callbacks=None,

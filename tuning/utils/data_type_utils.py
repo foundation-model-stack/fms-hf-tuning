@@ -52,6 +52,8 @@ def get_torch_dtype(dtype: Union[str, torch.dtype]) -> torch.dtype:
     # If a Torch dtype is passed, nothing to do
     if isinstance(dtype, torch.dtype):
         return dtype
+    if dtype == "auto":
+        return dtype
     # TODO - If None/empty str was provided, read it from model config?
     # Otherwise convert it from a string
     return str_to_torch_dtype(dtype)
