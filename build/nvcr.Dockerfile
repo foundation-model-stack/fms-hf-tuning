@@ -35,7 +35,7 @@ ARG ENABLE_MLFLOW=true
 ARG ENABLE_SCANNER=true
 ARG ENABLE_CLEARML=true
 ARG ENABLE_TRITON_KERNELS=true
-ARG ENABLE_MAMBA_SUPPORT=false
+ARG ENABLE_MAMBA_SUPPORT=true
 
 # Ensures to always build mamba_ssm from source
 ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
