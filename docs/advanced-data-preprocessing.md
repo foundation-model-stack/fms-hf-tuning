@@ -7,6 +7,23 @@ Our library also supports a powerful data processing backend which can be used b
 
 These things are supported via what we call a [`data_config`](#data-config) which can be passed as an argument to sft trainer.
 
+## Supported Data File Formats
+We support the following file formats via `--training_data_path` argument
+
+Data Format | Tested Support
+------------|---------------
+JSON        |   ✅
+JSONL       |   ✅
+PARQUET     |   ✅
+ARROW       |   ✅
+
+As iterated above, we also support passing a HF dataset ID directly via `--training_data_path` argument.
+
+**NOTE**: Due to the variety of supported data formats and file types, `--training_data_path` is handled as follows:
+- If `--training_data_path` ends in a valid file extension (e.g., .json, .csv), it is treated as a file.
+- If `--training_data_path` points to a valid folder, it is treated as a folder.
+- If neither of these are true, the data preprocessor tries to load `--training_data_path` as a Hugging Face (HF) dataset ID.
+
 ## Data Config
 
 Data config is a configuration file which `sft_trainer.py` supports as an argument via `--data_config_path` flag. In this
@@ -320,4 +337,206 @@ This can add extra backslashes to your chat template causing it to become invali
 
 We provide some example data configs [here](../tests/artifacts/predefined_data_configs/)
 
+# Use cases supported via command line argument `training_data_path`
 
+For basic users who want to pass command line argument directly to our stack you can refer to the following supported data formats.
+
+### 1. Data formats with a single sequence and a specified response_template to use for masking on completion.
+
+#### 1.1 Pre-process the dataset
+ Pre-process the dataset to contain a single sequence of each data instance containing input + response. The trainer is configured to expect a `response template` as a string. For example, if one wants to prepare the `alpaca` format data to feed into this trainer, it is quite easy and can be done with the following code.
+
+```python
+PROMPT_DICT = {
+    "prompt_input": (
+        "Below is an instruction that describes a task, paired with an input that provides further context. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:"
+    ),
+    "prompt_no_input": (
+        "Below is an instruction that describes a task. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Response:"
+    ),
+}
+
+def format_alpaca_fn(example):
+    prompt_input, prompt_no_input = PROMPT_DICT['prompt_input'], PROMPT_DICT['prompt_no_input']
+    output = prompt_input.format_map(example) if example.get("input", "") != "" else prompt_no_input.format_map(example)
+    output = f"{output} {example['output']}"
+    return {"output": output}
+
+ds = datasets.load_dataset('json', data_files='./stanford_alpaca/alpaca_data.json')
+
+alpaca_ds = ds['train'].map(format_alpaca_fn, remove_columns=['instruction', 'input'])
+alpaca_ds.to_json("sft_alpaca_data.json")
+```
+
+The `response template` corresponding to the above dataset and the `Llama` tokenizer is: `\n### Response:"`.
+
+The same way can be applied to any dataset, with more info can be found [here](https://huggingface.co/docs/trl/main/en/sft_trainer#format-your-input-prompts).
+
+Once the data is converted using the formatting function, pass the `dataset_text_field` containing the single sequence to the trainer. 
+
+#### 1.2 Format the dataset on the fly
+   Pass a dataset and a `data_formatter_template` to use the formatting function on the fly while tuning. The template should specify fields of the dataset with `{{field}}`. While tuning, the data will be converted to a single sequence using the template. Data fields can contain alpha-numeric characters, spaces and the following special symbols - "." , "_", "-".  
+
+Example: Train.json
+`[{ "input" : <text>,
+    "output" : <text>,
+  },
+ ...
+]`  
+data_formatter_template: `### Input: {{input}} \n\n## Label: {{output}}`  
+
+Formatting will happen on the fly while tuning. The keys in template should match fields in the dataset file. The `response template` corresponding to the above template will need to be supplied. in this case, `response template` = `\n## Label:`.
+
+##### In conclusion, if using the reponse_template and single sequence, either the `data_formatter_template` argument or `dataset_text_field` needs to be supplied to the trainer.
+
+### 2. Dataset with input and output fields (no response template)
+
+  Pass a [supported dataset](#supported-data-formats) containing fields `"input"` with source text and `"output"` with class labels. Pre-format the input as you see fit. The output field will simply be concatenated to the end of input to create single sequence, and input will be masked.
+
+  The `"input"` and `"output"` field names are mandatory and cannot be changed. 
+
+Example: For a JSON dataset like, `Train.jsonl`
+
+```
+{"input": "### Input: Colorado is a state in USA ### Output:", "output": "USA : Location"} 
+{"input": "### Input: Arizona is also a state in USA ### Output:", "output": "USA : Location"}
+```
+
+### 3. Chat Style Single/Multi turn datasets
+
+  Pass a dataset containing single/multi turn chat dataset. Your dataset could follow this format:
+
+```
+$ head -n 1 train.jsonl
+{"messages": [{"content": "You are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.", "role": "system"}, {"content": "Look up a word that rhymes with exist", "role": "user"}, {"content": "I found a word that rhymes with \"exist\":\n1\\. Mist", "role": "assistant"}], "group": "lab_extension", "dataset": "base/full-extension", "metadata": "{\"num_turns\": 1}"}
+```
+
+This format supports both single and multi-turn chat scenarios.
+
+The chat template used to render the dataset will default to `tokenizer.chat_template` from the model's tokenizer configuration. This can be overridden using the `--chat_template <chat-template-string>` argument. For example, models like [ibm-granite/granite-3.0-8b-instruct](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct), which include a [chat template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/e0a466fb25b9e07e9c2dc93380a360189700d1f8/tokenizer_config.json#L188) in their `tokenizer_config.json`, do not require users to provide a chat template to process the data.
+
+Users do need to pass `--response_template` and `--instruction_template` which are pieces of text representing start of
+`assistant` and `human` response inside the formatted chat template.
+For the [granite model above](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188) for example, the values shall be.
+```
+--instruction_template "<|start_of_role|>user<|end_of_role|>"
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
+```
+
+The code internally uses [`DataCollatorForCompletionOnlyLM`](https://github.com/huggingface/trl/blob/main/trl/trainer/utils.py#L93) to perform masking of text ensuring model learns only on the `assistant` responses for both single and multi turn chat.
+
+#### Aligning dataset formats
+In some cases the chat template might not be aligned with the data format of the dataset. For example, consider the following data sample and suppose we want to use the list of contents associated with the `messages` key from the data sample for our multi-turn training job!
+
+```
+{
+  "messages": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+```
+Different Chat templates support different data formats and the chat template might not always align with the data format of the dataset!
+
+Here is a example of chat template that iterates over the nested data sample by addressing the "messages" key in `for message in messages['messages']` :
+```
+{% for message in messages['messages'] %}\
+  {% if message['role'] == 'user' %}{{ '<|user|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'system' %}{{ '<|system|>\n' + message['content'] + eos_token }}\
+  {% elif message['role'] == 'assistant' %}{{ '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {% endif %}\
+  {% if loop.last and add_generation_prompt %}{{ '<|assistant|>' }}\
+  {% endif %}\
+{% endfor %}
+```
+While the above template might be suitable for certain data formats, not all chat templates access the nested contents in a data sample.
+
+In the following example notice the `for message in messages` line which does not access any nested contents in the data and expects the nested content to be passed directly to the chat template!
+
+```
+{%- for message in messages %}\
+  {%- if message['role'] == 'system' %}\
+  {{- '<|system|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'user' %}\
+  {{- '<|user|>\n' + message['content'] + '\n' }}\
+  {%- elif message['role'] == 'assistant' %}\
+  {%- if not loop.last %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token + '\n' }}\
+  {%- else %}\
+  {{- '<|assistant|>\n'  + message['content'] + eos_token }}\
+  {%- endif %}\
+  {%- endif %}\
+  {%- if loop.last and add_generation_prompt %}\
+  {{- '<|assistant|>\n' }}\
+  {%- endif %}\
+{%- endfor %}
+```
+
+When working with multi-turn datasets, it's often necessary to extract specific fields from the data depending on the format. For example, in many multi-turn datasets, conversations may be stored under a dedicated key (e.g., `conversations`, `messages`, etc), and you may only need the content of that key for processing.
+
+```
+{
+  "conversations": [
+    {"content": "You are an AI...", "role": "system"},
+    {"content": "Look up a word...", "role": "user"},
+    {"content": "A word that rhymes is 'mist'", "role": "assistant"}
+  ],
+  "group": "lab_extension",
+  "dataset": "base/full-extension",
+  "metadata": "{\"num_turns\": 2}"
+}
+
+```
+To extract and use the conversations field, pass the following flag when running:
+```
+--dataset_conversation_field "conversations"
+``` 
+
+*Note:* For most cases, users using `Granite3.1+ Instruct` series models which already contain chat template should look to pass `--dataset_conversation_field "messages"` while using multi-turn data on the commandline or use `conversations_column` argument in the [data handler](https://github.com/foundation-model-stack/fms-hf-tuning/blob/30ceecc63f3e2bf3aadba2dfc3336b62187c240f/tests/artifacts/predefined_data_configs/mt_data_granite_3_1B_tokenize_and_mask_handler.yaml#L63) which processes chat template 
+
+We recommend inspecting the data and chat template to decide if you need to pass this flag.
+
+### Guidelines
+
+Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
+
+Following are the Guidelines from us in a flow chart :  
+![guidelines for chat template](docs/images/chat_template_guide.jpg)  
+
+Here are some scenarios addressed in the flow chart:  
+1. Depending on the model the tokenizer for the model may or may not have a chat template  
+2. If the template is available then the `json object schema` of the dataset might not match the chat template's `string format`
+3. There might be special tokens used in chat template which the tokenizer might be unaware of, for example `<|start_of_role|>` which can cause issues during tokenization as it might not be treated as a single token  
+
+
+#### Add Special Tokens
+Working with multi-turn chat data might require the tokenizer to use a few new control tokens ( ex: `<|assistant|>`, `[SYS]` ) as described above in the guidelines. These special tokens might not be present in the tokenizer's vocabulary if the user is using base model.
+
+Users can pass `--add_special_tokens` argument which would add the required tokens to the tokenizer's vocabulary.  
+For example required special tokens used in `--instruction_template`/`--response_template` can be passed as follows:
+
+```
+python -m tuning.sft_trainer \
+...
+--add_special_tokens "<|start_of_role|>" "<|end_of_role|>" \
+--instruction_template "<|start_of_role|>user<|end_of_role|>" \
+--response_template "<|start_of_role|>assistant<|end_of_role|>"
+```
+
+### 4. Pre tokenized datasets.
+
+Users can also pass a pretokenized dataset (containing `input_ids` and `labels` columns) as `--training_data_path` argument e.g.
+
+At this time, the data preprocessor does not add EOS tokens to pretokenized datasets, users must ensure EOS tokens are included in their pretokenized data if needed.
+
+```
+python tuning/sft_trainer.py ... --training_data_path twitter_complaints_tokenized_with_maykeye_tinyllama_v0.arrow
+```

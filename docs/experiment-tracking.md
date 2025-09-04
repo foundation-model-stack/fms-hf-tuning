@@ -18,9 +18,6 @@ sft_trainer.train(train_args=training_args,...)
 
 For each of the requested trackers the code expects you to pass a config to the `sft_trainer.train` function which can be specified through `tracker_conifgs` argument [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/a9b8ec8d1d50211873e63fa4641054f704be8712/tuning/sft_trainer.py#L78) details of which are present below.  
 
-
-
-
 ## Tracker Configurations
 
 ## File Logging Tracker
