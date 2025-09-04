@@ -21,7 +21,7 @@ This repo provides basic tuning scripts with support for specific models. The re
 
 ## Installation
 
-Refer our [Installation](./docs/installations.md) guide for details on how to install the library.
+Refer our [Installation](./docs/installation.md) guide for details on how to install the library.
 
 ## Tuning Techniques:
 
@@ -31,13 +31,12 @@ Please refer to our [tuning techniques document](./docs/tuning-techniques.md) fo
 * [GPTQ-LoRA](./docs/tuning-techniques.md#gptq-lora-with-autogptq-tuning-example) 
 * [Full Fine Tuning](./docs/tuning-techniques.md#fine-tuning)
 * [Use FMS Acceleration](./docs/tuning-techniques.md#fms-acceleration)
-* [Extended Pre-Training](./docs/tuning-techniques.md#extended-pre-training) 
+* [Extended Pre-Training](./docs/tuning-techniques.md#extended-pre-training)
 
 ## Training and Training Parameters:
 
-Please refer our [document](./docs/training.md) to see how to start [Single GPU](./docs/training.md#single-gpu) or [Multi-GPU](./docs/training.md#multiple-gpus-with-fsdp) runs with fms-hf-tuning.
-
-You can also refer the same [document](./docs/training.md#tips-on-parameters-to-set) on how to use various training arguments.
+* Please refer our document on [training](./docs/training.md) to see how to start [Single GPU](./docs/training.md#single-gpu) or [Multi-GPU](./docs/training.md#multiple-gpus-with-fsdp) runs with fms-hf-tuning.
+* You can also refer the same a different [section](./docs/training.md#tips-on-parameters-to-set) of the same document on tips to set various training arguments.
 
 ### *Debug recommendation:*
 While training, if you encounter flash-attn errors such as `undefined symbol`, you can follow the below steps for clean installation of flash binaries. This may occur when having multiple environments sharing the pip cache directory or torch version is updated.
@@ -50,71 +49,15 @@ pip install fms-hf-tuning[flash-attn]
 
 ## Supported Models
 
-- For each tuning technique, we run testing on a single large model of each architecture type and claim support for the smaller models. For example, with QLoRA technique, we tested on granite-34b GPTBigCode and claim support for granite-20b-multilingual.
+- While we expect most Hugging Face decoder models to work, we have primarily tested fine-tuning for below family of models.
+  * [IBM Granite](https://huggingface.co/ibm-granite)
+  * [Meta Llama](https://huggingface.co/meta-llama)
+  * [Mistral Ai](https://huggingface.co/mistralai) and
+  * [OpenAI GPT-OSS](https://huggingface.co/collections/openai/gpt-oss-68911959590a1634ba11c7a4)
 
 - LoRA Layers supported : All the linear layers of a model + output `lm_head` layer. Users can specify layers as a list or use `all-linear` as a shortcut. Layers are specific to a model architecture and can be specified as noted [here](https://github.com/foundation-model-stack/fms-hf-tuning?tab=readme-ov-file#lora-tuning-example)
 
-- Legend:
-
-  ✅ Ready and available 
-
-  ✔️ Ready and available - compatible architecture (*see first bullet point above)
-
-  🚫 Not supported
-
-  ? May be supported, but not tested
-
-Model Name & Size  | Model Architecture | Full Finetuning | Low Rank Adaptation (i.e. LoRA) | qLoRA(quantized LoRA) | 
--------------------- | ---------------- | --------------- | ------------------------------- | --------------------- |
-[Granite 4.0 Tiny Preview](https://huggingface.co/ibm-granite/granite-4.0-tiny-preview) | GraniteMoeHybridForCausalLM | ✅ | ✅ | ? |
-[Granite PowerLM 3B](https://huggingface.co/ibm-research/PowerLM-3b) | GraniteForCausalLM | ✅* | ✅* | ✅* |
-[Granite 3.1 1B](https://huggingface.co/ibm-granite/granite-3.1-1b-a400m-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.1 2B](https://huggingface.co/ibm-granite/granite-3.1-2b-base)             | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.1 8B](https://huggingface.co/ibm-granite/granite-3.1-8b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.0 2B](https://huggingface.co/ibm-granite/granite-3.0-2b-base)       | GraniteForCausalLM | ✔️* | ✔️* | ✔️* |
-[Granite 3.0 8B](https://huggingface.co/ibm-granite/granite-3.0-8b-base)       | GraniteForCausalLM | ✅* | ✅* | ✔️ |
-[GraniteMoE 1B](https://huggingface.co/ibm-granite/granite-3.0-1b-a400m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-[GraniteMoE 3B](https://huggingface.co/ibm-granite/granite-3.0-3b-a800m-base)        | GraniteMoeForCausalLM  | ✅ | ✅** | ? |
-[Granite 3B Code](https://huggingface.co/ibm-granite/granite-3b-code-base-2k)           | LlamaForCausalLM      | ✅ | ✔️  | ✔️ | 
-[Granite 8B Code](https://huggingface.co/ibm-granite/granite-8b-code-base-4k)           | LlamaForCausalLM      | ✅ | ✅ | ✅ |
-Granite 13B          | GPTBigCodeForCausalLM  | ✅ | ✅ | ✔️  | 
-Granite 20B          | GPTBigCodeForCausalLM  | ✅ | ✔️  | ✔️  | 
-[Granite 34B Code](https://huggingface.co/ibm-granite/granite-34b-code-instruct-8k)            | GPTBigCodeForCausalLM  | 🚫 | ✅ | ✅ | 
-[Llama3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)          | LlamaForCausalLM               | ✅*** | ✔️ | ✔️ |  
-[Llama3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)(same architecture as llama3) | LlamaForCausalLM   | 🚫 - same as Llama3-70B | ✔️  | ✔️ | 
-[Llama3.1-405B](https://huggingface.co/meta-llama/Llama-3.1-405B)                            | LlamaForCausalLM   | 🚫 | 🚫 | ✅ | 
-[Llama3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)                               | LlamaForCausalLM   | ✅ | ✅ | ✔️ |  
-[Llama3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)                             | LlamaForCausalLM   | 🚫 | ✅ | ✅ |
-aLLaM-13b                                 | LlamaForCausalLM |  ✅ | ✅ | ✅ |
-[Mixtral 8x7B](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1)                              | MixtralForCausalLM   | ✅ | ✅ | ✅ |
-[Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1)                                  | MistralForCausalLM   | ✅ | ✅ | ✅ |  
-Mistral large                             | MistralForCausalLM   | 🚫 | 🚫 | 🚫 | 
-[GPT-OSS-20B](https://huggingface.co/openai/gpt-oss-20b)                                  | GptOssForCausalLM   | ✅ | ✅ | ? |  
-[GPT-OSS-120B](https://huggingface.co/openai/gpt-oss-120b)                                  | GptOssForCausalLM   | ✅ | ✅ | ? |  
-
-(*) - Supported with `fms-hf-tuning` v2.4.0 or later.
-
-(**) - Supported for q,k,v,o layers . `all-linear` target modules does not infer on vLLM yet.
-
-(***) - Supported from platform up to 8k context length - same architecture as llama3-8b.
-
-### Supported vision model
-
-We also support full fine-tuning and LoRA tuning for vision language models - `Granite 3.2 Vision`, `Llama 3.2 Vision`, and `LLaVa-Next` from `v2.8.1` onwards.
-For information on supported dataset formats and how to tune a vision-language model, please see [this document](./vision-language-model-tuning.md).
-
-Model Name & Size  | Model Architecture | LoRA Tuning | Full Finetuning |
--------------------- | ---------------- | --------------- | --------------- |
-Llama 3.2-11B Vision  | MllamaForConditionalGeneration | ✅ | ✅ |
-Llama 3.2-90B Vision  | MllamaForConditionalGeneration | ✔️ | ✔️ |
-Granite 3.2-2B Vision  | LlavaNextForConditionalGeneration | ✅ | ✅ |
-Llava Mistral 1.6-7B  | LlavaNextForConditionalGeneration | ✅ | ✅ |
-Llava 1.6-34B  | LlavaNextForConditionalGeneration | ✔️ | ✔️ |
-Llava 1.5-7B  | LlavaForConditionalGeneration | ✅ | ✅ |
-Llava 1.5-13B  | LlavaForConditionalGeneration | ✔️ | ✔️ |
-
-**Note**:
-* vLLM currently does not support inference with LoRA-tuned vision models. To use a tuned LoRA adapter of vision model, please merge it with the base model before running vLLM inference.
+An extended list for tested models is maintaned in the [supported models](./docs/supported-models.md) document but might have outdated information.
 
 ## Data Support
 Users can pass training data as either a single file or a Hugging Face dataset ID using the `--training_data_path` argument along with other arguments required for various [use cases](./docs/advanced-data-preprocessing.md#use-cases-supported-via-command-line-argument-training_data_path). If user choose to pass a file, it can be in any of the [supported formats](#supported-data-formats). Alternatively, you can use our powerful [data preprocessing backend](./docs/advanced-data-preprocessing.md) to preprocess datasets on the fly.

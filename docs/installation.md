@@ -45,11 +45,18 @@ Experiment tracking in fms-hf-tuning allows users to track their experiments wit
 
 The code supports currently these trackers out of the box, 
 * `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
+    - Since this is builin no need to install anything. 
 * `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+    - Install by running
+        `pip install fms-hf-tuning[aim]`
 * `MLflow Tracking` : Another popular opensource tracker which stores metrics, metadata or even artifacts from experiments.
+    - Install by running
+        `pip install fms-hf-tuning[mlflow]`
 * `Clearml Tracking` : Another opensource tracker which stores metrics, metadata or even artifacts from experiments.
+    - Install by running
+        `pip install fms-hf-tuning[clearml]`
 
-Further details on enabling and using the trackers mentioned above can be found [here](./experiment-tracking.md).  
+Note. All trackers expect some arguments or can be customized by passing command line arguments which are described in our document on [experiment tracking](./experiment-tracking.md). For further details on enabling and using the trackers use the experiment tracking document.  
 
 ## Training Mamba Models
 
