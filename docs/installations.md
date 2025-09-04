@@ -5,6 +5,7 @@ Table of contents:
  - [Installing FlashAttention](#using-flashattention)
  - [Installing Fms Acceleration](#using-fms-acceleration)
  - [Installing Mamba Model Support](#training-mamba-models)
+ - [Installing Experiment Tracker Support](#using-experiment-trackers)
 
 ## Basic Installation
 
@@ -39,12 +40,16 @@ pip install fms-hf-tuning[fms-accel]
 ```
 
 ## Using Experiment Trackers
+Experiment tracking in fms-hf-tuning allows users to track their experiments with known trackers like [Aimstack](https://aimstack.io/), [MLflow Tracking](https://mlflow.org/docs/latest/tracking.html), [Clearml Tracking](https://clear.ml/) or custom trackers built into the code like
+[FileLoggingTracker](./tuning/trackers/filelogging_tracker.py)
 
-To use experiment tracking with popular tools like [Aim](https://github.com/aimhubio/aim), note that some trackers are considered optional dependencies and can be installed with the following command:
-```
-pip install fms-hf-tuning[aim]
-```
-For more details on how to enable and use the trackers, Please see, [the experiment tracking section below](#experiment-tracking).
+The code supports currently these trackers out of the box, 
+* `FileLoggingTracker` : A built in tracker which supports logging training loss to a file.
+* `Aimstack` : A popular opensource tracker which can be used to track any metrics or metadata from the experiments.
+* `MLflow Tracking` : Another popular opensource tracker which stores metrics, metadata or even artifacts from experiments.
+* `Clearml Tracking` : Another opensource tracker which stores metrics, metadata or even artifacts from experiments.
+
+Further details on enabling and using the trackers mentioned above can be found [here](./experiment-tracking.md).  
 
 ## Training Mamba Models
 

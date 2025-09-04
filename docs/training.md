@@ -12,7 +12,7 @@
     - [Optimizing writing checkpoints](#optimizing-writing-checkpoints)
     - [Resuming tuning from checkpoints](#resuming-tuning-from-checkpoints)
     - [Setting Gradient Checkpointing](#setting-gradient-checkpointing)
-
+  - [Training MXFP4 quantized with fms-hf-tuning](#training-mxfp4-quantized-models)
 ## Single GPU
 
 Below example runs fine tuning with the given datasets and model:
@@ -166,3 +166,90 @@ Training large models requires the usage of a lot of GPU memory. To reduce memor
 Gradient Checkpointing is a method that stores only certain intermediate activations during the backward pass for recomputation. This avoids storing all of the intermediate activations from the forward pass, thus saving memory. The resulting reduced memory costs allow fitting larger models on the same GPU, with the tradeoff of a ~20% increase in the time required to fully train the model. More information about Gradient Checkpointing can be found in [this paper](https://arxiv.org/abs/1604.06174), as well as [here](https://github.com/cybertronai/gradient-checkpointing?tab=readme-ov-file#how-it-works).
 
 To enable this feature, add the `--gradient_checkpointing` flag as an argument when calling `sft_trainer`.
+
+## Training MXFP4 Quantized Models
+
+MXFP4 Quantized models like [gpt-oss](https://huggingface.co/openai/gpt-oss-120b) series models can be tuned by passing two extra parameters.
+
+```
+--quantization_method mxfp4 --dequantize True \
+--flash_attn_implementation="kernels-community/vllm-flash-attn3"
+```
+
+1. Quantization method `mxfp4` and `dequantize=True` tells the code to dequantize the model and load it in `bf16` mode as training is not supported for `mxfp4`.
+Even if support for training in `mxfp4` mode goes live it will be supported only on Hopper and above series of GPUs so users will need to specify `dequantize=False` when training on older GPUs e.g. `A100`s.
+
+2. Flash attention 3 is supported by custom kernels support so users need to specify the correct argument else our code will fallback to `flash attention 2`
+
+Full command for training GPT-OSS models can be like this - 
+
+```
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7; \
+rm -rf ~/gpt-oss-120b-multilingual-reasoner; \
+accelerate launch \
+--config_file ~/fsdp_config.yaml \
+-m tuning.sft_trainer \
+--model_name_or_path "openai/gpt-oss-120b" \
+--output_dir ~/gpt-oss-120b-multilingual-reasoner \
+--gradient_accumulation_steps 1 \
+--per_device_train_batch_size 2 \
+--num_train_epochs 1 \
+--torch_dtype bfloat16 \
+--learning_rate 2e-4 \
+--warmup_ratio 0.03 \
+--lr_scheduler_type "cosine_with_min_lr" \
+--lr_scheduler_kwargs '{"min_lr_rate": 0.1}' \
+--max_seq_length 4096 \
+--logging_steps 1 \
+--data_config ~/data_config.yaml \
+--gradient_checkpointing True \
+--peft_method lora \
+--lora_r 8\
+--lora_alpha 16 \
+--lora_dropout 0.0 \
+--target_modules "all-linear" \
+--quantization_method mxfp4 --dequantize True \
+--use_flash_attn True \
+--tracker aim --aim_repo ~/aimrepo --experiment "gpt-oss-120b-lora-tuning-fa3-attn-torch-2.8" \
+--flash_attn_implementation="kernels-community/vllm-flash-attn3"
+```
+
+With fsdp config passed to accelerate as - 
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: FULL_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+mixed_precision: bf16
+machine_rank: 0
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+```
+
+And [data config](./advanced-data-preprocessing.md#data-config) for [HuggingFace Reasoner dataset](https://huggingface.co/datasets/HuggingFaceH4/Multilingual-Thinking) looks like 
+
+```
+dataprocessor:
+    type: default
+datasets:
+  - name: dataset_1
+    data_paths:
+      - "HuggingFaceH4/Multilingual-Thinking"
+    data_handlers:
+      - name: tokenize_and_apply_chat_template_with_masking
+        arguments:
+          remove_columns: all
+          fn_kwargs:
+            conversation_column_name: "messages"
+```

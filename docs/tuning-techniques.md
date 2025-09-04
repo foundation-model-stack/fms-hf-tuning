@@ -22,12 +22,6 @@
 
 - [Extended Pre-Training](#extended-pre-training)
 
-- [Inference](#inference)
-  - [Running a single example](#running-a-single-example)
-  - [Running multiple examples](#running-multiple-examples)
-  - [Inference Results Format](#inference-results-format)
-  - [Changing the Base Model for Inference](#changing-the-base-model-for-inference)
-
 ## LoRA Tuning Example
 
 Set `peft_method` to `"lora"`. You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
@@ -546,54 +540,4 @@ The `fms_acceleration.cli` can do more to search for all available configs, plug
 
 ## Extended Pre-Training
 
-We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./docs/ept.md)
-
-## Inference
-Currently, we do *not* offer inference support as part of the library, but we provide a standalone script for running inference on tuned models for testing purposes. For a full list of options run `python scripts/run_inference.py --help`. Note that no data formatting / templating is applied at inference time.
-
-## Running a single example
-If you want to run a single example through a model, you can pass it with the `--text` flag.
-
-```bash
-python scripts/run_inference.py \
---model my_checkpoint \
---text "This is a text the model will run inference on" \
---max_new_tokens 50 \
---out_file result.json
-```
-
-## Running multiple examples
-To run multiple examples, pass a path to a file containing each source text as its own line. Example:
-
-Contents of `source_texts.txt`
-```
-This is the first text to be processed.
-And this is the second text to be processed.
-```
-
-```bash
-python scripts/run_inference.py \
---model my_checkpoint \
---text_file source_texts.txt \
---max_new_tokens 50 \
---out_file result.json
-```
-
-## Inference Results Format
-After running the inference script, the specified `--out_file` will be a JSON file, where each text has the original input string and the predicted output string, as follows. Note that due to the implementation of `.generate()` in Transformers, in general, the input string will be contained in the output string as well.
-```
-[
-    {
-        "input": "{{Your input string goes here}}",
-        "output": "{{Generate result of processing your input string goes here}}"
-    },
-    ...
-]
-```
-
-## Changing the Base Model for Inference
-If you tuned a model using a *local* base model, then a machine-specific path will be saved into your checkpoint by Peft, specifically the `adapter_config.json`. This can be problematic if you are running inference on a different machine than you used for tuning.
-
-As a workaround, the CLI for inference provides an arg for `--base_model_name_or_path`, where a new base model may be passed to run inference with. This will patch the `base_model_name_or_path` in your checkpoint's `adapter_config.json` while loading the model, and restore it to its original value after completion. Alternatively, if you like, you can change the config's value yourself.
-
-NOTE: This can also be an issue for tokenizers (with the `tokenizer_name_or_path` config entry). We currently do not allow tokenizer patching since the tokenizer can also be explicitly configured within the base model and checkpoint model, but may choose to expose an override for the `tokenizer_name_or_path` in the future.
+We also have support for extended pre training where users might wanna pretrain a model with large number of samples. Please refer our separate doc on [EPT Use Cases](./ept.md)
