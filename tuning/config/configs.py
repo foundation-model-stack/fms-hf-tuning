@@ -251,6 +251,13 @@ class TrainingArguments(transformers.TrainingArguments):
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
         },
     )
+    optim: str = field(
+        default="adamw_torch",
+        metadata={
+            "help": "Pass optimizer name to use during training. \
+                Please only use the optimizers that are supported with HF transformers"
+        },
+    )
     enable_reduce_loss_sum: bool = field(
         default=False,
         metadata={
