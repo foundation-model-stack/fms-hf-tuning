@@ -853,9 +853,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(
-        tune_config, LoraConfig
-    ):  # aLoraConfig subclasses LoraConfig
+    if isinstance(tune_config, LoraConfig):  # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts

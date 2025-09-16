@@ -115,7 +115,7 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         lora_config = asdict(tuning_config)
 
         if not hasattr(lora_config, "task_type"):
-            lora_config["task_type"]=task_type
+            lora_config["task_type"] = task_type
         hf_peft_config = HFLoraConfig(**lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
         hf_peft_config = HFPromptTuningConfig(
