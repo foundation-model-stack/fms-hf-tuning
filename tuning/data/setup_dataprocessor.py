@@ -159,7 +159,9 @@ def process_dataconfig_file(
 
 
 # Data Format 1: Pretokenized Data
-def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
+def _get_pretokenized_dataset_handlers(
+    data_args: DataArguments, is_eval_present, is_eval_tokenized
+):
 
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
@@ -168,6 +170,7 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
         or data_args.data_formatter_template
         or data_args.dataset_text_field
         or data_args.instruction_template
+        or data_args.dataset_conversation_field
     ):
         raise ValueError(
             "fields response_template, data_formatter_template,"
@@ -177,7 +180,7 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
     # if the train dataset is pretokenized
     # ensure validation dataset is pretokenized otherwise error out
-    if is_eval_tokenized:
+    if is_eval_present and not is_eval_tokenized:
         raise ValueError(
             "validation data should be pretokenized to be used \
             along with pretokenized train data"
@@ -189,7 +192,9 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
 ### Data format 2
 # pylint: disable=unused-argument
-def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
+def _get_dataset_formatting_handlers(
+    data_args: DataArguments, packing, is_padding_free=False
+):
 
     if data_args.response_template is None:
         if packing is False:
@@ -253,7 +258,7 @@ def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
     fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
     if data_args.dataset_conversation_field is not None:
-        fn_kwargs["conversation_column"] = data_args.dataset_conversation_field
+        fn_kwargs["conversation_column_name"] = data_args.dataset_conversation_field
 
     kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
 
@@ -284,14 +289,14 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
 
 ### Vsion Data Format
-def _get_vision_dataset_handlers(data_args, processor_kwargs):
+def _get_vision_dataset_handlers(data_args: DataArguments, processor_kwargs):
 
     handlers = []
 
     # First data handler configuration
     handler_fn_kwargs1 = {
-        "dataset_text_field": data_args.dataset_text_field,
-        "conversation_column": data_args.dataset_text_field,
+        "formatted_text_column_name": data_args.dataset_text_field,
+        "conversation_column_name": data_args.dataset_conversation_field,
     }
     handler_kwargs1 = {
         "fn_kwargs": handler_fn_kwargs1,
@@ -403,7 +408,7 @@ def _process_raw_data_args(
     if is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
-            data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
+            data_args, is_eval_dataset_present, is_evaldata_tokenized
         )
     elif processor and data_args.dataset_text_field and data_args.dataset_image_field:
 
