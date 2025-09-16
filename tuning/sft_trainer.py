@@ -255,6 +255,16 @@ def train(
 
     model_load_time = time.time()
     try:
+        model_kwargs = dict(  # pylint: disable=use-dict-literal
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation=model_args.flash_attn_implementation
+            if model_args.use_flash_attn
+            else None,
+        )
+        if quantization_config is not None:
+            model_kwargs["quantization_config"] = quantization_config.to_hf_config()
+
         logger.info("Loading the model {} now".format(model_args.model_name_or_path))
         try:
             logger.info(
@@ -263,18 +273,8 @@ def train(
                 )
             )
             # try to load model as a vision model
-            model_loader = AutoModelForVision2Seq.from_pretrained
-
-            model = model_loader(
-                model_args.model_name_or_path,
-                cache_dir=train_args.cache_dir,
-                torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                quantization_config=quantization_config.to_hf_config()
-                if quantization_config
-                else None,
-                attn_implementation=model_args.flash_attn_implementation
-                if model_args.use_flash_attn
-                else None,
+            model = AutoModelForVision2Seq.from_pretrained(
+                model_args.model_name_or_path, **model_kwargs
             )
             try:
                 if "use_cache" in model.language_model.config:
@@ -290,10 +290,10 @@ def train(
             logger.info("Loaded vision model as {} ".format(model))
             logger.info("Loaded vision model processor {} ".format(processor))
             logger.info("Loaded model tokenizer {} ".format(tokenizer))
-        except ValueError:
+        except Exception as e:  # pylint: disable=broad-except
             logger.info(
-                "Couldn't load model {} as a vision model".format(
-                    model_args.model_name_or_path
+                "Couldn't load model {} as a vision model due to {} ".format(
+                    model_args.model_name_or_path, e
                 )
             )
             model = None
@@ -314,16 +314,7 @@ def train(
                 model_loader = AutoModelForCausalLM.from_pretrained
 
             model = model_loader(
-                model_args.model_name_or_path,
-                cache_dir=train_args.cache_dir,
-                torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                quantization_config=quantization_config.to_hf_config()
-                if quantization_config
-                else None,
-                attn_implementation=model_args.flash_attn_implementation
-                if model_args.use_flash_attn
-                else None,
-                use_cache=False,
+                model_args.model_name_or_path, use_cache=False, **model_kwargs
             )
 
             # TODO: Move these to a config as well
@@ -757,12 +748,12 @@ def main():
                 "Tune Config": tune_config,
                 "Quantization Config": quantization_config,
                 "QLoRA Config": quantized_lora_config,
-                "Tracker Config": tracker_configs,
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
                 "Fused Ops Kernels Config": fusedops_kernels_config,
                 "Fast MoE Config": fast_moe_config,
-                "Trainer Controller Config": trainer_controller_args,
+                "Tracker Config": tracker_configs,
                 "Extra Metadata": exp_metadata,
+                "Trainer Controller Config": trainer_controller_args,
             }
         )
         logger.info(args_dump)
