@@ -113,9 +113,10 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         hf_peft_config = alora_config
     elif isinstance(tuning_config, peft_config.LoraConfig):
         lora_config = asdict(tuning_config)
-        if lora_config["target_modules"] == ["all-linear"]:
-            lora_config["target_modules"] = "all-linear"
-        hf_peft_config = HFLoraConfig(task_type=task_type, **lora_config)
+
+        if not hasattr(lora_config, "task_type"):
+            lora_config["task_type"]=task_type
+        hf_peft_config = HFLoraConfig(**lora_config)
     elif isinstance(tuning_config, peft_config.PromptTuningConfig):
         hf_peft_config = HFPromptTuningConfig(
             task_type=task_type,
