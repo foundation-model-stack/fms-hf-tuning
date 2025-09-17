@@ -111,6 +111,9 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         alora_config.task_type = task_type
         hf_peft_config = alora_config
     elif isinstance(tuning_config, peft_config.LoraConfig):
+        if getattr(tuning_config, "target_modules") == ["all-linear"]:
+            setattr(tuning_config, "target_modules", "all-linear")
+
         if getattr(tuning_config, "task_type") is None:
             setattr(tuning_config, "task_type", task_type)
 
