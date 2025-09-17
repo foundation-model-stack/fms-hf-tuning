@@ -47,13 +47,15 @@ from tuning.config.acceleration_configs import (
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
     QuantizedLoraConfig,
-    get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import TrackerConfigs
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.data.tokenizer_utils import setup_tokenizer
 from tuning.trackers.tracker_factory import FILE_LOGGING_TRACKER, get_tracker
+from tuning.trainer_callbacks.dcp_saving_callbacks import (
+    ConvertAndSaveDCPHFCheckpointAtEverySave,
+)
 from tuning.trainercontroller import TrainerControllerCallback
 from tuning.trainers.sum_loss_sft_trainer import SumLossSFTTrainer
 from tuning.utils.config_utils import get_hf_peft_config, get_json_config
@@ -476,19 +478,25 @@ def train(
             model
         )
 
+    if trainer.is_fsdp_enabled:
+        accelerator = None if not is_accelerate_available() else trainer.accelerator
+        if accelerator:
+            if "SHARDED_STATE_DICT" in str(
+                accelerator.state.fsdp_plugin.state_dict_type
+            ):
+                dcp_saving_callback = ConvertAndSaveDCPHFCheckpointAtEverySave(
+                    pretrained_model_name_or_path=model_args.model_name_or_path,
+                    trainer=trainer,
+                    save_model_dir=train_args.save_model_dir,
+                )
+                trainer.add_callback(dcp_saving_callback)
+
     if framework is not None:
         accelerator = None if not is_accelerate_available() else trainer.accelerator
 
         # ready for train may produce additional callbacks for the trainer
         for x in framework.get_callbacks_and_ready_for_train(model, accelerator):
             trainer.add_callback(x)
-        for clb in get_additional_accel_framework_callbacks(
-            active_plugins=framework.active_plugins,
-            trainer=trainer,
-            pretrained_model_name_or_path=model_args.model_name_or_path,
-            save_model_dir=train_args.save_model_dir,
-        ):
-            trainer.add_callback(clb)
 
     resume_from_checkpoint = None
     # Check if resume flag is not passed (None), or if flag is true and
