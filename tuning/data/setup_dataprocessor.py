@@ -652,9 +652,7 @@ def process_dataargs(
         # Third Party
         from fms_acceleration_odm import OnlineData
 
-        train_dataset = OnlineData(
-            train_dataset, collators, None, train_args.odm_gamma, train_args.odm_eta
-        )
+        train_dataset = OnlineData(train_dataset, collators, None, 0.1, 0.1)
 
     dataset_kwargs = {}
     # For vision model tuning prepare_dataset is skipped.
