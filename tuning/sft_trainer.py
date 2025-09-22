@@ -132,7 +132,7 @@ def train(
     if odm_config is not None and odm_config.odm is None:
         odm_config = None
 
-    print(odm_config)
+    print("odm_config: ", odm_config)
     USE_ALORA = False
     try:
         # Third Party
