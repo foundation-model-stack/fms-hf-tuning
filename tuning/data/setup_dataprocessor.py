@@ -648,13 +648,15 @@ def process_dataargs(
             is_padding_free=is_padding_free,
             processor=processor,
         )
+    dataset_kwargs = {}
     if data_args.is_odm:
         # Third Party
         from fms_acceleration_odm import OnlineData
 
         train_dataset = OnlineData(train_dataset, collators, None, 0.1, 0.1)
+        dataset_kwargs["skip_prepare_dataset"] = True
+        train_args.accelerator_config = {"split_batches": True}
 
-    dataset_kwargs = {}
     # For vision model tuning prepare_dataset is skipped.
     if processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True
