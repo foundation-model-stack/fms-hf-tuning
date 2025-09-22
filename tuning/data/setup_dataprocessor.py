@@ -625,7 +625,7 @@ def process_dataargs(
     data_collator = None
     if data_args.is_odm:
         collators = {}
-        for k, v in train_dataset:
+        for k, v in train_dataset.items():
             is_tokenized_dataset = is_pretokenized_dataset(v)
             collators[k] = get_data_collator(
                 train_args.packing,
