@@ -24,6 +24,7 @@ import yaml
 from .attention_and_distributed_packing import MultiPack, PaddingFree
 from .fast_moe import FastMoe
 from .fused_ops_and_kernels import FastKernelsConfig, FusedLoraConfig
+from .odm import ODM
 from .quantized_lora_config import AutoGPTQLoraConfig, BNBQLoraConfig
 from tuning.utils.import_utils import is_fms_accelerate_available
 
@@ -118,6 +119,17 @@ class AccelerationFrameworkConfig:
             path="training.attention",
             experimental=False,
             required_packages=["aadp"],
+        ),
+    ] = None
+
+    odm: Annotated[
+        ODM,
+        ConfigAnnotation(
+            path="training.odm",
+            key="odm",
+            standalone=True,
+            experimental=True,
+            required_packages=["odm"],
         ),
     ] = None
 
