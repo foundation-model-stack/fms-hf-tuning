@@ -131,7 +131,8 @@ def train(
 
     if odm_config is not None and odm_config.odm is None:
         odm_config = None
-
+    if odm_config is not None:
+        data_args.is_odm = True
     print("odm_config: ", odm_config)
     USE_ALORA = False
     try:

@@ -152,7 +152,7 @@ def process_dataconfig_file(
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets
+        data_config.datasets, data_args.is_odm
     )
 
     return (train_dataset, eval_dataset, data_args.dataset_text_field)
@@ -444,7 +444,7 @@ def _process_raw_data_args(
         dataset_configs.append(eval_dataset_config)
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_configs
+        dataset_configs, data_args.is_odm
     )
 
     return (train_dataset, eval_dataset, dataset_text_field)
@@ -588,6 +588,10 @@ def process_dataargs(
             "Check your data config or ensure split sizes are valid."
         )
     if data_args.do_dataprocessing_only:
+        if data_args.is_odm:
+            raise ValueError(
+                "data processing with online data mixing is not currently supported"
+            )
         dump_dir = Path(train_args.output_dir)
         if not dump_dir.is_absolute():
             dump_dir = dump_dir.absolute()
@@ -613,18 +617,44 @@ def process_dataargs(
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to
     #       check if we already tokenized the dataset or not.
-    is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
+    if data_args.is_odm:
+        is_tokenized_dataset = True
+    else:
+        is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
-    data_collator = get_data_collator(
-        train_args.packing,
-        data_args.response_template,
-        tokenizer,
-        is_tokenized_dataset,
-        max_seq_length,
-        data_args.instruction_template,
-        is_padding_free=is_padding_free,
-        processor=processor,
-    )
+    data_collator = None
+    if data_args.is_odm:
+        collators = {}
+        for k, v in train_dataset:
+            is_tokenized_dataset = is_pretokenized_dataset(v)
+            collators[k] = get_data_collator(
+                train_args.packing,
+                data_args.response_template,
+                tokenizer,
+                is_tokenized_dataset,
+                max_seq_length,
+                data_args.instruction_template,
+                is_padding_free=is_padding_free,
+                processor=processor,
+            )
+    else:
+        data_collator = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+    if data_args.is_odm:
+        # Third Party
+        from fms_acceleration_odm import OnlineData
+
+        train_dataset = OnlineData(
+            train_dataset, collators, None, train_args.odm_gamma, train_args.odm_eta
+        )
 
     dataset_kwargs = {}
     # For vision model tuning prepare_dataset is skipped.
