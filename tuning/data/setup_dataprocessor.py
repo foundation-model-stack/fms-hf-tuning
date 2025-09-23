@@ -668,7 +668,14 @@ def process_dataargs(
         from fms_acceleration_odm import OnlineData
 
         train_dataset = OnlineData(
-            train_dataset, collators, eval_dataset, eval_collators, None, 0.1, 0.1
+            train_dataset,
+            collators,
+            eval_dataset,
+            eval_collators,
+            None,
+            0.1,
+            0.1,
+            output_dir=train_args.output_dir,
         )
         dataset_kwargs["skip_prepare_dataset"] = True
         train_args.accelerator_config = {"split_batches": True}
