@@ -22,7 +22,8 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 @parsable_dataclass
 @dataclass
 class ODM:
-    level: int = None
+    update_interval: int = None
+    sample_interval: int = None
 
 
 @dataclass

@@ -625,9 +625,23 @@ def process_dataargs(
     data_collator = None
     if data_args.is_odm:
         collators = {}
+        eval_collators = {}
         for k, v in train_dataset.items():
             is_tokenized_dataset = is_pretokenized_dataset(v)
             collators[k] = get_data_collator(
+                train_args.packing,
+                data_args.response_template,
+                tokenizer,
+                is_tokenized_dataset,
+                max_seq_length,
+                data_args.instruction_template,
+                is_padding_free=is_padding_free,
+                processor=processor,
+            )
+            data_collator = collators[k]
+        for k, v in eval_dataset.items():
+            is_tokenized_dataset = is_pretokenized_dataset(v)
+            eval_collators[k] = get_data_collator(
                 train_args.packing,
                 data_args.response_template,
                 tokenizer,
@@ -653,7 +667,9 @@ def process_dataargs(
         # Third Party
         from fms_acceleration_odm import OnlineData
 
-        train_dataset = OnlineData(train_dataset, collators, None, 0.1, 0.1)
+        train_dataset = OnlineData(
+            train_dataset, collators, eval_dataset, eval_collators, None, 0.1, 0.1
+        )
         dataset_kwargs["skip_prepare_dataset"] = True
         train_args.accelerator_config = {"split_batches": True}
 
