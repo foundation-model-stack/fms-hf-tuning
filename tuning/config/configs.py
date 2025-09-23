@@ -179,6 +179,7 @@ class DataArguments:
                     Used in conjunction with --do_dataprocessing_only"
         },
     )
+    is_odm: bool = False
 
     def __post_init__(self):
         def unescape(s):
