@@ -24,6 +24,7 @@ from datasets import Dataset, IterableDataset
 from transformers import AutoProcessor, AutoTokenizer
 
 # Local
+from tuning.config.acceleration_configs.odm import ODMConfig
 from tuning.config.configs import DataArguments, TrainingArguments
 from tuning.data.data_config import (
     DataHandlerConfig,
@@ -71,6 +72,7 @@ def process_dataconfig_file(
     processor: AutoProcessor = None,
     is_multipack: bool = False,
     is_padding_free: bool = False,
+    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -152,7 +154,7 @@ def process_dataconfig_file(
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets, data_args.is_odm
+        data_config.datasets, is_odm=odm_config
     )
 
     return (train_dataset, eval_dataset, data_args.dataset_text_field)
@@ -505,6 +507,7 @@ def process_dataargs(
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
     is_multipack: bool = False,
+    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -588,7 +591,7 @@ def process_dataargs(
             "Check your data config or ensure split sizes are valid."
         )
     if data_args.do_dataprocessing_only:
-        if data_args.is_odm:
+        if odm_config:
             raise ValueError(
                 "data processing with online data mixing is not currently supported"
             )
@@ -617,13 +620,13 @@ def process_dataargs(
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to
     #       check if we already tokenized the dataset or not.
-    if data_args.is_odm:
+    if odm_config:
         is_tokenized_dataset = True
     else:
         is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
     data_collator = None
-    if data_args.is_odm:
+    if odm_config:
         collators = {}
         eval_collators = {}
         for k, v in train_dataset.items():
@@ -663,7 +666,7 @@ def process_dataargs(
             processor=processor,
         )
     dataset_kwargs = {}
-    if data_args.is_odm:
+    if odm_config:
         # Third Party
         from fms_acceleration_odm import OnlineData
 
@@ -673,9 +676,12 @@ def process_dataargs(
             eval_dataset,
             eval_collators,
             None,
-            0.1,
-            0.1,
+            gamma=odm_config.odm.gamma,
+            eta=odm_config.odm.eta,
             output_dir=train_args.output_dir,
+            sampling_interval=odm_config.odm.sampling_interval,
+            eval_batch_size=train_args.per_device_eval_batch_size,
+            reward_type=odm_config.reward_type,
         )
         dataset_kwargs["skip_prepare_dataset"] = True
         train_args.accelerator_config = {"split_batches": True}

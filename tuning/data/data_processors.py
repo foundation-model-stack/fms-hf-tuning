@@ -467,7 +467,7 @@ class DataPreProcessor:
         return train_datasets_dict, eval_datasets_dict
 
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_odm=False
+        self, dataset_configs: List[DataSetConfig], odm_config=None
     ) -> Union[Dataset, IterableDataset]:
 
         if not dataset_configs:
@@ -518,7 +518,7 @@ class DataPreProcessor:
 
             # Append the processed datasets to the final dict
             processed_datasets.append((d, raw_datasets))
-        if is_odm:
+        if odm_config:
             return self._process_datasets_for_odm(processed_datasets)
         train_datasets = []
         train_sampling_probabilities = []
@@ -606,7 +606,7 @@ class DataPreProcessor:
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], is_odm=False
+        self, dataset_configs: List[DataSetConfig], odm_config=None
     ) -> Union[Dataset, IterableDataset]:
         train_dataset = eval_dataset = None
 
@@ -621,7 +621,7 @@ class DataPreProcessor:
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
             train_dataset, eval_dataset = self._process_dataset_configs(
-                dataset_configs, is_odm
+                dataset_configs, odm_config
             )
 
         logger.info("Processed train dataset {}".format(train_dataset))
