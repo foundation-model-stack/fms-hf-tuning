@@ -2224,6 +2224,8 @@ def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname)
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.max_steps = 20
+        train_args.eval_strategy = "steps"
+        train_args.eval_steps = 1
 
         odm_config = ODMConfig(
             odm=ODM(
