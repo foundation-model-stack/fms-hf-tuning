@@ -684,7 +684,7 @@ def process_dataargs(
             output_dir=train_args.output_dir,
             sampling_interval=odm_config.odm.sampling_interval,
             eval_batch_size=train_args.per_device_eval_batch_size,
-            reward_type=odm_config.reward_type,
+            reward_type=odm_config.odm.reward_type,
         )
         dataset_kwargs["skip_prepare_dataset"] = True
         train_args.accelerator_config = {"split_batches": True}
