@@ -2200,7 +2200,7 @@ def test_run_by_passing_additional_data_handlers():
         ),
     ],
 )
-def test_online_data_mixing_plugin_sample_training():
+def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname):
     """Ensure fms_acceleration_odm plugin does a sample training without failing"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
