@@ -2193,8 +2193,8 @@ def test_run_by_passing_additional_data_handlers():
     [
         (
             [
-                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
                 NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
             ],
             DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
         ),
@@ -2223,13 +2223,15 @@ def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname)
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.max_steps = 20
+        train_args.max_steps = 100
         train_args.eval_strategy = "steps"
         train_args.eval_steps = 1
 
         odm_config = ODMConfig(
             odm=ODM(
-                update_interval=1, sampling_interval=4, reward_type="VALIDATION_LOSS"
+                update_interval=1,
+                sampling_interval=train_args.per_device_train_batch_size,
+                reward_type="VALIDATION_LOSS",
             )
         )
 
