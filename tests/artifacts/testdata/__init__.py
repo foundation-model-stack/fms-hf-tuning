@@ -44,6 +44,9 @@ TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSON = os.path.join(
 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL = os.path.join(
     JSONL_DATA_DIR, "twitter_complaints_input_output.jsonl"
 )
+NESTFUL_DATA_INPUT_OUTPUT_JSONL = os.path.join(
+    JSONL_DATA_DIR, "nestful_100_samples_input_output.jsonl"
+)
 TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW = os.path.join(
     ARROW_DATA_DIR, "twitter_complaints_input_output.arrow"
 )
