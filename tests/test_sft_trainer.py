@@ -2223,7 +2223,7 @@ def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname)
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
-        train_args.max_steps = 100
+        train_args.max_steps = 2
         train_args.eval_strategy = "steps"
         train_args.eval_steps = 1
 
@@ -2258,4 +2258,7 @@ def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname)
             max_new_tokens=50,
         )
         assert len(output_inference) > 0
-        assert False, f"{output_inference}"
+        assert (
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
+            in output_inference
+        )
