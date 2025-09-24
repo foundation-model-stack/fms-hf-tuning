@@ -131,8 +131,6 @@ def train(
 
     if odm_config is not None and odm_config.odm is None:
         odm_config = None
-    if odm_config is not None:
-        data_args.is_odm = True
     print("odm_config: ", odm_config)
     USE_ALORA = False
     try:
@@ -386,6 +384,7 @@ def train(
         is_padding_free=is_padding_free,
         processor=processor,
         is_multipack=is_multipack,
+        odm_config=odm_config,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time

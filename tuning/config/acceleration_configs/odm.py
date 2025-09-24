@@ -23,7 +23,10 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 @dataclass
 class ODM:
     update_interval: int = None
-    sample_interval: int = None
+    sampling_interval: int = None
+    reward_type: str = None
+    gamma: float = 0.1
+    eta: float = 0.1
 
 
 @dataclass
