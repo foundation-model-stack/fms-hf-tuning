@@ -671,6 +671,7 @@ def process_dataargs(
     dataset_kwargs = {}
     if odm_config:
         # Third Party
+        # pylint: disable=import-outside-toplevel
         from fms_acceleration_odm import OnlineData
 
         train_dataset = OnlineData(

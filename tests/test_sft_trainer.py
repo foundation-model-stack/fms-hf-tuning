@@ -2254,7 +2254,9 @@ def test_online_data_mixing_plugin_sample_training(datafiles, datasetconfigname)
         assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
 
         output_inference = loaded_model.run(
-            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?",
+            "It takes 10 days for digging a trench of 100 m long, "
+            "50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m "
+            "deep can be dug in 30 days ?",
             max_new_tokens=50,
         )
         assert len(output_inference) > 0

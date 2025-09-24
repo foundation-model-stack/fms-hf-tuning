@@ -48,7 +48,6 @@ from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
 )
-from tuning.config.acceleration_configs.odm import ODM, ODMConfig
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
     BNBQLoraConfig,
