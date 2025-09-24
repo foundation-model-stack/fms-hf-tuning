@@ -15,6 +15,9 @@
 # Standard
 from dataclasses import dataclass
 
+# Third Party
+from fms_acceleration_odm import Reward
+
 # Local
 from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
@@ -27,6 +30,9 @@ class ODM:
     reward_type: str = None
     gamma: float = 0.1
     eta: float = 0.1
+
+    def __post_init__(self):
+        self.reward_type = Reward[self.reward_type]
 
 
 @dataclass
