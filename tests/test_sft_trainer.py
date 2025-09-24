@@ -85,6 +85,7 @@ from tests.artifacts.testdata import (
 from tuning import sft_trainer
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs.fast_moe import FastMoe, FastMoeConfig
+from tuning.config.acceleration_configs.odm import ODM, ODMConfig
 from tuning.config.tracker_configs import TrackerConfigs
 from tuning.data.data_config import (
     DataConfig,
@@ -2183,3 +2184,72 @@ def test_run_by_passing_additional_data_handlers():
             },
         )
         _validate_training(tempdir)
+
+
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname",
+    [
+        (
+            [
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML,
+        ),
+    ],
+)
+def test_online_data_mixing_plugin_sample_training():
+    """Ensure fms_acceleration_odm plugin does a sample training without failing"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                data["datasets"] = data["datasets"][:2]
+                for d, df in zip(data["datasets"], datafiles):
+                    d["data_paths"] = [df]
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.max_steps = 20
+
+        odm_config = ODMConfig(
+            odm=ODM(
+                update_interval=1, sampling_interval=4, reward_type="VALIDATION_LOSS"
+            )
+        )
+
+        sft_trainer.train(
+            MODEL_ARGS, data_formatting_args, train_args, odm_config=odm_config
+        )
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+        output_inference = loaded_model.run(
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?",
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert False, f"{output_inference}"

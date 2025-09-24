@@ -48,6 +48,7 @@ from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
 )
+from tuning.config.acceleration_configs.odm import ODM, ODMConfig
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
     BNBQLoraConfig,
@@ -535,6 +536,60 @@ def test_framework_initialized_properly_moe():
         assert spy["model_loader_calls"] == 0
         assert spy["augmentation_calls"] == 1
         assert spy["get_ready_for_train_calls"] == 1
+
+
+# @pytest.mark.skipif(
+#     not is_fms_accelerate_available(plugins="odm"),
+#     reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+# )
+# def test_framework_initialized_properly_odm():
+#     """Ensure that specifying a properly configured acceleration dataclass
+#     properly activates the framework plugin and runs the train sucessfully.
+#     """
+
+#     with tempfile.TemporaryDirectory() as tempdir:
+
+#         model_args = copy.deepcopy(MODEL_ARGS)
+#         model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+#         model_args.torch_dtype = torch.bfloat16
+#         train_args = copy.deepcopy(TRAIN_ARGS)
+#         train_args.output_dir = tempdir
+#         train_args.save_strategy = "no"
+#         train_args.bf16 = True
+#         data_args = copy.deepcopy(DATA_ARGS)
+#         data_args.training_data_path = TWITTER_COMPLAINTS_JSON_FORMAT
+#         data_args.response_template = "\n\n### Label:"
+#         data_args.dataset_text_field = "output"
+
+#         # initialize a config
+#         moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=1))
+
+#         # create mocked plugin class for spying
+#         MockedPlugin1, spy = create_mock_plugin_class_and_spy(
+#             "FastMoeMock", ScatterMoEAccelerationPlugin
+#         )
+
+#         # 1. mock a plugin class
+#         # 2. register the mocked plugins
+#         # 3. call sft_trainer.train
+#         with build_framework_and_maybe_instantiate(
+#             [
+#                 (["training.moe.scattermoe"], MockedPlugin1),
+#             ],
+#             instantiate=False,
+#         ):
+#             with instantiate_model_patcher():
+#                 sft_trainer.train(
+#                     model_args,
+#                     data_args,
+#                     train_args,
+#                     fast_moe_config=moe_config,
+#                 )
+
+#         # spy inside the train to ensure that the ilab plugin is called
+#         assert spy["model_loader_calls"] == 0
+#         assert spy["augmentation_calls"] == 1
+#         assert spy["get_ready_for_train_calls"] == 1
 
 
 @pytest.mark.skipif(
