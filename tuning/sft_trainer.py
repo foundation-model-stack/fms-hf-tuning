@@ -132,8 +132,8 @@ def train(
     odm_config = None
     if data_args.data_config_path:
         _dataconfig = load_and_validate_data_config(data_args.data_config_path)
-        if _dataconfig["dataprocessor"]["type"] == "odm":
-            odm_config = ODMConfig(odm=ODM(**_dataconfig["dataprocessor"]["odm"]))
+        if _dataconfig.dataprocessor.type == "odm":
+            odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm.asdict()))
 
     USE_ALORA = False
     try:
