@@ -117,6 +117,7 @@ TRAIN_ARGS = configs.TrainingArguments(
     weight_decay=0,
     warmup_ratio=0.03,
     lr_scheduler_type="cosine",
+    logging_strategy="steps",
     logging_steps=1,
     include_tokens_per_second=True,
     packing=False,
