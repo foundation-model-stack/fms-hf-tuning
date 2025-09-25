@@ -136,6 +136,7 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
             assert (
                 "odm" in kwargs
             ), "if dataprocessor type is odm, then odm config should be provided"
+            c.odm = kwargs["odm"]
         c.type = kwargs["type"]
     if "sampling_stopping_strategy" in kwargs:
         strategy = kwargs["sampling_stopping_strategy"]
