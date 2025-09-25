@@ -2298,7 +2298,7 @@ def test_online_data_mixing_plugin_sample_training(
             "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep."
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
-        )
+        ), f"{output_inference} does not include the prompt"
 
 
 @pytest.mark.parametrize(
@@ -2317,7 +2317,8 @@ def test_online_data_mixing_plugin_sample_training(
 def test_online_data_mixing_plugin_sample_training_no_validation_split(
     datafiles, datasetconfigname, reward_type
 ):
-    """Ensure fms_acceleration_odm plugin does a sample training without failing when on validation set is given"""
+    """Ensure fms_acceleration_odm plugin does a sample training without
+    failing when on validation set is given"""
     with tempfile.TemporaryDirectory() as tempdir:
         data_formatting_args = copy.deepcopy(DATA_ARGS)
 
@@ -2372,4 +2373,4 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
             "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep."
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
-        )
+        ), f"{output_inference} does not include the prompt"
