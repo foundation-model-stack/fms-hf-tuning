@@ -42,6 +42,7 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
+    ODM,
     AccelerationFrameworkConfig,
     AttentionAndDistributedPackingConfig,
     FastMoeConfig,
@@ -51,6 +52,7 @@ from tuning.config.acceleration_configs import (
     get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.data.data_config import load_and_validate_data_config
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.data.tokenizer_utils import setup_tokenizer
@@ -85,7 +87,6 @@ def train(
         AttentionAndDistributedPackingConfig
     ] = None,
     fast_moe_config: Optional[FastMoeConfig] = None,
-    odm_config: Optional[ODMConfig] = None,
     additional_data_handlers: Optional[Dict[str, DataHandler]] = None,
 ) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
@@ -118,7 +119,6 @@ def train(
             fused_lora and fast_kernels must used together (may change in future). \
         attention_and_distributed_packing_config: Used for padding-free attention and multipack. \
         fast_moe_config: Used for ScatterMoE to run MoE models in parallel.
-        odm_config: Used for online data mixing feature.
         additional_data_handlers: Dict [str:DataHandler] of any extra data handlers \
                                    to be registered with the data preprocessor
     Returns:
@@ -129,9 +129,12 @@ def train(
         logger_name="sft_trainer_train", level=train_args.log_level
     )
 
-    if odm_config is not None and odm_config.odm is None:
-        odm_config = None
-    print("odm_config: ", odm_config)
+    odm_config = None
+    if data_args.data_config_path:
+        _dataconfig = load_and_validate_data_config(data_args.data_config_path)
+        if _dataconfig["dataprocessor"]["type"] == "odm":
+            odm_config = ODMConfig(odm=ODM(**_dataconfig["dataprocessor"]["odm"]))
+
     USE_ALORA = False
     try:
         # Third Party
@@ -567,7 +570,6 @@ def get_parser():
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
             FastMoeConfig,
-            ODMConfig,
             TrackerConfigs,
         )
     )
@@ -651,7 +653,6 @@ def parse_arguments(parser, json_config=None):
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            odm_config,
             tracker_configs,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
@@ -671,7 +672,6 @@ def parse_arguments(parser, json_config=None):
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            odm_config,
             tracker_configs,
             additional,
             _,
@@ -722,7 +722,6 @@ def parse_arguments(parser, json_config=None):
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
         fast_moe_config,
-        odm_config,
         tracker_configs,
         exp_metadata,
     )
@@ -745,7 +744,6 @@ def main():
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
-            odm_config,
             tracker_configs,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
@@ -767,7 +765,6 @@ def main():
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
                 "Fused Ops Kernels Config": fusedops_kernels_config,
                 "Fast MoE Config": fast_moe_config,
-                "ODM Config": odm_config,
                 "Tracker Config": tracker_configs,
                 "Extra Metadata": exp_metadata,
                 "Trainer Controller Config": trainer_controller_args,
@@ -815,7 +812,6 @@ def main():
             fusedops_kernels_config=fusedops_kernels_config,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
             fast_moe_config=fast_moe_config,
-            odm_config=odm_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
         logger.error(traceback.format_exc())

@@ -462,8 +462,6 @@ class DataPreProcessor:
                 train_datasets_dict[d.name] = raw[train_split]
             if eval_split in raw:
                 eval_datasets_dict[d.name] = raw[eval_split]
-        print("train_datasets_dict", train_datasets_dict)
-        print("eval_datasets_dict", eval_datasets_dict)
         return train_datasets_dict, eval_datasets_dict
 
     def _process_dataset_configs(
