@@ -632,8 +632,6 @@ def parse_arguments(parser, json_config=None):
             Configuration for padding free and packing.
         FastMoeConfig
             Configuration for accelerated MoE.
-        ODMConfig
-            Configuration for online data mixing feature.
         TrackerConfigs
             Configuration for all trackers.
         dict[str, str]
