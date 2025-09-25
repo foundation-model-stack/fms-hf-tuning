@@ -34,6 +34,9 @@ DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling_and_split.yaml"
 )
+DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_odm.yaml"
+)
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML_2 = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling_and_split_2.yaml"
 )

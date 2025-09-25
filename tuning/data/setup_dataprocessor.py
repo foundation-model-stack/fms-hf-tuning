@@ -672,9 +672,9 @@ def process_dataargs(
     if odm_config:
         # Third Party
         # pylint: disable=import-outside-toplevel
-        from fms_acceleration_odm import OnlineData
+        from fms_acceleration_odm import OnlineMixingDataset
 
-        train_dataset = OnlineData(
+        train_dataset = OnlineMixingDataset(
             train_dataset,
             collators,
             eval_dataset,
