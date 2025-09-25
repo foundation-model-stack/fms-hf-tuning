@@ -56,7 +56,7 @@ class LoraConfig(HFLoraConfig):
     lora_dropout: float = 0.05
 
     # HACK: The following list of arguments listed below
-    # is a fix which reduces the field annotation from 
+    # is a fix which reduces the field annotation from
     # Optional[List[str], str] type to Optional[List[str]] type
     # This is done for compatibility with HFArgumentParser
     # Please see: https://github.com/huggingface/peft/issues/2798 for further explanation!
