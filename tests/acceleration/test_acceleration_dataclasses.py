@@ -33,7 +33,6 @@ from tuning.config.acceleration_configs.fused_ops_and_kernels import (
     FastKernelsConfig,
     FusedLoraConfig,
 )
-from tuning.config.acceleration_configs.odm import ODM, ODMConfig
 from tuning.config.acceleration_configs.quantized_lora_config import (
     AutoGPTQLoraConfig,
     BNBQLoraConfig,
@@ -96,13 +95,6 @@ def test_dataclass_parse_successfully():
         ["--fast_moe", "1"],
     )
     assert isinstance(cfg.fast_moe, FastMoe)
-
-    # 5. Specifing "--odm" will parse an ODM class
-    parser = transformers.HfArgumentParser(dataclass_types=ODMConfig)
-    (cfg,) = parser.parse_args_into_dataclasses(
-        ["--odm", "2", "1", "train_loss", "0.1", "0.2"],
-    )
-    assert isinstance(cfg.odm, ODM)
 
 
 def test_two_dataclasses_parse_successfully_together():

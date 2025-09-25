@@ -2188,6 +2188,10 @@ def test_run_by_passing_additional_data_handlers():
         _validate_training(tempdir)
 
 
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
 @pytest.mark.parametrize(
     "datafiles, datasetconfigname, reward_type",
     [
@@ -2295,12 +2299,16 @@ def test_online_data_mixing_plugin_sample_training(
         )
         assert len(output_inference) > 0
         assert (
-            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep."
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. "
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
         ), f"{output_inference} does not include the prompt"
 
 
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
 @pytest.mark.parametrize(
     "datafiles, datasetconfigname, reward_type",
     [
@@ -2370,7 +2378,7 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
         )
         assert len(output_inference) > 0
         assert (
-            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep."
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. "
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
         ), f"{output_inference} does not include the prompt"
