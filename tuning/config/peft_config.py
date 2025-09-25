@@ -55,10 +55,11 @@ class LoraConfig(HFLoraConfig):
     lora_alpha: int = 32
     lora_dropout: float = 0.05
 
-    # HACK: The following list of arguments are listed here
-    # as a temperorary fix which reduces the field annotation
-    # from Optional[List[str], str] to Optional[List[str], str]
-    # Please see: https://github.com/huggingface/transformers/issues/40915 for further explanation!
+    # HACK: The following list of arguments listed below
+    # is a fix which reduces the field annotation from 
+    # Optional[List[str], str] type to Optional[List[str]] type
+    # This is done for compatibility with HFArgumentParser
+    # Please see: https://github.com/huggingface/peft/issues/2798 for further explanation!
     target_modules: Optional[List[str]] = field(
         default=None,
         metadata={
