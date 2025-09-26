@@ -71,7 +71,7 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
+        Union[LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
     quantization_config: Optional[peft_config.Mxfp4Config] = None,
     trainer_controller_args: TrainerControllerCallback = None,
@@ -92,8 +92,7 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        peft_config: peft_config.LoraConfig for Lora tuning | \
-        LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
+        peft_config: LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
         None for full fine tuning
             The peft configuration to pass to trainer
@@ -110,7 +109,8 @@ def train(
                               tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
         quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
-            Should be used in combination with peft_config.LoraConfig for Lora tuning \
+            Should be used in combination with LoraConfig for Lora tuning \
+            https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig \
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
@@ -845,9 +845,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(
-        tune_config, (peft_config.LoraConfig, LoraConfig)
-    ):  # aLoraConfig subclasses LoraConfig
+    if isinstance(tune_config, LoraConfig):  # aLoraConfig subclasses LoraConfig
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts
