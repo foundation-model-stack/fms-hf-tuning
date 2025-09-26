@@ -110,6 +110,7 @@ def train(
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
         quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
             Should be used in combination with LoraConfig for Lora tuning \
+            https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig \
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
