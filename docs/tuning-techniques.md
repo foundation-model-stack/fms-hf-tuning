@@ -24,7 +24,7 @@
 
 ## LoRA Tuning Example
 
-Set `peft_method` to `"lora"`. You can additionally pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+Set `peft_method` to `"lora"`. You can additionally pass any arguments from [LoraConfig](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig).
 ```py
 # Args you can pass
 r: int =8 
@@ -340,7 +340,7 @@ You can see details on a sample configuration of Accelerated GPTQ-LoRA [here](ht
 
 To use GPTQ-LoRA technique, you can set the `quantized_lora_config` defined [here](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/acceleration_configs/quantized_lora_config.py). See the Notes section of FMS Acceleration doc [below](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/README.md#fms-acceleration) for usage. The only kernel we are supporting currently is `triton_v2`.
 
-In addition, LoRA tuning technique is required to be used, set `peft_method` to `"lora"` and pass any arguments from [LoraConfig](https://github.com/foundation-model-stack/fms-hf-tuning/blob/main/tuning/config/peft_config.py#L21).
+In addition, LoRA tuning technique is required to be used, set `peft_method` to `"lora"` and pass any arguments from [LoraConfig](https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig).
 
 Example command to run:
 
