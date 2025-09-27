@@ -24,6 +24,7 @@ from datasets import Dataset, IterableDataset
 from transformers import AutoProcessor, AutoTokenizer
 
 # Local
+from tuning.config.acceleration_configs.odm import ODMConfig
 from tuning.config.configs import DataArguments, TrainingArguments
 from tuning.data.data_config import (
     DataHandlerConfig,
@@ -71,6 +72,7 @@ def process_dataconfig_file(
     processor: AutoProcessor = None,
     is_multipack: bool = False,
     is_padding_free: bool = False,
+    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -152,7 +154,7 @@ def process_dataconfig_file(
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets
+        data_config.datasets, odm_config=odm_config
     )
 
     return (train_dataset, eval_dataset, data_args.dataset_text_field)
@@ -345,6 +347,7 @@ def _process_raw_data_args(
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
+    odm_config: ODMConfig = None,
 ):
 
     if data_args.data_config_path is not None:
@@ -444,7 +447,7 @@ def _process_raw_data_args(
         dataset_configs.append(eval_dataset_config)
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_configs
+        dataset_configs, odm_config=odm_config
     )
 
     return (train_dataset, eval_dataset, dataset_text_field)
@@ -505,6 +508,7 @@ def process_dataargs(
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
     is_multipack: bool = False,
+    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -564,6 +568,7 @@ def process_dataargs(
             processor,
             is_multipack,
             is_padding_free,
+            odm_config=odm_config,
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -574,6 +579,7 @@ def process_dataargs(
             additional_data_handlers,
             is_padding_free,
             processor,
+            odm_config=odm_config,
         )
 
     if train_args.eval_strategy != "no" and eval_dataset is None:
@@ -588,6 +594,10 @@ def process_dataargs(
             "Check your data config or ensure split sizes are valid."
         )
     if data_args.do_dataprocessing_only:
+        if odm_config:
+            raise ValueError(
+                "data processing with online data mixing is not currently supported"
+            )
         dump_dir = Path(train_args.output_dir)
         if not dump_dir.is_absolute():
             dump_dir = dump_dir.absolute()
@@ -613,20 +623,73 @@ def process_dataargs(
     # Note: This check should not be removed.
     #       Its important to recompute this post handling to
     #       check if we already tokenized the dataset or not.
-    is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
+    if odm_config:
+        is_tokenized_dataset = True
+    else:
+        is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
 
-    data_collator = get_data_collator(
-        train_args.packing,
-        data_args.response_template,
-        tokenizer,
-        is_tokenized_dataset,
-        max_seq_length,
-        data_args.instruction_template,
-        is_padding_free=is_padding_free,
-        processor=processor,
-    )
-
+    data_collator = None
+    if odm_config:
+        collators = {}
+        eval_collators = {}
+        for k, v in train_dataset.items():
+            is_tokenized_dataset = is_pretokenized_dataset(v)
+            collators[k] = get_data_collator(
+                train_args.packing,
+                data_args.response_template,
+                tokenizer,
+                is_tokenized_dataset,
+                max_seq_length,
+                data_args.instruction_template,
+                is_padding_free=is_padding_free,
+                processor=processor,
+            )
+            data_collator = collators[k]
+        for k, v in eval_dataset.items():
+            is_tokenized_dataset = is_pretokenized_dataset(v)
+            eval_collators[k] = get_data_collator(
+                train_args.packing,
+                data_args.response_template,
+                tokenizer,
+                is_tokenized_dataset,
+                max_seq_length,
+                data_args.instruction_template,
+                is_padding_free=is_padding_free,
+                processor=processor,
+            )
+    else:
+        data_collator = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
     dataset_kwargs = {}
+    if odm_config:
+        # Third Party
+        # pylint: disable=import-outside-toplevel
+        from fms_acceleration_odm import OnlineMixingDataset
+
+        train_dataset = OnlineMixingDataset(
+            train_dataset,
+            collators,
+            eval_dataset,
+            eval_collators,
+            None,
+            gamma=odm_config.odm.gamma,
+            eta=odm_config.odm.eta,
+            output_dir=train_args.output_dir,
+            sampling_interval=odm_config.odm.sampling_interval,
+            eval_batch_size=train_args.per_device_eval_batch_size,
+            reward_type=odm_config.odm.reward_type,
+        )
+        dataset_kwargs["skip_prepare_dataset"] = True
+        train_args.accelerator_config = {"split_batches": True}
+
     # For vision model tuning prepare_dataset is skipped.
     if processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True

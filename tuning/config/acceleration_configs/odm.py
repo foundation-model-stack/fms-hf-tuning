@@ -12,11 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Standard
+from dataclasses import dataclass
+
 # Local
-from .acceleration_framework_config import AccelerationFrameworkConfig
-from .attention_and_distributed_packing import AttentionAndDistributedPackingConfig
-from .callbacks import get_additional_accel_framework_callbacks
-from .fast_moe import FastMoeConfig
-from .fused_ops_and_kernels import FusedOpsAndKernelsConfig
-from .odm import ODM, ODMConfig
-from .quantized_lora_config import QuantizedLoraConfig
+from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
+
+
+@parsable_dataclass
+@dataclass
+class ODM:
+    update_interval: int = None
+    sampling_interval: int = None
+    reward_type: str = None
+    gamma: float = 0.1
+    eta: float = 0.1
+
+
+@dataclass
+class ODMConfig:
+
+    odm: ODM = None
+
+    def __post_init__(self):
+        # ensure nested dataclasses initialized
+        ensure_nested_dataclasses_initialized(self)
