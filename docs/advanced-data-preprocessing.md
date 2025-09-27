@@ -509,7 +509,7 @@ We recommend inspecting the data and chat template to decide if you need to pass
 Depending on various scenarios users might need to decide on how to use chat template with their data or which chat template to use for their use case.  
 
 Following are the Guidelines from us in a flow chart :  
-![guidelines for chat template](docs/images/chat_template_guide.jpg)  
+![guidelines for chat template](images/chat_template_guide.jpg)  
 
 Here are some scenarios addressed in the flow chart:  
 1. Depending on the model the tokenizer for the model may or may not have a chat template  
