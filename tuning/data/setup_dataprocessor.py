@@ -35,6 +35,7 @@ from tuning.data.data_config import (
 from tuning.data.data_handlers import DataHandler
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 logger = logging.getLogger(__name__)
 
@@ -672,6 +673,13 @@ def process_dataargs(
     if odm_config:
         # Third Party
         # pylint: disable=import-outside-toplevel
+        if not is_fms_accelerate_available(plugins="odm"):
+            raise ImportError(
+                "use of odm data config feature requires"
+                "installation of fms_acceleration_odm package"
+            )
+        # Third Party
+        # pylint: disable=import-error
         from fms_acceleration_odm import OnlineMixingDataset
 
         train_dataset = OnlineMixingDataset(
