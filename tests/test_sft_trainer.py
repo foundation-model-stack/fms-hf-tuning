@@ -38,6 +38,7 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
+    CHAT_TEMPLATE_JINJA,
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
@@ -1511,6 +1512,42 @@ def test_data_config_chat_template_as_base64():
     with pytest.raises(ValueError):
         data_config_path = DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE
         data_config = load_and_validate_data_config(data_config_path)
+
+
+def test_data_config_chat_template_path():
+    base_cfg = DATA_CONFIG_MULTITURN_DATA_YAML
+    chat_template_path = CHAT_TEMPLATE_JINJA
+
+    with open(chat_template_path, "r", encoding="utf-8") as f:
+        expected_template = f.read()
+
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml") as tmp_cfg:
+        with open(base_cfg, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+
+        dp = cfg.get("dataprocessor", {}) or {}
+        dp.pop("chat_template", None)
+        dp["chat_template_path"] = chat_template_path
+        cfg["dataprocessor"] = dp
+
+        for d in cfg.get("datasets", []):
+            d["data_paths"] = [TWITTER_COMPLAINTS_DATA_JSON]
+
+        yaml.safe_dump(cfg, tmp_cfg)
+        mod_cfg_path = tmp_cfg.name
+
+    data_config = load_and_validate_data_config(mod_cfg_path)
+
+    assert (
+        data_config.dataprocessor.chat_template == expected_template
+    ), "chat_template should equal the contents of CHAT_TEMPLATE_JINJA"
+    assert data_config.dataprocessor.chat_template_path is not None
+    assert os.path.isabs(
+        data_config.dataprocessor.chat_template_path
+    ), "stored chat_template_path should be absolute"
+    assert os.path.exists(
+        data_config.dataprocessor.chat_template_path
+    ), "resolved chat_template_path should exist"
 
 
 @pytest.mark.parametrize(

@@ -58,6 +58,10 @@ GRANITE_3_1_B_CHAT_TEMPLATE = os.path.join(
     PREDEFINED_DATA_CONFIGS,
     "granite_3_1b_chat_template.txt",
 )
+CHAT_TEMPLATE_JINJA = os.path.join(
+    PREDEFINED_DATA_CONFIGS,
+    "chat_template.jinja",
+)
 DATA_CONFIG_YAML_STREAMING_INPUT_OUTPUT = os.path.join(
     PREDEFINED_DATA_CONFIGS, "tokenize_and_apply_input_masking_streaming.yaml"
 )
