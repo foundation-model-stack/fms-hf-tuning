@@ -4,6 +4,7 @@ Our library also supports a powerful data processing backend which can be used b
 1. Creating custom data processing pipeline for the datasets.  
 1. Combining multiple datasets into one, even if they have different formats.  
 1. Mixing datasets as required and sampling each dataset with different weights.
+1. Dynamically mixing datasets online based on training signals through fms_acceleration_odm plugin.
 
 These things are supported via what we call a [`data_config`](#data-config) which can be passed as an argument to sft trainer.
 
@@ -34,7 +35,7 @@ process the datasets. Users can currently pass both YAML or JSON based configura
 The data config schema is designed to define datasets and their processing strategies in a structured way.
 
 It consists of the following top-level keys:
- - `datapreprocessor`: Defines global data processing parameters, such as the type (`default`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
+ - `datapreprocessor`: Defines global data processing parameters, such as the type (`default` or `odm`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
  - `datasets`: A list of dataset configurations, each describing the dataset name, paths, optional builders, sampling ratios, and data handlers.
 
 At the top level, the data config schema looks like this:
@@ -129,11 +130,21 @@ definitions:
 Users can create a data config file in any of YAML or JSON format they choose (we provide examples of YAML for ease of use). The file should follow the schema outlined above with the following parameters:
 
 `datapreprocessor`:
- - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
+ - `type` (optional, str): Type of data preprocessor, `default` and `odm` are the two types supported. Use of `odm` requires [installation](./tuning-techniques.md#fms-acceleration) of `fms_acceleration_odm` package.
  - `streaming` (optional, bool): Stream datasets using [IterableDatasets](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset).
  - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
  - `seed` (optional, int): [seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
  - `chat_template` (optional, str): pass `chat_template` via data_config for multi-turn data, replaces existing default chat template.
+ - `odm` (optional): if `type` is odm, this field is required to be specific to provide configuration for online data mixing.
+
+`odm` config has the following fields and is required when `datapreprocessor` `type` is `odm`.
+
+`odm`:
+  `update_interval` (optional, int, defaults to `1`): Multi-Armed Bandit (MAB) is used to learn from the training signals and then provide mixing probabilities across datasets. `update_interval` defines the frequency of updating the MAB with training signals in terms of step count.
+  `sampling_interval` (optional, int, defaults to `1`): Defines the frequency of choosing a dataset to sample from through MAB. The value is provided in terms of sample count.
+  `reward_type` (optional, str, defaults to `entropy`): Type of reward to be used to update MAB. Currently supported rewards are `train_loss`, `validation_loss`, `entropy`, `entropy3_varent1`, `entropy_last_token`, `gradnorm`. More details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing#rewards).
+  `gamma` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to exploration factor.
+  `eta` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to learning rate.
 
 `datasets` (list):
   - `name` (optional, str): A unique identifier for the dataset.
@@ -191,6 +202,59 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 
 Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset
+
+### Online Data Mixing
+Dataset mixing can be dynamic in nature that adapts online during the training based on the training signals. We provide this feature through fms_acceleration_odm plugin and more details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing).
+
+#### How to Use
+
+`dataprocessor` `type` has to be set to `odm` and then `odm` config should be provided in the `odm` section of the data config file. An example is shown below:
+
+```yaml
+dataprocessor:
+    type: odm
+    odm:
+      update_interval: 1 # update every step
+      sampling_interval: 1 # sample category for every sample
+      reward_type: validation_loss # uses eval loss of each dataset as reward
+      gamma: 0.1 # MAB hyper-parameter
+      eta: 0.2 # MAB hyper-parameter
+```
+
+Here `update_interval` is set to `1` which is to update MAB on every step with validation loss as reward across the datasets. `sampling_interval` is set to `1` which is to choose a dataset to sample for every sample. `reward_type` is set to `validation_loss` to use validation loss across datasets as a training signal to reward MAB decisions during training. Example `datasets` section can look like below:
+
+```yaml
+datasets:
+  - name: dataset_1
+    split:
+      train: 0.8
+      validation: 0.2
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output
+  - name: dataset_2
+    split:
+      train: 0.9
+      validation: 0.1
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output
+```
+As you notice, `validation` under `split` is provided for each of the datasets and is necessary to be provided since the `reward_type` is `validation_loss` which requires validation datasets to be available. Same applies to the following rewards: `validation_loss`, `entropy`, `entropy3_varent1`, and `entropy_last_token`. While reward_types `train_loss` and `gradnorm` do not require validation split.
 
 ### Dataset Splitting
 

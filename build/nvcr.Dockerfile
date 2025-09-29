@@ -57,7 +57,8 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m fms_acceleration.cli install fms_acceleration_peft && \
         python -m fms_acceleration.cli install fms_acceleration_foak && \
         python -m fms_acceleration.cli install fms_acceleration_aadp && \
-        python -m fms_acceleration.cli install fms_acceleration_moe; \
+        python -m fms_acceleration.cli install fms_acceleration_moe && \
+        python -m fms_acceleration.cli install fms_acceleration_odm; \
     fi
 
 RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \

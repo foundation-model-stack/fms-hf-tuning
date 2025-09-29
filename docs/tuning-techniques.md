@@ -470,6 +470,7 @@ The list of configurations for various `fms_acceleration` plugins:
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 - [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
   - `--fast_moe`: trains MoE models in parallel with [Scatter MoE kernels](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/accelerated-moe#fms-acceleration-for-mixture-of-experts), increasing throughput and decreasing memory usage.
+- [odm_config](./tuning/config/acceleration_configs/odm.py) (experimental): See [advanced data preprocessing](./advanced-data-preprocessing.md#online-data-mixing) for usage with data_config. This plugin allows dynamically mixing datasets online during training adapting to training signals.
 
 Notes: 
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
