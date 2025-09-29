@@ -117,7 +117,6 @@ TRAIN_ARGS = configs.TrainingArguments(
     weight_decay=0,
     warmup_ratio=0.03,
     lr_scheduler_type="cosine",
-    logging_strategy="steps",
     logging_steps=1,
     include_tokens_per_second=True,
     packing=False,
@@ -2271,6 +2270,7 @@ def test_online_data_mixing_plugin_sample_training(
 
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
+        train_args.logging_strategy = "steps"
         train_args.max_steps = 2
         train_args.eval_strategy = "steps"
         train_args.eval_steps = 1
@@ -2349,6 +2349,7 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
                 data_formatting_args.data_config_path = temp_yaml_file.name
 
         train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.logging_strategy = "steps"
         train_args.output_dir = tempdir
         train_args.max_steps = 2
         train_args.eval_strategy = "steps"
