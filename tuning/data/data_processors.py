@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 import logging
 import os
 
@@ -452,8 +452,16 @@ class DataPreProcessor:
         )
         return split_datasets
 
-    def _process_datasets_for_odm(self, processed_datasets):
-        train_split = "train"  # default
+    def _process_datasets_for_odm(
+        self,
+        processed_datasets: List[
+            Tuple[DataSetConfig, Union[DatasetDict, IterableDatasetDict]]
+        ],
+    ) -> Tuple[
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, Union[Dataset, IterableDataset]],
+    ]:
+        train_split = "train"
         eval_split = "test"
         train_datasets_dict = {}
         eval_datasets_dict = {}
@@ -466,7 +474,13 @@ class DataPreProcessor:
 
     def _process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], odm_config=None
-    ) -> Union[Dataset, IterableDataset]:
+    ) -> Union[
+        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
+        Tuple[
+            Dict[str, Union[Dataset, IterableDataset]],
+            Dict[str, Union[Dataset, IterableDataset]],
+        ],
+    ]:
 
         if not dataset_configs:
             raise ValueError(
@@ -605,7 +619,13 @@ class DataPreProcessor:
 
     def process_dataset_configs(
         self, dataset_configs: List[DataSetConfig], odm_config=None
-    ) -> Union[Dataset, IterableDataset]:
+    ) -> Union[
+        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
+        Tuple[
+            Dict[str, Union[Dataset, IterableDataset]],
+            Dict[str, Union[Dataset, IterableDataset]],
+        ],
+    ]:
         train_dataset = eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
