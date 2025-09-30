@@ -46,7 +46,7 @@ RUN python -m pip install --upgrade pip
 RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Install main package + flash attention
-RUN COPY . ${SOURCE_DIR}
+COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
 RUN pip install --no-cache-dir ${SOURCE_DIR} && \
     pip install --no-cache-dir ${SOURCE_DIR}[flash-attn]
