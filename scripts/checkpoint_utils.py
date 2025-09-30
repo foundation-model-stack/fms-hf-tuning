@@ -4,7 +4,7 @@
 
 # Standard
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable, Set
 import argparse
 import shutil
 
@@ -29,7 +29,9 @@ def cast_fp32_to_bf16(x: Any, *, in_optim: bool = False) -> Any:
         out = {}
         for k, v in x.items():
             k_lower = k.lower() if isinstance(k, str) else ""
-            child_in_optim = in_optim or (k_lower in OPTIM_ROOT_KEYS)
+            child_in_optim = in_optim or any(
+                k_lower.startswith(root) for root in OPTIM_ROOT_KEYS
+            )
             out[k] = cast_fp32_to_bf16(v, in_optim=child_in_optim)
         return out
     if isinstance(x, (list, tuple)):
@@ -46,8 +48,8 @@ def convert_pt_pth(inp: Path, out: Path) -> None:
 
 
 def is_optim_tensor_name(name: str) -> bool:
-    parts = (name or "").lower().replace("/", ".").split(".")
-    return bool(parts) and parts[0] in OPTIM_ROOT_KEYS
+    first = (name or "").lower().replace("/", ".").split(".")[0]
+    return any(first.startswith(root) for root in OPTIM_ROOT_KEYS)
 
 
 def convert_safetensors_file(inp: Path, out: Path) -> None:
@@ -63,6 +65,27 @@ def convert_safetensors_file(inp: Path, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     save_file(tensors, str(out), metadata={"converted_to": "bfloat16"})
     print(f"[safetensors] wrote: {out}")
+
+
+def slim_copy_dir_skip_only(src: Path, dst: Path, skip_names: Iterable[str]) -> None:
+    """
+    Copy everything from src -> dst EXCEPT files whose names are in skip_names.
+    Directories are copied entirely unless their name is in skip_names.
+    """
+    dst.mkdir(parents=True, exist_ok=True)
+    skip_set: Set[str] = set(skip_names)
+
+    for item in src.iterdir():
+        if item.name in skip_set:
+            continue
+        target = dst / item.name
+        if item.is_file():
+            shutil.copy2(item, target)
+        elif item.is_dir():
+            shutil.copytree(item, target, dirs_exist_ok=True)
+    print(
+        f"[slim] wrote: {dst} (skipped: {', '.join(skip_set) if skip_set else 'none'})"
+    )
 
 
 def convert_dir_of_safetensors(src: Path, dst: Path) -> None:
@@ -82,7 +105,7 @@ def convert_dir_of_safetensors(src: Path, dst: Path) -> None:
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Convert FP32 tensors to BF16 (skip optimizer states)."
+        description="Convert FP32 tensors to BF16 (skips optimizer states)."
     )
     ap.add_argument(
         "input",
@@ -90,7 +113,36 @@ def main():
         help="Input: .pt/.pth, .safetensors, or HF directory with .safetensors",
     )
     ap.add_argument("output", type=Path, help="Output file or directory")
+
+    ap.add_argument(
+        "--slim",
+        action="store_true",
+        help="For directory inputs: after conversion, copy everything \
+        except files listed in --skip (default: optimizer.pt).",
+    )
+    ap.add_argument(
+        "--slim-only",
+        action="store_true",
+        help="For directory inputs: DO NOT convert; just copy everything \
+        except files in --skip.",
+    )
+    ap.add_argument(
+        "--skip",
+        default="optimizer.pt",
+        help="Comma-separated file names to skip during slimming \
+        (applies to --slim or --slim-only). Default: optimizer.pt",
+    )
+
     args = ap.parse_args()
+
+    if args.slim and args.slim_only:
+        raise SystemExit("Choose at most one of: --slim or --slim-only.")
+
+    skip_list = (
+        [s.strip() for s in args.skip.split(",")]
+        if (args.slim or args.slim_only)
+        else []
+    )
 
     p = args.input
     if p.is_file():
@@ -111,10 +163,19 @@ def main():
         else:
             raise SystemExit(f"Unsupported file type: {p}")
     elif p.is_dir():
-        if any(x.suffix == ".safetensors" for x in p.iterdir()):
-            convert_dir_of_safetensors(p, args.output)
-        else:
+        if not any(x.suffix == ".safetensors" for x in p.iterdir()):
             raise SystemExit("Directory has no .safetensors files.")
+        if args.slim_only:
+            slim_copy_dir_skip_only(p, args.output, skip_list)
+        else:
+            convert_dir_of_safetensors(p, args.output)
+            if args.slim:
+                tmp = args.output.parent / (args.output.name + "_tmp_slim")
+                if tmp.exists():
+                    shutil.rmtree(tmp)
+                slim_copy_dir_skip_only(args.output, tmp, skip_list)
+                shutil.rmtree(args.output)
+                tmp.rename(args.output)
     else:
         raise SystemExit(f"Not found: {p}")
 
