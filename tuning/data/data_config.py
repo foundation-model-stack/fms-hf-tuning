@@ -150,29 +150,39 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
         c.streaming = streaming
 
-    provided_chat = "chat_template" in kwargs and kwargs["chat_template"] is not None
-    provided_path = (
+    is_chat_template_present = (
+        "chat_template" in kwargs and kwargs["chat_template"] is not None
+    )
+    is_chat_template_path_present = (
         "chat_template_path" in kwargs and kwargs["chat_template_path"] is not None
     )
-    provided_b64 = (
+    is_chat_template_b64_present = (
         "chat_template_base64" in kwargs and kwargs["chat_template_base64"] is not None
     )
 
-    provided_count = sum([provided_chat, provided_path, provided_b64])
-    if provided_count > 1:
+    if (
+        sum(
+            [
+                is_chat_template_present,
+                is_chat_template_path_present,
+                is_chat_template_b64_present,
+            ]
+        )
+        > 1
+    ):
         raise ValueError(
             "Only one of 'chat_template', 'chat_template_path', or 'chat_template_base64' "
             "may be specified in dataprocessor config."
         )
 
-    if provided_chat:
+    if is_chat_template_present:
         chat_template = kwargs["chat_template"]
         assert isinstance(chat_template, str), "chat_template should be a string"
         c.chat_template = chat_template
         c.chat_template_path = None
         return c
 
-    if provided_path:
+    if is_chat_template_path_present:
         chat_template_path = kwargs["chat_template_path"]
         assert isinstance(
             chat_template_path, str
@@ -207,7 +217,7 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
             ) from e
         return c
 
-    if provided_b64:
+    if is_chat_template_b64_present:
         chat_template_base64 = kwargs["chat_template_base64"]
         assert isinstance(
             chat_template_base64, str
