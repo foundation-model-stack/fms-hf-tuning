@@ -284,7 +284,17 @@ If the dataset size is known to the user, `max_steps` can be calculated as the t
 
 ### How users can specify the chat template
 
+There are multiple ways to specify chat_template in `data_config.yaml`,
+users could either specify path to `chat_template.jinja` file or update the chat_template directly.
+
 In the `data_config.yaml` file:
+
+**✅ USE:**
+
+```yaml
+dataprocessor:
+  chat_template_path: "path/to/chat_template.jinja"
+```
 
 **✅ USE:**
 

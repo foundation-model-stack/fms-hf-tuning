@@ -45,10 +45,11 @@ class DataSetConfig:
 class DataPreProcessorConfig:
     type: Optional[str] = "default"
     sampling_stopping_strategy: Optional[str] = "all_exhausted"
-    # Default seed is not none to ensure reproducability
-    seed: Optional[float] = 42
+    # Default seed is not none to ensure reproducibility
+    seed: Optional[int] = 42
     streaming: Optional[bool] = False
     chat_template: Optional[str] = None
+    chat_template_path: Optional[str] = None
 
 
 @dataclass
@@ -148,28 +149,94 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
         streaming = kwargs["streaming"]
         assert isinstance(streaming, bool), f"streaming: {streaming} should be a bool"
         c.streaming = streaming
-    if "chat_template" in kwargs:
+
+    is_chat_template_present = (
+        "chat_template" in kwargs and kwargs["chat_template"] is not None
+    )
+    is_chat_template_path_present = (
+        "chat_template_path" in kwargs and kwargs["chat_template_path"] is not None
+    )
+    is_chat_template_b64_present = (
+        "chat_template_base64" in kwargs and kwargs["chat_template_base64"] is not None
+    )
+
+    if (
+        sum(
+            [
+                is_chat_template_present,
+                is_chat_template_path_present,
+                is_chat_template_b64_present,
+            ]
+        )
+        > 1
+    ):
+        raise ValueError(
+            "Only one of 'chat_template', 'chat_template_path', or 'chat_template_base64' "
+            "may be specified in dataprocessor config."
+        )
+
+    if is_chat_template_present:
         chat_template = kwargs["chat_template"]
         assert isinstance(chat_template, str), "chat_template should be a string"
         c.chat_template = chat_template
-    elif "chat_template_base64" in kwargs:
+        c.chat_template_path = None
+        return c
+
+    if is_chat_template_path_present:
+        chat_template_path = kwargs["chat_template_path"]
+        assert isinstance(
+            chat_template_path, str
+        ), "chat_template_path should be a string path"
+        # Expand ~ and environment variables, then absolutize
+        expanded = os.path.expanduser(os.path.expandvars(chat_template_path))
+        abs_path = os.path.abspath(expanded)
+
+        if not os.path.isabs(chat_template_path) and os.path.exists(abs_path):
+            logger.warning(
+                " Provided chat_template_path %s is not absolute, changing it to %s",
+                chat_template_path,
+                abs_path,
+            )
+            chat_template_path = abs_path
+
+        if not os.path.exists(abs_path):
+            raise ValueError(
+                f"chat_template_path does not exist: {chat_template_path} (resolved to {abs_path})"
+            )
+        if not os.path.isfile(abs_path):
+            raise ValueError(
+                f"chat_template_path is not a file: {chat_template_path} (resolved to {abs_path})"
+            )
+        try:
+            with open(abs_path, "r", encoding="utf-8") as f:
+                c.chat_template = f.read()
+            c.chat_template_path = abs_path
+        except Exception as e:
+            raise ValueError(
+                f"Failed to read chat_template_path: {chat_template_path} (resolved to {abs_path})."
+            ) from e
+        return c
+
+    if is_chat_template_b64_present:
         chat_template_base64 = kwargs["chat_template_base64"]
         assert isinstance(
             chat_template_base64, str
         ), "chat_template_base64 should be a string"
         logger.warning(
             "You are using the 'chat_template_base64' field. "
-            + "Please use the 'chat_template' field instead for better readability."
+            "Please prefer 'chat_template' or 'chat_template_path' for better readability."
         )
         try:
             chat_template_bytes = b64decode(chat_template_base64)
             chat_template = chat_template_bytes.decode("utf-8")
             c.chat_template = chat_template
+            c.chat_template_path = None
         except Exception as e:
             raise ValueError(
-                "You passed the 'chat_template_base64' field which failed during decoding."
-                + "Please check it or use a decoded chat template with the 'chat_template' field."
+                "You passed the 'chat_template_base64' field which failed during decoding. "
+                "Please check it or use 'chat_template' or 'chat_template_path' instead."
             ) from e
+
     return c
 
 
@@ -199,7 +266,7 @@ def load_and_validate_data_config(data_config_file: str) -> DataConfig:
 
     if dataprocessor is None:
         logging.info(
-            "`dataprocessor` filed is absent from data config. Using default dataprocessor"
+            "`dataprocessor` field is absent from data config. Using default dataprocessor"
         )
         dataprocessor = DataPreProcessorConfig()
         logging.info("Default datapreprocessor is %s", str(dataprocessor))
