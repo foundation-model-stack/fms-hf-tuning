@@ -533,7 +533,8 @@ class DataPreProcessor:
         if odm_config:
             if len(train_sampling_probabilities) > 0:
                 logger.info(
-                    "Provided sampling probabilities are ignored and are not used for dataset concatenation."
+                    "Provided sampling probabilities are ignored"
+                    "and are not used for dataset concatenation."
                 )
             return self._process_datasets_for_odm(processed_datasets)
         train_datasets = []
