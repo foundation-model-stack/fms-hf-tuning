@@ -129,6 +129,8 @@ def train(
         logger_name="sft_trainer_train", level=train_args.log_level
     )
 
+    # TODO: use of load_and_validate_data_config here is not clean way
+    # rather we should move this logic to process_dataargs
     odm_config = None
     if data_args.data_config_path:
         _dataconfig = load_and_validate_data_config(data_args.data_config_path)

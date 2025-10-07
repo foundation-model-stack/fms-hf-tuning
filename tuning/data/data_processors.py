@@ -531,6 +531,10 @@ class DataPreProcessor:
             # Append the processed datasets to the final dict
             processed_datasets.append((d, raw_datasets))
         if odm_config:
+            if len(train_sampling_probabilities) > 0:
+                logger.info(
+                    "Provided sampling probabilities are ignored and are not used for dataset concatenation."
+                )
             return self._process_datasets_for_odm(processed_datasets)
         train_datasets = []
         train_sampling_probabilities = []

@@ -9,7 +9,7 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specificm language governing permissions and
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 # Standard
@@ -495,7 +495,7 @@ def dump_dataset(
         raise RuntimeError(f"Failed to dump dataset due to error {e}") from e
 
 
-def process_dataargs_odm(
+def setup_train_dataset_for_odm(
     data_args: DataArguments,
     tokenizer: AutoTokenizer,
     train_args: TrainingArguments,
@@ -503,9 +503,19 @@ def process_dataargs_odm(
     processor: AutoProcessor = None,
     odm_config: ODMConfig = None,
     train_dataset: Dict = None,
-    eval_dataset: Dict = None,
+    reward_dataset: Dict = None,  # eval_dataset is used for reward computation
     max_seq_length: str = None,
 ):
+    # pylint: disable=import-outside-toplevel
+    if not is_fms_accelerate_available(plugins="odm"):
+        raise ImportError(
+            "use of odm data config feature requires"
+            "installation of fms_acceleration_odm package"
+        )
+    # Third Party
+    # pylint: disable=import-error
+    from fms_acceleration_odm import OnlineMixingDataset
+
     collators = {}
     eval_collators = {}
     for k, v in train_dataset.items():
@@ -521,7 +531,7 @@ def process_dataargs_odm(
             processor=processor,
         )
         data_collator = collators[k]
-    for k, v in eval_dataset.items():
+    for k, v in reward_dataset.items():
         is_tokenized_dataset = is_pretokenized_dataset(v)
         eval_collators[k] = get_data_collator(
             train_args.packing,
@@ -534,20 +544,10 @@ def process_dataargs_odm(
             processor=processor,
         )
 
-    # pylint: disable=import-outside-toplevel
-    if not is_fms_accelerate_available(plugins="odm"):
-        raise ImportError(
-            "use of odm data config feature requires"
-            "installation of fms_acceleration_odm package"
-        )
-    # Third Party
-    # pylint: disable=import-error
-    from fms_acceleration_odm import OnlineMixingDataset
-
     train_dataset = OnlineMixingDataset(
         train_dataset,
         collators,
-        eval_dataset,
+        reward_dataset,
         eval_collators,
         None,
         gamma=odm_config.odm.gamma,
@@ -690,7 +690,7 @@ def process_dataargs(
             dataset_kwargs["skip_prepare_dataset"],
             train_dataset,
             data_collator,
-        ) = process_dataargs_odm(
+        ) = setup_train_dataset_for_odm(
             data_args,
             tokenizer,
             train_args,

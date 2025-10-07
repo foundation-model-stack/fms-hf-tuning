@@ -12,7 +12,7 @@ datasets:
   - name: dataset_1
     split:
       train: 0.8
-      validation: 0.2 # validation set is also used in reward computation when reward_type is validation_loss.
+      validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
     sampling: 0.3 # ignored
     data_paths:
       - "FILE_PATH"
@@ -27,7 +27,7 @@ datasets:
   - name: dataset_2
     split:
       train: 0.6
-      validation: 0.2 # validation set is also used in reward computation when reward_type is validation_loss.
+      validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
     sampling: 0.4 # ignored
     data_paths:
       - "FILE_PATH"
@@ -42,7 +42,7 @@ datasets:
   - name: dataset_3
     split:
       train: 0.4
-      validation: 0.1 # validation set is also used in reward computation when reward_type is validation_loss.
+      validation: 0.1 # validation set is also used in ODM reward computation when reward_type is validation_loss.
     sampling: 0.3  # ignored
     data_paths:
       - "FILE_PATH"
@@ -57,7 +57,7 @@ datasets:
   - name: dataset_4
     split:
       train: 0.0
-      validation: 0.3 # validation set is also used in reward computation when reward_type is validation_loss.
+      validation: 0.3 # validation set is also used in ODM reward computation when reward_type is validation_loss.
     data_paths:
       - "FILE_PATH"
     data_handlers:
