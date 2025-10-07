@@ -558,7 +558,7 @@ def process_dataargs_odm(
         reward_type=odm_config.odm.reward_type,
     )
     train_args.accelerator_config = {"split_batches": True}
-    return (True, train_dataset, True, data_collator)
+    return (True, train_dataset, data_collator)
 
 
 # If a data config file is provided, load it to get the training dataset.
@@ -689,7 +689,6 @@ def process_dataargs(
         (
             dataset_kwargs["skip_prepare_dataset"],
             train_dataset,
-            is_tokenized_dataset,
             data_collator,
         ) = process_dataargs_odm(
             data_args,
