@@ -686,11 +686,10 @@ def process_dataargs(
     dataset_kwargs = {}
     data_collator = None
     if odm_config:
-        is_tokenized_dataset = True
         (
             dataset_kwargs["skip_prepare_dataset"],
             train_dataset,
-            dataset_kwargs,
+            is_tokenized_dataset,
             data_collator,
         ) = process_dataargs_odm(
             data_args,
