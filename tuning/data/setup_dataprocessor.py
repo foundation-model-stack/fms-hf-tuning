@@ -9,7 +9,7 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+# See the License for the specificm language governing permissions and
 # limitations under the License.
 
 # Standard
@@ -495,6 +495,72 @@ def dump_dataset(
         raise RuntimeError(f"Failed to dump dataset due to error {e}") from e
 
 
+def process_dataargs_odm(
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    train_args: TrainingArguments,
+    is_padding_free: bool = False,
+    processor: AutoProcessor = None,
+    odm_config: ODMConfig = None,
+    train_dataset: Dict = None,
+    eval_dataset: Dict = None,
+    max_seq_length: str = None,
+):
+    collators = {}
+    eval_collators = {}
+    for k, v in train_dataset.items():
+        is_tokenized_dataset = is_pretokenized_dataset(v)
+        collators[k] = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+        data_collator = collators[k]
+    for k, v in eval_dataset.items():
+        is_tokenized_dataset = is_pretokenized_dataset(v)
+        eval_collators[k] = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+
+    # pylint: disable=import-outside-toplevel
+    if not is_fms_accelerate_available(plugins="odm"):
+        raise ImportError(
+            "use of odm data config feature requires"
+            "installation of fms_acceleration_odm package"
+        )
+    # Third Party
+    # pylint: disable=import-error
+    from fms_acceleration_odm import OnlineMixingDataset
+
+    train_dataset = OnlineMixingDataset(
+        train_dataset,
+        collators,
+        eval_dataset,
+        eval_collators,
+        None,
+        gamma=odm_config.odm.gamma,
+        eta=odm_config.odm.eta,
+        output_dir=train_args.output_dir,
+        sampling_interval=odm_config.odm.sampling_interval,
+        eval_batch_size=train_args.per_device_eval_batch_size,
+        reward_type=odm_config.odm.reward_type,
+    )
+    train_args.accelerator_config = {"split_batches": True}
+    return (True, train_dataset, True, data_collator)
+
+
 # If a data config file is provided, load it to get the training dataset.
 # - Assumes only the training dataset is specified in the config file.
 # - Expects a complete and valid data config file from the user.
@@ -595,10 +661,6 @@ def process_dataargs(
             "Check your data config or ensure split sizes are valid."
         )
     if data_args.do_dataprocessing_only:
-        if odm_config:
-            raise ValueError(
-                "data processing with online data mixing is not currently supported"
-            )
         dump_dir = Path(train_args.output_dir)
         if not dump_dir.is_absolute():
             dump_dir = dump_dir.absolute()
@@ -621,44 +683,31 @@ def process_dataargs(
         )
         return (train_dataset, eval_dataset, None, None, None, None)
 
-    # Note: This check should not be removed.
-    #       Its important to recompute this post handling to
-    #       check if we already tokenized the dataset or not.
-    if odm_config:
-        is_tokenized_dataset = True
-    else:
-        is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
-
+    dataset_kwargs = {}
     data_collator = None
     if odm_config:
-        collators = {}
-        eval_collators = {}
-        for k, v in train_dataset.items():
-            is_tokenized_dataset = is_pretokenized_dataset(v)
-            collators[k] = get_data_collator(
-                train_args.packing,
-                data_args.response_template,
-                tokenizer,
-                is_tokenized_dataset,
-                max_seq_length,
-                data_args.instruction_template,
-                is_padding_free=is_padding_free,
-                processor=processor,
-            )
-            data_collator = collators[k]
-        for k, v in eval_dataset.items():
-            is_tokenized_dataset = is_pretokenized_dataset(v)
-            eval_collators[k] = get_data_collator(
-                train_args.packing,
-                data_args.response_template,
-                tokenizer,
-                is_tokenized_dataset,
-                max_seq_length,
-                data_args.instruction_template,
-                is_padding_free=is_padding_free,
-                processor=processor,
-            )
+        is_tokenized_dataset = True
+        (
+            dataset_kwargs["skip_prepare_dataset"],
+            train_dataset,
+            dataset_kwargs,
+            data_collator,
+        ) = process_dataargs_odm(
+            data_args,
+            tokenizer,
+            train_args,
+            is_padding_free,
+            processor,
+            odm_config,
+            train_dataset,
+            eval_dataset,
+            max_seq_length,
+        )
     else:
+        # Note: This check should not be removed.
+        #       Its important to recompute this post handling to
+        #       check if we already tokenized the dataset or not.
+        is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
         data_collator = get_data_collator(
             train_args.packing,
             data_args.response_template,
@@ -669,34 +718,6 @@ def process_dataargs(
             is_padding_free=is_padding_free,
             processor=processor,
         )
-    dataset_kwargs = {}
-    if odm_config:
-        # Third Party
-        # pylint: disable=import-outside-toplevel
-        if not is_fms_accelerate_available(plugins="odm"):
-            raise ImportError(
-                "use of odm data config feature requires"
-                "installation of fms_acceleration_odm package"
-            )
-        # Third Party
-        # pylint: disable=import-error
-        from fms_acceleration_odm import OnlineMixingDataset
-
-        train_dataset = OnlineMixingDataset(
-            train_dataset,
-            collators,
-            eval_dataset,
-            eval_collators,
-            None,
-            gamma=odm_config.odm.gamma,
-            eta=odm_config.odm.eta,
-            output_dir=train_args.output_dir,
-            sampling_interval=odm_config.odm.sampling_interval,
-            eval_batch_size=train_args.per_device_eval_batch_size,
-            reward_type=odm_config.odm.reward_type,
-        )
-        dataset_kwargs["skip_prepare_dataset"] = True
-        train_args.accelerator_config = {"split_batches": True}
 
     # For vision model tuning prepare_dataset is skipped.
     if processor is not None:

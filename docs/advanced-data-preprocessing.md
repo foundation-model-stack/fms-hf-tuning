@@ -4,7 +4,6 @@ Our library also supports a powerful data processing backend which can be used b
 1. Creating custom data processing pipeline for the datasets.  
 1. Combining multiple datasets into one, even if they have different formats.  
 1. Mixing datasets as required and sampling each dataset with different weights.
-1. Dynamically mixing datasets online based on training signals through fms_acceleration_odm plugin.
 
 These things are supported via what we call a [`data_config`](#data-config) which can be passed as an argument to sft trainer.
 
@@ -137,6 +136,14 @@ Users can create a data config file in any of YAML or JSON format they choose (w
  - `chat_template` (optional, str): pass `chat_template` via data_config for multi-turn data, replaces existing default chat template.
  - `odm` (optional): if `type` is odm, this field is required to be specific to provide configuration for online data mixing.
 
+Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
+These functions can process the dataset in any way users require and the `list` of data handlers specified for each dataset are applied in order.
+Each data handler has:
+- `name`: The handler's unique identifier.
+- `arguments`: A dictionary of parameters specific to the handler.
+
+#### Online data mixing section
+
 `odm` config has the following fields and is required when `datapreprocessor` `type` is `odm`.
 
 `odm`:
@@ -154,11 +161,6 @@ Users can create a data config file in any of YAML or JSON format they choose (w
     - `split` (optional, dict[str: float]): Defines how to split the dataset into training and validation sets. Requires both `train` and `validation` keys.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
-Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
-These functions can process the dataset in any way users require and the `list` of data handlers specified for each dataset are applied in order.
-Each data handler has:
-- `name`: The handler's unique identifier.
-- `arguments`: A dictionary of parameters specific to the handler.
 
 We do provide some sample `data_configs` here, [predefined_data_configs](../tests/artifacts/predefined_data_configs/).
 
@@ -203,58 +205,6 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset
 
-### Online Data Mixing
-Dataset mixing can be dynamic in nature that adapts online during the training based on the training signals. We provide this feature through fms_acceleration_odm plugin and more details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing).
-
-#### How to Use
-
-`dataprocessor` `type` has to be set to `odm` and then `odm` config should be provided in the `odm` section of the data config file. An example is shown below:
-
-```yaml
-dataprocessor:
-    type: odm
-    odm:
-      update_interval: 1 # update every step
-      sampling_interval: 1 # sample category for every sample
-      reward_type: validation_loss # uses eval loss of each dataset as reward
-      gamma: 0.1 # MAB hyper-parameter
-      eta: 0.2 # MAB hyper-parameter
-```
-
-Here `update_interval` is set to `1` which is to update MAB on every step with validation loss as reward across the datasets. `sampling_interval` is set to `1` which is to choose a dataset to sample for every sample. `reward_type` is set to `validation_loss` to use validation loss across datasets as a training signal to reward MAB decisions during training. Example `datasets` section can look like below:
-
-```yaml
-datasets:
-  - name: dataset_1
-    split:
-      train: 0.8
-      validation: 0.2
-    data_paths:
-      - "FILE_PATH"
-    data_handlers:
-      - name: tokenize_and_apply_input_masking
-        arguments:
-          remove_columns: all
-          batched: false
-          fn_kwargs:
-            input_column_name: input
-            output_column_name: output
-  - name: dataset_2
-    split:
-      train: 0.9
-      validation: 0.1
-    data_paths:
-      - "FILE_PATH"
-    data_handlers:
-      - name: tokenize_and_apply_input_masking
-        arguments:
-          remove_columns: all
-          batched: false
-          fn_kwargs:
-            input_column_name: input
-            output_column_name: output
-```
-As you notice, `validation` under `split` is provided for each of the datasets and is necessary to be provided since the `reward_type` is `validation_loss` which requires validation datasets to be available. Same applies to the following rewards: `validation_loss`, `entropy`, `entropy3_varent1`, and `entropy_last_token`. While reward_types `train_loss` and `gradnorm` do not require validation split.
 
 ### Dataset Splitting
 
