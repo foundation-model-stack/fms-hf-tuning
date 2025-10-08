@@ -47,6 +47,8 @@ RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index
 
 # Install main package + flash attention
 COPY . ${SOURCE_DIR}
+COPY --chown=${USER}:root accelerate accelerate
+COPY --chown=${USER}:root transformers transformers
 RUN cd ${SOURCE_DIR}
 RUN pip install --no-cache-dir ${SOURCE_DIR} && \
     pip install --no-cache-dir ${SOURCE_DIR}[flash-attn]
@@ -93,5 +95,9 @@ ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
 ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
 WORKDIR $WORKDIR
+
+RUN python -m pip install --user ./accelerate
+RUN python -m pip install --user ./transformers
+# RUN python -m pip install --force-reinstall -v "triton==3.1.0"
 
 CMD ["${SOURCE_DIR}/build/accelerate_launch.py"]

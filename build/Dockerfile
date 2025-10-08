@@ -141,6 +141,8 @@ WORKDIR /tmp
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user build
 COPY --chown=${USER}:root tuning tuning
+COPY --chown=${USER}:root accelerate accelerate
+COPY --chown=${USER}:root transformers transformers
 COPY .git .git
 COPY pyproject.toml pyproject.toml
 
@@ -193,6 +195,10 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
 RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
     fi
+
+RUN python -m pip install --user ./accelerate
+RUN python -m pip install --user ./transformers
+RUN python -m pip install --force-reinstall -v "triton==3.1.0"
 
     # Clean up the wheel module. It's only needed by flash-attn install
 RUN python -m pip uninstall wheel build -y && \
