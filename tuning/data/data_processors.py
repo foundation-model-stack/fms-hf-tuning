@@ -452,35 +452,9 @@ class DataPreProcessor:
         )
         return split_datasets
 
-    def _process_datasets_for_odm(
-        self,
-        processed_datasets: List[
-            Tuple[DataSetConfig, Union[DatasetDict, IterableDatasetDict]]
-        ],
-    ) -> Tuple[
-        Dict[str, Union[Dataset, IterableDataset]],
-        Dict[str, Union[Dataset, IterableDataset]],
-    ]:
-        train_split = "train"
-        eval_split = "test"
-        train_datasets_dict = {}
-        eval_datasets_dict = {}
-        for d, raw in processed_datasets:
-            if train_split in raw:
-                train_datasets_dict[d.name] = raw[train_split]
-            if eval_split in raw:
-                eval_datasets_dict[d.name] = raw[eval_split]
-        return train_datasets_dict, eval_datasets_dict
-
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], odm_config=None
-    ) -> Union[
-        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
-        Tuple[
-            Dict[str, Union[Dataset, IterableDataset]],
-            Dict[str, Union[Dataset, IterableDataset]],
-        ],
-    ]:
+        self, dataset_configs: List[DataSetConfig]
+    ) -> Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]]:
 
         if not dataset_configs:
             raise ValueError(
@@ -530,13 +504,7 @@ class DataPreProcessor:
 
             # Append the processed datasets to the final dict
             processed_datasets.append((d, raw_datasets))
-        if odm_config:
-            logger.info(
-                "Sampling probabilities are ignored if provided"
-                "and are not used for concatenation. Instead"
-                "online data mixing plugin handles it."
-            )
-            return self._process_datasets_for_odm(processed_datasets)
+
         train_datasets = []
         train_sampling_probabilities = []
         validation_datasets = []
@@ -623,14 +591,8 @@ class DataPreProcessor:
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig], odm_config=None
-    ) -> Union[
-        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
-        Tuple[
-            Dict[str, Union[Dataset, IterableDataset]],
-            Dict[str, Union[Dataset, IterableDataset]],
-        ],
-    ]:
+        self, dataset_configs: List[DataSetConfig]
+    ) -> Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]]:
         train_dataset = eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
@@ -643,14 +605,96 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset, eval_dataset = self._process_dataset_configs(
-                dataset_configs, odm_config
-            )
+            train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
 
         logger.info("Processed train dataset {}".format(train_dataset))
         logger.info("Processed eval dataset {}".format(eval_dataset))
 
         return train_dataset, eval_dataset
+
+
+class ODMDataPreProcessor(DataPreProcessor):
+    def _process_datasets_for_odm(
+        self,
+        processed_datasets: List[
+            Tuple[DataSetConfig, Union[DatasetDict, IterableDatasetDict]]
+        ],
+    ) -> Tuple[
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, Union[Dataset, IterableDataset]],
+    ]:
+        train_split = "train"
+        eval_split = "test"
+        train_datasets_dict = {}
+        eval_datasets_dict = {}
+        for d, raw in processed_datasets:
+            if train_split in raw:
+                train_datasets_dict[d.name] = raw[train_split]
+            if eval_split in raw:
+                eval_datasets_dict[d.name] = raw[eval_split]
+        return train_datasets_dict, eval_datasets_dict
+
+    def _process_dataset_configs(
+        self, dataset_configs: List[DataSetConfig]
+    ) -> Tuple[
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, Union[Dataset, IterableDataset]],
+    ]:
+
+        if not dataset_configs:
+            raise ValueError(
+                "No dataset configs provided. Provided Dataset configs is None."
+            )
+
+        train_split = "train"  # default
+        eval_split = "test"
+
+        processed_datasets = []
+
+        logger.info("Starting DataPreProcessor...")
+        # Now Iterate over the multiple datasets provided to us to process
+        for d in dataset_configs:
+            logger.info("Loading the dataset - %s", d.name)
+
+            # In future the streaming etc go as kwargs of this function
+            loaded_dataset = self.load_dataset(d, self.processor_config.streaming)
+            logger.info("Loaded raw dataset : %s", str(loaded_dataset))
+
+            if d.split is not None:
+                loaded_dataset = self.split_dataset(d, loaded_dataset)
+
+            # Create a raw dataset which is a Dict container to house all Datasets
+            raw_datasets = (
+                IterableDatasetDict()
+                if isinstance(loaded_dataset, (IterableDataset, IterableDatasetDict))
+                else DatasetDict()
+            )
+
+            splits_to_keep = [train_split, eval_split]
+            if isinstance(loaded_dataset, (Dataset, IterableDataset)):
+                # Assume all is train split
+                raw_datasets[train_split] = loaded_dataset
+            else:
+                for k, v in loaded_dataset.items():
+                    if k in splits_to_keep:
+                        raw_datasets[k] = v
+
+            if d.data_handlers:  # Execute the datahandlers
+                for data_handler_config in d.data_handlers:
+                    raw_datasets = self._execute_data_handlers(
+                        raw_datasets=raw_datasets,
+                        data_handler_config=data_handler_config,
+                        datasetName=d.name,
+                    )
+
+            # Append the processed datasets to the final dict
+            processed_datasets.append((d, raw_datasets))
+        logger.info(
+            "Sampling probabilities are ignored if provided"
+            "and are not used for concatenation. Instead"
+            "online data mixing plugin handles it."
+        )
+        return self._process_datasets_for_odm(processed_datasets)
 
 
 def get_datapreprocessor(
@@ -659,7 +703,10 @@ def get_datapreprocessor(
     processor: AutoProcessor = None,
     additional_data_handlers: Dict[str, DataHandler] = None,
 ) -> DataPreProcessor:
-    data_processor = DataPreProcessor(
+    data_processor_cls = DataPreProcessor
+    if processor_config.type == "odm":
+        data_processor_cls = ODMDataPreProcessor
+    data_processor = data_processor_cls(
         processor_config=processor_config,
         tokenizer=tokenizer,
         processor=processor,

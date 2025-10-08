@@ -130,9 +130,9 @@ def train(
     )
 
     resume_from_checkpoint = None
-    if training_args.output_dir:
-        os.makedirs(training_args.output_dir, exist_ok=True)
-        logger.info("using the output directory at %s", training_args.output_dir)
+    if train_args.output_dir:
+        os.makedirs(train_args.output_dir, exist_ok=True)
+        logger.info("using the output directory at %s", train_args.output_dir)
 
     # Check if resume flag is not passed (None), or if flag is true and
     # output_dir has checkpoints then get last checkpoint from output_dir

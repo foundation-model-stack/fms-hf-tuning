@@ -73,7 +73,6 @@ def process_dataconfig_file(
     processor: AutoProcessor = None,
     is_multipack: bool = False,
     is_padding_free: bool = False,
-    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -155,7 +154,7 @@ def process_dataconfig_file(
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets, odm_config=odm_config
+        data_config.datasets
     )
 
     return (train_dataset, eval_dataset, data_args.dataset_text_field)
@@ -348,7 +347,6 @@ def _process_raw_data_args(
     additional_data_handlers: Dict[str, DataHandler] = None,
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
-    odm_config: ODMConfig = None,
 ):
 
     if data_args.data_config_path is not None:
@@ -448,7 +446,7 @@ def _process_raw_data_args(
         dataset_configs.append(eval_dataset_config)
 
     train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_configs, odm_config=odm_config
+        dataset_configs
     )
 
     return (train_dataset, eval_dataset, dataset_text_field)
@@ -635,7 +633,6 @@ def process_dataargs(
             processor,
             is_multipack,
             is_padding_free,
-            odm_config=odm_config,
         )
     else:
         train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
@@ -646,7 +643,6 @@ def process_dataargs(
             additional_data_handlers,
             is_padding_free,
             processor,
-            odm_config=odm_config,
         )
 
     if train_args.eval_strategy != "no" and eval_dataset is None:
