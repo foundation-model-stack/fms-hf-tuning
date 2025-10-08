@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 import logging
 import os
 
@@ -452,9 +452,35 @@ class DataPreProcessor:
         )
         return split_datasets
 
+    def _process_datasets_for_odm(
+        self,
+        processed_datasets: List[
+            Tuple[DataSetConfig, Union[DatasetDict, IterableDatasetDict]]
+        ],
+    ) -> Tuple[
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, Union[Dataset, IterableDataset]],
+    ]:
+        train_split = "train"
+        eval_split = "test"
+        train_datasets_dict = {}
+        eval_datasets_dict = {}
+        for d, raw in processed_datasets:
+            if train_split in raw:
+                train_datasets_dict[d.name] = raw[train_split]
+            if eval_split in raw:
+                eval_datasets_dict[d.name] = raw[eval_split]
+        return train_datasets_dict, eval_datasets_dict
+
     def _process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig]
-    ) -> Union[Dataset, IterableDataset]:
+        self, dataset_configs: List[DataSetConfig], odm_config=None
+    ) -> Union[
+        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
+        Tuple[
+            Dict[str, Union[Dataset, IterableDataset]],
+            Dict[str, Union[Dataset, IterableDataset]],
+        ],
+    ]:
 
         if not dataset_configs:
             raise ValueError(
@@ -504,7 +530,13 @@ class DataPreProcessor:
 
             # Append the processed datasets to the final dict
             processed_datasets.append((d, raw_datasets))
-
+        if odm_config:
+            logger.info(
+                "Sampling probabilities are ignored if provided"
+                "and are not used for concatenation. Instead"
+                "online data mixing plugin handles it."
+            )
+            return self._process_datasets_for_odm(processed_datasets)
         train_datasets = []
         train_sampling_probabilities = []
         validation_datasets = []
@@ -591,8 +623,14 @@ class DataPreProcessor:
         return train_dataset, eval_dataset
 
     def process_dataset_configs(
-        self, dataset_configs: List[DataSetConfig]
-    ) -> Union[Dataset, IterableDataset]:
+        self, dataset_configs: List[DataSetConfig], odm_config=None
+    ) -> Union[
+        Tuple[Union[Dataset, IterableDataset], Union[Dataset, IterableDataset]],
+        Tuple[
+            Dict[str, Union[Dataset, IterableDataset]],
+            Dict[str, Union[Dataset, IterableDataset]],
+        ],
+    ]:
         train_dataset = eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
@@ -605,7 +643,9 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
+            train_dataset, eval_dataset = self._process_dataset_configs(
+                dataset_configs, odm_config
+            )
 
         logger.info("Processed train dataset {}".format(train_dataset))
         logger.info("Processed eval dataset {}".format(eval_dataset))

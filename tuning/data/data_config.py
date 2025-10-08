@@ -20,6 +20,7 @@ import logging
 import os
 
 # Local
+from tuning.config.acceleration_configs.odm import ODM
 from tuning.data.utils import load_yaml_or_json
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class DataPreProcessorConfig:
     streaming: Optional[bool] = False
     chat_template: Optional[str] = None
     chat_template_path: Optional[str] = None
+    odm: Optional[ODM] = None
 
 
 @dataclass
@@ -130,6 +132,11 @@ def _validate_dataprocessor_config(dataprocessor_config) -> DataPreProcessorConf
     assert isinstance(kwargs, dict), "dataprocessor in data_config needs to be a dict"
     if "type" in kwargs:
         assert isinstance(kwargs["type"], str), "dataprocessor type must be a string"
+        if kwargs["type"] == "odm":
+            assert (
+                "odm" in kwargs
+            ), "if dataprocessor type is odm, then odm config should be provided"
+            c.odm = kwargs["odm"]
         c.type = kwargs["type"]
     if "sampling_stopping_strategy" in kwargs:
         strategy = kwargs["sampling_stopping_strategy"]

@@ -470,8 +470,9 @@ The list of configurations for various `fms_acceleration` plugins:
   - `--multipack`: technique for *multi-gpu training* to balance out number of tokens processed in each device, to minimize waiting time.
 - [fast_moe_config](./tuning/config/acceleration_configs/fast_moe.py) (experimental):
   - `--fast_moe`: trains MoE models in parallel with [Scatter MoE kernels](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/accelerated-moe#fms-acceleration-for-mixture-of-experts), increasing throughput and decreasing memory usage.
+- [odm_config](./tuning/config/acceleration_configs/odm.py) (experimental): See [online data mixing](./online-data-mixing.md) and [PyTorch conf poster](https://static.sched.com/hosted_files/pytorchconference/70/PyTorch%20Native%20Online%20Dynamic%20Reward%20Based%20Data%20Mixing%20Framework.pdf) for usage with data_config. This plugin allows dynamically mixing datasets online during training adapting to training signals. 
 
-Notes: 
+Notes:
  * `quantized_lora_config` requires that it be used along with LoRA tuning technique. See [LoRA tuning section](https://github.com/foundation-model-stack/fms-hf-tuning/tree/main?tab=readme-ov-file#lora-tuning-example) on the LoRA parameters to pass.
  * When setting `--auto_gptq triton_v2` plus note to also pass `--torch_dtype float16` and `--fp16`, or an exception will be raised. This is because these kernels only support this dtype.
  * When using `fused_ops_and_kernels` together with `quantized_lora_config`,

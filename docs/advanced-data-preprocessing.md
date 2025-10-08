@@ -34,7 +34,7 @@ process the datasets. Users can currently pass both YAML or JSON based configura
 The data config schema is designed to define datasets and their processing strategies in a structured way.
 
 It consists of the following top-level keys:
- - `datapreprocessor`: Defines global data processing parameters, such as the type (`default`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
+ - `datapreprocessor`: Defines global data processing parameters, such as the type (`default` or `odm`), sampling stopping strategy (`all_exhausted` or `first_exhausted`), and sampling seed for reproducibility.
  - `datasets`: A list of dataset configurations, each describing the dataset name, paths, optional builders, sampling ratios, and data handlers.
 
 At the top level, the data config schema looks like this:
@@ -129,11 +129,29 @@ definitions:
 Users can create a data config file in any of YAML or JSON format they choose (we provide examples of YAML for ease of use). The file should follow the schema outlined above with the following parameters:
 
 `datapreprocessor`:
- - `type` (optional, str): Type of data preprocessor, `default` is currently the only supported type.
+ - `type` (optional, str): Type of data preprocessor, `default` and `odm` are the two types supported. Use of `odm` requires [installation](./tuning-techniques.md#fms-acceleration) of `fms_acceleration_odm` package.
  - `streaming` (optional, bool): Stream datasets using [IterableDatasets](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.IterableDataset).
  - `sampling_stopping_strategy` (optional, str): Dataset interleave stopping strategy in case of choosing to mix multiple datasets by weight, supported values are [`all_exhausted` or `first_exhausted`](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.stopping_strategy), defaults to `all_exhausted`.
  - `seed` (optional, int): [seed](https://huggingface.co/docs/datasets/v3.2.0/en/package_reference/main_classes#datasets.interleave_datasets.seed) to use for interleaving datasets, for reproducibility choose same value, defaults to 42.
  - `chat_template` (optional, str): pass `chat_template` via data_config for multi-turn data, replaces existing default chat template.
+ - `odm` (optional): if `type` is odm, this field is required to be specific to provide configuration for online data mixing.
+
+Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
+These functions can process the dataset in any way users require and the `list` of data handlers specified for each dataset are applied in order.
+Each data handler has:
+- `name`: The handler's unique identifier.
+- `arguments`: A dictionary of parameters specific to the handler.
+
+#### Online data mixing section
+
+`odm` config has the following fields and is required when `datapreprocessor` `type` is `odm`.
+
+`odm`:
+  `update_interval` (optional, int, defaults to `1`): Multi-Armed Bandit (MAB) is used to learn from the training signals and then provide mixing probabilities across datasets. `update_interval` defines the frequency of updating the MAB with training signals in terms of step count.
+  `sampling_interval` (optional, int, defaults to `1`): Defines the frequency of choosing a dataset to sample from through MAB. The value is provided in terms of sample count.
+  `reward_type` (optional, str, defaults to `entropy`): Type of reward to be used to update MAB. Currently supported rewards are `train_loss`, `validation_loss`, `entropy`, `entropy3_varent1`, `entropy_last_token`, `gradnorm`. More details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing#rewards).
+  `gamma` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to exploration factor.
+  `eta` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to learning rate.
 
 `datasets` (list):
   - `name` (optional, str): A unique identifier for the dataset.
@@ -143,11 +161,6 @@ Users can create a data config file in any of YAML or JSON format they choose (w
     - `split` (optional, dict[str: float]): Defines how to split the dataset into training and validation sets. Requires both `train` and `validation` keys.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
 
-Data handlers are customizable components within the data config that allow users to preprocess or manipulate individual datasets. We use [Hugging Face Map API](https://huggingface.co/docs/datasets/en/process#map) to apply these routines.
-These functions can process the dataset in any way users require and the `list` of data handlers specified for each dataset are applied in order.
-Each data handler has:
-- `name`: The handler's unique identifier.
-- `arguments`: A dictionary of parameters specific to the handler.
 
 We do provide some sample `data_configs` here, [predefined_data_configs](../tests/artifacts/predefined_data_configs/).
 
@@ -191,6 +204,7 @@ We also allow users to pass a [`seed`](https://huggingface.co/docs/datasets/v3.2
 
 
 Note: If a user specifies data sampling they can expect the datasets to be mixed and individual samples in the dataset to not be broken unless the max_seq_len argument is smaller than the length of individual samples in the dataset
+
 
 ### Dataset Splitting
 

@@ -42,14 +42,17 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
+    ODM,
     AccelerationFrameworkConfig,
     AttentionAndDistributedPackingConfig,
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
+    ODMConfig,
     QuantizedLoraConfig,
     get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.data.data_config import load_and_validate_data_config
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.data.tokenizer_utils import setup_tokenizer
@@ -125,6 +128,15 @@ def train(
     logger, train_args.log_level = set_log_level(
         logger_name="sft_trainer_train", level=train_args.log_level
     )
+
+    # TODO: use of load_and_validate_data_config here is not clean way
+    # rather we should move this logic to process_dataargs
+    odm_config = None
+    if data_args.data_config_path:
+        _dataconfig = load_and_validate_data_config(data_args.data_config_path)
+        if _dataconfig.dataprocessor.type == "odm":
+            odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
+
     USE_ALORA = False
     try:
         # Third Party
@@ -246,6 +258,7 @@ def train(
         attention_and_distributed_packing_config,
         quantized_lora_config,
         fusedops_kernels_config,
+        odm_config,
     ).get_framework()
 
     # option to set multimodal var here
@@ -376,6 +389,7 @@ def train(
         is_padding_free=is_padding_free,
         processor=processor,
         is_multipack=is_multipack,
+        odm_config=odm_config,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
