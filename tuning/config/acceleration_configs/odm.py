@@ -27,6 +27,7 @@ class ODM:
     reward_type: str = None
     gamma: float = 0.1
     eta: float = 0.1
+    resume_from_checkpoint: Union[bool, str] = False
 
 
 @dataclass
