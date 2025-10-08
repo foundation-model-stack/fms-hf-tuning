@@ -151,8 +151,10 @@ def train(
     odm_config = None
     if data_args.data_config_path:
         _dataconfig = load_and_validate_data_config(data_args.data_config_path)
-        _dataconfig.dataprocessor.odm["resume_from_checkpoint"] = resume_from_checkpoint
         if _dataconfig.dataprocessor.type == "odm":
+            _dataconfig.dataprocessor.odm[
+                "resume_from_checkpoint"
+            ] = resume_from_checkpoint
             odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
 
     USE_ALORA = False
