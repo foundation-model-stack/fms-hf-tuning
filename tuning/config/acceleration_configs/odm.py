@@ -14,6 +14,7 @@
 
 # Standard
 from dataclasses import dataclass
+from typing import Union
 
 # Local
 from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
@@ -27,6 +28,7 @@ class ODM:
     reward_type: str = None
     gamma: float = 0.1
     eta: float = 0.1
+    resume_from_checkpoint: Union[bool, str] = False
 
 
 @dataclass

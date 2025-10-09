@@ -129,12 +129,36 @@ def train(
         logger_name="sft_trainer_train", level=train_args.log_level
     )
 
+    resume_from_checkpoint = None
+    if train_args.output_dir:
+        os.makedirs(train_args.output_dir, exist_ok=True)
+        logger.info("using the output directory at %s", train_args.output_dir)
+
+    # Check if resume flag is not passed (None), or if flag is true and
+    # output_dir has checkpoints then get last checkpoint from output_dir
+    if (
+        train_args.resume_from_checkpoint is None
+        or train_args.resume_from_checkpoint.lower() == "true"
+    ):
+        resume_from_checkpoint = get_last_checkpoint(train_args.output_dir)
+    else:
+        # `train_args.resume_from_checkpoint` gives string values
+        # Check if flag is false OR flag has checkpoint value for resuming tuning
+        resume_from_checkpoint = (
+            train_args.resume_from_checkpoint
+            if train_args.resume_from_checkpoint.lower() != "false"
+            else False
+        )
+
     # TODO: use of load_and_validate_data_config here is not clean way
     # rather we should move this logic to process_dataargs
     odm_config = None
     if data_args.data_config_path:
         _dataconfig = load_and_validate_data_config(data_args.data_config_path)
         if _dataconfig.dataprocessor.type == "odm":
+            _dataconfig.dataprocessor.odm[
+                "resume_from_checkpoint"
+            ] = resume_from_checkpoint
             odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
 
     USE_ALORA = False
@@ -504,23 +528,6 @@ def train(
         ):
             trainer.add_callback(clb)
 
-    resume_from_checkpoint = None
-    # Check if resume flag is not passed (None), or if flag is true and
-    # output_dir has checkpoints then get last checkpoint from output_dir
-    if (
-        training_args.resume_from_checkpoint is None
-        or training_args.resume_from_checkpoint.lower() == "true"
-    ):
-        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
-    else:
-        # `training_args.resume_from_checkpoint` gives string values
-        # Check if flag is false OR flag has checkpoint value for resuming tuning
-        resume_from_checkpoint = (
-            training_args.resume_from_checkpoint
-            if training_args.resume_from_checkpoint.lower() != "false"
-            else False
-        )
-
     trainer.train(resume_from_checkpoint)
     additional_metadata = {}
     additional_metadata["added_tokens_info"] = added_tokens_dict
@@ -794,9 +801,6 @@ def main():
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
-    if training_args.output_dir:
-        os.makedirs(training_args.output_dir, exist_ok=True)
-        logger.info("using the output directory at %s", training_args.output_dir)
     try:
         trainer, additional_train_info, tc_callback = train(
             model_args=model_args,

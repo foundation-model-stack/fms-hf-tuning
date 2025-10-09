@@ -2263,8 +2263,12 @@ def test_online_data_mixing_plugin_sample_training(
                 data = yaml.safe_load(f)
                 data["dataprocessor"]["odm"]["reward_type"] = reward_type
                 data["datasets"] = data["datasets"][:2]
+                sampling_weights = [0.4, 0.6]
+                i = 0
                 for d, df in zip(data["datasets"], datafiles):
                     d["data_paths"] = [df]
+                    d["sampling"] = sampling_weights[i]
+                    i += 1
                 yaml.dump(data, temp_yaml_file)
                 data_formatting_args.data_config_path = temp_yaml_file.name
 
@@ -2342,9 +2346,13 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
                 data = yaml.safe_load(f)
                 data["datasets"] = data["datasets"][:2]
                 data["dataprocessor"]["odm"]["reward_type"] = reward_type
+                i = 0
+                sampling_weights = [0.4, 0.6]
                 for d, df in zip(data["datasets"], datafiles):
                     d["data_paths"] = [df]
+                    d["sampling"] = sampling_weights[i]
                     del d["split"]
+                    i += 1
                 yaml.dump(data, temp_yaml_file)
                 data_formatting_args.data_config_path = temp_yaml_file.name
 
