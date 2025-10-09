@@ -1,0 +1,157 @@
+# this is a contents of framework acceleration sample configs
+# - shortname: for easy reference of the config, which otherwise may be troublesome due to the
+#              long filenames
+# - plugins: the plugins that need to be installed to use this acceleration config. 
+#             Could be more than one that needs to be simultaneously installed.
+# - filename: the actual filename of the config as it appears in the sample-configurations directory
+framework_configs:
+
+    - shortname: accelerated-peft-autogptq
+      plugins:
+        - accelerated-peft
+      filename: accelerated-peft-autogptq-sample-configuration.yaml
+
+    - shortname: accelerated-peft-bnb
+      plugins:
+        - accelerated-peft
+      filename: accelerated-peft-bnb-nf4-sample-configuration.yaml
+
+    - shortname: baseline-peft-bnb
+      plugins:
+        - accelerated-peft
+      filename: baseline-peft-bnb-nf4-sample-configuration.yaml
+
+    - shortname: accelerated-peft-autogptq-foak
+      plugins:
+        - accelerated-peft
+        - fused-ops-and-kernels
+      filename: accelerated-peft-autogptq-foak-sample-configuration.yaml
+
+    - shortname: accelerated-peft-autogptq-foak-liger
+      plugins:
+        - accelerated-peft
+        - fused-ops-and-kernels
+      filename: accelerated-peft-autogptq-foak-liger-sample-configuration.yaml
+
+    - shortname: accelerated-peft-bnb-foak
+      plugins:
+        - accelerated-peft
+        - fused-ops-and-kernels
+      filename: accelerated-peft-bnb-nf4-foak-sample-configuration.yaml
+
+    - shortname: accelerated-peft-bnb-foak-liger
+      plugins:
+        - accelerated-peft
+        - fused-ops-and-kernels
+      filename: accelerated-peft-bnb-nf4-foak-liger-sample-configuration.yaml
+
+    - shortname: aadp-padding-free
+      plugins:
+        - attention-and-distributed-packing
+      filename: aadp-padding-free-sample-configuration.yaml
+
+    - shortname: aadp-padding-free-multipack
+      plugins:
+        - attention-and-distributed-packing
+      filename: aadp-padding-free-multipack-sample-configuration.yaml
+
+    - shortname: accelerated-peft-bnb-padding-free
+      plugins:
+        - accelerated-peft
+        - attention-and-distributed-packing
+      filename: accelerated-peft-bnb-nf4-padding-free-sample-configuration.yaml
+      
+    - shortname: accelerated-peft-autogptq-padding-free
+      plugins:
+        - accelerated-peft
+        - attention-and-distributed-packing
+      filename: accelerated-peft-autogptq-padding-free-sample-configuration.yaml
+      
+    - shortname: accelerated-peft-bnb-foak-padding-free
+      plugins:
+        - accelerated-peft
+        - attention-and-distributed-packing
+        - fused-ops-and-kernels
+      filename: accelerated-peft-bnb-nf4-foak-padding-free-sample-configuration.yaml
+      
+    - shortname: accelerated-peft-autogptq-foak-padding-free
+      plugins:
+        - accelerated-peft
+        - attention-and-distributed-packing
+        - fused-ops-and-kernels
+      filename: accelerated-peft-autogptq-foak-padding-free-sample-configuration.yaml
+
+    - shortname: foak-fast-kernels
+      plugins:
+        - fused-ops-and-kernels
+      filename: foak-fast-kernels-sample-configuration.yaml
+
+    - shortname: foak-fast-kernels-liger
+      plugins:
+        - fused-ops-and-kernels
+      filename: foak-fast-kernels-liger-sample-configuration.yaml
+    # -------  MOE CONFIGS ----------
+    - shortname: moe-scattermoe-granite-ep1
+      plugins:
+        - accelerated-moe
+      filename: moe-scattermoe-granite-ep1-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep1-padding-free
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+      filename: moe-scattermoe-granite-ep1-padding-free-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep1-padding-free-foak
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+        - fused-ops-and-kernels
+      filename: moe-scattermoe-granite-ep1-padding-free-foak-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep2
+      plugins:
+        - accelerated-moe
+      filename: moe-scattermoe-granite-ep2-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep2-padding-free
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+      filename: moe-scattermoe-granite-ep2-padding-free-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep2-padding-free-foak
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+        - fused-ops-and-kernels
+      filename: moe-scattermoe-granite-ep2-padding-free-foak-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep4
+      plugins:
+        - accelerated-moe
+      filename: moe-scattermoe-granite-ep4-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep4-padding-free
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+      filename: moe-scattermoe-granite-ep4-padding-free-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep4-padding-free-foak
+      plugins:
+        - accelerated-moe
+        - attention-and-distributed-packing
+        - fused-ops-and-kernels
+      filename: moe-scattermoe-granite-ep4-padding-free-foak-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep8
+      plugins:
+        - accelerated-moe
+      filename: moe-scattermoe-granite-ep8-sample-configuration.yaml
+
+    - shortname: moe-scattermoe-granite-ep8-foak
+      plugins:
+        - accelerated-moe
+        - fused-ops-and-kernels
+      filename: moe-scattermoe-granite-ep8-foak-sample-configuration.yaml

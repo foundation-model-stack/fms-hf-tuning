@@ -1,0 +1,46 @@
+# options that can be used with accelerate config are neatly documented here - 
+# https://huggingface.co/docs/accelerate/en/concept_guides/fsdp1_vs_fsdp2
+
+# type of compute environment, no need to change
+compute_environment: LOCAL_MACHINE # AMAZON_SAGEMAKER
+
+# use FSDP distributed compute
+distributed_type: FSDP
+
+# FSDP specific configurations
+fsdp_config:
+  
+  # use FSDPv2
+  fsdp_version: 2
+
+  # use this for training transformers
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  
+  fsdp_reshard_after_forward: true # true FULL_SHARD or false SHARD_GRAD_OP
+
+  fsdp_state_dict_type: SHARDED_STATE_DICT # set to FULL_STATE_DICT, or SHARDED_STATE_DICT
+ 
+  fsdp_cpu_ram_efficient_loading: true # for large models set to true, model loaded on single process
+  fsdp_sync_module_states: true # for large models set to true, model loaded on single process
+
+  # not needed for HF models that have . _no_split_modules
+  # the example below is for GPTBigCode
+  # fsdp_transformer_layer_cls_to_wrap: "GPTBigCodeBlock” 
+
+# for "autocast" mixed precision training, where the weights of the model are kept at higher precision, but the 
+# learning products (e.g., gradients, model parameters) are kept at a lower precision. Default is 'no'. Other options
+# would be fp16, bf16, etc.
+mixed_precision: 'no'
+
+machine_rank: 0 # rank of the machine where accelerate is launched
+num_machines: 1
+num_processes: 1  # default, override with --num_processes
+
+# the rendezvous method to use in distributed training. Other option is c10d
+rdzv_backend: static
+same_network: true
+
+# below arguments are required when training in multi-node setup
+# for multi-gpu single node, the below values default to
+# main_process_ip: 127.0.0.1 # override with --main_process_ip
+# main_process_port: 29500 # override with --main_process_port

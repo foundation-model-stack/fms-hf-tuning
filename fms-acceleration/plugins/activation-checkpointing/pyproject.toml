@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fms-acceleration-ac"
+version = '0.4.0.dev'
+description = "FMS Acceleration Plugin for controlled activation checkpointing"
+authors = [
+  {name = "Mehant Kammakomati", email = "mehant.kammakomati2@ibm.com"},
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = "~=3.9"
+keywords = ['fms-hf-tuning', 'acceleration', 'checkpointing']
+classifiers=[
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/fms_acceleration_ac"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""

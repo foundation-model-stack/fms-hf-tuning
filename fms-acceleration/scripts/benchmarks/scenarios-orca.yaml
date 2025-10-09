@@ -1,0 +1,114 @@
+# This file holds a sample full-finetuning scenario and 
+# demonstrates various pretokenization scenarios
+
+# the data_processing stanza is optional
+# - if it is missing, then the defaults is to use alpaca
+# with instruct formatting and no tokenization
+
+# - this is an older style method which does not rely on 
+#   chat templates, this will also do instruct formatting
+# - but if tokenize = True, this works only if 
+#   sft_trainer accepts pretokenized dataset
+# data_processing:
+#   dataset_name: yahma/alpaca-cleaned
+#   formatting: "instruct"
+#   tokenize: True
+#   input_field: input
+
+# - this is the new style, with the chat templates for formatting
+# - this is the best approach to keep things flexible and
+#   allows to configure many different datasets
+#  - there is an option of setting tokenize is True or False
+
+# NOTE: on tokenization
+# if tokenize = True then its a pretokenization flow, then below set
+# - response_template: null
+# - dataset_text_field: null
+# otherwise if tokenize = False, then do not set the above to null
+data_processing:
+    dataset_name: microsoft/orca-math-word-problems-200k
+    chat_template: |
+        {%- for message in messages %}
+        USER:
+        {{ message['question'] }}
+
+        ASSISTANT:
+        {{ message['answer'] }}
+        {%- endfor %}
+    dataset_split: "train[:8000]"
+    tokenize: false
+
+# scenarios
+scenarios:
+    -   name: full-finetuning
+        arguments:
+            learning_rate: 2e-5
+            torch_dtype: float16
+            gradient_accumulation_steps: 2
+            max_steps: null
+            packing: False
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+            dataset_text_field: 'output'
+            response_template: "\n\nASSISTANT:"
+
+    -   name: padding-free
+        framework_config: 
+            - aadp-padding-free
+            - aadp-padding-free-multipack
+        arguments:
+            learning_rate: 2e-5
+            torch_dtype: float16
+            gradient_accumulation_steps: 2
+            max_steps: null
+            packing: False
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+            dataset_text_field: 'output'
+            response_template: "\n\nASSISTANT:"
+
+    -   name: accelerated-peft-bnb
+        framework_config: 
+            - accelerated-peft-bnb
+            - accelerated-peft-bnb-padding-free
+            - accelerated-peft-bnb-foak
+            - accelerated-peft-bnb-foak-padding-free
+        arguments:
+            fp16: True
+            learning_rate: 2e-4
+            torch_dtype: float16
+            peft_method: lora
+            r: 16
+            lora_alpha: 16
+            lora_dropout: 0.1
+            target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+            max_steps: null
+            gradient_accumulation_steps: 2
+            packing: False
+            model_name_or_path: 
+                - 'mistralai/Mistral-7B-v0.1'
+            dataset_text_field: 'output'
+            response_template: "\n\nASSISTANT:"
+
+    -   name: accelerated-peft-gptq
+        framework_config: 
+            - accelerated-peft-autogptq
+            - accelerated-peft-autogptq-padding-free
+            - accelerated-peft-autogptq-foak
+            - accelerated-peft-autogptq-foak-padding-free
+        arguments:
+            learning_rate: 2e-4
+            fp16: True
+            torch_dtype: float16
+            peft_method: lora
+            r: 16
+            lora_alpha: 16
+            lora_dropout: 0.1
+            target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+            max_steps: null
+            gradient_accumulation_steps: 2
+            packing: False
+            model_name_or_path: 
+                - 'TheBloke/Mistral-7B-v0.1-GPTQ'
+            dataset_text_field: 'output'
+            response_template: "\n\nASSISTANT:"
