@@ -13,7 +13,7 @@ datasets:
     split:
       train: 0.8
       validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
-    sampling: 0.3 # ignored
+    sampling: 0.3 # used as starting weights for online data mixing
     data_paths:
       - "FILE_PATH"
     data_handlers:
@@ -28,7 +28,7 @@ datasets:
     split:
       train: 0.6
       validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
-    sampling: 0.4 # ignored
+    sampling: 0.4 # used as starting weights for online data mixing
     data_paths:
       - "FILE_PATH"
     data_handlers:
@@ -43,7 +43,7 @@ datasets:
     split:
       train: 0.4
       validation: 0.1 # validation set is also used in ODM reward computation when reward_type is validation_loss.
-    sampling: 0.3  # ignored
+    sampling: 0.3 # used as starting weights for online data mixing
     data_paths:
       - "FILE_PATH"
     data_handlers:
