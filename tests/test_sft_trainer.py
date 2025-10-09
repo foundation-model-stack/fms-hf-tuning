@@ -2347,6 +2347,7 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
                 data["datasets"] = data["datasets"][:2]
                 data["dataprocessor"]["odm"]["reward_type"] = reward_type
                 i = 0
+                sampling_weights = [0.4, 0.6]
                 for d, df in zip(data["datasets"], datafiles):
                     d["data_paths"] = [df]
                     d["sampling"] = sampling_weights[i]
