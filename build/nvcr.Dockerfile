@@ -49,18 +49,18 @@ RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index
 COPY . ${SOURCE_DIR}
 COPY --chown=${USER}:root accelerate accelerate
 COPY --chown=${USER}:root transformers transformers
+COPY --chown=${USER}:root fms-acceleration fms-acceleration
 RUN cd ${SOURCE_DIR}
 RUN pip install --no-cache-dir ${SOURCE_DIR} && \
     pip install --no-cache-dir ${SOURCE_DIR}[flash-attn]
 
 # Optional extras
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[fms-accel] && \
-        python -m fms_acceleration.cli install fms_acceleration_peft && \
-        python -m fms_acceleration.cli install fms_acceleration_foak && \
-        python -m fms_acceleration.cli install fms_acceleration_aadp && \
-        python -m fms_acceleration.cli install fms_acceleration_moe && \
-        python -m fms_acceleration.cli install fms_acceleration_odm; \
+    python -m pip install --user ./fms-acceleration/plugins/framework; \
+    python -m pip install --user ./fms-acceleration/plugins/accelerated-moe; \
+    python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
+    python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
+    python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
     fi
 
 RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
