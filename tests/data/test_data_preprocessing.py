@@ -1831,7 +1831,9 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
         tokenizer=tokenizer,
     )
     datasetconfig = [DataSetConfig(name=datasetconfigname, data_paths=[datafile])]
-    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _, _ = processor.process_dataset_configs(
+        dataset_configs=datasetconfig
+    )
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == column_names
@@ -1953,7 +1955,9 @@ def test_rename_and_select_dataset_columns(
             name=datasetconfigname, data_paths=data_paths, data_handlers=handlers
         )
     ]
-    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _, _ = processor.process_dataset_configs(
+        dataset_configs=datasetconfig
+    )
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == set(final)

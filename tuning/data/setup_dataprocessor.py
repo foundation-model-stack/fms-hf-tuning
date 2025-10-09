@@ -14,7 +14,7 @@
 
 # Standard
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 import logging
 
 # Third Party
@@ -89,11 +89,12 @@ def process_dataconfig_file(
         is_multipack: A bool representing is Multipack plugin is enabled.
                          Defauts to False.
     Returns:
-        Tuple(Dataset, Dataset, str)
+        Tuple(Dataset, Dataset, str, Dict[str, float])
             tuple containing
             train_dataset (Dataset/IterableDataset),
             eval_dataset (Dataset/IterableDataset),
             dataset_text_field (str),
+            sampling weights
     """
 
     data_config = load_and_validate_data_config(data_args.data_config_path)
@@ -153,11 +154,13 @@ def process_dataconfig_file(
             )
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets
-    )
+    (
+        train_dataset,
+        eval_dataset,
+        sampling_weights,
+    ) = data_processor.process_dataset_configs(data_config.datasets)
 
-    return (train_dataset, eval_dataset, data_args.dataset_text_field)
+    return (train_dataset, eval_dataset, data_args.dataset_text_field, sampling_weights)
 
 
 # Data Format 1: Pretokenized Data
@@ -445,11 +448,13 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         dataset_configs.append(eval_dataset_config)
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_configs
-    )
+    (
+        train_dataset,
+        eval_dataset,
+        sampling_weights,
+    ) = data_processor.process_dataset_configs(dataset_configs)
 
-    return (train_dataset, eval_dataset, dataset_text_field)
+    return (train_dataset, eval_dataset, dataset_text_field, sampling_weights)
 
 
 def dump_dataset(
@@ -503,6 +508,7 @@ def setup_train_dataset_for_odm(
     train_dataset: Dict = None,
     reward_dataset: Dict = None,  # eval_dataset is used for reward computation
     max_seq_length: str = None,
+    sampling_weights: List[float] = None,  # cold start sampling weights for ODM
 ):
     # pylint: disable=import-outside-toplevel
     if not is_fms_accelerate_available(plugins="odm"):
@@ -547,7 +553,7 @@ def setup_train_dataset_for_odm(
         collators,
         reward_dataset,
         eval_collators,
-        None,
+        sampling_weights,
         gamma=odm_config.odm.gamma,
         eta=odm_config.odm.eta,
         output_dir=train_args.output_dir,
@@ -625,7 +631,12 @@ def process_dataargs(
         )
 
     if data_args.data_config_path:
-        train_dataset, eval_dataset, dataset_text_field = process_dataconfig_file(
+        (
+            train_dataset,
+            eval_dataset,
+            dataset_text_field,
+            sampling_weights,
+        ) = process_dataconfig_file(
             data_args,
             train_args,
             tokenizer,
@@ -635,7 +646,12 @@ def process_dataargs(
             is_padding_free,
         )
     else:
-        train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
+        (
+            train_dataset,
+            eval_dataset,
+            dataset_text_field,
+            sampling_weights,
+        ) = _process_raw_data_args(
             data_args,
             tokenizer,
             train_args.packing,
@@ -696,6 +712,7 @@ def process_dataargs(
             train_dataset,
             eval_dataset,
             max_seq_length,
+            sampling_weights,
         )
     else:
         # Note: This check should not be removed.
