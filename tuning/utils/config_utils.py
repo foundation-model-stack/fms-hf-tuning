@@ -61,7 +61,10 @@ def create_tuning_config(peft_method, **kwargs):
         "pt",
         "None",
     ], f"peft config {peft_method} not defined in peft.py"
-    if peft_method in ("alora", "lora"):
+    if peft_method in (
+        peft_config.PEFT_METHOD.ALORA.value,
+        peft_config.PEFT_METHOD.LORA.value,
+    ):
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
     elif peft_method == "pt":

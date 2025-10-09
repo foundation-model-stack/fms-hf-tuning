@@ -97,7 +97,7 @@ from tuning.data.data_config import (
     load_and_validate_data_config,
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
-from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
@@ -153,7 +153,6 @@ INVOCATION_STR = "Label:"
 
 if hasattr(HFLoraConfig, "alora_invocation_tokens"):
     PEFT_ALORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
-    PEFT_ALORA_ARGS.alora_invocation_tokens = [42]
 else:
     PEFT_ALORA_ARGS = None
 
@@ -745,10 +744,6 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that" in output_inference
 
 
-@pytest.mark.skipif(
-    not is_alora_available(),
-    reason="Only runs if alora is installed",
-)
 @pytest.mark.parametrize(
     "target_modules,expected",
     target_modules_val_map,

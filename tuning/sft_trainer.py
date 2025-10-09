@@ -367,12 +367,12 @@ def train(
         inv_str = getattr(peft_config, "alora_invocation_string")
         if not inv_str:
             raise ValueError(
-                "`--invocation_string` is required when using --peft_method alora."
+                "`--alora_invocation_string` is required when using --peft_method alora."
             )
         alora_tokens = tokenizer.encode(inv_str, add_special_tokens=False)
         if not alora_tokens:
             raise ValueError(
-                "`--invocation_string` produced no tokens; check your tokenizer/template."
+                "`--alora_invocation_string` produced no tokens; check your tokenizer/template."
             )
         setattr(peft_config, "alora_invocation_tokens", alora_tokens)
 
@@ -588,7 +588,7 @@ def get_parser():
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
     parser.add_argument(
-        "--invocation_string",
+        "--alora_invocation_string",
         type=str,
         default=None,
         help="Pass a invocation string that will be used to activate the aLoRA.\
@@ -651,7 +651,7 @@ def parse_arguments(parser, json_config=None):
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
         quantization_method = json_config.get("quantization_method")
-        invocation_string = json_config.get("invocation_string")
+        alora_invocation_string = json_config.get("alora_invocation_string")
     else:
         (
             model_args,
@@ -673,13 +673,11 @@ def parse_arguments(parser, json_config=None):
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
         quantization_method = additional.quantization_method
-        invocation_string = additional.invocation_string
+        alora_invocation_string = additional.alora_invocation_string
 
     if peft_method == peft_config.PEFT_METHOD.ALORA.value:
-        if invocation_string is None:
-            raise ValueError("invocation_string is required for aLoRA usage")
         tune_config = lora_config
-        setattr(tune_config, "alora_invocation_string", invocation_string)
+        setattr(tune_config, "alora_invocation_string", alora_invocation_string)
     elif peft_method == peft_config.PEFT_METHOD.LORA.value:
         tune_config = lora_config
     elif peft_method == peft_config.PEFT_METHOD.PT.value:

@@ -32,14 +32,3 @@ def is_fms_accelerate_available(
         if not _is_package_available(n):
             return False
     return True
-
-
-def is_alora_available() -> bool:
-    try:
-        # Third Party
-        from peft import LoraConfig  # pylint: disable=import-outside-toplevel
-
-        # Check if LoraConfig has the new Activated LoRA field
-        return hasattr(LoraConfig, "alora_invocation_tokens")
-    except ImportError:
-        return False
