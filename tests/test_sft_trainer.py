@@ -27,6 +27,7 @@ import tempfile
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
+from peft import LoraConfig as HFLoraConfig
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -96,7 +97,7 @@ from tuning.data.data_config import (
     load_and_validate_data_config,
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
-from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
@@ -147,15 +148,13 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
-try:  # Optional package
-    # Third Party
-    from alora.config import aLoraConfig
 
-    PEFT_ALORA_ARGS = aLoraConfig(
-        r=8, lora_alpha=32, lora_dropout=0.05, invocation_string="Label:"
-    )
-except ImportError:
-    pass
+INVOCATION_STR = "Label:"
+
+if hasattr(HFLoraConfig, "alora_invocation_tokens"):
+    PEFT_ALORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+else:
+    PEFT_ALORA_ARGS = None
 
 
 @pytest.mark.parametrize(
@@ -745,21 +744,24 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that" in output_inference
 
 
-@pytest.mark.skipif(
-    not is_alora_available(),
-    reason="Only runs if alora is installed",
-)
 @pytest.mark.parametrize(
     "target_modules,expected",
     target_modules_val_map,
     ids=["default", "custom_target_modules", "all_linear_target_modules"],
 )
 def test_run_causallm_alora_and_inference(request, target_modules, expected):
-    """Check if we can bootstrap and alora tune causallm models"""
+    """Check if we can bootstrap and alora tune causallm models via PEFT-native aLoRA."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
         train_args.output_dir = tempdir
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            MODEL_NAME, use_fast=True, legacy=True
+        )
+        base_alora_args.alora_invocation_tokens = tokenizer.encode(
+            INVOCATION_STR, add_special_tokens=False
+        )
 
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
@@ -775,16 +777,16 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         for module in expected:
             assert module in adapter_config.get("target_modules")
 
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
-        invocation_string = loaded_model.peft_model.peft_config[
-            loaded_model.peft_model.active_adapter
-        ].invocation_string
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "Simply put, the theory of relativity states that \n" + invocation_string,
-            max_new_tokens=50,
-        )
+        # aLoRA-specific: saved adapter config must contain the exact tokens
+        expected_tokens = tokenizer.encode(INVOCATION_STR, add_special_tokens=False)
+        assert adapter_config.get("alora_invocation_tokens") == expected_tokens
+
+        # Load tuned model (no special aLoRA wrapper/flag needed)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Inference must include the invocation string so aLoRA activates
+        prompt = "Simply put, the theory of relativity states that \n" + INVOCATION_STR
+        output_inference = loaded_model.run(prompt, max_new_tokens=50)
 
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that \n" in output_inference

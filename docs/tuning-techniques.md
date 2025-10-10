@@ -214,17 +214,17 @@ Activated LoRA (aLoRA) is a new low rank adapter architecture that allows for re
 
 [Github](https://github.com/IBM/activated-lora)
 
-**Usage** Usage is very similar to standard LoRA, with the key difference that an invocation_string must be specified so that the model knows when to turn on i.e "activate" the adapter weights. The model will scan any input strings (during training or at test time) for this invocation_string, and activate the adapter weights 1 token after the start of the sequence. If there are multiple instances of the invocation_string in the same input, it will activate at the last such instance.
+**Usage** Usage is very similar to standard LoRA, with the key difference that an alora_invocation_string must be specified so that the model knows when to turn on i.e "activate" the adapter weights. The model will scan any input strings (during training or at test time) for this alora_invocation_string, and activate the adapter weights 1 token after the start of the sequence. If there are multiple instances of the alora_invocation_string in the same input, it will activate at the last such instance.
 
 **Note** Often (not always) aLoRA requires higher rank (r) than LoRA. r=32 can be a good starting point for challenging tasks.
 
-**Installation** The Activated LoRA requirements are an optional install in pyproject.toml (activated-lora)
+**Installation** ALoRA support is provided via [HF PEFT](https://github.com/huggingface/peft) library later than this [patch](https://github.com/huggingface/peft/pull/2609)
 
 Set `peft_method` to `"alora"`. 
 
-You *must* pass in an invocation_string argument. This invocation_string *must be present* in both training data inputs and the input at test time. A good solution is to set invocation_string = response_template, this will ensure that every training input will have the invocation_string present. We keep these separate arguments for flexibility. It is most robust if the invocation_string begins and ends with special tokens.
+You *must* pass in an alora_invocation_string argument. This alora_invocation_string *must be present* in both training data inputs and the input at test time. A good solution is to set alora_invocation_string = response_template, this will ensure that every training input will have the alora_invocation_string present. We keep these separate arguments for flexibility. It is most robust if the alora_invocation_string begins and ends with special tokens.
 
-You can additionally pass any arguments from [aLoraConfig](https://github.com/IBM/activated-lora/blob/fms-hf-tuning/alora/config.py#L35), see the LoRA section for examples.
+You can additionally pass any arguments from `LoraConfig`, see the LoRA section for examples.
 
 Example command to run, here using the ([Granite Instruct response template](https://huggingface.co/ibm-granite/granite-3.0-8b-instruct/blob/main/tokenizer_config.json#L188)) as the invocation sequence:
 
@@ -236,9 +236,9 @@ python tuning/sft_trainer.py \
 --output_dir $OUTPUT_PATH \
 --num_train_epochs 40 \
 --per_device_train_batch_size 4 \
----learning_rate 1e-4 \
+--learning_rate 1e-4 \
 --response_template "<|start_of_role|>assistant<|end_of_role|>" \ #this example uses special tokens in the Granite tokenizer, adjust for other models
---invocation_string "<|start_of_role|>assistant<|end_of_role|>" \
+--alora_invocation_string "<|start_of_role|>assistant<|end_of_role|>" \
 --dataset_text_field "output" \
 --peft_method "alora" \
 --r 32 \
@@ -257,7 +257,7 @@ Equally you can pass in a JSON configuration for running tuning. See [build doc]
     "per_device_train_batch_size": 4,
     "learning_rate": 1e-4,
     "response_template": "<|start_of_role|>assistant<|end_of_role|>",
-    "invocation_string": "<|start_of_role|>assistant<|end_of_role|>",
+    "alora_invocation_string": "<|start_of_role|>assistant<|end_of_role|>",
     "dataset_text_field": "output",
     "peft_method": "alora",
     "r": 32,
@@ -306,15 +306,15 @@ class SaveBestModelCallback(TrainerCallback):
 Example inference:
 ```py
 # Load the model
-loaded_model = TunedCausalLM.load(ALORA_MODEL, BASE_MODEL_NAME, use_alora=True)
+loaded_model = TunedCausalLM.load(ALORA_MODEL, BASE_MODEL_NAME)
 
 # Retrieve the invocation string from the model config
-invocation_string = loaded_model.peft_model.peft_config[
+alora_invocation_string = loaded_model.peft_model.peft_config[
     loaded_model.peft_model.active_adapter
-].invocation_string
+].alora_invocation_string
 
 # In this case, we have the invocation string at the end of the input 
-input_string = "Simply put, the theory of relativity states that \n" + invocation_string
+input_string = "Simply put, the theory of relativity states that \n" + alora_invocation_string
 
 # Run inference on the text
 output_inference = loaded_model.run(

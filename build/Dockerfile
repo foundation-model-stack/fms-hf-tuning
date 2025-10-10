@@ -21,7 +21,6 @@ ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
-ARG ENABLE_ALORA=false
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
@@ -127,7 +126,6 @@ ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
 ARG ENABLE_MLFLOW
-ARG ENABLE_ALORA
 ARG ENABLE_SCANNER
 ARG ENABLE_CLEARML
 
@@ -177,10 +175,6 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
-    fi
-
-RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
-        python -m pip install --user "$(head bdist_name)[activated-lora]"; \
     fi
 
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \

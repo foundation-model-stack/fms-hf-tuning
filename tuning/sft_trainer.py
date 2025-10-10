@@ -161,19 +161,6 @@ def train(
             ] = resume_from_checkpoint
             odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
 
-    USE_ALORA = False
-    try:
-        # Third Party
-        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
-        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
-            aLoRAPeftModelForCausalLM,
-        )
-
-        if isinstance(peft_config, aLoraConfig):
-            USE_ALORA = True
-    except ImportError:
-        pass
-
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
         model_args.model_name_or_path == ""
@@ -375,6 +362,20 @@ def train(
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
 
+    # Convert legacy aLoRA string → token IDs (PEFT-native aLoRA)
+    if peft_config is not None and hasattr(peft_config, "alora_invocation_string"):
+        inv_str = getattr(peft_config, "alora_invocation_string")
+        if not inv_str:
+            raise ValueError(
+                "`--alora_invocation_string` is required when using --peft_method alora."
+            )
+        alora_tokens = tokenizer.encode(inv_str, add_special_tokens=False)
+        if not alora_tokens:
+            raise ValueError(
+                "`--alora_invocation_string` produced no tokens; check your tokenizer/template."
+            )
+        setattr(peft_config, "alora_invocation_tokens", alora_tokens)
+
     peft_config = get_hf_peft_config(
         task_type,
         peft_config,
@@ -462,21 +463,6 @@ def train(
         "dataset_kwargs": dataset_kwargs,
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
-
-    # activated LoRA
-    if USE_ALORA:
-        response_token_ids = (
-            tokenizer(
-                peft_config.invocation_string,
-                return_tensors="pt",
-                add_special_tokens=False,
-            )
-        )["input_ids"]
-        model = aLoRAPeftModelForCausalLM(
-            model, peft_config, response_token_ids=response_token_ids
-        )
-
-        peft_config = None
 
     if train_args.enable_reduce_loss_sum:
         TrainerClass = SumLossSFTTrainer
@@ -602,7 +588,7 @@ def get_parser():
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
     parser.add_argument(
-        "--invocation_string",
+        "--alora_invocation_string",
         type=str,
         default=None,
         help="Pass a invocation string that will be used to activate the aLoRA.\
@@ -665,7 +651,7 @@ def parse_arguments(parser, json_config=None):
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
         quantization_method = json_config.get("quantization_method")
-        invocation_string = json_config.get("invocation_string")
+        alora_invocation_string = json_config.get("alora_invocation_string")
     else:
         (
             model_args,
@@ -687,25 +673,11 @@ def parse_arguments(parser, json_config=None):
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
         quantization_method = additional.quantization_method
-        invocation_string = additional.invocation_string
+        alora_invocation_string = additional.alora_invocation_string
 
     if peft_method == peft_config.PEFT_METHOD.ALORA.value:
-        if invocation_string is None:
-            raise ValueError("invocation_string is not passed required for aLoRA usage")
-        try:
-            # Third Party
-            from alora.config import (  # pylint: disable=import-outside-toplevel
-                aLoraConfig,
-            )
-
-            tune_config = aLoraConfig(
-                **vars(lora_config), invocation_string=invocation_string
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "The alora package is required for this operation. "
-                "Please install it with pip install alora."
-            ) from exc
+        tune_config = lora_config
+        setattr(tune_config, "alora_invocation_string", alora_invocation_string)
     elif peft_method == peft_config.PEFT_METHOD.LORA.value:
         tune_config = lora_config
     elif peft_method == peft_config.PEFT_METHOD.PT.value:
@@ -863,7 +835,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(tune_config, LoraConfig):  # aLoraConfig subclasses LoraConfig
+    if isinstance(tune_config, LoraConfig):
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts

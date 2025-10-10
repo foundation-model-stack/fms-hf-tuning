@@ -30,7 +30,6 @@ ARG SOURCE_DIR=${WORKDIR}/fms-hf-tuning
 
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_AIM=true
-ARG ENABLE_ALORA=true
 ARG ENABLE_MLFLOW=true
 ARG ENABLE_SCANNER=true
 ARG ENABLE_CLEARML=true
@@ -61,9 +60,6 @@ RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m fms_acceleration.cli install fms_acceleration_odm; \
     fi
 
-RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[activated-lora]; \
-    fi
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         pip install --no-cache-dir ${SOURCE_DIR}[aim]; \
     fi
