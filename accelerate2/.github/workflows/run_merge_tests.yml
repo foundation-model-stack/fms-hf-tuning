@@ -1,0 +1,188 @@
+name: Self-hosted runner tests (push to "main")
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  TESTING_MOCKED_DATALOADERS: "1"
+  IS_GITHUB_CI: "1"
+
+jobs:
+  run_core_tests_single_gpu:
+    runs-on:
+      group: aws-g6-4xlarge-plus
+    env:
+      CUDA_VISIBLE_DEVICES: "0"
+    container:
+      image: huggingface/accelerate:gpu-nightly
+      options: --gpus all --shm-size "16gb"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install accelerate
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }};
+          pip install -e .[testing,test_trackers] -U;
+          pip install pytest-reportlog tabulate  ;
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run CLI tests (use make cli)
+        working-directory: accelerate
+        run: |
+          source activate accelerate;
+          make test_cli
+
+      - name: Run test on GPUs
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          make test
+      - name: Run examples on GPUs
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          pip uninstall comet_ml -y;
+          make test_examples
+
+      - name: Generate Report
+        working-directory: accelerate
+        if: always()
+        run: |
+          pip install tabulate;
+          python utils/log_reports.py >> $GITHUB_STEP_SUMMARY
+
+  run_deepspeed_tests_single_gpu:
+    runs-on:
+      group: aws-g6-4xlarge-plus
+    env:
+      CUDA_VISIBLE_DEVICES: "0"
+    container:
+      image: huggingface/accelerate:gpu-deepspeed-nightly
+      options: --gpus all --shm-size "16gb"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install accelerate
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }};
+          pip install -e .[testing,test_trackers] -U;
+          pip install pytest-reportlog tabulate  ;
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run test on GPUs
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          make test_deepspeed
+
+      - name: Generate Report
+        working-directory: accelerate
+        if: always()
+        run: |
+          pip install tabulate;
+          python utils/log_reports.py >> $GITHUB_STEP_SUMMARY
+
+  run_core_tests_multi_gpu:
+    runs-on:
+      group: aws-g6-12xlarge-plus
+    env:
+      CUDA_VISIBLE_DEVICES: 0,1
+    container:
+      image: huggingface/accelerate:gpu-nightly
+      options: --gpus all --shm-size "16gb"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Update clone
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }};
+          pip install -e .[testing,test_trackers] -U;
+          pip install pytest-reportlog tabulate
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run test on GPUs
+        working-directory: accelerate
+        run: |
+          source activate accelerate;
+          make test
+
+      - name: Run examples on GPUs
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          pip uninstall comet_ml -y;
+          make test_examples
+
+      - name: Generate Report
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          python utils/log_reports.py >> $GITHUB_STEP_SUMMARY
+
+  run_deepspeed_tests_multi_gpu:
+    runs-on:
+      group: aws-g6-12xlarge-plus
+    container:
+      image: huggingface/accelerate:gpu-deepspeed-nightly
+      options: --gpus all --shm-size "16gb"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install accelerate
+        run: |
+          source activate accelerate;
+          git clone https://github.com/huggingface/accelerate;
+          cd accelerate;
+          git checkout ${{ github.sha }};
+          pip install -e .[testing,test_trackers] -U;
+          pip install pytest-reportlog tabulate  ;
+
+      - name: Show installed libraries
+        run: |
+          source activate accelerate;
+          pip freeze
+
+      - name: Run test on GPUs
+        working-directory: accelerate
+        if: always()
+        run: |
+          source activate accelerate;
+          make test_deepspeed
+
+      - name: Generate Report
+        working-directory: accelerate
+        if: always()
+        run: |
+          pip install tabulate;
+          python utils/log_reports.py >> $GITHUB_STEP_SUMMARY

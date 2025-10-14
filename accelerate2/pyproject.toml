@@ -1,0 +1,43 @@
+[tool.ruff]
+line-length = 119
+target-version = "py39"
+
+[tool.ruff.lint]
+preview = true
+extend-select = [
+    "B009", # static getattr
+    "B010", # static setattr
+    "CPY", # Copyright
+    "E", # PEP8 errors
+    "F", # PEP8 formatting
+    "I", # Import sorting
+    "TID251", # Banned API
+    "UP", # Pyupgrade
+    "W", # PEP8 warnings
+]
+ignore = [
+    "E501", # Line length (handled by ruff-format)
+    "E741", # Ambiguous variable name
+    "W605", # Invalid escape sequence
+    "UP007", # X | Y type annotations
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+    "F401", # Ignore seemingly unused imports (they're meant for re-export)
+]
+"manim_animations/*" = ["ALL"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["accelerate"]
+
+[tool.ruff.format]
+exclude = [
+    "manim_animations/*"
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.getenv".msg = "Use os.environ instead"
+"os.putenv".msg = "Use os.environ instead"
+"os.unsetenv".msg = "Use os.environ instead"

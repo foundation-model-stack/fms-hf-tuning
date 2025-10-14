@@ -141,9 +141,9 @@ WORKDIR /tmp
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user build
 COPY --chown=${USER}:root tuning tuning
-COPY --chown=${USER}:root accelerate accelerate
-COPY --chown=${USER}:root transformers transformers
-COPY --chown=${USER}:root fms-acceleration fms-acceleration
+COPY --chown=${USER}:root accelerate2 accelerate2
+COPY --chown=${USER}:root transformers2 transformers2
+COPY --chown=${USER}:root fms-acceleration2 fms-acceleration2
 COPY .git .git
 COPY pyproject.toml pyproject.toml
 
@@ -170,11 +170,11 @@ RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
 # fms_acceleration_moe = Parallelized Mixture of Experts
 # fms_acceleration_odm = Online Data Mixing
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
-    python -m pip install --user ./fms-acceleration/plugins/framework; \
-    python -m pip install --user ./fms-acceleration/plugins/accelerated-moe; \
-    python -m pip install --user ./fms-acceleration/plugins/accelerated-peft; \
-    python -m pip install --user ./fms-acceleration/plugins/attention-and-distributed-packing; \
-    python -m pip install --user ./fms-acceleration/plugins/fused-ops-and-kernels; \
+    python -m pip install --user ./fms-acceleration2/plugins/framework; \
+    python -m pip install --user ./fms-acceleration2/plugins/accelerated-moe; \
+    python -m pip install --user ./fms-acceleration2/plugins/accelerated-peft; \
+    python -m pip install --user ./fms-acceleration2/plugins/attention-and-distributed-packing; \
+    python -m pip install --user ./fms-acceleration2/plugins/fused-ops-and-kernels; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
@@ -196,8 +196,8 @@ RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
     fi
 
-RUN python -m pip install --user ./accelerate
-RUN python -m pip install --user ./transformers
+RUN python -m pip install --user ./accelerate2
+RUN python -m pip install --user ./transformers2
 RUN python -m pip install --force-reinstall -v "triton==3.1.0"
 
     # Clean up the wheel module. It's only needed by flash-attn install
