@@ -246,15 +246,6 @@ def train(
             trainer_callbacks.append(cb)
             trackers.append(t)
 
-    # Now add trainer controller callbacks if requested
-    if (trainer_controller_args is not None) and (
-        trainer_controller_args.trainer_controller_config_file is not None
-    ):
-        tc_callback = TrainerControllerCallback(
-            trainer_controller_args.trainer_controller_config_file,
-        )
-        trainer_callbacks.append(tc_callback)
-
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
         for cb in additional_callbacks:
@@ -500,6 +491,8 @@ def train(
             model
         )
 
+    # Register fms-acceleration callbacks before Trainer Controller
+    # so that on_save() runs earlier for proper model unwrapping and checkpoint handling
     if framework is not None:
         accelerator = None if not is_accelerate_available() else trainer.accelerator
 
@@ -513,6 +506,14 @@ def train(
             save_model_dir=train_args.save_model_dir,
         ):
             trainer.add_callback(clb)
+
+    if (trainer_controller_args is not None) and (
+        trainer_controller_args.trainer_controller_config_file is not None
+    ):
+        tc_callback = TrainerControllerCallback(
+            trainer_controller_args.trainer_controller_config_file,
+        )
+        trainer.add_callback(tc_callback)
 
     trainer.train(resume_from_checkpoint)
     additional_metadata = {}
