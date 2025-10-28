@@ -590,7 +590,6 @@ class TrainerControllerCallback(TrainerCallback):
         hf_converted_path = os.path.join(base_path, "hf_converted_checkpoint")
 
         if os.path.isdir(hf_converted_path):
-            kwargs["path"] = hf_converted_path
             kwargs["hf_path"] = hf_converted_path
         else:
             kwargs["hf_path"] = base_path
