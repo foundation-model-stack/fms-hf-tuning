@@ -379,6 +379,22 @@ def train(
 
     added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
+    # If additional tokens are added, and we are doing LoRA
+    # we need to set the embedding layer as trainable
+    # and ensure that the weights are tied
+    # See https://github.ibm.com/ai-foundation/watson-fm-stack-tracker/issues/1673
+    # for more details
+    if added_tokens_dict and isinstance(peft_config, LoraConfig):
+        if getattr(added_tokens_dict, "num_new_tokens", 0) > 0:
+            modules_to_save = (getattr(peft_config, "modules_to_save", []) or [])
+            # If the initial model's weights are not tied,
+            # then we need to add both the embedding layer and the output layer
+            modules_to_save.extend(["embed_tokens", "lm_head"])
+            setattr(peft_config, "modules_to_save", modules_to_save)
+            # `ensure_weight_tying` will be ignored if weights are not tied
+            # https://github.com/huggingface/peft/blob/v0.18.0.rc0/src/peft/tuners/tuners_utils.py#L1230
+            setattr(peft_config, "ensure_weight_tying", True)
+
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)
