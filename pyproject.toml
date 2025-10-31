@@ -34,7 +34,7 @@ dependencies = [
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers<=0.22",
 "tqdm>=4.66.2,<5.0",
-"trl>=0.19.1,<0.20.0",
+"trl>=0.19.1,<0.25.0",
 "peft @ git+https://github.com/huggingface/peft.git@293aea5df6db240856a77f89955d1a89ce38b50d",
 "datasets>=4.0.0,<5.0.0",
 "simpleeval>=0.9.13,<2.0",
