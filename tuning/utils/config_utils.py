@@ -100,7 +100,16 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
 
         # Make sure that weight tying is not broken in case
         # the embedding layer is added as trainable under LoRA
-        if "embed_tokens" or "lm_head" in getattr(tuning_config, "modules_to_save", []) or []:
+        if any(
+            m in (getattr(tuning_config, "modules_to_save", []) or [])
+            for m in ("embed_tokens", "lm_head")
+        ):
+            setattr(tuning_config, "ensure_weight_tying", True)
+
+        if any(
+            m in (getattr(tuning_config, "target_modules", []) or [])
+            for m in ("embed_tokens", "lm_head")
+        ):
             setattr(tuning_config, "ensure_weight_tying", True)
 
         return tuning_config

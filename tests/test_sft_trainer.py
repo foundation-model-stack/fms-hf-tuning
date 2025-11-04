@@ -37,7 +37,10 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
+from tests.artifacts.language_models import (
+    MAYKEYE_TINY_LLAMA_CACHED,
+    TRL_INTERNAL_GEMMA_CACHED,
+)
 from tests.artifacts.predefined_data_configs import (
     CHAT_TEMPLATE_JINJA,
     DATA_CONFIG_DUPLICATE_COLUMNS,
@@ -828,6 +831,147 @@ def test_successful_lora_target_modules_default_from_main():
             "q_proj",
             "v_proj",
         }, "target_modules are not set to the default values."
+
+
+def test_run_causallm_lora_add_special_tokens():
+    """Check if embed layer is added as modules_to_save when special tokens are added"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        # with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = ["q_proj"]
+
+        # Updating the model path to use a model with
+        # tied word embeddings
+        base_model_args = copy.deepcopy(MODEL_ARGS)
+        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
+
+        # sample hugging face dataset id
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.add_special_tokens = [
+            "<|test_token_1|>",
+            "<|test_token_2|>",
+            "<|test_token_3|>",
+        ]
+
+        sft_trainer.train(base_model_args, data_args, train_args, base_lora_args)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+        tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint_path)
+
+        assert adapter_config.get("modules_to_save") is not None
+        assert "embed_tokens" in adapter_config.get("modules_to_save")
+
+        # Check if all special tokens passed are in tokenizer
+        for tok in data_args.add_special_tokens:
+            assert tok in tokenizer.vocab
+
+
+modules_to_save_val_map = [
+    (None, []),
+    (["embed_tokens"], ["embed_tokens"]),
+    (["lm_head"], ["embed_tokens"]),
+    (["embed_tokens", "lm_head"], ["embed_tokens"]),
+]
+
+
+@pytest.mark.parametrize(
+    "modules_to_save, expected",
+    modules_to_save_val_map,
+)
+def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expected):
+    """Check if a model with tied weights in modules to save is correctly trained"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = ["q_proj"]
+        base_lora_args.modules_to_save = modules_to_save
+
+        # Updating the model path to use a model with
+        # tied word embeddings
+        base_model_args = copy.deepcopy(MODEL_ARGS)
+        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
+
+        sft_trainer.train(base_model_args, DATA_ARGS, train_args, base_lora_args)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("modules_to_save")
+
+        # Load the model and merge it
+        loaded_model = TunedCausalLM.load(checkpoint_path, TRL_INTERNAL_GEMMA_CACHED)
+        merged_model = loaded_model.peft_model.merge_and_unload()
+
+        # In all the cases Embedding and the LM layer should not have diverged
+        embed_layer = merged_model.get_input_embeddings()
+        lm_layer = merged_model.get_output_embeddings()
+
+        assert torch.allclose(embed_layer.weight, lm_layer.weight)
+        assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
+
+
+target_modules_tie_val_map = [
+    (["embed_tokens"], ["embed_tokens", "lm_head"]),
+    (["lm_head"], ["embed_tokens", "lm_head"]),
+    (["embed_tokens", "lm_head"], ["embed_tokens", "lm_head"]),
+]
+
+
+@pytest.mark.parametrize(
+    "target_modules, expected",
+    target_modules_tie_val_map,
+)
+def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
+    """Check if a model with tied weights in target_modules is correctly trained"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = target_modules
+
+        # Updating the model path to use a model with
+        # tied word embeddings
+        base_model_args = copy.deepcopy(MODEL_ARGS)
+        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
+
+        sft_trainer.train(base_model_args, DATA_ARGS, train_args, base_lora_args)
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("target_modules")
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, TRL_INTERNAL_GEMMA_CACHED)
+
+        # In all the cases Embedding and the LM layer should not have diverged
+        embed_layer = loaded_model.peft_model.get_input_embeddings()
+        lm_layer = loaded_model.peft_model.get_output_embeddings()
+        d_embed = embed_layer.get_delta_weight("default")
+        d_lm = lm_layer.get_delta_weight("default")
+
+        assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
+        assert torch.allclose(
+            d_embed, d_lm, atol=1e-6
+        ), f"Max diff between deltas: {(d_embed - d_lm).abs().max()}"
 
 
 ############################# Finetuning Tests #############################

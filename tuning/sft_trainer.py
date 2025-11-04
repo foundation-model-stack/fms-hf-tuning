@@ -385,8 +385,11 @@ def train(
     # See https://github.ibm.com/ai-foundation/watson-fm-stack-tracker/issues/1673
     # for more details
     if added_tokens_dict and isinstance(peft_config, LoraConfig):
-        if getattr(added_tokens_dict, "num_new_tokens", 0) > 0:
-            modules_to_save = (getattr(peft_config, "modules_to_save", []) or [])
+        if added_tokens_dict.get("num_new_tokens", 0) > 0:
+            logger.info(
+                "Adding embed_tokens and lm_head as trainable modules due to vocab expansion"
+            )
+            modules_to_save = getattr(peft_config, "modules_to_save", []) or []
             # If the initial model's weights are not tied,
             # then we need to add both the embedding layer and the output layer
             modules_to_save.extend(["embed_tokens", "lm_head"])
