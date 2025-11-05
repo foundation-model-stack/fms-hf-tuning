@@ -27,7 +27,7 @@ ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
 
 ## Base Layer ##################################################################
-FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
+FROM registry.access.redhat.com/ubi9/ubi:9.6-1758184894 AS base
 
 ARG PYTHON_VERSION
 ARG USER
