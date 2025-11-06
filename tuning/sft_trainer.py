@@ -390,10 +390,18 @@ def train(
                 "Adding embed_tokens and lm_head as trainable modules due to vocab expansion"
             )
             modules_to_save = getattr(peft_config, "modules_to_save", []) or []
+            target_modules = getattr(peft_config, "target_modules", []) or []
+
             # If the initial model's weights are not tied,
             # then we need to add both the embedding layer and the output layer
-            modules_to_save.extend(["embed_tokens", "lm_head"])
-            setattr(peft_config, "modules_to_save", modules_to_save)
+            # If embedding layer or lm head is already targetted via `target_modules`
+            # then we skip adding it `modules_to_save` since it is already adapted
+            # for changes
+            if not any(m in target_modules for m in ("embed_tokens", "lm_head")):
+                modules_to_save.extend(["embed_tokens", "lm_head"])
+                setattr(peft_config, "modules_to_save", modules_to_save)
+
+            # This is safe to do for both tied and non-tied models
             # `ensure_weight_tying` will be ignored if weights are not tied
             # https://github.com/huggingface/peft/blob/v0.18.0.rc0/src/peft/tuners/tuners_utils.py#L1230
             setattr(peft_config, "ensure_weight_tying", True)

@@ -14,7 +14,7 @@
   "num_hidden_layers": 8,
   "pad_token_id": 0,
   "rms_norm_eps": 1e-06,
-  "tie_word_embeddings": false,
+  "tie_word_embeddings": true,
   "torch_dtype": "bfloat16",
   "transformers_version": "4.30.2",
   "use_cache": true,

@@ -37,10 +37,7 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.artifacts.language_models import (
-    MAYKEYE_TINY_LLAMA_CACHED,
-    TRL_INTERNAL_GEMMA_CACHED,
-)
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
     CHAT_TEMPLATE_JINJA,
     DATA_CONFIG_DUPLICATE_COLUMNS,
@@ -843,11 +840,6 @@ def test_run_causallm_lora_add_special_tokens():
         base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
         base_lora_args.target_modules = ["q_proj"]
 
-        # Updating the model path to use a model with
-        # tied word embeddings
-        base_model_args = copy.deepcopy(MODEL_ARGS)
-        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
-
         # sample hugging face dataset id
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.add_special_tokens = [
@@ -856,7 +848,7 @@ def test_run_causallm_lora_add_special_tokens():
             "<|test_token_3|>",
         ]
 
-        sft_trainer.train(base_model_args, data_args, train_args, base_lora_args)
+        sft_trainer.train(MODEL_ARGS, data_args, train_args, base_lora_args)
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -895,12 +887,7 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         base_lora_args.target_modules = ["q_proj"]
         base_lora_args.modules_to_save = modules_to_save
 
-        # Updating the model path to use a model with
-        # tied word embeddings
-        base_model_args = copy.deepcopy(MODEL_ARGS)
-        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
-
-        sft_trainer.train(base_model_args, DATA_ARGS, train_args, base_lora_args)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_lora_args)
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -912,7 +899,7 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
             assert module in adapter_config.get("modules_to_save")
 
         # Load the model and merge it
-        loaded_model = TunedCausalLM.load(checkpoint_path, TRL_INTERNAL_GEMMA_CACHED)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)
         merged_model = loaded_model.peft_model.merge_and_unload()
 
         # In all the cases Embedding and the LM layer should not have diverged
@@ -924,9 +911,9 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
 
 
 target_modules_tie_val_map = [
-    (["embed_tokens"], ["embed_tokens", "lm_head"]),
-    (["lm_head"], ["embed_tokens", "lm_head"]),
-    (["embed_tokens", "lm_head"], ["embed_tokens", "lm_head"]),
+    (["embed_tokens"], ["embed_tokens"]),
+    (["lm_head"], ["embed_tokens"]),
+    (["embed_tokens", "lm_head"], ["embed_tokens"]),
 ]
 
 
@@ -943,12 +930,7 @@ def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expect
         base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
         base_lora_args.target_modules = target_modules
 
-        # Updating the model path to use a model with
-        # tied word embeddings
-        base_model_args = copy.deepcopy(MODEL_ARGS)
-        base_model_args.model_name_or_path = TRL_INTERNAL_GEMMA_CACHED
-
-        sft_trainer.train(base_model_args, DATA_ARGS, train_args, base_lora_args)
+        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_lora_args)
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -960,7 +942,7 @@ def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expect
             assert module in adapter_config.get("target_modules")
 
         # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, TRL_INTERNAL_GEMMA_CACHED)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)
 
         # In all the cases Embedding and the LM layer should not have diverged
         embed_layer = loaded_model.peft_model.get_input_embeddings()
