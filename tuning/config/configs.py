@@ -61,6 +61,14 @@ class ModelArguments:
                 tokenizer classes."
         },
     )
+    flash_attn_implementation: Optional[str] = field(
+        default="flash_attention_2",
+        metadata={
+            "help": "Flash Attention implementation to choose.\
+                For almost all models don't need to pass or use default i.e. flash_attention_2.\
+                Requires use_flash_attn=True flag to be enabled."
+        },
+    )
 
 
 @dataclass
@@ -241,6 +249,13 @@ class TrainingArguments(transformers.TrainingArguments):
             By default, 'passive' level is set which keeps the \
             current log level for the Transformers library (which will be 'warning` by default) \
             Other possible values are 'debug', 'info', 'warning', 'error' and 'critical'"
+        },
+    )
+    optim: str = field(
+        default="adamw_torch",
+        metadata={
+            "help": "Pass optimizer name to use during training. \
+                Please only use the optimizers that are supported with HF transformers"
         },
     )
     enable_reduce_loss_sum: bool = field(

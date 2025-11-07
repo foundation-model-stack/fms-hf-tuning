@@ -18,4 +18,5 @@ from .attention_and_distributed_packing import AttentionAndDistributedPackingCon
 from .callbacks import get_additional_accel_framework_callbacks
 from .fast_moe import FastMoeConfig
 from .fused_ops_and_kernels import FusedOpsAndKernelsConfig
+from .odm import ODM, ODMConfig
 from .quantized_lora_config import QuantizedLoraConfig

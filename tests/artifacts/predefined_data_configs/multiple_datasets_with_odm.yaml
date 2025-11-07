@@ -1,0 +1,70 @@
+dataprocessor:
+    type: odm
+    sampling_stopping_strategy: first_exhausted # ignored
+    seed: 66
+    odm:
+      update_interval: 1 # update every step
+      sampling_interval: 1 # sample category for every sample
+      reward_type: validation_loss # uses eval loss of each dataset as reward
+      gamma: 0.1 # MAB hyper-parameter
+      eta: 0.2 # MAB hyper-parameter
+datasets:
+  - name: dataset_1
+    split:
+      train: 0.8
+      validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
+    sampling: 0.3 # used as starting weights for online data mixing
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output
+  - name: dataset_2
+    split:
+      train: 0.6
+      validation: 0.2 # validation set is also used in ODM reward computation when reward_type is validation_loss.
+    sampling: 0.4 # used as starting weights for online data mixing
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output
+  - name: dataset_3
+    split:
+      train: 0.4
+      validation: 0.1 # validation set is also used in ODM reward computation when reward_type is validation_loss.
+    sampling: 0.3 # used as starting weights for online data mixing
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output
+  - name: dataset_4
+    split:
+      train: 0.0
+      validation: 0.3 # validation set is also used in ODM reward computation when reward_type is validation_loss.
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_input_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            input_column_name: input
+            output_column_name: output

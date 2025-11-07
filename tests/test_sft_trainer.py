@@ -27,6 +27,7 @@ import tempfile
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
+from peft import LoraConfig as HFLoraConfig
 from transformers.trainer_callback import TrainerCallback
 import pytest
 import torch
@@ -38,8 +39,10 @@ from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
 from tests.artifacts.predefined_data_configs import (
+    CHAT_TEMPLATE_JINJA,
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
+    DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
     DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML,
     DATA_CONFIG_MULTITURN_CHAT_TOKENIZE_AND_MASKING_DATA_HANDLER,
     DATA_CONFIG_MULTITURN_DATA_YAML,
@@ -64,6 +67,7 @@ from tests.artifacts.testdata import (
     CUSTOM_TOKENIZER_TINYLLAMA,
     EMPTY_DATA,
     MALFORMATTED_DATA,
+    NESTFUL_DATA_INPUT_OUTPUT_JSONL,
     TWITTER_COMPLAINTS_DATA_ARROW,
     TWITTER_COMPLAINTS_DATA_DIR_JSON,
     TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_ARROW,
@@ -93,7 +97,7 @@ from tuning.data.data_config import (
     load_and_validate_data_config,
 )
 from tuning.data.data_handlers import DataHandler, DataHandlerType
-from tuning.utils.import_utils import is_alora_available, is_fms_accelerate_available
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
 
@@ -144,15 +148,13 @@ PEFT_PT_ARGS = peft_config.PromptTuningConfig(
 )
 
 PEFT_LORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
-try:  # Optional package
-    # Third Party
-    from alora.config import aLoraConfig
 
-    PEFT_ALORA_ARGS = aLoraConfig(
-        r=8, lora_alpha=32, lora_dropout=0.05, invocation_string="Label:"
-    )
-except ImportError:
-    pass
+INVOCATION_STR = "Label:"
+
+if hasattr(HFLoraConfig, "alora_invocation_tokens"):
+    PEFT_ALORA_ARGS = peft_config.LoraConfig(r=8, lora_alpha=32, lora_dropout=0.05)
+else:
+    PEFT_ALORA_ARGS = None
 
 
 @pytest.mark.parametrize(
@@ -407,6 +409,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -424,6 +427,7 @@ def test_parse_arguments_defaults(job_config):
         model_args,
         _,
         training_args,
+        _,
         _,
         _,
         _,
@@ -454,7 +458,9 @@ def test_parse_arguments_peft_method(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_pt)
+
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
 
     job_config_lora = copy.deepcopy(job_config)
@@ -465,6 +471,7 @@ def test_parse_arguments_peft_method(job_config):
         _,
         _,
         tune_config,
+        _,
         _,
         _,
         _,
@@ -737,21 +744,24 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that" in output_inference
 
 
-@pytest.mark.skipif(
-    not is_alora_available(),
-    reason="Only runs if alora is installed",
-)
 @pytest.mark.parametrize(
     "target_modules,expected",
     target_modules_val_map,
     ids=["default", "custom_target_modules", "all_linear_target_modules"],
 )
 def test_run_causallm_alora_and_inference(request, target_modules, expected):
-    """Check if we can bootstrap and alora tune causallm models"""
+    """Check if we can bootstrap and alora tune causallm models via PEFT-native aLoRA."""
     with tempfile.TemporaryDirectory() as tempdir:
         train_args = copy.deepcopy(TRAIN_ALORA_ARGS)
         train_args.output_dir = tempdir
         base_alora_args = copy.deepcopy(PEFT_ALORA_ARGS)
+
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            MODEL_NAME, use_fast=True, legacy=True
+        )
+        base_alora_args.alora_invocation_tokens = tokenizer.encode(
+            INVOCATION_STR, add_special_tokens=False
+        )
 
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
@@ -767,16 +777,16 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         for module in expected:
             assert module in adapter_config.get("target_modules")
 
-        # Load the model
-        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME, use_alora=True)
-        invocation_string = loaded_model.peft_model.peft_config[
-            loaded_model.peft_model.active_adapter
-        ].invocation_string
-        # Run inference on the text
-        output_inference = loaded_model.run(
-            "Simply put, the theory of relativity states that \n" + invocation_string,
-            max_new_tokens=50,
-        )
+        # aLoRA-specific: saved adapter config must contain the exact tokens
+        expected_tokens = tokenizer.encode(INVOCATION_STR, add_special_tokens=False)
+        assert adapter_config.get("alora_invocation_tokens") == expected_tokens
+
+        # Load tuned model (no special aLoRA wrapper/flag needed)
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Inference must include the invocation string so aLoRA activates
+        prompt = "Simply put, the theory of relativity states that \n" + INVOCATION_STR
+        output_inference = loaded_model.run(prompt, max_new_tokens=50)
 
         assert len(output_inference) > 0
         assert "Simply put, the theory of relativity states that \n" in output_inference
@@ -1508,6 +1518,42 @@ def test_data_config_chat_template_as_base64():
         data_config = load_and_validate_data_config(data_config_path)
 
 
+def test_data_config_chat_template_path():
+    base_cfg = DATA_CONFIG_MULTITURN_DATA_YAML
+    chat_template_path = CHAT_TEMPLATE_JINJA
+
+    with open(chat_template_path, "r", encoding="utf-8") as f:
+        expected_template = f.read()
+
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml") as tmp_cfg:
+        with open(base_cfg, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+
+        dp = cfg.get("dataprocessor", {}) or {}
+        dp.pop("chat_template", None)
+        dp["chat_template_path"] = chat_template_path
+        cfg["dataprocessor"] = dp
+
+        for d in cfg.get("datasets", []):
+            d["data_paths"] = [TWITTER_COMPLAINTS_DATA_JSON]
+
+        yaml.safe_dump(cfg, tmp_cfg)
+        mod_cfg_path = tmp_cfg.name
+
+    data_config = load_and_validate_data_config(mod_cfg_path)
+
+    assert (
+        data_config.dataprocessor.chat_template == expected_template
+    ), "chat_template should equal the contents of CHAT_TEMPLATE_JINJA"
+    assert data_config.dataprocessor.chat_template_path is not None
+    assert os.path.isabs(
+        data_config.dataprocessor.chat_template_path
+    ), "stored chat_template_path should be absolute"
+    assert os.path.exists(
+        data_config.dataprocessor.chat_template_path
+    ), "resolved chat_template_path should exist"
+
+
 @pytest.mark.parametrize(
     "data_args",
     [
@@ -2141,3 +2187,209 @@ def test_run_by_passing_additional_data_handlers():
             },
         )
         _validate_training(tempdir)
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname, reward_type",
+    [
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "entropy",
+        ),
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "train_loss",
+        ),
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "validation_loss",
+        ),
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "ENTROPY3_VARENT1",
+        ),
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "ENTROPY_LAST_TOKEN",
+        ),
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "GRADNORM",
+        ),
+    ],
+)
+def test_online_data_mixing_plugin_sample_training(
+    datafiles, datasetconfigname, reward_type
+):
+    """Ensure fms_acceleration_odm plugin does a sample training without failing"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                data["dataprocessor"]["odm"]["reward_type"] = reward_type
+                data["datasets"] = data["datasets"][:2]
+                sampling_weights = [0.4, 0.6]
+                i = 0
+                for d, df in zip(data["datasets"], datafiles):
+                    d["data_paths"] = [df]
+                    d["sampling"] = sampling_weights[i]
+                    i += 1
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.logging_strategy = "steps"
+        train_args.max_steps = 2
+        train_args.eval_strategy = "steps"
+        train_args.eval_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+        output_inference = loaded_model.run(
+            "It takes 10 days for digging a trench of 100 m long, "
+            "50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m "
+            "deep can be dug in 30 days ?",
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert (
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. "
+            "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
+            in output_inference
+        ), f"{output_inference} does not include the prompt"
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
+@pytest.mark.parametrize(
+    "datafiles, datasetconfigname, reward_type",
+    [
+        (
+            [
+                NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+                TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            ],
+            DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
+            "train_loss",
+        ),
+    ],
+)
+def test_online_data_mixing_plugin_sample_training_no_validation_split(
+    datafiles, datasetconfigname, reward_type
+):
+    """Ensure fms_acceleration_odm plugin does a sample training without
+    failing when on validation set is given"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                data["datasets"] = data["datasets"][:2]
+                data["dataprocessor"]["odm"]["reward_type"] = reward_type
+                i = 0
+                sampling_weights = [0.4, 0.6]
+                for d, df in zip(data["datasets"], datafiles):
+                    d["data_paths"] = [df]
+                    d["sampling"] = sampling_weights[i]
+                    del d["split"]
+                    i += 1
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.logging_strategy = "steps"
+        train_args.output_dir = tempdir
+        train_args.max_steps = 2
+        train_args.eval_strategy = "steps"
+        train_args.eval_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference
+
+        output_inference = loaded_model.run(
+            "It takes 10 days for digging a trench of 100 m long, "
+            "50 m broad and 10 m deep. What length of trench,\n25 m broad and 15 m "
+            "deep can be dug in 30 days ?",
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert (
+            "It takes 10 days for digging a trench of 100 m long, 50 m broad and 10 m deep. "
+            "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
+            in output_inference
+        ), f"{output_inference} does not include the prompt"

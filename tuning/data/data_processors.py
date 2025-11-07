@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 import logging
 import os
 
@@ -146,7 +146,7 @@ class DataPreProcessor:
             load_path = builder if builder else data_path
 
             try:
-                return datasets.load_dataset(path=load_path, **load_kwargs)
+                return datasets.load_dataset(load_path, **load_kwargs)
             except DatasetNotFoundError as e:
                 # Reraise with a more context-specific message if needed
                 raise e
@@ -452,10 +452,9 @@ class DataPreProcessor:
         )
         return split_datasets
 
-    def _process_dataset_configs(
+    def _prepare_processed_datasets(
         self, dataset_configs: List[DataSetConfig]
-    ) -> Union[Dataset, IterableDataset]:
-
+    ) -> List[Tuple[DataSetConfig, Union[IterableDataset, Dataset]]]:
         if not dataset_configs:
             raise ValueError(
                 "No dataset configs provided. Provided Dataset configs is None."
@@ -504,6 +503,34 @@ class DataPreProcessor:
 
             # Append the processed datasets to the final dict
             processed_datasets.append((d, raw_datasets))
+        return processed_datasets
+
+    def _validate_sampling_ratios(self, sampling_ratios: List[float], train_datasets):
+        if len(sampling_ratios) > 0:
+            if len(sampling_ratios) < len(train_datasets):
+                raise ValueError(
+                    "Sampling probability should be specified for all datasets with train split"
+                )
+            if len(sampling_ratios) > len(train_datasets):
+                raise ValueError(
+                    "Sampling probability should only be specified for datasets with train split"
+                )
+            if sum(p for p in sampling_ratios) != 1:
+                raise ValueError(
+                    "Sampling probabilities for train datasets don't sum to 1"
+                )
+            return True
+
+    def _process_dataset_configs(
+        self, dataset_configs: List[DataSetConfig]
+    ) -> Tuple[
+        Union[Dataset, IterableDataset],
+        Union[Dataset, IterableDataset],
+        Dict[str, float],
+    ]:
+        train_split = "train"  # default
+        eval_split = "test"
+        processed_datasets = self._prepare_processed_datasets(dataset_configs)
 
         train_datasets = []
         train_sampling_probabilities = []
@@ -525,25 +552,9 @@ class DataPreProcessor:
             )
 
         # quick check to see if we are sampling and if we need to throw error.
-        if len(train_sampling_probabilities) > 0:
-            if len(train_sampling_probabilities) < len(train_datasets):
-                raise ValueError(
-                    "Sampling probability should be specified for all datasets with train split"
-                )
-            if len(train_sampling_probabilities) > len(train_datasets):
-                raise ValueError(
-                    "Sampling probability should only be specified for datasets with train split"
-                )
-            if sum(p for p in train_sampling_probabilities) != 1:
-                raise ValueError(
-                    "Sampling probabilities for train datasets don't sum to 1"
-                )
-            sample_datasets = True
-            logger.info(
-                "Sampling ratios are specified; only train datasets will be interleaved."
-            )
-        else:
-            sample_datasets = False
+        sample_datasets = self._validate_sampling_ratios(
+            train_sampling_probabilities, train_datasets
+        )
 
         # Ensure again datasets are aligned before interleaving or concatenating
         maybe_align_datasets(train_datasets)
@@ -588,11 +599,15 @@ class DataPreProcessor:
         if eval_dataset and isinstance(eval_dataset, IterableDataset):
             eval_dataset = resolve_iterable_dataset_features(eval_dataset)
 
-        return train_dataset, eval_dataset
+        return train_dataset, eval_dataset, None
 
     def process_dataset_configs(
         self, dataset_configs: List[DataSetConfig]
-    ) -> Union[Dataset, IterableDataset]:
+    ) -> Tuple[
+        Union[Dataset, IterableDataset],
+        Union[Dataset, IterableDataset],
+        Dict[str, float],
+    ]:
         train_dataset = eval_dataset = None
 
         # Use partial state as recommended by HF documentation for process control
@@ -605,12 +620,43 @@ class DataPreProcessor:
         # as we want to reuse HF cache and not redo computation on all nodes
         # For rationale see https://github.com/huggingface/trl/pull/3106
         with state.main_process_first():
-            train_dataset, eval_dataset = self._process_dataset_configs(dataset_configs)
+            (
+                train_dataset,
+                eval_dataset,
+                sampling_weights,
+            ) = self._process_dataset_configs(dataset_configs)
 
         logger.info("Processed train dataset {}".format(train_dataset))
         logger.info("Processed eval dataset {}".format(eval_dataset))
 
-        return train_dataset, eval_dataset
+        return train_dataset, eval_dataset, sampling_weights
+
+
+class ODMDataPreProcessor(DataPreProcessor):
+    def _process_dataset_configs(
+        self, dataset_configs: List[DataSetConfig]
+    ) -> Tuple[
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, Union[Dataset, IterableDataset]],
+        Dict[str, float],
+    ]:
+        processed_datasets = self._prepare_processed_datasets(dataset_configs)
+        train_split = "train"
+        eval_split = "test"
+        train_datasets_dict = {}
+        eval_datasets_dict = {}
+        sampling_weights_dict = {}
+        for d, raw in processed_datasets:
+            if d.sampling is not None and d.sampling > 0.0:
+                sampling_weights_dict[d.name] = d.sampling
+            if train_split in raw:
+                train_datasets_dict[d.name] = raw[train_split]
+            if eval_split in raw:
+                eval_datasets_dict[d.name] = raw[eval_split]
+        self._validate_sampling_ratios(
+            sampling_weights_dict.values(), train_datasets_dict.values()
+        )
+        return train_datasets_dict, eval_datasets_dict, sampling_weights_dict
 
 
 def get_datapreprocessor(
@@ -619,7 +665,10 @@ def get_datapreprocessor(
     processor: AutoProcessor = None,
     additional_data_handlers: Dict[str, DataHandler] = None,
 ) -> DataPreProcessor:
-    data_processor = DataPreProcessor(
+    data_processor_cls = DataPreProcessor
+    if processor_config.type == "odm":
+        data_processor_cls = ODMDataPreProcessor
+    data_processor = data_processor_cls(
         processor_config=processor_config,
         tokenizer=tokenizer,
         processor=processor,

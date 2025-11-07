@@ -14,7 +14,7 @@
 
 # Standard
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 import logging
 
 # Third Party
@@ -24,6 +24,7 @@ from datasets import Dataset, IterableDataset
 from transformers import AutoProcessor, AutoTokenizer
 
 # Local
+from tuning.config.acceleration_configs.odm import ODMConfig
 from tuning.config.configs import DataArguments, TrainingArguments
 from tuning.data.data_config import (
     DataHandlerConfig,
@@ -34,6 +35,7 @@ from tuning.data.data_config import (
 from tuning.data.data_handlers import DataHandler
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import get_datapreprocessor
+from tuning.utils.import_utils import is_fms_accelerate_available
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +89,12 @@ def process_dataconfig_file(
         is_multipack: A bool representing is Multipack plugin is enabled.
                          Defauts to False.
     Returns:
-        Tuple(Dataset, Dataset, str)
+        Tuple(Dataset, Dataset, str, Dict[str, float])
             tuple containing
             train_dataset (Dataset/IterableDataset),
             eval_dataset (Dataset/IterableDataset),
             dataset_text_field (str),
+            sampling weights
     """
 
     data_config = load_and_validate_data_config(data_args.data_config_path)
@@ -151,15 +154,19 @@ def process_dataconfig_file(
             )
         tokenizer.chat_template = data_processor.processor_config.chat_template
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        data_config.datasets
-    )
+    (
+        train_dataset,
+        eval_dataset,
+        sampling_weights,
+    ) = data_processor.process_dataset_configs(data_config.datasets)
 
-    return (train_dataset, eval_dataset, data_args.dataset_text_field)
+    return (train_dataset, eval_dataset, data_args.dataset_text_field, sampling_weights)
 
 
 # Data Format 1: Pretokenized Data
-def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
+def _get_pretokenized_dataset_handlers(
+    data_args: DataArguments, is_eval_present, is_eval_tokenized
+):
 
     # if the provided train dataset is pretokenized
     # however user provides formatting flags, error out
@@ -168,6 +175,7 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
         or data_args.data_formatter_template
         or data_args.dataset_text_field
         or data_args.instruction_template
+        or data_args.dataset_conversation_field
     ):
         raise ValueError(
             "fields response_template, data_formatter_template,"
@@ -177,7 +185,7 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
     # if the train dataset is pretokenized
     # ensure validation dataset is pretokenized otherwise error out
-    if is_eval_tokenized:
+    if is_eval_present and not is_eval_tokenized:
         raise ValueError(
             "validation data should be pretokenized to be used \
             along with pretokenized train data"
@@ -189,7 +197,9 @@ def _get_pretokenized_dataset_handlers(data_args, is_eval_tokenized):
 
 ### Data format 2
 # pylint: disable=unused-argument
-def _get_dataset_formatting_handlers(data_args, packing, is_padding_free=False):
+def _get_dataset_formatting_handlers(
+    data_args: DataArguments, packing, is_padding_free=False
+):
 
     if data_args.response_template is None:
         if packing is False:
@@ -253,7 +263,7 @@ def _get_chat_dataset_handlers(data_args, tokenizer_kwargs):
     fn_kwargs["formatted_text_column_name"] = data_args.dataset_text_field
     fn_kwargs["tokenizer_kwargs"] = tokenizer_kwargs
     if data_args.dataset_conversation_field is not None:
-        fn_kwargs["conversation_column"] = data_args.dataset_conversation_field
+        fn_kwargs["conversation_column_name"] = data_args.dataset_conversation_field
 
     kwargs = {"fn_kwargs": fn_kwargs, "batched": False, "remove_columns": "all"}
 
@@ -284,14 +294,14 @@ def _get_default_dataset_handlers(data_args, tokenizer_kwargs):
 
 
 ### Vsion Data Format
-def _get_vision_dataset_handlers(data_args, processor_kwargs):
+def _get_vision_dataset_handlers(data_args: DataArguments, processor_kwargs):
 
     handlers = []
 
     # First data handler configuration
     handler_fn_kwargs1 = {
-        "dataset_text_field": data_args.dataset_text_field,
-        "conversation_column": data_args.dataset_text_field,
+        "formatted_text_column_name": data_args.dataset_text_field,
+        "conversation_column_name": data_args.dataset_conversation_field,
     }
     handler_kwargs1 = {
         "fn_kwargs": handler_fn_kwargs1,
@@ -403,7 +413,7 @@ def _process_raw_data_args(
     if is_traindata_tokenized:
         # Data Format 1: Pretokenized Data
         handlers, dataset_text_field = _get_pretokenized_dataset_handlers(
-            data_args, (is_eval_dataset_present and not is_evaldata_tokenized)
+            data_args, is_eval_dataset_present, is_evaldata_tokenized
         )
     elif processor and data_args.dataset_text_field and data_args.dataset_image_field:
 
@@ -438,11 +448,13 @@ def _process_raw_data_args(
     if is_eval_dataset_present:
         dataset_configs.append(eval_dataset_config)
 
-    train_dataset, eval_dataset = data_processor.process_dataset_configs(
-        dataset_configs
-    )
+    (
+        train_dataset,
+        eval_dataset,
+        sampling_weights,
+    ) = data_processor.process_dataset_configs(dataset_configs)
 
-    return (train_dataset, eval_dataset, dataset_text_field)
+    return (train_dataset, eval_dataset, dataset_text_field, sampling_weights)
 
 
 def dump_dataset(
@@ -486,6 +498,73 @@ def dump_dataset(
         raise RuntimeError(f"Failed to dump dataset due to error {e}") from e
 
 
+def setup_train_dataset_for_odm(
+    data_args: DataArguments,
+    tokenizer: AutoTokenizer,
+    train_args: TrainingArguments,
+    is_padding_free: bool = False,
+    processor: AutoProcessor = None,
+    odm_config: ODMConfig = None,
+    train_dataset: Dict = None,
+    reward_dataset: Dict = None,  # eval_dataset is used for reward computation
+    max_seq_length: str = None,
+    sampling_weights: List[float] = None,  # cold start sampling weights for ODM
+):
+    # pylint: disable=import-outside-toplevel
+    if not is_fms_accelerate_available(plugins="odm"):
+        raise ImportError(
+            "use of odm data config feature requires"
+            "installation of fms_acceleration_odm package"
+        )
+    # Third Party
+    # pylint: disable=import-error
+    from fms_acceleration_odm import OnlineMixingDataset
+
+    collators = {}
+    eval_collators = {}
+    for k, v in train_dataset.items():
+        is_tokenized_dataset = is_pretokenized_dataset(v)
+        collators[k] = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+        data_collator = collators[k]
+    for k, v in reward_dataset.items():
+        is_tokenized_dataset = is_pretokenized_dataset(v)
+        eval_collators[k] = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+
+    train_dataset = OnlineMixingDataset(
+        train_dataset,
+        collators,
+        reward_dataset,
+        eval_collators,
+        sampling_weights,
+        gamma=odm_config.odm.gamma,
+        eta=odm_config.odm.eta,
+        output_dir=train_args.output_dir,
+        sampling_interval=odm_config.odm.sampling_interval,
+        eval_batch_size=train_args.per_device_eval_batch_size,
+        reward_type=odm_config.odm.reward_type,
+    )
+    train_args.accelerator_config = {"split_batches": True}
+    return (True, train_dataset, data_collator)
+
+
 # If a data config file is provided, load it to get the training dataset.
 # - Assumes only the training dataset is specified in the config file.
 # - Expects a complete and valid data config file from the user.
@@ -500,6 +579,7 @@ def process_dataargs(
     is_padding_free: bool = False,
     processor: AutoProcessor = None,
     is_multipack: bool = False,
+    odm_config: ODMConfig = None,
 ):
     """
     Args:
@@ -551,7 +631,12 @@ def process_dataargs(
         )
 
     if data_args.data_config_path:
-        train_dataset, eval_dataset, dataset_text_field = process_dataconfig_file(
+        (
+            train_dataset,
+            eval_dataset,
+            dataset_text_field,
+            sampling_weights,
+        ) = process_dataconfig_file(
             data_args,
             train_args,
             tokenizer,
@@ -561,7 +646,12 @@ def process_dataargs(
             is_padding_free,
         )
     else:
-        train_dataset, eval_dataset, dataset_text_field = _process_raw_data_args(
+        (
+            train_dataset,
+            eval_dataset,
+            dataset_text_field,
+            sampling_weights,
+        ) = _process_raw_data_args(
             data_args,
             tokenizer,
             train_args.packing,
@@ -605,23 +695,41 @@ def process_dataargs(
         )
         return (train_dataset, eval_dataset, None, None, None, None)
 
-    # Note: This check should not be removed.
-    #       Its important to recompute this post handling to
-    #       check if we already tokenized the dataset or not.
-    is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
-
-    data_collator = get_data_collator(
-        train_args.packing,
-        data_args.response_template,
-        tokenizer,
-        is_tokenized_dataset,
-        max_seq_length,
-        data_args.instruction_template,
-        is_padding_free=is_padding_free,
-        processor=processor,
-    )
-
     dataset_kwargs = {}
+    data_collator = None
+    if odm_config:
+        (
+            dataset_kwargs["skip_prepare_dataset"],
+            train_dataset,
+            data_collator,
+        ) = setup_train_dataset_for_odm(
+            data_args,
+            tokenizer,
+            train_args,
+            is_padding_free,
+            processor,
+            odm_config,
+            train_dataset,
+            eval_dataset,
+            max_seq_length,
+            sampling_weights,
+        )
+    else:
+        # Note: This check should not be removed.
+        #       Its important to recompute this post handling to
+        #       check if we already tokenized the dataset or not.
+        is_tokenized_dataset = is_pretokenized_dataset(train_dataset or eval_dataset)
+        data_collator = get_data_collator(
+            train_args.packing,
+            data_args.response_template,
+            tokenizer,
+            is_tokenized_dataset,
+            max_seq_length,
+            data_args.instruction_template,
+            is_padding_free=is_padding_free,
+            processor=processor,
+        )
+
     # For vision model tuning prepare_dataset is skipped.
     if processor is not None:
         dataset_kwargs["skip_prepare_dataset"] = True

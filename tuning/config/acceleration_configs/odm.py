@@ -13,22 +13,29 @@
 # limitations under the License.
 
 # Standard
-from typing import List, Union
+from dataclasses import dataclass
+from typing import Union
 
-# Third Party
-from transformers.utils.import_utils import _is_package_available
+# Local
+from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 
 
-def is_fms_accelerate_available(
-    plugins: Union[str, List[str]] = None, package_name: str = "fms_acceleration"
-):
-    names = [package_name]
-    if plugins is not None:
-        if isinstance(plugins, str):
-            plugins = [plugins]
-        names.extend([package_name + "_" + x for x in plugins])
+@parsable_dataclass
+@dataclass
+class ODM:
+    update_interval: int = None
+    sampling_interval: int = None
+    reward_type: str = None
+    gamma: float = 0.1
+    eta: float = 0.1
+    resume_from_checkpoint: Union[bool, str] = False
 
-    for n in names:
-        if not _is_package_available(n):
-            return False
-    return True
+
+@dataclass
+class ODMConfig:
+
+    odm: ODM = None
+
+    def __post_init__(self):
+        # ensure nested dataclasses initialized
+        ensure_nested_dataclasses_initialized(self)
