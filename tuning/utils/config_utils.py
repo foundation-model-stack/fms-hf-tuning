@@ -20,7 +20,7 @@ import os
 import pickle
 
 # Third Party
-from peft import LoraConfig, PromptTuningConfig
+from peft import PromptTuningConfig as HFPromptTuningConfig
 
 # Local
 from tuning.config import peft_config
@@ -41,7 +41,7 @@ def update_config(config, **kwargs):
                     if hasattr(config, param_name):
                         setattr(config, param_name, v)
                     else:
-                        # In case of specialized config we can warm user
+                        # In case of specialized config we can warn user
                         print(f"Warning: {config_name} does not accept parameter: {k}")
 
 
@@ -50,7 +50,7 @@ def create_tuning_config(peft_method, **kwargs):
     Args:
         peft_method: str
            lora, pt or None
-        kawrgs: parameters to initialize library configs with
+        kwargs: parameters to initialize library configs with
      Return:
         peft_config.LoraConfig | peft_config.PromptTuningConfig | None
     """
@@ -61,22 +61,10 @@ def create_tuning_config(peft_method, **kwargs):
         "pt",
         "None",
     ], f"peft config {peft_method} not defined in peft.py"
-    if peft_method == "alora":
-        try:
-            # Third Party
-            from alora.config import (  # pylint: disable=import-outside-toplevel
-                aLoraConfig,
-            )
-
-            tune_config = aLoraConfig()
-            update_config(tune_config, **kwargs)
-        except ImportError as exc:
-            raise ImportError(
-                "alora package is required for this operation. "
-                "Please install it with pip install alora."
-            ) from exc
-
-    elif peft_method == "lora":
+    if peft_method in (
+        peft_config.PEFT_METHOD.ALORA.value,
+        peft_config.PEFT_METHOD.LORA.value,
+    ):
         tune_config = peft_config.LoraConfig()
         update_config(tune_config, **kwargs)
     elif peft_method == "pt":
@@ -95,28 +83,24 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
         tokenizer_name_or_path: str
     Return: HF PEFT config or None
     """
-    USE_ALORA = False
-    try:
-        # Third Party
-        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
+    if isinstance(tuning_config, peft_config.LoraConfig):
+        if getattr(tuning_config, "target_modules", None) == ["all-linear"]:
+            tuning_config.target_modules = "all-linear"
 
-        if isinstance(tuning_config, aLoraConfig):
-            USE_ALORA = True
-    except ImportError:
-        pass
-    if USE_ALORA:
-        alora_config = tuning_config
-        if alora_config.target_modules == ["all-linear"]:
-            alora_config.target_modules = "all-linear"
-        alora_config.task_type = task_type
-        hf_peft_config = alora_config
-    elif isinstance(tuning_config, peft_config.LoraConfig):
-        lora_config = asdict(tuning_config)
-        if lora_config["target_modules"] == ["all-linear"]:
-            lora_config["target_modules"] = "all-linear"
-        hf_peft_config = LoraConfig(task_type=task_type, **lora_config)
-    elif isinstance(tuning_config, peft_config.PromptTuningConfig):
-        hf_peft_config = PromptTuningConfig(
+        if getattr(tuning_config, "task_type", None) in (None, ""):
+            tuning_config.task_type = task_type
+
+        if getattr(tuning_config, "alora_invocation_tokens", None):
+            if not tuning_config.alora_invocation_tokens:
+                raise ValueError("alora_invocation_tokens is set but empty.")
+            tuning_config.task_type = "CAUSAL_LM"
+
+        if hasattr(tuning_config, "alora_invocation_string"):
+            delattr(tuning_config, "alora_invocation_string")
+        return tuning_config
+
+    if isinstance(tuning_config, peft_config.PromptTuningConfig):
+        hf_peft_config = HFPromptTuningConfig(
             task_type=task_type,
             tokenizer_name_or_path=tokenizer_name_or_path,
             **asdict(tuning_config),

@@ -585,6 +585,15 @@ class TrainerControllerCallback(TrainerCallback):
             kwargs["path"] = f"{args.output_dir}/checkpoint-{state.global_step}"
         if "is_final" not in kwargs:
             kwargs["is_final"] = False
+
+        base_path = kwargs["path"]
+        hf_converted_path = os.path.join(base_path, "hf_converted_checkpoint")
+
+        if os.path.isdir(hf_converted_path):
+            kwargs["hf_path"] = hf_converted_path
+        else:
+            kwargs["hf_path"] = base_path
+
         self._actions_on_event(event_name="on_save", **kwargs)
 
     def on_step_begin(
