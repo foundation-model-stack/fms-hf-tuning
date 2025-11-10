@@ -768,7 +768,7 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, IterableDataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1017,7 +1017,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1107,7 +1107,7 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1258,7 +1258,7 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1330,7 +1330,7 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)
@@ -1831,7 +1831,9 @@ def test_process_dataset_configs(datafile, column_names, datasetconfigname):
         tokenizer=tokenizer,
     )
     datasetconfig = [DataSetConfig(name=datasetconfigname, data_paths=[datafile])]
-    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _, _ = processor.process_dataset_configs(
+        dataset_configs=datasetconfig
+    )
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == column_names
@@ -1953,7 +1955,9 @@ def test_rename_and_select_dataset_columns(
             name=datasetconfigname, data_paths=data_paths, data_handlers=handlers
         )
     ]
-    train_dataset, _ = processor.process_dataset_configs(dataset_configs=datasetconfig)
+    train_dataset, _, _ = processor.process_dataset_configs(
+        dataset_configs=datasetconfig
+    )
 
     assert isinstance(train_dataset, Dataset)
     assert set(train_dataset.column_names) == set(final)

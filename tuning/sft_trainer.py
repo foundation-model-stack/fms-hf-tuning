@@ -42,14 +42,17 @@ import transformers
 # Local
 from tuning.config import configs, peft_config
 from tuning.config.acceleration_configs import (
+    ODM,
     AccelerationFrameworkConfig,
     AttentionAndDistributedPackingConfig,
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
+    ODMConfig,
     QuantizedLoraConfig,
     get_additional_accel_framework_callbacks,
 )
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.data.data_config import load_and_validate_data_config
 from tuning.data.data_handlers import DataHandler
 from tuning.data.setup_dataprocessor import process_dataargs
 from tuning.data.tokenizer_utils import setup_tokenizer
@@ -71,9 +74,10 @@ def train(
     data_args: configs.DataArguments,
     train_args: configs.TrainingArguments,
     peft_config: Optional[  # pylint: disable=redefined-outer-name
-        Union[peft_config.LoraConfig, LoraConfig, peft_config.PromptTuningConfig]
+        Union[LoraConfig, peft_config.PromptTuningConfig]
     ] = None,
-    trainer_controller_args: configs.TrainerControllerArguments = None,
+    quantization_config: Optional[peft_config.Mxfp4Config] = None,
+    trainer_controller_args: TrainerControllerCallback = None,
     tracker_configs: Optional[TrackerConfigs] = TrackerConfigs(),
     additional_callbacks: Optional[List[TrainerCallback]] = None,
     exp_metadata: Optional[Dict] = None,
@@ -91,11 +95,11 @@ def train(
         model_args: tuning.config.configs.ModelArguments
         data_args: tuning.config.configs.DataArguments
         train_args: tuning.config.configs.TrainingArguments
-        peft_config: peft_config.LoraConfig for Lora tuning | \
-        LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
+        peft_config: LoraConfig (peft.LoraConfig): for activated Lora (aLoRA) tuning | \
         peft_config.PromptTuningConfig for prompt tuning | \
-        None for fine tuning
+        None for full fine tuning
             The peft configuration to pass to trainer
+        peft_config.mxfp4config for working with MXFP4 quantized models \
         trainer_control_args: configs.TrainerControllerArguments \
             for controlling the training loop using policy rules
         tracker_configs: An instance of tuning.config.tracker_configs.TrackerConfigs \
@@ -108,7 +112,8 @@ def train(
                               tracker with automatically be added.
         exp_metadata: Dict of key value pairs passed to train to be recoreded by the tracker.
         quantized_lora_config: tuning.config.acceleration_configs.QuantizedLoraConfig \
-            Should be used in combination with peft_config.LoraConfig for Lora tuning \
+            Should be used in combination with LoraConfig for Lora tuning \
+            https://huggingface.co/docs/peft/en/package_reference/lora#peft.LoraConfig \
         fusedops_kernels_config: tuning.config.acceleration_configs.FusedOpsAndKernelsConfig \
             Should be used in combination with quantized_lora_config. Also currently 
             fused_lora and fast_kernels must used together (may change in future). \
@@ -123,18 +128,38 @@ def train(
     logger, train_args.log_level = set_log_level(
         logger_name="sft_trainer_train", level=train_args.log_level
     )
-    USE_ALORA = False
-    try:
-        # Third Party
-        from alora.config import aLoraConfig  # pylint: disable=import-outside-toplevel
-        from alora.peft_model_alora import (  # pylint: disable=import-outside-toplevel
-            aLoRAPeftModelForCausalLM,
+
+    resume_from_checkpoint = None
+    if train_args.output_dir:
+        os.makedirs(train_args.output_dir, exist_ok=True)
+        logger.info("using the output directory at %s", train_args.output_dir)
+
+    # Check if resume flag is not passed (None), or if flag is true and
+    # output_dir has checkpoints then get last checkpoint from output_dir
+    if (
+        train_args.resume_from_checkpoint is None
+        or train_args.resume_from_checkpoint.lower() == "true"
+    ):
+        resume_from_checkpoint = get_last_checkpoint(train_args.output_dir)
+    else:
+        # `train_args.resume_from_checkpoint` gives string values
+        # Check if flag is false OR flag has checkpoint value for resuming tuning
+        resume_from_checkpoint = (
+            train_args.resume_from_checkpoint
+            if train_args.resume_from_checkpoint.lower() != "false"
+            else False
         )
 
-        if isinstance(peft_config, aLoraConfig):
-            USE_ALORA = True
-    except ImportError:
-        pass
+    # TODO: use of load_and_validate_data_config here is not clean way
+    # rather we should move this logic to process_dataargs
+    odm_config = None
+    if data_args.data_config_path:
+        _dataconfig = load_and_validate_data_config(data_args.data_config_path)
+        if _dataconfig.dataprocessor.type == "odm":
+            _dataconfig.dataprocessor.odm[
+                "resume_from_checkpoint"
+            ] = resume_from_checkpoint
+            odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
 
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
@@ -221,15 +246,6 @@ def train(
             trainer_callbacks.append(cb)
             trackers.append(t)
 
-    # Now add trainer controller callbacks if requested
-    if (trainer_controller_args is not None) and (
-        trainer_controller_args.trainer_controller_config_file is not None
-    ):
-        tc_callback = TrainerControllerCallback(
-            trainer_controller_args.trainer_controller_config_file,
-        )
-        trainer_callbacks.append(tc_callback)
-
     # Add any extra callback if passed by users
     if additional_callbacks is not None:
         for cb in additional_callbacks:
@@ -244,6 +260,7 @@ def train(
         attention_and_distributed_packing_config,
         quantized_lora_config,
         fusedops_kernels_config,
+        odm_config,
     ).get_framework()
 
     # option to set multimodal var here
@@ -253,25 +270,31 @@ def train(
 
     model_load_time = time.time()
     try:
-        logger.info("Trying to load the model {}".format(model_args.model_name_or_path))
-        try:
-            # try to load model as a vision model
-            model_loader = AutoModelForVision2Seq.from_pretrained
+        model_kwargs = dict(  # pylint: disable=use-dict-literal
+            cache_dir=train_args.cache_dir,
+            torch_dtype=get_torch_dtype(model_args.torch_dtype),
+            attn_implementation=model_args.flash_attn_implementation
+            if model_args.use_flash_attn
+            else None,
+        )
+        if quantization_config is not None:
+            model_kwargs["quantization_config"] = quantization_config.to_hf_config()
 
-            model = model_loader(
-                model_args.model_name_or_path,
-                cache_dir=train_args.cache_dir,
-                torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
-                if model_args.use_flash_attn
-                else None,
+        logger.info("Loading the model {} now".format(model_args.model_name_or_path))
+        try:
+            logger.info(
+                "Trying to load {} as vision model".format(
+                    model_args.model_name_or_path
+                )
+            )
+            # try to load model as a vision model
+            model = AutoModelForVision2Seq.from_pretrained(
+                model_args.model_name_or_path, **model_kwargs
             )
             try:
                 if "use_cache" in model.language_model.config:
                     # avoid warning that use_cache is incompatible with gradient checkpointing
-                    model.language_model.config.use_cache = (
-                        not train_args.gradient_checkpointing
-                    )
+                    model.language_model.config.use_cache = False
             except AttributeError as e:
                 # When the model doesn't have the use_cache attribute
                 logger.warning("Couldn't update use_cache for vision model: %s", e)
@@ -282,13 +305,23 @@ def train(
             logger.info("Loaded vision model as {} ".format(model))
             logger.info("Loaded vision model processor {} ".format(processor))
             logger.info("Loaded model tokenizer {} ".format(tokenizer))
-        except ValueError:
+        except Exception as e:  # pylint: disable=broad-except
+            logger.info(
+                "Couldn't load model {} as a vision model due to {} ".format(
+                    model_args.model_name_or_path, e
+                )
+            )
             model = None
             processor = None
             tokenizer = None
 
         # fallback on loading language model
         if model is None:
+            logger.info(
+                "Trying to load {} as language model".format(
+                    model_args.model_name_or_path
+                )
+            )
             # find the correct model loader
             if framework is not None and framework.requires_custom_loading:
                 model_loader = framework.model_loader
@@ -296,14 +329,7 @@ def train(
                 model_loader = AutoModelForCausalLM.from_pretrained
 
             model = model_loader(
-                model_args.model_name_or_path,
-                cache_dir=train_args.cache_dir,
-                torch_dtype=get_torch_dtype(model_args.torch_dtype),
-                attn_implementation="flash_attention_2"
-                if model_args.use_flash_attn
-                else None,
-                # avoid warning that use_cache is incompatible with gradient checkpointing
-                use_cache=(not train_args.gradient_checkpointing),
+                model_args.model_name_or_path, use_cache=False, **model_kwargs
             )
 
             # TODO: Move these to a config as well
@@ -326,6 +352,20 @@ def train(
 
     # Calculate and save additional metrics to track later.
     additional_metrics["model_load_time"] = time.time() - model_load_time
+
+    # Convert legacy aLoRA string → token IDs (PEFT-native aLoRA)
+    if peft_config is not None and hasattr(peft_config, "alora_invocation_string"):
+        inv_str = getattr(peft_config, "alora_invocation_string")
+        if not inv_str:
+            raise ValueError(
+                "`--alora_invocation_string` is required when using --peft_method alora."
+            )
+        alora_tokens = tokenizer.encode(inv_str, add_special_tokens=False)
+        if not alora_tokens:
+            raise ValueError(
+                "`--alora_invocation_string` produced no tokens; check your tokenizer/template."
+            )
+        setattr(peft_config, "alora_invocation_tokens", alora_tokens)
 
     peft_config = get_hf_peft_config(
         task_type,
@@ -365,6 +405,7 @@ def train(
         is_padding_free=is_padding_free,
         processor=processor,
         is_multipack=is_multipack,
+        odm_config=odm_config,
     )
     additional_metrics["data_preprocessing_time"] = (
         time.time() - data_preprocessing_time
@@ -374,7 +415,7 @@ def train(
         logger.info(
             "Only data processing was requested. Exiting Process.",
         )
-        return None, None
+        return None, None, None
 
     if framework is not None and framework.requires_augmentation:
         model, (peft_config,) = framework.augmentation(
@@ -414,21 +455,6 @@ def train(
     }
     training_args = SFTConfig(**transformer_kwargs, **additional_args)
 
-    # activated LoRA
-    if USE_ALORA:
-        response_token_ids = (
-            tokenizer(
-                peft_config.invocation_string,
-                return_tensors="pt",
-                add_special_tokens=False,
-            )
-        )["input_ids"]
-        model = aLoRAPeftModelForCausalLM(
-            model, peft_config, response_token_ids=response_token_ids
-        )
-
-        peft_config = None
-
     if train_args.enable_reduce_loss_sum:
         TrainerClass = SumLossSFTTrainer
     else:
@@ -465,6 +491,8 @@ def train(
             model
         )
 
+    # Register fms-acceleration callbacks before Trainer Controller
+    # so that on_save() runs earlier for proper model unwrapping and checkpoint handling
     if framework is not None:
         accelerator = None if not is_accelerate_available() else trainer.accelerator
 
@@ -479,22 +507,14 @@ def train(
         ):
             trainer.add_callback(clb)
 
-    resume_from_checkpoint = None
-    # Check if resume flag is not passed (None), or if flag is true and
-    # output_dir has checkpoints then get last checkpoint from output_dir
-    if (
-        training_args.resume_from_checkpoint is None
-        or training_args.resume_from_checkpoint.lower() == "true"
+    if (trainer_controller_args is not None) and (
+        trainer_controller_args.trainer_controller_config_file is not None
     ):
-        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
-    else:
-        # `training_args.resume_from_checkpoint` gives string values
-        # Check if flag is false OR flag has checkpoint value for resuming tuning
-        resume_from_checkpoint = (
-            training_args.resume_from_checkpoint
-            if training_args.resume_from_checkpoint.lower() != "false"
-            else False
+        tc_callback = TrainerControllerCallback(
+            trainer_controller_args.trainer_controller_config_file,
         )
+        tc_callback.on_init_end(trainer.args, trainer.state, trainer.control)
+        trainer.add_callback(tc_callback)
 
     trainer.train(resume_from_checkpoint)
     additional_metadata = {}
@@ -542,6 +562,7 @@ def get_parser():
             configs.TrainerControllerArguments,
             peft_config.LoraConfig,
             peft_config.PromptTuningConfig,
+            peft_config.Mxfp4Config,
             QuantizedLoraConfig,
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
@@ -552,7 +573,13 @@ def get_parser():
     parser.add_argument(
         "--peft_method",
         type=str.lower,
-        choices=["pt", "lora", "alora", None, "none"],
+        choices=[m.value for m in peft_config.PEFT_METHOD] + [None, "none"],
+        default="none",
+    )
+    parser.add_argument(
+        "--quantization_method",
+        type=str.lower,
+        choices=[m.value for m in peft_config.QUANT_METHOD] + [None, "none"],
         default="none",
     )
     parser.add_argument(
@@ -563,7 +590,7 @@ def get_parser():
               to the tuning run in the tracker. e.g. \'{"gpu":"A100-80G"}\'',
     )
     parser.add_argument(
-        "--invocation_string",
+        "--alora_invocation_string",
         type=str,
         default=None,
         help="Pass a invocation string that will be used to activate the aLoRA.\
@@ -592,6 +619,8 @@ def parse_arguments(parser, json_config=None):
             Configuration for custom trainer controller such as early stopping or dynamic scaling.
         PromptTuningConfig/LoraConfig/aLoRAConfig/None
             Configuration for running PEFT, different depending on type of PEFT.
+        Mxfp4Config
+            Configuration for using Mxfp4Quantized models
         QuantizedLoraConfig
             Configuration for quantized LoRA (a form of PEFT).
         FusedOpsAndKernelsConfig
@@ -614,6 +643,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -622,12 +652,8 @@ def parse_arguments(parser, json_config=None):
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
         exp_metadata = json_config.get("exp_metadata")
-        invocation_string = json_config.get("invocation_string")
-        if peft_method == "alora":
-            if invocation_string is None:
-                raise ValueError(
-                    "invocation_string is not passed required for aLoRA usage"
-                )
+        quantization_method = json_config.get("quantization_method")
+        alora_invocation_string = json_config.get("alora_invocation_string")
     else:
         (
             model_args,
@@ -636,6 +662,7 @@ def parse_arguments(parser, json_config=None):
             trainer_controller_args,
             lora_config,
             prompt_tuning_config,
+            mxfp4config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -647,33 +674,23 @@ def parse_arguments(parser, json_config=None):
 
         peft_method = additional.peft_method
         exp_metadata = additional.exp_metadata
-        invocation_string = additional.invocation_string
-        if peft_method == "alora":
-            if invocation_string is None:
-                raise ValueError(
-                    "invocation_string is not passed required for aLoRA usage"
-                )
-    if peft_method == "alora":
-        try:
-            # Third Party
-            from alora.config import (  # pylint: disable=import-outside-toplevel
-                aLoraConfig,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "The alora package is required for this operation. "
-                "Please install it with pip install alora."
-            ) from exc
-    if peft_method == "lora":
+        quantization_method = additional.quantization_method
+        alora_invocation_string = additional.alora_invocation_string
+
+    if peft_method == peft_config.PEFT_METHOD.ALORA.value:
         tune_config = lora_config
-    elif peft_method == "alora":
-        tune_config = aLoraConfig(
-            **vars(lora_config), invocation_string=invocation_string
-        )
-    elif peft_method == "pt":
+        setattr(tune_config, "alora_invocation_string", alora_invocation_string)
+    elif peft_method == peft_config.PEFT_METHOD.LORA.value:
+        tune_config = lora_config
+    elif peft_method == peft_config.PEFT_METHOD.PT.value:
         tune_config = prompt_tuning_config
     else:
         tune_config = None
+
+    if quantization_method == peft_config.QUANT_METHOD.MXFP4.value:
+        quantization_config = mxfp4config
+    else:
+        quantization_config = None
 
     return (
         model_args,
@@ -681,6 +698,7 @@ def parse_arguments(parser, json_config=None):
         training_args,
         trainer_controller_args,
         tune_config,
+        quantization_config,
         quantized_lora_config,
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
@@ -702,6 +720,7 @@ def main():
             training_args,
             trainer_controller_args,
             tune_config,
+            quantization_config,
             quantized_lora_config,
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
@@ -722,13 +741,14 @@ def main():
                 "Data Arguments": data_args,
                 "Training Arguments": training_args,
                 "Tune Config": tune_config,
+                "Quantization Config": quantization_config,
                 "QLoRA Config": quantized_lora_config,
-                "Tracker Config": tracker_configs,
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
                 "Fused Ops Kernels Config": fusedops_kernels_config,
                 "Fast MoE Config": fast_moe_config,
-                "Trainer Controller Config": trainer_controller_args,
+                "Tracker Config": tracker_configs,
                 "Extra Metadata": exp_metadata,
+                "Trainer Controller Config": trainer_controller_args,
             }
         )
         logger.info(args_dump)
@@ -755,15 +775,13 @@ def main():
                 "failed while parsing extra metadata. pass a valid json %s", repr(e)
             )
 
-    if training_args.output_dir:
-        os.makedirs(training_args.output_dir, exist_ok=True)
-        logger.info("using the output directory at %s", training_args.output_dir)
     try:
         trainer, additional_train_info, tc_callback = train(
             model_args=model_args,
             data_args=data_args,
             train_args=training_args,
             peft_config=tune_config,
+            quantization_config=quantization_config,
             trainer_controller_args=trainer_controller_args,
             tracker_configs=tracker_configs,
             additional_callbacks=None,
@@ -819,9 +837,7 @@ def main():
             )
             sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
-    if isinstance(
-        tune_config, (peft_config.LoraConfig, LoraConfig)
-    ):  # aLoraConfig subclasses LoraConfig
+    if isinstance(tune_config, LoraConfig):
         try:
             if training_args.save_model_dir:
                 # Write number of added tokens to artifacts

@@ -96,16 +96,21 @@ def get_callbacks(**kwargs):
                 Also saves the final model in save_model_dir if provided.
                 """
 
-                def checkpoint(checkpoint_dir, save_dir):
-                    hf_converted_output_dir = os.path.join(
-                        save_dir, "hf_converted_checkpoint"
-                    )
-                    if os.path.exists(hf_converted_output_dir):
+                def checkpoint(checkpoint_dir, save_dir, is_intermediate: bool = True):
+                    if is_intermediate:
+                        hf_converted_output_dir = os.path.join(
+                            save_dir, "hf_converted_checkpoint"
+                        )
+                    else:
+                        hf_converted_output_dir = save_dir
+
+                    if os.path.exists(hf_converted_output_dir) and is_intermediate:
                         # If the folder already exists
                         # we return, since this is possible to happen
                         # saving the checkpointing at the end of the training
                         return
-                    os.mkdir(hf_converted_output_dir)
+
+                    os.makedirs(hf_converted_output_dir, exist_ok=True)
                     try:
                         recover_safetensors_from_dcp(
                             checkpoint_dir,
@@ -165,8 +170,10 @@ def get_callbacks(**kwargs):
                         and state.global_step == state.max_steps
                     ):
                         if not os.path.exists(self.save_model_dir):
-                            os.mkdir(self.save_model_dir)
-                        checkpoint(checkpoint_dir, self.save_model_dir)
+                            os.makedirs(self.save_model_dir, exist_ok=True)
+                        checkpoint(
+                            checkpoint_dir, self.save_model_dir, is_intermediate=False
+                        )
 
         callbacks.append(
             ConvertAndSaveHFCheckpointAtEverySave(

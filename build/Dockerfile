@@ -21,7 +21,6 @@ ARG PYTHON_VERSION=3.12
 ARG WHEEL_VERSION=""
 ## Enable Aimstack or MLflow if requested via ENABLE_AIM/MLFLOW set to "true"
 ARG ENABLE_AIM=false
-ARG ENABLE_ALORA=false
 ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
@@ -127,7 +126,6 @@ ARG USER_UID
 ARG ENABLE_FMS_ACCELERATION
 ARG ENABLE_AIM
 ARG ENABLE_MLFLOW
-ARG ENABLE_ALORA
 ARG ENABLE_SCANNER
 ARG ENABLE_CLEARML
 
@@ -151,31 +149,33 @@ RUN if [[ -z "${WHEEL_VERSION}" ]]; \
     fi && \
     ls /tmp/*.whl >/tmp/bdist_name
 
+# Ensures to always build mamba_ssm from source
+ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
+
 # Install from the wheel
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
     python -m pip install --user --no-build-isolation "$(head bdist_name)[mamba]"
+
+RUN python -m pip install --user --no-build-isolation "$(head bdist_name)[flash-attn]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
 # fms_acceleration_aadp = Padding-Free Flash Attention Computation
 # fms_acceleration_moe = Parallelized Mixture of Experts
+# fms_acceleration_odm = Online Data Mixing
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[fms-accel]"; \
         python -m fms_acceleration.cli install fms_acceleration_peft; \
         python -m fms_acceleration.cli install fms_acceleration_foak; \
         python -m fms_acceleration.cli install fms_acceleration_aadp; \
         python -m fms_acceleration.cli install fms_acceleration_moe; \
+        python -m fms_acceleration.cli install fms_acceleration_odm; \
     fi
 
 RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[aim]"; \
-    fi
-
-RUN if [[ "${ENABLE_ALORA}" == "true" ]]; then \
-        python -m pip install --user "$(head bdist_name)[activated-lora]"; \
     fi
 
 RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
