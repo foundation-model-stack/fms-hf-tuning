@@ -13,13 +13,12 @@ authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
   {name = "Anh Uong", email = "anh.uong@ibm.com"},
 ]
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 readme = "README.md"
 requires-python = "~=3.9"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
 classifiers=[
-    "License :: OSI Approved :: Apache Software License",
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Stable",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -56,6 +55,9 @@ scanner-dev = ["HFResourceScanner>=0.1.0"]
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
 namespaces = false
+
+[tool.setuptools_scm]
+version_file = "tuning/_version.py"
 
 [project.urls]
 Homepage = "https://github.com/foundation-model-stack/fms-hf-tuning"
