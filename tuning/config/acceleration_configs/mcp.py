@@ -25,7 +25,6 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 class MCP:
     degree: int = None
     mamba_impl: str = None
-    attn_impl: str = None
     mamba_recompute: bool = None
 
 
