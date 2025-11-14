@@ -200,7 +200,7 @@ def train(
             )
     if fast_moe_config is not None and fast_moe_config.fast_moe is None:
         fast_moe_config = None
-    if mcp_config is not None and mcp_config.cp is None:
+    if mcp_config is not None and mcp_config.mcp is None:
         mcp_config = None
     if fast_moe_config is not None:
         # If LoRA with ScatterMoE detected, raise warning

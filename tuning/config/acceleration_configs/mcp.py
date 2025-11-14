@@ -32,7 +32,7 @@ class MCP:
 @dataclass
 class MCPConfig:
 
-    cp: MCP = None
+    mcp: MCP = None
 
     def __post_init__(self):
         # ensure nested dataclasses initialized
