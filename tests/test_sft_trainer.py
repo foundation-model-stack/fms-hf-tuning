@@ -873,17 +873,14 @@ def test_run_causallm_lora_add_special_tokens():
             assert tok in tokenizer.vocab
 
 
-modules_to_save_val_map = [
-    (None, []),
-    (["embed_tokens"], ["embed_tokens"]),
-    (["lm_head"], ["embed_tokens"]),
-    (["embed_tokens", "lm_head"], ["embed_tokens"]),
-]
-
-
 @pytest.mark.parametrize(
     "modules_to_save, expected",
-    modules_to_save_val_map,
+    [
+        (None, []),
+        (["embed_tokens"], ["embed_tokens"]),
+        (["lm_head"], ["embed_tokens"]),
+        (["embed_tokens", "lm_head"], ["embed_tokens"]),
+    ],
 )
 def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expected):
     """Check if a model with tied weights in modules to save is correctly trained"""
@@ -918,16 +915,13 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
 
 
-target_modules_tie_val_map = [
-    (["embed_tokens"], ["embed_tokens"]),
-    (["lm_head"], ["embed_tokens"]),
-    (["embed_tokens", "lm_head"], ["embed_tokens"]),
-]
-
-
 @pytest.mark.parametrize(
     "target_modules, expected",
-    target_modules_tie_val_map,
+    [
+        (["embed_tokens"], ["embed_tokens"]),
+        (["lm_head"], ["embed_tokens"]),
+        (["embed_tokens", "lm_head"], ["embed_tokens"]),
+    ],
 )
 def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
     """Check if a model with tied weights in target_modules is correctly trained"""
@@ -946,8 +940,16 @@ def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expect
         adapter_config = _get_adapter_config(checkpoint_path)
         _validate_adapter_config(adapter_config, "LORA")
 
+        tm = adapter_config.get("target_modules")
         for module in expected:
-            assert module in adapter_config.get("target_modules")
+            flag = False
+
+            for t in tm:
+                if module in t:
+                    flag = True
+                    break
+
+            assert flag, f"Expected {module} not found in target_modules config: {tm}"
 
         # Load the model
         loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)

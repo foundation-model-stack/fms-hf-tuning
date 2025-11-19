@@ -382,8 +382,6 @@ def train(
     # If additional tokens are added, and we are doing LoRA
     # we need to set the embedding layer as trainable
     # and ensure that the weights are tied
-    # See https://github.ibm.com/ai-foundation/watson-fm-stack-tracker/issues/1673
-    # for more details
     if added_tokens_dict and isinstance(peft_config, LoraConfig):
         if added_tokens_dict.get("num_new_tokens", 0) > 0:
             logger.info(
