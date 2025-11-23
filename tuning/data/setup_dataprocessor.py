@@ -687,7 +687,7 @@ def process_dataargs(
                 dump_dir,
                 data_args.num_eval_dataset_shards,
                 eval_dataset,
-                "validataion_dataset",
+                "validation_dataset",
             )
         logger.info(
             "Data Processing execution completed. Datasets saved in %s directory.",
