@@ -379,6 +379,33 @@ def train(
 
     added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
+    # If additional tokens are added, and we are doing LoRA
+    # we need to set the embedding layer as trainable
+    # and ensure that the weights are tied
+    if added_tokens_dict and isinstance(peft_config, LoraConfig):
+        if added_tokens_dict.get("num_new_tokens", 0) > 0:
+            modules_to_save = getattr(peft_config, "modules_to_save", []) or []
+            target_modules = getattr(peft_config, "target_modules", []) or []
+
+            # If the initial model's weights are not tied,
+            # then we need to add both the embedding layer and the output layer
+            # If embedding layer or lm head is already targetted via `target_modules`
+            # then we skip adding it `modules_to_save` since it is already adapted
+            # for changes
+            if not any(m in target_modules for m in ("embed_tokens", "lm_head")):
+                # TODO: @romit Enable adding both embed tokens and lm head to modules to save
+                # modules_to_save.extend(["embed_tokens", "lm_head"])
+                modules_to_save.extend(["embed_tokens"])
+                setattr(peft_config, "modules_to_save", modules_to_save)
+
+            # This is safe to do for both tied and non-tied models
+            # `ensure_weight_tying` will be ignored if weights are not tied
+            # https://github.com/huggingface/peft/blob/v0.18.0.rc0/src/peft/tuners/tuners_utils.py#L1230
+            setattr(peft_config, "ensure_weight_tying", True)
+            logger.info(
+                "Adding embed_tokens and lm_head as trainable modules due to vocab expansion"
+            )
+
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)

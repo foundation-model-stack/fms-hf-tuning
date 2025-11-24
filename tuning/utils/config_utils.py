@@ -97,6 +97,21 @@ def get_hf_peft_config(task_type, tuning_config, tokenizer_name_or_path):
 
         if hasattr(tuning_config, "alora_invocation_string"):
             delattr(tuning_config, "alora_invocation_string")
+
+        # Make sure that weight tying is not broken in case
+        # the embedding layer is added as trainable under LoRA
+        if any(
+            m in (getattr(tuning_config, "modules_to_save", []) or [])
+            for m in ("embed_tokens", "lm_head")
+        ):
+            setattr(tuning_config, "ensure_weight_tying", True)
+
+        if any(
+            m in (getattr(tuning_config, "target_modules", []) or [])
+            for m in ("embed_tokens", "lm_head")
+        ):
+            setattr(tuning_config, "ensure_weight_tying", True)
+
         return tuning_config
 
     if isinstance(tuning_config, peft_config.PromptTuningConfig):
