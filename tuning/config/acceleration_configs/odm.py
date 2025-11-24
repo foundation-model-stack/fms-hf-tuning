@@ -29,7 +29,7 @@ class ODM:
     gamma: float = 0.1
     eta: float = 0.1
     resume_from_checkpoint: Union[bool, str] = False
-    auto_categorize_text_field: str = "text"
+    auto_categorize_input_column: str = None
     auto_categorize_num_categories: Optional[int] = None
     auto_categorize_model_name: str = "Qwen/Qwen3-Embedding-0.6B"
     auto_categorize_batch_size: int = 64

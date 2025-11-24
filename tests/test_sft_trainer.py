@@ -2427,10 +2427,8 @@ def test_online_data_mixing_plugin_with_auto_categorization(
         data_formatting_args.training_data_path = None
 
         # add data_paths in data_config file
-        # with tempfile.NamedTemporaryFile(
-        #     "w", delete=False, suffix=".yaml"
-        with open(
-            "temp.yaml", "w"
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
         ) as temp_yaml_file:
             with open(datasetconfigname, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)

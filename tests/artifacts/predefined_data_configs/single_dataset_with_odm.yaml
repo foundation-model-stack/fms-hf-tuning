@@ -8,7 +8,7 @@ dataprocessor:
       reward_type: validation_loss    # uses eval loss of each dataset as reward
       gamma: 0.1                      # MAB hyper-parameter
       eta: 0.2                        # MAB hyper-parameter
-      auto_categorize_text_field: "input"   # Required: Text field on which we need to apply clustering for forming pseudo categories
+      auto_categorize_input_column: "input"   # Required: Input field on which we need to apply clustering for forming pseudo categories
       auto_categorize_num_categories: "3"   # Optional: Number of categories for clustering
                                             # if not provided, this will be inferred based on dataset size
 datasets:
