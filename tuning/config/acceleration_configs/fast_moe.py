@@ -99,7 +99,7 @@ def get_callbacks(**kwargs):
                 def checkpoint(checkpoint_dir, save_dir, is_intermediate: bool = True):
                     if is_intermediate:
                         hf_converted_output_dir = os.path.join(
-                            save_dir, "hf_converted_checkpoint"
+                            save_dir, f"safetensors-{state.global_step}"
                         )
                     else:
                         hf_converted_output_dir = save_dir
