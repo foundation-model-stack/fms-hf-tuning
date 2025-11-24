@@ -412,6 +412,7 @@ def test_parse_arguments(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_copy)
     assert str(model_args.torch_dtype) == "torch.bfloat16"
     assert data_args.dataset_text_field == "output"
@@ -429,6 +430,7 @@ def test_parse_arguments_defaults(job_config):
         model_args,
         _,
         training_args,
+        _,
         _,
         _,
         _,
@@ -461,6 +463,7 @@ def test_parse_arguments_peft_method(job_config):
         _,
         _,
         _,
+        _,
     ) = sft_trainer.parse_arguments(parser, job_config_pt)
 
     assert isinstance(tune_config, peft_config.PromptTuningConfig)
@@ -473,6 +476,7 @@ def test_parse_arguments_peft_method(job_config):
         _,
         _,
         tune_config,
+        _,
         _,
         _,
         _,
