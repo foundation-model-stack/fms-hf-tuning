@@ -24,6 +24,7 @@ import json
 import os
 import re
 import tempfile
+from packaging import version
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
@@ -33,6 +34,7 @@ import pytest
 import torch
 import transformers
 import yaml
+import peft
 
 # First Party
 from build.utils import serialize_args
@@ -881,12 +883,18 @@ def test_run_causallm_lora_add_special_tokens():
         pytest.param(
             ["lm_head"],
             ["embed_tokens"],
-            marks=pytest.mark.skip(reason="Not released in a tagged version of PEFT"),
+            marks=pytest.mark.skipif(
+                version.parse(peft.__version__) <= version.parse("0.18.0"),
+                reason="Not released in PEFT <= 0.18.0",
+            ),
         ),
         pytest.param(
             ["embed_tokens", "lm_head"],
             ["embed_tokens"],
-            marks=pytest.mark.skip(reason="Not released in a tagged version of PEFT"),
+            marks=pytest.mark.skipif(
+                version.parse(peft.__version__) <= version.parse("0.18.0"),
+                reason="Not released in PEFT <= 0.18.0",
+            ),
         ),
     ],
 )
@@ -931,7 +939,10 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         (["embed_tokens", "lm_head"], ["embed_tokens"]),
     ],
 )
-@pytest.mark.skip(reason="Not released in a tagged version of PEFT")
+@pytest.mark.skipif(
+    version.parse(peft.__version__) <= version.parse("0.18.0"),
+    reason="Not released in PEFT <= 0.18.0",
+)
 def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
     """Check if a model with tied weights in target_modules is correctly trained"""
     with tempfile.TemporaryDirectory() as tempdir:
