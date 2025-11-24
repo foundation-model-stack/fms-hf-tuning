@@ -14,7 +14,7 @@
 
 # Standard
 from dataclasses import dataclass
-from typing import Union, Optional
+from typing import Optional, Union
 
 # Local
 from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
