@@ -587,7 +587,7 @@ class TrainerControllerCallback(TrainerCallback):
             kwargs["is_final"] = False
 
         base_path = kwargs["path"]
-        hf_converted_path = os.path.join(base_path, "hf_converted_checkpoint")
+        hf_converted_path = os.path.join(base_path, f"safetensors-{state.global_step}")
 
         if os.path.isdir(hf_converted_path):
             kwargs["hf_path"] = hf_converted_path
