@@ -39,6 +39,7 @@ dependencies = [
 "simpleeval>=0.9.13,<2.0",
 "pillow>=11.0.0,<12.0",
 "kernels<=0.9.0",
+"recommender @ git+https://github.com/foundation-model-stack/tuning-config-recommender.git",
 ]
 
 [project.optional-dependencies]
