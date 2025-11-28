@@ -30,6 +30,7 @@ dependencies = [
 "accelerate>=1.9.0,<2.0.0",
 "transformers>=4.55.0,<=4.55.4",
 "torch>2.7.0,<2.9.0",
+"torchvision<0.24",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers<=0.22",
 "tqdm>=4.66.2,<5.0",

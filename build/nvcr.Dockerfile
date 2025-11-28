@@ -47,8 +47,9 @@ RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index
 # Install main package + flash attention
 COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
-RUN pip install --no-cache-dir ${SOURCE_DIR} && \
-    pip install --no-cache-dir ${SOURCE_DIR}[flash-attn]
+
+RUN pip install --no-cache-dir ${SOURCE_DIR}
+RUN pip install --user --no-build-isolation ${SOURCE_DIR}[flash-attn]
 
 # Optional extras
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
