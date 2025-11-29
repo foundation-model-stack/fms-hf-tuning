@@ -427,6 +427,27 @@ For MoE models, expert parallel with MoE kernels can be enabled using the `--fas
 2. Data parallel degree multiplied by context parallel degree should be equal to total number of GPUs being used.
 3. Context parallel degree determinies number of chunks sequence has to be divided and distributed across GPUs, therefore it has to be choosen as minimium as needed to accommodate a sequence length.
 
+Further, below ablations can be used as reference configurations.
+
+#### Ablations
+
+##### Parity Experiments
+
+| model | experiment setting    | loss | tps per gpu |
+| -------- | -------- | ------- | ------- |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas1  |  0.8059140625   | 973.6 |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas1-ep8  |  0.80224609375   | 2367.6 |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas2  |  0.8059765625  | NA |
+| ibm-granite/granite-4.0-h-tiny | cp4-dp2-ebs4-s8192-gas1  |  0.802953125  | 953.4 |
+| ibm-granite/granite-4.0-h-tiny | cp1-dp4-ep4-ebs4-s8192-gas1 |  0.7967056884765625  | 2576 |
+
+##### Long Context (sequence length is 131072 (128k))
+
+| model | experiment setting  | tps per gpu | GPU memory util ratio |
+| -------- | -------- | ------- | ------- |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs1-s131072-gas1-ep8    | 1462.8 | 0.5140136719 |
+| ibm-granite/granite-4.0-h-small | cp8-ebs1-s131072-gas1-ep8    | 682.7 | 0.9887207031 |
+
 ### Known Limitations
 
 1. load balancing is removed given limited support on mamba cp implementation. This could lead to potential throughput drops for trainings using causal mask.
