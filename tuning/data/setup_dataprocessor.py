@@ -561,7 +561,7 @@ def setup_train_dataset_for_odm(
         eval_batch_size=train_args.per_device_eval_batch_size,
         reward_type=odm_config.odm.reward_type,
     )
-    train_args.accelerator_config = {"split_batches": True}
+    train_args.accelerator_config = {"dispatch_batches": False}
     return (True, train_dataset, data_collator)
 
 
