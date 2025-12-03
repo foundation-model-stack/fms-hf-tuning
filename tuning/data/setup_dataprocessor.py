@@ -570,7 +570,7 @@ def setup_train_dataset_for_odm(
         reward_type=odm_config.odm.reward_type,
         auto_categorize_config=auto_categorize_config,
     )
-    train_args.accelerator_config = {"split_batches": True}
+    train_args.accelerator_config = {"dispatch_batches": False}
     return (True, train_dataset, data_collator)
 
 
