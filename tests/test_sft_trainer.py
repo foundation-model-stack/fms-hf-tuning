@@ -51,6 +51,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_DATA_YAML,
     DATA_CONFIG_RENAME_SELECT_COLUMNS,
+    DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
     DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
@@ -2575,3 +2576,71 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
         ), f"{output_inference} does not include the prompt"
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
+@pytest.mark.parametrize(
+    "datafile, datasetconfigname, reward_type",
+    [
+        (
+            NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+            DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
+            "entropy",
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
+            "entropy",
+        ),
+    ],
+)
+def test_online_data_mixing_plugin_with_auto_categorization(
+    datafile, datasetconfigname, reward_type
+):
+    """Ensure fms_acceleration_odm plugin trains with autocategorization"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                data["dataprocessor"]["odm"]["reward_type"] = reward_type
+
+                for d, df in zip(data["datasets"], [datafile]):
+                    d["data_paths"] = [df]
+
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.logging_strategy = "steps"
+        train_args.max_steps = 10
+        train_args.eval_strategy = "steps"
+        train_args.eval_steps = 1
+
+        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference

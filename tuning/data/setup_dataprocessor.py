@@ -548,6 +548,14 @@ def setup_train_dataset_for_odm(
             processor=processor,
         )
 
+    auto_categorize_config = {}
+    if hasattr(odm_config.odm, "auto_categorize_input_column"):
+        auto_categorize_config = {
+            "input_column": "input_ids",
+            "num_categories": int(odm_config.odm.auto_categorize_num_categories),
+            "tokenizer": tokenizer,
+        }
+
     train_dataset = OnlineMixingDataset(
         train_dataset,
         collators,
@@ -560,6 +568,7 @@ def setup_train_dataset_for_odm(
         sampling_interval=odm_config.odm.sampling_interval,
         eval_batch_size=train_args.per_device_eval_batch_size,
         reward_type=odm_config.odm.reward_type,
+        auto_categorize_config=auto_categorize_config,
     )
     train_args.accelerator_config = {"dispatch_batches": False}
     return (True, train_dataset, data_collator)
