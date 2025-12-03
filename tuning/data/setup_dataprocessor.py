@@ -549,7 +549,7 @@ def setup_train_dataset_for_odm(
         )
 
     auto_categorize_config = {}
-    if hasattr(odm_config.odm, "auto_categorize_input_column"):
+    if odm_config.odm.auto_categorize_input_column:
         auto_categorize_config = {
             "input_column": "input_ids",
             "num_categories": int(odm_config.odm.auto_categorize_num_categories),

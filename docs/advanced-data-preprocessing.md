@@ -147,11 +147,13 @@ Each data handler has:
 `odm` config has the following fields and is required when `datapreprocessor` `type` is `odm`.
 
 `odm`:
-  `update_interval` (optional, int, defaults to `1`): Multi-Armed Bandit (MAB) is used to learn from the training signals and then provide mixing probabilities across datasets. `update_interval` defines the frequency of updating the MAB with training signals in terms of step count.
-  `sampling_interval` (optional, int, defaults to `1`): Defines the frequency of choosing a dataset to sample from through MAB. The value is provided in terms of sample count.
-  `reward_type` (optional, str, defaults to `entropy`): Type of reward to be used to update MAB. Currently supported rewards are `train_loss`, `validation_loss`, `entropy`, `entropy3_varent1`, `entropy_last_token`, `gradnorm`. More details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing#rewards).
-  `gamma` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to exploration factor.
-  `eta` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to learning rate.
+- `update_interval` (optional, int, defaults to `None`): Multi-Armed Bandit (MAB) is used to learn from the training signals and then provide mixing probabilities across datasets. `update_interval` defines the frequency of updating the MAB with training signals in terms of step count. If not provided, it defaults to `eval_steps`
+- `sampling_interval` (optional, int, defaults to `1`): Defines the frequency of choosing a dataset to sample from through MAB. The value is provided in terms of sample count.
+- `reward_type` (optional, str, defaults to `entropy`): Type of reward to be used to update MAB. Currently supported rewards are `train_loss`, `validation_loss`, `entropy`, `entropy3_varent1`, `entropy_last_token`, `gradnorm`. More details can be found [here](https://github.com/foundation-model-stack/fms-acceleration/tree/main/plugins/online-data-mixing#rewards).
+- `gamma` (optional, int, defaults to `0.1`): MAB hyper-parameter which is similar to exploration factor.
+- `eta` (optional, int, defaults to `0.3`): MAB hyper-parameter which is similar to learning rate.
+- `auto_categorize_input_column` (optional, str, defaults to `None`): If only a single dataset is provided, this field is required to determin the column name which should be used to categorize the data into psuedo categories
+- `auto_categorize_num_categories` (optional, int, defaults to `None`): Used in conjunction with the above field, this field specifies the number of psuedo categories to be assigned in the dataset
 
 `datasets` (list):
   - `name` (optional, str): A unique identifier for the dataset.
