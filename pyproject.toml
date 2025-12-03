@@ -13,7 +13,7 @@ authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
   {name = "Anh Uong", email = "anh.uong@ibm.com"},
 ]
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 readme = "README.md"
 requires-python = "~=3.9"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
@@ -30,6 +30,7 @@ dependencies = [
 "accelerate>=1.9.0,<2.0.0",
 "transformers>=4.55.0,<=4.55.4",
 "torch>2.7.0,<2.9.0",
+"torchvision<0.24",
 "sentencepiece>=0.1.99,<0.3",
 "tokenizers<=0.22",
 "tqdm>=4.66.2,<5.0",
