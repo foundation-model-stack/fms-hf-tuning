@@ -160,6 +160,9 @@ def train(
                 "resume_from_checkpoint"
             ] = resume_from_checkpoint
             odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
+            odm_config.odm.update_interval = (
+                odm_config.odm.update_interval or train_args.eval_steps
+            )
 
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
