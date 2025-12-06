@@ -47,6 +47,7 @@ from tuning.config.acceleration_configs import (
     AttentionAndDistributedPackingConfig,
     FastMoeConfig,
     FusedOpsAndKernelsConfig,
+    MCPConfig,
     ODMConfig,
     QuantizedLoraConfig,
     get_additional_accel_framework_callbacks,
@@ -87,6 +88,7 @@ def train(
         AttentionAndDistributedPackingConfig
     ] = None,
     fast_moe_config: Optional[FastMoeConfig] = None,
+    mcp_config: Optional[MCPConfig] = None,
     additional_data_handlers: Optional[Dict[str, DataHandler]] = None,
 ) -> tuple[SFTTrainer, dict]:
     """Call the SFTTrainer
@@ -201,6 +203,8 @@ def train(
             )
     if fast_moe_config is not None and fast_moe_config.fast_moe is None:
         fast_moe_config = None
+    if mcp_config is not None and mcp_config.mcp is None:
+        mcp_config = None
     if fast_moe_config is not None:
         # If LoRA with ScatterMoE detected, raise warning
         accepted_layers = ["all-linear"]
@@ -264,6 +268,7 @@ def train(
         quantized_lora_config,
         fusedops_kernels_config,
         odm_config,
+        mcp_config,
     ).get_framework()
 
     # option to set multimodal var here
@@ -597,6 +602,7 @@ def get_parser():
             FusedOpsAndKernelsConfig,
             AttentionAndDistributedPackingConfig,
             FastMoeConfig,
+            MCPConfig,
             TrackerConfigs,
         )
     )
@@ -678,6 +684,7 @@ def parse_arguments(parser, json_config=None):
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
+            mcp_config,
             tracker_configs,
         ) = parser.parse_dict(json_config, allow_extra_keys=True)
         peft_method = json_config.get("peft_method")
@@ -697,6 +704,7 @@ def parse_arguments(parser, json_config=None):
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
+            mcp_config,
             tracker_configs,
             additional,
             _,
@@ -733,6 +741,7 @@ def parse_arguments(parser, json_config=None):
         fusedops_kernels_config,
         attention_and_distributed_packing_config,
         fast_moe_config,
+        mcp_config,
         tracker_configs,
         exp_metadata,
     )
@@ -755,6 +764,7 @@ def main():
             fusedops_kernels_config,
             attention_and_distributed_packing_config,
             fast_moe_config,
+            mcp_config,
             tracker_configs,
             exp_metadata,
         ) = parse_arguments(parser, job_config)
@@ -776,6 +786,7 @@ def main():
                 "AADP (fms-acceleration) Config": attention_and_distributed_packing_config,
                 "Fused Ops Kernels Config": fusedops_kernels_config,
                 "Fast MoE Config": fast_moe_config,
+                "MCP Config": mcp_config,
                 "Tracker Config": tracker_configs,
                 "Extra Metadata": exp_metadata,
                 "Trainer Controller Config": trainer_controller_args,
@@ -819,6 +830,7 @@ def main():
             quantized_lora_config=quantized_lora_config,
             fusedops_kernels_config=fusedops_kernels_config,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
+            mcp_config=mcp_config,
             fast_moe_config=fast_moe_config,
         )
     except (MemoryError, OutOfMemoryError) as e:
