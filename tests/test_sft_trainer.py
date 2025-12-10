@@ -39,7 +39,7 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED, TINYMIXTRAL_MOE
 from tests.artifacts.predefined_data_configs import (
     CHAT_TEMPLATE_JINJA,
     DATA_CONFIG_DUPLICATE_COLUMNS,
@@ -1759,7 +1759,7 @@ def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
@@ -1767,9 +1767,7 @@ def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
         _test_run_inference(
-            checkpoint_path=os.path.join(
-                _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
-            )
+            checkpoint_path=_get_hf_converted_path(tempdir)
         )
 
 
@@ -1795,7 +1793,7 @@ def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "ibm-granite/granite-3.1-1b-a400m-base"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         lora_args = copy.deepcopy(PEFT_LORA_ARGS)
@@ -1821,10 +1819,8 @@ def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
                 fast_moe_config=fast_moe_config,
             )
             _test_run_inference(
-                checkpoint_path=os.path.join(
-                    _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
-                ),
-                base_model_name_or_path="ibm-granite/granite-3.1-1b-a400m-base",
+                checkpoint_path=_get_checkpoint_path(tempdir),
+                base_model_name_or_path=TINYMIXTRAL_MOE,
             )
 
 
@@ -1845,7 +1841,7 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_model_dir = save_model_dir
@@ -1853,7 +1849,7 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
-        assert os.path.exists(os.path.join(save_model_dir, "hf_converted_checkpoint"))
+        assert os.path.exists(os.path.join(save_model_dir))
 
 
 ############################# Helper functions #############################
@@ -1925,6 +1921,26 @@ def _get_checkpoint_path(dir_path):
     ]
     checkpoint_dirs.sort(key=lambda name: int(name.split("-")[-1]))
     return os.path.join(dir_path, checkpoint_dirs[-1])
+
+
+def _get_hf_converted_path(dir_path):
+    checkpoint_dirs = [
+        d
+        for d in os.listdir(dir_path)
+        if os.path.isdir(os.path.join(dir_path, d)) and re.match(r"^checkpoint-\d+$", d)
+    ]
+    checkpoint_dirs.sort(key=lambda name: int(name.split("-")[-1]))
+
+    final_checkpoint_path = os.path.join(dir_path, checkpoint_dirs[-1])
+
+    hf_converted_dir = [
+        d
+        for d in os.listdir(final_checkpoint_path)
+        if os.path.isdir(os.path.join(final_checkpoint_path, d)) and re.match(r"^safetensors-\d+$", d)
+    ]
+    hf_converted_dir.sort(key=lambda name: int(name.split("-")[-1]))
+
+    return os.path.join(final_checkpoint_path, hf_converted_dir[-1])
 
 
 def _get_adapter_config(dir_path):
@@ -2092,7 +2108,7 @@ def test_no_packing_needs_reponse_template():
 
 ### Tests for model dtype edge cases
 @pytest.mark.skipif(
-    not (torch.cuda.is_available() and torch.cuda.is_bf16_supported()),
+    not (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()),
     reason="Only runs if bf16 is unsupported",
 )
 def test_bf16_still_tunes_if_unsupported():

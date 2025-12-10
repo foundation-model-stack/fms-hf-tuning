@@ -20,3 +20,4 @@ import os
 ### Constants used for model path
 PREDEFINED_MODEL_PATH = os.path.join(os.path.dirname(__file__))
 MAYKEYE_TINY_LLAMA_CACHED = os.path.join(PREDEFINED_MODEL_PATH, "maykeye-tinyllama-v0")
+TINYMIXTRAL_MOE = "Isotonic/TinyMixtral-4x248M-MoE"
