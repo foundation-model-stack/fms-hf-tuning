@@ -8,7 +8,7 @@ datasets:
     data_handlers:
       - name: tokenize_and_apply_input_masking
         arguments:
-          # remove_columns: all
+          remove_columns: all
           batched: false
           fn_kwargs:
             input_column_name: input

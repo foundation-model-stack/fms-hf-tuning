@@ -266,7 +266,7 @@ def test_framework_raises_if_used_with_missing_package():
                 copy.deepcopy(MODEL_ARGS),
                 copy.deepcopy(DATA_ARGS),
                 copy.deepcopy(TRAIN_ARGS),
-                PEFT_LORA_ARGS,
+                copy.deepcopy(PEFT_LORA_ARGS),
                 quantized_lora_config=quantized_lora_config,
             )
 
@@ -322,7 +322,7 @@ def test_framework_raises_due_to_invalid_arguments(
                 model_args,
                 copy.deepcopy(DATA_ARGS),
                 train_args,
-                peft_config,
+                copy.deepcopy(peft_config),
                 quantized_lora_config=quantized_lora_config,
             )
 
@@ -379,7 +379,7 @@ def test_framework_initialized_properly_peft(
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args.bf16 = True
         peft_args = copy.deepcopy(PEFT_LORA_ARGS)
         peft_args.target_modules = ["q_proj", "k_proj"]
 
@@ -430,7 +430,7 @@ def test_framework_initialized_properly_foak():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args.bf16 = True
         peft_args = copy.deepcopy(PEFT_LORA_ARGS)
         peft_args.target_modules = ["q_proj", "k_proj"]
 
@@ -693,7 +693,6 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
             train_args = copy.deepcopy(TRAIN_ARGS)
             train_args.output_dir = tempdir
             train_args.save_strategy = "no"
-            train_args.fp16 = True
             peft_args = copy.deepcopy(PEFT_LORA_ARGS)
             peft_args.target_modules = ["q_proj", "k_proj"]
 
