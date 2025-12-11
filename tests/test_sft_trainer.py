@@ -174,7 +174,9 @@ def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
         train_args.enable_reduce_loss_sum = enable_reduce_loss_sum
         train_args.output_dir = tempdir
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -183,7 +185,9 @@ def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
 
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -217,7 +221,9 @@ def test_resume_training_from_checkpoint_with_flag_true():
         train_args.output_dir = tempdir
         train_args.resume_from_checkpoint = "True"
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -229,7 +235,9 @@ def test_resume_training_from_checkpoint_with_flag_true():
 
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -256,7 +264,9 @@ def test_resume_training_from_checkpoint_with_flag_false():
         train_args.output_dir = tempdir
         train_args.resume_from_checkpoint = "False"
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -269,7 +279,9 @@ def test_resume_training_from_checkpoint_with_flag_false():
 
         # Training again with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get Training log entry for epoch 1
@@ -286,7 +298,9 @@ def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
         lora_config = copy.deepcopy(PEFT_LORA_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config
+        )
         _validate_training(tempdir)
 
         # Get trainer state and checkpoint_path of second last checkpoint
@@ -298,7 +312,9 @@ def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
         train_args.resume_from_checkpoint = checkpoint_path
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config
+        )
         _validate_training(tempdir)
 
         # Get total_flos from trainer state of checkpoint_path and check if its same
@@ -378,7 +394,12 @@ def test_run_train_fails_training_data_path_not_exist():
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
     with pytest.raises(DatasetNotFoundError):
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), updated_data_path_args, copy.deepcopy(TRAIN_ARGS), None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            updated_data_path_args,
+            copy.deepcopy(TRAIN_ARGS),
+            None,
+        )
 
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
@@ -617,7 +638,12 @@ def test_run_causallm_pt_init_text():
             num_virtual_tokens=0,
         )
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, tuning_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            tuning_config,
+        )
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -652,7 +678,10 @@ def test_run_causallm_lora_invalid_train_params(param_name, param_val, exc_msg):
 
         with pytest.raises(ValueError, match=exc_msg):
             sft_trainer.train(
-                copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), invalid_params, copy.deepcopy(PEFT_LORA_ARGS)
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
+                invalid_params,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 
@@ -670,7 +699,10 @@ def test_run_causallm_lora_with_validation(dataset_path):
         data_args.validation_data_path = dataset_path
 
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
         _validate_training(tempdir, check_eval=True)
 
@@ -693,7 +725,10 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
         )
 
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
         _validate_training(tempdir, check_eval=True)
 
@@ -748,7 +783,12 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_lora_args.target_modules = target_modules
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, base_lora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -792,7 +832,12 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, base_alora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_alora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -876,7 +921,9 @@ def test_run_causallm_lora_add_special_tokens():
             "<|test_token_3|>",
         ]
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args, base_lora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), data_args, train_args, base_lora_args
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -926,7 +973,12 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         base_lora_args.target_modules = ["q_proj"]
         base_lora_args.modules_to_save = modules_to_save
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, base_lora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -970,7 +1022,12 @@ def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expect
         base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
         base_lora_args.target_modules = target_modules
 
-        sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, base_lora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -1033,7 +1090,9 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.save_strategy = "no"
         save_model_args.output_dir = tempdir
 
-        trainer, _, _ = sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), save_model_args, None)
+        trainer, _, _ = sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), save_model_args, None
+        )
         logs_path = os.path.join(tempdir, TrackerConfigs.training_logs_filename)
         _validate_logfile(logs_path)
         # validate that no checkpoints created
@@ -1998,7 +2057,10 @@ def test_tokenizer_has_no_eos_token():
         # TypeError: can only concatenate str (not "NoneType") to str error
         # when we go to apply the data formatter.
         sft_trainer.train(
-            model_args, copy.deepcopy(DATA_ARGS), train_args, copy.deepcopy(PEFT_LORA_ARGS)
+            model_args,
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
         _validate_training(tempdir)
 
@@ -2012,7 +2074,10 @@ def test_invalid_dataset_text_field():
 
     with pytest.raises(KeyError):
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, copy.deepcopy(TRAIN_ARGS), copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
 
 
@@ -2026,7 +2091,10 @@ def test_invalid_dataset_text_field_and_formatter_template():
 
     with pytest.raises(ValueError):
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, copy.deepcopy(TRAIN_ARGS), copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
 
 
@@ -2040,7 +2108,10 @@ def test_invalid_formatter_template():
 
     with pytest.raises(KeyError):
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, copy.deepcopy(TRAIN_ARGS), copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
 
 
@@ -2052,7 +2123,10 @@ def test_malformatted_data():
 
     with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, copy.deepcopy(TRAIN_ARGS), copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
 
 
@@ -2063,7 +2137,10 @@ def test_empty_data():
 
     with pytest.raises((DatasetGenerationError, ValueError)):
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, copy.deepcopy(TRAIN_ARGS), copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
 
 
@@ -2078,7 +2155,12 @@ def test_run_causallm_lora_with_invalid_modules():
         lora_config.target_modules = ["foo", "bar"]
         # Peft should throw a value error about modules not matching the base module
         with pytest.raises(ValueError):
-            sft_trainer.train(copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
+                train_args,
+                lora_config,
+            )
 
 
 ### Direct validation tests based on whether or not packing is enabled
@@ -2094,7 +2176,10 @@ def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
 
         with pytest.raises(ValueError):
             sft_trainer.train(
-                copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 
@@ -2110,7 +2195,10 @@ def test_no_packing_needs_reponse_template():
 
         with pytest.raises(ValueError):
             sft_trainer.train(
-                copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 
@@ -2129,7 +2217,10 @@ def test_bf16_still_tunes_if_unsupported():
         model_args.torch_dtype = "bfloat16"
 
         sft_trainer.train(
-            model_args, copy.deepcopy(DATA_ARGS), train_args, copy.deepcopy(PEFT_LORA_ARGS)
+            model_args,
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
         _validate_training(tempdir)
 
@@ -2144,7 +2235,10 @@ def test_bad_torch_dtype():
 
         with pytest.raises(ValueError):
             sft_trainer.train(
-                model_args, copy.deepcopy(DATA_ARGS), train_args, copy.deepcopy(PEFT_LORA_ARGS)
+                model_args,
+                copy.deepcopy(DATA_ARGS),
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 
@@ -2242,7 +2336,10 @@ def test_pretokenized_dataset(dataset_path):
         data_args.response_template = None
         data_args.training_data_path = dataset_path
         sft_trainer.train(
-            copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
         )
         _validate_training(tempdir)
 
@@ -2268,7 +2365,10 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
             sft_trainer.train(
-                copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 
@@ -2288,7 +2388,10 @@ def test_pretokenized_dataset_wrong_format():
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
             sft_trainer.train(
-                copy.deepcopy(MODEL_ARGS), data_args, train_args, copy.deepcopy(PEFT_LORA_ARGS)
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
             )
 
 

@@ -17,7 +17,6 @@
 
 # Standard
 import base64
-import os
 import pickle
 
 # Third Party
@@ -213,9 +212,7 @@ def test_get_json_config_can_load_from_path(monkeypatch):
     the json path from env var SFT_TRAINER_CONFIG_JSON_PATH
     """
     monkeypatch.delenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", raising=False)
-    monkeypatch.setenv(
-        "SFT_TRAINER_CONFIG_JSON_PATH", HAPPY_PATH_DUMMY_CONFIG_PATH
-    )
+    monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_PATH", HAPPY_PATH_DUMMY_CONFIG_PATH)
 
     job_config = config_utils.get_json_config()
     assert job_config is not None
