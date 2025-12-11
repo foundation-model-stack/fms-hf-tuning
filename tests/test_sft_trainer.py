@@ -801,7 +801,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that \n" in output_inference
 
 
-def test_successful_lora_target_modules_default_from_main():
+def test_successful_lora_target_modules_default_from_main(monkeypatch):
     """Check that if target_modules is not set, or set to None via JSON, the
     default value by model type will be using in LoRA tuning.
     The correct default target modules will be used for model type llama
@@ -818,7 +818,7 @@ def test_successful_lora_target_modules_default_from_main():
             **{"peft_method": "lora", "output_dir": tempdir},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         sft_trainer.main()
 

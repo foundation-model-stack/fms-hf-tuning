@@ -55,9 +55,17 @@ def test_process_accelerate_launch_args(job_config):
 
 
 @patch("torch.cuda.device_count", return_value=1)
-def test_accelerate_launch_args_user_set_num_processes_ignored(job_config):
+def test_accelerate_launch_args_user_set_num_processes_ignored(
+    _mock_cuda_count, job_config, monkeypatch
+):
     job_config_copy = copy.deepcopy(job_config)
     job_config_copy["accelerate_launch_args"]["num_processes"] = "3"
+    if "CUDA_VISIBLE_DEVICES" in os.environ:
+        monkeypatch.setenv(
+            "CUDA_VISIBLE_DEVICES", os.environ["CUDA_VISIBLE_DEVICES"]
+        )
+    else:
+        monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
     args = process_accelerate_launch_args(job_config_copy)
     # determine number of processes by number of GPUs available
     assert args.num_processes == 1
