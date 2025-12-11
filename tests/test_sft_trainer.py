@@ -1766,9 +1766,7 @@ def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
-        _test_run_inference(
-            checkpoint_path=_get_hf_converted_path(tempdir)
-        )
+        _test_run_inference(checkpoint_path=_get_hf_converted_path(tempdir))
 
 
 @pytest.mark.skipif(
@@ -1801,27 +1799,17 @@ def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
         lora_args.target_modules = target_modules
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
 
-        if target_modules == "all-linear":
-            with pytest.raises(ValueError):
-                sft_trainer.train(
-                    model_args,
-                    data_args,
-                    train_args,
-                    lora_args,
-                    fast_moe_config=fast_moe_config,
-                )
-        else:
-            sft_trainer.train(
-                model_args,
-                data_args,
-                train_args,
-                lora_args,
-                fast_moe_config=fast_moe_config,
-            )
-            _test_run_inference(
-                checkpoint_path=_get_checkpoint_path(tempdir),
-                base_model_name_or_path=TINYMIXTRAL_MOE,
-            )
+        sft_trainer.train(
+            model_args,
+            data_args,
+            train_args,
+            lora_args,
+            fast_moe_config=fast_moe_config,
+        )
+        _test_run_inference(
+            checkpoint_path=_get_checkpoint_path(tempdir),
+            base_model_name_or_path=TINYMIXTRAL_MOE,
+        )
 
 
 @pytest.mark.skipif(
@@ -1936,7 +1924,8 @@ def _get_hf_converted_path(dir_path):
     hf_converted_dir = [
         d
         for d in os.listdir(final_checkpoint_path)
-        if os.path.isdir(os.path.join(final_checkpoint_path, d)) and re.match(r"^safetensors-\d+$", d)
+        if os.path.isdir(os.path.join(final_checkpoint_path, d))
+        and re.match(r"^safetensors-\d+$", d)
     ]
     hf_converted_dir.sort(key=lambda name: int(name.split("-")[-1]))
 
