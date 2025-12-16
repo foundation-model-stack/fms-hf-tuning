@@ -41,8 +41,8 @@ def test_run_with_bad_tracker_config():
             match="tracker configs should adhere to the TrackerConfigs type",
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
                 train_args,
                 tracker_configs="NotSupposedToBeHere",
             )
@@ -63,7 +63,7 @@ def test_run_with_bad_tracker_name():
             ValueError, match=r"Requested Tracker {} not found.".format(bad_name)
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
                 train_args,
             )

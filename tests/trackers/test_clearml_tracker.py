@@ -84,7 +84,10 @@ def test_e2e_run_with_clearml_tracker():
     )
 
     sft_trainer.train(
-        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        copy.deepcopy(MODEL_ARGS),
+        copy.deepcopy(DATA_ARGS),
+        train_args,
+        tracker_configs=tracker_configs,
     )
 
     # validate ft tuning configs
@@ -115,7 +118,10 @@ def test_e2e_run_with_clearml_runuri_export_default_path():
     tracker_configs = TrackerConfigs(clearml_task="unit_test")
 
     sft_trainer.train(
-        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        copy.deepcopy(MODEL_ARGS),
+        copy.deepcopy(DATA_ARGS),
+        train_args,
+        tracker_configs=tracker_configs,
     )
 
     # validate ft tuning configs

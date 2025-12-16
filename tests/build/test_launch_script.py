@@ -81,25 +81,19 @@ BASE_LORA_KWARGS = {
 }
 
 
-def setup_env(tempdir):
-    os.environ["TRAINING_SCRIPT"] = SCRIPT
-    os.environ["PYTHONPATH"] = "./:$PYTHONPATH"
-    os.environ["TERMINATION_LOG_FILE"] = tempdir + "/termination-log"
+def setup_env(monkeypatch, tempdir):
+    monkeypatch.setenv("TRAINING_SCRIPT", SCRIPT)
+    monkeypatch.setenv("PYTHONPATH", "./:$PYTHONPATH")
+    monkeypatch.setenv("TERMINATION_LOG_FILE", os.path.join(tempdir, "termination-log"))
 
 
-def cleanup_env():
-    os.environ.pop("TRAINING_SCRIPT", None)
-    os.environ.pop("PYTHONPATH", None)
-    os.environ.pop("TERMINATION_LOG_FILE", None)
-
-
-def test_successful_ft():
+def test_successful_ft(monkeypatch):
     """Check if we can bootstrap and fine tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {**BASE_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         _validate_termination_files_when_tuning_succeeds(tempdir)
@@ -108,13 +102,13 @@ def test_successful_ft():
 
 
 @pytest.mark.skipif(True, reason="This test is deprecated so always skipped")
-def test_successful_pt():
+def test_successful_pt(monkeypatch):
     """Check if we can bootstrap and peft tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {**BASE_PEFT_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         _validate_termination_files_when_tuning_succeeds(tempdir)
@@ -122,13 +116,13 @@ def test_successful_pt():
         _validate_training_output(checkpoint, "pt")
 
 
-def test_successful_lora():
+def test_successful_lora(monkeypatch):
     """Check if we can bootstrap and LoRA tune causallm models"""
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         _validate_termination_files_when_tuning_succeeds(tempdir)
@@ -136,7 +130,7 @@ def test_successful_lora():
         _validate_training_output(checkpoint, "lora")
 
 
-def test_lora_save_model_dir_separate_dirs():
+def test_lora_save_model_dir_separate_dirs(monkeypatch):
     """Run LoRA tuning with separate save_model_dir and output_dir.
     Verify model saved to save_model_dir and checkpoints saved to
     output_dir.
@@ -144,7 +138,7 @@ def test_lora_save_model_dir_separate_dirs():
     with tempfile.TemporaryDirectory() as tempdir:
         output_dir = os.path.join(tempdir, "output_dir")
         save_model_dir = os.path.join(tempdir, "save_model_dir")
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{
@@ -154,7 +148,7 @@ def test_lora_save_model_dir_separate_dirs():
             },
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         _validate_termination_files_when_tuning_succeeds(output_dir)
@@ -165,12 +159,12 @@ def test_lora_save_model_dir_separate_dirs():
         assert len(checkpoints) == 1
 
 
-def test_lora_save_model_dir_same_dir_as_output_dir():
+def test_lora_save_model_dir_same_dir_as_output_dir(monkeypatch):
     """Run LoRA tuning with same save_model_dir and output_dir.
     Verify checkpoints, logs, and model saved to path.
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{
@@ -180,7 +174,7 @@ def test_lora_save_model_dir_same_dir_as_output_dir():
             },
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         # check logs, checkpoint dir, and model exists in path
@@ -195,19 +189,21 @@ def test_lora_save_model_dir_same_dir_as_output_dir():
         assert len(checkpoints) == TRAIN_KWARGS["num_train_epochs"]
 
 
-def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no():
+def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no(
+    monkeypatch,
+):
     """Run LoRA tuning with same save_model_dir and output_dir and
     save_strategy=no. Verify no checkpoints created, only
     logs and final model.
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{"output_dir": tempdir, "save_model_dir": tempdir, "save_strategy": "no"},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         # check that model and logs exists in output_dir
@@ -219,9 +215,9 @@ def test_lora_save_model_dir_same_dir_as_output_dir_save_strategy_no():
         assert len(checkpoints) == 0
 
 
-def test_lora_with_lora_post_process_for_vllm_set_to_true():
+def test_lora_with_lora_post_process_for_vllm_set_to_true(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{
@@ -231,7 +227,7 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
             },
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         # check that model and logs exists in output_dir
@@ -255,9 +251,9 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true():
     not _is_package_available("HFResourceScanner"),
     reason="Only runs if HFResourceScanner is installed",
 )
-def test_launch_with_HFResourceScanner_enabled():
+def test_launch_with_HFResourceScanner_enabled(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         scanner_outfile = os.path.join(tempdir, TrackerConfigs.scanner_output_filename)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
@@ -271,7 +267,7 @@ def test_launch_with_HFResourceScanner_enabled():
             },
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         assert main() == 0
         assert os.path.exists(scanner_outfile) is True
@@ -281,14 +277,14 @@ def test_launch_with_HFResourceScanner_enabled():
         assert scanner_res["mem_data"] is not None
 
 
-def test_bad_script_path():
+def test_bad_script_path(monkeypatch):
     """Check for appropriate error for an invalid training script location"""
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {**BASE_LORA_KWARGS, **{"output_dir": tempdir}}
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
-        os.environ["TRAINING_SCRIPT"] = "/not/here"
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
+        monkeypatch.setenv("TRAINING_SCRIPT", "/not/here")
 
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()
@@ -297,10 +293,10 @@ def test_bad_script_path():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_blank_env_var():
+def test_blank_env_var(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = ""
+        setup_env(monkeypatch, tempdir)
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", "")
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()
         assert pytest_wrapped_e.type == SystemExit
@@ -308,16 +304,16 @@ def test_blank_env_var():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_faulty_file_path():
+def test_faulty_file_path(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         faulty_path = os.path.join(tempdir, "non_existent_file.pkl")
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{"training_data_path": faulty_path, "output_dir": tempdir},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()
         assert pytest_wrapped_e.type == SystemExit
@@ -325,16 +321,16 @@ def test_faulty_file_path():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_bad_base_model_path():
+def test_bad_base_model_path(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{"model_name_or_path": "/wrong/path"},
             "output_dir": tempdir,
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()
         assert pytest_wrapped_e.type == SystemExit
@@ -342,16 +338,16 @@ def test_bad_base_model_path():
         assert os.stat(tempdir + "/termination-log").st_size > 0
 
 
-def test_config_parsing_error():
+def test_config_parsing_error(monkeypatch):
     with tempfile.TemporaryDirectory() as tempdir:
-        setup_env(tempdir)
+        setup_env(monkeypatch, tempdir)
         TRAIN_KWARGS = {
             **BASE_LORA_KWARGS,
             **{"num_train_epochs": "five"},
             "output_dir": tempdir,
         }  # Intentional type error
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
         with pytest.raises(SystemExit) as pytest_wrapped_e:
             main()
         assert pytest_wrapped_e.type == SystemExit
@@ -376,9 +372,3 @@ def _validate_training_output(base_dir, tuning_technique):
     else:
         assert os.path.exists(base_dir + "/adapter_config.json") is True
         assert os.path.exists(base_dir + "/adapter_model.safetensors") is True
-
-
-def test_cleanup():
-    # This runs to unset env variables that could disrupt other tests
-    cleanup_env()
-    assert True
