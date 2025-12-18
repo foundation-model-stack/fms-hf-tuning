@@ -1,0 +1,32 @@
+name: Image
+on:
+  push:
+    branches: [ "release" ]
+  pull_request:
+    branches: [ "release" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Free up disk space"
+        uses: ./.github/actions/free-up-disk-space
+      - name: Build UBI9 Prod Image
+        run: |
+          docker build \
+            -t fms-hf-tuning:ubi9-latest \
+            -t fms-hf-tuning:release-ubi9-latest \
+            -f build/Dockerfile .
+      - name: Login to Quay.io
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+      - name: Push docker image to Quay.io
+        if: github.event_name == 'push'
+        run: |
+            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:ubi9-latest
+            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:release-ubi9-latest
