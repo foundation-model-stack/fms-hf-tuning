@@ -14,7 +14,10 @@ jobs:
         uses: ./.github/actions/free-up-disk-space
       - name: Build UBI9 Prod Image
         run: |
-          docker build -t fms-hf-tuning:latest . -f build/Dockerfile
+          docker build \
+            -t fms-hf-tuning:ubi9-latest \
+            -t fms-hf-tuning:release-ubi9-latest \
+            -f build/Dockerfile .
       - name: Login to Quay.io
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -25,4 +28,5 @@ jobs:
       - name: Push docker image to Quay.io
         if: github.event_name == 'push'
         run: |
-            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:latest
+            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:ubi9-latest
+            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:release-ubi9-latest

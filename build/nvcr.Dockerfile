@@ -48,6 +48,7 @@ RUN pip install --upgrade --force-reinstall torch torchaudio torchvision --index
 COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
 
+RUN pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir ${SOURCE_DIR}
 RUN pip install --user --no-build-isolation ${SOURCE_DIR}[flash-attn]
 

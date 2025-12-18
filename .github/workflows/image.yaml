@@ -14,7 +14,7 @@ jobs:
         uses: ./.github/actions/free-up-disk-space
       - name: Build NVCR dev Image
         run: |
-          docker build -t fms-hf-tuning-dev:latest . -f build/nvcr.Dockerfile
+          docker build -t fms-hf-tuning:main-nvcr-latest . -f build/nvcr.Dockerfile
       - name: Login to Quay.io
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -25,4 +25,4 @@ jobs:
       - name: Push docker image for every commit to Quay.io as dev images
         if: github.event_name == 'push'
         run: |
-            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning-dev:latest
+            docker push ${{ env.QUAY_REPOSITORY }}/fms-hf-tuning:main-nvcr-latest
