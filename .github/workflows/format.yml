@@ -16,9 +16,9 @@ name: Format
 
 on:
   push:
-    branches: [ "main", "release" ]
+    branches: [ "main", "release", "staging" ]
   pull_request:
-    branches: [ "main", "release" ]
+    branches: [ "main", "release", "staging" ]
 
 jobs:
   lint:
