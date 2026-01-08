@@ -240,6 +240,9 @@ class AccelerationFrameworkConfig:
             try:
                 with NamedTemporaryFile("w") as f:
                     self.to_yaml(f.name)
+
+                    AccelerationFramework.active_plugins = []
+                    AccelerationFramework.plugins_require_custom_loading = []
                     return AccelerationFramework(f.name)
             except ValueError as e:
                 (msg,) = e.args

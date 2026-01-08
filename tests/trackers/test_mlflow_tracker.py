@@ -56,7 +56,9 @@ def test_run_with_mlflow_tracker_name_but_no_args():
             ValueError,
             match="mlflow tracker requested but mlflow_uri is not specified.",
         ):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args
+            )
 
 
 @pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
@@ -86,7 +88,10 @@ def test_e2e_run_with_mlflow_tracker():
     )
 
     sft_trainer.train(
-        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        copy.deepcopy(MODEL_ARGS),
+        copy.deepcopy(DATA_ARGS),
+        train_args,
+        tracker_configs=tracker_configs,
     )
 
     # validate ft tuning configs
@@ -116,7 +121,10 @@ def test_e2e_run_with_mlflow_runuri_export_default_path():
     )
 
     sft_trainer.train(
-        MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+        copy.deepcopy(MODEL_ARGS),
+        copy.deepcopy(DATA_ARGS),
+        train_args,
+        tracker_configs=tracker_configs,
     )
 
     # validate ft tuning configs

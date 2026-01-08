@@ -47,6 +47,8 @@ def _inference(
 ) -> str:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     tokenized_input = tokenizer(input_text, return_tensors="pt").to(device)
+    model = model.to(device)
+
     generated_output = model.generate(
         **tokenized_input,
         max_new_tokens=max_new_tokens,

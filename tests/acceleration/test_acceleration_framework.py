@@ -263,10 +263,10 @@ def test_framework_raises_if_used_with_missing_package():
             ValueError, match="No acceleration framework package found."
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
-                TRAIN_ARGS,
-                PEFT_LORA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
+                copy.deepcopy(TRAIN_ARGS),
+                copy.deepcopy(PEFT_LORA_ARGS),
                 quantized_lora_config=quantized_lora_config,
             )
 
@@ -320,9 +320,9 @@ def test_framework_raises_due_to_invalid_arguments(
         with pytest.raises(exception, match=exception_msg):
             sft_trainer.train(
                 model_args,
-                DATA_ARGS,
+                copy.deepcopy(DATA_ARGS),
                 train_args,
-                peft_config,
+                copy.deepcopy(peft_config),
                 quantized_lora_config=quantized_lora_config,
             )
 
@@ -379,7 +379,7 @@ def test_framework_initialized_properly_peft(
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args.bf16 = True
         peft_args = copy.deepcopy(PEFT_LORA_ARGS)
         peft_args.target_modules = ["q_proj", "k_proj"]
 
@@ -395,7 +395,7 @@ def test_framework_initialized_properly_peft(
             with instantiate_model_patcher():
                 sft_trainer.train(
                     model_args,
-                    DATA_ARGS,
+                    copy.deepcopy(DATA_ARGS),
                     train_args,
                     peft_args,
                     quantized_lora_config=quantized_lora_config,
@@ -430,7 +430,7 @@ def test_framework_initialized_properly_foak():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_strategy = "no"
-        train_args.fp16 = True
+        train_args.bf16 = True
         peft_args = copy.deepcopy(PEFT_LORA_ARGS)
         peft_args.target_modules = ["q_proj", "k_proj"]
 
@@ -465,7 +465,7 @@ def test_framework_initialized_properly_foak():
             with instantiate_model_patcher():
                 sft_trainer.train(
                     model_args,
-                    DATA_ARGS,
+                    copy.deepcopy(DATA_ARGS),
                     train_args,
                     peft_args,
                     quantized_lora_config=quantized_lora_config,
@@ -613,8 +613,8 @@ def test_error_raised_with_paddingfree_and_flash_attn_disabled():
         model_args.use_flash_attn = False
         sft_trainer.train(
             model_args,
-            DATA_ARGS,
-            TRAIN_ARGS,
+            copy.deepcopy(DATA_ARGS),
+            copy.deepcopy(TRAIN_ARGS),
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
 
@@ -637,8 +637,8 @@ def test_error_raised_with_multipack_and_paddingfree_disabled():
         model_args = copy.deepcopy(MODEL_ARGS)
         sft_trainer.train(
             model_args,
-            DATA_ARGS,
-            TRAIN_ARGS,
+            copy.deepcopy(DATA_ARGS),
+            copy.deepcopy(TRAIN_ARGS),
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
 
@@ -664,7 +664,7 @@ def test_error_raised_with_packing_and_paddingfree_enabled():
         train_args.packing = True
         sft_trainer.train(
             model_args,
-            DATA_ARGS,
+            copy.deepcopy(DATA_ARGS),
             train_args,
             attention_and_distributed_packing_config=attention_and_distributed_packing_config,
         )
@@ -693,7 +693,6 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
             train_args = copy.deepcopy(TRAIN_ARGS)
             train_args.output_dir = tempdir
             train_args.save_strategy = "no"
-            train_args.fp16 = True
             peft_args = copy.deepcopy(PEFT_LORA_ARGS)
             peft_args.target_modules = ["q_proj", "k_proj"]
 
@@ -713,7 +712,7 @@ def test_error_raised_with_fused_lora_enabled_without_quantized_argument():
                 with instantiate_model_patcher():
                     sft_trainer.train(
                         model_args,
-                        DATA_ARGS,
+                        copy.deepcopy(DATA_ARGS),
                         train_args,
                         peft_args,
                         quantized_lora_config=None,
