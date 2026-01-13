@@ -951,16 +951,16 @@ def test_run_causallm_lora_add_special_tokens():
             ["lm_head"],
             ["embed_tokens"],
             marks=pytest.mark.skipif(
-                version.parse(peft.__version__) <= version.parse("0.18.0"),
-                reason="Not released in PEFT <= 0.18.0",
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
             ),
         ),
         pytest.param(
             ["embed_tokens", "lm_head"],
             ["embed_tokens"],
             marks=pytest.mark.skipif(
-                version.parse(peft.__version__) <= version.parse("0.18.0"),
-                reason="Not released in PEFT <= 0.18.0",
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
             ),
         ),
     ],
@@ -1012,8 +1012,8 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
     ],
 )
 @pytest.mark.skipif(
-    version.parse(peft.__version__) <= version.parse("0.18.0"),
-    reason="Not released in PEFT <= 0.18.0",
+    version.parse(peft.__version__) <= version.parse("0.18.1"),
+    reason="Not released in PEFT <= 0.18.1",
 )
 def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
     """Check if a model with tied weights in target_modules is correctly trained"""
