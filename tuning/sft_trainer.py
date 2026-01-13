@@ -23,6 +23,7 @@ import time
 import traceback
 
 # Third Party
+from accelerate.utils import set_seed
 from huggingface_hub.utils._validators import HFValidationError
 from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
@@ -500,6 +501,9 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
+
+    # Set seed for accelerate processes
+    set_seed(training_args.seed, device_specific=True)
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

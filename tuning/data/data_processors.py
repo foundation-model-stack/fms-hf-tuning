@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import logging
 import os
 
@@ -102,8 +102,8 @@ class DataPreProcessor:
         self,
         datasetconfig: DataSetConfig,
         streaming: bool,
-        splitName: str = None,
-        datafile: str = None,
+        splitName: Optional[str] = None,
+        datafile: Optional[str] = None,
         **kwargs,
     ):
 
@@ -402,8 +402,9 @@ class DataPreProcessor:
 
         if isinstance(dataset, (DatasetDict, IterableDatasetDict)):
             splits = dataset.keys()
-            if len(splits) == 1 and train_split in splits:
-                d = dataset[train_split]
+            # Other splits are ignored and only "train" or user provided split name is used
+            if dataset_config.dataset_split_name in splits:
+                d = dataset[dataset_config.dataset_split_name]
             else:
                 logger.warning(
                     "Loaded dataset has multiple splits or no train split.\
@@ -434,7 +435,7 @@ class DataPreProcessor:
         split_datasets = d.train_test_split(
             train_size=train_size if train_size > 0.0 else None,
             test_size=eval_size if eval_size > 0.0 else None,
-            shuffle=True,
+            shuffle=dataset_config.shuffle,
             seed=seed,
         )
 
@@ -471,7 +472,9 @@ class DataPreProcessor:
             logger.info("Loading the dataset - %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            loaded_dataset = self.load_dataset(d, self.processor_config.streaming)
+            loaded_dataset = self.load_dataset(
+                d, self.processor_config.streaming, splitName=d.dataset_split_name
+            )
             logger.info("Loaded raw dataset : %s", str(loaded_dataset))
 
             if d.split is not None:
