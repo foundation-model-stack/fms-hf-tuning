@@ -403,8 +403,8 @@ class DataPreProcessor:
         if isinstance(dataset, (DatasetDict, IterableDatasetDict)):
             splits = dataset.keys()
             # Other splits are ignored and only "train" or user provided split name is used
-            if dataset_config.dataset_split_name in splits:
-                d = dataset[dataset_config.dataset_split_name]
+            if len(splits) == 1 and train_split in splits:
+                d = dataset[train_split]
             else:
                 logger.warning(
                     "Loaded dataset has multiple splits or no train split.\
