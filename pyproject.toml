@@ -60,6 +60,7 @@ fms-accel-all = [
     "fms-acceleration-moe",
     "fms-acceleration-odm"
 ]
+tuning-config-recommender=["tuning-config-recommender>=0.1.5"]
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]

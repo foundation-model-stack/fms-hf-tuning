@@ -8,7 +8,7 @@
   - [Advanced Data Processing](./docs/advanced-data-preprocessing.md#data-config)
   - [Guidelines on supported data formats](./docs/advanced-data-preprocessing.md#use-cases-supported-via-command-line-argument-training_data_path)
   - [Offline data processing](#offline-data-preprocessing)
-  - [Online data mixing](./docs/online-data-mixing.md)
+  - [Online data mixing](./docs/advanced-data-preprocessing.md#online-data-mixing-section)
 - [Additional Frameworks](#additional-frameworks)
   - [Inference](#inference)
   - [Validation](#validation)
