@@ -112,9 +112,9 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
-        effective_split = (
-            splitName or datasetconfig.dataset_split_name if datasetconfig else None
-        )
+        effective_split = splitName
+        if datasetconfig and datasetconfig.dataset_split_name:
+            effective_split = datasetconfig.dataset_split_name
 
         def _load_dataset(
             data_path=None,
