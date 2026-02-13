@@ -112,6 +112,10 @@ class DataPreProcessor:
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
 
+        effective_split = (
+            splitName or datasetconfig.dataset_split_name if datasetconfig else None
+        )
+
         def _load_dataset(
             data_path=None,
             builder=None,
@@ -133,8 +137,8 @@ class DataPreProcessor:
             """
 
             load_kwargs = {**kwargs}
-            if splitName is not None:
-                load_kwargs["split"] = splitName
+            if effective_split is not None:
+                load_kwargs["split"] = effective_split
             if data_dir is not None:
                 load_kwargs["data_dir"] = data_dir
             if data_files is not None:
@@ -472,9 +476,7 @@ class DataPreProcessor:
             logger.info("Loading the dataset - %s", d.name)
 
             # In future the streaming etc go as kwargs of this function
-            loaded_dataset = self.load_dataset(
-                d, self.processor_config.streaming, splitName=d.dataset_split_name
-            )
+            loaded_dataset = self.load_dataset(d, self.processor_config.streaming)
             logger.info("Loaded raw dataset : %s", str(loaded_dataset))
 
             if d.split is not None:
