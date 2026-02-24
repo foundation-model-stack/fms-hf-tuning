@@ -86,6 +86,7 @@ CHAT_DATASET_SEQUENCE = os.path.join(
 IMAGE_DATASET = os.path.join(JSONL_DATA_DIR, "image_dataset.jsonl")
 EMPTY_DATA = os.path.join(JSON_DATA_DIR, "empty_data.json")
 MALFORMATTED_DATA = os.path.join(JSON_DATA_DIR, "malformatted_data.json")
+CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT = "rom7/test-OpenHermes-2.5-H4"
 
 # Other constants
 CUSTOM_TOKENIZER_TINYLLAMA = os.path.join(

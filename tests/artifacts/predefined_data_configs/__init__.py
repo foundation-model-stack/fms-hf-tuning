@@ -86,3 +86,6 @@ DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER = os.path.join(
 DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER = os.path.join(
     PREDEFINED_DATA_CONFIGS, "skip_large_columns_data_handler_template.yaml"
 )
+DATA_CONFIG_CUSTOM_SPLIT_NAME = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "dataset_with_custom_split.yaml"
+)
