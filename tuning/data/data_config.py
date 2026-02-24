@@ -40,6 +40,8 @@ class DataSetConfig:
     sampling: Optional[float] = None
     data_handlers: Optional[List[DataHandlerConfig]] = None
     split: Optional[Dict[str, float]] = None
+    dataset_split_name: Optional[str] = None
+    shuffle: Optional[bool] = True
 
 
 @dataclass
@@ -123,6 +125,10 @@ def _validate_dataset_config(dataset_config) -> DataSetConfig:
                 isinstance(value, (float, int)) and 0.0 <= value <= 1.0
             ), f"split ratio for '{key}' must be a float in [0.0, 1.0], got {value}"
         c.split = {k: float(v) for k, v in split.items()}
+    if "dataset_split_name" in kwargs:
+        c.dataset_split_name = kwargs["dataset_split_name"]
+    if "shuffle" in kwargs:
+        c.shuffle = kwargs["shuffle"]
     return c
 
 
