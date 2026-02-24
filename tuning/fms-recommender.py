@@ -8,7 +8,7 @@ import shlex
 import subprocess
 
 # Third Party
-from recommender.adapters import FMSAdapter
+from recommender.adapters import FMSAdapter  # pylint: disable=import-error
 import yaml
 
 ACCEL_NESTED_PREFIXES = {
