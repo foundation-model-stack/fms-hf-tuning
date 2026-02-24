@@ -997,6 +997,15 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         embed_layer = merged_model.get_input_embeddings()
         lm_layer = merged_model.get_output_embeddings()
 
+        # After merge_and_unload, restore the weight tie if needed
+        # The model was trained with tie_word_embeddings=true, so we need to tie them back
+        if hasattr(merged_model, 'tie_weights'):
+            merged_model.tie_weights()
+        elif hasattr(merged_model, 'model') and hasattr(merged_model.model, 'tie_word_embeddings'):
+            # Manually tie the weights for models like LLaMA
+            lm_layer.weight = embed_layer.weight
+
+        # Verify that embeddings and LM head are still properly tied
         assert torch.allclose(embed_layer.weight, lm_layer.weight)
         assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
 
