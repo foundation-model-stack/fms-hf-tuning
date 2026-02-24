@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import logging
 import os
 
@@ -102,8 +102,8 @@ class DataPreProcessor:
         self,
         datasetconfig: DataSetConfig,
         streaming: bool,
-        splitName: str = None,
-        datafile: str = None,
+        splitName: Optional[str] = None,
+        datafile: Optional[str] = None,
         **kwargs,
     ):
 
@@ -111,6 +111,10 @@ class DataPreProcessor:
             raise ValueError("Both datafile and datasetconfig should not be set")
         if (not datafile) and (not datasetconfig):
             raise ValueError("Either datafile or datasetconfig must be set")
+
+        effective_split = splitName
+        if datasetconfig and datasetconfig.dataset_split_name:
+            effective_split = datasetconfig.dataset_split_name
 
         def _load_dataset(
             data_path=None,
@@ -133,8 +137,8 @@ class DataPreProcessor:
             """
 
             load_kwargs = {**kwargs}
-            if splitName is not None:
-                load_kwargs["split"] = splitName
+            if effective_split is not None:
+                load_kwargs["split"] = effective_split
             if data_dir is not None:
                 load_kwargs["data_dir"] = data_dir
             if data_files is not None:
@@ -402,6 +406,7 @@ class DataPreProcessor:
 
         if isinstance(dataset, (DatasetDict, IterableDatasetDict)):
             splits = dataset.keys()
+            # Other splits are ignored and only "train" or user provided split name is used
             if len(splits) == 1 and train_split in splits:
                 d = dataset[train_split]
             else:
@@ -434,7 +439,7 @@ class DataPreProcessor:
         split_datasets = d.train_test_split(
             train_size=train_size if train_size > 0.0 else None,
             test_size=eval_size if eval_size > 0.0 else None,
-            shuffle=True,
+            shuffle=dataset_config.shuffle,
             seed=seed,
         )
 

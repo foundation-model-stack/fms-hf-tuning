@@ -25,6 +25,7 @@ ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
+ARG ENABLE_RECOMMENDER=true
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -187,6 +188,9 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
     fi
 RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
+    fi
+RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[tuning-config-recommender]"; \
     fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
