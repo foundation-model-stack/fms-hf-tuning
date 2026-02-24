@@ -162,7 +162,8 @@ Each data handler has:
     - `sampling` (optional, float): The sampling ratio (0.0 to 1.0) with which to sample a dataset in case of interleaving.
     - `split` (optional, dict[str: float]): Defines how to split the dataset into training and validation sets. Requires both `train` and `validation` keys.
     - `data_handlers` (optional, list): A list of data handler configurations which preprocess the dataset.
-
+    - `dataset_split_name` (optional, str): Name of the dataset split. This is useful for loading HuggingFace datasets with split names that are different from the standard (eg: `train_sft` instead of `train`). If no `dataset_split_name` is provided, `train` is used.
+    - `shuffle` (optional, bool): If the dataset should be shuffled while splitting into train and validation split. Defaults to `True`. Use caution when using this field and only use when the dataset is already shuffled.
 
 We do provide some sample `data_configs` here, [predefined_data_configs](../tests/artifacts/predefined_data_configs/).
 

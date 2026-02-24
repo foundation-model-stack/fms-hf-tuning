@@ -42,6 +42,7 @@ from scripts.run_inference import TunedCausalLM
 from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED, TINYMIXTRAL_MOE
 from tests.artifacts.predefined_data_configs import (
     CHAT_TEMPLATE_JINJA,
+    DATA_CONFIG_CUSTOM_SPLIT_NAME,
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
     DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
@@ -61,6 +62,7 @@ from tests.artifacts.predefined_data_configs import (
     GRANITE_3_1_B_CHAT_TEMPLATE,
 )
 from tests.artifacts.testdata import (
+    CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT,
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_MULTI_TURN_CONVERSATIONS,
     CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
@@ -949,16 +951,16 @@ def test_run_causallm_lora_add_special_tokens():
             ["lm_head"],
             ["embed_tokens"],
             marks=pytest.mark.skipif(
-                version.parse(peft.__version__) <= version.parse("0.18.0"),
-                reason="Not released in PEFT <= 0.18.0",
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
             ),
         ),
         pytest.param(
             ["embed_tokens", "lm_head"],
             ["embed_tokens"],
             marks=pytest.mark.skipif(
-                version.parse(peft.__version__) <= version.parse("0.18.0"),
-                reason="Not released in PEFT <= 0.18.0",
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
             ),
         ),
     ],
@@ -1010,8 +1012,8 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
     ],
 )
 @pytest.mark.skipif(
-    version.parse(peft.__version__) <= version.parse("0.18.0"),
-    reason="Not released in PEFT <= 0.18.0",
+    version.parse(peft.__version__) <= version.parse("0.18.1"),
+    reason="Not released in PEFT <= 0.18.1",
 )
 def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
     """Check if a model with tied weights in target_modules is correctly trained"""
@@ -1914,6 +1916,61 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
         assert os.path.exists(os.path.join(save_model_dir))
+
+
+@pytest.mark.parametrize(
+    "datafiles, dataconfigfile",
+    [
+        (
+            [CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT, CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT],
+            DATA_CONFIG_CUSTOM_SPLIT_NAME,
+        )
+    ],
+)
+def test_run_chat_style_ft_using_custom_split_name(datafiles, dataconfigfile):
+    """Check if we can select custom split for a dataset."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
+        data_args.response_template = None
+        data_args.dataset_text_field = None
+        data_args.chat_template = CHAT_TEMPLATE_JINJA
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
+        model_args.tokenizer_name_or_path = TINYMIXTRAL_MOE
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            datasets = data["datasets"]
+            for i, d in enumerate(datasets):
+                d["data_paths"] = [datafiles[i]]
+            yaml.dump(data, temp_yaml_file)
+            data_args.data_config_path = temp_yaml_file.name
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 ############################# Helper functions #############################
