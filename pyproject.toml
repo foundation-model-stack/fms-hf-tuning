@@ -38,13 +38,13 @@ dependencies = [
 "peft>=0.18.0,< 0.19.0",
 "datasets>=4.0.0,<5.0.0",
 "simpleeval>=0.9.13,<2.0",
-"pillow>=11.0.0,<12.0",
+"pillow>=12.1.1",
 "kernels<=0.9.0",
 "recommender @ git+https://github.com/foundation-model-stack/tuning-config-recommender.git",
 ]
 
 [project.optional-dependencies]
-dev = ["wheel>=0.42.0,<1.0", "packaging>=23.2,<25", "ninja>=1.11.1.1,<2.0", "scikit-learn>=1.0, <2.0", "boto3>=1.34, <2.0"]
+dev = ["wheel>=0.42.0,<1.0", "packaging>=23.2,<25", "ninja>=1.11.1.1,<2.0", "scikit-learn>=1.0, <2.0", "boto3>=1.34, <2.0", "hf_transfer>=0.1.9"]
 flash-attn = ["flash-attn>=2.8.3"]
 aim = ["aim>=3.19.0,<4.0"]
 mlflow = ["mlflow"]
@@ -61,6 +61,7 @@ fms-accel-all = [
     "fms-acceleration-moe",
     "fms-acceleration-odm"
 ]
+tuning-config-recommender=["tuning-config-recommender>=0.1.5"]
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]

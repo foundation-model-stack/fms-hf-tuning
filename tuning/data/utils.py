@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Standard
-from typing import List, Union
+from typing import List, Optional, Union
 import io
 import json
 import logging
@@ -39,7 +39,7 @@ def get_extension(file_path: str) -> str:
     return ext.lower()
 
 
-def get_loader_for_filepath(file_path: str) -> str:
+def get_loader_for_filepath(file_path: str) -> Optional[str]:
     ext = get_extension(file_path)
     if ext in (".txt", ".md"):
         return "text"
@@ -49,7 +49,8 @@ def get_loader_for_filepath(file_path: str) -> str:
         return "arrow"
     if ext in (".parquet",):
         return "parquet"
-    return ext
+
+    return None
 
 
 def load_yaml_or_json(file_path: str) -> dict:
