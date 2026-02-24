@@ -30,7 +30,7 @@ from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
     AutoModelForCausalLM,
-    AutoModelForVision2Seq,
+    AutoModelForImageTextToText, # AutoModelForVision2Seq was renamed in transformers v5
     AutoProcessor,
     AutoTokenizer,
     TrainerCallback,
@@ -292,7 +292,10 @@ def train(
                 )
             )
             # try to load model as a vision model
-            model = AutoModelForVision2Seq.from_pretrained(
+            # model = AutoModelForVision2Seq.from_pretrained(
+            #     model_args.model_name_or_path, **model_kwargs
+            # )
+            model = AutoModelForImageTextToText.from_pretrained(
                 model_args.model_name_or_path, **model_kwargs
             )
             try:

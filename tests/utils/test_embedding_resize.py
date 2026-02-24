@@ -21,7 +21,7 @@ import copy
 # Third Party
 from transformers import (
     AutoModelForCausalLM,
-    AutoModelForVision2Seq,
+    AutoModelForImageTextToText, #AutoModelForVision2Seq was renamed to this in transformers v5
     AutoProcessor,
     AutoTokenizer,
 )
@@ -212,7 +212,8 @@ def test_resize_with_multiple_of():
 
 
 def test_resize_llama_vision_model():
-    model = AutoModelForVision2Seq.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
+    # model = AutoModelForVision2Seq.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
+    model = AutoModelForImageTextToText.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
     processor = AutoProcessor.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
     tokenizer = processor.tokenizer
 
