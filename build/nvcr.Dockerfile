@@ -34,6 +34,7 @@ ARG ENABLE_MLFLOW=false
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=true
 ARG ENABLE_TRITON_KERNELS=true
+ARG ENABLE_RECOMMENDER=true
 
 # Ensures to always build mamba_ssm from source
 ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
@@ -75,6 +76,9 @@ RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
     fi
 RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         pip install --no-cache-dir ${SOURCE_DIR}[scanner-dev]; \
+    fi
+RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[tuning-config-recommender]"; \
     fi
 
 # cleanup
