@@ -40,6 +40,7 @@ dependencies = [
 "simpleeval>=0.9.13,<2.0",
 "pillow>=12.1.1",
 "kernels<=0.9.0",
+"tuning_config_recommender>=0.1.7",
 ]
 
 [project.optional-dependencies]

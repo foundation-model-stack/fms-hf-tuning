@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+# Standard
+from pathlib import Path
 import argparse
 import os
-from pathlib import Path
 
+# Third Party
+from fms_acceleration_moe.utils import (  # pylint: disable=import-error
+    recover_safetensors_from_dcp,
+)
 from huggingface_hub import snapshot_download
 from transformers import AutoConfig, AutoTokenizer
-
-from fms_acceleration_moe.utils import recover_safetensors_from_dcp
-
 
 HF_CACHE = "/workspace/.hf"
 os.environ.setdefault("HF_HOME", HF_CACHE)
@@ -99,4 +101,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
