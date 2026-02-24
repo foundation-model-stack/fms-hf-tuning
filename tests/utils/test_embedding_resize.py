@@ -128,9 +128,10 @@ def test_special_tokens_before_and_after():
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
     input_tokenizer_len = len(tokenizer.get_vocab())
-    addn_spl_tokens_before = tokenizer.special_tokens_map.get(
-        "additional_special_tokens"
-    )
+    # addn_spl_tokens_before = tokenizer.special_tokens_map.get(
+    #     "additional_special_tokens"
+    # )
+    addn_spl_tokens_before = list(tokenizer.extra_special_tokens)
     assert (
         len(addn_spl_tokens_before) > 0
     ), "this test needs tokenizer special tokens to not be empty before testing"
@@ -150,9 +151,10 @@ def test_special_tokens_before_and_after():
     addn_spl_tokens_before.extend(addn_spl_tokens_added)
     expected_addn_special_tokens = addn_spl_tokens_before
     expected_embedding_size = input_tokenizer_len + len(addn_spl_tokens_added) + 2
-    addn_spl_tokens_after = tokenizer.special_tokens_map.get(
-        "additional_special_tokens"
-    )
+    # addn_spl_tokens_after = tokenizer.special_tokens_map.get(
+    #     "additional_special_tokens"
+    # )
+    addn_spl_tokens_after = list(tokenizer.extra_special_tokens)
 
     assert "<SEP>" in tokenizer.get_vocab()
     assert "<PAD>" in tokenizer.get_vocab()
