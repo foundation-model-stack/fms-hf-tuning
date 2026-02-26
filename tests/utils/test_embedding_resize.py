@@ -138,7 +138,10 @@ def test_special_tokens_before_and_after():
 
     special_tokens_dict = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
     addn_spl_tokens_added = ["<NotSeenTokenA>", "<NotSeenTokenB>", "<NotSeenTokenC>"]
-    special_tokens_dict["additional_special_tokens"] = addn_spl_tokens_added
+    # special_tokens_dict["additional_special_tokens"] = addn_spl_tokens_added
+    # for transformers v5: merge existing extra_special_tokens with new ones to prevent replacement
+    special_tokens_dict["additional_special_tokens"] = list(tokenizer.extra_special_tokens) + addn_spl_tokens_added
+
 
     resize_result = tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
