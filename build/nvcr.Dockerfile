@@ -78,7 +78,7 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
         pip install --no-cache-dir ${SOURCE_DIR}[scanner-dev]; \
     fi
 RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
-        python -m pip install --user "$(head bdist_name)[tuning-config-recommender]"; \
+        pip install --no-cache-dir ${SOURCE_DIR}[tuning_config_recommender]; \
     fi
 
 # cleanup
