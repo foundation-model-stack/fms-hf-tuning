@@ -79,7 +79,10 @@ def test_sample_run_with_hf_resource_scanner_updated_filename():
         )
 
         sft_trainer.train(
-            MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            tracker_configs=tracker_configs,
         )
 
         # validate ft tuning configs

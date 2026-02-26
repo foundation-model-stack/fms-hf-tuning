@@ -14,7 +14,7 @@
 
 # Standard
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional, Union
 
 # Local
 from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
@@ -24,11 +24,15 @@ from .utils import ensure_nested_dataclasses_initialized, parsable_dataclass
 @dataclass
 class ODM:
     update_interval: int = None
-    sampling_interval: int = None
-    reward_type: str = None
+    sampling_interval: int = 1
+    reward_type: str = "entropy"
     gamma: float = 0.1
-    eta: float = 0.1
+    eta: float = 0.3
     resume_from_checkpoint: Union[bool, str] = False
+    auto_categorize_input_column: str = None
+    auto_categorize_num_categories: Optional[int] = None
+    auto_categorize_model_name: str = "Qwen/Qwen3-Embedding-0.6B"
+    auto_categorize_batch_size: int = 64
 
 
 @dataclass

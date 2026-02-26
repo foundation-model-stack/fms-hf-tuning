@@ -34,6 +34,9 @@ DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_YAML = os.path.join(
 DATA_CONFIG_MULTIPLE_DATASETS_SAMPLING_AND_SPLIT_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_sampling_and_split.yaml"
 )
+DATA_CONFIG_SINGLE_DATASET_ODM_YAML = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "single_dataset_with_odm.yaml"
+)
 DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML = os.path.join(
     PREDEFINED_DATA_CONFIGS, "multiple_datasets_with_odm.yaml"
 )
@@ -82,4 +85,7 @@ DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER = os.path.join(
 )
 DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER = os.path.join(
     PREDEFINED_DATA_CONFIGS, "skip_large_columns_data_handler_template.yaml"
+)
+DATA_CONFIG_CUSTOM_SPLIT_NAME = os.path.join(
+    PREDEFINED_DATA_CONFIGS, "dataset_with_custom_split.yaml"
 )

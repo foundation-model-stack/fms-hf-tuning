@@ -1,0 +1,34 @@
+dataprocessor:
+    type: default
+    sampling_stopping_strategy: first_exhausted
+    seed: 66
+datasets:
+  - name: dataset_split_custom_split_name
+    split:
+      train: 0.8
+      validation: 0.2
+    sampling: 0.5
+    dataset_split_name: "train_sft"
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_chat_template_with_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            formatted_text_column_name: "formatted_chat_data"
+            conversation_column: "messages"
+  - name: dataset_wo_split_custom_split_name
+    sampling: 0.5
+    dataset_split_name: "train_sft"
+    data_paths:
+      - "FILE_PATH"
+    data_handlers:
+      - name: tokenize_and_apply_chat_template_with_masking
+        arguments:
+          remove_columns: all
+          batched: false
+          fn_kwargs:
+            formatted_text_column_name: "formatted_chat_data"
+            conversation_column: "messages"

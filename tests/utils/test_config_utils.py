@@ -17,7 +17,6 @@
 
 # Standard
 import base64
-import os
 import pickle
 
 # Third Party
@@ -208,20 +207,19 @@ def test_update_config_can_handle_multiple_config_updates():
     assert config[1].r == 98
 
 
-def test_get_json_config_can_load_from_path():
+def test_get_json_config_can_load_from_path(monkeypatch):
     """Test that the function get_json_config can read
     the json path from env var SFT_TRAINER_CONFIG_JSON_PATH
     """
-    if "SFT_TRAINER_CONFIG_JSON_ENV_VAR" in os.environ:
-        del os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"]
-    os.environ["SFT_TRAINER_CONFIG_JSON_PATH"] = HAPPY_PATH_DUMMY_CONFIG_PATH
+    monkeypatch.delenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", raising=False)
+    monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_PATH", HAPPY_PATH_DUMMY_CONFIG_PATH)
 
     job_config = config_utils.get_json_config()
     assert job_config is not None
     assert job_config["model_name_or_path"] == "bigscience/bloom-560m"
 
 
-def test_get_json_config_can_load_from_envvar():
+def test_get_json_config_can_load_from_envvar(monkeypatch):
     """Test that the function get_json_config can read
     the json path from env var SFT_TRAINER_CONFIG_JSON_ENV_VAR
     """
@@ -229,7 +227,8 @@ def test_get_json_config_can_load_from_envvar():
     message_bytes = pickle.dumps(config_json)
     base64_bytes = base64.b64encode(message_bytes)
     encoded_json = base64_bytes.decode("ascii")
-    os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = encoded_json
+    monkeypatch.delenv("SFT_TRAINER_CONFIG_JSON_PATH", raising=False)
+    monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", encoded_json)
 
     job_config = config_utils.get_json_config()
     assert job_config is not None

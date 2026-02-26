@@ -55,9 +55,15 @@ def test_process_accelerate_launch_args(job_config):
 
 
 @patch("torch.cuda.device_count", return_value=1)
-def test_accelerate_launch_args_user_set_num_processes_ignored(job_config):
+def test_accelerate_launch_args_user_set_num_processes_ignored(
+    _mock_cuda_count, job_config, monkeypatch
+):
     job_config_copy = copy.deepcopy(job_config)
     job_config_copy["accelerate_launch_args"]["num_processes"] = "3"
+    if "CUDA_VISIBLE_DEVICES" in os.environ:
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", os.environ["CUDA_VISIBLE_DEVICES"])
+    else:
+        monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
     args = process_accelerate_launch_args(job_config_copy)
     # determine number of processes by number of GPUs available
     assert args.num_processes == 1
@@ -66,8 +72,8 @@ def test_accelerate_launch_args_user_set_num_processes_ignored(job_config):
     assert os.getenv("CUDA_VISIBLE_DEVICES") == "0"
 
 
-@patch.dict(os.environ, {"SET_NUM_PROCESSES_TO_NUM_GPUS": "False"})
-def test_accelerate_launch_args_user_set_num_processes(job_config):
+def test_accelerate_launch_args_user_set_num_processes(job_config, monkeypatch):
+    monkeypatch.setenv("SET_NUM_PROCESSES_TO_NUM_GPUS", "False")
     job_config_copy = copy.deepcopy(job_config)
     job_config_copy["accelerate_launch_args"]["num_processes"] = "3"
 
@@ -94,7 +100,10 @@ def test_accelerate_launch_args_default_fsdp_config_multigpu(job_config):
 
 
 @patch("os.path.exists")
-def test_process_accelerate_launch_custom_config_file(patch_path_exists):
+def test_process_accelerate_launch_custom_config_file(patch_path_exists, monkeypatch):
+    monkeypatch.setenv("SET_NUM_PROCESSES_TO_NUM_GPUS", "False")
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
+
     patch_path_exists.return_value = True
 
     dummy_config_path = "dummy_fsdp_config.yaml"

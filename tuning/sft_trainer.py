@@ -23,6 +23,7 @@ import time
 import traceback
 
 # Third Party
+from accelerate.utils import set_seed
 from huggingface_hub.utils._validators import HFValidationError
 from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
@@ -160,6 +161,9 @@ def train(
                 "resume_from_checkpoint"
             ] = resume_from_checkpoint
             odm_config = ODMConfig(odm=ODM(**_dataconfig.dataprocessor.odm))
+            odm_config.odm.update_interval = (
+                odm_config.odm.update_interval or train_args.eval_steps
+            )
 
     # Validate parameters
     if (not isinstance(model_args.model_name_or_path, str)) or (
@@ -379,6 +383,33 @@ def train(
 
     added_tokens_dict = setup_tokenizer(tokenizer, data_args, model_args, model)
 
+    # If additional tokens are added, and we are doing LoRA
+    # we need to set the embedding layer as trainable
+    # and ensure that the weights are tied
+    if added_tokens_dict and isinstance(peft_config, LoraConfig):
+        if added_tokens_dict.get("num_new_tokens", 0) > 0:
+            modules_to_save = getattr(peft_config, "modules_to_save", []) or []
+            target_modules = getattr(peft_config, "target_modules", []) or []
+
+            # If the initial model's weights are not tied,
+            # then we need to add both the embedding layer and the output layer
+            # If embedding layer or lm head is already targetted via `target_modules`
+            # then we skip adding it `modules_to_save` since it is already adapted
+            # for changes
+            if not any(m in target_modules for m in ("embed_tokens", "lm_head")):
+                # TODO: @romit Enable adding both embed tokens and lm head to modules to save
+                # modules_to_save.extend(["embed_tokens", "lm_head"])
+                modules_to_save.extend(["embed_tokens"])
+                setattr(peft_config, "modules_to_save", modules_to_save)
+
+            # This is safe to do for both tied and non-tied models
+            # `ensure_weight_tying` will be ignored if weights are not tied
+            # https://github.com/huggingface/peft/blob/v0.18.0.rc0/src/peft/tuners/tuners_utils.py#L1230
+            setattr(peft_config, "ensure_weight_tying", True)
+            logger.info(
+                "Adding embed_tokens and lm_head as trainable modules due to vocab expansion"
+            )
+
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
     logger.info("Packing is set to %s ", train_args.packing)
@@ -470,6 +501,9 @@ def train(
         callbacks=trainer_callbacks,
         peft_config=peft_config,
     )
+
+    # Set seed for accelerate processes
+    set_seed(training_args.seed, device_specific=True)
 
     # We track additional metrics and experiment metadata after trainer object creation
     # this ensure that the process is not repeated multiple times for FSDP runs.

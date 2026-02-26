@@ -27,8 +27,10 @@ import tempfile
 
 # Third Party
 from datasets.exceptions import DatasetGenerationError, DatasetNotFoundError
+from packaging import version
 from peft import LoraConfig as HFLoraConfig
 from transformers.trainer_callback import TrainerCallback
+import peft
 import pytest
 import torch
 import transformers
@@ -37,9 +39,10 @@ import yaml
 # First Party
 from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
-from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED
+from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED, TINYMIXTRAL_MOE
 from tests.artifacts.predefined_data_configs import (
     CHAT_TEMPLATE_JINJA,
+    DATA_CONFIG_CUSTOM_SPLIT_NAME,
     DATA_CONFIG_DUPLICATE_COLUMNS,
     DATA_CONFIG_INVALID_BASE64_CHAT_TEMPLATE,
     DATA_CONFIG_MULTIPLE_DATASETS_ODM_YAML,
@@ -49,6 +52,7 @@ from tests.artifacts.predefined_data_configs import (
     DATA_CONFIG_MULTITURN_GRANITE_3_1B_DATA_YAML,
     DATA_CONFIG_PRETOKENIZE_DATA_YAML,
     DATA_CONFIG_RENAME_SELECT_COLUMNS,
+    DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
     DATA_CONFIG_SKIP_LARGE_COLUMNS_HANDLER,
     DATA_CONFIG_TOKENIZE_AND_APPLY_INPUT_MASKING_YAML,
     DATA_CONFIG_TOKENIZE_AND_TRAIN_WITH_HANDLER,
@@ -58,6 +62,7 @@ from tests.artifacts.predefined_data_configs import (
     GRANITE_3_1_B_CHAT_TEMPLATE,
 )
 from tests.artifacts.testdata import (
+    CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT,
     CHAT_DATA_MULTI_TURN,
     CHAT_DATA_MULTI_TURN_CONVERSATIONS,
     CHAT_DATA_MULTI_TURN_GRANITE_3_1B,
@@ -171,7 +176,9 @@ def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
         train_args.enable_reduce_loss_sum = enable_reduce_loss_sum
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -180,7 +187,9 @@ def test_resume_training_from_checkpoint(enable_reduce_loss_sum):
 
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -214,7 +223,9 @@ def test_resume_training_from_checkpoint_with_flag_true():
         train_args.output_dir = tempdir
         train_args.resume_from_checkpoint = "True"
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -226,7 +237,9 @@ def test_resume_training_from_checkpoint_with_flag_true():
 
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -253,7 +266,9 @@ def test_resume_training_from_checkpoint_with_flag_false():
         train_args.output_dir = tempdir
         train_args.resume_from_checkpoint = "False"
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get trainer state of latest checkpoint
@@ -266,7 +281,9 @@ def test_resume_training_from_checkpoint_with_flag_false():
 
         # Training again with higher epoch and same output dir
         train_args.num_train_epochs += 5
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, None
+        )
         _validate_training(tempdir)
 
         # Get Training log entry for epoch 1
@@ -283,7 +300,9 @@ def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
         lora_config = copy.deepcopy(PEFT_LORA_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, lora_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config
+        )
         _validate_training(tempdir)
 
         # Get trainer state and checkpoint_path of second last checkpoint
@@ -295,7 +314,9 @@ def test_resume_training_from_checkpoint_with_flag_checkpoint_path_lora():
         # Resume training with higher epoch and same output dir
         train_args.num_train_epochs += 5
         train_args.resume_from_checkpoint = checkpoint_path
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, lora_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), train_args, lora_config
+        )
         _validate_training(tempdir)
 
         # Get total_flos from trainer state of checkpoint_path and check if its same
@@ -375,7 +396,12 @@ def test_run_train_fails_training_data_path_not_exist():
     updated_data_path_args = copy.deepcopy(DATA_ARGS)
     updated_data_path_args.training_data_path = "fake/path"
     with pytest.raises(DatasetNotFoundError):
-        sft_trainer.train(MODEL_ARGS, updated_data_path_args, TRAIN_ARGS, None)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            updated_data_path_args,
+            copy.deepcopy(TRAIN_ARGS),
+            None,
+        )
 
 
 HAPPY_PATH_DUMMY_CONFIG_PATH = os.path.join(
@@ -494,7 +520,12 @@ def test_run_causallm_pt_and_inference():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            copy.deepcopy(PEFT_PT_ARGS),
+        )
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -531,7 +562,12 @@ def test_run_causallm_pt_and_inference_with_formatting_data():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_PT_ARGS),
+        )
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -565,7 +601,12 @@ def test_run_causallm_pt_and_inference_JSON_file_formatter():
             "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_PT_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_PT_ARGS),
+        )
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -599,7 +640,12 @@ def test_run_causallm_pt_init_text():
             num_virtual_tokens=0,
         )
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, tuning_config)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            tuning_config,
+        )
 
         # validate peft tuning configs
         _validate_training(tempdir)
@@ -633,7 +679,12 @@ def test_run_causallm_lora_invalid_train_params(param_name, param_val, exc_msg):
         setattr(invalid_params, param_name, param_val)
 
         with pytest.raises(ValueError, match=exc_msg):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, invalid_params, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
+                invalid_params,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 @pytest.mark.parametrize(
@@ -649,7 +700,12 @@ def test_run_causallm_lora_with_validation(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = dataset_path
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
         _validate_training(tempdir, check_eval=True)
 
 
@@ -670,7 +726,12 @@ def test_run_causallm_lora_with_validation_data_formatting(dataset_path):
             "### Text: {{element['Tweet text']}} \n\n### Label: {{text_label}}"
         )
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
         _validate_training(tempdir, check_eval=True)
 
 
@@ -690,7 +751,9 @@ def test_run_causallm_pt_with_custom_tokenizer(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.validation_data_path = dataset_path
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, data_args, train_args, PEFT_PT_ARGS)
+            sft_trainer.train(
+                model_args, data_args, train_args, copy.deepcopy(PEFT_PT_ARGS)
+            )
 
 
 ############################# Lora Tests #############################
@@ -722,7 +785,12 @@ def test_run_causallm_lora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_lora_args.target_modules = target_modules
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_lora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -766,7 +834,12 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         if "default" not in request._pyfuncitem.callspec.id:
             base_alora_args.target_modules = target_modules
 
-        sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, base_alora_args)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_alora_args,
+        )
 
         # validate lora tuning configs
         _validate_training(tempdir)
@@ -792,7 +865,7 @@ def test_run_causallm_alora_and_inference(request, target_modules, expected):
         assert "Simply put, the theory of relativity states that \n" in output_inference
 
 
-def test_successful_lora_target_modules_default_from_main():
+def test_successful_lora_target_modules_default_from_main(monkeypatch):
     """Check that if target_modules is not set, or set to None via JSON, the
     default value by model type will be using in LoRA tuning.
     The correct default target modules will be used for model type llama
@@ -809,7 +882,7 @@ def test_successful_lora_target_modules_default_from_main():
             **{"peft_method": "lora", "output_dir": tempdir},
         }
         serialized_args = serialize_args(TRAIN_KWARGS)
-        os.environ["SFT_TRAINER_CONFIG_JSON_ENV_VAR"] = serialized_args
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
 
         sft_trainer.main()
 
@@ -828,6 +901,166 @@ def test_successful_lora_target_modules_default_from_main():
             "q_proj",
             "v_proj",
         }, "target_modules are not set to the default values."
+
+        os.environ.pop("SFT_TRAINER_CONFIG_JSON_ENV_VAR", None)
+
+
+def test_run_causallm_lora_add_special_tokens():
+    """Check if embed layer is added as modules_to_save when special tokens are added"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        # with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = ["q_proj"]
+
+        # sample hugging face dataset id
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.add_special_tokens = [
+            "<|test_token_1|>",
+            "<|test_token_2|>",
+            "<|test_token_3|>",
+        ]
+
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), data_args, train_args, base_lora_args
+        )
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+        tokenizer = transformers.AutoTokenizer.from_pretrained(checkpoint_path)
+
+        assert adapter_config.get("modules_to_save") is not None
+        assert "embed_tokens" in adapter_config.get("modules_to_save")
+
+        # Check if all special tokens passed are in tokenizer
+        for tok in data_args.add_special_tokens:
+            assert tok in tokenizer.vocab
+
+
+@pytest.mark.parametrize(
+    "modules_to_save, expected",
+    [
+        (None, []),
+        (["embed_tokens"], ["embed_tokens"]),
+        pytest.param(
+            ["lm_head"],
+            ["embed_tokens"],
+            marks=pytest.mark.skipif(
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
+            ),
+        ),
+        pytest.param(
+            ["embed_tokens", "lm_head"],
+            ["embed_tokens"],
+            marks=pytest.mark.skipif(
+                version.parse(peft.__version__) <= version.parse("0.18.1"),
+                reason="Not released in PEFT <= 0.18.1",
+            ),
+        ),
+    ],
+)
+def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expected):
+    """Check if a model with tied weights in modules to save is correctly trained"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = ["q_proj"]
+        base_lora_args.modules_to_save = modules_to_save
+
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        for module in expected:
+            assert module in adapter_config.get("modules_to_save")
+
+        # Load the model and merge it
+        loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)
+        merged_model = loaded_model.peft_model.merge_and_unload()
+
+        # In all the cases Embedding and the LM layer should not have diverged
+        embed_layer = merged_model.get_input_embeddings()
+        lm_layer = merged_model.get_output_embeddings()
+
+        assert torch.allclose(embed_layer.weight, lm_layer.weight)
+        assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
+
+
+@pytest.mark.parametrize(
+    "target_modules, expected",
+    [
+        (["embed_tokens"], ["embed_tokens"]),
+        (["lm_head"], ["embed_tokens"]),
+        (["embed_tokens", "lm_head"], ["embed_tokens"]),
+    ],
+)
+@pytest.mark.skipif(
+    version.parse(peft.__version__) <= version.parse("0.18.1"),
+    reason="Not released in PEFT <= 0.18.1",
+)
+def test_run_causallm_lora_tied_weights_in_target_modules(target_modules, expected):
+    """Check if a model with tied weights in target_modules is correctly trained"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        base_lora_args = copy.deepcopy(PEFT_LORA_ARGS)
+        base_lora_args.target_modules = target_modules
+
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            base_lora_args,
+        )
+
+        # validate lora tuning configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+        adapter_config = _get_adapter_config(checkpoint_path)
+        _validate_adapter_config(adapter_config, "LORA")
+
+        tm = adapter_config.get("target_modules")
+        for module in expected:
+            flag = False
+
+            for t in tm:
+                if module in t:
+                    flag = True
+                    break
+
+            assert flag, f"Expected {module} not found in target_modules config: {tm}"
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)
+
+        # In all the cases Embedding and the LM layer should not have diverged
+        embed_layer = loaded_model.peft_model.get_input_embeddings()
+        lm_layer = loaded_model.peft_model.get_output_embeddings()
+        d_embed = embed_layer.get_delta_weight("default")
+        d_lm = lm_layer.get_delta_weight("default")
+
+        assert embed_layer.weight.data_ptr() == lm_layer.weight.data_ptr()
+        assert torch.allclose(
+            d_embed, d_lm, atol=1e-6
+        ), f"Max diff between deltas: {(d_embed - d_lm).abs().max()}"
 
 
 ############################# Finetuning Tests #############################
@@ -859,7 +1092,9 @@ def test_run_causallm_ft_save_with_save_model_dir_save_strategy_no():
         save_model_args.save_strategy = "no"
         save_model_args.output_dir = tempdir
 
-        trainer, _, _ = sft_trainer.train(MODEL_ARGS, DATA_ARGS, save_model_args, None)
+        trainer, _, _ = sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS), copy.deepcopy(DATA_ARGS), save_model_args, None
+        )
         logs_path = os.path.join(tempdir, TrackerConfigs.training_logs_filename)
         _validate_logfile(logs_path)
         # validate that no checkpoints created
@@ -897,7 +1132,7 @@ def test_run_causallm_ft_pretokenized(dataset_path, packing):
         train_args.packing = packing
         train_args.max_seq_length = 256
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -964,7 +1199,7 @@ def test_run_causallm_ft_and_inference_streaming(datasetconfigname, datafiles):
         train_args.output_dir = tempdir
         train_args.max_steps = 1
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_formatting_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -1055,7 +1290,7 @@ def test_run_causallm_ft_and_inference_with_multiple_dataset(
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_formatting_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -1101,7 +1336,7 @@ def test_run_training_with_pretokenised_dataset_containing_input_ids():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -1147,7 +1382,7 @@ def test_run_training_with_data_tokenized_using_tokenizer_handler():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -1192,7 +1427,7 @@ def test_run_training_with_skip_large_column_handler():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -1325,7 +1560,7 @@ def test_run_chat_style_add_special_tokens_ft():
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate the configs
         _validate_training(tempdir)
@@ -1575,7 +1810,7 @@ def test_run_e2e_with_hf_dataset_id(data_args):
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
 
-        sft_trainer.train(MODEL_ARGS, data_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_args, train_args)
 
         # validate ft tuning configs
         _validate_training(tempdir)
@@ -1602,18 +1837,14 @@ def test_run_moe_ft_and_inference_ep1_kernels(dataset_path, ep_degree):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
-        _test_run_inference(
-            checkpoint_path=os.path.join(
-                _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
-            )
-        )
+        _test_run_inference(checkpoint_path=_get_hf_converted_path(tempdir))
 
 
 @pytest.mark.skipif(
@@ -1638,7 +1869,7 @@ def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "ibm-granite/granite-3.1-1b-a400m-base"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         lora_args = copy.deepcopy(PEFT_LORA_ARGS)
@@ -1646,29 +1877,17 @@ def test_run_moe_lora_and_inference(dataset_path, target_modules, ep_degree):
         lora_args.target_modules = target_modules
         fast_moe_config = FastMoeConfig(fast_moe=FastMoe(ep_degree=ep_degree))
 
-        if target_modules == "all-linear":
-            with pytest.raises(ValueError):
-                sft_trainer.train(
-                    model_args,
-                    data_args,
-                    train_args,
-                    lora_args,
-                    fast_moe_config=fast_moe_config,
-                )
-        else:
-            sft_trainer.train(
-                model_args,
-                data_args,
-                train_args,
-                lora_args,
-                fast_moe_config=fast_moe_config,
-            )
-            _test_run_inference(
-                checkpoint_path=os.path.join(
-                    _get_checkpoint_path(tempdir), "hf_converted_checkpoint"
-                ),
-                base_model_name_or_path="ibm-granite/granite-3.1-1b-a400m-base",
-            )
+        sft_trainer.train(
+            model_args,
+            data_args,
+            train_args,
+            lora_args,
+            fast_moe_config=fast_moe_config,
+        )
+        _test_run_inference(
+            checkpoint_path=_get_checkpoint_path(tempdir),
+            base_model_name_or_path=TINYMIXTRAL_MOE,
+        )
 
 
 @pytest.mark.skipif(
@@ -1688,7 +1907,7 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         data_args = copy.deepcopy(DATA_ARGS)
         data_args.training_data_path = dataset_path
         model_args = copy.deepcopy(MODEL_ARGS)
-        model_args.model_name_or_path = "Isotonic/TinyMixtral-4x248M-MoE"
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
         train_args = copy.deepcopy(TRAIN_ARGS)
         train_args.output_dir = tempdir
         train_args.save_model_dir = save_model_dir
@@ -1696,12 +1915,69 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         sft_trainer.train(
             model_args, data_args, train_args, fast_moe_config=fast_moe_config
         )
-        assert os.path.exists(os.path.join(save_model_dir, "hf_converted_checkpoint"))
+        assert os.path.exists(os.path.join(save_model_dir))
+
+
+@pytest.mark.parametrize(
+    "datafiles, dataconfigfile",
+    [
+        (
+            [CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT, CHAT_DATA_HF_HOSTED_CUSTOM_SPLIT],
+            DATA_CONFIG_CUSTOM_SPLIT_NAME,
+        )
+    ],
+)
+def test_run_chat_style_ft_using_custom_split_name(datafiles, dataconfigfile):
+    """Check if we can select custom split for a dataset."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_args = copy.deepcopy(DATA_ARGS)
+        data_args.training_data_path = None
+        data_args.response_template = None
+        data_args.dataset_text_field = None
+        data_args.chat_template = CHAT_TEMPLATE_JINJA
+
+        model_args = copy.deepcopy(MODEL_ARGS)
+        model_args.model_name_or_path = TINYMIXTRAL_MOE
+        model_args.tokenizer_name_or_path = TINYMIXTRAL_MOE
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(dataconfigfile, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            datasets = data["datasets"]
+            for i, d in enumerate(datasets):
+                d["data_paths"] = [datafiles[i]]
+            yaml.dump(data, temp_yaml_file)
+            data_args.data_config_path = temp_yaml_file.name
+
+        sft_trainer.train(model_args, data_args, train_args)
+
+        # validate the configs
+        _validate_training(tempdir)
+        checkpoint_path = _get_checkpoint_path(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            '<|user|>\nProvide two rhyming words for the word "love"\n\
+            <nopace></s><|assistant|>',
+            max_new_tokens=50,
+        )
+        assert len(output_inference) > 0
+        assert 'Provide two rhyming words for the word "love"' in output_inference
 
 
 ############################# Helper functions #############################
 def _test_run_causallm_ft(training_args, model_args, data_args, tempdir):
     train_args = copy.deepcopy(training_args)
+    model_args = copy.deepcopy(model_args)
+    data_args = copy.deepcopy(data_args)
     train_args.output_dir = tempdir
     sft_trainer.train(model_args, data_args, train_args, None)
 
@@ -1770,6 +2046,27 @@ def _get_checkpoint_path(dir_path):
     return os.path.join(dir_path, checkpoint_dirs[-1])
 
 
+def _get_hf_converted_path(dir_path):
+    checkpoint_dirs = [
+        d
+        for d in os.listdir(dir_path)
+        if os.path.isdir(os.path.join(dir_path, d)) and re.match(r"^checkpoint-\d+$", d)
+    ]
+    checkpoint_dirs.sort(key=lambda name: int(name.split("-")[-1]))
+
+    final_checkpoint_path = os.path.join(dir_path, checkpoint_dirs[-1])
+
+    hf_converted_dir = [
+        d
+        for d in os.listdir(final_checkpoint_path)
+        if os.path.isdir(os.path.join(final_checkpoint_path, d))
+        and re.match(r"^safetensors-\d+$", d)
+    ]
+    hf_converted_dir.sort(key=lambda name: int(name.split("-")[-1]))
+
+    return os.path.join(final_checkpoint_path, hf_converted_dir[-1])
+
+
 def _get_adapter_config(dir_path):
     with open(os.path.join(dir_path, "adapter_config.json"), encoding="utf-8") as f:
         return json.load(f)
@@ -1816,7 +2113,12 @@ def test_tokenizer_has_no_eos_token():
         # If we handled this badly, we would probably get something like a
         # TypeError: can only concatenate str (not "NoneType") to str error
         # when we go to apply the data formatter.
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            model_args,
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
         _validate_training(tempdir)
 
 
@@ -1828,7 +2130,12 @@ def test_invalid_dataset_text_field():
     data_args.dataset_text_field = "not found"
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
 
 
 ### Tests that giving dataset_text_field as well as formatter template gives error
@@ -1840,7 +2147,12 @@ def test_invalid_dataset_text_field_and_formatter_template():
     )
 
     with pytest.raises(ValueError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
 
 
 ### Tests passing formatter with invalid keys gives error
@@ -1852,7 +2164,12 @@ def test_invalid_formatter_template():
     )
 
     with pytest.raises(KeyError):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
 
 
 ### Tests for bad training data (i.e., data_path is an unhappy value or points to an unhappy thing)
@@ -1862,7 +2179,12 @@ def test_malformatted_data():
     data_args.training_data_path = MALFORMATTED_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
 
 
 def test_empty_data():
@@ -1871,7 +2193,12 @@ def test_empty_data():
     data_args.training_data_path = EMPTY_DATA
 
     with pytest.raises((DatasetGenerationError, ValueError)):
-        sft_trainer.train(MODEL_ARGS, data_args, TRAIN_ARGS, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            copy.deepcopy(TRAIN_ARGS),
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
 
 
 ### Tests for bad tuning module configurations
@@ -1885,7 +2212,12 @@ def test_run_causallm_lora_with_invalid_modules():
         lora_config.target_modules = ["foo", "bar"]
         # Peft should throw a value error about modules not matching the base module
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, DATA_ARGS, train_args, lora_config)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
+                train_args,
+                lora_config,
+            )
 
 
 ### Direct validation tests based on whether or not packing is enabled
@@ -1900,7 +2232,12 @@ def test_no_packing_needs_dataset_text_field_or_data_formatter_template():
         data_args.data_formatter_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 # TODO: Fix this case
@@ -1914,12 +2251,17 @@ def test_no_packing_needs_reponse_template():
         data_args.response_template = None
 
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 ### Tests for model dtype edge cases
 @pytest.mark.skipif(
-    not (torch.cuda.is_available() and torch.cuda.is_bf16_supported()),
+    not (torch.cuda.is_available() and not torch.cuda.is_bf16_supported()),
     reason="Only runs if bf16 is unsupported",
 )
 def test_bf16_still_tunes_if_unsupported():
@@ -1931,7 +2273,12 @@ def test_bf16_still_tunes_if_unsupported():
         model_args = copy.deepcopy(MODEL_ARGS)
         model_args.torch_dtype = "bfloat16"
 
-        sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            model_args,
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
         _validate_training(tempdir)
 
 
@@ -1944,7 +2291,12 @@ def test_bad_torch_dtype():
         model_args.torch_dtype = "not a type"
 
         with pytest.raises(ValueError):
-            sft_trainer.train(model_args, DATA_ARGS, train_args, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                model_args,
+                copy.deepcopy(DATA_ARGS),
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 def test_run_with_additional_callbacks():
@@ -1955,10 +2307,10 @@ def test_run_with_additional_callbacks():
         train_args.output_dir = tempdir
 
         sft_trainer.train(
-            MODEL_ARGS,
-            DATA_ARGS,
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
             train_args,
-            PEFT_LORA_ARGS,
+            copy.deepcopy(PEFT_LORA_ARGS),
             additional_callbacks=[TrainerCallback()],
         )
 
@@ -1974,10 +2326,10 @@ def test_run_with_bad_additional_callbacks():
             ValueError, match="additional callbacks should be of type TrainerCallback"
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
                 train_args,
-                PEFT_LORA_ARGS,
+                copy.deepcopy(PEFT_LORA_ARGS),
                 additional_callbacks=["NotSupposedToBeHere"],
             )
 
@@ -1995,10 +2347,10 @@ def test_run_with_bad_experimental_metadata():
             ValueError, match="exp metadata passed should be a dict with valid json"
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
                 train_args,
-                PEFT_LORA_ARGS,
+                copy.deepcopy(PEFT_LORA_ARGS),
                 additional_callbacks=[TrainerCallback()],
                 exp_metadata=metadata,
             )
@@ -2014,10 +2366,10 @@ def test_run_with_good_experimental_metadata():
         metadata = {"dead": "beef"}
 
         sft_trainer.train(
-            MODEL_ARGS,
-            DATA_ARGS,
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
             train_args,
-            PEFT_LORA_ARGS,
+            copy.deepcopy(PEFT_LORA_ARGS),
             additional_callbacks=[TrainerCallback()],
             exp_metadata=metadata,
         )
@@ -2040,7 +2392,12 @@ def test_pretokenized_dataset(dataset_path):
         data_args.dataset_text_field = None
         data_args.response_template = None
         data_args.training_data_path = dataset_path
-        sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+        sft_trainer.train(
+            copy.deepcopy(MODEL_ARGS),
+            data_args,
+            train_args,
+            copy.deepcopy(PEFT_LORA_ARGS),
+        )
         _validate_training(tempdir)
 
 
@@ -2064,7 +2421,12 @@ def test_pretokenized_dataset_bad_args(dataset_text_field, response_template):
         # We should raise an error since we should not have a dataset text
         # field or a response template if we have pretokenized data
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 def test_pretokenized_dataset_wrong_format():
@@ -2082,7 +2444,12 @@ def test_pretokenized_dataset_wrong_format():
         # need to directly add validation prior to the dataset generation since datasets
         # is essentially swallowing a KeyError here.
         with pytest.raises(ValueError):
-            sft_trainer.train(MODEL_ARGS, data_args, train_args, PEFT_LORA_ARGS)
+            sft_trainer.train(
+                copy.deepcopy(MODEL_ARGS),
+                data_args,
+                train_args,
+                copy.deepcopy(PEFT_LORA_ARGS),
+            )
 
 
 ###########################################################################
@@ -2112,10 +2479,10 @@ def test_run_with_bad_additional_data_handlers(additional_handlers):
             match="Handler should be of type tuning.data_handler.DataHandler, and name of str",
         ):
             sft_trainer.train(
-                MODEL_ARGS,
-                DATA_ARGS,
+                copy.deepcopy(MODEL_ARGS),
+                copy.deepcopy(DATA_ARGS),
                 train_args,
-                PEFT_LORA_ARGS,
+                copy.deepcopy(PEFT_LORA_ARGS),
                 additional_data_handlers=additional_handlers,
             )
 
@@ -2127,10 +2494,10 @@ def test_run_with_additional_data_handlers_as_none():
         train_args.output_dir = tempdir
 
         sft_trainer.train(
-            MODEL_ARGS,
-            DATA_ARGS,
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
             train_args,
-            PEFT_LORA_ARGS,
+            copy.deepcopy(PEFT_LORA_ARGS),
             additional_data_handlers=None,
         )
         _validate_training(tempdir)
@@ -2174,10 +2541,10 @@ def test_run_by_passing_additional_data_handlers():
         data_args.dataset_text_field = "custom_formatted_field"
 
         sft_trainer.train(
-            MODEL_ARGS,
-            DATA_ARGS,
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
             train_args,
-            PEFT_LORA_ARGS,
+            copy.deepcopy(PEFT_LORA_ARGS),
             additional_data_handlers={
                 TEST_HANDLER: DataHandler(
                     op=test_handler,
@@ -2281,7 +2648,7 @@ def test_online_data_mixing_plugin_sample_training(
         train_args.eval_strategy = "steps"
         train_args.eval_steps = 1
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_formatting_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -2365,7 +2732,7 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
         train_args.eval_strategy = "steps"
         train_args.eval_steps = 1
 
-        sft_trainer.train(MODEL_ARGS, data_formatting_args, train_args)
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_formatting_args, train_args)
 
         # validate full ft configs
         _validate_training(tempdir)
@@ -2393,3 +2760,71 @@ def test_online_data_mixing_plugin_sample_training_no_validation_split(
             "What length of trench,\n25 m broad and 15 m deep can be dug in 30 days ?"
             in output_inference
         ), f"{output_inference} does not include the prompt"
+
+
+@pytest.mark.skipif(
+    not is_fms_accelerate_available(plugins="odm"),
+    reason="Only runs if fms-accelerate is installed along with online-data-mixing plugin",
+)
+@pytest.mark.parametrize(
+    "datafile, datasetconfigname, reward_type",
+    [
+        (
+            NESTFUL_DATA_INPUT_OUTPUT_JSONL,
+            DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
+            "entropy",
+        ),
+        (
+            TWITTER_COMPLAINTS_DATA_INPUT_OUTPUT_JSONL,
+            DATA_CONFIG_SINGLE_DATASET_ODM_YAML,
+            "entropy",
+        ),
+    ],
+)
+def test_online_data_mixing_plugin_with_auto_categorization(
+    datafile, datasetconfigname, reward_type
+):
+    """Ensure fms_acceleration_odm plugin trains with autocategorization"""
+    with tempfile.TemporaryDirectory() as tempdir:
+        data_formatting_args = copy.deepcopy(DATA_ARGS)
+
+        # set training_data_path and response_template to none
+        data_formatting_args.response_template = None
+        data_formatting_args.training_data_path = None
+
+        # add data_paths in data_config file
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".yaml"
+        ) as temp_yaml_file:
+            with open(datasetconfigname, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                data["dataprocessor"]["odm"]["reward_type"] = reward_type
+
+                for d, df in zip(data["datasets"], [datafile]):
+                    d["data_paths"] = [df]
+
+                yaml.dump(data, temp_yaml_file)
+                data_formatting_args.data_config_path = temp_yaml_file.name
+
+        train_args = copy.deepcopy(TRAIN_ARGS)
+        train_args.output_dir = tempdir
+        train_args.logging_strategy = "steps"
+        train_args.max_steps = 10
+        train_args.eval_strategy = "steps"
+        train_args.eval_steps = 1
+
+        sft_trainer.train(copy.deepcopy(MODEL_ARGS), data_formatting_args, train_args)
+
+        # validate full ft configs
+        _validate_training(tempdir)
+        _, checkpoint_path = _get_latest_checkpoint_trainer_state(tempdir)
+
+        # Load the model
+        loaded_model = TunedCausalLM.load(checkpoint_path, MODEL_NAME)
+
+        # Run inference on the text
+        output_inference = loaded_model.run(
+            "### Text: @NortonSupport Thanks much.\n\n### Label:", max_new_tokens=50
+        )
+        assert len(output_inference) > 0
+        assert "### Text: @NortonSupport Thanks much.\n\n### Label:" in output_inference

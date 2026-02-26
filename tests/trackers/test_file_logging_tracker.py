@@ -62,7 +62,10 @@ def test_sample_run_with_file_logger_updated_filename():
         tracker_configs = TrackerConfigs(training_logs_filename=logs_file)
 
         sft_trainer.train(
-            MODEL_ARGS, DATA_ARGS, train_args, tracker_configs=tracker_configs
+            copy.deepcopy(MODEL_ARGS),
+            copy.deepcopy(DATA_ARGS),
+            train_args,
+            tracker_configs=tracker_configs,
         )
 
         # validate ft tuning configs

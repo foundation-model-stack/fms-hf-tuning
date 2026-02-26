@@ -25,6 +25,7 @@ ARG ENABLE_MLFLOW=false
 ARG ENABLE_FMS_ACCELERATION=true
 ARG ENABLE_SCANNER=false
 ARG ENABLE_CLEARML=false
+ARG ENABLE_RECOMMENDER=true
 
 ## Base Layer ##################################################################
 FROM registry.access.redhat.com/ubi9/ubi:${BASE_UBI_IMAGE_TAG} AS base
@@ -156,8 +157,9 @@ ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
 RUN --mount=type=cache,target=/home/${USER}/.cache/pip,uid=${USER_UID} \
     python -m pip install --user wheel && \
     python -m pip install --user "$(head bdist_name)" && \
-    python -m pip install --user "$(head bdist_name)[flash-attn]" && \
     python -m pip install --user --no-build-isolation "$(head bdist_name)[mamba]"
+
+RUN python -m pip install --user --no-build-isolation "$(head bdist_name)[flash-attn]"
 
 # fms_acceleration_peft = PEFT-training, e.g., 4bit QLoRA
 # fms_acceleration_foak = Fused LoRA and triton kernels
@@ -186,6 +188,9 @@ RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
     fi
 RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
         python -m pip install --user "$(head bdist_name)[clearml]"; \
+    fi
+RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
+        python -m pip install --user "$(head bdist_name)[tuning-config-recommender]"; \
     fi
 
     # Clean up the wheel module. It's only needed by flash-attn install
