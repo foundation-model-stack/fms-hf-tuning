@@ -292,9 +292,7 @@ def train(
                 )
             )
             # try to load model as a vision model
-            # model = AutoModelForVision2Seq.from_pretrained(
-            #     model_args.model_name_or_path, **model_kwargs
-            # )
+            # in transformers v5, AutoModelForVision2Seq was renamed to AutoModelForImageTextToText
             model = AutoModelForImageTextToText.from_pretrained(
                 model_args.model_name_or_path, **model_kwargs
             )
