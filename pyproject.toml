@@ -40,7 +40,6 @@ dependencies = [
 "simpleeval>=0.9.13,<2.0",
 "pillow>=12.1.1",
 "kernels<=0.9.0",
-"tuning_config_recommender>=0.1.7",
 ]
 
 [project.optional-dependencies]
@@ -61,7 +60,7 @@ fms-accel-all = [
     "fms-acceleration-moe",
     "fms-acceleration-odm"
 ]
-tuning-config-recommender=["tuning-config-recommender>=0.1.5"]
+tuning_config_recommender=["tuning_config_recommender>=0.1.7"]
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
