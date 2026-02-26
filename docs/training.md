@@ -255,3 +255,200 @@ datasets:
           fn_kwargs:
             conversation_column_name: "messages"
 ```
+
+## Long Context Training
+
+Long context training for instance to train on 128k sequence length can be performed using context parallel. 
+
+### Model Architectures Supported
+
+1. Hybrid attention dense models. e.g. granite-4.0-h-1b
+1. Hybrid attention moe models. e.g. ibm-granite/granite-4.0-h-small
+1. SDPA attention dense models e.g. granite-4.0-1b
+1. SDPA attention moe models e.g. ibm-research/moe-7b-1b-active-shared-experts, mixtral etc
+
+### Parallelisms Supported with Context Parallel
+
+1. Context Parallel + FSDP sharding
+1. Context Parallel + FSDP sharding + Expert Parallel
+1. Context Parallel + FSDP sharding + DP
+1. Context Parallel + FSDP sharding + DP + Expert Parallel
+
+### Usage
+
+#### Enabling Context Parallel
+
+FSDPv2 is compulsory to use context parallel. FSDPv2 can be activated using the following accelerate config
+
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_version: "2" # turn on v2 of FSDP
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+```
+
+Then, context parallel can be activated using the below accelerate config
+
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_version: "2" # turn on v2 of FSDP
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+use_parallelism_config: "true" # required to turn on parallelism feature
+parallelism_config_cp_size: 2 # context parallel degree
+machine_rank: 0
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+```
+
+When using any model with mamba attention, its required to set the flag `--mcp` with context parallel degree. Further, for hybrid models that use combination of mamba and SDPA attention should use both `--mcp` and `parallelism_config_cp_size` options both having the same cp degree value.
+
+#### Enabling Context Parallel with Data Parallel
+
+Context parallel can be combined with data parallel using the `parallelism_config_dp_shard_size` parameter.
+
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_version: "2" # turn on v2 of FSDP
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+use_parallelism_config: "true" # required to turn on parallelism feature
+parallelism_config_cp_size: 2 # context parallel degree
+parallelism_config_dp_shard_size: 8 # data parallel degree
+machine_rank: 0
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+```
+
+To be noted that, context parallel degree multiplied by data parallel degree should be equal to the total number of GPUs being used.
+
+#### Enabling Mixed Precision
+
+Mixed precision has to be provided using `fsdp_mixed_precision_policy` parameter only. Do not use direct flags like `--bf16` or `mixed_precision` accelerate config parameter.
+
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_version: "2" # turn on v2 of FSDP
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+  fsdp_mixed_precision_policy: "bf16" # mixed precision policy
+use_parallelism_config: "true" # required to turn on parallelism feature
+parallelism_config_cp_size: 2 # context parallel degree
+parallelism_config_dp_shard_size: 8 # data parallel degree
+machine_rank: 0
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+```
+
+#### Gradient Checkpointing
+
+Optimal way to enable gradient checkpointing is using the accelerate config parameter `fsdp_activation_checkpointing` as shown below:
+
+```
+compute_environment: LOCAL_MACHINE
+distributed_type: FSDP
+fsdp_config:
+  fsdp_version: "2" # turn on v2 of FSDP
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_sharding_strategy: FULL_SHARD 
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: true
+  fsdp_mixed_precision_policy: "bf16" # mixed precision policy
+  fsdp_activation_checkpointing: true
+use_parallelism_config: "true" # required to turn on parallelism feature
+parallelism_config_cp_size: 2 # context parallel degree
+parallelism_config_dp_shard_size: 8 # data parallel degree
+machine_rank: 0
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+```
+
+#### Enabling Context Parallel with Data Parallel and Expert Parallel
+
+For MoE models, expert parallel with MoE kernels can be enabled using the `--fast_moe` flag along with context and data parallelisms. The expert parallel degree is agnostic of context parallel degree. Therefore it can be used like described [here](./tuning-techniques.md#fms-acceleration).
+
+### Recommendations
+
+1. Keeping context parallelism within a node is usually optimal unless there is need for extremely long sequences like 256k. Given that, its optimal to choose the right cp degree in the multiple of 2 starting from 2 and upto 8.
+2. Data parallel degree multiplied by context parallel degree should be equal to total number of GPUs being used.
+3. Context parallel degree determinies number of chunks sequence has to be divided and distributed across GPUs, therefore it has to be choosen as minimium as needed to accommodate a sequence length.
+
+Further, below ablations can be used as reference configurations.
+
+#### Ablations
+
+##### Parity Experiments
+
+| model | experiment setting    | loss | tps per gpu |
+| -------- | -------- | ------- | ------- |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas1  |  0.8059140625   | 973.6 |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas1-ep8  |  0.80224609375   | 2367.6 |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs4-s8192-gas2  |  0.8059765625  | NA |
+| ibm-granite/granite-4.0-h-tiny | cp4-dp2-ebs4-s8192-gas1  |  0.802953125  | 953.4 |
+| ibm-granite/granite-4.0-h-tiny | cp1-dp4-ep4-ebs4-s8192-gas1 |  0.7967056884765625  | 2576 |
+
+##### Long Context (sequence length is 131072 (128k))
+
+| model | experiment setting  | tps per gpu | GPU memory util ratio |
+| -------- | -------- | ------- | ------- |
+| ibm-granite/granite-4.0-h-tiny | cp8-ebs1-s131072-gas1-ep8    | 1462.8 | 0.5140136719 |
+| ibm-granite/granite-4.0-h-small | cp8-ebs1-s131072-gas1-ep8    | 682.7 | 0.9887207031 |
+
+### Known Limitations
+
+1. load balancing is removed given limited support on mamba cp implementation. This could lead to potential throughput drops for trainings using causal mask.
+2. Padding free and flash attention are not supported.
