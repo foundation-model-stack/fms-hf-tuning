@@ -51,7 +51,7 @@ BASE_KWARGS = {
     "warmup_ratio": 0.03,
     "lr_scheduler_type": "cosine",
     "logging_steps": 1,
-    "include_tokens_per_second": True,
+    "include_num_input_tokens_seen": True,
     "packing": False,
     "response_template": "\n### Label:",
     "dataset_text_field": "output",

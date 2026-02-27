@@ -44,21 +44,36 @@ def get_special_tokens_dict(
 
     special_tokens_dict = {}
     if not tokenizer_name_or_path:
-        # TODO: understand if we need to hardcode these here or just use defaults in model
-        if isinstance(
-            tokenizer, (transformers.LlamaTokenizer, transformers.LlamaTokenizerFast)
-        ):
+        llama_classes = tuple(
+            cls for cls in [
+                getattr(transformers, "LlamaTokenizer", None),
+                getattr(transformers, "LlamaTokenizerFast", None),
+            ] if cls is not None
+        )
+        is_llama_tokenizer = (
+            (bool(llama_classes) and isinstance(tokenizer, llama_classes))
+            or "llama" in (getattr(tokenizer, "name_or_path", "") or "").lower()
+        )
+
+        gpt_neox_classes = tuple(
+            cls for cls in [
+                getattr(transformers, "GPTNeoXTokenizerFast", None),
+                getattr(transformers, "GPTNeoXTokenizer", None),
+            ] if cls is not None
+        )
+
+        if is_llama_tokenizer:
             special_tokens_dict["bos_token"] = "<s>"
             special_tokens_dict["eos_token"] = "</s>"
             special_tokens_dict["unk_token"] = "<unk>"
             special_tokens_dict["pad_token"] = "<pad>"
         elif isinstance(
-            tokenizer, (transformers.GPT2Tokenizer, transformers.GPTNeoXTokenizerFast)
+            tokenizer, (transformers.GPT2Tokenizer, *gpt_neox_classes)
         ):
             special_tokens_dict["pad_token"] = "<pad>"
 
         # Add special tokens only when a custom tokenizer is not passed
-        if tokenizer.pad_token is None:
+        if tokenizer.pad_token is None or "pad_token" in special_tokens_dict:
             logger.warning("PAD token set to default, missing in tokenizer")
             special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
         if tokenizer.eos_token is None:
@@ -102,7 +117,8 @@ def tokenizer_and_embedding_resize(
         dict: Metadata on number of added tokens.
     """
     num_new_tokens = tokenizer.add_special_tokens(
-        special_tokens_dict=special_tokens_dict, replace_additional_special_tokens=False
+        special_tokens_dict=special_tokens_dict, 
+        # replace_additional_special_tokens=False
     )
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))
     num_new_tokens = num_new_tokens + embedding_size - len(tokenizer)
@@ -119,8 +135,9 @@ def tokenizer_and_embedding_resize(
         model.set_input_embeddings(resized_input_embeddings)
 
         # Resize vocab size when embeddings updated for Mllama models
-        if model.language_model.vocab_size != embedding_size:
-            model.language_model.vocab_size = embedding_size
+        if model.model.vocab_size != embedding_size:
+            model.model.vocab_size = embedding_size
+
     else:
         model.resize_token_embeddings(embedding_size)
 
