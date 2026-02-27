@@ -12,7 +12,7 @@ jobs:
         uses: ./.github/actions/free-up-disk-space
       - name: Build NVCR dev Image
         run: |
-          docker build -t ${{ vars.QUAY_REPOSITORY }}/fms-hf-tuning:main-nvcr-latest . -f build/nvcr.Dockerfile
+          docker build -t ${{ vars.QUAY_REPOSITORY }}fms-hf-tuning:main-nvcr-latest . -f build/nvcr.Dockerfile
       - name: Login to Quay.io
         uses: docker/login-action@v3
         with:
@@ -21,4 +21,4 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
       - name: Push docker image for every commit to Quay.io as dev images
         run: |
-            docker push ${{ vars.QUAY_REPOSITORY }}/fms-hf-tuning:main-nvcr-latest
+            docker push ${{ vars.QUAY_REPOSITORY }}fms-hf-tuning:main-nvcr-latest
