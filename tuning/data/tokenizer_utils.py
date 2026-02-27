@@ -44,10 +44,6 @@ def get_special_tokens_dict(
 
     special_tokens_dict = {}
     if not tokenizer_name_or_path:
-        # # TODO: understand if we need to hardcode these here or just use defaults in model
-        # if isinstance(
-        #     tokenizer, (transformers.LlamaTokenizer, transformers.LlamaTokenizerFast)
-        # ):
         llama_classes = tuple(
             cls for cls in [
                 getattr(transformers, "LlamaTokenizer", None),
@@ -72,13 +68,11 @@ def get_special_tokens_dict(
             special_tokens_dict["unk_token"] = "<unk>"
             special_tokens_dict["pad_token"] = "<pad>"
         elif isinstance(
-            # tokenizer, (transformers.GPT2Tokenizer, transformers.GPTNeoXTokenizerFast)
             tokenizer, (transformers.GPT2Tokenizer, *gpt_neox_classes)
         ):
             special_tokens_dict["pad_token"] = "<pad>"
 
         # Add special tokens only when a custom tokenizer is not passed
-        # if tokenizer.pad_token is None:
         if tokenizer.pad_token is None or "pad_token" in special_tokens_dict:
             logger.warning("PAD token set to default, missing in tokenizer")
             special_tokens_dict["pad_token"] = configs.DEFAULT_PAD_TOKEN
@@ -141,8 +135,6 @@ def tokenizer_and_embedding_resize(
         model.set_input_embeddings(resized_input_embeddings)
 
         # Resize vocab size when embeddings updated for Mllama models
-        # if model.language_model.vocab_size != embedding_size:
-        #     model.language_model.vocab_size = embedding_size
         if model.model.vocab_size != embedding_size:
             model.model.vocab_size = embedding_size
 

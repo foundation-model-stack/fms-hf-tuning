@@ -128,7 +128,7 @@ def test_special_tokens_before_and_after():
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
     input_tokenizer_len = len(tokenizer.get_vocab())
-    addn_spl_tokens_before = list(tokenizer.extra_special_tokens) # "additional_special_tokens" was renamed to extra_special_tokens in transformers v5
+    addn_spl_tokens_before = list(tokenizer.extra_special_tokens)
     assert (
         len(addn_spl_tokens_before) > 0
     ), "this test needs tokenizer special tokens to not be empty before testing"
@@ -136,7 +136,7 @@ def test_special_tokens_before_and_after():
     special_tokens_dict = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
     addn_spl_tokens_added = ["<NotSeenTokenA>", "<NotSeenTokenB>", "<NotSeenTokenC>"]
     # for transformers v5: merge existing extra_special_tokens with new ones to prevent replacement
-    special_tokens_dict["additional_special_tokens"] = list(tokenizer.extra_special_tokens) + addn_spl_tokens_added # "additional_special_tokens" was renamed to extra_special_tokens in transformers v5
+    special_tokens_dict["additional_special_tokens"] = list(tokenizer.extra_special_tokens) + addn_spl_tokens_added
 
 
     resize_result = tokenizer_and_embedding_resize(
@@ -150,7 +150,7 @@ def test_special_tokens_before_and_after():
     addn_spl_tokens_before.extend(addn_spl_tokens_added)
     expected_addn_special_tokens = addn_spl_tokens_before
     expected_embedding_size = input_tokenizer_len + len(addn_spl_tokens_added) + 2
-    addn_spl_tokens_after = list(tokenizer.extra_special_tokens) # "additional_special_tokens" was renamed to extra_special_tokens in transformers v5
+    addn_spl_tokens_after = list(tokenizer.extra_special_tokens)
 
     assert "<SEP>" in tokenizer.get_vocab()
     assert "<PAD>" in tokenizer.get_vocab()
