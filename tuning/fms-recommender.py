@@ -8,7 +8,9 @@ import shlex
 import subprocess
 
 # Third Party
-from recommender.adapters import FMSAdapter  # pylint: disable=import-error
+from tuning_config_recommender.adapters import (  # pylint: disable=import-error
+    FMSAdapter,
+)
 import yaml
 
 ACCEL_NESTED_PREFIXES = {
@@ -132,15 +134,15 @@ def main():
         return
 
     adapter = FMSAdapter(base_dir=Path("fms_recommender_ouput/final"))
-    ir, patches = adapter.execute(
+    result = adapter.execute(
         train_config=train_cfg,
         dist_config=dist_cfg,
         compute_config={},
         data_config=data_cfg,
         unique_tag="fms-recommender",
+        paths={},
     )
-    out = adapter._to_target(ir, patches, tag="fms-recommender")
-    launch_cmd = out["launch_command"]
+    launch_cmd = result["launch_command"]
 
     if args.preview:
         print("\n[LAUNCH COMMAND — PREVIEW ONLY]\n")
