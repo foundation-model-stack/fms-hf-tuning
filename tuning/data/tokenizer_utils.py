@@ -45,21 +45,24 @@ def get_special_tokens_dict(
     special_tokens_dict = {}
     if not tokenizer_name_or_path:
         llama_classes = tuple(
-            cls for cls in [
+            cls
+            for cls in [
                 getattr(transformers, "LlamaTokenizer", None),
                 getattr(transformers, "LlamaTokenizerFast", None),
-            ] if cls is not None
+            ]
+            if cls is not None
         )
         is_llama_tokenizer = (
-            (bool(llama_classes) and isinstance(tokenizer, llama_classes))
-            or "llama" in (getattr(tokenizer, "name_or_path", "") or "").lower()
-        )
+            bool(llama_classes) and isinstance(tokenizer, llama_classes)
+        ) or "llama" in (getattr(tokenizer, "name_or_path", "") or "").lower()
 
         gpt_neox_classes = tuple(
-            cls for cls in [
+            cls
+            for cls in [
                 getattr(transformers, "GPTNeoXTokenizerFast", None),
                 getattr(transformers, "GPTNeoXTokenizer", None),
-            ] if cls is not None
+            ]
+            if cls is not None
         )
 
         if is_llama_tokenizer:
@@ -67,9 +70,7 @@ def get_special_tokens_dict(
             special_tokens_dict["eos_token"] = "</s>"
             special_tokens_dict["unk_token"] = "<unk>"
             special_tokens_dict["pad_token"] = "<pad>"
-        elif isinstance(
-            tokenizer, (transformers.GPT2Tokenizer, *gpt_neox_classes)
-        ):
+        elif isinstance(tokenizer, (transformers.GPT2Tokenizer, *gpt_neox_classes)):
             special_tokens_dict["pad_token"] = "<pad>"
 
         # Add special tokens only when a custom tokenizer is not passed
@@ -117,7 +118,7 @@ def tokenizer_and_embedding_resize(
         dict: Metadata on number of added tokens.
     """
     num_new_tokens = tokenizer.add_special_tokens(
-        special_tokens_dict=special_tokens_dict, 
+        special_tokens_dict=special_tokens_dict,
         # replace_additional_special_tokens=False
     )
     embedding_size = int(multiple_of * math.ceil(len(tokenizer) / multiple_of))

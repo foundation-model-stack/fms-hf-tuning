@@ -20,11 +20,9 @@ import copy
 
 # Third Party
 from transformers import (
-    AutoModelForCausalLM,
-    AutoModelForImageTextToText, #AutoModelForVision2Seq was renamed to this in transformers v5
-    AutoProcessor,
-    AutoTokenizer,
+    AutoModelForImageTextToText,  # AutoModelForVision2Seq was renamed to this in transformers v5
 )
+from transformers import AutoModelForCausalLM, AutoProcessor, AutoTokenizer
 import torch
 
 # First Party
@@ -136,8 +134,9 @@ def test_special_tokens_before_and_after():
     special_tokens_dict = {"sep_token": "<SEP>", "pad_token": "<PAD>"}
     addn_spl_tokens_added = ["<NotSeenTokenA>", "<NotSeenTokenB>", "<NotSeenTokenC>"]
     # for transformers v5: merge existing extra_special_tokens with new ones to prevent replacement
-    special_tokens_dict["additional_special_tokens"] = list(tokenizer.extra_special_tokens) + addn_spl_tokens_added
-
+    special_tokens_dict["additional_special_tokens"] = (
+        list(tokenizer.extra_special_tokens) + addn_spl_tokens_added
+    )
 
     resize_result = tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
@@ -210,7 +209,9 @@ def test_resize_with_multiple_of():
 
 
 def test_resize_llama_vision_model():
-    model = AutoModelForImageTextToText.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME) # AutoModelForVision2Seq was renamed to AutoModelForImageTextToText in transformers v5
+    model = AutoModelForImageTextToText.from_pretrained(
+        TINY_LLAMA_VISION_MODEL_NAME
+    )  # AutoModelForVision2Seq was renamed to AutoModelForImageTextToText in transformers v5
     processor = AutoProcessor.from_pretrained(TINY_LLAMA_VISION_MODEL_NAME)
     tokenizer = processor.tokenizer
 

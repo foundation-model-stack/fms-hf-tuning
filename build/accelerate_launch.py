@@ -120,7 +120,7 @@ def main():
         logging.error(traceback.format_exc())
         # v5: torch.distributed raises ChildFailedError with per-rank exit codes
         # Check if the root cause was a user error
-        if hasattr(e, 'failures'):
+        if hasattr(e, "failures"):
             root_codes = [f.exitcode for f in e.failures.values()]
             if any(c == USER_ERROR_EXIT_CODE for c in root_codes):
                 sys.exit(USER_ERROR_EXIT_CODE)

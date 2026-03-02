@@ -29,8 +29,10 @@ from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
+    AutoModelForImageTextToText,  # AutoModelForVision2Seq was renamed in transformers v5
+)
+from transformers import (
     AutoModelForCausalLM,
-    AutoModelForImageTextToText, # AutoModelForVision2Seq was renamed in transformers v5
     AutoProcessor,
     AutoTokenizer,
     TrainerCallback,
