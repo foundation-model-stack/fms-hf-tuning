@@ -302,6 +302,7 @@ class DataPreProcessor:
         if "fn_kwargs" not in kwargs:
             kwargs["fn_kwargs"] = {}
         kwargs["fn_kwargs"]["tokenizer"] = self.tokenizer
+        kwargs["fn_kwargs"]["processor"] = self.processor
 
         for split_name, ds in raw_datasets.items():
 
