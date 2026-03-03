@@ -2087,3 +2087,108 @@ def test_vision_data_collator(model_name):
     assert "labels" in batch
     assert "attention_mask" in batch
     assert batch["input_ids"].shape == batch["labels"].shape
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_multimodal_processor_injection_in_data_pipeline(model_name):
+    """Test that the processor is correctly injected into map handler fn_kwargs
+    when running the prepare_multimodal_data_processor data handler through the
+    DataPreProcessor pipeline.
+
+    This is a regression test for a bug where the DataPreProcessor injected the
+    tokenizer into fn_kwargs but not the processor, causing
+    prepare_multimodal_data_processor to fail with:
+    'Processor is missing. Please provide a processor when initializing the handler.'
+    """
+    processor = AutoProcessor.from_pretrained(model_name)
+    tokenizer = processor.tokenizer
+
+    data_processor = DataPreProcessor(
+        processor_config=DataPreProcessorConfig(),
+        tokenizer=tokenizer,
+        processor=processor,
+    )
+
+    # Build in-memory dataset with PIL images (as real data would have)
+    with open(IMAGE_DATASET, "r", encoding="utf-8") as f:
+        raw_data = [json.loads(line) for line in f]
+    records = []
+    for item in raw_data:
+        pil_image = Image.fromarray(np.array(item["image"], dtype=np.uint8))
+        records.append({"text": item["text"], "image": [pil_image]})
+    ds = DatasetDict(
+        {
+            "train": Dataset.from_dict(
+                {
+                    "text": [r["text"] for r in records],
+                    "image": [r["image"] for r in records],
+                }
+            )
+        }
+    )
+
+    handler_config = DataHandlerConfig(
+        name="prepare_multimodal_data_processor",
+        arguments={
+            "fn_kwargs": {
+                "fields_name": {
+                    "dataset_text_field": "text",
+                    "dataset_image_field": "image",
+                },
+                "processor_kwargs": {
+                    "return_tensors": "pt",
+                    "padding": True,
+                },
+            },
+            "num_proc": 1,
+        },
+    )
+
+    # This calls __execute_map_data_handler which should inject the processor
+    result = data_processor._execute_data_handlers(ds, handler_config, "image_dataset")
+
+    assert result is not None
+    assert len(result["train"]) == len(raw_data)
+    assert "text" in result["train"].column_names
+    assert "image" in result["train"].column_names
+
+
+def test_multimodal_processor_missing_raises_error():
+    """Test that prepare_multimodal_data_processor raises ValueError when
+    processor is None (i.e., DataPreProcessor was created without a processor).
+    """
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    # Create DataPreProcessor without a processor (default None)
+    data_processor = DataPreProcessor(
+        processor_config=DataPreProcessorConfig(),
+        tokenizer=tokenizer,
+    )
+
+    datasetconfig = DataSetConfig(
+        name="image_dataset",
+        data_paths=[IMAGE_DATASET],
+        data_handlers=[
+            DataHandlerConfig(
+                name="prepare_multimodal_data_processor",
+                arguments={
+                    "fn_kwargs": {
+                        "fields_name": {
+                            "dataset_text_field": "text",
+                            "dataset_image_field": "image",
+                        },
+                        "processor_kwargs": {
+                            "return_tensors": "pt",
+                            "padding": True,
+                        },
+                    },
+                },
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Processor is missing"):
+        data_processor.process_dataset_configs(dataset_configs=[datasetconfig])
