@@ -87,7 +87,13 @@ RUN rm -rf /root/.cache /tmp/* /opt/pytorch
 ######################## RUNTIME ########################
 FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION}
 
-WORKDIR ${WORKDIR}
+ARG WORKDIR=/app
+ARG SOURCE_DIR=${WORKDIR}/fms-hf-tuning
+
+RUN mkdir -p /app && \
+    chown -R root:0 /app /tmp && \
+    chmod -R g+rwX /app /tmp
+WORKDIR /app
 
 # Copy only Python site-packages + app
 COPY --from=builder /usr/local/lib/python3.12/dist-packages \
@@ -97,8 +103,16 @@ COPY --from=builder ${SOURCE_DIR} ${SOURCE_DIR}
 # Runtime cleanup
 RUN rm -rf /opt/pytorch /root/.cache /tmp/*
 
-RUN chmod -R g+rwX $WORKDIR /tmp
 RUN mkdir -p /.cache && chmod -R 777 /.cache
+
+# Copy scripts and default configs
+COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
+COPY build/utils.py /app/build/
+RUN chmod +x /app/accelerate_launch.py
+
+ENV FSDP_DEFAULTS_FILE_PATH="/app/accelerate_fsdp_defaults.yaml"
+ENV SET_NUM_PROCESSES_TO_NUM_GPUS="True"
+ENV HOME="/app"
 
 # Set Triton environment variables for qLoRA
 ENV TRITON_HOME="/tmp/triton_home"
@@ -106,6 +120,4 @@ ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
 ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
 ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
-WORKDIR $WORKDIR
-
-CMD ["${SOURCE_DIR}/build/accelerate_launch.py"]
+CMD ["python", "/app/accelerate_launch.py"]
