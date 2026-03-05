@@ -49,7 +49,7 @@ COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
 
 RUN pip install --no-cache-dir ${SOURCE_DIR} && \
-    pip install --user --no-build-isolation ${SOURCE_DIR}[flash-attn] && \
+    pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[flash-attn] && \
     pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[mamba]
 
 # Optional extras
@@ -81,8 +81,12 @@ RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
         pip install --no-cache-dir ${SOURCE_DIR}[tuning_config_recommender]; \
     fi
 
-# cleanup
-RUN rm -rf /root/.cache /tmp/* /opt/pytorch
+# cleanup build artifacts and caches
+RUN rm -rf /root/.cache /tmp/pip-* \
+    && find /usr/local/lib/python3.12/dist-packages \
+        \( -type d -name "__pycache__" -o -type d -name "tests" -o -type d -name "test" \) \
+        -exec rm -rf {} + 2>/dev/null || true \
+    && find /usr/local/lib/python3.12/dist-packages -name "*.pyc" -delete 2>/dev/null || true
 
 ######################## RUNTIME ########################
 FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION}
@@ -90,20 +94,37 @@ FROM nvcr.io/nvidia/pytorch:${NVCR_IMAGE_VERSION}
 ARG WORKDIR=/app
 ARG SOURCE_DIR=${WORKDIR}/fms-hf-tuning
 
-RUN mkdir -p /app && \
-    chown -R root:0 /app /tmp && \
-    chmod -R g+rwX /app /tmp
+# Remove bloat from the base image in a SINGLE layer so deletions reduce size.
+# - /opt/pytorch: PyTorch source/examples bundled in NVCR
+# - CUDA static libs (*.a): only needed for static linking at compile time
+# - CUDA samples/docs: not needed at runtime
+# - pip cache and tmp
+RUN rm -rf \
+        /opt/pytorch \
+        /root/.cache \
+        /tmp/* \
+        /usr/local/cuda/targets/x86_64-linux/lib/*.a \
+        /usr/local/cuda/doc \
+        /usr/local/cuda/samples \
+    && find /usr/local/lib/python3.12/dist-packages \
+        \( -type d -name "__pycache__" -o -type d -name "tests" -o -type d -name "test" \) \
+        -exec rm -rf {} + 2>/dev/null || true \
+    && find /usr/local/lib/python3.12/dist-packages -name "*.pyc" -delete 2>/dev/null || true \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app \
+    && chown -R root:0 /app /tmp \
+    && chmod -R g+rwX /app /tmp
+
 WORKDIR /app
 
-# Copy only Python site-packages + app
+# Copy Python site-packages, binaries, and app from builder
 COPY --from=builder /usr/local/lib/python3.12/dist-packages \
                     /usr/local/lib/python3.12/dist-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder ${SOURCE_DIR} ${SOURCE_DIR}
 
-# Runtime cleanup
-RUN rm -rf /opt/pytorch /root/.cache /tmp/*
-
-RUN mkdir -p /.cache && chmod -R 777 /.cache
+RUN chmod -R g+rwX /app /tmp && \
+    mkdir -p /.cache && chmod -R 777 /.cache
 
 # Copy scripts and default configs
 COPY build/accelerate_launch.py fixtures/accelerate_fsdp_defaults.yaml /app/
