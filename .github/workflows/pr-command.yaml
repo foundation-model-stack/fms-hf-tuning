@@ -1,0 +1,118 @@
+name: PR Command (/build, /merge)
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  # Gate: only run on PR comments that start with /build or /merge
+  check-command:
+    if: >
+      github.event.issue.pull_request &&
+      (startsWith(github.event.comment.body, '/build') || startsWith(github.event.comment.body, '/merge'))
+    runs-on: ubuntu-latest
+    outputs:
+      command: ${{ steps.parse.outputs.command }}
+    steps:
+      - name: Parse command
+        id: parse
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if [[ "$COMMENT" == /build* ]]; then
+            echo "command=build" >> "$GITHUB_OUTPUT"
+          elif [[ "$COMMENT" == /merge* ]]; then
+            echo "command=merge" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── /build ──────────────────────────────────────────────────────────
+  build:
+    needs: check-command
+    if: needs.check-command.outputs.command == 'build'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Get PR ref
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            core.setOutput('ref', pr.data.head.ref);
+            core.setOutput('sha', pr.data.head.sha);
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.ref }}
+
+      - name: Free up disk space
+        uses: ./.github/actions/free-up-disk-space
+
+      - name: Build NVCR Image
+        run: |
+          docker build \
+            -t fms-hf-tuning:pr-${{ github.event.issue.number }}-nvcr \
+            -f build/nvcr.Dockerfile .
+
+      - name: Comment build result
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}' === 'success'
+              ? 'Build succeeded'
+              : 'Build failed';
+            const sha = '${{ steps.pr.outputs.sha }}'.substring(0, 7);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `**${status}** for \`${sha}\` (NVCR image)\n\n[View run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+            });
+
+  # ── /merge ──────────────────────────────────────────────────────────
+  merge:
+    needs: check-command
+    if: needs.check-command.outputs.command == 'merge'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            if (pr.data.mergeable_state === 'blocked' || !pr.data.mergeable) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '**Merge failed**: PR is not in a mergeable state (`' + pr.data.mergeable_state + '`). Check required status checks and reviews.',
+              });
+              core.setFailed('PR is not mergeable');
+              return;
+            }
+
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              merge_method: 'merge',
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '**PR merged** successfully.',
+            });
