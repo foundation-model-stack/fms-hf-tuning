@@ -532,7 +532,7 @@ def tokenize_and_apply_chat_template_with_masking(
             add_generation_prompt=False,
             tools=tools,
             documents=documents,
-        )
+        )["input_ids"]
     )
 
     # clone labels from input ids
@@ -557,7 +557,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )["input_ids"].shape[1]
                 )
             # next, we calculate the end index of this non-assistant message
             if (
@@ -578,7 +578,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=True,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )["input_ids"].shape[1]
                 )
             else:
                 # for the last message or the message that doesn't follow with
@@ -594,7 +594,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )["input_ids"].shape[1]
                 )
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
