@@ -110,7 +110,6 @@ def main():
         # message to termination log.
         logging.error(traceback.format_exc())
         # The exit code that sft_trainer.py threw is captured in e.returncode
-
         return_code = e.returncode
         if return_code not in [INTERNAL_ERROR_EXIT_CODE, USER_ERROR_EXIT_CODE]:
             return_code = INTERNAL_ERROR_EXIT_CODE
@@ -124,10 +123,6 @@ def main():
             root_codes = [f.exitcode for f in e.failures.values()]
             if any(c == USER_ERROR_EXIT_CODE for c in root_codes):
                 sys.exit(USER_ERROR_EXIT_CODE)
-        write_termination_log(f"Unhandled exception during training. {e}")
-        sys.exit(INTERNAL_ERROR_EXIT_CODE)
-    except Exception as e:  # pylint: disable=broad-except
-        logging.error(traceback.format_exc())
         write_termination_log(f"Unhandled exception during training. {e}")
         sys.exit(INTERNAL_ERROR_EXIT_CODE)
 
