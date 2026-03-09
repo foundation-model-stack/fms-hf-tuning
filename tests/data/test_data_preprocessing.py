@@ -22,7 +22,6 @@ import tempfile
 from datasets import Dataset, DatasetDict, IterableDataset
 from PIL import Image
 from transformers import AutoProcessor, AutoTokenizer, DataCollatorForSeq2Seq
-from trl import DataCollatorForCompletionOnlyLM
 import datasets
 import numpy as np
 import pyarrow
@@ -69,7 +68,7 @@ from tests.artifacts.vision_models import (
 # Local
 from tuning.config import configs
 from tuning.config.acceleration_configs import AttentionAndDistributedPackingConfig
-from tuning.data.collators import VisionDataCollator
+from tuning.data.collators import DataCollatorForCompletionOnlyLM, VisionDataCollator
 from tuning.data.data_config import (
     DataHandlerConfig,
     DataPreProcessorConfig,

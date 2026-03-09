@@ -22,11 +22,10 @@ from transformers import (
     DataCollatorForSeq2Seq,
     LlavaProcessor,
 )
-from trl import DataCollatorForCompletionOnlyLM
 
 # Local
 from tuning.config import configs
-from tuning.data.collators import VisionDataCollator
+from tuning.data.collators import DataCollatorForCompletionOnlyLM, VisionDataCollator
 
 logger = logging.getLogger(__name__)
 
