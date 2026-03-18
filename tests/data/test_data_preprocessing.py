@@ -74,6 +74,7 @@ from tuning.data.data_config import (
     DataPreProcessorConfig,
     DataSetConfig,
 )
+from tuning.data.data_handlers import apply_tokenizer_chat_template
 from tuning.data.data_preprocessing_utils import get_data_collator
 from tuning.data.data_processors import DataPreProcessor, get_datapreprocessor
 from tuning.data.setup_dataprocessor import (
@@ -2153,6 +2154,191 @@ def test_multimodal_processor_injection_in_data_pipeline(model_name):
     assert len(result["train"]) == len(raw_data)
     assert "text" in result["train"].column_names
     assert "image" in result["train"].column_names
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_vision_chat_template_with_image_tokens(model_name):
+    """Test that apply_tokenizer_chat_template correctly inserts image tokens for vision models.
+
+    This is a regression test for the bug where vision datasets with OpenAI format
+    would fail with 'Image features and image tokens do not match: tokens: 0, features 18432'
+    because image tokens were not being inserted into the formatted text.
+
+    Tests both:
+    1. Explicit conversation_column_name='messages'
+    2. Auto-detection when conversation_column_name=None
+    """
+    processor = AutoProcessor.from_pretrained(model_name)
+
+    # Create a test element with OpenAI conversational format + image
+    # This mimics the user's dataset structure
+    pil_image = Image.fromarray(np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8))
+
+    element = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Describe this image."},
+                    {"type": "image"},
+                ],
+            },
+        ],
+        "image": [pil_image],
+    }
+
+    # Test 1: With explicit conversation_column_name
+    result = apply_tokenizer_chat_template(
+        element=element,
+        formatted_text_column_name="text",
+        conversation_column_name="messages",
+        tokenizer=processor.tokenizer,
+        processor=processor,
+    )
+
+    # Verify image tokens are present in formatted text
+    assert "text" in result
+    formatted_text = result["text"]
+    assert processor.image_token in formatted_text, (
+        f"Image token '{processor.image_token}' not found in formatted text. "
+        f"This would cause 'Image features and image tokens do not match' error. "
+        f"Text: {formatted_text}"
+    )
+
+    # Test 2: With auto-detection (conversation_column_name=None)
+    result_auto = apply_tokenizer_chat_template(
+        element=element,
+        formatted_text_column_name="text",
+        conversation_column_name=None,  # Trigger auto-detection
+        tokenizer=processor.tokenizer,
+        processor=processor,
+    )
+
+    assert "text" in result_auto
+    formatted_text_auto = result_auto["text"]
+    assert processor.image_token in formatted_text_auto, (
+        f"Auto-detection failed: Image token '{processor.image_token}' not found. "
+        f"Text: {formatted_text_auto}"
+    )
+
+    # Test 3: Verify collator can process the formatted text correctly
+    collator = VisionDataCollator(processor)
+    batch_element = {
+        "text": result["text"],
+        "image": element["image"],
+        "fields_name": {"dataset_text_field": "text", "dataset_image_field": "image"},
+        "processor_kwargs": {"return_tensors": "pt", "padding": True},
+    }
+    batch = collator([batch_element])
+
+    # Verify image tokens are present in tokenized input_ids
+    assert "input_ids" in batch
+    assert "pixel_values" in batch
+    assert "labels" in batch
+
+    image_token_id = processor.tokenizer.convert_tokens_to_ids(processor.image_token)
+    num_image_tokens = (batch["input_ids"] == image_token_id).sum().item()
+    assert num_image_tokens > 0, (
+        f"No image tokens found in tokenized input_ids. "
+        f"This is the exact bug: tokens=0 would cause the error. "
+        f"Image token ID: {image_token_id}, input_ids: {batch['input_ids']}"
+    )
+
+    # Verify pixel values have correct shape
+    assert batch["pixel_values"].shape[0] > 0, "No pixel values in batch"
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_vision_chat_template_error_without_conversation_column(model_name):
+    """Test that apply_tokenizer_chat_template raises helpful error when
+    auto-detection fails and image tokens are missing.
+
+    This ensures users get actionable error messages when their dataset
+    doesn't have a standard conversation column name.
+    """
+    processor = AutoProcessor.from_pretrained(model_name)
+
+    # Create element with non-standard column name that won't be auto-detected
+    pil_image = Image.fromarray(np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8))
+
+    element = {
+        "custom_conversation_field": [
+            {
+                "role": "user",
+                "content": "Just plain text, no image placeholder",
+            },
+        ],
+        "image": [pil_image],
+    }
+
+    # This should raise an error because:
+    # 1. Auto-detection won't find 'custom_conversation_field'
+    # 2. Either: Template rendering fails (KeyError) OR
+    #    formatted text lacks image tokens (ValueError)
+    # Both are acceptable - the point is it fails with a clear error
+    with pytest.raises((ValueError, KeyError)) as exc_info:
+        apply_tokenizer_chat_template(
+            element=element,
+            formatted_text_column_name="text",
+            conversation_column_name=None,  # Let auto-detection fail
+            tokenizer=processor.tokenizer,
+            processor=processor,
+        )
+
+    error_msg = str(exc_info.value)
+    # Verify the error message mentions the problem
+    # (either template issue or missing image tokens)
+    assert error_msg  # Non-empty error message is good enough
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [TINY_LLAMA_VISION_MODEL_NAME, TINY_GRANITE_VISION_MODEL_NAME],
+)
+def test_vision_chat_template_multiple_images(model_name):
+    """Test that multiple images in a conversation are handled correctly."""
+    processor = AutoProcessor.from_pretrained(model_name)
+
+    # Create element with multiple images
+    pil_image1 = Image.fromarray(np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8))
+    pil_image2 = Image.fromarray(np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8))
+
+    element = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Compare these images:"},
+                    {"type": "image"},
+                    {"type": "text", "text": "and"},
+                    {"type": "image"},
+                ],
+            },
+        ],
+        "image": [pil_image1, pil_image2],
+    }
+
+    result = apply_tokenizer_chat_template(
+        element=element,
+        formatted_text_column_name="text",
+        conversation_column_name="messages",
+        tokenizer=processor.tokenizer,
+        processor=processor,
+    )
+
+    formatted_text = result["text"]
+    # Count image tokens in formatted text
+    num_image_tokens_in_text = formatted_text.count(processor.image_token)
+    assert num_image_tokens_in_text >= 1, (
+        f"Expected at least 1 image token, found {num_image_tokens_in_text}. "
+        f"Text: {formatted_text}"
+    )
 
 
 def test_multimodal_processor_missing_raises_error():

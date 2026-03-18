@@ -239,6 +239,9 @@ def apply_tokenizer_chat_template(
         conversation_column_name: If chat template is to be run on full sample pass this as None
                                   if chat template expects to be run on a specific column of the
                                   data sample pass the column name here.
+                                  For vision datasets with OpenAI format, this should typically
+                                  be 'messages' or 'conversation'. Auto-detection will attempt
+                                  common column names if not specified.
     Returns:
         Formatted HF Dataset element by formatting dataset with tokenizer's chat template
         Saves the result to formatted_text_column_name argument.
@@ -268,18 +271,79 @@ def apply_tokenizer_chat_template(
             )
         conversation = element[conversation_column_name]
     else:
+        # Auto-detect conversation column for vision datasets
         conversation = element
+        if isinstance(element, dict) and len(element) > 1:
+            # Try common conversation column names in priority order
+            common_conv_columns = ["messages", "conversation", "chat", "turns"]
+
+            for col_name in common_conv_columns:
+                if col_name in element:
+                    potential_conv = element[col_name]
+                    # Check if this looks like a conversation:
+                    # - Must be a list
+                    # - First element must be dict with 'role' field
+                    if (
+                        isinstance(potential_conv, list)
+                        and len(potential_conv) > 0
+                        and isinstance(potential_conv[0], dict)
+                        and "role" in potential_conv[0]
+                    ):
+
+                        conversation = potential_conv
+                        logger.info(
+                            "Auto-detected conversation column: '%s'. "
+                            "For production, consider setting conversation_column_name explicitly.",
+                            col_name,
+                        )
+                        break
 
     tools = element["tools"] if "tools" in element else None
     documents = element["documents"] if "documents" in element else None
 
-    return __wrap_jinja_rendering_with_exception_handling(
+    result = __wrap_jinja_rendering_with_exception_handling(
         lambda: {
             f"{formatted_text_column_name}": tokenizer.apply_chat_template(
                 conversation, tools=tools, documents=documents, tokenize=False
             )
         }
     )
+
+    # Validate for vision models: ensure image tokens are present when images exist
+    if processor is not None and hasattr(processor, "image_token"):
+        formatted_text = result[formatted_text_column_name]
+        has_images = any(k in element for k in ["image", "images", "pixel_values"])
+        has_image_tokens = processor.image_token in formatted_text
+
+        if has_images and not has_image_tokens:
+            # Build helpful error message
+            error_msg = (
+                f"Vision dataset error: Dataset contains images but formatted text "
+                f"lacks image tokens ('{processor.image_token}'). "
+                f"This will cause 'Image features and image tokens do not match' errors.\n"
+            )
+
+            # Provide actionable fix based on the situation
+            if conversation_column_name is None and isinstance(element, dict):
+                available_cols = list(element.keys())
+                error_msg += (
+                    f"Available columns: {available_cols}\n"
+                    f"Fix: Set conversation_column_name to column with conversation messages "
+                    f"(e.g., 'messages', 'conversation'). "
+                    f"The conversation messages should contain image placeholders like "
+                    f"{{'type': 'image'}} or similar.\n"
+                )
+            else:
+                error_msg += (
+                    "Ensure your conversation messages contain image placeholders "
+                    "(e.g., {{'type': 'image'}}) that the chat template can convert to "
+                    "image tokens.\n"
+                )
+
+            error_msg += f"Formatted text preview: {formatted_text[:200]}..."
+            raise ValueError(error_msg)
+
+    return result
 
 
 def prepare_multimodal_data_processor(
@@ -521,7 +585,9 @@ def tokenize_and_apply_chat_template_with_masking(
     documents = element["documents"] if "documents" in element else None
 
     # Tokenize the whole sample
-    input_ids = __wrap_jinja_rendering_with_exception_handling(
+    # Note: In transformers v4.55+, apply_chat_template with return_tensors='pt'
+    # returns a tensor directly, not a dict with 'input_ids' key
+    result = __wrap_jinja_rendering_with_exception_handling(
         lambda: tokenizer.apply_chat_template(
             conversation=messages,
             tokenize=True,
@@ -532,8 +598,13 @@ def tokenize_and_apply_chat_template_with_masking(
             add_generation_prompt=False,
             tools=tools,
             documents=documents,
-        )["input_ids"]
+        )
     )
+    # Handle both old API (dict) and new API (tensor)
+    if isinstance(result, dict):
+        input_ids = result["input_ids"]
+    else:
+        input_ids = result
 
     # clone labels from input ids
     labels = input_ids.clone()
@@ -545,7 +616,7 @@ def tokenize_and_apply_chat_template_with_masking(
             if message_idx == 0:
                 message_start_idx = 0
             else:
-                message_start_idx = __wrap_jinja_rendering_with_exception_handling(
+                result_start = __wrap_jinja_rendering_with_exception_handling(
                     lambda idx=message_idx: tokenizer.apply_chat_template(
                         # here marks the end of the previous messages
                         conversation=messages[:idx],
@@ -557,8 +628,15 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    )["input_ids"].shape[1]
+                    )
                 )
+                # Handle both old API (dict) and new API (tensor)
+                input_ids_start = (
+                    result_start["input_ids"]
+                    if isinstance(result_start, dict)
+                    else result_start
+                )
+                message_start_idx = input_ids_start.shape[1]
             # next, we calculate the end index of this non-assistant message
             if (
                 message_idx < len(messages) - 1
@@ -567,7 +645,7 @@ def tokenize_and_apply_chat_template_with_masking(
                 # for intermediate messages that follow with an assistant message,
                 # we need to set `add_generation_prompt=True` to avoid the assistant
                 # generation prefix being included in the loss (e.g., `<|assistant|>`)
-                message_end_idx = __wrap_jinja_rendering_with_exception_handling(
+                result_end = __wrap_jinja_rendering_with_exception_handling(
                     lambda idx=message_idx: tokenizer.apply_chat_template(
                         conversation=messages[: idx + 1],
                         tokenize=True,
@@ -578,12 +656,19 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=True,
                         tools=tools,
                         documents=documents,
-                    )["input_ids"].shape[1]
+                    )
                 )
+                # Handle both old API (dict) and new API (tensor)
+                input_ids_end = (
+                    result_end["input_ids"]
+                    if isinstance(result_end, dict)
+                    else result_end
+                )
+                message_end_idx = input_ids_end.shape[1]
             else:
                 # for the last message or the message that doesn't follow with
                 # an assistant message, we don't need to add the assistant generation prefix
-                message_end_idx = __wrap_jinja_rendering_with_exception_handling(
+                result_end_last = __wrap_jinja_rendering_with_exception_handling(
                     lambda idx=message_idx: tokenizer.apply_chat_template(
                         conversation=messages[: idx + 1],
                         tokenize=True,
@@ -594,8 +679,15 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    )["input_ids"].shape[1]
+                    )
                 )
+                # Handle both old API (dict) and new API (tensor)
+                input_ids_end_last = (
+                    result_end_last["input_ids"]
+                    if isinstance(result_end_last, dict)
+                    else result_end_last
+                )
+                message_end_idx = input_ids_end_last.shape[1]
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
             if max_seq_length and message_end_idx >= max_seq_length:
