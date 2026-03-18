@@ -1918,6 +1918,10 @@ def test_run_moe_ft_with_save_model_dir(dataset_path):
         assert os.path.exists(os.path.join(save_model_dir))
 
 
+@pytest.mark.skipif(
+    torch.backends.mps.is_available() and not torch.cuda.is_available(),
+    reason="MoE models have histogram incompatibility with MPS backend",
+)
 @pytest.mark.parametrize(
     "datafiles, dataconfigfile",
     [
@@ -2192,7 +2196,8 @@ def test_empty_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = EMPTY_DATA
 
-    with pytest.raises((DatasetGenerationError, ValueError)):
+    # StopIteration is raised by datasets library in transformers v5 when processing empty files
+    with pytest.raises((DatasetGenerationError, ValueError, StopIteration)):
         sft_trainer.train(
             copy.deepcopy(MODEL_ARGS),
             data_args,

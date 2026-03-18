@@ -600,10 +600,16 @@ def tokenize_and_apply_chat_template_with_masking(
             documents=documents,
         )
     )
-    # Handle both old API (dict) and new API (tensor)
-    if isinstance(result, dict):
+    # Handle both old API (dict/BatchEncoding) and new API (tensor)
+    # BatchEncoding is dict-like but not isinstance(dict)
+    if hasattr(result, "input_ids"):
+        # BatchEncoding or dict-like object with input_ids attribute
+        input_ids = result.input_ids
+    elif isinstance(result, dict):
+        # Plain dict
         input_ids = result["input_ids"]
     else:
+        # Direct tensor
         input_ids = result
 
     # clone labels from input ids
@@ -630,12 +636,17 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )
                 )
-                # Handle both old API (dict) and new API (tensor)
-                input_ids_start = (
-                    result_start["input_ids"]
-                    if isinstance(result_start, dict)
-                    else result_start
-                )
+                # Handle both old API (dict/BatchEncoding) and new API (tensor)
+                # BatchEncoding is dict-like but not isinstance(dict)
+                if hasattr(result_start, "input_ids"):
+                    # BatchEncoding or dict-like object with input_ids attribute
+                    input_ids_start = result_start.input_ids
+                elif isinstance(result_start, dict):
+                    # Plain dict
+                    input_ids_start = result_start["input_ids"]
+                else:
+                    # Direct tensor
+                    input_ids_start = result_start
                 message_start_idx = input_ids_start.shape[1]
             # next, we calculate the end index of this non-assistant message
             if (
@@ -658,12 +669,17 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )
                 )
-                # Handle both old API (dict) and new API (tensor)
-                input_ids_end = (
-                    result_end["input_ids"]
-                    if isinstance(result_end, dict)
-                    else result_end
-                )
+                # Handle both old API (dict/BatchEncoding) and new API (tensor)
+                # BatchEncoding is dict-like but not isinstance(dict)
+                if hasattr(result_end, "input_ids"):
+                    # BatchEncoding or dict-like object with input_ids attribute
+                    input_ids_end = result_end.input_ids
+                elif isinstance(result_end, dict):
+                    # Plain dict
+                    input_ids_end = result_end["input_ids"]
+                else:
+                    # Direct tensor
+                    input_ids_end = result_end
                 message_end_idx = input_ids_end.shape[1]
             else:
                 # for the last message or the message that doesn't follow with
@@ -681,12 +697,17 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )
                 )
-                # Handle both old API (dict) and new API (tensor)
-                input_ids_end_last = (
-                    result_end_last["input_ids"]
-                    if isinstance(result_end_last, dict)
-                    else result_end_last
-                )
+                # Handle both old API (dict/BatchEncoding) and new API (tensor)
+                # BatchEncoding is dict-like but not isinstance(dict)
+                if hasattr(result_end_last, "input_ids"):
+                    # BatchEncoding or dict-like object with input_ids attribute
+                    input_ids_end_last = result_end_last.input_ids
+                elif isinstance(result_end_last, dict):
+                    # Plain dict
+                    input_ids_end_last = result_end_last["input_ids"]
+                else:
+                    # Direct tensor
+                    input_ids_end_last = result_end_last
                 message_end_idx = input_ids_end_last.shape[1]
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
