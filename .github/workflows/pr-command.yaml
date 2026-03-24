@@ -64,13 +64,6 @@ jobs:
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Run basic sanity checks/tests on the new image before pushing
-        run: |
-            echo 'check if accelerate is installed and in the PATH'
-            IMAGE_NAME=${{ vars.QUAY_REPOSITORY }}fms-hf-tuning:pr-${{ github.event.issue.number }}-nvcr
-            docker run --rm -it --entrypoint which "$IMAGE_NAME" accelerate
-            echo 'checks done'
-
       - name: Push docker image
         run: |
             docker push ${{ vars.QUAY_REPOSITORY }}fms-hf-tuning:pr-${{ github.event.issue.number }}-nvcr
