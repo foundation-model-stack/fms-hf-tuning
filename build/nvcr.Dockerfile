@@ -141,4 +141,6 @@ ENV TRITON_DUMP_DIR="/tmp/triton_dump_dir"
 ENV TRITON_CACHE_DIR="/tmp/triton_cache_dir"
 ENV TRITON_OVERRIDE_DIR="/tmp/triton_override_dir"
 
+RUN pip install -U accelerate
+
 CMD ["python", "/app/accelerate_launch.py"]
