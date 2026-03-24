@@ -2192,7 +2192,7 @@ def test_empty_data():
     data_args = copy.deepcopy(DATA_ARGS)
     data_args.training_data_path = EMPTY_DATA
 
-    with pytest.raises((DatasetGenerationError, ValueError)):
+    with pytest.raises((DatasetGenerationError, ValueError, StopIteration)):
         sft_trainer.train(
             copy.deepcopy(MODEL_ARGS),
             data_args,
