@@ -23,7 +23,7 @@ jobs:
         run: |
             echo 'check if accelerate is installed and in the PATH'
             IMAGE_NAME=${{ vars.QUAY_REPOSITORY }}fms-hf-tuning:main-nvcr-latest
-            docker run --rm -it --entrypoint which "$IMAGE_NAME" accelerate
+            docker run --rm --entrypoint which "$IMAGE_NAME" accelerate
             echo 'checks done'
       - name: Push docker image for every commit to Quay.io as dev images
         run: |
