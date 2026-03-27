@@ -634,7 +634,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )
                 )
                 # Handle both old API (dict/BatchEncoding) and new API (tensor)
                 # BatchEncoding is dict-like but not isinstance(dict)
@@ -667,7 +667,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=True,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )
                 )
                 # Handle both old API (dict/BatchEncoding) and new API (tensor)
                 # BatchEncoding is dict-like but not isinstance(dict)
@@ -695,7 +695,7 @@ def tokenize_and_apply_chat_template_with_masking(
                         add_generation_prompt=False,
                         tools=tools,
                         documents=documents,
-                    ).shape[1]
+                    )
                 )
                 # Handle both old API (dict/BatchEncoding) and new API (tensor)
                 # BatchEncoding is dict-like but not isinstance(dict)
