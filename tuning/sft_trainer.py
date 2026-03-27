@@ -29,10 +29,8 @@ from peft import LoraConfig
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
-    AutoModelForImageTextToText,  # AutoModelForVision2Seq was renamed in transformers v5
-)
-from transformers import (
     AutoModelForCausalLM,
+    AutoModelForVision2Seq,
     AutoProcessor,
     AutoTokenizer,
     TrainerCallback,
@@ -294,8 +292,7 @@ def train(
                 )
             )
             # try to load model as a vision model
-            # in transformers v5, AutoModelForVision2Seq was renamed to AutoModelForImageTextToText
-            model = AutoModelForImageTextToText.from_pretrained(
+            model = AutoModelForVision2Seq.from_pretrained(
                 model_args.model_name_or_path, **model_kwargs
             )
             try:
