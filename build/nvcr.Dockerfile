@@ -29,12 +29,6 @@ ARG WORKDIR=/app
 ARG SOURCE_DIR=${WORKDIR}/fms-hf-tuning
 
 ARG ENABLE_FMS_ACCELERATION=true
-ARG ENABLE_AIM=false
-ARG ENABLE_MLFLOW=false
-ARG ENABLE_SCANNER=false
-ARG ENABLE_CLEARML=true
-ARG ENABLE_TRITON_KERNELS=true
-ARG ENABLE_RECOMMENDER=true
 
 # Ensures to always build mamba_ssm from source
 ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
@@ -44,41 +38,27 @@ RUN python -m pip install --upgrade pip && \
     pip install --upgrade setuptools && \
     pip install --upgrade --force-reinstall torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
+
+RUN pip install --no-cache-dir "git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels"
+
+
 # Install main package + flash attention
 COPY . ${SOURCE_DIR}
 RUN cd ${SOURCE_DIR}
 
-RUN pip install --no-cache-dir ${SOURCE_DIR} && \
-    pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[flash-attn] && \
-    pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[mamba]
+RUN pip install --no-cache-dir ${SOURCE_DIR}[tuning_config_recommender,clearml]
+#&& \
+#    pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[flash-attn] && \
+#    pip install --no-cache-dir --no-build-isolation ${SOURCE_DIR}[mamba]
 
 # Optional extras
 RUN if [[ "${ENABLE_FMS_ACCELERATION}" == "true" ]]; then \
         pip install --no-cache-dir ${SOURCE_DIR}[fms-accel] && \
-        python -m fms_acceleration.cli install fms_acceleration_peft && \
-        python -m fms_acceleration.cli install fms_acceleration_foak && \
+#        python -m fms_acceleration.cli install fms_acceleration_peft && \
+#        python -m fms_acceleration.cli install fms_acceleration_foak && \
         python -m fms_acceleration.cli install fms_acceleration_aadp && \
-        python -m fms_acceleration.cli install fms_acceleration_moe && \
-        python -m fms_acceleration.cli install fms_acceleration_odm; \
-    fi
-
-RUN if [[ "${ENABLE_TRITON_KERNELS}" == "true" ]]; then \
-        pip install --no-cache-dir "git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels"; \
-    fi
-RUN if [[ "${ENABLE_CLEARML}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[clearml]; \
-    fi
-RUN if [[ "${ENABLE_AIM}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[aim]; \
-    fi
-RUN if [[ "${ENABLE_MLFLOW}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[mlflow]; \
-    fi
-RUN if [[ "${ENABLE_SCANNER}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[scanner-dev]; \
-    fi
-RUN if [[ "${ENABLE_RECOMMENDER}" == "true" ]]; then \
-        pip install --no-cache-dir ${SOURCE_DIR}[tuning_config_recommender]; \
+#       python -m fms_acceleration.cli install fms_acceleration_moe && \
+#       python -m fms_acceleration.cli install fms_acceleration_odm; \
     fi
 
 # cleanup build artifacts and caches
