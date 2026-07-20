@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # Standard
-import os
-import logging
-import pickle
 import base64
+import json
+import logging
+import os
 
 # Third Party
 import torch
@@ -67,6 +67,13 @@ def get_highest_checkpoint(dir_path):
     return checkpoint_dir
 
 
+def _json_default(obj):
+    """Fallback serializer for objects not natively JSON-serializable."""
+    if hasattr(obj, "__dict__"):
+        return obj.__dict__
+    return str(obj)
+
+
 def serialize_args(args_json):
     """Given dict, converts to base64 byte representation.
 
@@ -74,7 +81,7 @@ def serialize_args(args_json):
         args_json: dict
     Returns: str
     """
-    message_bytes = pickle.dumps(args_json)
+    message_bytes = json.dumps(args_json, default=_json_default).encode("utf-8")
     base64_bytes = base64.b64encode(message_bytes)
     return base64_bytes.decode("ascii")
 
