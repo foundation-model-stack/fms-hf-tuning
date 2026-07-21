@@ -17,7 +17,7 @@
 
 # Standard
 import base64
-import pickle
+import json
 
 # Third Party
 from datasets import Dataset, Features, Value
@@ -224,7 +224,7 @@ def test_get_json_config_can_load_from_envvar(monkeypatch):
     the json path from env var SFT_TRAINER_CONFIG_JSON_ENV_VAR
     """
     config_json = {"model_name_or_path": "foobar"}
-    message_bytes = pickle.dumps(config_json)
+    message_bytes = json.dumps(config_json).encode("utf-8")
     base64_bytes = base64.b64encode(message_bytes)
     encoded_json = base64_bytes.decode("ascii")
     monkeypatch.delenv("SFT_TRAINER_CONFIG_JSON_PATH", raising=False)

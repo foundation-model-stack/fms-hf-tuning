@@ -37,7 +37,6 @@ import transformers
 import yaml
 
 # First Party
-from build.utils import serialize_args
 from scripts.run_inference import TunedCausalLM
 from tests.artifacts.language_models import MAYKEYE_TINY_LLAMA_CACHED, TINYMIXTRAL_MOE
 from tests.artifacts.predefined_data_configs import (
@@ -875,14 +874,36 @@ def test_successful_lora_target_modules_default_from_main(monkeypatch):
     """
     with tempfile.TemporaryDirectory() as tempdir:
         TRAIN_KWARGS = {
-            **MODEL_ARGS.__dict__,
-            **TRAIN_ARGS.__dict__,
-            **DATA_ARGS.__dict__,
-            **PEFT_LORA_ARGS.__dict__,
-            **{"peft_method": "lora", "output_dir": tempdir},
+            "model_name_or_path": MODEL_ARGS.model_name_or_path,
+            "use_flash_attn": MODEL_ARGS.use_flash_attn,
+            "torch_dtype": MODEL_ARGS.torch_dtype,
+            "training_data_path": DATA_ARGS.training_data_path,
+            "response_template": DATA_ARGS.response_template,
+            "dataset_text_field": DATA_ARGS.dataset_text_field,
+            "num_train_epochs": TRAIN_ARGS.num_train_epochs,
+            "per_device_train_batch_size": TRAIN_ARGS.per_device_train_batch_size,
+            "per_device_eval_batch_size": TRAIN_ARGS.per_device_eval_batch_size,
+            "gradient_accumulation_steps": TRAIN_ARGS.gradient_accumulation_steps,
+            "learning_rate": TRAIN_ARGS.learning_rate,
+            "weight_decay": TRAIN_ARGS.weight_decay,
+            "warmup_ratio": TRAIN_ARGS.warmup_ratio,
+            "lr_scheduler_type": TRAIN_ARGS.lr_scheduler_type,
+            "logging_steps": TRAIN_ARGS.logging_steps,
+            "include_tokens_per_second": TRAIN_ARGS.include_tokens_per_second,
+            "packing": TRAIN_ARGS.packing,
+            "max_seq_length": TRAIN_ARGS.max_seq_length,
+            "save_strategy": TRAIN_ARGS.save_strategy,
+            "r": PEFT_LORA_ARGS.r,
+            "lora_alpha": PEFT_LORA_ARGS.lora_alpha,
+            "lora_dropout": PEFT_LORA_ARGS.lora_dropout,
+            "peft_method": "lora",
+            "output_dir": tempdir,
         }
-        serialized_args = serialize_args(TRAIN_KWARGS)
-        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", serialized_args)
+        config_path = os.path.join(tempdir, "config.json")
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(TRAIN_KWARGS, f)
+        monkeypatch.setenv("SFT_TRAINER_CONFIG_JSON_PATH", config_path)
+        monkeypatch.delenv("SFT_TRAINER_CONFIG_JSON_ENV_VAR", raising=False)
 
         sft_trainer.main()
 
@@ -901,8 +922,6 @@ def test_successful_lora_target_modules_default_from_main(monkeypatch):
             "q_proj",
             "v_proj",
         }, "target_modules are not set to the default values."
-
-        os.environ.pop("SFT_TRAINER_CONFIG_JSON_ENV_VAR", None)
 
 
 def test_run_causallm_lora_add_special_tokens():

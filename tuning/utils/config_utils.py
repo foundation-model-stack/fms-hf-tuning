@@ -17,7 +17,6 @@ from dataclasses import asdict
 import base64
 import json
 import os
-import pickle
 
 # Third Party
 from peft import PromptTuningConfig as HFPromptTuningConfig
@@ -159,9 +158,4 @@ def txt_to_obj(txt):
     """
     base64_bytes = txt.encode("ascii")
     message_bytes = base64.b64decode(base64_bytes)
-    try:
-        # If the bytes represent JSON string
-        return json.loads(message_bytes)
-    except UnicodeDecodeError:
-        # Otherwise the bytes are a pickled python dictionary
-        return pickle.loads(message_bytes)
+    return json.loads(message_bytes)
