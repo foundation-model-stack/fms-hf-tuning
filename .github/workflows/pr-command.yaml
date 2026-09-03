@@ -15,8 +15,9 @@ jobs:
     steps:
       - name: Parse command
         id: parse
+        env:
+          COMMENT: ${{ github.event.comment.body }}
         run: |
-          COMMENT="${{ github.event.comment.body }}"
           if [[ "$COMMENT" == /build* ]]; then
             echo "command=build" >> "$GITHUB_OUTPUT"
           elif [[ "$COMMENT" == /merge* ]]; then
