@@ -41,7 +41,7 @@ ENV PIP_NO_BINARY=mamba-ssm,mamba_ssm
 
 # upgrade torch as the base layer contains only torch 2.7
 RUN python -m pip install --upgrade pip && \
-    pip install --upgrade setuptools && \
+    pip install --upgrade setuptools "packaging>=24.2" && \
     pip install --upgrade --force-reinstall torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Install main package + flash attention
