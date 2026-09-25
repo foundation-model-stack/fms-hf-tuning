@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-    "setuptools>=60",
+    "setuptools>=77",
     "setuptools-scm>=8.0"
     ]
 
@@ -13,7 +13,7 @@ authors = [
   {name = "Sukriti Sharma", email = "sukriti.sharma4@ibm.com"},
   {name = "Anh Uong", email = "anh.uong@ibm.com"},
 ]
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 readme = "README.md"
 requires-python = "~=3.9"
 keywords = ['fms-hf-tuning', 'python', 'tuning']
@@ -63,7 +63,7 @@ fms-accel-all = [
 tuning_config_recommender=["tuning_config_recommender>=0.1.7"]
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*"]
+exclude = ["tests", "tests.*", "build", "build.*"]
 namespaces = false
 
 [tool.setuptools_scm]
