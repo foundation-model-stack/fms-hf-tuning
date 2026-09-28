@@ -175,7 +175,6 @@ accelerate launch \
   --torch_dtype="bfloat16" \
   --use_flash_attn="true" \
   --use_reentrant="true" \
-  --warmup_ratio="0.1" \
   --warmup_steps="200" \
   --weight_decay="0.1" \
   --do_dataprocessing_only

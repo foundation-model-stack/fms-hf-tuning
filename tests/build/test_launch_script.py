@@ -48,7 +48,7 @@ BASE_KWARGS = {
     "gradient_accumulation_steps": 1,
     "learning_rate": 0.00001,
     "weight_decay": 0,
-    "warmup_ratio": 0.03,
+    "warmup_steps": 0.03,
     "lr_scheduler_type": "cosine",
     "logging_steps": 1,
     "include_num_input_tokens_seen": True,

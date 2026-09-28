@@ -198,7 +198,7 @@ accelerate launch \
 --num_train_epochs 1 \
 --torch_dtype bfloat16 \
 --learning_rate 2e-4 \
---warmup_ratio 0.03 \
+--warmup_steps 0.03 \
 --lr_scheduler_type "cosine_with_min_lr" \
 --lr_scheduler_kwargs '{"min_lr_rate": 0.1}' \
 --max_seq_length 4096 \
