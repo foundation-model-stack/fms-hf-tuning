@@ -22,7 +22,6 @@ import os
 import tempfile
 
 # Third Party
-from transformers.utils.import_utils import _is_package_available
 import pytest
 
 # First Party
@@ -38,10 +37,11 @@ from tests.test_sft_trainer import (
 # Local
 from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.utils.import_utils import is_package_available
 
 
 def _check_clearml_setup():
-    if _is_package_available("clearml"):
+    if is_package_available("clearml"):
         try:
             # pylint: disable=import-error, disable=import-outside-toplevel
             # Third Party

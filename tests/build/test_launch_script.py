@@ -23,7 +23,6 @@ import glob
 
 # Third Party
 import pytest
-from transformers.utils.import_utils import _is_package_available
 
 # First Party
 from build.accelerate_launch import main
@@ -35,6 +34,7 @@ from tuning.utils.error_logging import (
     INTERNAL_ERROR_EXIT_CODE,
 )
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.utils.import_utils import is_package_available
 
 SCRIPT = "tuning/sft_trainer.py"
 MODEL_NAME = MAYKEYE_TINY_LLAMA_CACHED
@@ -248,7 +248,7 @@ def test_lora_with_lora_post_process_for_vllm_set_to_true(monkeypatch):
 
 
 @pytest.mark.skipif(
-    not _is_package_available("HFResourceScanner"),
+    not is_package_available("HFResourceScanner"),
     reason="Only runs if HFResourceScanner is installed",
 )
 def test_launch_with_HFResourceScanner_enabled(monkeypatch):

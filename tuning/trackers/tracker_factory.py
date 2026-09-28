@@ -15,12 +15,10 @@
 # Standard
 import logging
 
-# Third Party
-from transformers.utils.import_utils import _is_package_available
-
 # Local
 from .filelogging_tracker import FileLoggingTracker
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.utils.import_utils import is_package_available
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +41,10 @@ AVAILABLE_TRACKERS = [
 REGISTERED_TRACKERS = {}
 
 # One time package check for list of external trackers.
-_is_aim_available = _is_package_available("aim")
-_is_mlflow_available = _is_package_available("mlflow")
-_is_hf_resource_scanner_available = _is_package_available("HFResourceScanner")
-_is_clearml_available = _is_package_available("clearml")
+_is_aim_available = is_package_available("aim")
+_is_mlflow_available = is_package_available("mlflow")
+_is_hf_resource_scanner_available = is_package_available("HFResourceScanner")
+_is_clearml_available = is_package_available("clearml")
 
 
 def _is_tracker_installed(name):

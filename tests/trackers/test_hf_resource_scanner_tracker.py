@@ -22,7 +22,6 @@ import os
 import tempfile
 
 # Third Party
-from transformers.utils.import_utils import _is_package_available
 import pytest
 
 # First Party
@@ -39,12 +38,13 @@ from tests.test_sft_trainer import (
 # Local
 from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.utils.import_utils import is_package_available
 
 ## HF Resource Scanner Tracker Tests
 
 
 @pytest.mark.skipif(
-    not _is_package_available("HFResourceScanner"),
+    not is_package_available("HFResourceScanner"),
     reason="Only runs if HFResourceScanner is installed",
 )
 def test_run_with_hf_resource_scanner_tracker():
@@ -58,7 +58,7 @@ def test_run_with_hf_resource_scanner_tracker():
 
 
 @pytest.mark.skipif(
-    not _is_package_available("HFResourceScanner"),
+    not is_package_available("HFResourceScanner"),
     reason="Only runs if HFResourceScanner is installed",
 )
 def test_sample_run_with_hf_resource_scanner_updated_filename():

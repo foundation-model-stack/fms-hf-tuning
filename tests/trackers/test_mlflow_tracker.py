@@ -22,7 +22,6 @@ import os
 import tempfile
 
 # Third Party
-from transformers.utils.import_utils import _is_package_available
 import pytest
 
 # First Party
@@ -38,8 +37,9 @@ from tests.test_sft_trainer import (
 # Local
 from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
+from tuning.utils.import_utils import is_package_available
 
-mlflow_not_available = not _is_package_available("mlflow")
+mlflow_not_available = not is_package_available("mlflow")
 
 
 @pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")

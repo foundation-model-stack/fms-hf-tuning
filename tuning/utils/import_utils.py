@@ -19,6 +19,20 @@ from typing import List, Union
 from transformers.utils.import_utils import _is_package_available
 
 
+def is_package_available(package_name: str) -> bool:
+    """Return True if `package_name` is importable.
+
+    transformers >=5 changed `_is_package_available` to return a
+    `(available, version)` tuple instead of a bare bool. A non-empty tuple is
+    always truthy, so calling it directly in a boolean context silently reports
+    every package as present. Normalise both shapes here.
+    """
+    result = _is_package_available(package_name)
+    if isinstance(result, tuple):
+        return bool(result[0])
+    return bool(result)
+
+
 def is_fms_accelerate_available(
     plugins: Union[str, List[str]] = None, package_name: str = "fms_acceleration"
 ):
@@ -29,6 +43,6 @@ def is_fms_accelerate_available(
         names.extend([package_name + "_" + x for x in plugins])
 
     for n in names:
-        if not _is_package_available(n):
+        if not is_package_available(n):
             return False
     return True
