@@ -154,7 +154,6 @@ accelerate launch \
   --experiment="train-nb-g8b-r26-e0e88b40-dbd8-41ae-a744-c853959495f2" \
   --gradient_accumulation_steps="1" \
   --gradient_checkpointing="true" \
-  --include_tokens_per_second="false" \
   --instruction_template="<|start_of_role|>user<|end_of_role|>" \
   --learning_rate="1e-06" \
   --logging_steps="1" \

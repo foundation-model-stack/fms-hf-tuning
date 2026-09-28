@@ -889,7 +889,6 @@ def test_successful_lora_target_modules_default_from_main(monkeypatch):
             "warmup_steps": TRAIN_ARGS.warmup_steps,
             "lr_scheduler_type": TRAIN_ARGS.lr_scheduler_type,
             "logging_steps": TRAIN_ARGS.logging_steps,
-            "include_tokens_per_second": TRAIN_ARGS.include_tokens_per_second,
             "packing": TRAIN_ARGS.packing,
             "max_seq_length": TRAIN_ARGS.max_seq_length,
             "save_strategy": TRAIN_ARGS.save_strategy,

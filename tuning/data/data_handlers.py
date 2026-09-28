@@ -636,18 +636,9 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )["input_ids"].shape[1]
                 )
-                # Handle both old API (dict/BatchEncoding) and new API (tensor)
-                # BatchEncoding is dict-like but not isinstance(dict)
-                if hasattr(result_start, "input_ids"):
-                    # BatchEncoding or dict-like object with input_ids attribute
-                    input_ids_start = result_start.input_ids
-                elif isinstance(result_start, dict):
-                    # Plain dict
-                    input_ids_start = result_start["input_ids"]
-                else:
-                    # Direct tensor
-                    input_ids_start = result_start
-                message_start_idx = input_ids_start.shape[1]
+                # The lambda above already extracts `["input_ids"].shape[1]`,
+                # so this is the sequence length.
+                message_start_idx = result_start
             # next, we calculate the end index of this non-assistant message
             if (
                 message_idx < len(messages) - 1
@@ -669,18 +660,9 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )["input_ids"].shape[1]
                 )
-                # Handle both old API (dict/BatchEncoding) and new API (tensor)
-                # BatchEncoding is dict-like but not isinstance(dict)
-                if hasattr(result_end, "input_ids"):
-                    # BatchEncoding or dict-like object with input_ids attribute
-                    input_ids_end = result_end.input_ids
-                elif isinstance(result_end, dict):
-                    # Plain dict
-                    input_ids_end = result_end["input_ids"]
-                else:
-                    # Direct tensor
-                    input_ids_end = result_end
-                message_end_idx = input_ids_end.shape[1]
+                # The lambda above already extracts `["input_ids"].shape[1]`,
+                # so this is the sequence length.
+                message_end_idx = result_end
             else:
                 # for the last message or the message that doesn't follow with
                 # an assistant message, we don't need to add the assistant generation prefix
@@ -697,18 +679,9 @@ def tokenize_and_apply_chat_template_with_masking(
                         documents=documents,
                     )["input_ids"].shape[1]
                 )
-                # Handle both old API (dict/BatchEncoding) and new API (tensor)
-                # BatchEncoding is dict-like but not isinstance(dict)
-                if hasattr(result_end_last, "input_ids"):
-                    # BatchEncoding or dict-like object with input_ids attribute
-                    input_ids_end_last = result_end_last.input_ids
-                elif isinstance(result_end_last, dict):
-                    # Plain dict
-                    input_ids_end_last = result_end_last["input_ids"]
-                else:
-                    # Direct tensor
-                    input_ids_end_last = result_end_last
-                message_end_idx = input_ids_end_last.shape[1]
+                # The lambda above already extracts `["input_ids"].shape[1]`,
+                # so this is the sequence length.
+                message_end_idx = result_end_last
             # set the label to -100 for the non-assistant part
             labels[:, message_start_idx:message_end_idx] = -100
             if max_seq_length and message_end_idx >= max_seq_length:

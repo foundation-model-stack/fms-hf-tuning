@@ -24,7 +24,6 @@
     "lr_scheduler_type": "cosine",
     "logging_steps": 1.0,
     "packing": false,
-    "include_tokens_per_second": true,
     "response_template": "### Label:",
     "dataset_text_field": "output",
     "use_flash_attn": false,
