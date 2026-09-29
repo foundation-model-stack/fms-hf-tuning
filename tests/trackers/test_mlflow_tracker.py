@@ -39,10 +39,36 @@ from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
 from tuning.utils.import_utils import is_package_available
 
-mlflow_not_available = not is_package_available("mlflow")
+
+def _mlflow_usable():
+    """mlflow must be importable and accept the file-store backend.
+
+    mlflow >= 3.16 raises on the filesystem tracking backend (e.g. './mlruns')
+    that these tests use unless MLFLOW_ALLOW_FILE_STORE=true is set, so an
+    installed mlflow is not on its own enough to run them.
+    """
+    if not is_package_available("mlflow"):
+        return False
+    if os.environ.get("MLFLOW_ALLOW_FILE_STORE", "").lower() == "true":
+        return True
+    try:
+        # Third Party
+        from mlflow.version import VERSION  # pylint: disable=import-outside-toplevel
+
+        # Third Party
+        from packaging.version import Version  # pylint: disable=import-outside-toplevel
+
+        return Version(VERSION) < Version("3.16")
+    except Exception:  # pylint: disable=broad-except
+        return False
 
 
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
+mlflow_not_available = not _mlflow_usable()
+
+
+@pytest.mark.skipif(
+    mlflow_not_available, reason="Requires a usable mlflow (see _mlflow_usable)"
+)
 def test_run_with_mlflow_tracker_name_but_no_args():
     """Ensure that train() raises error with mlflow tracker name but no args"""
 
@@ -61,7 +87,9 @@ def test_run_with_mlflow_tracker_name_but_no_args():
             )
 
 
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
+@pytest.mark.skipif(
+    mlflow_not_available, reason="Requires a usable mlflow (see _mlflow_usable)"
+)
 def test_e2e_run_with_mlflow_tracker():
     """Ensure that training succeeds with mlflow tracker"""
 
@@ -103,7 +131,9 @@ def test_e2e_run_with_mlflow_tracker():
     _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
 
-@pytest.mark.skipif(mlflow_not_available, reason="Requires mlflow to be installed")
+@pytest.mark.skipif(
+    mlflow_not_available, reason="Requires a usable mlflow (see _mlflow_usable)"
+)
 def test_e2e_run_with_mlflow_runuri_export_default_path():
     """Ensure that mlflow outputs run uri in the output dir by default"""
 

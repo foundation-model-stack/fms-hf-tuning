@@ -712,7 +712,7 @@ def test_process_data_args_throws_error_where_needed(data_args, packing):
             max_seq_length=1024,
             output_dir="tmp",  # Not needed but positional
         )
-        (_, _, _, _, _, _) = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
+        _, _, _, _, _, _ = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
 
 
 @pytest.mark.parametrize(
@@ -768,7 +768,7 @@ def test_process_dataconfig_file_with_streaming(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    train_set, _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, IterableDataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -876,7 +876,7 @@ def test_process_dataconfig_file_with_streaming_no_max_steps_errors(
     )
 
     with pytest.raises(ValueError):
-        (_, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+        _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
 
 
 @pytest.mark.parametrize(
@@ -938,7 +938,7 @@ def test_process_dataconfig_file_with_streaming_and_multipack_throws_error(
     is_multipack = attention_and_distributed_packing_config.is_multipack
 
     with pytest.raises(ValueError):
-        (_, _, _) = process_dataconfig_file(
+        _, _, _ = process_dataconfig_file(
             data_args, TRAIN_ARGS, tokenizer, is_multipack=is_multipack
         )
 
@@ -1017,7 +1017,7 @@ def test_process_dataconfig_file(data_config_path, data_path):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    train_set, _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1107,7 +1107,7 @@ def test_process_datahandler_eos_token(data_config_path, data_path, add_eos_toke
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    train_set, _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1258,7 +1258,7 @@ def test_process_dataconfig_multiple_files(data_config_path, data_path_list):
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    train_set, _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     if datasets_name == "text_dataset_input_output_masking":
         column_names = set(["input_ids", "attention_mask", "labels"])
@@ -1330,7 +1330,7 @@ def test_process_dataconfig_multiple_files_folders_with_globbing(
         output_dir="tmp",  # Not needed but positional
     )
 
-    (train_set, _, _, _) = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
+    train_set, _, _, _ = process_dataconfig_file(data_args, TRAIN_ARGS, tokenizer)
     assert isinstance(train_set, Dataset)
     assert set(["input_ids", "attention_mask", "labels"]).issubset(
         set(train_set.column_names)
@@ -1446,7 +1446,7 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling(
         max_seq_length=1024,
         output_dir="tmp",
     )
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
+    train_set, eval_set, _, _, _, _ = process_dataargs(
         data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
     )
 
@@ -1539,7 +1539,7 @@ def test_process_dataconfig_multiple_datasets_datafiles_sampling_and_split(
         max_seq_length=1024,
         output_dir="tmp",
     )
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
+    train_set, eval_set, _, _, _, _ = process_dataargs(
         data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
     )
 
@@ -1706,7 +1706,7 @@ def test_process_dataargs(data_args, is_padding_free):
         max_seq_length=max_seq_length,
         output_dir="tmp",  # Not needed but positional
     )
-    (train_set, eval_set, dataset_text_field, _, _, _) = process_dataargs(
+    train_set, eval_set, dataset_text_field, _, _, _ = process_dataargs(
         data_args, tokenizer, TRAIN_ARGS, is_padding_free=is_padding_free
     )
     assert isinstance(train_set, Dataset)
@@ -1779,9 +1779,7 @@ def test_process_dataargs_pretokenized(data_args):
         output_dir="tmp",  # Not needed but positional
     )
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    (train_set, eval_set, _, _, _, _) = process_dataargs(
-        data_args, tokenizer, TRAIN_ARGS
-    )
+    train_set, eval_set, _, _, _, _ = process_dataargs(data_args, tokenizer, TRAIN_ARGS)
     assert isinstance(train_set, Dataset)
     if eval_set:
         assert isinstance(eval_set, Dataset)
@@ -1894,7 +1892,7 @@ def test_process_dataset_configs_with_sampling_error(
         data_args.data_config_path = temp_yaml_file.name
 
     with pytest.raises(ValueError):
-        (_, _, _, _, _, _) = process_dataargs(
+        _, _, _, _, _, _ = process_dataargs(
             data_args=data_args, tokenizer=tokenizer, train_args=TRAIN_ARGS
         )
 
@@ -2075,7 +2073,11 @@ def test_vision_data_collator(model_name):
                     "dataset_text_field": "text",
                     "dataset_image_field": "image",
                 },
-                "text": data["text"],
+                # The processor matches image placeholders in the text against
+                # the images provided, so the placeholder must be present.
+                # This mirrors what the data handlers produce (and validate) for
+                # real datasets; see tokenize_and_apply_chat_template_with_masking.
+                "text": f"{processor.image_token}{data['text']}",
                 "image": [pil_image],
             }
         )
@@ -2087,6 +2089,21 @@ def test_vision_data_collator(model_name):
     assert "labels" in batch
     assert "attention_mask" in batch
     assert batch["input_ids"].shape == batch["labels"].shape
+    assert "pixel_values" in batch
+    assert batch["pixel_values"].shape[0] == len(features)
+
+    image_token_id = processor.tokenizer.convert_tokens_to_ids(processor.image_token)
+    # Ensure the image reached the model input rather than being silently dropped.
+    # How many image positions appear is processor-specific: Mllama keeps a single
+    # placeholder per image (the pixels enter via cross-attention) while LlavaNext
+    # expands it into one position per patch. Both must have at least one per row.
+    n_image_tokens = int((batch["input_ids"] == image_token_id).sum())
+    assert n_image_tokens >= len(features), (
+        f"expected >= {len(features)} image tokens (one per row), "
+        f"got {n_image_tokens}"
+    )
+    # The image placeholder must be masked out of the loss.
+    assert (batch["labels"] == image_token_id).sum() == 0
 
 
 @pytest.mark.parametrize(

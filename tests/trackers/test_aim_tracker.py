@@ -17,6 +17,7 @@
 
 # Standard
 import copy
+import importlib
 import json
 import os
 import tempfile
@@ -39,7 +40,27 @@ from tuning import sft_trainer
 from tuning.config.tracker_configs import TrackerConfigs
 from tuning.utils.import_utils import is_package_available
 
-aim_not_available = not is_package_available("aim")
+
+def _aim_usable():
+    """aim must be usable, not merely installed.
+
+    `aim.ext.utils.get_installed_packages()` imports `pkg_resources` lazily, in
+    the function body, and aim calls it while recording a run. setuptools >= 81
+    no longer ships `pkg_resources`, so aim imports cleanly but raises
+    ModuleNotFoundError mid-run. Probe the call itself rather than the import.
+    """
+    if not is_package_available("aim"):
+        return False
+    try:
+        importlib.import_module("aim")
+        utils = importlib.import_module("aim.ext.utils")
+        utils.get_installed_packages()
+    except Exception:  # pylint: disable=broad-except
+        return False
+    return True
+
+
+aim_not_available = not _aim_usable()
 
 
 @pytest.fixture(name="aimrepo", scope="module", autouse=True)
@@ -57,7 +78,7 @@ def fixture_aimrepo():
         return
 
 
-@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
+@pytest.mark.skipif(aim_not_available, reason="Requires a usable aim (see _aim_usable)")
 def test_run_with_aim_tracker_name_but_no_args():
     """Ensure that train() raises error with aim tracker name but no args"""
 
@@ -76,7 +97,7 @@ def test_run_with_aim_tracker_name_but_no_args():
             )
 
 
-@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
+@pytest.mark.skipif(aim_not_available, reason="Requires a usable aim (see _aim_usable)")
 def test_e2e_run_with_aim_tracker(aimrepo):
     """Ensure that training succeeds with aim tracker"""
 
@@ -105,7 +126,7 @@ def test_e2e_run_with_aim_tracker(aimrepo):
         _test_run_inference(checkpoint_path=_get_checkpoint_path(tempdir))
 
 
-@pytest.mark.skipif(aim_not_available, reason="Requires aimstack to be installed")
+@pytest.mark.skipif(aim_not_available, reason="Requires a usable aim (see _aim_usable)")
 def test_e2e_run_with_aim_runid_export_default_path(aimrepo):
     """Ensure that aim outputs runid hash in the output dir by default"""
 
