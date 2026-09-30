@@ -924,6 +924,10 @@ def test_successful_lora_target_modules_default_from_main(monkeypatch):
         }, "target_modules are not set to the default values."
 
 
+@pytest.mark.skipif(
+    version.parse(peft.__version__) <= version.parse("0.18.1"),
+    reason="Not released in PEFT <= 0.18.1",
+)
 def test_run_causallm_lora_add_special_tokens():
     """Check if embed layer is added as modules_to_save when special tokens are added"""
     with tempfile.TemporaryDirectory() as tempdir:
