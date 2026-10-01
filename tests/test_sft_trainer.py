@@ -928,6 +928,16 @@ def test_successful_lora_target_modules_default_from_main(monkeypatch):
     version.parse(peft.__version__) <= version.parse("0.18.1"),
     reason="Not released in PEFT <= 0.18.1",
 )
+@pytest.mark.xfail(
+    strict=True,
+    reason="The tie_lora_weights() call in sft_trainer.train is disabled because "
+    "PEFT's ModulesToSaveWrapper is incompatible with FSDP: _forward_wrapped "
+    "reaches the wrapped copy through a ModuleDict lookup, bypassing FSDP's "
+    "unshard hook, so F.linear receives the flat shard and raises "
+    "'size mismatch'. While it is disabled, modules_to_save is never populated "
+    "from added tokens. strict=True so this XPASSes (and fails the suite) as "
+    "soon as tie_lora_weights() is re-enabled, forcing this marker to be removed.",
+)
 def test_run_causallm_lora_add_special_tokens():
     """Check if embed layer is added as modules_to_save when special tokens are added"""
     with tempfile.TemporaryDirectory() as tempdir:
