@@ -1011,8 +1011,16 @@ def test_run_causallm_lora_tied_weights_in_modules_to_save(modules_to_save, expe
         adapter_config = _get_adapter_config(checkpoint_path)
         _validate_adapter_config(adapter_config, "LORA")
 
+        # peft >= 0.19 may record a back-derived tied embedding under its
+        # fully-qualified name (e.g. "model.embed_tokens" rather than
+        # "embed_tokens"), so compare on the last dotted segment the same way
+        # peft matches against EMBEDDING_LAYER_NAMES.
+        saved = adapter_config.get("modules_to_save") or []
+        saved_leaves = {m.split(".")[-1] for m in saved}
         for module in expected:
-            assert module in adapter_config.get("modules_to_save")
+            assert (
+                module in saved_leaves
+            ), f"Expected {module} not found in modules_to_save config: {saved}"
 
         # Load the model and merge it
         loaded_model = TunedCausalLM.load(checkpoint_path, MAYKEYE_TINY_LLAMA_CACHED)
