@@ -26,6 +26,7 @@ import traceback
 from accelerate.utils import set_seed
 from huggingface_hub.utils._validators import HFValidationError
 from peft import LoraConfig
+from peft.utils.constants import EMBEDDING_LAYER_NAMES
 from peft.utils.other import fsdp_auto_wrap_policy
 from torch.cuda import OutOfMemoryError
 from transformers import (
@@ -68,6 +69,36 @@ from tuning.utils.error_logging import (
     write_termination_log,
 )
 from tuning.utils.logging import pretty_print_args, set_log_level
+
+
+def _get_embedding_module_names(model) -> set:
+    """Return the leaf module names of the model's input/output embeddings.
+
+    Resolved by object identity via the public `get_input_embeddings()` and
+    `get_output_embeddings()` accessors, so this works regardless of the
+    architecture's naming convention (`embed_tokens` on llama/granite, `wte` on
+    gpt_bigcode/gpt2) instead of assuming a fixed name.
+
+    Returns an empty set if the embeddings cannot be resolved, in which case the
+    caller should leave `modules_to_save` untouched rather than guess.
+    """
+    try:
+        input_embeddings = model.get_input_embeddings()
+        output_embeddings = model.get_output_embeddings()
+    except (AttributeError, NotImplementedError):
+        return set()
+
+    targets = [e for e in (input_embeddings, output_embeddings) if e is not None]
+    if not targets:
+        return set()
+
+    names = set()
+    for name, module in model.named_modules():
+        if not name:
+            continue
+        if any(module is t for t in targets):
+            names.add(name.split(".")[-1])
+    return names
 
 
 def train(
@@ -386,27 +417,59 @@ def train(
     # If additional tokens are added, and we are doing LoRA
     # we need to set the embedding layer as trainable
     # and ensure that the weights are tied
-    # if added_tokens_dict and isinstance(peft_config, LoraConfig):
-    #    if added_tokens_dict.get("num_new_tokens", 0) > 0:
-    #        modules_to_save = getattr(peft_config, "modules_to_save", []) or []
-    #        target_modules = getattr(peft_config, "target_modules", []) or []
+    if added_tokens_dict and isinstance(peft_config, LoraConfig):
+        if added_tokens_dict.get("num_new_tokens", 0) > 0:
+            modules_to_save = getattr(peft_config, "modules_to_save", []) or []
+            target_modules = getattr(peft_config, "target_modules", []) or []
 
-    # If the initial model's weights are not tied,
-    # then we need to add both the embedding layer and the output layer
-    # If embedding layer or lm head is already targetted via `target_modules`
-    # then we skip adding it `modules_to_save` since it is already adapted
-    # for changes
-    #        if not any(m in target_modules for m in ("embed_tokens", "lm_head")):
-    #            modules_to_save.extend(["embed_tokens", "lm_head"])
-    #            setattr(peft_config, "modules_to_save", modules_to_save)
+            # Resolve the embedding layers by object identity rather than by
+            # assuming a naming convention. Architectures disagree on the leaf
+            # name: llama/granite use `model.embed_tokens` while gpt_bigcode and
+            # gpt2 use `transformer.wte`, so a hardcoded "embed_tokens" is inert
+            # on the latter -- it matches no module and is silently dropped,
+            # leaving the resized input embedding untrained so the new token
+            # rows never learn. peft can recover the input embedding from
+            # `lm_head` through its tying logic, but only when
+            # `ensure_weight_tying=True`; that is not automatic on a tied model,
+            # so we must not rely on it. Resolving the real names also keeps the
+            # `ensure_weight_tying` decision below meaningful.
+            embedding_names = _get_embedding_module_names(model)
 
-    # This is safe to do for both tied and non-tied models
-    # `ensure_weight_tying` will be ignored if weights are not tied
-    # https://github.com/huggingface/peft/blob/v0.18.0.rc0/src/peft/tuners/tuners_utils.py#L1230
-    #        setattr(peft_config, "ensure_weight_tying", True)
-    #        logger.info(
-    #            "Adding embed_tokens and lm_head as trainable modules due to vocab expansion"
-    #        )
+            # If the initial model's weights are not tied,
+            # then we need to add both the embedding layer and the output layer
+            # If embedding layer or lm head is already targetted via
+            # `target_modules`, or the user already pointed `modules_to_save` at
+            # an embedding, then we skip adding it to `modules_to_save` since it
+            # is already adapted for changes
+            if embedding_names and not (
+                any(m in target_modules for m in embedding_names)
+                or any(m in embedding_names for m in modules_to_save)
+            ):
+                modules_to_save.extend(sorted(embedding_names))
+                setattr(peft_config, "modules_to_save", modules_to_save)
+
+            # Only request tying when the model actually ties its embeddings and
+            # peft will recognise one of the configured `modules_to_save` as an
+            # embedding. peft matches the last dotted segment against
+            # EMBEDDING_LAYER_NAMES, and warns (doing nothing) if nothing matches.
+            # https://github.com/huggingface/peft/blob/v0.19.1/src/peft/tuners/tuners_utils.py
+            tie_word_embeddings = getattr(
+                getattr(model, "config", None), "tie_word_embeddings", False
+            )
+            peft_recognises_embedding = any(
+                m.split(".")[-1] in EMBEDDING_LAYER_NAMES
+                for m in getattr(peft_config, "modules_to_save", []) or []
+            )
+            if tie_word_embeddings and peft_recognises_embedding:
+                setattr(peft_config, "ensure_weight_tying", True)
+
+            logger.info(
+                "Vocab expanded by %d token(s); added %s to modules_to_save "
+                "(ensure_weight_tying=%s)",
+                added_tokens_dict.get("num_new_tokens", 0),
+                sorted(embedding_names),
+                getattr(peft_config, "ensure_weight_tying", False),
+            )
 
     # Configure the collator and validate args related to packing prior to formatting the dataset
     data_collator = None
