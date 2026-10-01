@@ -49,17 +49,17 @@ flash-attn = ["flash-attn>=2.8.3"]
 aim = ["aim>=3.19.0,<4.0"]
 mlflow = ["mlflow"]
 clearml = ["clearml==2.0.0"]
-fms-accel = ["fms-acceleration>=0.6.2"]
+fms-accel = ["fms-acceleration>=0.6.4"]
 gptq-dev = ["auto_gptq>0.4.2", "optimum>=1.15.0"]
 mamba = ["mamba_ssm[causal-conv1d]>=2.0.0,<3.0.0"]
 scanner-dev = ["HFResourceScanner>=0.1.0"]
 fms-accel-all = [
-    "fms-acceleration>=0.6.2",
-    "fms-acceleration-peft",
-    "fms-acceleration-foak",
-    "fms-acceleration-aadp",
-    "fms-acceleration-moe",
-    "fms-acceleration-odm"
+    "fms-acceleration>=0.6.4",
+    "fms-acceleration-peft>=0.4.4",
+    "fms-acceleration-foak>=0.7.4",
+    "fms-acceleration-aadp>=0.2.2",
+    "fms-acceleration-moe>=0.4.6",
+    "fms-acceleration-odm>=0.1.6"
 ]
 tuning_config_recommender=["tuning_config_recommender>=0.1.7"]
 
