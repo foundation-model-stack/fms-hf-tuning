@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared pytest fixtures."""
+"""Shared pytest fixtures.
+
+The imports inside these fixtures are intentionally function-local: they must not
+run at collection time (peft / fms_acceleration pull in heavy optional stacks, and
+`fms_acceleration` may not be installed at all), so the module-level pylint check
+is disabled for them here rather than at each call site.
+"""
+
+# pylint: disable=import-outside-toplevel
 
 # Third Party
 import pytest
@@ -73,8 +81,8 @@ def restore_plugin_registrations():
 
     Snapshot the registry before each test and restore it afterwards.
     """
-    # Third Party
     try:
+        # Third Party
         from fms_acceleration.framework_plugin import PLUGIN_REGISTRATIONS
     except ImportError:
         # fms_acceleration is optional; nothing to protect.
